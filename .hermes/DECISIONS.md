@@ -36,8 +36,9 @@ AI developer: [Hermes Agent](https://github.com/NousResearch/hermes-agent) + Sum
 - Kanban: `esi-erp`
 - CTO profile: `esi-king` (legacy: `esi-cto`)
 
-## D-008: Fokus domain konservasi
-Prioritas fitur: proyek lapangan, aset kandang, basis pengetahuan SOP, inventori pakan/obat, grant & laporan keuangan, SDM ranger, mitra/donor.
+## D-008: Fokus domain pet ecosystem B2B
+
+Prioritas fitur: partner management (Vets, Petshop, PetClinic, PetHotel, PetTransport), teleconsult, booking, online shop backoffice, CRM sales & marketing, HR, finance/payout. Bukan konservasi satwa.
 
 ## D-009: Viking Division (Hermes AI Team)
 Hierarki agent AI mengikuti **Viking Division** untuk ERP Sobatpaws.

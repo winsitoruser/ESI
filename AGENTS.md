@@ -9,11 +9,33 @@ Gunakan skill:
 
 ## Konteks bisnis
 
-Organisasi konservasi satwa — **bukan** ritel/F&B. Fokus: proyek lapangan, aset kandang, inventori pakan/obat, grant & keuangan, SDM ranger, mitra/donor.
+Platform **pet ecosystem B2B** — penyedia layanan aplikasi untuk:
+- **Teleconsult** — mempertemukan petowner dengan **Vets** (dokter hewan sebagai member telekonsul)
+- **Booking** — petowner booking layanan ke **Petshop, PetClinic, PetHotel, Pet Transport**
+- **Online Shopping** — petowner belanja produk petshop secara online
+
+**Customer kami:**
+- **B2B Partners:** Vets (member telekonsul), Petshop, PetClinic, PetHotel, PetTransport
+- **B2C:** Pet owner (end user via platform)
+
+**SIMESI** = ERP & backoffice untuk mengelola partner, client, tim sales & marketing, HR, dan planning bisnis.
+**BUKAN** konservasi satwa, BUKAN ritel/F&B biasa.
 
 ## Modul yang **TIDAK ADA** (jangan buat link/API baru)
 
-PoS, FnB (dapur/meja/reservasi), Cabang multi-branch, Manufaktur, Keuangan Ringkas, DMS/Brankas Digital, Livestreaming, BUMDes.
+PoS (retail offline), FnB (dapur/meja/reservasi), Manufaktur, Keuangan Ringkas, DMS/Brankas Digital, Livestreaming, BUMDes.
+
+## Prioritas fitur SIMESI (Phase 5+)
+
+| Modul | Deskripsi | Priority |
+|---|---|---|
+| **Partner Management** | CRUD Vets, Petshop, PetClinic, PetHotel, PetTransport | 🔥 P1 |
+| **Teleconsult Module** | Jadwal, sesi, riwayat telekonsul | 🔥 P1 |
+| **Booking Management** | Booking petshop/petclinic/pethotel/petcare | 🔥 P1 |
+| **Online Shop Backoffice** | Katalog produk, order management partner | 🔥 P2 |
+| **Sales & Marketing CRM** | Pipeline partner acquisition, maintenance | P2 |
+| **HR & Planning** | Tim sales, ranger/ops, shift planning | P3 |
+| **Finance & Pembayaran** | Commission/payout ke partner, billing | P3 |
 
 ## Stack
 

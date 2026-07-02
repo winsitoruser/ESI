@@ -1,7 +1,7 @@
 /**
  * Sidebar HQ — PT Ekosistem Satwa Indonesia (ESI)
- * Platform ERP konservasi & operasional satwa liar.
- * Tanpa: PoS, FnB, Cabang, Manufaktur, Keuangan Ringkas, Brankas Digital, Livestreaming, BUMDes.
+ * Platform pet ecosystem B2B — Partner Management, Teleconsult, Booking, Online Shop
+ * Tanpa: PoS retail offline, FnB, Manufaktur, DMS, Livestreaming, BUMDes.
  */
 import {
   LayoutDashboard, Package, Users, FileText, Settings, TrendingUp,
@@ -11,7 +11,8 @@ import {
   Warehouse, Wrench, Send, Plane, Calculator, Receipt, FileSpreadsheet,
   PiggyBank, CreditCard, Shield, Link2, Code2, Heart, MapPin, Navigation,
   Fuel, HardHat, Scan, GraduationCap, PenTool, Ship, Anchor, Car,
-  Sparkles, Activity, AlertTriangle, Timer, Rocket, Gauge, Cog, Brain, UserPlus, TreePine,
+  Sparkles, Activity, AlertTriangle, Timer, Rocket, Gauge, Cog, Brain, UserPlus,
+  Dog, Syringe, Hotel, Building, Calendar,
   type LucideIcon,
 } from 'lucide-react';
 import type { SidebarConfig, MenuGroup } from './sidebar.config';
@@ -31,6 +32,44 @@ export const esiHqSidebarConfig: SidebarConfig = {
       items: [
         { id: 'home', name: 'Beranda', href: '/hq/home', icon: Sparkles },
         { id: 'dashboard', name: 'Dasbor Operasional', href: '/hq/dashboard', icon: LayoutDashboard },
+      ],
+    },
+    {
+      id: 'platform',
+      title: 'Platform & Partner',
+      items: [
+        {
+          id: 'partners',
+          name: 'Partner Management',
+          icon: Building2,
+          modules: ['partners'],
+          children: [
+            { id: 'partner-all', name: 'Semua Partner', href: '/hq/partners', icon: Users },
+            { id: 'partner-vet', name: 'Veterinarian', href: '/hq/partners?type=vet', icon: Syringe },
+            { id: 'partner-petshop', name: 'Pet Shop', href: '/hq/partners?type=petshop', icon: Dog },
+            { id: 'partner-clinic', name: 'Pet Clinic', href: '/hq/partners?type=petclinic', icon: Heart },
+            { id: 'partner-hotel', name: 'Pet Hotel', href: '/hq/partners?type=pethotel', icon: Hotel },
+            { id: 'partner-transport', name: 'Pet Transport', href: '/hq/partners?type=pettransport', icon: Truck },
+          ],
+        },
+        {
+          id: 'teleconsult',
+          name: 'Teleconsult',
+          icon: Heart,
+          modules: ['teleconsult'],
+          children: [
+            { id: 'tc-sessions', name: 'Sesi Telekonsul', href: '/hq/teleconsult', icon: Activity },
+          ],
+        },
+        {
+          id: 'booking',
+          name: 'Booking',
+          icon: Calendar,
+          modules: ['booking'],
+          children: [
+            { id: 'booking-list', name: 'Daftar Booking', href: '/hq/booking', icon: ClipboardList },
+          ],
+        },
       ],
     },
     {
@@ -57,7 +96,7 @@ export const esiHqSidebarConfig: SidebarConfig = {
           children: [
             { id: 'asset-dashboard', name: 'Dasbor Aset', href: '/hq/assets', icon: LayoutDashboard },
             { id: 'asset-register', name: 'Register Aset', href: '/hq/assets?tab=register', icon: Package },
-            { id: 'asset-field', name: 'Aset Lapangan', href: '/hq/assets/field', icon: TreePine },
+            { id: 'asset-field', name: 'Aset Lapangan', href: '/hq/assets/field', icon: MapPin },
             { id: 'asset-maintenance', name: 'Pemeliharaan', href: '/hq/assets?tab=maintenance', icon: Cog },
           ],
         },

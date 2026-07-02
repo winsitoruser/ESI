@@ -5,128 +5,120 @@ const Partner = sequelize.define('Partner', {
   id: {
     type: DataTypes.UUID,
     defaultValue: DataTypes.UUIDV4,
-    primaryKey: true
+    primaryKey: true,
   },
-  businessName: {
-    type: DataTypes.STRING(255),
-    allowNull: false,
-    field: 'business_name'
-  },
-  businessType: {
-    type: DataTypes.STRING(100),
-    allowNull: true,
-    field: 'business_type'
-  },
-  ownerName: {
-    type: DataTypes.STRING(255),
-    allowNull: false,
-    field: 'owner_name'
-  },
-  email: {
-    type: DataTypes.STRING(255),
+  code: {
+    type: DataTypes.STRING(20),
     allowNull: false,
     unique: true,
-    validate: {
-      isEmail: true
-    }
+  },
+  name: {
+    type: DataTypes.STRING(200),
+    allowNull: false,
+  },
+  type: {
+    type: DataTypes.ENUM('vet', 'petshop', 'petclinic', 'pethotel', 'pettransport'),
+    allowNull: false,
+  },
+  picName: {
+    type: DataTypes.STRING(100),
+    field: 'pic_name',
+    allowNull: true,
+  },
+  picPhone: {
+    type: DataTypes.STRING(20),
+    field: 'pic_phone',
+    allowNull: true,
   },
   phone: {
-    type: DataTypes.STRING(50),
-    allowNull: true
+    type: DataTypes.STRING(20),
+    allowNull: true,
+  },
+  email: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    validate: { isEmail: true },
   },
   address: {
     type: DataTypes.TEXT,
-    allowNull: true
+    allowNull: true,
   },
   city: {
     type: DataTypes.STRING(100),
-    allowNull: true
+    allowNull: true,
   },
   province: {
     type: DataTypes.STRING(100),
-    allowNull: true
-  },
-  postalCode: {
-    type: DataTypes.STRING(20),
     allowNull: true,
-    field: 'postal_code'
   },
-  taxId: {
-    type: DataTypes.STRING(50),
+  latitude: {
+    type: DataTypes.DECIMAL(10, 7),
     allowNull: true,
-    field: 'tax_id'
+  },
+  longitude: {
+    type: DataTypes.DECIMAL(10, 7),
+    allowNull: true,
   },
   status: {
-    type: DataTypes.STRING(50),
+    type: DataTypes.ENUM('active', 'inactive', 'pending', 'suspended'),
     defaultValue: 'pending',
-    validate: {
-      isIn: [['pending', 'active', 'inactive', 'suspended']]
-    }
   },
-  activationStatus: {
-    type: DataTypes.STRING(50),
-    defaultValue: 'pending',
-    field: 'activation_status',
-    validate: {
-      isIn: [['pending', 'approved', 'rejected']]
-    }
+  commissionRate: {
+    type: DataTypes.DECIMAL(5, 2),
+    field: 'commission_rate',
+    defaultValue: 0,
   },
-  activationRequestedAt: {
-    type: DataTypes.DATE,
+  joinDate: {
+    type: DataTypes.DATEONLY,
+    field: 'join_date',
     allowNull: true,
-    field: 'activation_requested_at'
   },
-  activationApprovedAt: {
-    type: DataTypes.DATE,
+  notes: {
+    type: DataTypes.TEXT,
     allowNull: true,
-    field: 'activation_approved_at'
   },
-  activationApprovedBy: {
+  tags: {
+    type: DataTypes.ARRAY(DataTypes.STRING),
+    defaultValue: [],
+  },
+  isActive: {
+    type: DataTypes.BOOLEAN,
+    field: 'is_active',
+    defaultValue: true,
+  },
+  tenantId: {
     type: DataTypes.UUID,
+    field: 'tenant_id',
     allowNull: true,
-    field: 'activation_approved_by'
   },
-  rejectionReason: {
-    type: DataTypes.TEXT,
+  createdBy: {
+    type: DataTypes.UUID,
+    field: 'created_by',
     allowNull: true,
-    field: 'rejection_reason'
   },
-  logoUrl: {
-    type: DataTypes.TEXT,
+  updatedBy: {
+    type: DataTypes.UUID,
+    field: 'updated_by',
     allowNull: true,
-    field: 'logo_url'
   },
-  website: {
-    type: DataTypes.STRING(255),
-    allowNull: true
-  }
 }, {
   tableName: 'partners',
   timestamps: true,
-  underscored: true
+  underscored: true,
+  indexes: [
+    { fields: ['type'] },
+    { fields: ['status'] },
+    { fields: ['tenant_id'] },
+    { fields: ['city'] },
+    { fields: ['is_active'] },
+  ],
 });
 
-// Define associations
-Partner.associate = function(models) {
-  Partner.hasMany(models.PartnerOutlet, {
-    foreignKey: 'partner_id',
-    as: 'outlets'
-  });
-  
-  Partner.hasMany(models.PartnerUser, {
-    foreignKey: 'partner_id',
-    as: 'users'
-  });
-  
-  Partner.hasMany(models.PartnerSubscription, {
-    foreignKey: 'partner_id',
-    as: 'subscriptions'
-  });
-  
-  Partner.hasMany(models.ActivationRequest, {
-    foreignKey: 'partner_id',
-    as: 'activationRequests'
-  });
+Partner.associate = (models) => {
+  // Partner has many teleconsult sessions
+  Partner.hasMany(models.TeleconsultSession, { foreignKey: 'partner_id' });
+  // Partner has many bookings
+  Partner.hasMany(models.Booking, { foreignKey: 'partner_id' });
 };
 
 module.exports = Partner;
