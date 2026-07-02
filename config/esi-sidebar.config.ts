@@ -12,7 +12,7 @@ import {
   PiggyBank, CreditCard, Shield, Link2, Code2, Heart, MapPin, Navigation,
   Fuel, HardHat, Scan, GraduationCap, PenTool, Ship, Anchor, Car,
   Sparkles, Activity, AlertTriangle, Timer, Rocket, Gauge, Cog, Brain, UserPlus,
-  Dog, Syringe, Hotel, Building, Calendar,
+  Dog, Syringe, Hotel, Building, Calendar, Percent, Wallet, Users2,
   type LucideIcon,
 } from 'lucide-react';
 import type { SidebarConfig, MenuGroup } from './sidebar.config';
@@ -180,11 +180,21 @@ export const esiHqSidebarConfig: SidebarConfig = {
           children: [
             { id: 'hris-dashboard', name: 'Dasbor HRIS', href: '/hq/hris', icon: LayoutDashboard },
             { id: 'hris-employees', name: 'Karyawan', href: '/hq/hris/employees', icon: Users },
+            { id: 'hris-team', name: 'Tim Marketing & Sales', href: '/hq/hris/team-members', icon: Target },
+            { id: 'hris-tasks', name: 'Tugas Tim', href: '/hq/hris/tasks', icon: ClipboardList },
             { id: 'hris-attendance', name: 'Kehadiran', href: '/hq/hris/attendance', icon: Timer },
             { id: 'hris-payroll', name: 'Payroll', href: '/hq/hris/payroll', icon: DollarSign },
             { id: 'hris-recruitment', name: 'Rekrutmen', href: '/hq/hris/recruitment', icon: UserPlus },
           ],
         },
+      ],
+    },
+    {
+      id: 'hr-planning',
+      title: 'HR & Planning',
+      items: [
+        { id: 'team-members', name: 'Tim Internal', href: '/hq/hris/team-members', icon: Users2, modules: ['hris'] },
+        { id: 'tasks', name: 'Task Management', href: '/hq/hris/tasks', icon: ClipboardList, modules: ['hris'] },
       ],
     },
     {
@@ -197,8 +207,8 @@ export const esiHqSidebarConfig: SidebarConfig = {
           icon: Briefcase,
           modules: ['crm', 'sfa'],
           children: [
-            { id: 'sfa-dashboard', name: 'Dasbor CRM', href: '/hq/sfa', icon: LayoutDashboard },
-            { id: 'sfa-pipeline', name: 'Pipeline Donor/Mitra', href: '/hq/sfa?tab=pipeline', icon: Target },
+            { id: 'crm-dashboard', name: 'Dasbor CRM', href: '/hq/crm', icon: LayoutDashboard },
+            { id: 'crm-pipeline', name: 'Pipeline Leads', href: '/hq/crm', icon: Target },
           ],
         },
         { id: 'helpdesk', name: 'Layanan & Help Desk', href: '/hq/helpdesk', icon: Headphones, modules: ['helpdesk', 'crm'] },
@@ -218,6 +228,8 @@ export const esiHqSidebarConfig: SidebarConfig = {
           modules: ['finance_pro'],
           children: [
             { id: 'fin-dashboard', name: 'Dasbor Keuangan', href: '/hq/finance', icon: LayoutDashboard },
+            { id: 'fin-commissions', name: 'Komisi Partner', href: '/hq/commissions', icon: Percent },
+            { id: 'fin-payouts', name: 'Pembayaran Partner', href: '/hq/payouts', icon: Wallet },
             { id: 'fin-invoices', name: 'Faktur', href: '/hq/finance/invoices', icon: Receipt },
             { id: 'fin-expenses', name: 'Pengeluaran', href: '/hq/finance/expenses', icon: CreditCard },
             { id: 'fin-pnl', name: 'Laba Rugi', href: '/hq/finance/profit-loss', icon: FileSpreadsheet },

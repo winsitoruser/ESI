@@ -1,6 +1,6 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 2 Juli 2026 — **Refactoring Phase 1-3 selesai · Viking Division aktif · Phase 4 tiket terbuat**
+> Diperbarui: 3 Juli 2026 — **Phase 1-4 ✅ · Phase 5.1 (Partner Management) ✅ · Phase 5.2–5.5 🔄 (kanban tickets created) · Activities Log 🔄**
 
 ## Status project — Pasca Refactor
 
@@ -54,16 +54,27 @@ SIMESI (Next.js 15, Pages Router)
     └── ADR-010-simesi-platform-mandiri.md
 ```
 
-## Backlog prioritas (Phase 4) — ✅ Tiket terbuat di kanban `esi-erp`
+## Backlog prioritas (Phase 4) — ✅ Semua selesai (kanban `esi-erp`)
+
+| # | Tiket | Assignee | Status |
+|---|---|---|---|
+| 1 | 🔥 Phase 4.1 — Hapus model FnB/PoS/DMS dari Prisma | `esi-backend-sr-1` | ✅ done |
+| 2 | 🔥 Phase 4.2 — CI/CD Pipeline GitHub Actions | `esi-fort` | ✅ done |
+| 3 | ⚡ Phase 4.3 — Fix 154 FK ordering migrasi | `esi-backend-sr-2` | ✅ done |
+| 4 | 📋 Phase 4.4 — Dependencies cleanup | `esi-frontend-sr-1` | ✅ done |
+| 5 | 📋 Phase 4.5 — Cek runtime dashboard.tsx | `esi-frontend-mid-1` | ✅ done |
+| 6 | 📋 Phase 4.6 — Cek settings API kitchen/PoS | `esi-backend-mid-1` | ✅ done |
+
+## Phase 5 — Backlog (kanban `esi-erp`)
 
 | # | Tiket | Assignee | Priority | Status |
 |---|---|---|---|---|
-| 1 | 🔥 Phase 4.1 — Hapus model FnB/PoS/DMS dari Prisma | `esi-backend-sr-1` | P1 | ✅ ready |
-| 2 | 🔥 Phase 4.2 — CI/CD Pipeline GitHub Actions | `esi-fort` | P1 | ✅ ready |
-| 3 | ⚡ Phase 4.3 — Fix 154 FK ordering migrasi | `esi-backend-sr-2` | P2 | ✅ ready |
-| 4 | 📋 Phase 4.4 — Dependencies cleanup | `esi-frontend-sr-1` | P3 | ✅ ready |
-| 5 | 📋 Phase 4.5 — Cek runtime dashboard.tsx | `esi-frontend-mid-1` | P2 | ✅ ready |
-| 6 | 📋 Phase 4.6 — Cek settings API kitchen/PoS | `esi-backend-mid-1` | P3 | ✅ ready |
+| 1 | ✅ Phase 5.1 — Partner Management (CRUD Vets, Petshop, PetClinic, PetHotel, PetTransport) | `esi-backend-1` | P1 | ✅ done (commit `2bd1e5e`) |
+| 2 | 🔥 Phase 5.2 — Teleconsult Module (model + API + frontend pages) | `esi-backend-1` | P1 | ✅ done — frontend: list + detail/edit, sidebar configured |
+| 3 | 🔥 Phase 5.3 — CRM / Sales & Marketing (model + API + frontend pages) | `esi-backend-1` | P1 | ✅ done — pipeline kanban + table view, activities timeline, sidebar updated |
+| 4 | 🔄 Phase 5.4 — Finance Module (model + API) | `esi-backend-1` | P2 | ready — code written, perlu frontend |
+| 5 | 🔄 Phase 5.5 — HR Module (model + API) | `esi-backend-1` | P2 | ready — code written, perlu frontend |
+| 6 | 🔄 Phase 5.x — Activities Log (API) | `esi-backend-1` | P3 | ✅ integrated in CRM detail page |
 
 ## Viking Division — Status Tim
 
