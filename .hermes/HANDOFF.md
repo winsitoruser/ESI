@@ -12,8 +12,10 @@
 | Stale deploy scripts + IP hardcoded | ✅ Dibersihkan |
 | Stale export/ + _backup_dupes/ | ✅ Dihapus |
 | Migrasi excluded module diarsipkan | ✅ 13 files ke `migrations/_archived/` |
-| Build | ✅ `npm run build` sukses |
-| Login page | ✅ Berfungsi di `localhost:3010` |
+| Build (dev server) | ✅ `npm run dev` jalan di `:3010` |
+| Build (production) | ⚠️ Webpack vendor-chunks ENOENT fix applied (splitChunks=false on server) |
+| Login page | ✅ Berfungsi, auth simplified (no Branch/Tenant includes) |
+| Latest commit | `37dbb0c` — auth simplification, webpack fix, DB ssl config |
 
 ## Kredensial
 
@@ -63,7 +65,7 @@ SIMESI (Next.js 15, Pages Router)
 | 3 | ⚡ Phase 4.3 — Fix 154 FK ordering migrasi | `esi-backend-sr-2` | ✅ done |
 | 4 | 📋 Phase 4.4 — Dependencies cleanup | `esi-frontend-sr-1` | ✅ done |
 | 5 | 📋 Phase 4.5 — Cek runtime dashboard.tsx | `esi-frontend-mid-1` | ✅ done |
-| 6 | 📋 Phase 4.6 — Cek settings API kitchen/PoS | `esi-backend-mid-1` | ✅ done |
+| 6 | 📋 Phase 4.6 — Cek settings API kitchen/PoS | `esi-backend-mid-1` | P3 | ✅ done (bersih) |
 
 ## Phase 5 — Backlog (kanban `esi-erp`)
 
