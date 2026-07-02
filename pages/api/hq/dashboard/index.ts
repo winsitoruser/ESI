@@ -154,10 +154,11 @@ export default async function handler(
 // Get HQ Overview - KPIs dari seluruh cabang
 async function getHQOverview(tenantId: string, dateFilter: string, branchFilter: string, branchParams: any) {
   console.log('[getHQOverview] tenantId:', tenantId, 'branchParams:', branchParams);
-  const { sequelize } = await import('@/lib/sequelizeClient');
-  const { QueryTypes } = require('sequelize');
-
-  // Get overall KPIs
+  try {
+    const { sequelize } = await import('@/lib/sequelizeClient');
+    const { QueryTypes } = require('sequelize');
+ 
+    // Get overall KPIs
   const [kpis] = await sequelize.query(`
     SELECT 
       COUNT(DISTINCT b.id) as total_branches,
@@ -394,14 +395,24 @@ async function getHQOverview(tenantId: string, dateFilter: string, branchFilter:
       return acc;
     }, {})
   };
+  } catch (error: any) {
+    console.error('[getHQOverview] Error:', error?.message || error);
+    return {
+      kpis: { total_branches: 0, active_branches: 0, total_transactions: 0, unique_customers: 0, total_revenue: 0, net_revenue: 0, total_discount: 0, total_tax: 0, avg_transaction_value: 0, total_employees: 0, active_employees: 0, employees_checked_in_today: 0, total_products: 0, low_stock_products: 0, out_of_stock_products: 0, total_inventory_value: 0, total_income: 0, total_expenses: 0, net_profit: 0 },
+      topBranches: [],
+      recentAlerts: [],
+      departmentSummary: {}
+    };
+  }
 }
 
 // Get detailed branches status
 async function getBranchesStatus(tenantId: string, dateFilter: string, branchFilter: string, branchParams: any) {
-  const { sequelize } = await import('@/lib/sequelizeClient');
-  const { QueryTypes } = require('sequelize');
-
-  const branches = await sequelize.query(`
+  try {
+    const { sequelize } = await import('@/lib/sequelizeClient');
+    const { QueryTypes } = require('sequelize');
+  
+    const branches = await sequelize.query(`
     SELECT 
       b.id,
       b.name,
@@ -485,14 +496,19 @@ async function getBranchesStatus(tenantId: string, dateFilter: string, branchFil
       critical: branches.filter(b => b.health_score < 50).length
     }
   };
+  } catch (error: any) {
+    console.error('[getBranchesStatus] Error:', error?.message || error);
+    return { branches: [], summary: { total: 0, active: 0, healthy: 0, warning: 0, critical: 0 } };
+  }
 }
 
 // Get departments status
 async function getDepartmentsStatus(tenantId: string, dateFilter: string, branchFilter: string, branchParams: any) {
-  const { sequelize } = await import('@/lib/sequelizeClient');
-  const { QueryTypes } = require('sequelize');
-
-  // Operations Department
+  try {
+    const { sequelize } = await import('@/lib/sequelizeClient');
+    const { QueryTypes } = require('sequelize');
+  
+    // Operations Department
   const [operations] = await sequelize.query(`
     SELECT 
       COUNT(DISTINCT b.id) as total_branches,
@@ -636,14 +652,19 @@ async function getDepartmentsStatus(tenantId: string, dateFilter: string, branch
       net_profit: parseFloat(finance.net_profit || 0)
     }
   };
+  } catch (error: any) {
+    console.error('[getDepartmentsStatus] Error:', error?.message || error);
+    return { operations: null, inventory: null, hr: null, finance: null };
+  }
 }
 
 // Get HQ alerts
 async function getHQAlerts(tenantId: string, branchFilter: string, branchParams: any) {
-  const { sequelize } = await import('@/lib/sequelizeClient');
-  const { QueryTypes } = require('sequelize');
-
-  const alerts = await sequelize.query(`
+  try {
+    const { sequelize } = await import('@/lib/sequelizeClient');
+    const { QueryTypes } = require('sequelize');
+  
+    const alerts = await sequelize.query(`
     (SELECT 
       'critical' as level,
       'Branch Offline' as title,
@@ -773,12 +794,17 @@ async function getHQAlerts(tenantId: string, branchFilter: string, branchParams:
       return acc;
     }, { critical: 0, high: 0, medium: 0, low: 0 })
   };
+  } catch (error: any) {
+    console.error('[getHQAlerts] Error:', error?.message || error);
+    return { alerts: [], summary: { critical: 0, high: 0, medium: 0, low: 0 } };
+  }
 }
 
 // Get trends data
 async function getHQTrends(tenantId: string, timeRange: string, branchFilter: string, branchParams: any) {
-  const { sequelize } = await import('@/lib/sequelizeClient');
-  const { QueryTypes } = require('sequelize');
+  try {
+    const { sequelize } = await import('@/lib/sequelizeClient');
+    const { QueryTypes } = require('sequelize');
 
   let dateGrouping = '';
   let limit = '';
@@ -859,4 +885,8 @@ async function getHQTrends(tenantId: string, timeRange: string, branchFilter: st
     })),
     branchTrends
   };
+  } catch (error: any) {
+    console.error('[getHQTrends] Error:', error?.message || error);
+    return { revenueTrends: [], branchTrends: [] };
+  }
 }
