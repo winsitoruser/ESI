@@ -1,6 +1,6 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 3 Juli 2026 — **Phase 1-4 ✅ · Phase 5.1 (Partner Management) ✅ · Phase 5.2–5.5 🔄 (kanban tickets created) · Activities Log 🔄**
+> Diperbarui: 3 Juli 2026 — **Phase 1-5 ✅ — All modules complete. Build verified. Commit `261e0f1`**
 
 ## Status project — Pasca Refactor
 
@@ -70,10 +70,10 @@ SIMESI (Next.js 15, Pages Router)
 | # | Tiket | Assignee | Priority | Status |
 |---|---|---|---|---|
 | 1 | ✅ Phase 5.1 — Partner Management (CRUD Vets, Petshop, PetClinic, PetHotel, PetTransport) | `esi-backend-1` | P1 | ✅ done (commit `2bd1e5e`) |
-| 2 | 🔥 Phase 5.2 — Teleconsult Module (model + API + frontend pages) | `esi-backend-1` | P1 | ✅ done — frontend: list + detail/edit, sidebar configured |
-| 3 | 🔥 Phase 5.3 — CRM / Sales & Marketing (model + API + frontend pages) | `esi-backend-1` | P1 | ✅ done — pipeline kanban + table view, activities timeline, sidebar updated |
-| 4 | 🔄 Phase 5.4 — Finance Module (model + API) | `esi-backend-1` | P2 | ready — code written, perlu frontend |
-| 5 | 🔄 Phase 5.5 — HR Module (model + API) | `esi-backend-1` | P2 | ready — code written, perlu frontend |
+| 2 | 🔥 Phase 5.2 — Teleconsult Module (model + API + frontend pages) | `esi-backend-1` | P1 | ✅ done — commit `261e0f1` |
+| 3 | 🔥 Phase 5.3 — CRM / Sales & Marketing (model + API + frontend pages) | `esi-backend-1` | P1 | ✅ done — commit `261e0f1` |
+| 4 | 🔥 Phase 5.4 — Finance Module (Commission/Payout model + API + frontend) | `esi-backend-1` | P2 | ✅ done — commit `261e0f1` |
+| 5 | 🔥 Phase 5.5 — HR & Team Management (TeamMember/Task model + API + frontend) | `esi-backend-1` | P2 | ✅ done — commit `261e0f1` |
 | 6 | 🔄 Phase 5.x — Activities Log (API) | `esi-backend-1` | P3 | ✅ integrated in CRM detail page |
 
 ## Viking Division — Status Tim
