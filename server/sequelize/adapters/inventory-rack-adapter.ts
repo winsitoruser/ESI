@@ -1,6 +1,6 @@
 /**
- * Rack Adapter
- * Provides CRUD operations for warehouse racks with mock fallback
+ * Rack Adapter (Server)
+ * Provides CRUD operations for racks with mock fallback
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -18,36 +18,11 @@ interface RackData {
 const mockRacks: any[] = [];
 
 export const rackAdapter = {
-  async createBatch(racks: RackData[]) {
-    const created = racks.map(rack => ({
-      id: `rack-${uuidv4().slice(0, 8)}`,
-      ...rack,
-      isActive: rack.isActive ?? true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }));
-    mockRacks.push(...created);
-    return created;
-  },
-
-  async deleteBatch(ids: string[], tenantId: string) {
-    let count = 0;
-    for (const id of ids) {
-      const index = mockRacks.findIndex(r => r.id === id && r.tenantId === tenantId);
-      if (index !== -1) {
-        mockRacks.splice(index, 1);
-        count++;
-      }
-    }
-    return { count, ids };
-  },
-
   async getRackById(id: string, tenantId: string) {
     const rack = mockRacks.find(r => r.id === id && r.tenantId === tenantId);
     if (rack) {
       return { rack, isMock: true };
     }
-    // Generate mock rack on demand
     const mockRack = {
       id,
       code: `RACK-${id.slice(0, 4).toUpperCase()}`,
@@ -69,11 +44,7 @@ export const rackAdapter = {
       mockRacks[index] = { ...mockRacks[index], ...data, updatedAt: new Date().toISOString() };
       return { success: true, rack: mockRacks[index], isMock: true };
     }
-    return {
-      success: false,
-      error: 'Rack not found',
-      isMock: true
-    };
+    return { success: false, error: 'Rack not found', isMock: true };
   },
 
   async deleteRack(id: string, tenantId: string) {
@@ -82,7 +53,6 @@ export const rackAdapter = {
       mockRacks.splice(index, 1);
       return { success: true, isMock: true };
     }
-    // Simulate successful delete even if not found
     return { success: true, isMock: true };
   }
 };

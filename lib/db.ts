@@ -73,6 +73,11 @@ export async function testPostgresConnection() {
   }
 }
 
+// Wrapper function for PostgreSQL queries
+export async function query(text: string, params?: any[]) {
+  return pool.query(text, params);
+}
+
 // Export pool as default for PostgreSQL APIs
 export default pool;
 

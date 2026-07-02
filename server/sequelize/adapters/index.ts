@@ -19,3 +19,5 @@ export { default as posPrescriptionAdapter } from './pos-prescription-adapter';
 export { default as shiftAdapter } from './pos-shift-adapter';
 export { default as customersAdapter } from './customers-adapter';
 export { InventoryAdjustmentAdapter } from './inventory-adjustment-adapter';
+export { rackAdapter } from './inventory-rack-adapter';
+export { shelfPositionAdapter } from './inventory-shelf-adapter';

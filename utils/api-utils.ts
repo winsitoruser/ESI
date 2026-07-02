@@ -78,7 +78,7 @@ export function withApiHandler(handler: ApiHandler) {
 /**
  * Extract tenant ID from request
  */
-function extractTenantId(req: NextApiRequest): string | null {
+export function extractTenantId(req: NextApiRequest): string | null {
   // Try to get from headers
   const tenantId = req.headers['x-tenant-id'] as string;
   if (tenantId) return tenantId;

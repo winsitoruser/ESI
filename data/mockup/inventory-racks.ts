@@ -1,35 +1,23 @@
 /**
- * Mock Inventory Racks Data
+ * Mock data for inventory racks
+ * Used as fallback when database operations fail
  */
 
-export const mockRacks = [
-  {
-    id: '1',
-    code: 'R-A1',
-    name: 'Rack A1',
-    warehouseId: 'WH-001',
-    capacity: 100,
-    currentLoad: 75,
-    isActive: true
-  },
-  {
-    id: '2',
-    code: 'R-A2',
-    name: 'Rack A2',
-    warehouseId: 'WH-001',
-    capacity: 100,
-    currentLoad: 50,
-    isActive: true
-  },
-  {
-    id: '3',
-    code: 'R-B1',
-    name: 'Rack B1',
-    warehouseId: 'WH-001',
-    capacity: 150,
-    currentLoad: 120,
-    isActive: true
-  }
-];
+import { v4 as uuidv4 } from 'uuid';
 
-export default mockRacks;
+export function createMockRacks(tenantId: string, count: number) {
+  const racks = [];
+  for (let i = 0; i < count; i++) {
+    racks.push({
+      id: `mock-rack-${uuidv4().slice(0, 8)}`,
+      code: `RACK-${String(i + 1).padStart(3, '0')}`,
+      name: `Mock Rack ${i + 1}`,
+      warehouseId: 'warehouse-1',
+      tenantId,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+  }
+  return racks;
+}
