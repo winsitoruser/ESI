@@ -43,8 +43,16 @@ const nextConfig = {
   // SWC minification enabled by default in Next.js 15
 
   // Webpack config to fix EMFILE (too many open files) on large projects
-  webpack: (config, { dev }) => {
+  webpack: (config, { dev, isServer }) => {
+    // Disable splitChunks on server build to prevent vendor-chunks/*.js ENOENT
+    if (isServer) {
+      config.optimization = {
+        ...config.optimization,
+        splitChunks: false,
+      };
+    }
     if (dev) {
+      config.cache = false;
       config.watchOptions = {
         ...config.watchOptions,
         poll: 1000,

@@ -155,21 +155,9 @@ export const authOptions: NextAuthOptions = {
         try {
           const db = getDb();
           
-          // Find user by email with related data
+          // Find user by email - without includes to avoid schema mismatch
           const user = await db.User.findOne({
-            where: { email: credentials.email },
-            include: [
-              {
-                model: db.Branch,
-                as: 'assignedBranch',
-                required: false
-              },
-              {
-                model: db.Tenant,
-                as: 'tenant',
-                required: false
-              }
-            ]
+            where: { email: credentials.email }
           });
 
           if (!user) {
@@ -205,17 +193,17 @@ export const authOptions: NextAuthOptions = {
             role: normalizedRole,
             originalRole: user.role, // Keep original for debugging
             businessName: user.businessName,
-            tenantId: user.tenantId,
-            branchId: user.assignedBranch?.id || null,
-            branchName: user.assignedBranch?.name || null,
-            branchCode: user.assignedBranch?.code || null,
-            tenantName: user.tenant?.name || null,
+            tenantId: user.tenantId || null,
+            branchId: null,
+            branchName: null,
+            branchCode: null,
+            tenantName: null,
             assignedBranchId: user.assignedBranchId || null,
-            kybStatus: user.tenant?.kybStatus || null,
+            kybStatus: null,
             dataScope: user.dataScope || 'own_branch',
-            businessCode: user.tenant?.businessCode || null,
-            businessStructure: user.tenant?.businessStructure || 'single',
-            setupCompleted: user.tenant?.setupCompleted ?? false,
+            businessCode: null,
+            businessStructure: null,
+            setupCompleted: true,
             redirectUrl: getRedirectUrlForRole(normalizedRole),
           };
         } catch (error) {

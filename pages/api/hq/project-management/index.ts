@@ -1999,4 +1999,4 @@ function generateDemoApprovals() {
   ];
 }
 
-export default withHQAuth(handler, { module: 'projects' });
+export default withHQAuth(handler, { module: 'project_management' });
