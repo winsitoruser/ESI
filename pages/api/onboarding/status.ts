@@ -32,7 +32,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    // Get KYB application (with safe include)
+    // Get KYB application (with safe include) — SIMESI doesn't use KYB
     let kyb = null;
     try {
       kyb = await db.KybApplication.findOne({
@@ -44,11 +44,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         order: [['created_at', 'DESC']]
       });
     } catch (e: any) {
-      console.log('[Status] KYB include error, fetching without include:', e.message);
-      kyb = await db.KybApplication.findOne({
-        where: { userId },
-        order: [['created_at', 'DESC']]
-      });
+      // KYB table doesn't exist in SIMESI — skip gracefully
+      kyb = null;
     }
 
     // If KYB loaded without documents, try fetching them separately
