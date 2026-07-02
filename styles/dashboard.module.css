@@ -1,0 +1,25 @@
+.cardHeader {
+  background: linear-gradient(to right, #FF4500, #FF8C00);
+  color: white;
+  padding: 1rem;
+  border-radius: 8px 8px 0 0;
+}
+
+.card {
+  border: 1px solid #FF4500;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(255, 69, 0, 0.1);
+}
+
+.buttonPrimary {
+  background: #FF4500;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.buttonPrimary:hover {
+  background: #FF8C00;
+  transform: scale(1.05);
+}

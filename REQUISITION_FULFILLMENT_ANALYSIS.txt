@@ -1,0 +1,819 @@
+================================================================================
+REQUISITION FULFILLMENT FLOW - COMPREHENSIVE ANALYSIS & IMPLEMENTATION
+================================================================================
+Feature: "Dipenuhi Oleh" (Fulfilled By) Assignment System
+Location: /hq/requisitions
+Last Updated: 2026-02-25
+
+================================================================================
+CURRENT STATE ANALYSIS
+================================================================================
+
+ISSUE IDENTIFIED:
+Location: Line 649-658 in /pages/hq/requisitions/index.tsx
+Display: "Dipenuhi Oleh: Belum ditentukan" (Not yet determined)
+
+DATABASE SCHEMA:
+Table: internal_requisitions
+Field: fulfilling_branch_id (UUID, nullable)
+Purpose: Cabang/Gudang yang akan memenuhi permintaan (biasanya Pusat)
+
+CURRENT BEHAVIOR:
+- Field exists in database but is nullable
+- Frontend displays "Belum ditentukan" when null
+- No UI mechanism to assign fulfilling branch
+- No API endpoint to update fulfilling_branch_id
+
+BUSINESS REQUIREMENT:
+When a requisition is submitted/approved, HQ needs to assign which branch/
+warehouse will fulfill the request. This could be:
+- Gudang Pusat (Main Warehouse)
+- Another branch with surplus stock
+- Multiple branches (partial fulfillment)
+
+================================================================================
+PROPOSED FULFILLMENT FLOW
+================================================================================
+
+WORKFLOW:
+1. Requisition submitted by branch → status: submitted
+2. HQ reviews requisition → status: under_review
+3. HQ assigns fulfilling branch(es) → fulfilling_branch_id set
+4. HQ approves requisition → status: approved
+5. Fulfilling branch processes → status: processing
+6. Items prepared → status: ready_to_ship
+7. Items shipped → status: in_transit
+8. Items received → status: delivered
+9. Requisition completed → status: completed
+
+FULFILLMENT ASSIGNMENT OPTIONS:
+
+OPTION A: Single Fulfilling Branch
+- Assign one branch/warehouse to fulfill entire requisition
+- Simple, straightforward
+- All items come from one source
+
+OPTION B: Multiple Fulfilling Branches (Partial Fulfillment)
+- Split requisition items across multiple branches
+- More complex but flexible
+- Optimize based on stock availability
+
+OPTION C: Auto-Assignment
+- System automatically assigns based on:
+  * Stock availability
+  * Geographic proximity
+  * Cost optimization
+  * Predefined rules
+
+RECOMMENDED: Start with Option A (Single Branch), add Option B later
+
+================================================================================
+UI/UX DESIGN
+================================================================================
+
+FULFILLMENT ASSIGNMENT MODAL:
+
+Trigger: Click "Tentukan Pemenuhan" button in detail modal
+Location: When viewing requisition detail
+
+Modal Layout:
+┌─────────────────────────────────────────────────────────────────┐
+│  Tentukan Cabang Pemenuhan                                  [X] │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Requisition: IR-BR002-2602-0001                               │
+│  Cabang Peminta: Cabang Bandung                                │
+│                                                                 │
+│  Pilih Cabang/Gudang Pemenuhan:                                │
+│  ┌───────────────────────────────────────────────────────────┐ │
+│  │ ○ Gudang Pusat Cikarang                                   │ │
+│  │   Stok tersedia: 1,250 items                              │ │
+│  │   Jarak: 150 km                                            │ │
+│  ├───────────────────────────────────────────────────────────┤ │
+│  │ ○ Gudang Regional Jakarta                                 │ │
+│  │   Stok tersedia: 850 items                                │ │
+│  │   Jarak: 120 km                                            │ │
+│  ├───────────────────────────────────────────────────────────┤ │
+│  │ ○ Cabang Jakarta Pusat                                    │ │
+│  │   Stok tersedia: 450 items                                │ │
+│  │   Jarak: 140 km                                            │ │
+│  └───────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│  Catatan (opsional):                                           │
+│  ┌───────────────────────────────────────────────────────────┐ │
+│  │                                                            │ │
+│  └───────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│  Estimasi Waktu Pengiriman:                                    │
+│  ┌──────────────┐                                              │
+│  │ 2026-02-26   │ (Date picker)                               │
+│  └──────────────┘                                              │
+│                                                                 │
+│                                    [Batal]  [Simpan Pemenuhan] │
+└─────────────────────────────────────────────────────────────────┘
+
+BUTTON PLACEMENT:
+In detail modal, add button next to "Dipenuhi Oleh" field:
+- If null: "Tentukan Pemenuhan" (primary button)
+- If assigned: "Ubah Pemenuhan" (secondary button)
+- Show assigned branch with option to change
+
+TABLE COLUMN UPDATE:
+Add "Dipenuhi Oleh" column in main table (optional, can be in detail only)
+
+================================================================================
+API ENDPOINTS
+================================================================================
+
+1. GET /api/hq/requisitions/available-branches
+   Purpose: Get list of branches that can fulfill requisition
+   Query Params:
+   - requisitionId: UUID
+   Response:
+   {
+     "success": true,
+     "data": [
+       {
+         "id": "uuid",
+         "code": "WH-001",
+         "name": "Gudang Pusat Cikarang",
+         "type": "warehouse",
+         "city": "Cikarang",
+         "availableStock": 1250,
+         "distance": 150,
+         "estimatedDeliveryDays": 2
+       }
+     ]
+   }
+
+2. PUT /api/hq/requisitions/:id/assign-fulfillment
+   Purpose: Assign fulfilling branch to requisition
+   Body:
+   {
+     "fulfillingBranchId": "uuid",
+     "estimatedDeliveryDate": "2026-02-26",
+     "notes": "Optional notes"
+   }
+   Response:
+   {
+     "success": true,
+     "message": "Fulfilling branch assigned successfully",
+     "data": {
+       "id": "requisition-uuid",
+       "fulfillingBranch": { ... }
+     }
+   }
+
+3. GET /api/hq/requisitions/:id/fulfillment-history
+   Purpose: Get history of fulfillment changes
+   Response:
+   {
+     "success": true,
+     "data": [
+       {
+         "id": "uuid",
+         "action": "assigned",
+         "fromBranch": null,
+         "toBranch": { ... },
+         "changedBy": "Admin Name",
+         "changedAt": "2026-02-25T10:00:00Z",
+         "notes": "Initial assignment"
+       }
+     ]
+   }
+
+4. POST /api/hq/requisitions/export
+   Purpose: Export requisitions to Excel/CSV
+   Body:
+   {
+     "format": "xlsx" | "csv",
+     "filters": {
+       "status": "approved",
+       "dateFrom": "2026-02-01",
+       "dateTo": "2026-02-28"
+     }
+   }
+   Response: File download
+
+================================================================================
+DATABASE SCHEMA UPDATES
+================================================================================
+
+EXISTING TABLE: internal_requisitions
+No schema changes needed - fulfilling_branch_id already exists
+
+NEW TABLE: requisition_fulfillment_history (Optional - for audit trail)
+CREATE TABLE requisition_fulfillment_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  requisition_id UUID NOT NULL REFERENCES internal_requisitions(id),
+  action VARCHAR(50) NOT NULL, -- 'assigned', 'changed', 'removed'
+  from_branch_id UUID REFERENCES branches(id),
+  to_branch_id UUID REFERENCES branches(id),
+  changed_by INTEGER REFERENCES users(id),
+  changed_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  notes TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_fulfillment_history_requisition 
+  ON requisition_fulfillment_history(requisition_id);
+
+================================================================================
+BACKEND IMPLEMENTATION
+================================================================================
+
+FILE: /pages/api/hq/requisitions/available-branches.ts
+
+import { NextApiRequest, NextApiResponse } from 'next';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../../auth/[...nextauth]';
+
+const db = require('@/models');
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    const session = await getServerSession(req, res, authOptions);
+    if (!session) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { requisitionId } = req.query;
+
+    // Get requisition details
+    const requisition = await db.InternalRequisition.findByPk(requisitionId, {
+      include: [
+        { model: db.Branch, as: 'requestingBranch' },
+        { model: db.InternalRequisitionItem, as: 'items' }
+      ]
+    });
+
+    if (!requisition) {
+      return res.status(404).json({ error: 'Requisition not found' });
+    }
+
+    // Get all branches that can fulfill (warehouses and branches with stock)
+    const branches = await db.Branch.findAll({
+      where: {
+        tenantId: session.user.tenantId,
+        isActive: true,
+        type: ['warehouse', 'main', 'branch'] // Exclude kiosks
+      },
+      attributes: ['id', 'code', 'name', 'type', 'city', 'address']
+    });
+
+    // TODO: Calculate available stock for each branch
+    // TODO: Calculate distance/delivery time
+    // For now, return basic branch info
+
+    const availableBranches = branches.map(branch => ({
+      id: branch.id,
+      code: branch.code,
+      name: branch.name,
+      type: branch.type,
+      city: branch.city,
+      availableStock: 0, // TODO: Calculate from inventory
+      distance: 0, // TODO: Calculate from coordinates
+      estimatedDeliveryDays: 2 // TODO: Calculate based on distance
+    }));
+
+    return res.status(200).json({
+      success: true,
+      data: availableBranches
+    });
+
+  } catch (error: any) {
+    console.error('Available branches API error:', error);
+    return res.status(500).json({ error: error.message });
+  }
+}
+
+---
+
+FILE: /pages/api/hq/requisitions/[id]/assign-fulfillment.ts
+
+import { NextApiRequest, NextApiResponse } from 'next';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../../../auth/[...nextauth]';
+
+const db = require('@/models');
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== 'PUT') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    const session = await getServerSession(req, res, authOptions);
+    if (!session) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { id } = req.query;
+    const { fulfillingBranchId, estimatedDeliveryDate, notes } = req.body;
+
+    if (!fulfillingBranchId) {
+      return res.status(400).json({ error: 'Fulfilling branch ID is required' });
+    }
+
+    // Verify branch exists
+    const branch = await db.Branch.findByPk(fulfillingBranchId);
+    if (!branch) {
+      return res.status(404).json({ error: 'Branch not found' });
+    }
+
+    // Get requisition
+    const requisition = await db.InternalRequisition.findByPk(id);
+    if (!requisition) {
+      return res.status(404).json({ error: 'Requisition not found' });
+    }
+
+    // Update requisition
+    await requisition.update({
+      fulfilling_branch_id: fulfillingBranchId,
+      requested_delivery_date: estimatedDeliveryDate || requisition.requested_delivery_date,
+      notes: notes ? `${requisition.notes || ''}\n[Fulfillment] ${notes}` : requisition.notes
+    });
+
+    // Create fulfillment history record (optional)
+    // await db.RequisitionFulfillmentHistory.create({
+    //   requisition_id: id,
+    //   action: 'assigned',
+    //   from_branch_id: null,
+    //   to_branch_id: fulfillingBranchId,
+    //   changed_by: session.user.id,
+    //   notes: notes
+    // });
+
+    // Reload with associations
+    const updated = await db.InternalRequisition.findByPk(id, {
+      include: [
+        { model: db.Branch, as: 'requestingBranch' },
+        { model: db.Branch, as: 'fulfillingBranch' }
+      ]
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Fulfilling branch assigned successfully',
+      data: updated
+    });
+
+  } catch (error: any) {
+    console.error('Assign fulfillment API error:', error);
+    return res.status(500).json({ error: error.message });
+  }
+}
+
+---
+
+FILE: /pages/api/hq/requisitions/export.ts
+
+import { NextApiRequest, NextApiResponse } from 'next';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../../auth/[...nextauth]';
+import ExcelJS from 'exceljs';
+
+const db = require('@/models');
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    const session = await getServerSession(req, res, authOptions);
+    if (!session) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { format = 'xlsx', filters = {} } = req.body;
+
+    // Build query
+    const where: any = {};
+    if (filters.status) where.status = filters.status;
+    if (filters.dateFrom && filters.dateTo) {
+      where.created_at = {
+        [db.Sequelize.Op.between]: [filters.dateFrom, filters.dateTo]
+      };
+    }
+
+    // Fetch requisitions
+    const requisitions = await db.InternalRequisition.findAll({
+      where,
+      include: [
+        { model: db.Branch, as: 'requestingBranch' },
+        { model: db.Branch, as: 'fulfillingBranch' },
+        { model: db.InternalRequisitionItem, as: 'items' }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    if (format === 'xlsx') {
+      // Create Excel workbook
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Requisitions');
+
+      // Add headers
+      worksheet.columns = [
+        { header: 'No. IR', key: 'irNumber', width: 20 },
+        { header: 'Cabang Peminta', key: 'requestingBranch', width: 25 },
+        { header: 'Dipenuhi Oleh', key: 'fulfillingBranch', width: 25 },
+        { header: 'Tipe', key: 'requestType', width: 15 },
+        { header: 'Prioritas', key: 'priority', width: 12 },
+        { header: 'Status', key: 'status', width: 15 },
+        { header: 'Total Item', key: 'totalItems', width: 12 },
+        { header: 'Total Qty', key: 'totalQuantity', width: 12 },
+        { header: 'Est. Nilai', key: 'estimatedValue', width: 15 },
+        { header: 'Tanggal Dibuat', key: 'createdAt', width: 18 }
+      ];
+
+      // Add data
+      requisitions.forEach(req => {
+        worksheet.addRow({
+          irNumber: req.ir_number,
+          requestingBranch: req.requestingBranch?.name || '-',
+          fulfillingBranch: req.fulfillingBranch?.name || 'Belum ditentukan',
+          requestType: req.request_type,
+          priority: req.priority,
+          status: req.status,
+          totalItems: req.total_items,
+          totalQuantity: req.total_quantity,
+          estimatedValue: req.estimated_value,
+          createdAt: new Date(req.created_at).toLocaleDateString('id-ID')
+        });
+      });
+
+      // Style headers
+      worksheet.getRow(1).font = { bold: true };
+      worksheet.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF4472C4' }
+      };
+
+      // Generate buffer
+      const buffer = await workbook.xlsx.writeBuffer();
+
+      // Send file
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename=requisitions-${Date.now()}.xlsx`);
+      return res.send(buffer);
+
+    } else {
+      // CSV format
+      const csv = [
+        ['No. IR', 'Cabang Peminta', 'Dipenuhi Oleh', 'Tipe', 'Prioritas', 'Status', 'Total Item', 'Total Qty', 'Est. Nilai', 'Tanggal'].join(','),
+        ...requisitions.map(req => [
+          req.ir_number,
+          req.requestingBranch?.name || '-',
+          req.fulfillingBranch?.name || 'Belum ditentukan',
+          req.request_type,
+          req.priority,
+          req.status,
+          req.total_items,
+          req.total_quantity,
+          req.estimated_value,
+          new Date(req.created_at).toLocaleDateString('id-ID')
+        ].join(','))
+      ].join('\n');
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename=requisitions-${Date.now()}.csv`);
+      return res.send(csv);
+    }
+
+  } catch (error: any) {
+    console.error('Export API error:', error);
+    return res.status(500).json({ error: error.message });
+  }
+}
+
+================================================================================
+FRONTEND IMPLEMENTATION
+================================================================================
+
+COMPONENT: FulfillmentAssignmentModal
+
+Location: /components/hq/requisitions/FulfillmentAssignmentModal.tsx
+
+import React, { useState, useEffect } from 'react';
+import { X, Building2, Package, Calendar, MapPin } from 'lucide-react';
+
+interface Branch {
+  id: string;
+  code: string;
+  name: string;
+  type: string;
+  city: string;
+  availableStock: number;
+  distance: number;
+  estimatedDeliveryDays: number;
+}
+
+interface FulfillmentAssignmentModalProps {
+  requisition: any;
+  onClose: () => void;
+  onAssign: (branchId: string, deliveryDate: string, notes: string) => Promise<void>;
+}
+
+export default function FulfillmentAssignmentModal({
+  requisition,
+  onClose,
+  onAssign
+}: FulfillmentAssignmentModalProps) {
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('');
+  const [deliveryDate, setDeliveryDate] = useState<string>('');
+  const [notes, setNotes] = useState<string>('');
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    fetchAvailableBranches();
+  }, []);
+
+  const fetchAvailableBranches = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/hq/requisitions/available-branches?requisitionId=${requisition.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setBranches(data.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching branches:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!selectedBranchId) {
+      alert('Pilih cabang pemenuhan terlebih dahulu');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await onAssign(selectedBranchId, deliveryDate, notes);
+      onClose();
+    } catch (error) {
+      console.error('Error assigning fulfillment:', error);
+      alert('Gagal menetapkan pemenuhan');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Tentukan Cabang Pemenuhan</h2>
+              <p className="text-sm text-gray-500">Pilih cabang/gudang yang akan memenuhi permintaan</p>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 rounded-lg"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+          {/* Requisition Info */}
+          <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-gray-600">Nomor IR</p>
+                <p className="font-medium">{requisition.irNumber}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Cabang Peminta</p>
+                <p className="font-medium">{requisition.requestingBranch?.name}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Branch Selection */}
+          <div className="mb-6">
+            <h3 className="font-medium text-gray-900 mb-3">Pilih Cabang/Gudang Pemenuhan</h3>
+            {loading ? (
+              <div className="text-center py-8 text-gray-500">Memuat cabang...</div>
+            ) : branches.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">Tidak ada cabang tersedia</div>
+            ) : (
+              <div className="space-y-3">
+                {branches.map(branch => (
+                  <div
+                    key={branch.id}
+                    onClick={() => setSelectedBranchId(branch.id)}
+                    className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                      selectedBranchId === branch.id
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3">
+                        <div className={`mt-1 w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                          selectedBranchId === branch.id ? 'border-blue-500' : 'border-gray-300'
+                        }`}>
+                          {selectedBranchId === branch.id && (
+                            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium text-gray-900">{branch.name}</div>
+                          <div className="text-sm text-gray-500">{branch.code} • {branch.city}</div>
+                          <div className="mt-2 flex items-center gap-4 text-sm">
+                            <span className="flex items-center gap-1 text-gray-600">
+                              <Package className="w-4 h-4" />
+                              Stok: {branch.availableStock}
+                            </span>
+                            <span className="flex items-center gap-1 text-gray-600">
+                              <MapPin className="w-4 h-4" />
+                              {branch.distance} km
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-full">
+                        {branch.type}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Delivery Date */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Estimasi Tanggal Pengiriman
+            </label>
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="date"
+                value={deliveryDate}
+                onChange={(e) => setDeliveryDate(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Catatan (opsional)
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={3}
+              placeholder="Tambahkan catatan jika diperlukan..."
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        <div className="p-6 border-t border-gray-200 bg-gray-50">
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={onClose}
+              disabled={submitting}
+              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50"
+            >
+              Batal
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={!selectedBranchId || submitting}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            >
+              {submitting ? 'Menyimpan...' : 'Simpan Pemenuhan'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+================================================================================
+INTEGRATION STEPS
+================================================================================
+
+1. CREATE API ENDPOINTS
+   ✓ /api/hq/requisitions/available-branches.ts
+   ✓ /api/hq/requisitions/[id]/assign-fulfillment.ts
+   ✓ /api/hq/requisitions/export.ts
+
+2. CREATE COMPONENT
+   ✓ /components/hq/requisitions/FulfillmentAssignmentModal.tsx
+
+3. UPDATE REQUISITIONS PAGE
+   - Import FulfillmentAssignmentModal
+   - Add state for modal visibility
+   - Add "Tentukan Pemenuhan" button
+   - Implement handleAssignFulfillment function
+   - Update detail modal to show button
+
+4. UPDATE EXPORT BUTTON
+   - Implement export functionality
+   - Call /api/hq/requisitions/export
+
+5. INSTALL DEPENDENCIES
+   npm install exceljs
+
+6. TEST FLOW
+   - View requisition with null fulfilling_branch_id
+   - Click "Tentukan Pemenuhan"
+   - Select branch from modal
+   - Set delivery date
+   - Submit
+   - Verify fulfilling_branch_id updated
+   - Verify display shows branch name
+
+================================================================================
+TESTING CHECKLIST
+================================================================================
+
+□ API Endpoints:
+  □ GET /api/hq/requisitions/available-branches returns branches
+  □ PUT /api/hq/requisitions/:id/assign-fulfillment updates DB
+  □ POST /api/hq/requisitions/export generates Excel file
+  □ POST /api/hq/requisitions/export generates CSV file
+
+□ UI Components:
+  □ FulfillmentAssignmentModal renders correctly
+  □ Branch list displays with stock info
+  □ Radio selection works
+  □ Date picker works
+  □ Notes textarea works
+  □ Submit button disabled when no branch selected
+  □ Loading states display correctly
+
+□ Integration:
+  □ "Tentukan Pemenuhan" button appears when null
+  □ Modal opens on button click
+  □ Branch assignment saves to database
+  □ Detail modal updates after assignment
+  □ "Ubah Pemenuhan" button appears after assignment
+  □ Export button downloads file
+  □ Export includes fulfilling branch column
+
+□ Business Logic:
+  □ Only active branches shown
+  □ Warehouses prioritized in list
+  □ Stock availability calculated (if implemented)
+  □ Distance calculated (if implemented)
+  □ Delivery date validation
+  □ Audit trail created (if implemented)
+
+================================================================================
+FUTURE ENHANCEMENTS
+================================================================================
+
+1. AUTO-ASSIGNMENT ALGORITHM
+   - Assign based on stock availability
+   - Optimize for cost and distance
+   - Consider branch capacity
+
+2. PARTIAL FULFILLMENT
+   - Split items across multiple branches
+   - Track fulfillment per item
+   - Coordinate multi-source delivery
+
+3. STOCK AVAILABILITY CHECK
+   - Real-time stock verification
+   - Reserve stock on assignment
+   - Prevent over-commitment
+
+4. DELIVERY TRACKING
+   - Integration with logistics
+   - Real-time tracking updates
+   - Delivery confirmation
+
+5. NOTIFICATIONS
+   - Notify fulfilling branch on assignment
+   - Alert on delivery delays
+   - Completion notifications
+
+6. ANALYTICS
+   - Fulfillment performance metrics
+   - Branch efficiency tracking
+   - Cost analysis
+
+================================================================================
+END OF ANALYSIS
+================================================================================

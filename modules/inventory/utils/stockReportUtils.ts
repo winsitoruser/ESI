@@ -1,0 +1,12 @@
+export const generateStockValueData = () => [];
+export const generateProductStockValueData = () => [];
+export const getProductGroupValueData = () => [];
+export const generateLowStockData = () => [];
+export const generateExpiryData = () => [];
+export const generateStockMovementData = () => [];
+export const generateCategoryDistributionData = () => [];
+export const generateSupplierPerformanceData = () => [];
+export const calculateTotalStockValue = () => 0;
+export const calculateAverageStockValue = () => 0;
+export const getTopValueProducts = () => [];
+export const getLowValueProducts = () => [];

@@ -1,0 +1,61 @@
+'use strict';
+const { DataTypes } = require('sequelize');
+const sequelize = require('../lib/sequelize');
+
+const Asset = sequelize.define('Asset', {
+  id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  tenantId: { type: DataTypes.UUID, allowNull: true, field: 'tenant_id' },
+  assetCode: { type: DataTypes.STRING(50), allowNull: false, field: 'asset_code' },
+  name: { type: DataTypes.STRING(200), allowNull: false },
+  description: { type: DataTypes.TEXT, allowNull: true },
+  categoryId: { type: DataTypes.UUID, allowNull: true, field: 'category_id' },
+  status: { type: DataTypes.STRING(30), defaultValue: 'draft' },
+  condition: { type: DataTypes.STRING(30), defaultValue: 'good' },
+  acquisitionType: { type: DataTypes.STRING(30), defaultValue: 'purchase', field: 'acquisition_type' },
+  acquisitionDate: { type: DataTypes.DATEONLY, allowNull: true, field: 'acquisition_date' },
+  purchasePrice: { type: DataTypes.DECIMAL(19,4), defaultValue: 0, field: 'purchase_price' },
+  supplierId: { type: DataTypes.UUID, allowNull: true, field: 'supplier_id' },
+  poNumber: { type: DataTypes.STRING(50), allowNull: true, field: 'po_number' },
+  invoiceNumber: { type: DataTypes.STRING(50), allowNull: true, field: 'invoice_number' },
+  warrantyExpiry: { type: DataTypes.DATEONLY, allowNull: true, field: 'warranty_expiry' },
+  serialNumber: { type: DataTypes.STRING(100), allowNull: true, field: 'serial_number' },
+  barcode: { type: DataTypes.STRING(100), allowNull: true },
+  qrCode: { type: DataTypes.STRING(200), allowNull: true, field: 'qr_code' },
+  rfidTag: { type: DataTypes.STRING(100), allowNull: true, field: 'rfid_tag' },
+  branchId: { type: DataTypes.UUID, allowNull: true, field: 'branch_id' },
+  department: { type: DataTypes.STRING(100), allowNull: true },
+  location: { type: DataTypes.STRING(200), allowNull: true },
+  floor: { type: DataTypes.STRING(20), allowNull: true },
+  room: { type: DataTypes.STRING(50), allowNull: true },
+  gpsLatitude: { type: DataTypes.DECIMAL(10,7), allowNull: true, field: 'gps_latitude' },
+  gpsLongitude: { type: DataTypes.DECIMAL(10,7), allowNull: true, field: 'gps_longitude' },
+  custodianId: { type: DataTypes.INTEGER, allowNull: true, field: 'custodian_id' },
+  custodianName: { type: DataTypes.STRING(100), allowNull: true, field: 'custodian_name' },
+  brand: { type: DataTypes.STRING(100), allowNull: true },
+  model: { type: DataTypes.STRING(100), allowNull: true },
+  manufacturer: { type: DataTypes.STRING(100), allowNull: true },
+  yearManufactured: { type: DataTypes.INTEGER, allowNull: true, field: 'year_manufactured' },
+  depreciationMethod: { type: DataTypes.STRING(30), defaultValue: 'straight_line', field: 'depreciation_method' },
+  usefulLifeMonths: { type: DataTypes.INTEGER, defaultValue: 60, field: 'useful_life_months' },
+  salvageValue: { type: DataTypes.DECIMAL(19,4), defaultValue: 0, field: 'salvage_value' },
+  accumulatedDepreciation: { type: DataTypes.DECIMAL(19,4), defaultValue: 0, field: 'accumulated_depreciation' },
+  currentBookValue: { type: DataTypes.DECIMAL(19,4), defaultValue: 0, field: 'current_book_value' },
+  lastDepreciationDate: { type: DataTypes.DATEONLY, allowNull: true, field: 'last_depreciation_date' },
+  disposalDate: { type: DataTypes.DATEONLY, allowNull: true, field: 'disposal_date' },
+  disposalMethod: { type: DataTypes.STRING(30), allowNull: true, field: 'disposal_method' },
+  disposalPrice: { type: DataTypes.DECIMAL(19,4), allowNull: true, field: 'disposal_price' },
+  disposalReason: { type: DataTypes.TEXT, allowNull: true, field: 'disposal_reason' },
+  photoUrl: { type: DataTypes.TEXT, allowNull: true, field: 'photo_url' },
+  attachments: { type: DataTypes.JSONB, defaultValue: [] },
+  tags: { type: DataTypes.JSONB, defaultValue: [] },
+  customFields: { type: DataTypes.JSONB, defaultValue: {}, field: 'custom_fields' },
+  notes: { type: DataTypes.TEXT, allowNull: true },
+  createdBy: { type: DataTypes.INTEGER, allowNull: true, field: 'created_by' },
+  updatedBy: { type: DataTypes.INTEGER, allowNull: true, field: 'updated_by' }
+}, {
+  tableName: 'assets',
+  timestamps: true,
+  underscored: true
+});
+
+module.exports = Asset;

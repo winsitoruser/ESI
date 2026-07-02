@@ -1,0 +1,757 @@
+{
+  "totalApiFiles": 776,
+  "totalActions": 1938,
+  "sfa": {
+    "files": 13,
+    "actions": 321,
+    "routes": [
+      {
+        "url": "/api/hq/sfa/advanced",
+        "actions": [
+          "activate-strategy",
+          "advanced-dashboard",
+          "approval-requests",
+          "approval-workflow-detail",
+          "approval-workflows",
+          "check-geofence",
+          "commission-groups",
+          "commission-summary",
+          "competitor-activities",
+          "competitor-summary",
+          "coverage-assignments",
+          "coverage-compliance",
+          "coverage-plans",
+          "create-approval-workflow",
+          "create-commission-group",
+          "create-competitor-activity",
+          "create-coverage-assignment",
+          "create-coverage-plan",
+          "create-display-audit",
+          "create-field-order",
+          "create-geofence",
+          "create-outlet-target",
+          "create-product-commission",
+          "create-sales-strategy",
+          "create-survey-template",
+          "delete-commission-group",
+          "display-audit-detail",
+          "display-audits",
+          "field-order-detail",
+          "field-orders",
+          "geofences",
+          "inventory-products",
+          "outlet-target-summary",
+          "outlet-targets",
+          "process-approval",
+          "product-commissions",
+          "sales-strategies",
+          "sales-strategy-detail",
+          "strategy-scorecard",
+          "string",
+          "submit-approval",
+          "submit-survey-response",
+          "survey-responses",
+          "survey-template-detail",
+          "survey-templates",
+          "update-commission-group",
+          "update-competitor-activity",
+          "update-coverage-plan",
+          "update-field-order-status",
+          "update-outlet-target",
+          "update-product-commission",
+          "update-sales-strategy"
+        ]
+      },
+      {
+        "url": "/api/hq/sfa/ai-workflow",
+        "actions": [
+          "assign-model",
+          "content",
+          "create-workflow",
+          "execute",
+          "executions",
+          "forecasting",
+          "init-templates",
+          "lead_scoring",
+          "model-catalog",
+          "models",
+          "segmentation",
+          "setup-model",
+          "usage-stats",
+          "workflow-detail",
+          "workflow-templates",
+          "workflows"
+        ]
+      },
+      {
+        "url": "/api/hq/sfa/audit-trail",
+        "actions": [
+          "entity-timeline",
+          "filters",
+          "log",
+          "summary",
+          "timeline"
+        ]
+      },
+      {
+        "url": "/api/hq/sfa/crm",
+        "actions": [
+          "automation-logs",
+          "automation-rules",
+          "calendar-events",
+          "comm-campaigns",
+          "communications",
+          "contacts",
+          "create-automation-rule",
+          "create-calendar-event",
+          "create-communication",
+          "create-contact",
+          "create-customer",
+          "create-document",
+          "create-email-template",
+          "create-follow-up",
+          "create-forecast",
+          "create-interaction",
+          "create-segment",
+          "create-sla-policy",
+          "create-task",
+          "create-ticket",
+          "create-ticket-comment",
+          "crm-dashboard",
+          "customer-analytics",
+          "customer-detail",
+          "customer-timeline",
+          "customers",
+          "deal-scores",
+          "delete-automation-rule",
+          "delete-calendar-event",
+          "delete-communication",
+          "delete-contact",
+          "delete-customer",
+          "delete-document",
+          "delete-email-template",
+          "delete-follow-up",
+          "delete-forecast",
+          "delete-segment",
+          "delete-task",
+          "delete-ticket",
+          "document-templates",
+          "documents",
+          "email-templates",
+          "follow-ups",
+          "forecast-analytics",
+          "forecasts",
+          "import-customers-csv",
+          "satisfaction",
+          "segments",
+          "service-analytics",
+          "sla-policies",
+          "string",
+          "task-summary",
+          "tasks",
+          "ticket-detail",
+          "tickets",
+          "update-automation-rule",
+          "update-calendar-event",
+          "update-communication",
+          "update-contact",
+          "update-customer",
+          "update-document",
+          "update-follow-up",
+          "update-forecast",
+          "update-task",
+          "update-ticket"
+        ]
+      },
+      {
+        "url": "/api/hq/sfa/data-export",
+        "actions": []
+      },
+      {
+        "url": "/api/hq/sfa/enhanced",
+        "actions": [
+          "achievements",
+          "add-member",
+          "approve-incentive",
+          "bulk-update-business-settings",
+          "business-settings",
+          "calculate-achievement",
+          "calculate-incentive",
+          "check-plafon",
+          "create-currency",
+          "create-incentive-scheme",
+          "create-plafon",
+          "create-target-assignment",
+          "create-target-group",
+          "create-target-product",
+          "create-team",
+          "currencies",
+          "delete-currency",
+          "delete-exchange-rate",
+          "delete-payment-term",
+          "delete-tax",
+          "enhanced-dashboard",
+          "exchange-rates",
+          "incentive-calculations",
+          "incentive-scheme-detail",
+          "incentive-schemes",
+          "numbering-formats",
+          "parameters",
+          "payment-terms",
+          "plafon-list",
+          "plafon-usage",
+          "remove-member",
+          "save-exchange-rate",
+          "save-incentive-tiers",
+          "save-numbering-format",
+          "save-payment-term",
+          "save-tax",
+          "settings-overview",
+          "string",
+          "target-group-detail",
+          "target-groups",
+          "target-products",
+          "tax-settings",
+          "team-detail",
+          "teams",
+          "update-business-setting",
+          "update-currency",
+          "update-incentive-scheme",
+          "update-parameter",
+          "update-parameters-bulk",
+          "update-plafon",
+          "update-target-assignment",
+          "update-target-group",
+          "update-team"
+        ]
+      },
+      {
+        "url": "/api/hq/sfa/hris-sync",
+        "actions": [
+          "assign-sfa-role",
+          "available-users",
+          "create-team-from-dept",
+          "departments",
+          "hris-employees",
+          "sync-department",
+          "sync-employee",
+          "sync-status"
+        ]
+      },
+      {
+        "url": "/api/hq/sfa/import-export",
+        "actions": [
+          "entities",
+          "export",
+          "export-history",
+          "import",
+          "template",
+          "validate"
+        ]
+      },
+      {
+        "url": "/api/hq/sfa/index",
+        "actions": [
+          "activities",
+          "checkin-visit",
+          "checkout-visit",
+          "convert-lead",
+          "create-activity",
+          "create-lead",
+          "create-opportunity",
+          "create-quotation",
+          "create-target",
+          "create-territory",
+          "create-visit",
+          "dashboard",
+          "delete-activity",
+          "delete-lead",
+          "delete-opportunity",
+          "delete-quotation",
+          "lead-detail",
+          "leads",
+          "opportunities",
+          "pipeline",
+          "quotations",
+          "route-plans",
+          "targets",
+          "territories",
+          "unified-dashboard",
+          "update-activity",
+          "update-lead",
+          "update-opportunity",
+          "update-quotation",
+          "update-target",
+          "update-visit",
+          "visits"
+        ]
+      },
+      {
+        "url": "/api/hq/sfa/lookup",
+        "actions": [
+          "add-option",
+          "all",
+          "defaults",
+          "delete-option",
+          "reorder",
+          "seed-category",
+          "seed-defaults",
+          "summary",
+          "update-option"
+        ]
+      },
+      {
+        "url": "/api/hq/sfa/notifications",
+        "actions": [
+          "check-reminders",
+          "cleanup",
+          "generate-reminders",
+          "mark-read",
+          "my-notifications"
+        ]
+      },
+      {
+        "url": "/api/hq/sfa/sales-management",
+        "actions": [
+          "advanced-kpis",
+          "bulk-sales-entry",
+          "check-stock",
+          "create-item-target",
+          "create-outlet-growth-target",
+          "create-sales-entry",
+          "csv-template",
+          "delete-item-target",
+          "delete-outlet-growth-target",
+          "delete-sales-entry",
+          "distribution",
+          "distribution-per-product",
+          "entries-drilldown",
+          "export-csv",
+          "growth-analysis",
+          "import-csv",
+          "import-from-field-orders",
+          "integration-config",
+          "integration-health",
+          "item-catalog",
+          "item-detail",
+          "item-targets",
+          "leaderboard",
+          "lookup-filters",
+          "mtd-ytd-run",
+          "outlet-coverage",
+          "outlet-growth-targets",
+          "outlet-order-behavior",
+          "outlet-transactions",
+          "pareto-outlets",
+          "pareto-product-target",
+          "pareto-products",
+          "pareto-salespersons",
+          "performance-branch",
+          "performance-team",
+          "performance-territory",
+          "product-categories",
+          "reverse-stock",
+          "sales-dashboard",
+          "sales-entries",
+          "sales-entry-detail",
+          "sales-funnel",
+          "sales-trend",
+          "salesperson-detail",
+          "salesperson-scorecard",
+          "salespersons",
+          "stock-locations",
+          "update-integration-config",
+          "update-item-target",
+          "update-outlet-growth-target",
+          "update-sales-entry",
+          "vs-target-global",
+          "vs-target-outlet",
+          "vs-target-product",
+          "vs-target-product-group",
+          "vs-target-salesperson"
+        ]
+      },
+      {
+        "url": "/api/hq/sfa/task-calendar",
+        "actions": [
+          "board",
+          "bulk-move",
+          "calendar",
+          "create-event",
+          "create-task",
+          "customer-picker",
+          "gantt",
+          "holidays",
+          "move",
+          "quick-update",
+          "stats",
+          "users",
+          "visit-bridge",
+          "visit-suggestions"
+        ]
+      }
+    ]
+  },
+  "crm": {
+    "files": 1,
+    "actions": 65,
+    "routes": [
+      {
+        "url": "/api/hq/sfa/crm",
+        "actions": [
+          "automation-logs",
+          "automation-rules",
+          "calendar-events",
+          "comm-campaigns",
+          "communications",
+          "contacts",
+          "create-automation-rule",
+          "create-calendar-event",
+          "create-communication",
+          "create-contact",
+          "create-customer",
+          "create-document",
+          "create-email-template",
+          "create-follow-up",
+          "create-forecast",
+          "create-interaction",
+          "create-segment",
+          "create-sla-policy",
+          "create-task",
+          "create-ticket",
+          "create-ticket-comment",
+          "crm-dashboard",
+          "customer-analytics",
+          "customer-detail",
+          "customer-timeline",
+          "customers",
+          "deal-scores",
+          "delete-automation-rule",
+          "delete-calendar-event",
+          "delete-communication",
+          "delete-contact",
+          "delete-customer",
+          "delete-document",
+          "delete-email-template",
+          "delete-follow-up",
+          "delete-forecast",
+          "delete-segment",
+          "delete-task",
+          "delete-ticket",
+          "document-templates",
+          "documents",
+          "email-templates",
+          "follow-ups",
+          "forecast-analytics",
+          "forecasts",
+          "import-customers-csv",
+          "satisfaction",
+          "segments",
+          "service-analytics",
+          "sla-policies",
+          "string",
+          "task-summary",
+          "tasks",
+          "ticket-detail",
+          "tickets",
+          "update-automation-rule",
+          "update-calendar-event",
+          "update-communication",
+          "update-contact",
+          "update-customer",
+          "update-document",
+          "update-follow-up",
+          "update-forecast",
+          "update-task",
+          "update-ticket"
+        ]
+      }
+    ]
+  },
+  "marketing": {
+    "files": 2,
+    "actions": 17,
+    "routes": [
+      {
+        "url": "/api/ai/marketing/insights",
+        "actions": []
+      },
+      {
+        "url": "/api/hq/marketing/index",
+        "actions": [
+          "add-channel",
+          "budgets",
+          "campaign-detail",
+          "campaigns",
+          "content-assets",
+          "create-budget",
+          "create-campaign",
+          "create-content",
+          "create-promotion",
+          "create-segment",
+          "dashboard",
+          "promotions",
+          "redeem-promo",
+          "refresh-segment",
+          "segment-detail",
+          "segments",
+          "validate-promo"
+        ]
+      }
+    ]
+  },
+  "byTopLevel": {
+    "admin": {
+      "count": 41,
+      "actions": 41
+    },
+    "ai": {
+      "count": 4,
+      "actions": 0
+    },
+    "alerts": {
+      "count": 3,
+      "actions": 0
+    },
+    "auth": {
+      "count": 3,
+      "actions": 0
+    },
+    "billing": {
+      "count": 13,
+      "actions": 7
+    },
+    "branches": {
+      "count": 1,
+      "actions": 0
+    },
+    "business": {
+      "count": 2,
+      "actions": 0
+    },
+    "candidate": {
+      "count": 2,
+      "actions": 16
+    },
+    "cart": {
+      "count": 1,
+      "actions": 0
+    },
+    "customers": {
+      "count": 16,
+      "actions": 5
+    },
+    "dashboard": {
+      "count": 3,
+      "actions": 13
+    },
+    "dashboards": {
+      "count": 1,
+      "actions": 0
+    },
+    "debug": {
+      "count": 2,
+      "actions": 0
+    },
+    "driver": {
+      "count": 2,
+      "actions": 27
+    },
+    "employee": {
+      "count": 2,
+      "actions": 27
+    },
+    "employees": {
+      "count": 8,
+      "actions": 7
+    },
+    "finance": {
+      "count": 44,
+      "actions": 31
+    },
+    "fleet": {
+      "count": 14,
+      "actions": 0
+    },
+    "frontend": {
+      "count": 2,
+      "actions": 15
+    },
+    "health": {
+      "count": 1,
+      "actions": 0
+    },
+    "hq": {
+      "count": 240,
+      "actions": 1527
+    },
+    "hr": {
+      "count": 1,
+      "actions": 0
+    },
+    "incident-reports": {
+      "count": 1,
+      "actions": 0
+    },
+    "incidents": {
+      "count": 2,
+      "actions": 0
+    },
+    "integration": {
+      "count": 5,
+      "actions": 5
+    },
+    "integrations": {
+      "count": 4,
+      "actions": 24
+    },
+    "inventory": {
+      "count": 106,
+      "actions": 34
+    },
+    "kitchen": {
+      "count": 25,
+      "actions": 14
+    },
+    "locations": {
+      "count": 1,
+      "actions": 0
+    },
+    "loyalty": {
+      "count": 13,
+      "actions": 3
+    },
+    "modules": {
+      "count": 4,
+      "actions": 0
+    },
+    "notifications": {
+      "count": 1,
+      "actions": 0
+    },
+    "onboarding": {
+      "count": 4,
+      "actions": 6
+    },
+    "orders": {
+      "count": 4,
+      "actions": 17
+    },
+    "packages": {
+      "count": 3,
+      "actions": 0
+    },
+    "pos": {
+      "count": 50,
+      "actions": 14
+    },
+    "procurement": {
+      "count": 6,
+      "actions": 3
+    },
+    "product-prices": {
+      "count": 1,
+      "actions": 0
+    },
+    "production": {
+      "count": 3,
+      "actions": 0
+    },
+    "productions": {
+      "count": 3,
+      "actions": 0
+    },
+    "products": {
+      "count": 16,
+      "actions": 16
+    },
+    "promo-voucher": {
+      "count": 7,
+      "actions": 0
+    },
+    "promos": {
+      "count": 1,
+      "actions": 0
+    },
+    "purchase": {
+      "count": 1,
+      "actions": 0
+    },
+    "recipes": {
+      "count": 8,
+      "actions": 0
+    },
+    "reports": {
+      "count": 10,
+      "actions": 33
+    },
+    "requisitions": {
+      "count": 2,
+      "actions": 10
+    },
+    "reservations": {
+      "count": 7,
+      "actions": 5
+    },
+    "returns": {
+      "count": 4,
+      "actions": 0
+    },
+    "seed": {
+      "count": 2,
+      "actions": 5
+    },
+    "seed-stock-opname-data": {
+      "count": 1,
+      "actions": 0
+    },
+    "settings": {
+      "count": 39,
+      "actions": 21
+    },
+    "shipments": {
+      "count": 1,
+      "actions": 0
+    },
+    "stock-opname": {
+      "count": 4,
+      "actions": 0
+    },
+    "suppliers": {
+      "count": 2,
+      "actions": 0
+    },
+    "system": {
+      "count": 5,
+      "actions": 0
+    },
+    "tables": {
+      "count": 7,
+      "actions": 0
+    },
+    "tenant": {
+      "count": 3,
+      "actions": 0
+    },
+    "upload": {
+      "count": 2,
+      "actions": 0
+    },
+    "warehouses": {
+      "count": 2,
+      "actions": 0
+    },
+    "waste": {
+      "count": 4,
+      "actions": 0
+    },
+    "webhooks": {
+      "count": 5,
+      "actions": 12
+    },
+    "websocket": {
+      "count": 1,
+      "actions": 0
+    }
+  }
+}

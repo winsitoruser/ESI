@@ -1,0 +1,48 @@
+version: "3.8"
+
+services:
+  bedagang-admin:
+    build:
+      context: /home/ubuntu/bedagang-pos
+      dockerfile: Dockerfile
+    container_name: bedagang-admin
+    ports:
+      - "3001:3000"
+    env_file: /home/ubuntu/bedagang-pos/.env
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    restart: unless-stopped
+    networks:
+      - bedagang-net
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 5
+
+  bedagang-store:
+    build:
+      context: /home/ubuntu/bedagang-pos
+      dockerfile: Dockerfile
+    container_name: bedagang-store
+    ports:
+      - "3002:3000"
+    env_file: /home/ubuntu/bedagang-pos/.env
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    restart: unless-stopped
+    networks:
+      - bedagang-net
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 5
+
+networks:
+  bedagang-net:
+    external: true

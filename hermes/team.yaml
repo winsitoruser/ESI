@@ -1,0 +1,53 @@
+# ESI ERP — Hermes Team Roster
+# PT Ekosistem Satwa Indonesia — konservasi satwa liar
+
+board: esi-erp
+orchestrator: esi-cto
+repo: local  # fork dari bedagang---PoS
+provider: custom:sumopod
+base_url: https://ai.sumopod.com/v1
+dev_port: 3010
+
+roles:
+  - id: esi-cto
+    title: CTO Orchestrator
+    count: 1
+    model: deepseek-v4-flash
+    clone_from: wins
+    toolsets: [hermes-cli, kanban]
+    description: Analisis arsitektur ESI, decompose tiket, assign tim, gatekeeper merge.
+
+  - id: esi-pm
+    title: Product Manager
+    count: 1
+    model: deepseek-v4-flash
+    clone_from: wins
+    description: Backlog konservasi, user stories, prioritas modul ESI.
+
+  - id: esi-architect
+    title: System Architect
+    count: 1
+    model: seed-2-0-pro
+    clone_from: architect
+    description: Schema DB, API contracts, integrasi modul konservasi.
+
+  - id: esi-backend
+    title: Backend Developer
+    count: 2
+    model: seed-2-0-code
+    clone_from: backend
+    description: Next.js API routes, Sequelize, PostgreSQL, stub single-org.
+
+  - id: esi-frontend
+    title: Frontend Developer
+    count: 2
+    model: seed-2-0-code
+    clone_from: frontend
+    description: HQ UI, esi-sidebar, HQLayout, i18n.
+
+  - id: esi-qa
+    title: QA Engineer
+    count: 1
+    model: deepseek-v4-flash
+    clone_from: backend
+    description: Build verify, smoke test, integration-check API.

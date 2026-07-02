@@ -1,0 +1,71 @@
+:root {
+  --custom-red: 235, 64, 52;
+}
+
+.bg-custom-red {
+  background-color: rgb(var(--custom-red));
+}
+
+.bg-custom-red-10 {
+  background-color: rgba(var(--custom-red), 0.1);
+}
+
+.bg-custom-red-20 {
+  background-color: rgba(var(--custom-red), 0.2);
+}
+
+.bg-custom-red-50 {
+  background-color: rgba(var(--custom-red), 0.5);
+}
+
+.text-custom-red {
+  color: rgb(var(--custom-red));
+}
+
+.border-custom-red {
+  border-color: rgb(var(--custom-red));
+}
+
+.border-custom-red-20 {
+  border-color: rgba(var(--custom-red), 0.2);
+}
+
+.bg-gradient-custom-red {
+  background: linear-gradient(to right, rgb(var(--custom-red)), rgba(var(--custom-red), 0.7));
+}
+
+.hover\:text-custom-red:hover {
+  color: rgb(var(--custom-red));
+}
+
+.hover\:bg-custom-red-10:hover {
+  background-color: rgba(var(--custom-red), 0.1);
+}
+
+/* Animation for RME timeline */
+.animate-fadeIn {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+.animate-slideInRight {
+  animation: slideInRight 0.4s ease-out;
+}
+
+.animate-pulse-subtle {
+  animation: pulsate 2s ease-in-out infinite;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(30px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes pulsate {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}

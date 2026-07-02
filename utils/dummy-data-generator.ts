@@ -1,0 +1,793 @@
+/**
+ * FARMANESIA-EVO Data Generator
+ * 
+ * Utility untuk membuat data dummy untuk pengujian dan development
+ * Mengikuti skema warna merah-oranye (#ef4444, #f97316) yang digunakan sistem
+ */
+
+import { v4 as uuidv4 } from 'uuid';
+
+// Konstanta warna merah-oranye sesuai design language
+const COLORS = {
+  RED: '#ef4444',
+  ORANGE: '#f97316',
+  LIGHT_ORANGE: '#fb923c',
+  DARK_RED: '#b91c1c',
+  BROWN_ORANGE: '#a86f3e'
+};
+
+// Generator data dummy untuk berbagai modul sistem
+export class DummyDataGenerator {
+  private tenantId: string;
+
+  constructor(tenantId: string) {
+    this.tenantId = tenantId || 'default-tenant';
+  }
+
+  /**
+   * Generate random ID
+   */
+  private generateId(prefix: string): string {
+    return `${prefix}-${uuidv4().substring(0, 8)}`;
+  }
+
+  /**
+   * Generate random date within range
+   */
+  private randomDate(start: Date, end: Date): Date {
+    return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+  }
+
+  /**
+   * Generate random number within range
+   */
+  private randomNumber(min: number, max: number): number {
+    return Math.floor(Math.random() * (max - min + 1) + min);
+  }
+
+  /**
+   * Generate products data
+   */
+  generateProducts(count: number = 20): any[] {
+    const categories = [
+      { name: 'Obat Bebas', color: COLORS.RED },
+      { name: 'Obat Bebas Terbatas', color: COLORS.ORANGE },
+      { name: 'Obat Keras', color: COLORS.DARK_RED },
+      { name: 'Suplemen', color: COLORS.LIGHT_ORANGE },
+      { name: 'Alat Kesehatan', color: COLORS.BROWN_ORANGE }
+    ];
+
+    const units = ['Tablet', 'Kaplet', 'Strip', 'Botol', 'Box', 'Pcs', 'Sachet', 'Ampul'];
+    const locations = ['Rak A', 'Rak B', 'Rak C', 'Rak D', 'Lemari Khusus', 'Kulkas'];
+    const suppliers = ['PT Pharma Indonesia', 'PT Nutri Health', 'PT Kimia Farma', 'PT Kalbe Farma', 'PT Dexa Medica'];
+
+    const products = [];
+
+    for (let i = 0; i < count; i++) {
+      const category = categories[Math.floor(Math.random() * categories.length)];
+      const unit = units[Math.floor(Math.random() * units.length)];
+      const location = locations[Math.floor(Math.random() * locations.length)];
+      const supplier = suppliers[Math.floor(Math.random() * suppliers.length)];
+      const stock = Math.floor(Math.random() * 500);
+      const reorderPoint = Math.floor(Math.random() * 50) + 10;
+
+      // Generate expiry date between today and 2 years from now
+      const today = new Date();
+      const twoYearsFromNow = new Date();
+      twoYearsFromNow.setFullYear(today.getFullYear() + 2);
+      const expiry = this.randomDate(today, twoYearsFromNow);
+
+      // Contoh nama obat-obatan
+      const names = [
+        'Paracetamol 500mg', 'Amoxicillin 500mg', 'Vitamin C 1000mg', 'Antasid Tablet',
+        'Cetirizine 10mg', 'Ibuprofen 400mg', 'Simvastatin 20mg', 'Losartan 50mg',
+        'Metformin 500mg', 'Omeprazole 20mg', 'Amlodipine 5mg', 'Allopurinol 100mg',
+        'Captopril 25mg', 'Cefixime 100mg', 'Diazepam 5mg', 'Fluoxetine 20mg',
+        'Glimepiride 2mg', 'Ketoconazole 200mg', 'Loratadine 10mg', 'Meloxicam 15mg'
+      ];
+      
+      // Memilih nama random atau membuat variasi
+      let name = '';
+      if (i < names.length) {
+        name = names[i];
+      } else {
+        const baseName = names[Math.floor(Math.random() * names.length)];
+        name = baseName.replace(/\d+mg/, (match) => {
+          const doseNum = parseInt(match);
+          return `${doseNum * 2}mg`;
+        });
+      }
+
+      // Generate product object
+      products.push({
+        id: this.generateId('P'),
+        name,
+        description: `${category.name} untuk penggunaan medis sesuai resep dokter`,
+        sku: name.replace(/[^A-Z0-9]/gi, '').substring(0, 8).toUpperCase(),
+        category: category.name,
+        categoryColor: category.color,
+        price: Math.floor(Math.random() * 50000) + 5000,
+        stock,
+        unit,
+        location: `${location}-${Math.floor(Math.random() * 10) + 1}`,
+        expiry: expiry.toISOString().split('T')[0],
+        supplier,
+        reorderPoint,
+        lowStock: stock < reorderPoint,
+        image: `/images/products/${name.toLowerCase().replace(/\s+/g, '-')}.jpg`,
+        tenantId: this.tenantId,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+    }
+
+    return products;
+  }
+
+  /**
+   * Generate customer data
+   */
+  generateCustomers(count: number = 30): any[] {
+    const customers = [];
+    const membershipTypes = [
+      { type: 'Reguler', color: COLORS.LIGHT_ORANGE },
+      { type: 'Silver', color: COLORS.ORANGE },
+      { type: 'Gold', color: COLORS.DARK_RED },
+      { type: 'Platinum', color: COLORS.RED }
+    ];
+
+    for (let i = 0; i < count; i++) {
+      const membership = membershipTypes[Math.floor(Math.random() * membershipTypes.length)];
+      
+      customers.push({
+        id: this.generateId('C'),
+        name: `Pelanggan ${i + 1}`,
+        phone: `08${Math.floor(Math.random() * 1000000000).toString().padStart(9, '0')}`,
+        email: `pelanggan${i + 1}@example.com`,
+        address: `Jl. Pembeli No. ${i + 1}, Jakarta`,
+        membershipType: membership.type,
+        membershipColor: membership.color,
+        points: Math.floor(Math.random() * 1000),
+        totalPurchases: Math.floor(Math.random() * 50),
+        lastPurchaseDate: this.randomDate(new Date(2024, 0, 1), new Date()).toISOString(),
+        tenantId: this.tenantId,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+    }
+
+    return customers;
+  }
+
+  /**
+   * Generate supplier data
+   */
+  generateSuppliers(count: number = 10): any[] {
+    const suppliers = [];
+    const statuses = [
+      { name: 'Aktif', color: COLORS.RED },
+      { name: 'Tidak Aktif', color: COLORS.LIGHT_ORANGE }
+    ];
+
+    for (let i = 0; i < count; i++) {
+      const status = statuses[Math.random() > 0.2 ? 0 : 1]; // 80% aktif
+      
+      suppliers.push({
+        id: this.generateId('S'),
+        name: `PT Supplier ${i + 1}`,
+        contactPerson: `Contact Person ${i + 1}`,
+        phone: `02${Math.floor(Math.random() * 1000000000).toString().padStart(9, '0')}`,
+        email: `supplier${i + 1}@example.com`,
+        address: `Jl. Supplier No. ${i + 1}, Jakarta`,
+        status: status.name,
+        statusColor: status.color,
+        products: Math.floor(Math.random() * 50) + 10,
+        lastOrderDate: this.randomDate(new Date(2024, 0, 1), new Date()).toISOString(),
+        tenantId: this.tenantId,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+    }
+
+    return suppliers;
+  }
+
+  /**
+   * Generate financial data
+   */
+  generateFinancialData(): any {
+    // Use tenant ID as a seed for consistent numbers
+    const seed = this.tenantId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const randomFactor = ((seed % 20) + 90) / 100; // 0.9 to 1.1
+
+    // Base values
+    const totalIncome = Math.round(168750000 * randomFactor);
+    const totalExpenses = Math.round(72500000 * randomFactor);
+    const netProfit = totalIncome - totalExpenses;
+    const cashOnHand = Math.round(83450000 * randomFactor);
+    const accountsReceivable = Math.round(45200000 * randomFactor);
+    const accountsPayable = Math.round(32800000 * randomFactor);
+    const assetValue = Math.round(120500000 * randomFactor);
+    const inventoryValue = Math.round(95750000 * randomFactor);
+
+    // Data invoice yang belum dibayar
+    const totalUnpaid = this.randomNumber(5000000, 20000000);
+    const overdueInvoices = this.randomNumber(1000000, 10000000);
+    const upcomingDue = this.randomNumber(1000000, 10000000);
+    const totalInvoices = this.randomNumber(10, 30);
+    const overdueCount = this.randomNumber(1, 8);
+    const criticalOverdue = this.randomNumber(0, 3);
+
+    // Tagihan dengan pembayaran parsial
+    const partialPaymentData = [];
+    for (let i = 0; i < 4; i++) {
+      const total = this.randomNumber(1000000, 5000000);
+      const paid = this.randomNumber(100000, total);
+      const percentage = Math.round((paid / total) * 100);
+      
+      const today = new Date();
+      const dueDate = new Date(today);
+      dueDate.setDate(today.getDate() + this.randomNumber(5, 30));
+      
+      partialPaymentData.push({
+        id: this.generateId('INV'),
+        supplier: `PT Supplier ${i + 1}`,
+        total,
+        paid,
+        percentage,
+        dueDate: dueDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+      });
+    }
+
+    // Data cabang
+    const branches = [
+      { id: this.generateId('BR'), name: 'Cabang Pusat' },
+      { id: this.generateId('BR'), name: 'Cabang Timur' },
+      { id: this.generateId('BR'), name: 'Cabang Barat' }
+    ];
+
+    // Transaksi terbaru
+    const recentTransactions = [];
+    for (let i = 0; i < 5; i++) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const isIncome = Math.random() > 0.4;
+      
+      recentTransactions.push({
+        id: this.generateId('TR'),
+        date: date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
+        description: isIncome ? 'Penjualan Obat' : 'Pembayaran Supplier',
+        amount: this.randomNumber(500000, 2000000),
+        type: isIncome ? 'income' : 'expense',
+        category: isIncome ? 'Penjualan' : 'Supplier'
+      });
+    }
+
+    return {
+      financialData: {
+        totalIncome,
+        totalExpenses,
+        netProfit,
+        cashOnHand,
+        accountsReceivable,
+        accountsPayable,
+        assetValue,
+        inventoryValue
+      },
+      invoiceDebtData: {
+        totalUnpaid,
+        overdueInvoices,
+        upcomingDue,
+        totalInvoices,
+        overdueCount,
+        criticalOverdue
+      },
+      partialPaymentData,
+      branches,
+      recentTransactions,
+      tenantId: this.tenantId,
+      lastUpdated: new Date().toISOString()
+    };
+  }
+
+  /**
+   * Generate shifts data
+   */
+  generateShifts(count: number = 15): any[] {
+    const shifts = [];
+    const roles = ['CASHIER', 'PHARMACIST', 'STAFF', 'MANAGER'];
+    const statuses = [
+      { name: 'aktif', color: COLORS.RED },
+      { name: 'terjadwal', color: COLORS.ORANGE },
+      { name: 'selesai', color: COLORS.LIGHT_ORANGE },
+      { name: 'dibatalkan', color: COLORS.DARK_RED }
+    ];
+    
+    const branches = [
+      { id: this.generateId('BR'), name: 'Cabang Pusat' },
+      { id: this.generateId('BR'), name: 'Cabang Timur' },
+      { id: this.generateId('BR'), name: 'Cabang Barat' }
+    ];
+    
+    const names = [
+      'Ahmad Fajar', 'Budi Santoso', 'Cindy Lestari', 'Dewi Putri', 
+      'Eko Prasetyo', 'Fitri Wulandari', 'Gunawan Wijaya', 'Hana Permata',
+      'Irfan Hakim', 'Joko Susilo', 'Kartika Sari', 'Laras Ayu',
+      'Maman Suparman', 'Nina Aprilia', 'Oki Riyanto'
+    ];
+
+    const now = new Date();
+    
+    for (let i = 0; i < count; i++) {
+      const role = roles[Math.floor(Math.random() * roles.length)];
+      const status = statuses[Math.floor(Math.random() * statuses.length)];
+      const branch = branches[Math.floor(Math.random() * branches.length)];
+      const name = names[i % names.length];
+      
+      // Random start time in the past week or next week
+      const startTime = new Date(now);
+      startTime.setHours(now.getHours() + Math.floor(Math.random() * 168) - 84); // ±84 hours (±3.5 days)
+      
+      // Shift lasts 8 hours
+      const endTime = new Date(startTime);
+      endTime.setHours(startTime.getHours() + 8);
+      
+      shifts.push({
+        id: this.generateId('SH'),
+        userId: this.generateId('U'),
+        userName: name,
+        userRole: role,
+        branchId: branch.id,
+        branchName: branch.name,
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+        status: status.name,
+        statusColor: status.color,
+        notes: `Shift ${status.name === 'aktif' ? 'sedang berjalan' : status.name === 'terjadwal' ? 'akan datang' : status.name === 'selesai' ? 'telah selesai' : 'dibatalkan'}`,
+        tenantId: this.tenantId,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+    }
+    
+    return shifts;
+  }
+
+  /**
+   * Generate approvals data
+   */
+  generateApprovals(count: number = 10): any {
+    const approvalTypes = ['stock_opname', 'purchase_order', 'schedule_change', 'discount_program', 'product_return'];
+    const urgencies = [
+      { name: 'high', color: COLORS.RED },
+      { name: 'medium', color: COLORS.ORANGE },
+      { name: 'low', color: COLORS.LIGHT_ORANGE }
+    ];
+    const statuses = [
+      { name: 'pending', color: COLORS.ORANGE },
+      { name: 'approved', color: COLORS.RED },
+      { name: 'rejected', color: COLORS.DARK_RED }
+    ];
+    
+    const names = [
+      'Ahmad Fajar', 'Budi Santoso', 'Cindy Lestari', 'Dewi Putri', 
+      'Eko Prasetyo', 'Fitri Wulandari', 'Gunawan Wijaya', 'Hana Permata',
+      'Irfan Hakim', 'Joko Susilo'
+    ];
+    
+    const roles = ['Apoteker', 'Staff', 'Asisten Apoteker', 'Admin'];
+    
+    const pending = [];
+    const recent = [];
+    
+    // Generate pending approvals
+    for (let i = 0; i < count; i++) {
+      const type = approvalTypes[Math.floor(Math.random() * approvalTypes.length)];
+      const urgency = urgencies[Math.floor(Math.random() * urgencies.length)];
+      const name = names[Math.floor(Math.random() * names.length)];
+      const role = roles[Math.floor(Math.random() * roles.length)];
+      
+      const submittedAt = new Date();
+      submittedAt.setHours(submittedAt.getHours() - Math.floor(Math.random() * 24));
+      
+      pending.push({
+        id: this.generateId(type.substring(0, 3).toUpperCase()),
+        type,
+        name: `Permintaan ${
+          type === 'stock_opname' ? 'Stock Opname' : 
+          type === 'purchase_order' ? 'Purchase Order' : 
+          type === 'schedule_change' ? 'Perubahan Jadwal' : 
+          type === 'discount_program' ? 'Program Diskon' : 
+          'Retur Produk'
+        } ${i + 1}`,
+        submittedBy: name,
+        submitterRole: role,
+        submittedAt: submittedAt.toISOString(),
+        status: 'pending',
+        statusColor: COLORS.ORANGE,
+        urgency: urgency.name,
+        urgencyColor: urgency.color,
+        notes: `Catatan permintaan ${i + 1}`,
+        summary: `Ringkasan permintaan persetujuan ${i + 1}`,
+        tenantId: this.tenantId
+      });
+    }
+    
+    // Generate recent approvals (approved/rejected)
+    for (let i = 0; i < count; i++) {
+      const type = approvalTypes[Math.floor(Math.random() * approvalTypes.length)];
+      const name = names[Math.floor(Math.random() * names.length)];
+      const role = roles[Math.floor(Math.random() * roles.length)];
+      
+      // Skip pending status
+      const status = statuses[Math.floor(Math.random() * (statuses.length - 1)) + 1];
+      
+      const submittedAt = new Date();
+      submittedAt.setHours(submittedAt.getHours() - Math.floor(Math.random() * 72) - 24); // 1-4 days ago
+      
+      const approvedAt = new Date(submittedAt);
+      approvedAt.setHours(approvedAt.getHours() + Math.floor(Math.random() * 12) + 1); // 1-12 hours after submission
+      
+      recent.push({
+        id: this.generateId(type.substring(0, 3).toUpperCase()),
+        type,
+        name: `Permintaan ${
+          type === 'stock_opname' ? 'Stock Opname' : 
+          type === 'purchase_order' ? 'Purchase Order' : 
+          type === 'schedule_change' ? 'Perubahan Jadwal' : 
+          type === 'discount_program' ? 'Program Diskon' : 
+          'Retur Produk'
+        } ${i + count + 1}`,
+        submittedBy: name,
+        submitterRole: role,
+        submittedAt: submittedAt.toISOString(),
+        approvedBy: 'Manager',
+        approvedAt: approvedAt.toISOString(),
+        status: status.name,
+        statusColor: status.color,
+        notes: `Catatan permintaan ${i + count + 1}`,
+        summary: `Ringkasan permintaan persetujuan ${i + count + 1}`,
+        tenantId: this.tenantId
+      });
+    }
+    
+    return {
+      pending,
+      recent
+    };
+  }
+
+  /**
+   * Generate purchase orders data
+   */
+  generatePurchaseOrders(count: number = 8): any[] {
+    const statuses = [
+      { name: 'pending', color: COLORS.ORANGE },
+      { name: 'approved', color: COLORS.RED },
+      { name: 'delivered', color: COLORS.LIGHT_ORANGE },
+      { name: 'cancelled', color: COLORS.DARK_RED }
+    ];
+    
+    const paymentStatuses = [
+      { name: 'unpaid', color: COLORS.RED },
+      { name: 'partial', color: COLORS.LIGHT_ORANGE },
+      { name: 'paid', color: COLORS.BROWN_ORANGE }
+    ];
+    
+    const suppliers = [
+      'PT Pharma Indonesia', 
+      'PT Nutri Health', 
+      'PT Kimia Farma', 
+      'PT Kalbe Farma', 
+      'PT Dexa Medica'
+    ];
+    
+    const products = this.generateProducts(20);
+    const orders = [];
+    
+    for (let i = 0; i < count; i++) {
+      const status = statuses[Math.floor(Math.random() * statuses.length)];
+      const paymentStatus = paymentStatuses[Math.floor(Math.random() * paymentStatuses.length)];
+      const supplier = suppliers[Math.floor(Math.random() * suppliers.length)];
+      
+      const orderDate = new Date();
+      orderDate.setDate(orderDate.getDate() - Math.floor(Math.random() * 30));
+      
+      const expectedDeliveryDate = new Date(orderDate);
+      expectedDeliveryDate.setDate(orderDate.getDate() + 7);
+      
+      // Generate 3-7 items per order
+      const itemCount = Math.floor(Math.random() * 5) + 3;
+      const items = [];
+      let totalAmount = 0;
+      
+      for (let j = 0; j < itemCount; j++) {
+        const product = products[Math.floor(Math.random() * products.length)];
+        const quantity = Math.floor(Math.random() * 100) + 10;
+        const price = product.price;
+        const total = quantity * price;
+        totalAmount += total;
+        
+        items.push({
+          id: j + 1,
+          productId: product.id,
+          productName: product.name,
+          quantity,
+          price,
+          total
+        });
+      }
+      
+      orders.push({
+        id: this.generateId('PO'),
+        supplierId: this.generateId('S'),
+        supplierName: supplier,
+        orderDate: orderDate.toISOString(),
+        expectedDeliveryDate: expectedDeliveryDate.toISOString(),
+        totalAmount,
+        status: status.name,
+        statusColor: status.color,
+        paymentStatus: paymentStatus.name,
+        paymentStatusColor: paymentStatus.color,
+        createdBy: 'Admin',
+        notes: `Pesanan produk dari ${supplier}`,
+        items,
+        tenantId: this.tenantId,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+    }
+    
+    return orders;
+  }
+
+  /**
+   * Generate transaction data
+   */
+  generateTransactions(count: number = 50, customers: any[] = []): any[] {
+    const transactions = [];
+    const paymentMethods = ['cash', 'debit', 'credit', 'transfer', 'e-wallet'];
+    const statuses = [
+      { name: 'completed', color: COLORS.RED },
+      { name: 'pending', color: COLORS.ORANGE },
+      { name: 'cancelled', color: COLORS.LIGHT_ORANGE }
+    ];
+
+    // Generate products if not provided
+    const products = this.generateProducts(20);
+    
+    // Generate customers if not provided
+    if (customers.length === 0) {
+      customers = this.generateCustomers(10);
+    }
+
+    // Generate transactions
+    for (let i = 0; i < count; i++) {
+      const status = statuses[Math.random() > 0.8 ? Math.floor(Math.random() * 2) + 1 : 0]; // 80% completed
+      const customer = customers[Math.floor(Math.random() * customers.length)];
+      const paymentMethod = paymentMethods[Math.floor(Math.random() * paymentMethods.length)];
+      
+      // Create transaction date within the last 30 days
+      const transactionDate = new Date();
+      transactionDate.setDate(transactionDate.getDate() - Math.floor(Math.random() * 30));
+      
+      // Generate 1-10 items per transaction
+      const itemCount = Math.floor(Math.random() * 10) + 1;
+      const items = [];
+      let subtotal = 0;
+      
+      for (let j = 0; j < itemCount; j++) {
+        const product = products[Math.floor(Math.random() * products.length)];
+        const quantity = Math.floor(Math.random() * 5) + 1;
+        const price = product.price;
+        const discount = Math.random() > 0.7 ? Math.floor(price * 0.1) : 0; // 30% chance of discount
+        const totalPrice = (price - discount) * quantity;
+        subtotal += totalPrice;
+        
+        items.push({
+          id: this.generateId('ITM'),
+          productId: product.id,
+          productName: product.name,
+          category: product.category,
+          categoryColor: product.categoryColor,
+          price,
+          discount,
+          quantity,
+          unit: product.unit,
+          totalPrice
+        });
+      }
+      
+      // Calculate tax and total
+      const tax = Math.floor(subtotal * 0.11); // 11% tax
+      const total = subtotal + tax;
+      const paid = status.name === 'completed' ? total : status.name === 'pending' ? Math.floor(total * 0.5) : 0;
+      const change = Math.max(0, paid - total);
+      
+      transactions.push({
+        id: this.generateId('TRX'),
+        transactionNumber: `INV-${new Date().getFullYear()}${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`,
+        date: transactionDate.toISOString(),
+        customerId: customer.id,
+        customerName: customer.name,
+        subtotal,
+        tax,
+        total,
+        paid,
+        change,
+        paymentMethod,
+        status: status.name,
+        statusColor: status.color,
+        items,
+        cashierId: this.generateId('U'),
+        cashierName: 'Kasir ' + (Math.floor(Math.random() * 5) + 1),
+        branchId: this.generateId('BR'),
+        branchName: `Cabang ${Math.floor(Math.random() * 3) + 1}`,
+        note: Math.random() > 0.7 ? 'Catatan transaksi ' + i : '',
+        tenantId: this.tenantId,
+        createdAt: transactionDate.toISOString(),
+        updatedAt: transactionDate.toISOString()
+      });
+    }
+    
+    return transactions;
+  }
+
+  /**
+   * Generate invoice data
+   */
+  generateInvoices(count: number = 20): any[] {
+    const invoices: any[] = [];
+    const suppliers = this.generateSuppliers(5);
+
+    // Define possible statuses with brand-consistent red-orange color scheme
+    const statuses = [
+      { name: 'paid', color: '#10B981' }, // Green
+      { name: 'pending', color: COLORS.ORANGE }, // Orange
+      { name: 'overdue', color: COLORS.RED }, // Red
+      { name: 'partial', color: '#3B82F6' } // Blue
+    ];
+
+    for (let i = 0; i < count; i++) {
+      const status = statuses[Math.floor(Math.random() * statuses.length)];
+      const supplier = suppliers[Math.floor(Math.random() * suppliers.length)];
+
+      // Create invoice date
+      const invoiceDate = new Date();
+      invoiceDate.setDate(invoiceDate.getDate() - Math.floor(Math.random() * 60));
+
+      // Create due date (14-30 days after invoice date)
+      const dueDate = new Date(invoiceDate);
+      dueDate.setDate(invoiceDate.getDate() + Math.floor(Math.random() * 16) + 14);
+
+      // Amount and payment
+      const amount = Math.floor(Math.random() * 9000000) + 1000000;
+      const paid = status.name === 'paid' ? amount : 
+                  status.name === 'partial' ? Math.floor(amount * (Math.random() * 0.7 + 0.1)) : 0;
+      const remaining = amount - paid;
+
+      // Calculate days overdue for overdue invoices
+      let daysOverdue = 0;
+      if (status.name === 'overdue') {
+        daysOverdue = Math.floor((new Date().getTime() - dueDate.getTime()) / (1000 * 3600 * 24));
+      }
+
+      invoices.push({
+        id: this.generateId('INV'),
+        invoiceNumber: `INV-${invoiceDate.getFullYear()}${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`,
+        supplierId: supplier.id,
+        supplierName: supplier.name,
+        issueDate: invoiceDate.toISOString(),
+        dueDate: dueDate.toISOString(),
+        amount,
+        paid,
+        remaining,
+        status: status.name,
+        statusColor: status.color,
+      });
+    }
+
+    return invoices;
+  }
+
+  /**
+
+  /**
+   * Generate goods receipt data
+   * @param id ID específico o se generará uno aleatorio
+   */
+  generateGoodsReceipt(id: string): any {
+    // ID del recibo, usar el proporcionado o generar uno
+    const receiptId = id || this.generateId('RCPT');
+    
+    // Crear fecha de recepción dentro de los últimos 30 días
+    const receiveDate = new Date();
+    receiveDate.setDate(receiveDate.getDate() - Math.floor(Math.random() * 30));
+    
+    // Número de recibo basado en el ID proporcionado
+    const receiptNumber = id.startsWith('rcpt-') ? id.toUpperCase() : `RCPT-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
+    
+    // Generar entre 2-5 items
+    const itemCount = Math.floor(Math.random() * 4) + 2;
+    const receiptItems = [];
+    
+    const products = [
+      { id: this.generateId('PROD'), name: 'Paracetamol 500mg', unit: 'Box' },
+      { id: this.generateId('PROD'), name: 'Amoxicillin 500mg', unit: 'Strip' },
+      { id: this.generateId('PROD'), name: 'Vitamin C 1000mg', unit: 'Botol' },
+      { id: this.generateId('PROD'), name: 'Antasid Tablet', unit: 'Box' },
+      { id: this.generateId('PROD'), name: 'Cetirizine 10mg', unit: 'Strip' }
+    ];
+    
+    for (let i = 0; i < itemCount; i++) {
+      const product = products[Math.floor(Math.random() * products.length)];
+      const quantity = Math.floor(Math.random() * 100) + 10;
+      
+      // Generar fecha de caducidad entre 3 meses y 2 años desde ahora
+      const threeMonthsFromNow = new Date();
+      threeMonthsFromNow.setMonth(threeMonthsFromNow.getMonth() + 3);
+      const twoYearsFromNow = new Date();
+      twoYearsFromNow.setFullYear(twoYearsFromNow.getFullYear() + 2);
+      const expiryDate = this.randomDate(threeMonthsFromNow, twoYearsFromNow);
+      
+      receiptItems.push({
+        id: this.generateId('RITEM'),
+        productId: product.id,
+        productName: product.name,
+        quantity: quantity,
+        receivedQuantity: Math.floor(quantity * (Math.random() * 0.2 + 0.9)), // 90-110% de la cantidad ordenada
+        unit: product.unit,
+        batchNumber: `BATCH-${Math.floor(Math.random() * 10000)}`,
+        expiryDate: expiryDate.toISOString(),
+        notes: Math.random() > 0.7 ? 'Catatan item penerimaan' : ''
+      });
+    }
+    
+    // Generar adjuntos
+    const attachments = [];
+    if (Math.random() > 0.3) {
+      attachments.push({
+        name: 'Surat Jalan.pdf',
+        url: '/mock/attachments/surat-jalan.pdf',
+        type: 'application/pdf',
+        size: 350000,
+        uploadDate: new Date().toISOString()
+      });
+    }
+    
+    if (Math.random() > 0.5) {
+      attachments.push({
+        name: 'Invoice.pdf',
+        url: '/mock/attachments/invoice.pdf',
+        type: 'application/pdf',
+        size: 420000,
+        uploadDate: new Date().toISOString()
+      });
+    }
+    
+    return {
+      id: receiptId,
+      receiptNumber: receiptNumber,
+      receiptDate: receiveDate.toISOString(),
+      purchaseOrderId: this.generateId('PO'),
+      purchaseOrderNumber: `PO-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`,
+      supplierId: this.generateId('SUP'),
+      supplierName: `PT Supplier ${Math.floor(Math.random() * 100)}`,
+      deliveryNoteNumber: `SJ-${Math.floor(Math.random() * 10000)}`,
+      invoiceNumber: `INV-${Math.floor(Math.random() * 10000)}`,
+      status: ['completed', 'verified', 'pending'][Math.floor(Math.random() * 3)],
+      notes: Math.random() > 0.5 ? 'Ini adalah catatan penerimaan barang. Barang diterima dalam kondisi baik dan sesuai dengan pemesanan.' : '',
+      receivedBy: this.generateId('USER'),
+      receivedByName: 'John Doe',
+      verifiedBy: this.generateId('USER'),
+      verifiedByName: 'Jane Smith',
+      attachments: attachments,
+      items: receiptItems,
+      tenantId: this.tenantId,
+      createdAt: new Date(receiveDate.getTime() - 1000 * 60 * 60).toISOString(),
+      updatedAt: new Date(receiveDate.getTime() + 1000 * 60 * 60).toISOString()
+    };
+  }
+}
+
+export default DummyDataGenerator;

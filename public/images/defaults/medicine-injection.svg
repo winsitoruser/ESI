@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ef4444;stop-opacity:0.8" />
+      <stop offset="100%" style="stop-color:#f97316;stop-opacity:0.9" />
+    </linearGradient>
+    <linearGradient id="liquid" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#f97316;stop-opacity:0.7" />
+      <stop offset="100%" style="stop-color:#ef4444;stop-opacity:0.7" />
+    </linearGradient>
+  </defs>
+  <rect width="200" height="200" fill="#fef2f2" />
+  <circle cx="100" cy="100" r="70" fill="url(#grad)" opacity="0.1" />
+  
+  <!-- Syringe -->
+  <g transform="rotate(-45, 100, 100)">
+    <!-- Needle -->
+    <line x1="65" y1="100" x2="80" y2="100" stroke="#888" stroke-width="1" />
+    <line x1="65" y1="100" x2="60" y2="100" stroke="#888" stroke-width="0.5" />
+    
+    <!-- Syringe body -->
+    <rect x="80" y="95" width="60" height="10" rx="2" ry="2" fill="#f8fafc" stroke="#d1d5db" />
+    
+    <!-- Liquid -->
+    <rect x="80" y="95" width="30" height="10" rx="0" ry="0" fill="url(#liquid)" />
+    
+    <!-- Plunger -->
+    <rect x="140" y="98" width="15" height="4" rx="1" ry="1" fill="#d1d5db" />
+    <rect x="155" y="96" width="5" height="8" rx="1" ry="1" fill="#d1d5db" />
+  </g>
+  
+  <circle cx="100" cy="100" r="40" fill="none" stroke="url(#grad)" stroke-width="2" stroke-dasharray="4,2" />
+</svg>

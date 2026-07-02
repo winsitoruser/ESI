@@ -1,0 +1,42 @@
+module.exports = {
+  apps: [
+    {
+      name: "bedagang-prod",
+      cwd: "/opt/bedagang",
+      script: "node_modules/next/dist/bin/next",
+      args: "start",
+      env: {
+        PORT: 3001,
+        NODE_ENV: "production",
+        NODE_OPTIONS: "--max-old-space-size=4096",
+      },
+      instances: 2,
+      exec_mode: "cluster",
+      watch: false,
+      max_memory_restart: "4G",
+      error_file: "/var/log/bedagang/prod-error.log",
+      out_file: "/var/log/bedagang/prod-out.log",
+      merge_logs: true,
+      log_date_format: "YYYY-MM-DD HH:mm:ss",
+    },
+    {
+      name: "bedagang-prod-store",
+      cwd: "/opt/bedagang",
+      script: "node_modules/next/dist/bin/next",
+      args: "start",
+      env: {
+        PORT: 3003,
+        NODE_ENV: "production",
+        NODE_OPTIONS: "--max-old-space-size=4096",
+      },
+      instances: 1,
+      exec_mode: "fork",
+      watch: false,
+      max_memory_restart: "4G",
+      error_file: "/var/log/bedagang/prod-store-error.log",
+      out_file: "/var/log/bedagang/prod-store-out.log",
+      merge_logs: true,
+      log_date_format: "YYYY-MM-DD HH:mm:ss",
+    },
+  ],
+};

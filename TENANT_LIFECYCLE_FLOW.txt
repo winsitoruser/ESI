@@ -1,0 +1,896 @@
+================================================================================
+BEDAGANG ERP - COMPLETE TENANT LIFECYCLE FLOW
+================================================================================
+Comprehensive Guide: Tenant Creation → User Login → Onboarding → First Use
+Last Updated: 2026-02-25
+Author: System Architecture Team (30+ Years Experience)
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+1. Overview & Architecture
+2. Tenant Creation Flow (Admin Side)
+3. Owner User Auto-Creation
+4. Login Flow (Tenant User Side)
+5. Onboarding Wizard
+6. First-Time User Experience
+7. Module Activation & Permissions
+8. Technical Implementation Details
+9. API Endpoints Reference
+10. Database Schema & Relations
+11. Security Considerations
+12. Email Notifications
+13. Testing Checklist
+14. Troubleshooting Guide
+
+================================================================================
+1. OVERVIEW & ARCHITECTURE
+================================================================================
+
+COMPLETE FLOW DIAGRAM:
+┌─────────────────────────────────────────────────────────────────────┐
+│ ADMIN CREATES TENANT                                                │
+│ ├─ Select tenant type (single/multi branch)                         │
+│ ├─ Select service plan (basic/professional/enterprise)              │
+│ ├─ Fill business information                                        │
+│ └─ Fill owner information                                           │
+└─────────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│ SYSTEM AUTO-CREATES                                                 │
+│ ├─ Tenant record in database                                        │
+│ ├─ Owner user account with temp password                            │
+│ ├─ Default modules based on business type                           │
+│ └─ Email notification to owner (optional)                           │
+└─────────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│ OWNER RECEIVES CREDENTIALS                                          │
+│ ├─ Email: owner@business.com                                        │
+│ ├─ Password: Auto-generated (16 chars)                              │
+│ └─ Login URL: http://yourdomain.com/auth/login                      │
+└─────────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│ OWNER LOGS IN                                                       │
+│ ├─ NextAuth validates credentials                                   │
+│ ├─ Checks tenant setup status                                       │
+│ └─ Middleware redirects to onboarding if needed                     │
+└─────────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│ ONBOARDING WIZARD (5 STEPS)                                         │
+│ ├─ Step 0: Welcome screen                                           │
+│ ├─ Step 1: Business information verification                        │
+│ ├─ Step 2: User management setup                                    │
+│ ├─ Step 3: Product & inventory setup                                │
+│ └─ Step 4: System settings configuration                            │
+└─────────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│ SETUP COMPLETE                                                      │
+│ ├─ Mark tenant.setupCompleted = true                                │
+│ ├─ Set tenant.onboardingStep = 5                                    │
+│ └─ Redirect to dashboard                                            │
+└─────────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│ FIRST-TIME USER EXPERIENCE                                          │
+│ ├─ Access to enabled modules                                        │
+│ ├─ Dashboard with business metrics                                  │
+│ ├─ Ability to add products, users, etc.                             │
+│ └─ Full system functionality                                        │
+└─────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+2. TENANT CREATION FLOW (ADMIN SIDE)
+================================================================================
+
+LOCATION: /admin/tenants/create
+
+STEP 1: TENANT TYPE SELECTION
+┌─────────────────────────────────────────────────────────────────────┐
+│ ○ Single Branch                                                     │
+│   - Untuk bisnis dengan satu lokasi/cabang                          │
+│   - Cocok untuk UMKM dan bisnis kecil                               │
+│   - maxBranches = 1                                                 │
+│                                                                      │
+│ ○ Multi Branch (HQ-Based)                                           │
+│   - Untuk bisnis dengan multiple cabang                             │
+│   - Sistem HQ untuk sinkronisasi data antar cabang                  │
+│   - maxBranches based on plan                                       │
+└─────────────────────────────────────────────────────────────────────┘
+
+STEP 2: SERVICE PLAN SELECTION
+┌─────────────────────────────────────────────────────────────────────┐
+│ ○ Basic                                                             │
+│   ✓ Maksimal 5 pengguna                                             │
+│   ✓ 1 cabang                                                        │
+│   ✓ Fitur POS dasar                                                 │
+│   ✓ Inventori & Stok                                                │
+│   ✓ Laporan dasar                                                   │
+│                                                                      │
+│ ○ Professional                                                      │
+│   ✓ Maksimal 20 pengguna                                            │
+│   ✓ Hingga 5 cabang                                                 │
+│   ✓ Semua fitur Basic                                               │
+│   ✓ Analytics & Dashboard                                           │
+│   ✓ Multi-branch sync                                               │
+│   ✓ Manajemen karyawan                                              │
+│                                                                      │
+│ ○ Enterprise                                                        │
+│   ✓ Pengguna unlimited                                              │
+│   ✓ Cabang unlimited                                                │
+│   ✓ Semua fitur Professional                                        │
+│   ✓ API & Integrasi                                                 │
+│   ✓ Custom modules                                                  │
+│   ✓ Priority support                                                │
+│   ✓ Dedicated account manager                                       │
+└─────────────────────────────────────────────────────────────────────┘
+
+STEP 3: BUSINESS INFORMATION
+- Nama Bisnis (required)
+- Email Bisnis (required)
+- Telepon Bisnis (required)
+- Alamat Bisnis (required)
+- Tipe Bisnis (dropdown: Retail, F&B, Hybrid) (required)
+
+STEP 4: OWNER INFORMATION
+- Nama Pemilik (required)
+- Email Pemilik (required) → Will be used for login
+- Telepon Pemilik (required)
+
+STEP 5: SUBMIT
+API Call: POST /api/admin/tenants
+Request Body:
+{
+  "businessName": "Toko Maju Jaya",
+  "businessEmail": "info@tokomaju.com",
+  "businessPhone": "08123456789",
+  "businessAddress": "Jl. Raya No. 123",
+  "businessTypeId": "uuid-business-type",
+  "tenantType": "single",
+  "maxBranches": 1,
+  "subscriptionPlan": "basic",
+  "ownerName": "John Doe",
+  "ownerEmail": "john@tokomaju.com",
+  "ownerPhone": "08123456789"
+}
+
+================================================================================
+3. OWNER USER AUTO-CREATION
+================================================================================
+
+BACKEND PROCESS (Automatic):
+
+1. GENERATE TEMPORARY PASSWORD
+   - Random 16-character password
+   - Mix of lowercase, uppercase, numbers
+   - Example: "a8f3k9Lm2P5qR7Xt"
+
+2. HASH PASSWORD
+   - Using bcrypt with salt rounds = 10
+   - Secure storage in database
+
+3. CREATE USER RECORD
+   INSERT INTO users (
+     name,
+     email,
+     phone,
+     password,
+     tenant_id,
+     role,
+     is_active,
+     created_at
+   ) VALUES (
+     'John Doe',
+     'john@tokomaju.com',
+     '08123456789',
+     '$2a$10$hashed_password',
+     'tenant-uuid',
+     'owner',
+     true,
+     NOW()
+   );
+
+4. ENABLE DEFAULT MODULES
+   - Query business_type_modules WHERE isDefault = true
+   - Create tenant_modules records for each
+   - Modules auto-enabled based on business type
+
+5. RETURN CREDENTIALS
+   Response:
+   {
+     "success": true,
+     "data": {
+       "tenant": { ... },
+       "owner": {
+         "id": 123,
+         "name": "John Doe",
+         "email": "john@tokomaju.com",
+         "tempPassword": "a8f3k9Lm2P5qR7Xt"
+       }
+     },
+     "message": "Tenant created successfully"
+   }
+
+6. DISPLAY TO ADMIN
+   Alert popup with credentials:
+   "Tenant berhasil dibuat!
+   
+   Kredensial Owner:
+   Email: john@tokomaju.com
+   Password: a8f3k9Lm2P5qR7Xt
+   
+   Simpan kredensial ini untuk diberikan kepada owner."
+
+7. SEND EMAIL (Optional - requires SMTP setup)
+   - Welcome email with credentials
+   - Login instructions
+   - Quick start guide
+
+================================================================================
+4. LOGIN FLOW (TENANT USER SIDE)
+================================================================================
+
+LOCATION: /auth/login
+
+STEP 1: USER ENTERS CREDENTIALS
+- Email: john@tokomaju.com
+- Password: a8f3k9Lm2P5qR7Xt
+
+STEP 2: NEXTAUTH AUTHENTICATION
+File: /pages/api/auth/[...nextauth].ts
+
+Process:
+1. Find user by email
+2. Check if user is active
+3. Verify password with bcrypt
+4. Load tenant and branch associations
+5. Update lastLogin timestamp
+6. Create JWT token with user data
+
+JWT Token Contains:
+{
+  id: "123",
+  email: "john@tokomaju.com",
+  name: "John Doe",
+  role: "owner",
+  tenantId: "tenant-uuid",
+  branchId: null,
+  tenantName: "Toko Maju Jaya"
+}
+
+STEP 3: MIDDLEWARE CHECK
+File: /middleware.ts
+
+Process:
+1. Extract JWT token from request
+2. Check if user is authenticated
+3. Check if route requires admin access
+4. Fetch tenant info to check setup status
+5. Redirect to onboarding if setupCompleted = false
+6. Allow access if setup complete
+
+STEP 4: REDIRECT LOGIC
+- If setupCompleted = false → Redirect to /onboarding
+- If setupCompleted = true → Redirect to /dashboard
+- Admin users → Skip onboarding, go to /admin/dashboard
+
+================================================================================
+5. ONBOARDING WIZARD
+================================================================================
+
+LOCATION: /onboarding
+
+PURPOSE: Guide new tenant through initial setup
+
+STEP 0: WELCOME SCREEN
+┌─────────────────────────────────────────────────────────────────────┐
+│                    Selamat Datang di Bedagang ERP! 🎉               │
+│                                                                      │
+│  Kami akan membantu Anda setup sistem dalam beberapa langkah mudah. │
+│  Proses ini hanya memakan waktu sekitar 5-10 menit.                 │
+│                                                                      │
+│  Bisnis: Toko Maju Jaya                                             │
+│  Tipe: Retail/Toko                                                  │
+│                                                                      │
+│                        [Lanjut →]                                   │
+└─────────────────────────────────────────────────────────────────────┘
+
+STEP 1: BUSINESS INFORMATION VERIFICATION
+- Display current business info
+- Allow verification (no edit yet)
+- Note: Can be edited later in Settings
+
+API Call: GET /api/tenant/info
+Response: Current tenant information
+
+STEP 2: USER MANAGEMENT SETUP
+- Explanation of user roles
+- Option to add users (can skip)
+- Link to user management later
+
+Tip: "Anda dapat menambahkan pengguna nanti melalui menu 
+      Manajemen Pengguna di dashboard."
+
+STEP 3: PRODUCT & INVENTORY SETUP
+Options:
+1. Import CSV - Upload product list
+2. Add Manual - Add products one by one
+3. Skip - Do it later
+
+STEP 4: SYSTEM SETTINGS CONFIGURATION
+Default Settings Display:
+- Mata Uang: IDR (Rp)
+- Zona Waktu: WIB (GMT+7)
+- Format Tanggal: DD/MM/YYYY
+
+Note: "Setup hampir selesai! Klik 'Selesai' untuk mulai 
+       menggunakan sistem."
+
+STEP 5: COMPLETION
+API Call: POST /api/tenant/onboarding/complete
+Updates:
+- tenant.setupCompleted = true
+- tenant.onboardingStep = 5
+
+Redirect to: /dashboard
+
+NAVIGATION:
+- [← Kembali] - Go to previous step
+- [Lewati Setup] - Skip onboarding entirely
+- [Lanjut →] - Go to next step
+- [Selesai ✓] - Complete onboarding (final step)
+
+API ENDPOINTS USED:
+1. GET /api/tenant/info - Get tenant information
+2. PUT /api/tenant/onboarding - Update onboarding step
+3. POST /api/tenant/onboarding/complete - Mark setup complete
+
+================================================================================
+6. FIRST-TIME USER EXPERIENCE
+================================================================================
+
+AFTER ONBOARDING COMPLETION:
+
+DASHBOARD ACCESS:
+- URL: /dashboard
+- Shows business metrics
+- Quick actions available
+- Module navigation sidebar
+
+ENABLED MODULES (Based on Business Type):
+For Retail:
+✓ Dashboard
+✓ POS/Kasir
+✓ Inventori
+✓ Produk
+✓ Pelanggan
+✓ Keuangan
+✓ Laporan
+✓ Karyawan
+✓ Pengaturan
+✓ Supplier
+
+For F&B:
+✓ Dashboard
+✓ POS/Kasir
+✓ Inventori
+✓ Produk
+✓ Pelanggan
+✓ Keuangan
+✓ Laporan
+✓ Karyawan
+✓ Pengaturan
+✓ Manajemen Meja
+✓ Reservasi
+✓ Analisa HPP
+
+AVAILABLE ACTIONS:
+1. Add Products - /products/create
+2. Add Users - /users/create
+3. Configure Settings - /settings
+4. View Reports - /reports
+5. Start POS Transaction - /pos
+
+USER PERMISSIONS (Owner Role):
+- Full access to all enabled modules
+- Can add/edit/delete users
+- Can configure system settings
+- Can view all reports
+- Can manage subscriptions
+
+================================================================================
+7. MODULE ACTIVATION & PERMISSIONS
+================================================================================
+
+MODULE ACTIVATION FLOW:
+
+1. DURING TENANT CREATION
+   - Query: SELECT * FROM business_type_modules 
+            WHERE business_type_id = ? AND is_default = true
+   - Create tenant_modules for each default module
+   - Set is_enabled = true
+
+2. MODULE STRUCTURE
+   Table: modules
+   - id (UUID)
+   - code (string) - e.g., 'dashboard', 'pos', 'inventory'
+   - name (string) - Display name
+   - route (string) - URL path
+   - is_core (boolean) - Core modules always enabled
+   - is_active (boolean) - Module available in system
+
+3. TENANT MODULE ASSIGNMENT
+   Table: tenant_modules
+   - tenant_id (UUID)
+   - module_id (UUID)
+   - is_enabled (boolean)
+   - enabled_at (timestamp)
+
+4. CHECKING MODULE ACCESS
+   Query: SELECT m.* FROM modules m
+          JOIN tenant_modules tm ON m.id = tm.module_id
+          WHERE tm.tenant_id = ? AND tm.is_enabled = true
+
+5. ROLE-BASED PERMISSIONS
+   User Roles:
+   - owner: Full access to all tenant modules
+   - admin: Full access except subscription management
+   - manager: Limited admin access
+   - cashier: POS and basic reporting
+   - staff: Limited access based on assignment
+
+================================================================================
+8. TECHNICAL IMPLEMENTATION DETAILS
+================================================================================
+
+FILES CREATED/MODIFIED:
+
+BACKEND:
+1. /pages/api/admin/tenants/index.ts
+   - POST endpoint for tenant creation
+   - Auto-creates owner user
+   - Enables default modules
+   - Returns credentials
+
+2. /pages/api/tenant/info.ts
+   - GET endpoint for tenant information
+   - Used by onboarding wizard
+   - Returns tenant with business type
+
+3. /pages/api/tenant/onboarding.ts
+   - PUT endpoint to update onboarding step
+   - Tracks progress through wizard
+
+4. /pages/api/tenant/onboarding/complete.ts
+   - POST endpoint to mark setup complete
+   - Sets setupCompleted = true
+
+5. /pages/api/auth/[...nextauth].ts
+   - Modified to include redirect logic
+   - Checks tenant setup status
+
+6. /middleware.ts
+   - NEW: Middleware for route protection
+   - Auto-redirects to onboarding if needed
+   - Handles admin vs tenant user routing
+
+FRONTEND:
+1. /pages/admin/tenants/create.tsx
+   - Tenant creation form
+   - Displays owner credentials after creation
+   - Tenant type and service plan selection
+
+2. /pages/onboarding/index.tsx
+   - NEW: 5-step onboarding wizard
+   - Progress tracking
+   - Skip functionality
+
+EMAIL SYSTEM:
+1. /lib/email/templates.ts
+   - Welcome email template
+   - Onboarding reminder template
+
+2. /lib/email/sender.ts
+   - Email sending service
+   - Uses nodemailer (requires setup)
+
+DATABASE MODELS:
+1. User.js
+   - tenantId field links to tenant
+   - role field for permissions
+   - lastLogin tracking
+
+2. Tenant.js
+   - setupCompleted field
+   - onboardingStep field
+   - subscriptionPlan field
+   - maxBranches, maxUsers fields
+
+3. TenantModule.js
+   - Links tenants to modules
+   - is_enabled flag
+
+================================================================================
+9. API ENDPOINTS REFERENCE
+================================================================================
+
+TENANT CREATION:
+POST /api/admin/tenants
+Auth: Admin/Super Admin only
+Body: {
+  businessName, businessEmail, businessPhone, businessAddress,
+  businessTypeId, tenantType, maxBranches, subscriptionPlan,
+  ownerName, ownerEmail, ownerPhone
+}
+Response: { tenant, owner: { email, tempPassword } }
+
+TENANT INFO:
+GET /api/tenant/info
+Auth: Authenticated user
+Response: { tenant: { ...tenantData, businessType } }
+
+ONBOARDING UPDATE:
+PUT /api/tenant/onboarding
+Auth: Authenticated user
+Body: { step: number }
+Response: { success: true, step }
+
+ONBOARDING COMPLETE:
+POST /api/tenant/onboarding/complete
+Auth: Authenticated user
+Response: { success: true }
+
+AUTHENTICATION:
+POST /api/auth/signin
+Body: { email, password }
+Response: JWT token with user session
+
+================================================================================
+10. DATABASE SCHEMA & RELATIONS
+================================================================================
+
+TENANTS TABLE:
+- id (UUID, PK)
+- business_type_id (UUID, FK → business_types)
+- business_name (VARCHAR)
+- business_email (VARCHAR)
+- business_phone (VARCHAR)
+- business_address (TEXT)
+- subscription_plan (VARCHAR) - 'basic', 'professional', 'enterprise'
+- max_branches (INTEGER)
+- max_users (INTEGER)
+- status (ENUM) - 'active', 'inactive', 'suspended', 'trial'
+- setup_completed (BOOLEAN)
+- onboarding_step (INTEGER)
+- contact_name (VARCHAR)
+- contact_email (VARCHAR)
+- contact_phone (VARCHAR)
+- created_at, updated_at
+
+USERS TABLE:
+- id (INTEGER, PK)
+- name (VARCHAR)
+- email (VARCHAR, UNIQUE)
+- phone (VARCHAR)
+- password (VARCHAR) - bcrypt hashed
+- tenant_id (UUID, FK → tenants)
+- assigned_branch_id (UUID, FK → branches)
+- role (ENUM) - 'super_admin', 'owner', 'admin', 'manager', 'cashier', 'staff'
+- is_active (BOOLEAN)
+- last_login (TIMESTAMP)
+- created_at, updated_at
+
+TENANT_MODULES TABLE:
+- id (UUID, PK)
+- tenant_id (UUID, FK → tenants)
+- module_id (UUID, FK → modules)
+- is_enabled (BOOLEAN)
+- enabled_at (TIMESTAMP)
+- disabled_at (TIMESTAMP)
+- created_at
+
+MODULES TABLE:
+- id (UUID, PK)
+- code (VARCHAR, UNIQUE)
+- name (VARCHAR)
+- description (TEXT)
+- icon (VARCHAR)
+- route (VARCHAR)
+- parent_module_id (UUID, FK → modules)
+- sort_order (INTEGER)
+- is_core (BOOLEAN)
+- is_active (BOOLEAN)
+- created_at, updated_at
+
+BUSINESS_TYPE_MODULES TABLE:
+- id (UUID, PK)
+- business_type_id (UUID, FK → business_types)
+- module_id (UUID, FK → modules)
+- is_default (BOOLEAN)
+- is_optional (BOOLEAN)
+- created_at
+
+RELATIONS:
+Tenant → BusinessType (many-to-one)
+Tenant → Users (one-to-many)
+Tenant → TenantModules (one-to-many)
+User → Tenant (many-to-one)
+User → Branch (many-to-one)
+TenantModule → Tenant (many-to-one)
+TenantModule → Module (many-to-one)
+BusinessTypeModule → BusinessType (many-to-one)
+BusinessTypeModule → Module (many-to-one)
+
+================================================================================
+11. SECURITY CONSIDERATIONS
+================================================================================
+
+PASSWORD SECURITY:
+✓ Auto-generated 16-character passwords
+✓ Bcrypt hashing with salt rounds = 10
+✓ Temporary password displayed once
+✓ Force password change on first login (TODO)
+
+SESSION SECURITY:
+✓ JWT tokens with 30-day expiry
+✓ HttpOnly cookies
+✓ Secure flag in production
+✓ Session validation on each request
+
+ACCESS CONTROL:
+✓ Role-based permissions
+✓ Tenant isolation (users can only access their tenant data)
+✓ Module-level access control
+✓ API endpoint protection with middleware
+
+DATA VALIDATION:
+✓ Email format validation
+✓ Phone number validation
+✓ Required field checks
+✓ UUID validation for IDs
+
+AUDIT TRAIL:
+✓ lastLogin tracking
+✓ created_at, updated_at timestamps
+✓ Onboarding step tracking
+✓ Module enable/disable logging
+
+RECOMMENDATIONS:
+1. Implement password change on first login
+2. Add 2FA for owner accounts
+3. Implement session timeout
+4. Add IP whitelisting for admin
+5. Enable audit logging for sensitive operations
+6. Implement rate limiting on login endpoint
+
+================================================================================
+12. EMAIL NOTIFICATIONS
+================================================================================
+
+WELCOME EMAIL:
+Trigger: After tenant creation
+To: Owner email
+Contains:
+- Welcome message
+- Login credentials (email + temp password)
+- Login URL
+- Quick start guide
+- Support contact info
+
+Template: /lib/email/templates.ts → generateWelcomeEmail()
+
+ONBOARDING REMINDER:
+Trigger: 24 hours after creation if setup not complete
+To: Owner email
+Contains:
+- Reminder to complete setup
+- Progress indicator
+- Continue setup URL
+
+Template: /lib/email/templates.ts → generateOnboardingReminder()
+
+SETUP REQUIRED:
+1. Install nodemailer: npm install nodemailer
+2. Configure SMTP in .env:
+   SMTP_HOST=smtp.gmail.com
+   SMTP_PORT=587
+   SMTP_USER=your-email@gmail.com
+   SMTP_PASSWORD=your-app-password
+   SMTP_FROM=noreply@bedagang.com
+
+3. Enable email sending in tenant creation API
+
+TESTING:
+- Use Mailtrap for development testing
+- Use Gmail SMTP for production
+- Monitor email delivery logs
+
+================================================================================
+13. TESTING CHECKLIST
+================================================================================
+
+TENANT CREATION:
+□ Admin can access /admin/tenants/create
+□ Tenant type selection works (single/multi)
+□ Service plan selection works (basic/pro/enterprise)
+□ Business information form validates correctly
+□ Owner information form validates correctly
+□ Tenant created successfully in database
+□ Owner user created with correct role
+□ Default modules enabled based on business type
+□ Credentials displayed to admin
+□ Redirect to tenant detail page works
+
+OWNER LOGIN:
+□ Owner can access /auth/login
+□ Email and password validation works
+□ Login with correct credentials succeeds
+□ Login with incorrect credentials fails
+□ Inactive user cannot login
+□ JWT token created with correct data
+□ Session persists across page refreshes
+
+ONBOARDING:
+□ Middleware redirects to /onboarding if setup incomplete
+□ Welcome screen displays correctly
+□ Business info verification works
+□ Progress bar updates correctly
+□ Back button works
+□ Next button advances to next step
+□ Skip button completes onboarding
+□ Final step marks setup as complete
+□ Redirect to dashboard after completion
+
+FIRST-TIME USE:
+□ Dashboard loads correctly
+□ Enabled modules appear in navigation
+□ Owner has full access to all modules
+□ Can add products
+□ Can add users
+□ Can configure settings
+□ Can view reports
+
+MODULE ACCESS:
+□ Only enabled modules are accessible
+□ Disabled modules return 403
+□ Module permissions respect user role
+□ Core modules always available
+
+SECURITY:
+□ Unauthenticated users redirected to login
+□ Admin routes protected from tenant users
+□ Tenant users can only access their data
+□ Password hashing works correctly
+□ Session expiry works
+
+================================================================================
+14. TROUBLESHOOTING GUIDE
+================================================================================
+
+ISSUE: Owner cannot login
+CAUSE: Incorrect credentials or inactive account
+FIX:
+1. Verify email in database: SELECT * FROM users WHERE email = ?
+2. Check is_active flag
+3. Reset password if needed
+4. Check tenant status
+
+ISSUE: Stuck in onboarding loop
+CAUSE: setupCompleted not updating
+FIX:
+1. Check API call to /api/tenant/onboarding/complete
+2. Verify database update: UPDATE tenants SET setup_completed = true
+3. Clear browser cache and cookies
+4. Check middleware logic
+
+ISSUE: Modules not appearing
+CAUSE: tenant_modules not created
+FIX:
+1. Check tenant_modules table: SELECT * FROM tenant_modules WHERE tenant_id = ?
+2. Manually enable modules if needed
+3. Verify business_type_modules configuration
+4. Re-run module activation
+
+ISSUE: Email not sending
+CAUSE: SMTP not configured
+FIX:
+1. Check .env file for SMTP settings
+2. Test SMTP connection
+3. Check nodemailer installation
+4. Review email logs
+5. Use Mailtrap for testing
+
+ISSUE: Middleware redirect loop
+CAUSE: Incorrect redirect logic
+FIX:
+1. Check middleware.ts logic
+2. Verify setupCompleted status
+3. Add /onboarding to allowed routes
+4. Check JWT token validity
+
+ISSUE: Permission denied errors
+CAUSE: Incorrect role or module access
+FIX:
+1. Verify user role in database
+2. Check tenant_modules for enabled modules
+3. Review API endpoint permissions
+4. Check session token data
+
+================================================================================
+PRODUCTION DEPLOYMENT NOTES
+================================================================================
+
+BEFORE DEPLOYMENT:
+1. Remove tempPassword from API response
+2. Implement email sending for credentials
+3. Add password change requirement on first login
+4. Enable HTTPS only
+5. Configure proper SMTP service
+6. Set up monitoring for onboarding completion rates
+7. Add analytics tracking
+8. Implement backup strategy
+9. Test all flows end-to-end
+10. Document admin procedures
+
+ENVIRONMENT VARIABLES REQUIRED:
+- NEXTAUTH_SECRET (strong random string)
+- NEXTAUTH_URL (production URL)
+- DATABASE_URL (production database)
+- SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD
+- SMTP_FROM (sender email)
+
+MONITORING:
+- Track onboarding completion rate
+- Monitor login failures
+- Alert on email delivery failures
+- Track tenant creation rate
+- Monitor module usage
+
+================================================================================
+SUMMARY
+================================================================================
+
+COMPLETE FLOW:
+1. Admin creates tenant via /admin/tenants/create
+2. System auto-creates owner user with temp password
+3. System enables default modules based on business type
+4. Admin receives credentials to give to owner
+5. Owner logs in at /auth/login
+6. Middleware checks setup status
+7. Owner redirected to /onboarding if setup incomplete
+8. Owner completes 5-step onboarding wizard
+9. System marks tenant as setup complete
+10. Owner redirected to /dashboard
+11. Owner has full access to enabled modules
+12. Owner can start using the system
+
+KEY FEATURES:
+✓ Automated user creation
+✓ Intelligent module activation
+✓ Guided onboarding experience
+✓ Role-based access control
+✓ Tenant isolation
+✓ Security best practices
+✓ Email notifications (optional)
+✓ Progress tracking
+✓ Skip functionality
+✓ Production-ready architecture
+
+NEXT STEPS FOR ENHANCEMENT:
+1. Add password change on first login
+2. Implement 2FA
+3. Add user invitation system
+4. Create admin dashboard for tenant monitoring
+5. Add usage analytics
+6. Implement billing integration
+7. Add multi-language support
+8. Create mobile app
+9. Add API documentation
+10. Implement webhook system
+
+================================================================================
+END OF DOCUMENTATION
+================================================================================

@@ -1,0 +1,589 @@
+import React, { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import {
+  FaTimes, FaPlus, FaMinus, FaSave, FaCalculator, FaTrash,
+  FaBalanceScale, FaFlask, FaCheckCircle
+} from 'react-icons/fa';
+
+interface RawMaterial {
+  id: string;
+  name: string;
+  sku: string;
+  unit: string;
+  costPerUnit: number;
+  stock: number;
+}
+
+interface RecipeIngredient {
+  materialId: string;
+  materialName: string;
+  quantity: number;
+  unit: string;
+  costPerUnit: number;
+  subtotal: number;
+}
+
+interface RecipeBuilderModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  recipe?: any;
+  materials: RawMaterial[];
+  onSave?: (recipeData: any) => void;
+  saving?: boolean;
+}
+
+const RecipeBuilderModal: React.FC<RecipeBuilderModalProps> = ({
+  isOpen,
+  onClose,
+  recipe,
+  materials,
+  onSave,
+  saving = false
+}) => {
+  const [recipeName, setRecipeName] = useState(recipe?.name || '');
+  const [recipeSku, setRecipeSku] = useState(recipe?.sku || '');
+  const [category, setCategory] = useState(recipe?.category || 'Bakery');
+  const [description, setDescription] = useState(recipe?.description || '');
+  const [batchSize, setBatchSize] = useState(recipe?.batchSize || 1);
+  const [batchUnit, setBatchUnit] = useState(recipe?.batchUnit || 'pcs');
+  const [preparationTime, setPreparationTime] = useState(recipe?.preparationTime || 60);
+  const [ingredients, setIngredients] = useState<RecipeIngredient[]>(recipe?.ingredients || []);
+  const [selectedMaterialId, setSelectedMaterialId] = useState('');
+  const [quantity, setQuantity] = useState(0);
+
+  if (!isOpen) return null;
+
+  const addIngredient = () => {
+    const material = materials.find(m => m.id === selectedMaterialId);
+    if (!material || quantity <= 0) return;
+
+    const existingIndex = ingredients.findIndex(i => i.materialId === selectedMaterialId);
+    
+    if (existingIndex >= 0) {
+      const updated = [...ingredients];
+      updated[existingIndex].quantity += quantity;
+      updated[existingIndex].subtotal = updated[existingIndex].quantity * material.costPerUnit;
+      setIngredients(updated);
+    } else {
+      setIngredients([...ingredients, {
+        materialId: material.id,
+        materialName: material.name,
+        quantity,
+        unit: material.unit,
+        costPerUnit: material.costPerUnit,
+        subtotal: quantity * material.costPerUnit
+      }]);
+    }
+
+    setSelectedMaterialId('');
+    setQuantity(0);
+  };
+
+  const updateIngredientQuantity = (index: number, newQuantity: number) => {
+    if (newQuantity <= 0) {
+      removeIngredient(index);
+      return;
+    }
+
+    const updated = [...ingredients];
+    updated[index].quantity = newQuantity;
+    updated[index].subtotal = newQuantity * updated[index].costPerUnit;
+    setIngredients(updated);
+  };
+
+  const removeIngredient = (index: number) => {
+    setIngredients(ingredients.filter((_, i) => i !== index));
+  };
+
+  const getTotalCost = () => {
+    return ingredients.reduce((sum, ing) => sum + ing.subtotal, 0);
+  };
+
+  const getCostPerUnit = () => {
+    if (batchSize <= 0) return 0;
+    return getTotalCost() / batchSize;
+      currency: 'IDR',
+      minimumFractionDigits: 0
+    }).format(amount);
+  };
+
+  const handleSave = () => {
+    if (!recipeName || !recipeSku || ingredients.length === 0) {
+      alert('❌ Nama resep, SKU, dan minimal 1 bahan harus diisi!');
+      return;
+    }
+
+    const recipeData = {
+      name: recipeName,
+      sku: recipeSku,
+      category,
+      description,
+      batchSize,
+      batchUnit,
+      preparationTime,
+      ingredients,
+      totalCost: getTotalCost(),
+      costPerUnit: getCostPerUnit(),
+      estimatedYield: batchSize
+    };
+
+    if (onSave) {
+      onSave(recipeData);
+    } else {
+      console.log('Recipe saved:', recipeData);
+      alert('Recipe saved successfully!');
+      onClose();
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold flex items-center space-x-3">
+                <FaFlask className="text-3xl" />
+                <span>{recipe ? 'Ubah Resep' : 'Buat Resep Baru'}</span>
+              </h2>
+              <p className="text-purple-100 text-sm mt-1">Formula & komposisi bahan baku produk</p>
+            </div>
+            <button
+              onClick={onClose}
+              className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition-colors"
+            >
+              <FaTimes className="text-xl" />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6">
+            {/* Left Panel - Recipe Info */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Basic Info */}
+              <div className="bg-gray-50 rounded-xl p-6 space-y-4">
+                <h3 className="font-bold text-gray-900 text-lg mb-4">Informasi Dasar</h3>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                      Nama Resep *
+                    </label>
+                    <Input
+                      value={recipeName}
+                      onChange={(e) => setRecipeName(e.target.value)}
+                      placeholder="contoh: Roti Tawar Premium"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                      SKU *
+                    </label>
+                    <Input
+                      value={recipeSku}
+                      onChange={(e) => setRecipeSku(e.target.value)}
+                      placeholder="e.g., PRD-ROTI-001"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                      Kategori
+                    </label>
+                    <select
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="Bakery">Roti & Kue</option>
+                      <option value="Beverage">Minuman</option>
+                      <option value="Snack">Makanan Ringan</option>
+                      <option value="Meal">Makanan</option>
+                      <option value="Dessert">Dessert</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                      Waktu Persiapan (menit)
+                    </label>
+                    <Input
+                      type="number"
+                      value={preparationTime}
+                      onChange={(e) => setPreparationTime(parseInt(e.target.value) || 0)}
+                      placeholder="60"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                    Deskripsi
+                  </label>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Jelaskan resep Anda..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    rows={3}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                      Ukuran Batch *
+                    </label>
+                    <Input
+                      type="number"
+                      value={batchSize}
+                      onChange={(e) => setBatchSize(parseInt(e.target.value) || 1)}
+                      placeholder="10"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                      Satuan Batch
+                    </label>
+                    <select
+                      value={batchUnit}
+                      onChange={(e) => setBatchUnit(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="pcs">Buah (pcs)</option>
+                      <option value="loaf">Loaf</option>
+                      <option value="kg">Kilogram (kg)</option>
+                      <option value="liter">Liter</option>
+                      <option value="box">Kotak</option>
+                      <option value="pack">Pack</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Add Ingredient */}
+              <div className="bg-purple-50 rounded-xl p-6">
+                <h3 className="font-bold text-gray-900 text-lg mb-4 flex items-center">
+                  <FaPlus className="mr-2 text-purple-600" />
+                  Tambah Bahan
+                </h3>
+                
+                <div className="grid grid-cols-12 gap-3">
+                  <div className="col-span-6">
+                    <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                      Bahan Baku
+                    </label>
+                    <select
+                      value={selectedMaterialId}
+                      onChange={(e) => setSelectedMaterialId(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="">Pilih bahan...</option>
+                      {materials.map(material => (
+                        <option key={material.id} value={material.id}>
+                          {material.name} ({formatCurrency(material.costPerUnit)}/{material.unit})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-span-4">
+                    <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                      Jumlah
+                    </label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={quantity}
+                      onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)}
+                      placeholder="0"
+
+return (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold flex items-center space-x-3">
+              <FaFlask className="text-3xl" />
+              <span>{recipe ? 'Ubah Resep' : 'Buat Resep Baru'}</span>
+            </h2>
+            <p className="text-purple-100 text-sm mt-1">Formula & komposisi bahan baku produk</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition-colors"
+          >
+            <FaTimes className="text-xl" />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6">
+          {/* Left Panel - Recipe Info */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Basic Info */}
+            <div className="bg-gray-50 rounded-xl p-6 space-y-4">
+              <h3 className="font-bold text-gray-900 text-lg mb-4">Informasi Dasar</h3>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                    Nama Resep *
+                  </label>
+                  <Input
+                    value={recipeName}
+                    onChange={(e) => setRecipeName(e.target.value)}
+                    placeholder="contoh: Roti Tawar Premium"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                    SKU *
+                  </label>
+                  <Input
+                    value={recipeSku}
+                    onChange={(e) => setRecipeSku(e.target.value)}
+                    placeholder="e.g., PRD-ROTI-001"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                    Kategori
+                  </label>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  >
+                    <option value="Bakery">Roti & Kue</option>
+                    <option value="Beverage">Minuman</option>
+                    <option value="Snack">Makanan Ringan</option>
+                    <option value="Meal">Makanan</option>
+                    <option value="Dessert">Dessert</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                    Waktu Persiapan (menit)
+                  </label>
+                  <Input
+                    type="number"
+                    value={preparationTime}
+                    onChange={(e) => setPreparationTime(parseInt(e.target.value) || 0)}
+                    placeholder="60"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                  Deskripsi
+                </label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Jelaskan resep Anda..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  rows={3}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                    Ukuran Batch *
+                  </label>
+                  <Input
+                    type="number"
+                    value={batchSize}
+                    onChange={(e) => setBatchSize(parseInt(e.target.value) || 1)}
+                    placeholder="10"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                    Satuan Batch
+                  </label>
+                  <select
+                    value={batchUnit}
+                    onChange={(e) => setBatchUnit(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  >
+                    <option value="pcs">Buah (pcs)</option>
+                    <option value="loaf">Loaf</option>
+                    <option value="kg">Kilogram (kg)</option>
+                    <option value="liter">Liter</option>
+                    <option value="box">Kotak</option>
+                    <option value="pack">Pack</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Add Ingredient */}
+            <div className="bg-purple-50 rounded-xl p-6">
+              <h3 className="font-bold text-gray-900 text-lg mb-4 flex items-center">
+                <FaPlus className="mr-2 text-purple-600" />
+                Tambah Bahan
+              </h3>
+              
+              <div className="grid grid-cols-12 gap-3">
+                <div className="col-span-6">
+                  <label className="text-sm font-semibold text-gray-700 mb-1 block">
+                    Bahan Baku
+                  </label>
+                  <select
+                    value={selectedMaterialId}
+                    onChange={(e) => setSelectedMaterialId(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  >
+                    <option value="">Pilih bahan...</option>
+                    {materials.map(material => (
+                      <option key={material.id} value={material.id}>
+                        {material.name} ({formatCurrency(material.costPerUnit)}/{material.unit})
+                      </option>
+              {/* Ingredients List */}
+              <div className="bg-white rounded-xl border-2 border-gray-200 p-6">
+                <h3 className="font-bold text-gray-900 text-lg mb-4 flex items-center">
+                  <FaBalanceScale className="mr-2 text-purple-600" />
+                  Daftar Bahan ({ingredients.length})
+                </h3>
+                
+                {ingredients.length === 0 ? (
+                  <div className="text-center py-8 text-gray-400">
+                    <FaFlask className="text-5xl mx-auto mb-3 opacity-30" />
+                    <p>Belum ada bahan ditambahkan</p>
+                    <p className="text-sm">Tambahkan bahan untuk mulai membuat resep</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {ingredients.map((ingredient, index) => (
+                      <div key={index} className="flex items-center space-x-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="flex-1">
+                          <p className="font-semibold text-gray-900">{ingredient.materialName}</p>
+                          <p className="text-sm text-gray-600">
+                            {formatCurrency(ingredient.costPerUnit)} per {ingredient.unit}
+                          </p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => updateIngredientQuantity(index, ingredient.quantity - 0.1)}
+                            className="w-8 h-8 bg-gray-200 hover:bg-gray-300 rounded flex items-center justify-center"
+                          >
+                            <FaMinus className="text-xs" />
+                          </button>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={ingredient.quantity}
+                            onChange={(e) => updateIngredientQuantity(index, parseFloat(e.target.value) || 0)}
+                            className="w-24 text-center"
+                          />
+                          <span className="text-sm text-gray-600 w-12">{ingredient.unit}</span>
+                          <button
+                            onClick={() => updateIngredientQuantity(index, ingredient.quantity + 0.1)}
+                            className="w-8 h-8 bg-gray-200 hover:bg-gray-300 rounded flex items-center justify-center"
+                          >
+                            <FaPlus className="text-xs" />
+                          </button>
+                        </div>
+                        <div className="text-right w-32">
+                          <p className="font-bold text-gray-900">{formatCurrency(ingredient.subtotal)}</p>
+                        </div>
+                        <button
+                          onClick={() => removeIngredient(index)}
+                          className="w-8 h-8 text-red-600 hover:bg-red-50 rounded flex items-center justify-center"
+                        >
+                          <FaTrash />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right Panel - Cost Summary */}
+            <div className="space-y-4">
+              <div className="bg-gradient-to-br from-purple-600 to-indigo-600 text-white rounded-xl p-6 sticky top-4">
+                <h3 className="font-bold text-lg mb-4 flex items-center">
+                  <FaCalculator className="mr-2" />
+                  Ringkasan Biaya
+                </h3>
+                
+                <div className="space-y-4">
+                  <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+                    <p className="text-sm text-purple-100 mb-1">Total Bahan</p>
+                    <p className="text-3xl font-bold">{ingredients.length}</p>
+                  </div>
+
+                  <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+                    <p className="text-sm text-purple-100 mb-1">Ukuran Batch</p>
+                    <p className="text-2xl font-bold">{batchSize} {batchUnit}</p>
+                  </div>
+
+                  <div className="border-t border-white/20 pt-4 space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-purple-100">Total Biaya:</span>
+                      <span className="font-bold text-xl">{formatCurrency(getTotalCost())}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-purple-100">Biaya per Unit:</span>
+                      <span className="font-bold text-xl">{formatCurrency(getCostPerUnit())}</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-green-500/30 backdrop-blur-sm rounded-lg p-4 border border-green-400/30">
+                    <p className="text-xs text-green-100 mb-1">Harga Jual Disarankan</p>
+                    <p className="text-sm text-green-100 mb-1">(Markup 40%)</p>
+                    <p className="text-2xl font-bold">{formatCurrency(getCostPerUnit() * 1.4)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="space-y-2">
+                <Button
+                  onClick={handleSave}
+                  className="w-full bg-green-600 hover:bg-green-700 py-6 text-lg"
+                  disabled={!recipeName || !recipeSku || ingredients.length === 0 || saving}
+                >
+                  {saving ? (
+                    <>
+                      <div className="animate-spin h-5 w-5 mr-2 border-2 border-white border-t-transparent rounded-full inline-block"></div>
+                      Menyimpan...
+                    </>
+                  ) : (
+                    <>
+                      <FaSave className="mr-2" />
+                      Simpan Resep
+                    </>
+                  )}
+                </Button>
+                <Button
+                  onClick={onClose}
+                  variant="outline"
+                  className="w-full py-3"
+                >
+                  Batal
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default RecipeBuilderModal;

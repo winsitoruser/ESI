@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ef4444;stop-opacity:0.8" />
+      <stop offset="100%" style="stop-color:#f97316;stop-opacity:0.9" />
+    </linearGradient>
+    <linearGradient id="tube" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#f97316;stop-opacity:0.8" />
+      <stop offset="100%" style="stop-color:#ef4444;stop-opacity:0.8" />
+    </linearGradient>
+  </defs>
+  <rect width="200" height="200" fill="#fef2f2" />
+  <circle cx="100" cy="100" r="70" fill="url(#grad)" opacity="0.1" />
+  
+  <!-- Cream tube -->
+  <g transform="rotate(15, 100, 100)">
+    <!-- Tube body -->
+    <path d="M75,65 v60 c0,5 5,10 10,10 h30 c5,0 10,-5 10,-10 v-60 z" fill="url(#tube)" />
+    
+    <!-- Tube contents at squeeze -->
+    <path d="M80,65 v60 c0,2 2,5 5,5 h30 c3,0 5,-3 5,-5 v-60 z" fill="#fff" opacity="0.3" />
+    
+    <!-- Tube cap -->
+    <path d="M75,65 h50 v-10 c0,-5 -5,-10 -10,-10 h-30 c-5,0 -10,5 -10,10 z" fill="#fff" stroke="url(#grad)" stroke-width="1" />
+  </g>
+  
+  <circle cx="100" cy="100" r="40" fill="none" stroke="url(#grad)" stroke-width="2" stroke-dasharray="4,2" />
+</svg>

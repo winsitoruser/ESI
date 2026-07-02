@@ -1,0 +1,432 @@
+================================================================================
+SHIPPING SYSTEM - INTEGRATION TEST GUIDE
+================================================================================
+Status: Ready for Testing
+Date: 2026-02-25
+Purpose: Verify all components integrated and functional
+
+================================================================================
+INTEGRATION CHECKLIST
+================================================================================
+
+COMPONENTS INTEGRATED:
+✅ FulfillmentAssignmentModal - Assign fulfilling branch
+✅ CreateShipmentModal - Create shipment for requisition
+✅ ShipmentTrackingModal - Track shipment real-time
+✅ Mock Data Service - Sample shipments and tracking
+✅ API Endpoints - Create shipment, tracking
+✅ Requisitions Page - Complete workflow integration
+
+================================================================================
+STEP-BY-STEP TESTING PROCEDURE
+================================================================================
+
+TEST 1: FULFILLMENT ASSIGNMENT
+-------------------------------
+1. Start development server:
+   npm run dev
+
+2. Navigate to: http://localhost:3001/hq/requisitions
+
+3. Click on requisition with status "submitted" or "under_review"
+
+4. In detail modal, look for "Dipenuhi Oleh" section
+
+5. If "Belum ditentukan", click "Tentukan Pemenuhan" button
+
+6. Modal should open showing:
+   - Available branches list
+   - Radio selection UI
+   - Delivery date picker
+   - Notes textarea
+
+7. Select a branch (e.g., Gudang Pusat Cikarang)
+
+8. Click "Simpan Pemenuhan"
+
+9. Verify:
+   ✓ Modal closes
+   ✓ Success message appears
+   ✓ "Dipenuhi Oleh" now shows selected branch
+   ✓ Button changes to "Ubah Pemenuhan"
+
+EXPECTED RESULT: ✅ Fulfillment assignment working
+
+
+TEST 2: SHIPMENT CREATION
+--------------------------
+1. Find requisition with:
+   - Status: "approved"
+   - Has fulfilling branch assigned
+
+2. Click to open detail modal
+
+3. Look for blue box with "Siap untuk Pengiriman"
+
+4. Click "Buat Shipment" button
+
+5. CreateShipmentModal should open showing:
+   - Requisition info (from → to)
+   - Carrier selection (6 options)
+   - Driver details form
+   - Shipping details inputs
+   - Cost inputs
+   - Instructions textarea
+
+6. Fill the form:
+   - Select carrier: "JNE"
+   - Driver name: "Test Driver"
+   - Driver phone: "0812-1234-5678"
+   - Vehicle: "B 9999 XYZ"
+   - Delivery date: Tomorrow's date
+   - Packages: 2
+   - Weight: 30 kg
+   - Shipping cost: 100000
+   - Instructions: "Call before arrival"
+
+7. Click "Buat Shipment"
+
+8. Verify:
+   ✓ Loading state shows
+   ✓ API call succeeds
+   ✓ Success alert appears with shipment number
+   ✓ Modal closes
+   ✓ Page refreshes
+
+EXPECTED RESULT: ✅ Shipment creation working
+
+
+TEST 3: SHIPMENT TRACKING
+--------------------------
+1. Find requisition with status: "in_transit" or "processing"
+   (Or manually change mock data status)
+
+2. Click to open detail modal
+
+3. Look for green box with "Shipment Aktif"
+
+4. Click "Lacak Pengiriman" button
+
+5. ShipmentTrackingModal should open showing:
+   - Shipment number and tracking number
+   - Route visualization (from → to)
+   - Current status with icon
+   - ETA date
+   - Tracking timeline with updates
+   - Package details
+   - Carrier information
+
+6. Verify timeline shows:
+   ✓ Multiple tracking updates
+   ✓ Icons for each status
+   ✓ Timestamps
+   ✓ Locations
+   ✓ Descriptions
+
+7. Click "Tutup" to close modal
+
+EXPECTED RESULT: ✅ Tracking modal working
+
+
+TEST 4: API ENDPOINTS
+---------------------
+Using browser console or Postman:
+
+A. Test Create Shipment API:
+   POST http://localhost:3001/api/hq/requisitions/1/create-shipment
+   Headers: 
+   - Content-Type: application/json
+   - Cookie: (your session cookie)
+   
+   Body:
+   {
+     "carrier": "JNE",
+     "driverName": "Test Driver",
+     "driverPhone": "0812-1234-5678",
+     "vehicleNumber": "B 9999 XYZ",
+     "estimatedDeliveryDate": "2026-02-27",
+     "totalPackages": 2,
+     "totalWeight": 30,
+     "shippingCost": 100000,
+     "deliveryInstructions": "Call before arrival",
+     "shippedFromBranchId": "6",
+     "shippedToBranchId": "2"
+   }
+
+   Expected Response:
+   {
+     "success": true,
+     "message": "Shipment created successfully",
+     "data": {
+       "id": "ship-...",
+       "shipmentNumber": "SH-...",
+       ...
+     }
+   }
+
+B. Test Tracking API:
+   GET http://localhost:3001/api/shipments/ship-001/tracking
+
+   Expected Response:
+   {
+     "success": true,
+     "data": {
+       "shipment": { ... },
+       "trackingUpdates": [ ... ]
+     }
+   }
+
+C. Test Add Tracking Update:
+   POST http://localhost:3001/api/shipments/ship-001/tracking
+   Body:
+   {
+     "status": "delivered",
+     "location": "Cabang Bandung",
+     "description": "Package delivered successfully"
+   }
+
+   Expected Response:
+   {
+     "success": true,
+     "message": "Tracking update added successfully",
+     "data": { ... }
+   }
+
+EXPECTED RESULT: ✅ All APIs responding correctly
+
+
+TEST 5: FULFILLMENT API
+-----------------------
+A. Test Available Branches:
+   GET http://localhost:3001/api/hq/requisitions/available-branches?requisitionId=1
+
+   Expected Response:
+   {
+     "success": true,
+     "data": [
+       {
+         "id": "...",
+         "code": "WH-001",
+         "name": "Gudang Pusat Cikarang",
+         ...
+       }
+     ]
+   }
+
+B. Test Assign Fulfillment:
+   PUT http://localhost:3001/api/hq/requisitions/1/assign-fulfillment
+   Body:
+   {
+     "fulfillingBranchId": "6",
+     "estimatedDeliveryDate": "2026-02-26",
+     "notes": "Test assignment"
+   }
+
+   Expected Response:
+   {
+     "success": true,
+     "message": "Fulfilling branch assigned successfully",
+     "data": { ... }
+   }
+
+EXPECTED RESULT: ✅ Fulfillment APIs working
+
+
+TEST 6: EXPORT FUNCTIONALITY
+-----------------------------
+1. On requisitions page, click "Export" button
+
+2. Verify:
+   ✓ CSV file downloads
+   ✓ File opens in Excel
+   ✓ Contains requisition data
+   ✓ Includes "Dipenuhi Oleh" column
+   ✓ UTF-8 encoding correct
+
+EXPECTED RESULT: ✅ Export working
+
+================================================================================
+INTEGRATION POINTS TO VERIFY
+================================================================================
+
+MODAL INTEGRATION:
+✓ FulfillmentAssignmentModal opens from requisitions detail
+✓ CreateShipmentModal opens from requisitions detail
+✓ ShipmentTrackingModal opens from requisitions detail
+✓ All modals close properly
+✓ Parent component state updates after modal actions
+
+STATE MANAGEMENT:
+✓ showFulfillmentModal state
+✓ showCreateShipmentModal state
+✓ showTrackingModal state
+✓ currentShipmentId state
+✓ selectedRequisition state
+
+EVENT HANDLERS:
+✓ handleAssignFulfillment function
+✓ handleCreateShipment function
+✓ handleTrackShipment function
+✓ handleExport function
+✓ fetchRequisitions function
+
+CONDITIONAL RENDERING:
+✓ "Tentukan Pemenuhan" button (when fulfillingBranch is null)
+✓ "Ubah Pemenuhan" button (when fulfillingBranch exists)
+✓ "Buat Shipment" button (when status is approved)
+✓ "Lacak Pengiriman" button (when status is in_transit/delivered)
+
+API INTEGRATION:
+✓ /api/hq/requisitions/available-branches
+✓ /api/hq/requisitions/:id/assign-fulfillment
+✓ /api/hq/requisitions/:id/create-shipment
+✓ /api/shipments/:id/tracking (GET)
+✓ /api/shipments/:id/tracking (POST)
+✓ /api/hq/requisitions/export
+
+MOCK DATA:
+✓ Mock shipments available
+✓ Mock tracking updates available
+✓ Helper functions working
+✓ Data structure correct
+
+================================================================================
+COMMON ISSUES & SOLUTIONS
+================================================================================
+
+ISSUE 1: Modal doesn't open
+SOLUTION: Check console for errors, verify import paths
+
+ISSUE 2: API returns 401 Unauthorized
+SOLUTION: Ensure user is logged in, check session
+
+ISSUE 3: API returns 404
+SOLUTION: Verify API route exists, check file paths
+
+ISSUE 4: Button doesn't appear
+SOLUTION: Check conditional rendering logic, verify requisition status
+
+ISSUE 5: Form submission fails
+SOLUTION: Check required fields, verify API endpoint, check network tab
+
+ISSUE 6: Tracking data not showing
+SOLUTION: Verify shipmentId is correct, check mock data
+
+ISSUE 7: Export doesn't download
+SOLUTION: Check API response, verify blob creation, check browser settings
+
+================================================================================
+BROWSER CONSOLE TESTS
+================================================================================
+
+Open browser console and run:
+
+// Test 1: Check if components are imported
+console.log('Testing component imports...');
+
+// Test 2: Verify mock data
+fetch('/api/shipments/ship-001/tracking')
+  .then(r => r.json())
+  .then(d => console.log('Tracking data:', d));
+
+// Test 3: Test create shipment
+fetch('/api/hq/requisitions/1/create-shipment', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    carrier: 'JNE',
+    driverName: 'Console Test',
+    totalPackages: 1,
+    shippedFromBranchId: '6',
+    shippedToBranchId: '2'
+  })
+})
+  .then(r => r.json())
+  .then(d => console.log('Create shipment:', d));
+
+// Test 4: Test available branches
+fetch('/api/hq/requisitions/available-branches?requisitionId=1')
+  .then(r => r.json())
+  .then(d => console.log('Available branches:', d));
+
+================================================================================
+EXPECTED BEHAVIOR SUMMARY
+================================================================================
+
+WORKFLOW 1: Complete Requisition → Shipment → Tracking
+1. View requisition (status: submitted)
+2. Assign fulfilling branch → Success
+3. Approve requisition → Status changes to approved
+4. Create shipment → Shipment created with number
+5. Track shipment → View real-time tracking
+6. All data persists in mock storage
+
+WORKFLOW 2: Quick Tracking
+1. View requisition (status: in_transit)
+2. Click "Lacak Pengiriman"
+3. See tracking timeline
+4. View all details
+5. Close modal
+
+WORKFLOW 3: Export Data
+1. Apply filters (optional)
+2. Click "Export"
+3. Download CSV
+4. Open in Excel
+5. Verify data complete
+
+================================================================================
+SUCCESS CRITERIA
+================================================================================
+
+ALL TESTS PASS:
+✅ Fulfillment assignment works
+✅ Shipment creation works
+✅ Tracking modal displays correctly
+✅ All API endpoints respond
+✅ Export downloads file
+✅ No console errors
+✅ UI responsive and smooth
+✅ Data flows correctly
+✅ Modals open/close properly
+✅ State management working
+
+READY FOR:
+✅ User acceptance testing
+✅ Demo to stakeholders
+✅ Further development
+✅ Database migration (when ready)
+
+================================================================================
+NEXT STEPS AFTER TESTING
+================================================================================
+
+IF ALL TESTS PASS:
+1. Document any findings
+2. Gather user feedback
+3. Plan database migration
+4. Implement remaining features
+5. Deploy to staging
+
+IF ISSUES FOUND:
+1. Document specific errors
+2. Check console logs
+3. Review integration points
+4. Fix issues
+5. Re-test
+
+================================================================================
+TESTING TIMELINE
+================================================================================
+
+ESTIMATED TIME:
+- Manual UI testing: 15-20 minutes
+- API testing: 10-15 minutes
+- Integration verification: 10 minutes
+- Documentation: 5 minutes
+
+TOTAL: ~40-50 minutes for complete testing
+
+================================================================================
+END OF INTEGRATION TEST GUIDE
+================================================================================

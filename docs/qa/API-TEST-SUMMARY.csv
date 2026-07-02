@@ -1,0 +1,7 @@
+Module,Total,Pass,Warn,Fail,Error,PassRate
+Branches,1,1,0,0,0,100.0%
+Categories,1,0,0,1,0,0.0%
+Roles,1,0,1,0,0,0.0%
+Settings,1,0,1,0,0,0.0%
+Users,1,0,0,0,1,0.0%
+TOTAL,5,1,2,1,1,20.0%

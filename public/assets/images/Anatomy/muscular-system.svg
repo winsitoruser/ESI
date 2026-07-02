@@ -1,0 +1,89 @@
+<svg width="400" height="700" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="400" height="700" fill="#ffffff"/>
+  
+  <!-- Title -->
+  <text x="200" y="30" text-anchor="middle" font-family="Arial" font-size="16" font-weight="bold" fill="#333">SISTEM OTOT PRIA</text>
+  
+  <!-- Muscular System -->
+  <g id="muscular-system" stroke="#ff7675" stroke-width="1" fill="#ff7675" opacity="0.8">
+    <!-- Head muscles -->
+    <ellipse cx="200" cy="80" rx="35" ry="40"/>
+    
+    <!-- Neck muscles -->
+    <rect x="185" y="115" width="30" height="25" rx="15"/>
+    
+    <!-- Chest muscles (Pectorals) -->
+    <ellipse cx="175" cy="170" rx="25" ry="35"/>
+    <ellipse cx="225" cy="170" rx="25" ry="35"/>
+    
+    <!-- Abdominal muscles -->
+    <rect x="175" y="200" width="50" height="80" rx="10"/>
+    <!-- Abs definition -->
+    <rect x="185" y="210" width="30" height="15" rx="5" fill="#e74c3c"/>
+    <rect x="185" y="230" width="30" height="15" rx="5" fill="#e74c3c"/>
+    <rect x="185" y="250" width="30" height="15" rx="5" fill="#e74c3c"/>
+    
+    <!-- Shoulder muscles (Deltoids) -->
+    <ellipse cx="150" cy="155" rx="20" ry="25"/>
+    <ellipse cx="250" cy="155" rx="20" ry="25"/>
+    
+    <!-- Arm muscles -->
+    <!-- Left arm -->
+    <ellipse cx="140" cy="190" rx="15" ry="40"/> <!-- Biceps -->
+    <ellipse cx="135" cy="240" rx="12" ry="35"/> <!-- Forearm -->
+    
+    <!-- Right arm -->
+    <ellipse cx="260" cy="190" rx="15" ry="40"/> <!-- Biceps -->
+    <ellipse cx="265" cy="240" rx="12" ry="35"/> <!-- Forearm -->
+    
+    <!-- Back muscles (Latissimus dorsi) -->
+    <path d="M 160 180 Q 200 190 240 180 Q 230 220 200 230 Q 170 220 160 180" fill="#c0392b"/>
+    
+    <!-- Leg muscles -->
+    <!-- Left leg -->
+    <ellipse cx="175" cy="320" rx="20" ry="25"/> <!-- Hip -->
+    <ellipse cx="175" cy="380" rx="18" ry="50"/> <!-- Quadriceps -->
+    <ellipse cx="175" cy="450" rx="15" ry="40"/> <!-- Hamstring -->
+    <ellipse cx="175" cy="520" rx="12" ry="35"/> <!-- Calf -->
+    
+    <!-- Right leg -->
+    <ellipse cx="225" cy="320" rx="20" ry="25"/> <!-- Hip -->
+    <ellipse cx="225" cy="380" rx="18" ry="50"/> <!-- Quadriceps -->
+    <ellipse cx="225" cy="450" rx="15" ry="40"/> <!-- Hamstring -->
+    <ellipse cx="225" cy="520" rx="12" ry="35"/> <!-- Calf -->
+    
+    <!-- Gluteal muscles -->
+    <ellipse cx="200" cy="300" rx="40" ry="20"/>
+  </g>
+  
+  <!-- Clickable regions for different muscle groups -->
+  <g id="clickable-regions" opacity="0">
+    <!-- Head and neck -->
+    <ellipse cx="200" cy="100" rx="45" ry="50" fill="rgba(255, 118, 117, 0.3)" data-muscle="head-neck"/>
+    
+    <!-- Chest -->
+    <rect x="140" y="140" width="120" height="70" rx="20" fill="rgba(255, 118, 117, 0.3)" data-muscle="chest"/>
+    
+    <!-- Abdominals -->
+    <rect x="165" y="200" width="70" height="90" rx="15" fill="rgba(255, 118, 117, 0.3)" data-muscle="abs"/>
+    
+    <!-- Left arm -->
+    <rect x="115" y="150" width="40" height="130" rx="20" fill="rgba(255, 118, 117, 0.3)" data-muscle="left-arm"/>
+    
+    <!-- Right arm -->
+    <rect x="245" y="150" width="40" height="130" rx="20" fill="rgba(255, 118, 117, 0.3)" data-muscle="right-arm"/>
+    
+    <!-- Back -->
+    <rect x="150" y="170" width="100" height="80" rx="20" fill="rgba(255, 118, 117, 0.3)" data-muscle="back"/>
+    
+    <!-- Glutes -->
+    <ellipse cx="200" cy="300" rx="50" ry="30" fill="rgba(255, 118, 117, 0.3)" data-muscle="glutes"/>
+    
+    <!-- Left leg -->
+    <rect x="155" y="315" width="40" height="250" rx="20" fill="rgba(255, 118, 117, 0.3)" data-muscle="left-leg"/>
+    
+    <!-- Right leg -->
+    <rect x="205" y="315" width="40" height="250" rx="20" fill="rgba(255, 118, 117, 0.3)" data-muscle="right-leg"/>
+  </g>
+</svg>

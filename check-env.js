@@ -1,0 +1,11 @@
+require('dotenv').config({ path: '.env.local' });
+require('dotenv').config({ path: '.env.development' });
+require('dotenv').config();
+console.log('DB_NAME:', process.env.DB_NAME || '(not set)');
+console.log('DB_USER:', process.env.DB_USER || '(not set)');
+console.log('DB_HOST:', process.env.DB_HOST || '(not set)');
+console.log('DB_PORT:', process.env.DB_PORT || '(not set)');
+console.log('DB_DIALECT:', process.env.DB_DIALECT || '(not set)');
+console.log('DATABASE_URL:', process.env.DATABASE_URL ? '***SET***' : '(not set)');
+console.log('NEXTAUTH_URL:', process.env.NEXTAUTH_URL || '(not set)');
+console.log('NODE_ENV:', process.env.NODE_ENV || '(not set)');

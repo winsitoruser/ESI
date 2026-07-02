@@ -1,0 +1,576 @@
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { authenticateUser, isAuthorized } from '../../../../middleware/auth';
+import { withApiHandler, success, error, parseQueryParams, ApiContext } from '@/utils/api-utils';
+import { ApiError } from '@/middleware/error-handler';
+import sequelize from '@/lib/db';
+import logger from '@/lib/logger';
+import productAdapter from '@/lib/adapters/product-adapter';
+import cacheManager from '@/lib/cache-manager';
+// Using product adapter for consistent backend-frontend integration
+
+// Konstanta untuk optimasi
+const TOLING_PRODUCTS_CACHE_KEY = '/api/inventory/products/toling';
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 100; // Batasi ukuran halaman untuk mencegah overload
+
+// Handle potential Sequelize import issues
+let Sequelize: any;
+let Op: any;
+try {
+  const sequelizeImport = require('sequelize');
+  Sequelize = sequelizeImport.Sequelize;
+  Op = sequelizeImport.Op;
+} catch (err) {
+  logger.warn('Failed to import Sequelize library:', { error: err });
+  // Create fallback Op object to prevent null reference errors
+  Op = {
+    or: 'or',
+    iLike: 'iLike',
+    lte: 'lte',
+    gt: 'gt'
+  };
+}
+import { DummyDataGenerator } from '@/utils/dummy-data-generator';
+
+// Sample toling product data with red-orange category indicators (used for fallback when database is unavailable)
+const staticMockTolingProducts = [
+  {
+    id: 'TL001',
+    name: 'Toling Paracetamol Bubuk',
+    description: 'Bahan baku Paracetamol untuk pembuatan obat racikan',
+    sku: 'TL-PAR-BUK',
+    category: 'Bahan Baku',
+    categoryColor: '#ef4444', // Red color for this category
+    price: 150000,
+    stock: 3500,
+    unit: 'Gram',
+    location: 'Gudang B-02',
+    expiry: '2025-12-15',
+    supplier: 'PT Kimia Farma',
+    reorderPoint: 1000,
+    image: '/images/products/paracetamol-powder.jpg',
+    shelfPositionId: 'shelf-t001',
+    shelfPosition: {
+      id: 'shelf-t001',
+      code: 'B-02',
+      shelfName: 'Gudang Bahan Baku',
+      level: 1,
+      section: 'Khusus',
+      capacity: 5000,
+      currentOccupancy: 3500
+    },
+    isToling: true,
+    composition: '100% Paracetamol',
+    purity: '99.5%',
+    usageInstructions: 'Gunakan untuk pembuatan racikan obat pereda nyeri dan demam'
+  },
+  {
+    id: 'TL002',
+    name: 'Toling Salbutamol',
+    description: 'Bahan baku Salbutamol untuk pembuatan obat asma',
+    sku: 'TL-SLB-BUK',
+    category: 'Bahan Baku',
+    categoryColor: '#f97316', // Orange color for this category
+    price: 275000,
+    stock: 1200,
+    unit: 'Gram',
+    location: 'Gudang B-03',
+    expiry: '2025-10-20',
+    supplier: 'PT Medika Bahan',
+    reorderPoint: 500,
+    image: '/images/products/salbutamol-powder.jpg',
+    shelfPositionId: 'shelf-t002',
+    shelfPosition: {
+      id: 'shelf-t002',
+      code: 'B-03',
+      shelfName: 'Gudang Bahan Aktif',
+      level: 1,
+      section: 'Khusus',
+      capacity: 3000,
+      currentOccupancy: 1200
+    },
+    isToling: true,
+    composition: '100% Salbutamol',
+    purity: '98.7%',
+    usageInstructions: 'Gunakan untuk pembuatan racikan obat asma'
+  },
+  {
+    id: 'TL003',
+    name: 'Toling Amoksisilin',
+    description: 'Bahan baku Amoksisilin untuk pembuatan antibiotik',
+    sku: 'TL-AMX-BUK',
+    category: 'Bahan Baku',
+    categoryColor: '#ef4444', // Red color for this category
+    price: 320000,
+    stock: 2000,
+    unit: 'Gram',
+    location: 'Gudang B-04',
+    expiry: '2026-02-10',
+    supplier: 'PT Pharma Ingredients',
+    reorderPoint: 750,
+    image: '/images/products/amoxicillin-powder.jpg',
+    shelfPositionId: 'shelf-t003',
+    shelfPosition: {
+      id: 'shelf-t003',
+      code: 'B-04',
+      shelfName: 'Gudang Antibiotik',
+      level: 1,
+      section: 'Khusus',
+      capacity: 4000,
+      currentOccupancy: 2000
+    },
+    isToling: true,
+    composition: '100% Amoksisilin',
+    purity: '99.2%',
+    usageInstructions: 'Gunakan untuk pembuatan racikan antibiotik'
+  }
+];
+
+// Menggunakan data generator untuk konsistensi dengan skema warna red-orange (#ef4444, #f97316)
+const getMockTolingProducts = (tenantId: string = 'default-tenant', count: number = 10) => {
+  try {
+    // Safely check if DummyDataGenerator is available
+    if (typeof DummyDataGenerator !== 'function') {
+      logger.warn('DummyDataGenerator is not a constructor, using static mock data');
+      return enhanceStaticMockData(staticMockTolingProducts);
+    }
+    
+    const generator = new DummyDataGenerator(tenantId);
+    
+    // Check if generator is properly initialized
+    if (!generator || typeof generator.generateProducts !== 'function') {
+      logger.warn('DummyDataGenerator missing generateProducts method');
+      return enhanceStaticMockData(staticMockTolingProducts);
+    }
+    
+    // Generate toling products with robust error handling
+    let products;
+    try {
+      products = generator.generateProducts(count);
+      if (!Array.isArray(products) || products.length === 0) {
+        logger.warn('Generated products is not an array or is empty');
+        return enhanceStaticMockData(staticMockTolingProducts);
+      }
+    } catch (genError) {
+      logger.error('Error calling generateProducts:', { error: genError instanceof Error ? genError.message : String(genError) });
+      return enhanceStaticMockData(staticMockTolingProducts);
+    }
+    
+    // Transform to toling products with consistent red-orange scheme
+    try {
+      const categories = ['Bahan Baku', 'Bahan Aktif', 'Bahan Tambahan', 'Kemasan'];
+      const categoryColors = ['#ef4444', '#f97316', '#f59e0b', '#d97706']; // Red, orange, amber variations
+      
+      return products.map((product, index) => {
+        // Ensure each product has a categoryIndex within bounds
+        const categoryIndex = index % categories.length;
+        
+        // Extract product name parts safely
+        const nameParts = (product.name || 'Produk Toling').split(' ');
+        const baseName = nameParts.length > 1 ? nameParts[1] : 'Bahan';
+        
+        // Generate a realistic purity value (95-99.9%)
+        const purity = (95 + (Math.random() * 4.9)).toFixed(1);
+        
+        // Calculate realistic price based on purity
+        const purityFactor = Number(purity) / 100;
+        const basePrice = product.price || 100000;
+        const adjustedPrice = Math.round(basePrice * (0.8 + purityFactor * 0.4));
+        
+        return {
+          ...product,
+          id: `TL${(index + 1).toString().padStart(3, '0')}`,
+          name: product.name ? `Toling ${product.name}` : `Toling Bahan ${index + 1}`,
+          sku: `TL-${product.sku || `BAH${(index + 1).toString().padStart(3, '0')}`}`,
+          category: categories[categoryIndex],
+          categoryColor: categoryColors[categoryIndex],
+          price: adjustedPrice,
+          isToling: true,
+          composition: `${purity}% ${baseName}`,
+          purity: `${purity}%`,
+          usageInstructions: `Gunakan untuk pembuatan racikan ${product.category || categories[categoryIndex].toLowerCase()}`,
+          reorderPoint: Math.round((product.stock || 1000) * 0.3), // Set reorder point to 30% of stock
+          supplier: product.supplier || 'PT Kimia Farma',
+          expiry: formatExpiryDate(new Date(), Math.floor(180 + Math.random() * 540)) // 6-24 months
+        };
+      });
+    } catch (mapError) {
+      logger.error('Error mapping products to toling format:', { error: mapError instanceof Error ? mapError.message : String(mapError) });
+      return enhanceStaticMockData(staticMockTolingProducts);
+    }
+  } catch (err) {
+    logger.error('Error generating mock toling products:', { error: err instanceof Error ? err.message : String(err) });
+    return enhanceStaticMockData(staticMockTolingProducts);
+  }
+};
+
+// Enhanced static mock data with consistent formatting
+const enhanceStaticMockData = (data: any[]) => {
+  try {
+    if (!Array.isArray(data) || data.length === 0) {
+      return staticMockTolingProducts; 
+    }
+    
+    return data.map((item, index) => ({
+      ...item,
+      id: item.id || `TL${(index + 1).toString().padStart(3, '0')}`,
+      category: item.category || 'Bahan Baku',
+      categoryColor: item.categoryColor || (index % 2 === 0 ? '#ef4444' : '#f97316'), // Alternate red-orange
+      isToling: true,
+      composition: item.composition || `100% Bahan Farmasi`,
+      purity: item.purity || `${(95 + Math.random() * 5).toFixed(1)}%`,
+    }));
+  } catch (err) {
+    logger.error('Error enhancing static mock data:', { error: err instanceof Error ? err.message : String(err) });
+    return staticMockTolingProducts;
+  }
+};
+
+// Helper to format expiry date string
+const formatExpiryDate = (date: Date, daysToAdd: number): string => {
+  try {
+    const expiryDate = new Date(date);
+    expiryDate.setDate(expiryDate.getDate() + daysToAdd);
+    return expiryDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+  } catch (err) {
+    logger.error('Error formatting expiry date:', { error: err instanceof Error ? err.message : String(err) });
+    return new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  }
+};
+
+// Define allowed query params and their types
+const querySchema = {
+  search: { type: 'string' as const },
+  category: { type: 'string' as const },
+  lowStock: { type: 'boolean' as const },
+  page: { type: 'number' as const },
+  limit: { type: 'number' as const },
+  sortBy: { type: 'string' as const },
+ * Handle toling products requests
+ */
+async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  context: ApiContext
+) {
+  try {
+    // Authenticate user - for toling products, authentication is optional in dev but required in prod
+    const user = await authenticateUser(req, res);
+    // For toling products, we still allow anonymous access in development
+    const isProduction = context.mode === 'production';
+    
+    if (!user && isProduction && req.method !== 'GET') {
+      return error(res, 'Unauthorized access to toling products', 401);
+    }
+    
+    // Extract product ID from query if present
+    const id = req.query.id as string;
+    
+    // Handle different HTTP methods
+    switch (req.method) {
+      case 'GET':
+        return getTolingProducts(req, res, context, user);
+      case 'POST':
+        const newProduct = await createTolingProduct(req, res, context, user);
+        // Invalidate cache on successful creation
+        if (newProduct) {
+          cacheManager.invalidateEndpointCache(TOLING_PRODUCTS_CACHE_KEY);
+        }
+        return newProduct;
+      case 'PUT':
+        const updatedProduct = await updateTolingProduct(req, res, context, user);
+        // Invalidate cache on successful update
+        if (updatedProduct) {
+          cacheManager.invalidateEndpointCache(TOLING_PRODUCTS_CACHE_KEY);
+        }
+        return updatedProduct;
+      case 'DELETE':
+        const deleteResult = await deleteTolingProduct(req, res, context, user);
+        // Invalidate cache on successful deletion
+        if (deleteResult) {
+          cacheManager.invalidateEndpointCache(TOLING_PRODUCTS_CACHE_KEY);
+        }
+        return deleteResult;
+      default:
+        return error(res, 'Method not allowed for toling products', 405);
+    }
+  } catch (err: any) {
+    logger.error('Error in toling products handler:', err);
+    return error(res, 'Internal server error processing toling products request', 500);
+  }
+}
+
+/**
+ * Fetch toling products from database with optimized query
+ * This function is optimized for performance with the following improvements:
+ * - Selects only necessary columns
+ * - Uses findAndCountAll to optimize the query
+ * - Implements proper timeout handling
+ * - Uses indexed columns for filtering and sorting
+ */
+async function fetchTolingProductsFromDatabase(context: ApiContext, params: Record<string, any>) {
+  try {
+    // Get Sequelize instance
+    const db = sequelize;
+    if (!db) {
+      logger.error('Database connection not available for toling products');
+      return null;
+    }
+    
+    // Build the where condition
+    const whereCondition: any = {
+      isToling: true,
+      deleted: false
+    };
+    
+    // Add search filter if provided - optimized to use indices
+    if (params.search) {
+      const searchTerm = `%${params.search}%`;
+      whereCondition[Op.or] = [
+        { name: { [Op.iLike]: searchTerm } },
+        { sku: { [Op.iLike]: searchTerm } },
+        // Description is often a large field and might not be indexed
+        // Only include if necessary for your use case
+        { description: { [Op.iLike]: searchTerm } }
+      ];
+    }
+    
+    // Add category filter if provided - use indexed column
+    if (params.category) {
+      whereCondition.category = params.category;
+    }
+    
+    // Add low stock filter if provided
+    if (params.lowStock === 'true') {
+      whereCondition.stock = { [Op.lte]: db.literal('"reorderPoint"') };
+    }
+    
+    // Helper to check if field exists
+    const hasField = function(field: string) {
+      try {
+        return !!db.models.Product.rawAttributes[field];
+      } catch (err) {
+        return false;
+      }
+    };
+    
+    // Set up pagination with validation
+    const page = Math.max(1, parseInt(params.page || '1'));
+    const limit = Math.min(parseInt(params.limit || '20'), MAX_PAGE_SIZE);
+    const offset = (page - 1) * limit;
+    
+    // Select only necessary columns for optimization
+    const attributes = [
+      'id', 'name', 'sku', 'category', 'categoryColor', 'price', 
+      'stock', 'unit', 'location', 'expiry', 'supplier', 'supplierId',
+      'reorderPoint', 'image', 'composition', 'purity', 'isToling', 
+      'createdAt', 'updatedAt'
+    ];
+    
+    // Set up sorting - use indexed columns when possible
+    let order: any = [];
+    if (params.sortBy) {
+      // Check if sort field is valid
+      if (hasField(params.sortBy)) {
+        order.push([params.sortBy, params.sortOrder?.toUpperCase() || 'ASC']);
+      } else {
+        order.push(['updatedAt', 'DESC']);
+      }
+    } else {
+      order.push(['updatedAt', 'DESC']);
+    }
+    
+    try {
+      // Execute optimized query with timeout handling
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Database query timeout after 5 seconds')), 5000);
+      });
+      
+      // Use findAndCountAll to get data and count in a single query
+      const queryPromise = db.models.Product.findAndCountAll({
+        attributes, // Select only necessary columns
+        where: whereCondition,
+        order,
+        limit,
+        offset,
+        // Only include related models if they exist and are needed
+        include: [
+          // Conditionally include related models based on their existence
+          ...(db.models.Category ? [{ model: db.models.Category, as: 'category', required: false }] : []),
+          ...(db.models.Supplier ? [{ model: db.models.Supplier, as: 'supplier', required: false }] : []),
+          ...(db.models.ShelfPosition ? [{ model: db.models.ShelfPosition, as: 'shelfPosition', required: false }] : [])
+        ]
+      });
+      
+      // Race between query and timeout
+      const result = await Promise.race([queryPromise, timeoutPromise]) as any;
+      
+      if (!result || !result.rows) {
+        logger.warn('Query returned invalid result structure');
+        return null;
+      }
+
+      // Format products for consistency
+      return {
+        products: result.rows.map((product: any) => {
+          // Convert Sequelize instance to plain object
+          const plainProduct = product.get ? product.get({ plain: true }) : product;
+          
+          // Return a standardized product object with safe accesses
+          return {
+            id: plainProduct.id,
+            name: plainProduct.name || 'Unnamed Product',
+            description: plainProduct.description || '',
+            sku: plainProduct.sku || '',
+            // Use either stock or stockQty depending on what's available
+            stock: plainProduct.stock || plainProduct.stockQty || 0,
+            price: parseFloat(plainProduct.price) || 0,
+            unit: plainProduct.unit || '',
+            // Handle category data safely
+            category: plainProduct.category?.name || plainProduct.categoryName || '',
+            categoryColor: plainProduct.category?.color || '#ef4444',
+            // Handle supplier data safely
+            supplier: plainProduct.supplier?.name || plainProduct.supplierName || '',
+            supplierId: plainProduct.supplierId || null,
+            // Handle shelf position data safely
+            location: plainProduct.location || plainProduct.shelfPosition?.code || '',
+            shelfPositionId: plainProduct.shelfPositionId || null,
+            // Other fields with safe defaults
+            reorderPoint: plainProduct.reorderPoint || 0,
+            image: plainProduct.image || '',
+            expiry: plainProduct.expiry || null,
+            isToling: true,
+            // Add timestamps with safe handling
+            createdAt: plainProduct.createdAt || new Date(),
+            updatedAt: plainProduct.updatedAt || new Date()
+          };
+        }),
+        total: result.count,
+        page,
+        limit,
+        totalPages: Math.ceil(result.count / limit),
+        isFromMock: false
+      };
+    } catch (err) {
+      logger.error('Database query failed for toling products:', err);
+      return null;
+    }
+  } catch (err) {
+    logger.error('Error fetching toling products from database:', err);
+    return null;
+  }
+}
+
+/**
+ * GET - get all toling products with filtering and pagination
+ */
+async function getTolingProducts(req: NextApiRequest, res: NextApiResponse, context: ApiContext, user: any) {
+  try {
+    logger.info('Getting toling products with query parameters');
+    
+    // Parse and sanitize query parameters
+    const params = parseQueryParams(req.query, querySchema);
+    
+    // Sanitasi parameter pagination untuk mencegah overload
+    const page = Math.max(1, parseInt(params.page as string || '1'));
+    const limit = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(params.limit as string || String(DEFAULT_PAGE_SIZE))));
+    
+    // Gunakan cache jika tersedia
+    try {
+      const { data: result, isFromCache } = await cacheManager.getCachedData(
+        TOLING_PRODUCTS_CACHE_KEY,
+        {
+          ...params,
+          page,
+          limit,
+          tenantId: user?.tenantId || 'default'
+        },
+        async () => {
+          // Fetch from database only on cache miss
+          const dbResult = await fetchTolingProductsFromDatabase(context, {
+            ...params,
+            page: page.toString(),
+            limit: limit.toString()
+          });
+          
+          if (!dbResult) {
+            throw new Error('Database fetch returned null');
+          }
+          
+          return {
+            data: dbResult.data,
+            meta: {
+              ...dbResult.meta,
+              isFromMock: false
+            }
+          };
+        }
+      );
+      
+      // Return optimized response with cache info
+      return success(res, {
+        message: `Retrieved ${result.data.length} toling products${result.meta.isFromMock ? ' (from mock data)' : (isFromCache ? ' (from cache)' : '')}`,
+        data: result.data,
+        meta: {
+          ...result.meta,
+          isFromCache
+        }
+      });
+    } catch (cacheError) {
+      logger.warn('Cache or database error, falling back to mock data:', { error: String(cacheError) });
+      
+      // Final fallback to static mock data
+      const mockData = enhanceStaticMockData([...staticMockTolingProducts]);
+      
+      return success(res, {
+        message: 'Retrieved toling products (from fallback mock data)',
+        data: mockData,
+        meta: {
+          total: mockData.length,
+          page,
+          limit,
+          totalPages: Math.ceil(mockData.length / limit),
+          isFromMock: true,
+          isFromCache: false
+        }
+      });
+    }
+  } catch (err: any) {
+    logger.error('Error retrieving toling products:', { error: String(err) });
+    return error(res, 'Internal server error retrieving toling products', 500);
+  }
+}
+}
+
+/**
+ * Delete toling product from database
+ */
+async function deleteTolingProductFromDatabase(context: ApiContext, id: string) {
+  try {
+    // Get Sequelize instance
+    const db = sequelize;
+    
+    // Find the product first
+    const existingProduct = await db.models.Product.findOne({
+      where: { id, isToling: true, deleted: false }
+    });
+    
+    if (!existingProduct) {
+      return false;
+    }
+    
+    // Soft delete the product
+    const [updated] = await db.models.Product.update(
+      { deleted: true, updatedAt: new Date() },
+      { where: { id } }
+    );
+    
+    return updated > 0;
+  } catch (err) {
+    logger.error('Error deleting toling product from database:', { error: err instanceof Error ? err.message : String(err) });
+    throw new ApiError(500, 'Gagal menghapus produk toling dari database', 'DATABASE_ERROR');
+  }
+}
+
+// Export the handler with API utilities
+export default withApiHandler(handler);

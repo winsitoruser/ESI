@@ -1,0 +1,132 @@
+<svg width="400" height="700" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="400" height="700" fill="#ffffff"/>
+  
+  <!-- Title -->
+  <text x="200" y="30" text-anchor="middle" font-family="Arial" font-size="16" font-weight="bold" fill="#333">SISTEM RANGKA PRIA</text>
+  
+  <!-- Skeletal System -->
+  <g id="skeletal-system" stroke="#fd79a8" stroke-width="2" fill="none">
+    <!-- Skull -->
+    <circle cx="200" cy="80" r="35"/>
+    <rect x="185" y="100" width="30" height="15" rx="5"/>
+    
+    <!-- Cervical spine -->
+    <rect x="195" y="115" width="10" height="25"/>
+    
+    <!-- Clavicle -->
+    <rect x="160" y="140" width="80" height="8" rx="4"/>
+    
+    <!-- Rib cage -->
+    <g id="ribs">
+      <ellipse cx="200" cy="180" rx="45" ry="60"/>
+      <path d="M 155 160 Q 200 150 245 160" stroke="#fd79a8" stroke-width="2"/>
+      <path d="M 155 170 Q 200 160 245 170" stroke="#fd79a8" stroke-width="2"/>
+      <path d="M 155 180 Q 200 170 245 180" stroke="#fd79a8" stroke-width="2"/>
+      <path d="M 155 190 Q 200 180 245 190" stroke="#fd79a8" stroke-width="2"/>
+      <path d="M 155 200 Q 200 190 245 200" stroke="#fd79a8" stroke-width="2"/>
+      <path d="M 160 210 Q 200 200 240 210" stroke="#fd79a8" stroke-width="2"/>
+      <path d="M 165 220 Q 200 210 235 220" stroke="#fd79a8" stroke-width="2"/>
+    </g>
+    
+    <!-- Sternum -->
+    <rect x="195" y="150" width="10" height="80"/>
+    
+    <!-- Spine -->
+    <rect x="195" y="140" width="10" height="200"/>
+    
+    <!-- Arms -->
+    <!-- Left arm -->
+    <rect x="140" y="150" width="8" height="80"/> <!-- Humerus -->
+    <rect x="130" y="230" width="8" height="70"/> <!-- Radius -->
+    <rect x="148" y="230" width="8" height="70"/> <!-- Ulna -->
+    
+    <!-- Right arm -->
+    <rect x="252" y="150" width="8" height="80"/> <!-- Humerus -->
+    <rect x="244" y="230" width="8" height="70"/> <!-- Radius -->
+    <rect x="262" y="230" width="8" height="70"/> <!-- Ulna -->
+    
+    <!-- Hands -->
+    <g id="left-hand">
+      <rect x="125" y="300" width="20" height="8"/>
+      <rect x="125" y="308" width="4" height="15"/>
+      <rect x="130" y="308" width="4" height="18"/>
+      <rect x="135" y="308" width="4" height="17"/>
+      <rect x="140" y="308" width="4" height="15"/>
+    </g>
+    
+    <g id="right-hand">
+      <rect x="255" y="300" width="20" height="8"/>
+      <rect x="255" y="308" width="4" height="15"/>
+      <rect x="260" y="308" width="4" height="18"/>
+      <rect x="265" y="308" width="4" height="17"/>
+      <rect x="270" y="308" width="4" height="15"/>
+    </g>
+    
+    <!-- Pelvis -->
+    <ellipse cx="200" cy="340" rx="50" ry="25"/>
+    <circle cx="175" cy="340" r="12"/>
+    <circle cx="225" cy="340" r="12"/>
+    
+    <!-- Legs -->
+    <!-- Left leg -->
+    <rect x="175" y="365" width="12" height="120"/> <!-- Femur -->
+    <rect x="175" y="485" width="8" height="100"/> <!-- Tibia -->
+    <rect x="187" y="485" width="6" height="100"/> <!-- Fibula -->
+    
+    <!-- Right leg -->
+    <rect x="213" y="365" width="12" height="120"/> <!-- Femur -->
+    <rect x="217" y="485" width="8" height="100"/> <!-- Tibia -->
+    <rect x="207" y="485" width="6" height="100"/> <!-- Fibula -->
+    
+    <!-- Knees -->
+    <circle cx="181" cy="485" r="8"/>
+    <circle cx="219" cy="485" r="8"/>
+    
+    <!-- Feet -->
+    <g id="left-foot">
+      <rect x="165" y="585" width="25" height="12" rx="6"/>
+      <rect x="165" y="597" width="4" height="8"/>
+      <rect x="170" y="597" width="4" height="10"/>
+      <rect x="175" y="597" width="4" height="9"/>
+      <rect x="180" y="597" width="4" height="8"/>
+      <rect x="185" y="597" width="4" height="7"/>
+    </g>
+    
+    <g id="right-foot">
+      <rect x="210" y="585" width="25" height="12" rx="6"/>
+      <rect x="210" y="597" width="4" height="8"/>
+      <rect x="215" y="597" width="4" height="10"/>
+      <rect x="220" y="597" width="4" height="9"/>
+      <rect x="225" y="597" width="4" height="8"/>
+      <rect x="230" y="597" width="4" height="7"/>
+    </g>
+  </g>
+  
+  <!-- Clickable regions for different bone groups -->
+  <g id="clickable-regions" opacity="0">
+    <!-- Skull -->
+    <circle cx="200" cy="80" r="40" fill="rgba(253, 121, 168, 0.3)" data-bone="skull"/>
+    
+    <!-- Spine -->
+    <rect x="190" y="115" width="20" height="225" fill="rgba(253, 121, 168, 0.3)" data-bone="spine"/>
+    
+    <!-- Rib cage -->
+    <ellipse cx="200" cy="180" rx="50" ry="65" fill="rgba(253, 121, 168, 0.3)" data-bone="ribs"/>
+    
+    <!-- Left arm -->
+    <rect x="125" y="150" width="35" height="175" fill="rgba(253, 121, 168, 0.3)" data-bone="left-arm"/>
+    
+    <!-- Right arm -->
+    <rect x="240" y="150" width="35" height="175" fill="rgba(253, 121, 168, 0.3)" data-bone="right-arm"/>
+    
+    <!-- Pelvis -->
+    <ellipse cx="200" cy="340" rx="55" ry="30" fill="rgba(253, 121, 168, 0.3)" data-bone="pelvis"/>
+    
+    <!-- Left leg -->
+    <rect x="165" y="365" width="35" height="245" fill="rgba(253, 121, 168, 0.3)" data-bone="left-leg"/>
+    
+    <!-- Right leg -->
+    <rect x="200" y="365" width="35" height="245" fill="rgba(253, 121, 168, 0.3)" data-bone="right-leg"/>
+  </g>
+</svg>

@@ -1,0 +1,889 @@
+================================================================================
+FLEET MANAGEMENT & LOGISTICS MODULES - COMPREHENSIVE ANALYSIS
+================================================================================
+Modules: Fleet Management (Manajemen Armada) & Logistics Operations
+Date: 2026-02-25
+Status: COMPLETE DESIGN & SPECIFICATIONS
+
+================================================================================
+EXECUTIVE SUMMARY
+================================================================================
+
+OBJECTIVE:
+Develop comprehensive Fleet Management and Logistics modules to support
+internal distribution, delivery operations, and transportation management
+for the ERP system.
+
+SCOPE:
+1. Fleet Management Module
+   - Vehicle management
+   - Driver management
+   - Maintenance tracking
+   - Fuel management
+   - GPS tracking
+   - Performance analytics
+
+2. Logistics Module
+   - Route planning & optimization
+   - Delivery scheduling
+   - Load management
+   - Cost tracking
+   - Performance metrics
+   - Integration with shipping system
+
+BUSINESS VALUE:
+- Optimize delivery operations
+- Reduce transportation costs
+- Improve delivery times
+- Better resource utilization
+- Real-time visibility
+- Data-driven decisions
+
+================================================================================
+MODULE 1: FLEET MANAGEMENT (MANAJEMEN ARMADA)
+================================================================================
+
+OVERVIEW:
+Complete vehicle and driver management system for internal fleet operations.
+
+KEY FEATURES:
+
+1. VEHICLE MANAGEMENT
+   - Vehicle registration & documentation
+   - Vehicle types (truck, van, motorcycle, car)
+   - Ownership (owned, leased, rental)
+   - Status tracking (active, maintenance, retired)
+   - Insurance & registration tracking
+   - Document management (STNK, BPKB, insurance)
+
+2. DRIVER MANAGEMENT
+   - Driver profiles & credentials
+   - License management (SIM A, B, C)
+   - Performance tracking
+   - Availability scheduling
+   - Training & certifications
+   - Safety records
+
+3. MAINTENANCE TRACKING
+   - Scheduled maintenance
+   - Repair history
+   - Service records
+   - Parts inventory
+   - Cost tracking
+   - Preventive maintenance alerts
+
+4. FUEL MANAGEMENT
+   - Fuel consumption tracking
+   - Refueling records
+   - Fuel efficiency metrics
+   - Cost analysis
+   - Fuel card integration
+   - Anomaly detection
+
+5. GPS TRACKING & MONITORING
+   - Real-time vehicle location
+   - Route tracking
+   - Geofencing
+   - Speed monitoring
+   - Idle time tracking
+   - Trip history
+
+6. PERFORMANCE ANALYTICS
+   - Vehicle utilization
+   - Driver performance
+   - Cost per km
+   - Fuel efficiency
+   - Maintenance costs
+   - Delivery performance
+
+================================================================================
+MODULE 2: LOGISTICS OPERATIONS
+================================================================================
+
+OVERVIEW:
+Comprehensive logistics management for delivery operations and route optimization.
+
+KEY FEATURES:
+
+1. ROUTE PLANNING & OPTIMIZATION
+   - Multi-stop route planning
+   - Route optimization algorithms
+   - Traffic consideration
+   - Distance calculation
+   - Time estimation
+   - Alternative routes
+
+2. DELIVERY SCHEDULING
+   - Delivery slot management
+   - Driver assignment
+   - Vehicle allocation
+   - Load balancing
+   - Priority handling
+   - Rescheduling capabilities
+
+3. LOAD MANAGEMENT
+   - Load planning
+   - Weight distribution
+   - Volume optimization
+   - Loading sequence
+   - Unloading planning
+   - Capacity management
+
+4. COST TRACKING
+   - Transportation costs
+   - Fuel costs
+   - Toll fees
+   - Driver allowances
+   - Maintenance costs
+   - Cost per delivery
+
+5. WAREHOUSE INTEGRATION
+   - Pickup scheduling
+   - Loading dock management
+   - Inventory coordination
+   - Packing list integration
+   - Quality checks
+
+6. PERFORMANCE METRICS
+   - On-time delivery rate
+   - Cost per delivery
+   - Vehicle utilization
+   - Driver productivity
+   - Customer satisfaction
+   - Route efficiency
+
+================================================================================
+DATABASE SCHEMA DESIGN
+================================================================================
+
+TABLE 1: fleet_vehicles
+CREATE TABLE fleet_vehicles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL REFERENCES tenants(id),
+  
+  -- Basic Info
+  vehicle_number VARCHAR(50) UNIQUE NOT NULL,
+  license_plate VARCHAR(20) UNIQUE NOT NULL,
+  vehicle_type VARCHAR(50) NOT NULL, -- truck, van, motorcycle, car
+  brand VARCHAR(100),
+  model VARCHAR(100),
+  year INTEGER,
+  color VARCHAR(50),
+  
+  -- Ownership
+  ownership_type VARCHAR(50) NOT NULL, -- owned, leased, rental
+  purchase_date DATE,
+  purchase_price DECIMAL(15,2),
+  lease_start_date DATE,
+  lease_end_date DATE,
+  lease_monthly_cost DECIMAL(15,2),
+  
+  -- Capacity
+  max_weight_kg DECIMAL(10,2),
+  max_volume_m3 DECIMAL(10,2),
+  fuel_tank_capacity DECIMAL(10,2),
+  
+  -- Documentation
+  registration_number VARCHAR(100), -- STNK
+  ownership_document VARCHAR(100), -- BPKB
+  registration_expiry DATE,
+  insurance_policy_number VARCHAR(100),
+  insurance_provider VARCHAR(255),
+  insurance_expiry DATE,
+  
+  -- GPS Device
+  gps_device_id VARCHAR(100),
+  gps_device_imei VARCHAR(50),
+  
+  -- Status
+  status VARCHAR(50) DEFAULT 'active', -- active, maintenance, retired, sold
+  current_location VARCHAR(255),
+  current_odometer_km DECIMAL(10,2),
+  last_service_date DATE,
+  next_service_due_km DECIMAL(10,2),
+  
+  -- Assignment
+  assigned_branch_id UUID REFERENCES branches(id),
+  assigned_driver_id UUID REFERENCES fleet_drivers(id),
+  
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_vehicles_tenant ON fleet_vehicles(tenant_id);
+CREATE INDEX idx_vehicles_status ON fleet_vehicles(status);
+CREATE INDEX idx_vehicles_type ON fleet_vehicles(vehicle_type);
+CREATE INDEX idx_vehicles_branch ON fleet_vehicles(assigned_branch_id);
+
+---
+
+TABLE 2: fleet_drivers
+CREATE TABLE fleet_drivers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL REFERENCES tenants(id),
+  user_id INTEGER REFERENCES users(id),
+  
+  -- Personal Info
+  driver_number VARCHAR(50) UNIQUE NOT NULL,
+  full_name VARCHAR(255) NOT NULL,
+  phone VARCHAR(50),
+  email VARCHAR(255),
+  address TEXT,
+  date_of_birth DATE,
+  
+  -- License Info
+  license_number VARCHAR(100) NOT NULL,
+  license_type VARCHAR(50) NOT NULL, -- SIM A, B, C
+  license_issue_date DATE,
+  license_expiry_date DATE,
+  
+  -- Employment
+  employment_type VARCHAR(50), -- permanent, contract, freelance
+  hire_date DATE,
+  assigned_branch_id UUID REFERENCES branches(id),
+  
+  -- Performance
+  total_deliveries INTEGER DEFAULT 0,
+  on_time_deliveries INTEGER DEFAULT 0,
+  total_distance_km DECIMAL(15,2) DEFAULT 0,
+  safety_score DECIMAL(5,2) DEFAULT 100,
+  customer_rating DECIMAL(3,2),
+  
+  -- Status
+  status VARCHAR(50) DEFAULT 'active', -- active, on_leave, suspended, terminated
+  availability_status VARCHAR(50) DEFAULT 'available', -- available, on_duty, off_duty
+  
+  -- Documents
+  photo_url TEXT,
+  license_photo_url TEXT,
+  
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_drivers_tenant ON fleet_drivers(tenant_id);
+CREATE INDEX idx_drivers_status ON fleet_drivers(status);
+CREATE INDEX idx_drivers_branch ON fleet_drivers(assigned_branch_id);
+
+---
+
+TABLE 3: vehicle_maintenance
+CREATE TABLE vehicle_maintenance (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  vehicle_id UUID NOT NULL REFERENCES fleet_vehicles(id),
+  
+  -- Maintenance Info
+  maintenance_type VARCHAR(50) NOT NULL, -- scheduled, repair, inspection
+  service_type VARCHAR(100), -- oil_change, tire_rotation, brake_service, etc
+  description TEXT,
+  
+  -- Scheduling
+  scheduled_date DATE,
+  completed_date DATE,
+  odometer_reading DECIMAL(10,2),
+  
+  -- Service Provider
+  service_provider VARCHAR(255),
+  service_location VARCHAR(255),
+  mechanic_name VARCHAR(255),
+  
+  -- Costs
+  labor_cost DECIMAL(15,2) DEFAULT 0,
+  parts_cost DECIMAL(15,2) DEFAULT 0,
+  total_cost DECIMAL(15,2) DEFAULT 0,
+  
+  -- Parts Used
+  parts_used JSONB, -- [{name, quantity, cost}]
+  
+  -- Status
+  status VARCHAR(50) DEFAULT 'scheduled', -- scheduled, in_progress, completed, cancelled
+  
+  -- Next Service
+  next_service_due_date DATE,
+  next_service_due_km DECIMAL(10,2),
+  
+  performed_by INTEGER REFERENCES users(id),
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_maintenance_vehicle ON vehicle_maintenance(vehicle_id);
+CREATE INDEX idx_maintenance_status ON vehicle_maintenance(status);
+CREATE INDEX idx_maintenance_date ON vehicle_maintenance(scheduled_date);
+
+---
+
+TABLE 4: fuel_transactions
+CREATE TABLE fuel_transactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  vehicle_id UUID NOT NULL REFERENCES fleet_vehicles(id),
+  driver_id UUID REFERENCES fleet_drivers(id),
+  
+  -- Transaction Info
+  transaction_date TIMESTAMP NOT NULL,
+  fuel_station VARCHAR(255),
+  fuel_station_location VARCHAR(255),
+  
+  -- Fuel Details
+  fuel_type VARCHAR(50), -- gasoline, diesel, pertamax, etc
+  quantity_liters DECIMAL(10,2) NOT NULL,
+  price_per_liter DECIMAL(10,2) NOT NULL,
+  total_cost DECIMAL(15,2) NOT NULL,
+  
+  -- Odometer
+  odometer_reading DECIMAL(10,2),
+  distance_since_last_fill DECIMAL(10,2),
+  fuel_efficiency DECIMAL(10,2), -- km per liter
+  
+  -- Payment
+  payment_method VARCHAR(50), -- cash, fuel_card, company_account
+  fuel_card_number VARCHAR(100),
+  receipt_number VARCHAR(100),
+  receipt_photo_url TEXT,
+  
+  -- Validation
+  is_verified BOOLEAN DEFAULT false,
+  verified_by INTEGER REFERENCES users(id),
+  verified_at TIMESTAMP,
+  
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_fuel_vehicle ON fuel_transactions(vehicle_id);
+CREATE INDEX idx_fuel_driver ON fuel_transactions(driver_id);
+CREATE INDEX idx_fuel_date ON fuel_transactions(transaction_date);
+
+---
+
+TABLE 5: vehicle_gps_tracking
+CREATE TABLE vehicle_gps_tracking (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  vehicle_id UUID NOT NULL REFERENCES fleet_vehicles(id),
+  driver_id UUID REFERENCES fleet_drivers(id),
+  
+  -- Location
+  latitude DECIMAL(10,8) NOT NULL,
+  longitude DECIMAL(11,8) NOT NULL,
+  altitude DECIMAL(10,2),
+  accuracy DECIMAL(10,2),
+  
+  -- Movement
+  speed_kmh DECIMAL(10,2),
+  heading DECIMAL(5,2), -- 0-360 degrees
+  
+  -- Status
+  ignition_status BOOLEAN,
+  is_moving BOOLEAN,
+  
+  -- Trip
+  trip_id UUID,
+  
+  timestamp TIMESTAMP NOT NULL DEFAULT NOW(),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_gps_vehicle ON vehicle_gps_tracking(vehicle_id);
+CREATE INDEX idx_gps_timestamp ON vehicle_gps_tracking(timestamp);
+CREATE INDEX idx_gps_trip ON vehicle_gps_tracking(trip_id);
+
+-- Partition by month for performance
+CREATE TABLE vehicle_gps_tracking_2026_02 PARTITION OF vehicle_gps_tracking
+  FOR VALUES FROM ('2026-02-01') TO ('2026-03-01');
+
+---
+
+TABLE 6: delivery_routes
+CREATE TABLE delivery_routes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL REFERENCES tenants(id),
+  
+  -- Route Info
+  route_number VARCHAR(50) UNIQUE NOT NULL,
+  route_name VARCHAR(255),
+  route_type VARCHAR(50), -- regular, express, scheduled
+  
+  -- Assignment
+  vehicle_id UUID REFERENCES fleet_vehicles(id),
+  driver_id UUID REFERENCES fleet_drivers(id),
+  
+  -- Schedule
+  planned_date DATE NOT NULL,
+  planned_start_time TIME,
+  planned_end_time TIME,
+  actual_start_time TIMESTAMP,
+  actual_end_time TIMESTAMP,
+  
+  -- Route Details
+  origin_branch_id UUID REFERENCES branches(id),
+  total_stops INTEGER DEFAULT 0,
+  total_distance_km DECIMAL(10,2),
+  estimated_duration_minutes INTEGER,
+  
+  -- Load
+  total_shipments INTEGER DEFAULT 0,
+  total_weight_kg DECIMAL(10,2),
+  total_volume_m3 DECIMAL(10,2),
+  
+  -- Costs
+  estimated_fuel_cost DECIMAL(15,2),
+  estimated_toll_cost DECIMAL(15,2),
+  actual_fuel_cost DECIMAL(15,2),
+  actual_toll_cost DECIMAL(15,2),
+  driver_allowance DECIMAL(15,2),
+  total_cost DECIMAL(15,2),
+  
+  -- Status
+  status VARCHAR(50) DEFAULT 'planned', 
+  -- planned, assigned, in_progress, completed, cancelled
+  
+  -- Performance
+  on_time_percentage DECIMAL(5,2),
+  completion_percentage DECIMAL(5,2),
+  
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_routes_tenant ON delivery_routes(tenant_id);
+CREATE INDEX idx_routes_vehicle ON delivery_routes(vehicle_id);
+CREATE INDEX idx_routes_driver ON delivery_routes(driver_id);
+CREATE INDEX idx_routes_date ON delivery_routes(planned_date);
+CREATE INDEX idx_routes_status ON delivery_routes(status);
+
+---
+
+TABLE 7: route_stops
+CREATE TABLE route_stops (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  route_id UUID NOT NULL REFERENCES delivery_routes(id),
+  shipment_id UUID REFERENCES requisition_shipments(id),
+  
+  -- Stop Info
+  stop_sequence INTEGER NOT NULL,
+  stop_type VARCHAR(50), -- pickup, delivery
+  
+  -- Location
+  branch_id UUID REFERENCES branches(id),
+  address TEXT,
+  latitude DECIMAL(10,8),
+  longitude DECIMAL(11,8),
+  
+  -- Contact
+  contact_name VARCHAR(255),
+  contact_phone VARCHAR(50),
+  
+  -- Schedule
+  planned_arrival_time TIMESTAMP,
+  planned_departure_time TIMESTAMP,
+  actual_arrival_time TIMESTAMP,
+  actual_departure_time TIMESTAMP,
+  
+  -- Delivery
+  items_count INTEGER,
+  weight_kg DECIMAL(10,2),
+  volume_m3 DECIMAL(10,2),
+  
+  -- Status
+  status VARCHAR(50) DEFAULT 'pending',
+  -- pending, arrived, loading, unloading, completed, failed
+  
+  -- Proof
+  signature_url TEXT,
+  photo_urls JSONB,
+  
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_stops_route ON route_stops(route_id);
+CREATE INDEX idx_stops_shipment ON route_stops(shipment_id);
+CREATE INDEX idx_stops_sequence ON route_stops(route_id, stop_sequence);
+
+---
+
+TABLE 8: logistics_costs
+CREATE TABLE logistics_costs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL REFERENCES tenants(id),
+  
+  -- Reference
+  reference_type VARCHAR(50) NOT NULL, -- route, shipment, vehicle
+  reference_id UUID NOT NULL,
+  
+  -- Cost Details
+  cost_type VARCHAR(50) NOT NULL, 
+  -- fuel, toll, parking, maintenance, driver_allowance, other
+  cost_category VARCHAR(50), -- fixed, variable, overhead
+  
+  amount DECIMAL(15,2) NOT NULL,
+  currency VARCHAR(10) DEFAULT 'IDR',
+  
+  -- Date
+  cost_date DATE NOT NULL,
+  
+  -- Payment
+  payment_method VARCHAR(50),
+  payment_status VARCHAR(50) DEFAULT 'pending',
+  -- pending, paid, reimbursed
+  
+  -- Documentation
+  receipt_number VARCHAR(100),
+  receipt_url TEXT,
+  
+  -- Approval
+  approved_by INTEGER REFERENCES users(id),
+  approved_at TIMESTAMP,
+  
+  description TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_costs_tenant ON logistics_costs(tenant_id);
+CREATE INDEX idx_costs_reference ON logistics_costs(reference_type, reference_id);
+CREATE INDEX idx_costs_type ON logistics_costs(cost_type);
+CREATE INDEX idx_costs_date ON logistics_costs(cost_date);
+
+================================================================================
+API ENDPOINTS DESIGN
+================================================================================
+
+FLEET MANAGEMENT APIs:
+
+1. VEHICLES
+   GET    /api/fleet/vehicles
+   POST   /api/fleet/vehicles
+   GET    /api/fleet/vehicles/:id
+   PUT    /api/fleet/vehicles/:id
+   DELETE /api/fleet/vehicles/:id
+   GET    /api/fleet/vehicles/:id/history
+   GET    /api/fleet/vehicles/:id/maintenance
+   GET    /api/fleet/vehicles/:id/fuel-history
+   GET    /api/fleet/vehicles/:id/gps-location
+   POST   /api/fleet/vehicles/:id/assign-driver
+
+2. DRIVERS
+   GET    /api/fleet/drivers
+   POST   /api/fleet/drivers
+   GET    /api/fleet/drivers/:id
+   PUT    /api/fleet/drivers/:id
+   DELETE /api/fleet/drivers/:id
+   GET    /api/fleet/drivers/:id/performance
+   GET    /api/fleet/drivers/:id/delivery-history
+   POST   /api/fleet/drivers/:id/update-availability
+
+3. MAINTENANCE
+   GET    /api/fleet/maintenance
+   POST   /api/fleet/maintenance
+   GET    /api/fleet/maintenance/:id
+   PUT    /api/fleet/maintenance/:id
+   POST   /api/fleet/maintenance/:id/complete
+   GET    /api/fleet/maintenance/upcoming
+   GET    /api/fleet/maintenance/overdue
+
+4. FUEL
+   GET    /api/fleet/fuel-transactions
+   POST   /api/fleet/fuel-transactions
+   GET    /api/fleet/fuel-transactions/:id
+   PUT    /api/fleet/fuel-transactions/:id
+   POST   /api/fleet/fuel-transactions/:id/verify
+   GET    /api/fleet/fuel-analytics
+
+5. GPS TRACKING
+   GET    /api/fleet/gps/vehicles
+   GET    /api/fleet/gps/vehicle/:id/current
+   GET    /api/fleet/gps/vehicle/:id/history
+   POST   /api/fleet/gps/update
+   GET    /api/fleet/gps/geofence-alerts
+
+LOGISTICS APIs:
+
+6. ROUTES
+   GET    /api/logistics/routes
+   POST   /api/logistics/routes
+   GET    /api/logistics/routes/:id
+   PUT    /api/logistics/routes/:id
+   DELETE /api/logistics/routes/:id
+   POST   /api/logistics/routes/:id/optimize
+   POST   /api/logistics/routes/:id/assign
+   POST   /api/logistics/routes/:id/start
+   POST   /api/logistics/routes/:id/complete
+
+7. ROUTE STOPS
+   GET    /api/logistics/routes/:id/stops
+   POST   /api/logistics/routes/:id/stops
+   PUT    /api/logistics/routes/:id/stops/:stopId
+   POST   /api/logistics/routes/:id/stops/:stopId/arrive
+   POST   /api/logistics/routes/:id/stops/:stopId/depart
+   POST   /api/logistics/routes/:id/stops/:stopId/complete
+
+8. ROUTE PLANNING
+   POST   /api/logistics/route-planner/calculate
+   POST   /api/logistics/route-planner/optimize
+   GET    /api/logistics/route-planner/suggestions
+
+9. COSTS
+   GET    /api/logistics/costs
+   POST   /api/logistics/costs
+   GET    /api/logistics/costs/:id
+   PUT    /api/logistics/costs/:id
+   POST   /api/logistics/costs/:id/approve
+   GET    /api/logistics/costs/analytics
+
+10. ANALYTICS
+    GET    /api/fleet/analytics/dashboard
+    GET    /api/fleet/analytics/vehicle-utilization
+    GET    /api/fleet/analytics/driver-performance
+    GET    /api/fleet/analytics/fuel-efficiency
+    GET    /api/fleet/analytics/maintenance-costs
+    GET    /api/logistics/analytics/delivery-performance
+    GET    /api/logistics/analytics/route-efficiency
+    GET    /api/logistics/analytics/cost-analysis
+
+================================================================================
+UI/UX DESIGN
+================================================================================
+
+PAGE 1: FLEET DASHBOARD (/hq/fleet)
+┌─────────────────────────────────────────────────────────────────┐
+│  🚚 Fleet Management                    [+ Add Vehicle] [+ Add Driver] │
+├─────────────────────────────────────────────────────────────────┤
+│  Stats Cards:                                                   │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐          │
+│  │ Vehicles │ │ Drivers  │ │ On Route │ │ Maint.   │          │
+│  │   25     │ │    18    │ │    12    │ │    3     │          │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘          │
+├─────────────────────────────────────────────────────────────────┤
+│  Quick Actions:                                                 │
+│  [Assign Driver] [Schedule Maintenance] [Record Fuel] [Track]  │
+├─────────────────────────────────────────────────────────────────┤
+│  Active Vehicles Map:                                           │
+│  ┌───────────────────────────────────────────────────────────┐ │
+│  │                    [MAP VIEW]                             │ │
+│  │  🚚 B1234XYZ - On Route to Bandung                       │ │
+│  │  🚚 B5678ABC - At Warehouse                              │ │
+│  └───────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+
+PAGE 2: VEHICLES LIST (/hq/fleet/vehicles)
+┌─────────────────────────────────────────────────────────────────┐
+│  Vehicles                                        [+ Add Vehicle] │
+├─────────────────────────────────────────────────────────────────┤
+│  Filters: [Type ▼] [Status ▼] [Branch ▼]    🔍 Search          │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌───────────────────────────────────────────────────────────┐ │
+│  │ Plate  │ Type  │ Driver    │ Status  │ Next Service │ ⚙️ ││ │
+│  ├───────────────────────────────────────────────────────────┤ │
+│  │ B1234  │ Truck │ Budi S.   │ Active  │ 15 Feb       │ ⚙️ ││ │
+│  │ B5678  │ Van   │ Ahmad H.  │ Active  │ 20 Feb       │ ⚙️ ││ │
+│  │ B9999  │ Truck │ Unassigned│ Maint.  │ In Service   │ ⚙️ ││ │
+│  └───────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+
+PAGE 3: VEHICLE DETAIL (/hq/fleet/vehicles/:id)
+┌─────────────────────────────────────────────────────────────────┐
+│  🚚 B 1234 XYZ - Mitsubishi Colt Diesel          [Edit] [Track]│
+├─────────────────────────────────────────────────────────────────┤
+│  Tabs: [Overview] [Maintenance] [Fuel] [Trips] [Documents]     │
+├─────────────────────────────────────────────────────────────────┤
+│  Overview:                                                      │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ Status: ● Active          Odometer: 45,230 km           │   │
+│  │ Driver: Budi Santoso      Location: Warehouse Jakarta   │   │
+│  │ Next Service: 50,000 km   Insurance: Valid until Mar 26│   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  Recent Activity:                                               │
+│  • 25 Feb - Fuel: 45L at Shell Cikarang                        │
+│  • 24 Feb - Trip: Jakarta → Bandung (150 km)                   │
+│  • 20 Feb - Maintenance: Oil change completed                  │
+└─────────────────────────────────────────────────────────────────┘
+
+PAGE 4: LOGISTICS DASHBOARD (/hq/logistics)
+┌─────────────────────────────────────────────────────────────────┐
+│  📦 Logistics Operations                    [+ Create Route]    │
+├─────────────────────────────────────────────────────────────────┤
+│  Today's Routes:                                                │
+│  ┌───────────────────────────────────────────────────────────┐ │
+│  │ Route    │ Driver   │ Stops │ Status      │ Progress  │⚙️││ │
+│  ├───────────────────────────────────────────────────────────┤ │
+│  │ RT-001   │ Budi S.  │ 5/8   │ In Progress │ ████░░░ 62%││ │
+│  │ RT-002   │ Ahmad H. │ 3/6   │ In Progress │ ██░░░░░ 50%││ │
+│  │ RT-003   │ Dewi L.  │ 0/4   │ Planned     │ ░░░░░░░  0%││ │
+│  └───────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│  Performance Metrics:                                           │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐          │
+│  │ On-Time  │ │ Avg Cost │ │ Distance │ │ Fuel Eff │          │
+│  │   94%    │ │ Rp 450k  │ │ 1,250 km │ │ 8.5 km/L │          │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘          │
+└─────────────────────────────────────────────────────────────────┘
+
+PAGE 5: ROUTE PLANNER (/hq/logistics/route-planner)
+┌─────────────────────────────────────────────────────────────────┐
+│  Route Planner                                   [Optimize]     │
+├─────────────────────────────────────────────────────────────────┤
+│  Shipments to Route: (12 pending)                               │
+│  ☑ SH-001 - Bandung (45 kg)                                    │
+│  ☑ SH-002 - Surabaya (32 kg)                                   │
+│  ☑ SH-003 - Bandung (28 kg)                                    │
+│                                                                 │
+│  Route Options:                                                 │
+│  ○ Option 1: 2 routes, 250 km total, Est. Rp 800k             │
+│  ● Option 2: 1 route, 180 km total, Est. Rp 600k (Recommended)│
+│  ○ Option 3: 3 routes, 300 km total, Est. Rp 1,000k           │
+│                                                                 │
+│  Selected Route Preview:                                        │
+│  Warehouse → Bandung (SH-001, SH-003) → Surabaya (SH-002)     │
+│  Distance: 180 km | Duration: 4h 30m | Cost: Rp 600k          │
+│                                                                 │
+│                                    [Cancel] [Create Route]      │
+└─────────────────────────────────────────────────────────────────┘
+
+================================================================================
+INTEGRATION WITH EXISTING SYSTEMS
+================================================================================
+
+INTEGRATION POINTS:
+
+1. SHIPPING SYSTEM
+   - Link shipments to delivery routes
+   - Auto-create routes from approved shipments
+   - Update shipment status from route progress
+   - Sync tracking data
+
+2. INVENTORY SYSTEM
+   - Coordinate pickup from warehouses
+   - Update inventory on delivery
+   - Track goods in transit
+   - Handle returns
+
+3. BRANCH SYSTEM
+   - Branch-specific fleet assignment
+   - Multi-branch route planning
+   - Branch performance tracking
+   - Resource allocation
+
+4. USER MANAGEMENT
+   - Driver user accounts
+   - Role-based access (fleet manager, driver, admin)
+   - Performance tracking
+   - Attendance integration
+
+5. FINANCE SYSTEM
+   - Cost tracking and allocation
+   - Expense management
+   - Reimbursements
+   - Budget monitoring
+
+6. NOTIFICATION SYSTEM
+   - Maintenance alerts
+   - Route assignments
+   - Delivery updates
+   - Emergency notifications
+
+================================================================================
+IMPLEMENTATION PHASES
+================================================================================
+
+PHASE 1: FLEET BASICS (Week 1-2)
+- Vehicle management (CRUD)
+- Driver management (CRUD)
+- Basic assignment
+- Simple tracking
+
+PHASE 2: MAINTENANCE & FUEL (Week 3)
+- Maintenance scheduling
+- Service records
+- Fuel transaction tracking
+- Cost tracking
+
+PHASE 3: GPS TRACKING (Week 4)
+- Real-time location tracking
+- Trip recording
+- Geofencing
+- Speed monitoring
+
+PHASE 4: LOGISTICS BASICS (Week 5)
+- Route creation
+- Stop management
+- Driver assignment
+- Basic optimization
+
+PHASE 5: ROUTE OPTIMIZATION (Week 6)
+- Route planning algorithms
+- Multi-stop optimization
+- Load balancing
+- Cost optimization
+
+PHASE 6: ANALYTICS & REPORTING (Week 7)
+- Dashboard widgets
+- Performance metrics
+- Cost analysis
+- Reports generation
+
+PHASE 7: INTEGRATION (Week 8)
+- Shipping system integration
+- Inventory coordination
+- Finance integration
+- Notifications
+
+PHASE 8: ADVANCED FEATURES (Week 9-10)
+- Mobile driver app
+- Real-time tracking
+- Advanced analytics
+- AI-powered optimization
+
+================================================================================
+MOBILE DRIVER APP
+================================================================================
+
+FEATURES:
+- Route viewing
+- Navigation integration
+- Stop checklist
+- Photo capture
+- Signature collection
+- Real-time updates
+- Fuel recording
+- Incident reporting
+
+SCREENS:
+1. Login
+2. Today's Routes
+3. Route Details
+4. Navigation
+5. Stop Checklist
+6. Delivery Confirmation
+7. Fuel Entry
+8. Profile
+
+================================================================================
+SUCCESS METRICS
+================================================================================
+
+OPERATIONAL:
+- Vehicle utilization > 80%
+- On-time delivery rate > 95%
+- Fuel efficiency improvement > 10%
+- Maintenance cost reduction > 15%
+
+FINANCIAL:
+- Cost per delivery reduction > 20%
+- ROI within 12 months
+- Fuel cost savings > Rp 50M/year
+
+QUALITY:
+- Customer satisfaction > 90%
+- Driver satisfaction > 85%
+- Safety incidents < 2/year
+- Vehicle downtime < 5%
+
+================================================================================
+END OF ANALYSIS
+================================================================================

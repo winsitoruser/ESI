@@ -1,0 +1,34 @@
+# ============================================================================
+# SSH Configuration Template for Bedagang Production Server
+# ============================================================================
+# Copy this to ~/.ssh/config and customize as needed
+# ============================================================================
+
+# Bedagang Production Server
+Host bedagang-prod
+    HostName 103.253.212.64
+    User root
+    Port 22
+    IdentityFile ~/.ssh/id_rsa
+    ServerAliveInterval 60
+    ServerAliveCountMax 3
+    StrictHostKeyChecking ask
+    UserKnownHostsFile ~/.ssh/known_hosts
+    
+# Alternative configuration with different user
+Host bedagang-prod-user
+    HostName 103.253.212.64
+    User ubuntu
+    Port 22
+    IdentityFile ~/.ssh/id_rsa
+    ServerAliveInterval 60
+    ServerAliveCountMax 3
+
+# ============================================================================
+# Usage:
+# 1. Copy this file content to ~/.ssh/config
+# 2. Replace 'root' with your actual username if different
+# 3. Update IdentityFile path if your SSH key is in different location
+# 4. Set correct permissions: chmod 600 ~/.ssh/config
+# 5. Connect using: ssh bedagang-prod
+# ============================================================================

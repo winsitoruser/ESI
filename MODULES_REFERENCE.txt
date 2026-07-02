@@ -1,0 +1,532 @@
+================================================================================
+BEDAGANG ERP - MODULES REFERENCE GUIDE
+================================================================================
+Complete Module System Documentation
+Last Updated: 2026-02-25
+Status: PRODUCTION READY
+
+================================================================================
+OVERVIEW
+================================================================================
+
+Total Modules: 15
+- Core Modules: 9 (Always enabled for all business types)
+- Business-Specific Modules: 3 (F&B/Retail specific)
+- Optional Modules: 3 (Can be enabled/disabled per tenant)
+
+Location: /admin/modules
+API Endpoint: GET /api/admin/modules
+Database Table: modules
+Seeder: seeders/20260213-seed-business-types-modules.js
+
+================================================================================
+CORE MODULES (9)
+================================================================================
+
+1. DASHBOARD
+   Code: dashboard
+   Name: Dashboard
+   Description: Dashboard utama dengan overview bisnis
+   Icon: layout-dashboard
+   Route: /dashboard
+   Sort Order: 1
+   Business Types: ALL (Retail, F&B, Hybrid)
+   Status: ✅ READY
+
+2. POS/KASIR
+   Code: pos
+   Name: POS/Kasir
+   Description: Point of Sale untuk transaksi penjualan
+   Icon: shopping-cart
+   Route: /pos
+   Sort Order: 2
+   Business Types: ALL (Retail, F&B, Hybrid)
+   Status: ✅ READY
+
+3. INVENTORI
+   Code: inventory
+   Name: Inventori
+   Description: Manajemen stok dan inventori
+   Icon: package
+   Route: /inventory
+   Sort Order: 3
+   Business Types: ALL (Retail, F&B, Hybrid)
+   Status: ✅ READY
+
+4. PRODUK
+   Code: products
+   Name: Produk
+   Description: Katalog produk dan harga
+   Icon: box
+   Route: /products
+   Sort Order: 4
+   Business Types: ALL (Retail, F&B, Hybrid)
+   Status: ✅ READY
+
+5. PELANGGAN
+   Code: customers
+   Name: Pelanggan
+   Description: Database pelanggan
+   Icon: users
+   Route: /customers
+   Sort Order: 5
+   Business Types: ALL (Retail, F&B, Hybrid)
+   Status: ✅ READY
+
+6. KEUANGAN
+   Code: finance
+   Name: Keuangan
+   Description: Manajemen keuangan dan akuntansi
+   Icon: wallet
+   Route: /finance
+   Sort Order: 6
+   Business Types: ALL (Retail, F&B, Hybrid)
+   Status: ✅ READY
+
+7. LAPORAN
+   Code: reports
+   Name: Laporan
+   Description: Laporan dan analisis bisnis
+   Icon: bar-chart-3
+   Route: /reports
+   Sort Order: 7
+   Business Types: ALL (Retail, F&B, Hybrid)
+   Status: ✅ READY
+
+8. KARYAWAN
+   Code: employees
+   Name: Karyawan
+   Description: Manajemen karyawan dan shift
+   Icon: users
+   Route: /employees
+   Sort Order: 8
+   Business Types: ALL (Retail, F&B, Hybrid)
+   Status: ✅ READY
+
+9. PENGATURAN
+   Code: settings
+   Name: Pengaturan
+   Description: Pengaturan sistem
+   Icon: settings
+   Route: /settings
+   Sort Order: 99
+   Business Types: ALL (Retail, F&B, Hybrid)
+   Status: ✅ READY
+
+================================================================================
+F&B SPECIFIC MODULES (3)
+================================================================================
+
+10. MANAJEMEN MEJA
+    Code: tables
+    Name: Manajemen Meja
+    Description: Manajemen meja untuk restoran/cafe
+    Icon: utensils
+    Route: /tables
+    Sort Order: 10
+    Business Types: F&B, Hybrid
+    Default: Yes (for F&B)
+    Status: ✅ READY
+
+11. RESERVASI
+    Code: reservations
+    Name: Reservasi
+    Description: Sistem reservasi meja
+    Icon: calendar
+    Route: /reservations
+    Sort Order: 11
+    Business Types: F&B, Hybrid
+    Default: Yes (for F&B)
+    Status: ✅ READY
+
+12. ANALISA HPP
+    Code: hpp
+    Name: Analisa HPP
+    Description: Analisa Harga Pokok Penjualan
+    Icon: dollar-sign
+    Route: /products/hpp-analysis
+    Sort Order: 12
+    Business Types: F&B, Hybrid
+    Default: Yes (for F&B)
+    Optional: Yes (for Retail)
+    Status: ✅ READY
+
+================================================================================
+RETAIL SPECIFIC MODULES (1)
+================================================================================
+
+13. SUPPLIER
+    Code: suppliers
+    Name: Supplier
+    Description: Manajemen supplier dan purchase order
+    Icon: truck
+    Route: /suppliers
+    Sort Order: 13
+    Business Types: Retail, Hybrid
+    Default: Yes (for Retail)
+    Status: ✅ READY
+
+================================================================================
+OPTIONAL MODULES (2)
+================================================================================
+
+14. PROMO & VOUCHER
+    Code: promo
+    Name: Promo & Voucher
+    Description: Manajemen promo dan voucher
+    Icon: ticket
+    Route: /promo-voucher
+    Sort Order: 14
+    Business Types: ALL (Retail, F&B, Hybrid)
+    Default: No
+    Optional: Yes
+    Status: ✅ READY
+
+15. PROGRAM LOYALITAS
+    Code: loyalty
+    Name: Program Loyalitas
+    Description: Program loyalitas pelanggan
+    Icon: award
+    Route: /loyalty-program
+    Sort Order: 15
+    Business Types: ALL (Retail, F&B, Hybrid)
+    Default: No
+    Optional: Yes
+    Status: ✅ READY
+
+================================================================================
+MODULE ASSIGNMENT BY BUSINESS TYPE
+================================================================================
+
+RETAIL BUSINESS TYPE:
+✓ Core Modules (9): Dashboard, POS, Inventory, Products, Customers, Finance, 
+                     Reports, Employees, Settings
+✓ Retail Specific (1): Suppliers
+○ Optional (3): Promo & Voucher, Program Loyalitas, Analisa HPP
+✗ NOT Included: Manajemen Meja, Reservasi
+
+Total Default Modules: 10
+Total Available Modules: 13
+
+F&B BUSINESS TYPE:
+✓ Core Modules (9): Dashboard, POS, Inventory, Products, Customers, Finance,
+                     Reports, Employees, Settings
+✓ F&B Specific (3): Manajemen Meja, Reservasi, Analisa HPP
+○ Optional (2): Promo & Voucher, Program Loyalitas
+✗ NOT Included: Suppliers
+
+Total Default Modules: 12
+Total Available Modules: 14
+
+HYBRID BUSINESS TYPE:
+✓ Core Modules (9): Dashboard, POS, Inventory, Products, Customers, Finance,
+                     Reports, Employees, Settings
+✓ Business Specific (4): Manajemen Meja, Reservasi, Analisa HPP, Suppliers
+○ Optional (2): Promo & Voucher, Program Loyalitas
+
+Total Default Modules: 13
+Total Available Modules: 15
+
+================================================================================
+DATABASE SCHEMA
+================================================================================
+
+TABLE: modules
+Columns:
+- id (UUID, PK)
+- code (VARCHAR(50), UNIQUE)
+- name (VARCHAR(100))
+- description (TEXT)
+- icon (VARCHAR(50))
+- route (VARCHAR(100))
+- parent_module_id (UUID, FK → modules.id, nullable)
+- sort_order (INTEGER, default: 0)
+- is_core (BOOLEAN, default: false)
+- is_active (BOOLEAN, default: true)
+- created_at (TIMESTAMP)
+- updated_at (TIMESTAMP)
+
+TABLE: business_type_modules (Junction Table)
+Columns:
+- id (UUID, PK)
+- business_type_id (UUID, FK → business_types.id)
+- module_id (UUID, FK → modules.id)
+- is_default (BOOLEAN) - Auto-enabled when tenant created
+- is_optional (BOOLEAN) - Can be enabled/disabled later
+- created_at (TIMESTAMP)
+
+TABLE: tenant_modules (Tenant Module Assignment)
+Columns:
+- id (UUID, PK)
+- tenant_id (UUID, FK → tenants.id)
+- module_id (UUID, FK → modules.id)
+- is_enabled (BOOLEAN, default: true)
+- enabled_at (TIMESTAMP)
+- disabled_at (TIMESTAMP, nullable)
+- created_at (TIMESTAMP)
+
+Constraints:
+- UNIQUE (business_type_id, module_id) on business_type_modules
+- UNIQUE (tenant_id, module_id) on tenant_modules
+
+================================================================================
+API ENDPOINTS
+================================================================================
+
+GET /api/admin/modules
+Description: Get all modules with statistics
+Auth: Admin/Super Admin
+Response:
+{
+  "success": true,
+  "data": [
+    {
+      "id": "uuid",
+      "code": "dashboard",
+      "name": "Dashboard",
+      "description": "Dashboard utama dengan overview bisnis",
+      "icon": "layout-dashboard",
+      "route": "/dashboard",
+      "sortOrder": 1,
+      "isCore": true,
+      "isActive": true,
+      "stats": {
+        "enabledTenants": 10
+      },
+      "businessTypeModules": [
+        {
+          "businessType": {
+            "id": "uuid",
+            "code": "retail",
+            "name": "Retail/Toko"
+          },
+          "isDefault": true,
+          "isOptional": false
+        }
+      ]
+    }
+  ]
+}
+
+POST /api/admin/modules
+Description: Create new module
+Auth: Super Admin only
+Body:
+{
+  "code": "new-module",
+  "name": "New Module",
+  "description": "Module description",
+  "icon": "icon-name",
+  "route": "/new-module",
+  "sortOrder": 16,
+  "isCore": false
+}
+
+GET /api/admin/modules/:id
+Description: Get module details
+Auth: Admin/Super Admin
+
+PUT /api/admin/modules/:id
+Description: Update module
+Auth: Super Admin only
+
+DELETE /api/admin/modules/:id
+Description: Delete module (soft delete)
+Auth: Super Admin only
+
+================================================================================
+FRONTEND PAGES
+================================================================================
+
+ADMIN MODULE MANAGEMENT:
+Location: /pages/admin/modules/index.tsx
+URL: /admin/modules
+Features:
+- List all modules with statistics
+- Filter by business type
+- View enabled tenant count
+- Create new module button
+- Edit/Delete module actions
+- Module status badges (Core/Optional)
+- Business type assignments display
+
+MODULE DETAIL/EDIT:
+Location: /pages/admin/modules/[id].tsx
+URL: /admin/modules/:id
+Features:
+- Edit module information
+- Manage business type assignments
+- View tenant usage statistics
+- Enable/disable module
+- Delete module (with confirmation)
+
+================================================================================
+MODULE ACTIVATION FLOW
+================================================================================
+
+WHEN TENANT IS CREATED:
+1. System queries business_type_modules WHERE business_type_id = tenant.businessTypeId
+   AND is_default = true
+2. For each default module, create tenant_modules record:
+   - tenant_id = new tenant ID
+   - module_id = module ID
+   - is_enabled = true
+   - enabled_at = NOW()
+3. Tenant can now access all enabled modules
+
+ENABLING OPTIONAL MODULE:
+1. Admin/Owner goes to tenant settings
+2. Selects optional module to enable
+3. System creates tenant_modules record with is_enabled = true
+4. Module appears in tenant's navigation
+
+DISABLING MODULE:
+1. Admin/Owner goes to tenant settings
+2. Disables module
+3. System updates tenant_modules: is_enabled = false, disabled_at = NOW()
+4. Module hidden from tenant's navigation
+
+================================================================================
+MODULE ACCESS CONTROL
+================================================================================
+
+CHECKING MODULE ACCESS:
+Query:
+SELECT m.* FROM modules m
+JOIN tenant_modules tm ON m.id = tm.module_id
+WHERE tm.tenant_id = ? 
+  AND tm.is_enabled = true
+  AND m.is_active = true
+ORDER BY m.sort_order ASC
+
+ROLE-BASED MODULE ACCESS:
+- Owner: Full access to all enabled modules
+- Admin: Full access except subscription management
+- Manager: Limited access based on configuration
+- Cashier: POS, Customers, basic Reports
+- Staff: Assigned modules only
+
+CORE MODULES:
+- Cannot be disabled
+- Always available to all tenants
+- Essential for basic system operation
+
+OPTIONAL MODULES:
+- Can be enabled/disabled per tenant
+- May require additional subscription tier
+- Flexible based on business needs
+
+================================================================================
+ICON REFERENCE
+================================================================================
+
+Icons use Lucide React library:
+- layout-dashboard → LayoutDashboard
+- shopping-cart → ShoppingCart
+- package → Package
+- box → Box
+- users → Users
+- wallet → Wallet
+- bar-chart-3 → BarChart3
+- settings → Settings
+- utensils → Utensils
+- calendar → Calendar
+- dollar-sign → DollarSign
+- truck → Truck
+- ticket → Ticket
+- award → Award
+
+Import: import { IconName } from 'lucide-react';
+
+================================================================================
+SEEDING MODULES
+================================================================================
+
+To seed modules in database:
+npm run db:seed
+
+Seeder file: seeders/20260213-seed-business-types-modules.js
+
+This will:
+1. Create 3 business types (Retail, F&B, Hybrid)
+2. Create 15 modules
+3. Create business_type_modules associations
+4. Set default and optional flags
+
+To reset and re-seed:
+npm run db:migrate:undo
+npm run db:migrate
+npm run db:seed
+
+================================================================================
+TESTING CHECKLIST
+================================================================================
+
+MODULE SYSTEM:
+□ All 15 modules appear in /admin/modules
+□ Module statistics show correct tenant counts
+□ Business type badges display correctly
+□ Core modules marked as "Core"
+□ Optional modules marked as "Optional"
+□ Sort order displays correctly (1-15, 99)
+
+MODULE CREATION:
+□ Can create new module via API
+□ Code uniqueness validated
+□ Required fields validated
+□ New module appears in list
+
+TENANT MODULE ASSIGNMENT:
+□ Default modules auto-enabled on tenant creation
+□ Retail tenant gets correct modules (10 default)
+□ F&B tenant gets correct modules (12 default)
+□ Hybrid tenant gets correct modules (13 default)
+□ Optional modules can be enabled later
+
+MODULE ACCESS:
+□ Tenant users only see enabled modules
+□ Disabled modules not accessible
+□ Core modules always available
+□ Role-based access works correctly
+
+================================================================================
+PRODUCTION STATUS
+================================================================================
+
+✅ ALL MODULES READY FOR PRODUCTION
+
+Module System Status:
+- Database schema: ✅ Complete
+- Seeder data: ✅ Complete (15 modules)
+- API endpoints: ✅ Functional
+- Frontend pages: ✅ Functional
+- Business logic: ✅ Implemented
+- Access control: ✅ Implemented
+- Documentation: ✅ Complete
+
+Ready for:
+- Tenant creation with auto-module assignment
+- Module management by admin
+- Tenant-specific module configuration
+- Role-based module access
+- Production deployment
+
+================================================================================
+FUTURE ENHANCEMENTS
+================================================================================
+
+Potential Additions:
+1. Module marketplace for third-party modules
+2. Module versioning system
+3. Module dependencies (require module X for module Y)
+4. Module usage analytics
+5. Module-specific permissions
+6. Module API webhooks
+7. Module custom configurations
+8. Module A/B testing
+9. Module rollback functionality
+10. Module health monitoring
+
+================================================================================
+END OF MODULES REFERENCE
+================================================================================

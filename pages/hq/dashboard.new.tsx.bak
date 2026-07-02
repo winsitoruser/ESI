@@ -1,0 +1,281 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import HQLayout from '../../components/hq/HQLayout';
+import { LayoutGrid, Plus, Save, RotateCcw, Edit, Sparkles, ChevronUp, ChevronDown } from 'lucide-react';
+import { WidgetLayoutItem, WidgetSize, SIZE_COLS } from '../../lib/widgets/types';
+import { getWidgetById, DEFAULT_LAYOUT } from '../../lib/widgets/registry';
+import WidgetWrapper from '../../components/hq/widgets/WidgetWrapper';
+import WidgetPicker from '../../components/hq/dashboard/WidgetPicker';
+
+const STORAGE_KEY = 'bedagang-dashboard-layout';
+
+export default function HQDashboard() {
+  const [mounted, setMounted] = useState(false);
+  const [widgets, setWidgets] = useState<WidgetLayoutItem[]>([]);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [showPicker, setShowPicker] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Load layout on mount
+  useEffect(() => {
+    setMounted(true);
+    loadLayout();
+  }, []);
+
+  const loadLayout = async () => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.widgets && Array.isArray(parsed.widgets) && parsed.widgets.length > 0) {
+          setWidgets(parsed.widgets);
+        } else {
+          setWidgets([...DEFAULT_LAYOUT]);
+        }
+      } else {
+        setWidgets([...DEFAULT_LAYOUT]);
+      }
+    } catch {
+      setWidgets([...DEFAULT_LAYOUT]);
+    }
+
+    // Also try API (overrides localStorage if available)
+    try {
+      const r = await fetch('/api/hq/dashboard/widget-layout');
+      if (r.ok) {
+        const j = await r.json();
+        if (j.data?.widgets?.length > 0) {
+          setWidgets(j.data.widgets);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(j.data));
+        }
+      }
+    } catch {}
+  };
+
+  const saveLayout = useCallback(async (layout: WidgetLayoutItem[]) => {
+    setSaving(true);
+    const data = { widgets: layout, updatedAt: new Date().toISOString() };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    try {
+      await fetch('/api/hq/dashboard/widget-layout', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ widgets: layout }),
+      });
+    } catch {}
+    setSaving(false);
+    setHasChanges(false);
+  }, []);
+
+  const handleAddWidget = useCallback((widgetId: string) => {
+    const def = getWidgetById(widgetId);
+    if (!def) return;
+    if (widgets.some(w => w.widgetId === widgetId)) return;
+    const maxOrder = widgets.length > 0 ? Math.max(...widgets.map(w => w.order)) : -1;
+    setWidgets(prev => [...prev, { widgetId, size: def.defaultSize, order: maxOrder + 1 }]);
+    setHasChanges(true);
+  }, [widgets]);
+
+  const handleRemoveWidget = useCallback((widgetId: string) => {
+    setWidgets(prev => prev.filter(w => w.widgetId !== widgetId).map((w, i) => ({ ...w, order: i })));
+    setHasChanges(true);
+  }, []);
+
+  const handleResizeWidget = useCallback((widgetId: string, size: WidgetSize) => {
+    setWidgets(prev => prev.map(w => w.widgetId === widgetId ? { ...w, size } : w));
+    setHasChanges(true);
+  }, []);
+
+  const handleMoveUp = useCallback((index: number) => {
+    if (index <= 0) return;
+    setWidgets(prev => {
+      const next = [...prev].sort((a, b) => a.order - b.order);
+      [next[index - 1], next[index]] = [next[index], next[index - 1]];
+      return next.map((w, i) => ({ ...w, order: i }));
+    });
+    setHasChanges(true);
+  }, []);
+
+  const handleMoveDown = useCallback((index: number) => {
+    setWidgets(prev => {
+      const sorted = [...prev].sort((a, b) => a.order - b.order);
+      if (index >= sorted.length - 1) return prev;
+      [sorted[index], sorted[index + 1]] = [sorted[index + 1], sorted[index]];
+      return sorted.map((w, i) => ({ ...w, order: i }));
+    });
+    setHasChanges(true);
+  }, []);
+
+  const handleResetLayout = useCallback(() => {
+    setWidgets([...DEFAULT_LAYOUT]);
+    setHasChanges(true);
+  }, []);
+
+  const handleSave = useCallback(() => {
+    saveLayout(widgets);
+    setIsEditMode(false);
+  }, [widgets, saveLayout]);
+
+  if (!mounted) return null;
+
+  const sortedWidgets = [...widgets].sort((a, b) => a.order - b.order);
+  const activeWidgetIds = widgets.map(w => w.widgetId);
+
+  return (
+    <HQLayout>
+      <div className="space-y-4">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+              <LayoutGrid className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {isEditMode ? 'Mode Edit — Atur widget dashboard Anda' : `${widgets.length} widget aktif`}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {isEditMode ? (
+              <>
+                <button
+                  onClick={() => setShowPicker(true)}
+                  className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Tambah Widget
+                </button>
+                <button
+                  onClick={handleResetLayout}
+                  className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  Reset
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="flex items-center gap-2 px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                >
+                  {saving ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4" />
+                  )}
+                  Simpan
+                </button>
+                <button
+                  onClick={() => { setIsEditMode(false); loadLayout(); setHasChanges(false); }}
+                  className="flex items-center gap-2 px-3 py-2 text-sm bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+                >
+                  Batal
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setIsEditMode(true)}
+                className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                <Edit className="w-4 h-4" />
+                Edit Dashboard
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Edit Mode Banner */}
+        {isEditMode && (
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 flex items-center gap-3">
+            <Sparkles className="w-5 h-5 text-blue-500 flex-shrink-0" />
+            <p className="text-sm text-blue-700 dark:text-blue-300">
+              <strong>Mode Edit Aktif</strong> — Gunakan tombol panah untuk mengatur urutan widget,
+              resize untuk mengubah ukuran, atau hapus widget yang tidak diperlukan.
+              {hasChanges && <span className="ml-2 text-blue-900 dark:text-blue-100 font-semibold">• Ada perubahan belum disimpan</span>}
+            </p>
+          </div>
+        )}
+
+        {/* Widget Grid */}
+        {sortedWidgets.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <LayoutGrid className="w-16 h-16 text-gray-300 dark:text-gray-600 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Belum ada widget</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 max-w-md">
+              Mulai dengan menambahkan widget untuk memonitor bisnis Anda.
+            </p>
+            <button
+              onClick={() => { setIsEditMode(true); setShowPicker(true); }}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Tambah Widget Pertama
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {sortedWidgets.map((item, index) => {
+              const widgetDef = getWidgetById(item.widgetId);
+              if (!widgetDef) return null;
+
+              const colSpan = SIZE_COLS[item.size] || 1;
+              const colClass =
+                colSpan === 4 ? 'md:col-span-2 lg:col-span-4' :
+                colSpan === 3 ? 'md:col-span-2 lg:col-span-3' :
+                colSpan === 2 ? 'md:col-span-2 lg:col-span-2' :
+                'col-span-1';
+
+              const WidgetComponent = widgetDef.component;
+
+              return (
+                <div key={item.widgetId} className={`${colClass} relative group`}>
+                  {isEditMode && (
+                    <div className="absolute -top-2 -right-2 z-10 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => handleMoveUp(index)}
+                        disabled={index === 0}
+                        className="p-1 bg-white dark:bg-gray-700 rounded shadow text-gray-500 hover:text-gray-700 disabled:opacity-30"
+                        title="Pindah ke atas"
+                      >
+                        <ChevronUp className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleMoveDown(index)}
+                        disabled={index === sortedWidgets.length - 1}
+                        className="p-1 bg-white dark:bg-gray-700 rounded shadow text-gray-500 hover:text-gray-700 disabled:opacity-30"
+                        title="Pindah ke bawah"
+                      >
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                  <WidgetWrapper
+                    title={widgetDef.name}
+                    size={item.size}
+                    isEditMode={isEditMode}
+                    onRemove={() => handleRemoveWidget(item.widgetId)}
+                    onResize={(size) => handleResizeWidget(item.widgetId, size)}
+                  >
+                    <WidgetComponent />
+                  </WidgetWrapper>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Widget Picker Modal */}
+      {showPicker && (
+        <WidgetPicker
+          activeWidgetIds={activeWidgetIds}
+          onAdd={handleAddWidget}
+          onRemove={handleRemoveWidget}
+          onClose={() => setShowPicker(false)}
+        />
+      )}
+    </HQLayout>
+  );
+}

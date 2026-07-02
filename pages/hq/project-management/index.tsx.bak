@@ -1,0 +1,425 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import HQLayout from '../../../components/hq/HQLayout';
+import { toast } from 'react-hot-toast';
+import {
+  Briefcase, Plus, Search, Eye, Trash2, BarChart3, TrendingUp,
+  AlertTriangle, FileText, Loader2, Calendar, Users, DollarSign,
+  ClipboardList, Flag, Timer, ListTodo
+} from 'lucide-react';
+
+type TabType = 'dashboard' | 'projects' | 'tasks' | 'milestones' | 'timesheets' | 'resources' | 'risks' | 'budgets' | 'documents';
+
+const SC: Record<string, string> = {
+  planning: 'bg-blue-100 text-blue-700', active: 'bg-green-100 text-green-700',
+  on_hold: 'bg-orange-100 text-orange-700', completed: 'bg-emerald-100 text-emerald-700',
+  cancelled: 'bg-red-100 text-red-700', todo: 'bg-gray-100 text-gray-700',
+  in_progress: 'bg-yellow-100 text-yellow-700', review: 'bg-purple-100 text-purple-700',
+  done: 'bg-green-100 text-green-700', blocked: 'bg-red-100 text-red-700',
+  pending: 'bg-yellow-100 text-yellow-700', draft: 'bg-gray-100 text-gray-700',
+  approved: 'bg-green-100 text-green-700', rejected: 'bg-red-100 text-red-700',
+  identified: 'bg-blue-100 text-blue-700', mitigating: 'bg-orange-100 text-orange-700',
+  resolved: 'bg-green-100 text-green-700', accepted: 'bg-gray-100 text-gray-700',
+};
+const PC: Record<string, string> = { low: 'bg-gray-100 text-gray-600', normal: 'bg-blue-100 text-blue-600', high: 'bg-orange-100 text-orange-600', urgent: 'bg-red-100 text-red-600', critical: 'bg-red-200 text-red-800' };
+const fmt = (n: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n);
+const fD = (d: string | null) => d ? new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
+
+const StatCard = ({ title, value, sub, icon: Icon, color }: any) => (
+  <div className="bg-white rounded-xl shadow-sm border p-4">
+    <div className="flex items-center justify-between mb-2">
+      <span className="text-sm text-gray-500">{title}</span>
+      <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}><Icon className="w-5 h-5 text-white" /></div>
+    </div>
+    <p className="text-2xl font-bold text-gray-900">{value}</p>
+    {sub && <p className="text-xs text-gray-500 mt-1">{sub}</p>}
+  </div>
+);
+
+export default function ProjectManagementPage() {
+  const [mounted, setMounted] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabType>('dashboard');
+  const [loading, setLoading] = useState(true);
+  const [dashboard, setDashboard] = useState<any>(null);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [projectTotal, setProjectTotal] = useState(0);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [milestones, setMilestones] = useState<any[]>([]);
+  const [timesheets, setTimesheets] = useState<any[]>([]);
+  const [totalHours, setTotalHours] = useState(0);
+  const [resources, setResources] = useState<any[]>([]);
+  const [risks, setRisks] = useState<any[]>([]);
+  const [budgets, setBudgets] = useState<any>(null);
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedProjectId, setSelectedProjectId] = useState('');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState<any>({});
+
+  useEffect(() => { setMounted(true); }, []);
+
+  const fetchData = useCallback(async (tab: string) => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ action: tab === 'dashboard' ? 'dashboard' : tab });
+      if (statusFilter !== 'all') params.set('status', statusFilter);
+      if (searchTerm) params.set('search', searchTerm);
+      if (selectedProjectId) params.set('projectId', selectedProjectId);
+      const r = await fetch('/api/hq/project-management?' + params);
+      const d = await r.json();
+      if (!d.success) return;
+      switch (tab) {
+        case 'dashboard': setDashboard(d.data); break;
+        case 'projects': setProjects(d.data.rows); setProjectTotal(d.data.total); break;
+        case 'tasks': setTasks(d.data.rows); break;
+        case 'milestones': setMilestones(d.data); break;
+        case 'timesheets': setTimesheets(d.data.rows); setTotalHours(d.data.totalHours); break;
+        case 'resources': setResources(d.data); break;
+        case 'risks': setRisks(d.data); break;
+        case 'budgets': setBudgets(d.data); break;
+        case 'documents': setDocuments(d.data); break;
+      }
+    } catch (e: any) { console.error(e); } finally { setLoading(false); }
+  }, [statusFilter, searchTerm, selectedProjectId]);
+
+  useEffect(() => { if (mounted) fetchData(activeTab); }, [mounted, activeTab, fetchData]);
+
+  const handleCreate = async () => {
+    setSaving(true);
+    try {
+      const r = await fetch(`/api/hq/project-management?action=${activeTab}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form)
+      });
+      const d = await r.json();
+      if (d.success) { toast.success('Berhasil dibuat!'); setShowCreateModal(false); setForm({}); fetchData(activeTab); }
+      else toast.error(d.error?.message || 'Gagal');
+    } catch (e: any) { toast.error(e.message); } finally { setSaving(false); }
+  };
+
+  const handleDelete = async (table: string, id: string) => {
+    if (!confirm('Yakin ingin menghapus?')) return;
+    try {
+      await fetch(`/api/hq/project-management?action=${table}&id=${id}`, { method: 'DELETE' });
+      toast.success('Dihapus'); fetchData(activeTab);
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  if (!mounted) return null;
+
+  const tabs = [
+    { id: 'dashboard', name: 'Dashboard', icon: BarChart3 },
+    { id: 'projects', name: 'Proyek', icon: Briefcase },
+    { id: 'tasks', name: 'Tugas', icon: ListTodo },
+    { id: 'milestones', name: 'Milestone', icon: Flag },
+    { id: 'timesheets', name: 'Timesheet', icon: Timer },
+    { id: 'resources', name: 'Sumber Daya', icon: Users },
+    { id: 'risks', name: 'Risiko', icon: AlertTriangle },
+    { id: 'budgets', name: 'Anggaran', icon: DollarSign },
+    { id: 'documents', name: 'Dokumen', icon: FileText },
+  ];
+
+  const Toolbar = ({ placeholder, statuses, createLabel }: { placeholder: string; statuses: { v: string; l: string }[]; createLabel: string }) => (
+    <div className="flex flex-wrap items-center gap-3">
+      <div className="relative flex-1 min-w-[200px]">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <input className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm" placeholder={placeholder} value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)} onKeyDown={e => e.key === 'Enter' && fetchData(activeTab)} />
+      </div>
+      {statuses.length > 0 && (
+        <select className="border rounded-lg px-3 py-2 text-sm" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+          <option value="all">Semua Status</option>
+          {statuses.map(s => <option key={s.v} value={s.v}>{s.l}</option>)}
+        </select>
+      )}
+      {projects.length > 0 && activeTab !== 'projects' && (
+        <select className="border rounded-lg px-3 py-2 text-sm" value={selectedProjectId} onChange={e => setSelectedProjectId(e.target.value)}>
+          <option value="">Semua Proyek</option>
+          {projects.map(p => <option key={p.id} value={p.id}>{p.project_code} - {p.name}</option>)}
+        </select>
+      )}
+      <button onClick={() => { setForm(selectedProjectId ? { projectId: selectedProjectId } : {}); setShowCreateModal(true); }}
+        className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-blue-700">
+        <Plus className="w-4 h-4" /> {createLabel}
+      </button>
+    </div>
+  );
+
+  const DataTable = ({ columns, data, onDelete, tableName }: { columns: { key: string; label: string; render?: (v: any, row: any) => React.ReactNode }[]; data: any[]; onDelete?: string; tableName?: string }) => (
+    <div className="bg-white rounded-xl shadow-sm border overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead className="bg-gray-50">
+          <tr>{columns.map(c => <th key={c.key} className="px-4 py-3 text-left font-medium text-gray-600">{c.label}</th>)}{onDelete && <th className="px-4 py-3 text-center font-medium text-gray-600">Aksi</th>}</tr>
+        </thead>
+        <tbody className="divide-y">
+          {data.map((row, i) => (
+            <tr key={row.id || i} className="hover:bg-gray-50">
+              {columns.map(c => <td key={c.key} className="px-4 py-3">{c.render ? c.render(row[c.key], row) : (row[c.key] ?? '-')}</td>)}
+              {onDelete && <td className="px-4 py-3 text-center"><button onClick={() => handleDelete(onDelete, row.id)} className="p-1.5 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4 text-red-400" /></button></td>}
+            </tr>
+          ))}
+          {data.length === 0 && <tr><td colSpan={columns.length + (onDelete ? 1 : 0)} className="px-4 py-8 text-center text-gray-500">Tidak ada data</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  const Badge = ({ value, colors }: { value: string; colors: Record<string, string> }) => (
+    <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[value] || 'bg-gray-100 text-gray-700'}`}>{value}</span>
+  );
+
+  const Progress = ({ value }: { value: number }) => (
+    <div className="flex items-center gap-2">
+      <div className="w-16 h-2 bg-gray-200 rounded-full"><div className="h-full bg-blue-500 rounded-full" style={{ width: `${value}%` }} /></div>
+      <span className="text-xs">{value.toFixed(0)}%</span>
+    </div>
+  );
+
+  return (
+    <HQLayout title="Manajemen Proyek" subtitle="Kelola proyek, tugas, dan sumber daya">
+      <div className="bg-white border-b sticky top-0 z-10">
+        <div className="flex overflow-x-auto px-4">
+          {tabs.map(tab => (
+            <button key={tab.id} onClick={() => { setActiveTab(tab.id as TabType); setStatusFilter('all'); setSearchTerm(''); }}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${activeTab === tab.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+              <tab.icon className="w-4 h-4" />{tab.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="p-6 space-y-6">
+        {loading ? (
+          <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-blue-500" /><span className="ml-3 text-gray-500">Memuat data...</span></div>
+        ) : (<>
+          {activeTab === 'dashboard' && dashboard && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <StatCard title="Total Proyek" value={dashboard.projectStats?.total || 0} sub={`${dashboard.projectStats?.active || 0} aktif`} icon={Briefcase} color="bg-blue-500" />
+                <StatCard title="Tugas Aktif" value={dashboard.taskStats?.in_progress || 0} sub={`${dashboard.taskStats?.overdue || 0} terlambat`} icon={ListTodo} color="bg-yellow-500" />
+                <StatCard title="Total Anggaran" value={fmt(Number(dashboard.projectStats?.total_budget || 0))} sub={`Aktual: ${fmt(Number(dashboard.projectStats?.total_actual_cost || 0))}`} icon={DollarSign} color="bg-green-500" />
+                <StatCard title="Risiko Tinggi" value={dashboard.riskStats?.high_risks || 0} sub={`${dashboard.riskStats?.total || 0} total`} icon={AlertTriangle} color="bg-red-500" />
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+                {[['To Do', dashboard.taskStats?.todo, 'bg-gray-100 text-gray-700'], ['In Progress', dashboard.taskStats?.in_progress, 'bg-yellow-100 text-yellow-700'],
+                  ['Review', dashboard.taskStats?.review, 'bg-purple-100 text-purple-700'], ['Done', dashboard.taskStats?.done, 'bg-green-100 text-green-700'],
+                  ['Blocked', dashboard.taskStats?.blocked, 'bg-red-100 text-red-700'], ['Overdue', dashboard.taskStats?.overdue, 'bg-red-200 text-red-800']
+                ].map(([l, v, c]) => (
+                  <div key={l as string} className={`${c} rounded-lg p-3 text-center`}><p className="text-lg font-bold">{v || 0}</p><p className="text-xs">{l}</p></div>
+                ))}
+              </div>
+              <DataTable columns={[
+                { key: 'project_code', label: 'Kode', render: v => <span className="font-mono text-xs">{v}</span> },
+                { key: 'name', label: 'Nama Proyek', render: (v, r) => <><p className="font-medium">{v}</p><p className="text-xs text-gray-500">{r.manager_name || '-'}</p></> },
+                { key: 'status', label: 'Status', render: v => <Badge value={v} colors={SC} /> },
+                { key: 'progress_percent', label: 'Progress', render: v => <Progress value={Number(v || 0)} /> },
+                { key: 'budget_amount', label: 'Anggaran', render: v => fmt(Number(v || 0)) },
+                { key: 'end_date', label: 'Deadline', render: v => fD(v) },
+              ]} data={dashboard.recentProjects || []} />
+            </div>
+          )}
+
+          {activeTab === 'projects' && (<div className="space-y-4">
+            <Toolbar placeholder="Cari proyek..." statuses={[{v:'planning',l:'Planning'},{v:'active',l:'Active'},{v:'on_hold',l:'On Hold'},{v:'completed',l:'Completed'},{v:'cancelled',l:'Cancelled'}]} createLabel="Buat Proyek" />
+            <DataTable columns={[
+              { key: 'project_code', label: 'Kode', render: v => <span className="font-mono text-xs">{v}</span> },
+              { key: 'name', label: 'Nama Proyek', render: (v, r) => <><p className="font-medium">{v}</p><p className="text-xs text-gray-500">{r.category || '-'} | {r.manager_name || '-'}</p></> },
+              { key: 'status', label: 'Status', render: v => <Badge value={v} colors={SC} /> },
+              { key: 'priority', label: 'Prioritas', render: v => <Badge value={v} colors={PC} /> },
+              { key: 'progress_percent', label: 'Progress', render: v => <Progress value={Number(v || 0)} /> },
+              { key: 'budget_amount', label: 'Anggaran', render: v => fmt(Number(v || 0)) },
+              { key: 'start_date', label: 'Periode', render: (v, r) => <span className="text-xs">{fD(v)} - {fD(r.end_date)}</span> },
+              { key: 'task_count', label: 'Tugas', render: (v, r) => `${r.completed_task_count || 0}/${v || 0}` },
+            ]} data={projects} onDelete="projects" />
+          </div>)}
+
+          {activeTab === 'tasks' && (<div className="space-y-4">
+            <Toolbar placeholder="Cari tugas..." statuses={[{v:'todo',l:'To Do'},{v:'in_progress',l:'In Progress'},{v:'review',l:'Review'},{v:'done',l:'Done'},{v:'blocked',l:'Blocked'}]} createLabel="Buat Tugas" />
+            <DataTable columns={[
+              { key: 'task_code', label: 'Kode', render: v => <span className="font-mono text-xs">{v}</span> },
+              { key: 'name', label: 'Tugas', render: (v, r) => <><p className="font-medium">{v}</p><p className="text-xs text-gray-500">{r.project_name}</p></> },
+              { key: 'status', label: 'Status', render: v => <Badge value={v} colors={SC} /> },
+              { key: 'priority', label: 'Prioritas', render: v => <Badge value={v} colors={PC} /> },
+              { key: 'assignee_name', label: 'Assignee', render: v => v || '-' },
+              { key: 'due_date', label: 'Deadline', render: v => fD(v) },
+              { key: 'progress_percent', label: 'Progress', render: v => <Progress value={Number(v || 0)} /> },
+              { key: 'estimated_hours', label: 'Est. Jam', render: (v, r) => `${Number(r.actual_hours || 0).toFixed(1)}/${Number(v || 0).toFixed(1)}` },
+            ]} data={tasks} onDelete="tasks" />
+          </div>)}
+
+          {activeTab === 'milestones' && (<div className="space-y-4">
+            <Toolbar placeholder="Cari milestone..." statuses={[{v:'pending',l:'Pending'},{v:'in_progress',l:'In Progress'},{v:'completed',l:'Completed'}]} createLabel="Buat Milestone" />
+            <DataTable columns={[
+              { key: 'name', label: 'Milestone', render: (v, r) => <><p className="font-medium">{v}</p><p className="text-xs text-gray-500">{r.project_name}</p></> },
+              { key: 'status', label: 'Status', render: v => <Badge value={v} colors={SC} /> },
+              { key: 'due_date', label: 'Deadline', render: v => fD(v) },
+              { key: 'completed_date', label: 'Selesai', render: v => fD(v) },
+              { key: 'task_count', label: 'Tugas', render: (v, r) => `${r.done_count || 0}/${v || 0}` },
+            ]} data={milestones} onDelete="milestones" />
+          </div>)}
+
+          {activeTab === 'timesheets' && (<div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
+                <span className="text-sm text-blue-700 font-medium">Total Jam: {totalHours.toFixed(1)} jam</span>
+              </div>
+            </div>
+            <Toolbar placeholder="Cari timesheet..." statuses={[{v:'draft',l:'Draft'},{v:'submitted',l:'Submitted'},{v:'approved',l:'Approved'},{v:'rejected',l:'Rejected'}]} createLabel="Input Timesheet" />
+            <DataTable columns={[
+              { key: 'employee_name', label: 'Karyawan' },
+              { key: 'project_name', label: 'Proyek' },
+              { key: 'task_name', label: 'Tugas', render: v => v || '-' },
+              { key: 'work_date', label: 'Tanggal', render: v => fD(v) },
+              { key: 'hours_worked', label: 'Jam Kerja', render: v => `${Number(v).toFixed(1)} jam` },
+              { key: 'status', label: 'Status', render: v => <Badge value={v} colors={SC} /> },
+              { key: 'total_cost', label: 'Biaya', render: v => fmt(Number(v || 0)) },
+            ]} data={timesheets} onDelete="timesheets" />
+          </div>)}
+
+          {activeTab === 'resources' && (<div className="space-y-4">
+            <Toolbar placeholder="Cari resource..." statuses={[]} createLabel="Tambah Resource" />
+            <DataTable columns={[
+              { key: 'resource_name', label: 'Nama Resource' },
+              { key: 'resource_type', label: 'Tipe', render: v => <Badge value={v} colors={{ human: 'bg-blue-100 text-blue-700', equipment: 'bg-orange-100 text-orange-700', material: 'bg-green-100 text-green-700' }} /> },
+              { key: 'role', label: 'Role', render: v => v || '-' },
+              { key: 'project_name', label: 'Proyek' },
+              { key: 'allocation_percent', label: 'Alokasi', render: v => `${Number(v || 0)}%` },
+              { key: 'cost_per_hour', label: 'Biaya/Jam', render: v => fmt(Number(v || 0)) },
+              { key: 'start_date', label: 'Periode', render: (v, r) => <span className="text-xs">{fD(v)} - {fD(r.end_date)}</span> },
+            ]} data={resources} onDelete="resources" />
+          </div>)}
+
+          {activeTab === 'risks' && (<div className="space-y-4">
+            <Toolbar placeholder="Cari risiko..." statuses={[{v:'identified',l:'Identified'},{v:'mitigating',l:'Mitigating'},{v:'resolved',l:'Resolved'},{v:'accepted',l:'Accepted'}]} createLabel="Tambah Risiko" />
+            <DataTable columns={[
+              { key: 'risk_code', label: 'Kode', render: v => <span className="font-mono text-xs">{v}</span> },
+              { key: 'title', label: 'Risiko', render: (v, r) => <><p className="font-medium">{v}</p><p className="text-xs text-gray-500">{r.project_name}</p></> },
+              { key: 'category', label: 'Kategori', render: v => v || '-' },
+              { key: 'probability', label: 'Probabilitas', render: v => <Badge value={v} colors={PC} /> },
+              { key: 'impact', label: 'Dampak', render: v => <Badge value={v} colors={PC} /> },
+              { key: 'risk_score', label: 'Skor', render: v => <span className={`font-bold ${Number(v) >= 9 ? 'text-red-600' : Number(v) >= 6 ? 'text-orange-600' : 'text-green-600'}`}>{v}</span> },
+              { key: 'status', label: 'Status', render: v => <Badge value={v} colors={SC} /> },
+              { key: 'owner_name', label: 'Owner', render: v => v || '-' },
+            ]} data={risks} onDelete="risks" />
+          </div>)}
+
+          {activeTab === 'budgets' && (<div className="space-y-4">
+            {budgets?.summary && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <StatCard title="Planned Budget" value={fmt(Number(budgets.summary.total_planned || 0))} icon={DollarSign} color="bg-blue-500" />
+                <StatCard title="Actual Spent" value={fmt(Number(budgets.summary.total_actual || 0))} icon={TrendingUp} color="bg-green-500" />
+                <StatCard title="Committed" value={fmt(Number(budgets.summary.total_committed || 0))} icon={ClipboardList} color="bg-orange-500" />
+              </div>
+            )}
+            <Toolbar placeholder="Cari anggaran..." statuses={[]} createLabel="Tambah Anggaran" />
+            <DataTable columns={[
+              { key: 'category', label: 'Kategori', render: v => <span className="font-medium capitalize">{v}</span> },
+              { key: 'description', label: 'Deskripsi', render: v => v || '-' },
+              { key: 'project_name', label: 'Proyek' },
+              { key: 'planned_amount', label: 'Rencana', render: v => fmt(Number(v || 0)) },
+              { key: 'actual_amount', label: 'Aktual', render: v => fmt(Number(v || 0)) },
+              { key: 'committed_amount', label: 'Committed', render: v => fmt(Number(v || 0)) },
+              { key: 'variance', label: 'Varians', render: (_, r) => { const v = Number(r.planned_amount || 0) - Number(r.actual_amount || 0); return <span className={v >= 0 ? 'text-green-600' : 'text-red-600'}>{fmt(v)}</span>; } },
+            ]} data={budgets?.rows || []} onDelete="budgets" />
+          </div>)}
+
+          {activeTab === 'documents' && (<div className="space-y-4">
+            <Toolbar placeholder="Cari dokumen..." statuses={[]} createLabel="Upload Dokumen" />
+            <DataTable columns={[
+              { key: 'title', label: 'Judul Dokumen', render: v => <span className="font-medium">{v}</span> },
+              { key: 'document_type', label: 'Tipe', render: v => <span className="capitalize">{v || '-'}</span> },
+              { key: 'project_name', label: 'Proyek' },
+              { key: 'version', label: 'Versi' },
+              { key: 'uploaded_by_name', label: 'Uploader', render: v => v || '-' },
+              { key: 'created_at', label: 'Tanggal', render: v => fD(v) },
+            ]} data={documents} onDelete="documents" />
+          </div>)}
+        </>)}
+      </div>
+
+      {/* CREATE MODAL */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="p-6 border-b"><h3 className="text-lg font-semibold">Buat {tabs.find(t => t.id === activeTab)?.name || ''} Baru</h3></div>
+            <div className="p-6 space-y-4">
+              {(activeTab === 'projects') && (<>
+                <div><label className="block text-sm font-medium mb-1">Nama Proyek *</label><input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.name || ''} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
+                <div><label className="block text-sm font-medium mb-1">Deskripsi</label><textarea className="w-full border rounded-lg px-3 py-2 text-sm" rows={3} value={form.description || ''} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div><label className="block text-sm font-medium mb-1">Kategori</label><input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.category || ''} onChange={e => setForm({ ...form, category: e.target.value })} /></div>
+                  <div><label className="block text-sm font-medium mb-1">Manager</label><input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.managerName || ''} onChange={e => setForm({ ...form, managerName: e.target.value })} /></div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div><label className="block text-sm font-medium mb-1">Prioritas</label><select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.priority || 'normal'} onChange={e => setForm({ ...form, priority: e.target.value })}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></div>
+                  <div><label className="block text-sm font-medium mb-1">Anggaran</label><input type="number" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.budgetAmount || ''} onChange={e => setForm({ ...form, budgetAmount: e.target.value })} /></div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div><label className="block text-sm font-medium mb-1">Mulai</label><input type="date" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.startDate || ''} onChange={e => setForm({ ...form, startDate: e.target.value })} /></div>
+                  <div><label className="block text-sm font-medium mb-1">Selesai</label><input type="date" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.endDate || ''} onChange={e => setForm({ ...form, endDate: e.target.value })} /></div>
+                </div>
+              </>)}
+              {(activeTab === 'tasks') && (<>
+                <div><label className="block text-sm font-medium mb-1">Proyek *</label><select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.projectId || ''} onChange={e => setForm({ ...form, projectId: e.target.value })}><option value="">Pilih Proyek</option>{projects.map(p => <option key={p.id} value={p.id}>{p.project_code} - {p.name}</option>)}</select></div>
+                <div><label className="block text-sm font-medium mb-1">Nama Tugas *</label><input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.name || ''} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div><label className="block text-sm font-medium mb-1">Prioritas</label><select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.priority || 'normal'} onChange={e => setForm({ ...form, priority: e.target.value })}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></div>
+                  <div><label className="block text-sm font-medium mb-1">Assignee</label><input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.assigneeName || ''} onChange={e => setForm({ ...form, assigneeName: e.target.value })} /></div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div><label className="block text-sm font-medium mb-1">Mulai</label><input type="date" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.startDate || ''} onChange={e => setForm({ ...form, startDate: e.target.value })} /></div>
+                  <div><label className="block text-sm font-medium mb-1">Deadline</label><input type="date" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.dueDate || ''} onChange={e => setForm({ ...form, dueDate: e.target.value })} /></div>
+                </div>
+                <div><label className="block text-sm font-medium mb-1">Estimasi Jam</label><input type="number" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.estimatedHours || ''} onChange={e => setForm({ ...form, estimatedHours: e.target.value })} /></div>
+              </>)}
+              {(activeTab === 'milestones') && (<>
+                <div><label className="block text-sm font-medium mb-1">Proyek *</label><select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.projectId || ''} onChange={e => setForm({ ...form, projectId: e.target.value })}><option value="">Pilih Proyek</option>{projects.map(p => <option key={p.id} value={p.id}>{p.project_code} - {p.name}</option>)}</select></div>
+                <div><label className="block text-sm font-medium mb-1">Nama Milestone *</label><input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.name || ''} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
+                <div><label className="block text-sm font-medium mb-1">Deadline</label><input type="date" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.dueDate || ''} onChange={e => setForm({ ...form, dueDate: e.target.value })} /></div>
+                <div><label className="block text-sm font-medium mb-1">Deskripsi</label><textarea className="w-full border rounded-lg px-3 py-2 text-sm" rows={3} value={form.description || ''} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
+              </>)}
+              {(activeTab === 'timesheets') && (<>
+                <div><label className="block text-sm font-medium mb-1">Proyek *</label><select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.projectId || ''} onChange={e => setForm({ ...form, projectId: e.target.value })}><option value="">Pilih Proyek</option>{projects.map(p => <option key={p.id} value={p.id}>{p.project_code} - {p.name}</option>)}</select></div>
+                <div><label className="block text-sm font-medium mb-1">Nama Karyawan *</label><input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.employeeName || ''} onChange={e => setForm({ ...form, employeeName: e.target.value, employeeId: 1 })} /></div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div><label className="block text-sm font-medium mb-1">Tanggal *</label><input type="date" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.workDate || ''} onChange={e => setForm({ ...form, workDate: e.target.value })} /></div>
+                  <div><label className="block text-sm font-medium mb-1">Jam Kerja *</label><input type="number" step="0.5" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.hoursWorked || ''} onChange={e => setForm({ ...form, hoursWorked: parseFloat(e.target.value) })} /></div>
+                </div>
+                <div><label className="block text-sm font-medium mb-1">Deskripsi</label><textarea className="w-full border rounded-lg px-3 py-2 text-sm" rows={2} value={form.description || ''} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
+              </>)}
+              {(activeTab === 'risks') && (<>
+                <div><label className="block text-sm font-medium mb-1">Proyek *</label><select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.projectId || ''} onChange={e => setForm({ ...form, projectId: e.target.value })}><option value="">Pilih Proyek</option>{projects.map(p => <option key={p.id} value={p.id}>{p.project_code} - {p.name}</option>)}</select></div>
+                <div><label className="block text-sm font-medium mb-1">Judul Risiko *</label><input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.title || ''} onChange={e => setForm({ ...form, title: e.target.value })} /></div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div><label className="block text-sm font-medium mb-1">Probabilitas</label><select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.probability || 'medium'} onChange={e => setForm({ ...form, probability: e.target.value })}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="very_high">Very High</option></select></div>
+                  <div><label className="block text-sm font-medium mb-1">Dampak</label><select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.impact || 'medium'} onChange={e => setForm({ ...form, impact: e.target.value })}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="very_high">Very High</option></select></div>
+                </div>
+                <div><label className="block text-sm font-medium mb-1">Rencana Mitigasi</label><textarea className="w-full border rounded-lg px-3 py-2 text-sm" rows={3} value={form.mitigationPlan || ''} onChange={e => setForm({ ...form, mitigationPlan: e.target.value })} /></div>
+              </>)}
+              {(activeTab === 'resources') && (<>
+                <div><label className="block text-sm font-medium mb-1">Proyek *</label><select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.projectId || ''} onChange={e => setForm({ ...form, projectId: e.target.value })}><option value="">Pilih Proyek</option>{projects.map(p => <option key={p.id} value={p.id}>{p.project_code} - {p.name}</option>)}</select></div>
+                <div><label className="block text-sm font-medium mb-1">Nama Resource *</label><input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.resourceName || ''} onChange={e => setForm({ ...form, resourceName: e.target.value })} /></div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div><label className="block text-sm font-medium mb-1">Tipe</label><select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.resourceType || 'human'} onChange={e => setForm({ ...form, resourceType: e.target.value })}><option value="human">Human</option><option value="equipment">Equipment</option><option value="material">Material</option></select></div>
+                  <div><label className="block text-sm font-medium mb-1">Alokasi (%)</label><input type="number" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.allocationPercent || 100} onChange={e => setForm({ ...form, allocationPercent: e.target.value })} /></div>
+                </div>
+              </>)}
+              {(activeTab === 'budgets') && (<>
+                <div><label className="block text-sm font-medium mb-1">Proyek *</label><select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.projectId || ''} onChange={e => setForm({ ...form, projectId: e.target.value })}><option value="">Pilih Proyek</option>{projects.map(p => <option key={p.id} value={p.id}>{p.project_code} - {p.name}</option>)}</select></div>
+                <div><label className="block text-sm font-medium mb-1">Kategori *</label><select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.category || ''} onChange={e => setForm({ ...form, category: e.target.value })}><option value="">Pilih</option><option value="labor">Labor</option><option value="material">Material</option><option value="equipment">Equipment</option><option value="travel">Travel</option><option value="overhead">Overhead</option><option value="contingency">Contingency</option></select></div>
+                <div><label className="block text-sm font-medium mb-1">Jumlah Rencana</label><input type="number" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.plannedAmount || ''} onChange={e => setForm({ ...form, plannedAmount: e.target.value })} /></div>
+                <div><label className="block text-sm font-medium mb-1">Deskripsi</label><input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.description || ''} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
+              </>)}
+            </div>
+            <div className="p-6 border-t flex justify-end gap-3">
+              <button onClick={() => setShowCreateModal(false)} className="px-4 py-2 border rounded-lg text-sm">Batal</button>
+              <button onClick={handleCreate} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2">
+                {saving && <Loader2 className="w-4 h-4 animate-spin" />} Simpan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </HQLayout>
+  );
+}

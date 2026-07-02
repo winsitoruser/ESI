@@ -1,0 +1,833 @@
+================================================================================
+SHIPPING & DELIVERY SYSTEM - COMPREHENSIVE ANALYSIS & DEVELOPMENT
+================================================================================
+Feature: Complete Shipping/Delivery Management for Internal Requisitions
+Location: /hq/requisitions & /branch/requisitions
+Last Updated: 2026-02-25
+Status: DESIGN & IMPLEMENTATION PLAN
+
+================================================================================
+EXECUTIVE SUMMARY
+================================================================================
+
+OBJECTIVE:
+Develop a comprehensive shipping and delivery management system for internal
+requisitions that provides:
+- Complete workflow from approval to delivery
+- Real-time tracking and monitoring
+- Status updates and notifications
+- Delivery confirmation
+- Performance analytics
+- Integration with logistics
+
+SCOPE:
+- Shipping workflow management
+- Tracking system
+- Monitoring dashboard
+- Delivery confirmation
+- Notifications & alerts
+- Documentation & reporting
+
+================================================================================
+CURRENT STATE ANALYSIS
+================================================================================
+
+EXISTING STATUS FLOW:
+draft → submitted → under_review → approved → partially_approved → rejected →
+processing → ready_to_ship → in_transit → delivered → completed → cancelled
+
+CURRENT GAPS:
+❌ No shipping details (tracking number, carrier, etc.)
+❌ No real-time tracking
+❌ No delivery confirmation workflow
+❌ No shipping documents (packing list, delivery note)
+❌ No monitoring dashboard
+❌ No notifications for status changes
+❌ No delivery proof (signature, photo)
+❌ No shipping cost tracking
+❌ No estimated vs actual delivery comparison
+
+DATABASE SCHEMA GAPS:
+- No shipping_details table
+- No delivery_confirmations table
+- No tracking_updates table
+- Limited fields in internal_requisitions
+
+================================================================================
+PROPOSED SHIPPING WORKFLOW
+================================================================================
+
+COMPLETE FLOW:
+
+1. REQUISITION APPROVED
+   Status: approved
+   Action: HQ assigns fulfilling branch
+   Next: Fulfilling branch prepares items
+
+2. PREPARATION (Processing)
+   Status: processing
+   Actions:
+   - Fulfilling branch picks items
+   - Verifies quantities
+   - Packs items
+   - Generates packing list
+   - Creates shipping label
+   Next: Mark as ready to ship
+
+3. READY TO SHIP
+   Status: ready_to_ship
+   Actions:
+   - Final verification
+   - Assign carrier/driver
+   - Generate tracking number
+   - Create delivery note
+   - Schedule pickup/delivery
+   Next: Ship items
+
+4. IN TRANSIT
+   Status: in_transit
+   Actions:
+   - Track shipment location
+   - Update ETA
+   - Monitor delays
+   - Send notifications
+   Next: Deliver to destination
+
+5. DELIVERED
+   Status: delivered
+   Actions:
+   - Confirm receipt
+   - Verify quantities
+   - Check condition
+   - Capture signature/photo
+   - Report discrepancies
+   Next: Complete requisition
+
+6. COMPLETED
+   Status: completed
+   Actions:
+   - Close requisition
+   - Update inventory
+   - Generate reports
+   - Archive documents
+
+================================================================================
+DATABASE SCHEMA DESIGN
+================================================================================
+
+NEW TABLE: requisition_shipments
+CREATE TABLE requisition_shipments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  requisition_id UUID NOT NULL REFERENCES internal_requisitions(id),
+  shipment_number VARCHAR(50) UNIQUE NOT NULL,
+  tracking_number VARCHAR(100),
+  carrier VARCHAR(100), -- 'internal', 'jne', 'jnt', 'sicepat', etc.
+  driver_name VARCHAR(255),
+  driver_phone VARCHAR(50),
+  vehicle_number VARCHAR(50),
+  
+  -- Shipping details
+  shipped_from_branch_id UUID REFERENCES branches(id),
+  shipped_to_branch_id UUID REFERENCES branches(id),
+  shipped_by INTEGER REFERENCES users(id),
+  shipped_at TIMESTAMP,
+  
+  -- Delivery details
+  estimated_delivery_date DATE,
+  actual_delivery_date TIMESTAMP,
+  delivery_instructions TEXT,
+  
+  -- Package details
+  total_packages INTEGER DEFAULT 1,
+  total_weight DECIMAL(10,2), -- in kg
+  total_volume DECIMAL(10,2), -- in m3
+  
+  -- Costs
+  shipping_cost DECIMAL(15,2) DEFAULT 0,
+  insurance_cost DECIMAL(15,2) DEFAULT 0,
+  
+  -- Status
+  status VARCHAR(50) DEFAULT 'pending',
+  -- pending, picked_up, in_transit, out_for_delivery, delivered, failed, returned
+  
+  -- Documents
+  packing_list_url TEXT,
+  delivery_note_url TEXT,
+  shipping_label_url TEXT,
+  
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_shipments_requisition ON requisition_shipments(requisition_id);
+CREATE INDEX idx_shipments_tracking ON requisition_shipments(tracking_number);
+CREATE INDEX idx_shipments_status ON requisition_shipments(status);
+
+---
+
+NEW TABLE: shipment_tracking_updates
+CREATE TABLE shipment_tracking_updates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  shipment_id UUID NOT NULL REFERENCES requisition_shipments(id),
+  status VARCHAR(50) NOT NULL,
+  location VARCHAR(255),
+  latitude DECIMAL(10,8),
+  longitude DECIMAL(11,8),
+  description TEXT,
+  updated_by INTEGER REFERENCES users(id),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_tracking_shipment ON shipment_tracking_updates(shipment_id);
+CREATE INDEX idx_tracking_created ON shipment_tracking_updates(created_at);
+
+---
+
+NEW TABLE: delivery_confirmations
+CREATE TABLE delivery_confirmations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  shipment_id UUID NOT NULL REFERENCES requisition_shipments(id),
+  requisition_id UUID NOT NULL REFERENCES internal_requisitions(id),
+  
+  -- Receiver info
+  received_by_name VARCHAR(255) NOT NULL,
+  received_by_user_id INTEGER REFERENCES users(id),
+  received_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  
+  -- Verification
+  items_verified BOOLEAN DEFAULT false,
+  condition_good BOOLEAN DEFAULT true,
+  all_items_received BOOLEAN DEFAULT true,
+  
+  -- Discrepancies
+  has_discrepancies BOOLEAN DEFAULT false,
+  missing_items JSONB, -- [{productId, name, quantityMissing}]
+  damaged_items JSONB, -- [{productId, name, quantityDamaged, description}]
+  extra_items JSONB, -- [{productId, name, quantityExtra}]
+  
+  -- Proof
+  signature_url TEXT,
+  photo_urls JSONB, -- Array of photo URLs
+  
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_delivery_shipment ON delivery_confirmations(shipment_id);
+CREATE INDEX idx_delivery_requisition ON delivery_confirmations(requisition_id);
+
+---
+
+NEW TABLE: shipment_items
+CREATE TABLE shipment_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  shipment_id UUID NOT NULL REFERENCES requisition_shipments(id),
+  requisition_item_id UUID REFERENCES internal_requisition_items(id),
+  product_id INTEGER NOT NULL,
+  product_name VARCHAR(255) NOT NULL,
+  sku VARCHAR(100),
+  
+  quantity_shipped DECIMAL(15,2) NOT NULL,
+  quantity_received DECIMAL(15,2),
+  unit VARCHAR(50),
+  
+  package_number INTEGER, -- Which package this item is in
+  
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_shipment_items_shipment ON shipment_items(shipment_id);
+
+---
+
+UPDATE TABLE: internal_requisitions
+ALTER TABLE internal_requisitions
+ADD COLUMN current_shipment_id UUID REFERENCES requisition_shipments(id),
+ADD COLUMN total_shipments INTEGER DEFAULT 0,
+ADD COLUMN shipping_status VARCHAR(50);
+
+================================================================================
+API ENDPOINTS DESIGN
+================================================================================
+
+SHIPPING MANAGEMENT:
+
+1. POST /api/hq/requisitions/:id/create-shipment
+   Purpose: Create shipment for approved requisition
+   Body: {
+     carrier, driverName, driverPhone, vehicleNumber,
+     estimatedDeliveryDate, totalPackages, shippingCost,
+     deliveryInstructions, items: [{productId, quantity, packageNumber}]
+   }
+   Response: Created shipment with shipment_number
+
+2. PUT /api/hq/requisitions/:id/shipments/:shipmentId/mark-ready
+   Purpose: Mark shipment as ready to ship
+   Body: { packingListUrl, deliveryNoteUrl, shippingLabelUrl }
+   Response: Updated shipment
+
+3. PUT /api/hq/requisitions/:id/shipments/:shipmentId/ship
+   Purpose: Mark shipment as shipped (in transit)
+   Body: { trackingNumber, shippedAt, shippedBy }
+   Response: Updated shipment with tracking
+
+4. GET /api/shipments/:shipmentId/tracking
+   Purpose: Get shipment tracking history
+   Response: Array of tracking updates
+
+5. POST /api/shipments/:shipmentId/tracking
+   Purpose: Add tracking update
+   Body: { status, location, latitude, longitude, description }
+   Response: Created tracking update
+
+6. POST /api/shipments/:shipmentId/confirm-delivery
+   Purpose: Confirm delivery and receive items
+   Body: {
+     receivedByName, receivedByUserId,
+     itemsVerified, conditionGood, allItemsReceived,
+     missingItems, damagedItems, extraItems,
+     signatureUrl, photoUrls, notes
+   }
+   Response: Created delivery confirmation
+
+7. GET /api/hq/shipments/active
+   Purpose: Get all active shipments (monitoring)
+   Query: ?status=in_transit&branch=uuid
+   Response: Array of active shipments with tracking
+
+8. GET /api/hq/shipments/analytics
+   Purpose: Get shipping analytics
+   Query: ?dateFrom=2026-01-01&dateTo=2026-12-31
+   Response: Shipping metrics and KPIs
+
+BRANCH ENDPOINTS:
+
+9. GET /api/branch/requisitions/:id/shipment
+   Purpose: Get shipment details for branch requisition
+   Response: Shipment with tracking updates
+
+10. POST /api/branch/shipments/:shipmentId/receive
+    Purpose: Branch receives and confirms delivery
+    Body: Same as confirm-delivery
+    Response: Delivery confirmation
+
+================================================================================
+UI/UX DESIGN
+================================================================================
+
+1. SHIPPING MANAGEMENT PAGE (/hq/shipments)
+
+Layout:
+┌─────────────────────────────────────────────────────────────────┐
+│  📦 Shipping Management                          [+ Create]     │
+├─────────────────────────────────────────────────────────────────┤
+│  Stats Cards:                                                   │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐          │
+│  │ Pending  │ │In Transit│ │Delivered │ │ Delayed  │          │
+│  │   12     │ │    8     │ │   45     │ │    3     │          │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘          │
+├─────────────────────────────────────────────────────────────────┤
+│  Filters: [Status ▼] [Branch ▼] [Date Range]    🔍 Search      │
+├─────────────────────────────────────────────────────────────────┤
+│  Shipments Table:                                               │
+│  ┌───────────────────────────────────────────────────────────┐ │
+│  │ Shipment # │ Tracking │ From → To │ Status │ ETA │ Action││ │
+│  ├───────────────────────────────────────────────────────────┤ │
+│  │ SH-001     │ JNE123   │ WH → BR02 │ 🚚     │ 2d  │ Track ││ │
+│  │ SH-002     │ INT456   │ WH → BR03 │ 📦     │ 1d  │ Track ││ │
+│  └───────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+
+2. SHIPMENT TRACKING MODAL
+
+┌─────────────────────────────────────────────────────────────────┐
+│  Tracking: SH-001 (JNE123456)                              [X] │
+├─────────────────────────────────────────────────────────────────┤
+│  From: Gudang Pusat → To: Cabang Bandung                       │
+│  Status: In Transit  |  ETA: 26 Feb 2026                       │
+├─────────────────────────────────────────────────────────────────┤
+│  📍 Tracking History:                                           │
+│  ┌───────────────────────────────────────────────────────────┐ │
+│  │ ✓ 25 Feb 10:00 - Picked up from warehouse                │ │
+│  │   Location: Jakarta                                       │ │
+│  │                                                           │ │
+│  │ ✓ 25 Feb 14:30 - In transit to sorting facility          │ │
+│  │   Location: Bekasi                                        │ │
+│  │                                                           │ │
+│  │ ⏱ 25 Feb 18:00 - At sorting facility                     │ │
+│  │   Location: Bandung Hub                                   │ │
+│  │                                                           │ │
+│  │ ⏱ 26 Feb 09:00 - Out for delivery (Estimated)            │ │
+│  │   Location: Bandung                                       │ │
+│  └───────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│  📦 Package Details:                                            │
+│  - Total Packages: 3                                            │
+│  - Weight: 45.5 kg                                              │
+│  - Items: 15 products                                           │
+│                                                                 │
+│  🚚 Carrier Info:                                               │
+│  - Carrier: JNE                                                 │
+│  - Driver: Budi Santoso                                         │
+│  - Phone: 0812-3456-7890                                        │
+│  - Vehicle: B 1234 XYZ                                          │
+│                                                                 │
+│                                    [Add Update] [Close]         │
+└─────────────────────────────────────────────────────────────────┘
+
+3. CREATE SHIPMENT MODAL
+
+┌─────────────────────────────────────────────────────────────────┐
+│  Create Shipment - IR-BR002-2602-0001                      [X] │
+├─────────────────────────────────────────────────────────────────┤
+│  Carrier Information:                                           │
+│  ○ Internal Delivery  ○ JNE  ○ JNT  ○ SiCepat  ○ Other        │
+│                                                                 │
+│  Driver Details:                                                │
+│  Name: [_________________]  Phone: [_________________]          │
+│  Vehicle: [_________________]                                   │
+│                                                                 │
+│  Shipping Details:                                              │
+│  Estimated Delivery: [📅 26 Feb 2026]                          │
+│  Total Packages: [3]  Weight (kg): [45.5]                      │
+│  Shipping Cost: [Rp 150,000]                                    │
+│                                                                 │
+│  Items to Ship:                                                 │
+│  ┌───────────────────────────────────────────────────────────┐ │
+│  │ Product              │ Qty │ Package # │ ☑ Ship           │ │
+│  ├───────────────────────────────────────────────────────────┤ │
+│  │ Beras Premium 5kg    │ 50  │ 1-2       │ ☑                │ │
+│  │ Minyak Goreng 2L     │ 100 │ 3         │ ☑                │ │
+│  └───────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│  Delivery Instructions:                                         │
+│  ┌───────────────────────────────────────────────────────────┐ │
+│  │ Deliver to loading dock. Call 30 mins before arrival.    │ │
+│  └───────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│                                [Cancel] [Create Shipment]       │
+└─────────────────────────────────────────────────────────────────┘
+
+4. DELIVERY CONFIRMATION MODAL
+
+┌─────────────────────────────────────────────────────────────────┐
+│  Confirm Delivery - SH-001                                  [X] │
+├─────────────────────────────────────────────────────────────────┤
+│  Receiver Information:                                          │
+│  Received by: [Siti Rahayu ▼]  Date: [25 Feb 2026 14:30]      │
+│                                                                 │
+│  Verification:                                                  │
+│  ☑ All items verified                                          │
+│  ☑ Items in good condition                                     │
+│  ☑ All items received                                          │
+│                                                                 │
+│  Items Received:                                                │
+│  ┌───────────────────────────────────────────────────────────┐ │
+│  │ Product              │ Shipped │ Received │ Status        │ │
+│  ├───────────────────────────────────────────────────────────┤ │
+│  │ Beras Premium 5kg    │ 50      │ [50]     │ ✓ OK          │ │
+│  │ Minyak Goreng 2L     │ 100     │ [98]     │ ⚠ Missing 2   │ │
+│  └───────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│  Discrepancies:                                                 │
+│  ☑ Report discrepancies                                        │
+│  Missing: Minyak Goreng 2L - 2 units                           │
+│  Reason: [Damaged during transit ▼]                            │
+│                                                                 │
+│  Proof of Delivery:                                             │
+│  Signature: [📝 Capture Signature]                             │
+│  Photos: [📷 Upload Photos] (0/5)                              │
+│                                                                 │
+│  Notes:                                                         │
+│  ┌───────────────────────────────────────────────────────────┐ │
+│  │ 2 bottles damaged, packaging was wet                     │ │
+│  └───────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│                                [Cancel] [Confirm Delivery]      │
+└─────────────────────────────────────────────────────────────────┘
+
+5. MONITORING DASHBOARD (/hq/shipments/monitor)
+
+┌─────────────────────────────────────────────────────────────────┐
+│  🗺️ Real-Time Shipment Monitoring                              │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                                                         │   │
+│  │              [MAP VIEW]                                 │   │
+│  │                                                         │   │
+│  │  📍 WH-001 (Warehouse)                                  │   │
+│  │       ↓ SH-001 (In Transit)                            │   │
+│  │       ↓ SH-003 (In Transit)                            │   │
+│  │  📍 BR-002 (Bandung)                                    │   │
+│  │                                                         │   │
+│  │  📍 BR-003 (Surabaya)                                   │   │
+│  │       ↑ SH-002 (Out for Delivery)                      │   │
+│  │                                                         │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  Active Shipments:                                              │
+│  ┌───────────────────────────────────────────────────────────┐ │
+│  │ SH-001 │ WH→BR02 │ 🚚 In Transit    │ ETA: 2h  │ On Time││ │
+│  │ SH-002 │ WH→BR03 │ 📦 Out for Del.  │ ETA: 30m │ On Time││ │
+│  │ SH-003 │ WH→BR04 │ 🚚 In Transit    │ ETA: 5h  │ Delayed││ │
+│  └───────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│  Alerts:                                                        │
+│  ⚠️ SH-003 delayed by 2 hours - traffic congestion             │
+│  ℹ️ SH-002 arriving in 30 minutes                              │
+└─────────────────────────────────────────────────────────────────┘
+
+================================================================================
+WORKFLOW IMPLEMENTATION
+================================================================================
+
+PROCESS 1: CREATE SHIPMENT (HQ)
+
+1. HQ user views approved requisition
+2. Clicks "Create Shipment" button
+3. Modal opens with shipment form
+4. Selects carrier type (internal/external)
+5. Fills driver details (if internal)
+6. Sets delivery date and package info
+7. Reviews items to ship
+8. Assigns items to packages
+9. Adds delivery instructions
+10. Clicks "Create Shipment"
+11. API creates shipment record
+12. Generates shipment number (SH-XXXXX)
+13. Status: pending
+14. Notification sent to fulfilling branch
+
+PROCESS 2: PREPARE SHIPMENT (Fulfilling Branch)
+
+1. Branch receives notification
+2. Views shipment details
+3. Picks items from inventory
+4. Packs items into packages
+5. Generates packing list (PDF)
+6. Creates delivery note
+7. Prints shipping label
+8. Uploads documents
+9. Clicks "Mark Ready to Ship"
+10. Status: ready_to_ship
+11. Notification to HQ and driver
+
+PROCESS 3: SHIP ITEMS (Fulfilling Branch/Driver)
+
+1. Driver picks up packages
+2. Branch user clicks "Ship Now"
+3. Enters tracking number (if external carrier)
+4. Confirms shipped time
+5. Status: in_transit
+6. Initial tracking update created
+7. Notification to requesting branch
+8. ETA calculated and displayed
+
+PROCESS 4: TRACK SHIPMENT (All Users)
+
+1. User views shipment tracking
+2. Sees real-time location updates
+3. Views tracking history timeline
+4. Checks ETA
+5. Receives notifications for:
+   - Picked up
+   - In transit
+   - Delayed
+   - Out for delivery
+   - Delivered
+
+PROCESS 5: RECEIVE & CONFIRM (Requesting Branch)
+
+1. Driver arrives at branch
+2. Branch user opens delivery confirmation
+3. Verifies items against packing list
+4. Counts quantities
+5. Checks condition
+6. Reports any discrepancies:
+   - Missing items
+   - Damaged items
+   - Extra items
+7. Captures signature
+8. Takes photos (optional)
+9. Adds notes
+10. Clicks "Confirm Delivery"
+11. Status: delivered
+12. Delivery confirmation created
+13. Inventory updated
+14. Notification to HQ and fulfilling branch
+
+PROCESS 6: COMPLETE REQUISITION (System)
+
+1. All shipments delivered
+2. All items confirmed
+3. Discrepancies resolved (if any)
+4. Status: completed
+5. Generate completion report
+6. Archive documents
+7. Update analytics
+
+================================================================================
+NOTIFICATION SYSTEM
+================================================================================
+
+NOTIFICATION TRIGGERS:
+
+1. Shipment Created
+   To: Fulfilling branch manager
+   Message: "New shipment SH-001 created for IR-BR002-2602-0001"
+
+2. Ready to Ship
+   To: Driver, HQ logistics
+   Message: "Shipment SH-001 ready for pickup"
+
+3. Shipped
+   To: Requesting branch, HQ
+   Message: "Shipment SH-001 shipped, ETA: 26 Feb 2026"
+
+4. In Transit Update
+   To: Requesting branch (if significant)
+   Message: "Shipment SH-001 passed checkpoint: Bekasi"
+
+5. Delayed
+   To: All stakeholders
+   Message: "⚠️ Shipment SH-001 delayed by 2 hours"
+
+6. Out for Delivery
+   To: Requesting branch
+   Message: "Shipment SH-001 out for delivery, arriving in 30 mins"
+
+7. Delivered
+   To: HQ, fulfilling branch
+   Message: "✓ Shipment SH-001 delivered successfully"
+
+8. Discrepancy Reported
+   To: HQ, fulfilling branch
+   Message: "⚠️ Discrepancy in SH-001: 2 items missing"
+
+NOTIFICATION CHANNELS:
+- In-app notifications
+- Email
+- SMS (for urgent/delayed)
+- WhatsApp (optional)
+- Push notifications (mobile app)
+
+================================================================================
+ANALYTICS & REPORTING
+================================================================================
+
+KEY METRICS:
+
+1. Shipping Performance:
+   - On-time delivery rate
+   - Average delivery time
+   - Delay frequency
+   - Delay reasons
+
+2. Cost Analysis:
+   - Total shipping costs
+   - Cost per shipment
+   - Cost per kg
+   - Cost by carrier
+
+3. Quality Metrics:
+   - Damage rate
+   - Missing items rate
+   - Accuracy rate
+   - Customer satisfaction
+
+4. Operational Metrics:
+   - Shipments per day/week/month
+   - Active shipments
+   - Completed shipments
+   - Failed/returned shipments
+
+5. Branch Performance:
+   - Fastest fulfilling branch
+   - Most reliable branch
+   - Branch with most delays
+   - Branch with best accuracy
+
+REPORTS:
+
+1. Daily Shipping Report
+   - All shipments created today
+   - Deliveries completed today
+   - Active shipments
+   - Delays and issues
+
+2. Monthly Performance Report
+   - Total shipments
+   - On-time rate
+   - Cost analysis
+   - Quality metrics
+   - Trends and insights
+
+3. Carrier Performance Report
+   - Performance by carrier
+   - Cost comparison
+   - Reliability metrics
+   - Recommendations
+
+4. Discrepancy Report
+   - All discrepancies
+   - Root cause analysis
+   - Financial impact
+   - Action items
+
+================================================================================
+INTEGRATION POINTS
+================================================================================
+
+1. INVENTORY SYSTEM:
+   - Deduct stock when shipped
+   - Add stock when received
+   - Handle discrepancies
+   - Update stock levels
+
+2. LOGISTICS PROVIDERS:
+   - JNE API integration
+   - JNT API integration
+   - SiCepat API integration
+   - Real-time tracking
+
+3. NOTIFICATION SERVICES:
+   - Email service (SMTP/SendGrid)
+   - SMS gateway (Twilio)
+   - WhatsApp Business API
+   - Push notification service
+
+4. DOCUMENT GENERATION:
+   - Packing list PDF
+   - Delivery note PDF
+   - Shipping label PDF
+   - Completion report PDF
+
+5. MAPPING SERVICES:
+   - Google Maps API
+   - Route optimization
+   - ETA calculation
+   - Location tracking
+
+================================================================================
+SECURITY & COMPLIANCE
+================================================================================
+
+ACCESS CONTROL:
+- HQ: Full access to all shipments
+- Fulfilling branch: Access to outgoing shipments
+- Requesting branch: Access to incoming shipments
+- Driver: Access to assigned shipments only
+
+DATA PRIVACY:
+- Encrypt sensitive data (signatures, photos)
+- Secure document storage
+- Audit trail for all actions
+- GDPR compliance for personal data
+
+DOCUMENT RETENTION:
+- Keep shipping documents for 7 years
+- Archive completed shipments
+- Secure backup of all data
+
+================================================================================
+TESTING STRATEGY
+================================================================================
+
+UNIT TESTS:
+- API endpoints
+- Business logic
+- Validation rules
+- Calculations (ETA, costs)
+
+INTEGRATION TESTS:
+- Database operations
+- External API calls
+- Notification delivery
+- Document generation
+
+E2E TESTS:
+- Complete shipping workflow
+- Delivery confirmation
+- Discrepancy handling
+- Multi-shipment scenarios
+
+PERFORMANCE TESTS:
+- Load testing (100+ concurrent shipments)
+- Tracking update frequency
+- Real-time monitoring
+- Report generation speed
+
+================================================================================
+IMPLEMENTATION PHASES
+================================================================================
+
+PHASE 1: Core Shipping (Week 1-2)
+✓ Database schema
+✓ Basic API endpoints
+✓ Create shipment
+✓ Ship items
+✓ Basic tracking
+✓ Delivery confirmation
+
+PHASE 2: Enhanced Tracking (Week 3)
+✓ Tracking updates
+✓ Real-time status
+✓ ETA calculation
+✓ Delay detection
+✓ Notifications
+
+PHASE 3: UI/UX (Week 4)
+✓ Shipping management page
+✓ Tracking modal
+✓ Create shipment modal
+✓ Delivery confirmation modal
+✓ Monitoring dashboard
+
+PHASE 4: Integration (Week 5)
+✓ Inventory integration
+✓ Logistics provider APIs
+✓ Document generation
+✓ Notification services
+
+PHASE 5: Analytics (Week 6)
+✓ Metrics calculation
+✓ Reports generation
+✓ Dashboard widgets
+✓ Export functionality
+
+PHASE 6: Testing & Optimization (Week 7-8)
+✓ Complete testing
+✓ Performance optimization
+✓ Bug fixes
+✓ User training
+✓ Documentation
+
+================================================================================
+SUCCESS CRITERIA
+================================================================================
+
+FUNCTIONAL:
+✓ Can create shipments for approved requisitions
+✓ Can track shipments in real-time
+✓ Can confirm deliveries with verification
+✓ Can handle discrepancies
+✓ Can generate shipping documents
+✓ Can send notifications
+✓ Can view analytics and reports
+
+PERFORMANCE:
+✓ Tracking updates within 1 second
+✓ Page load < 2 seconds
+✓ Support 1000+ active shipments
+✓ 99.9% uptime
+
+QUALITY:
+✓ < 1% error rate
+✓ 95%+ on-time delivery
+✓ < 2% discrepancy rate
+✓ 90%+ user satisfaction
+
+================================================================================
+END OF ANALYSIS
+================================================================================

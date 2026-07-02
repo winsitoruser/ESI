@@ -1,0 +1,444 @@
+/* Register form styles inspired by Logdy template */
+.registerPage {
+  min-height: 100vh;
+  display: flex;
+  overflow: hidden;
+  background-color: #fff;
+}
+
+.leftColumn {
+  width: 45%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 3rem;
+}
+
+.rightColumn {
+  width: 55%;
+  background: linear-gradient(135deg, #dc2626 0%, #f97316 100%); /* from-red-600 to-orange-500 */
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.logoWrapper {
+  position: absolute;
+  top: 1.5rem;
+  left: 1.5rem;
+  z-index: 10;
+  padding: 0.5rem;
+  background-color: white;
+  border: 1px solid #fee2e2; /* border-red-100 */
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* shadow-sm */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.formWrapper {
+  width: 100%;
+  max-width: 480px;
+  padding: 2rem;
+}
+
+.formTitle {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  background: linear-gradient(to right, #dc2626, #f97316); /* from-red-600 to-orange-500 */
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.formDescription {
+  color: #718096;
+  margin-bottom: 2rem;
+}
+
+.inputGroup {
+  margin-bottom: 1.5rem;
+}
+
+.label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: #4a5568;
+  font-size: 0.95rem;
+}
+
+.label svg {
+  min-width: 16px;
+  min-height: 16px;
+}
+
+.input {
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s;
+  font-size: 0.95rem;
+  background-color: #fff;
+}
+
+.input:hover {
+  border-color: #ff8e53;
+}
+
+.input:focus {
+  border-color: #ff5f6d;
+  box-shadow: 0 0 0 3px rgba(255, 95, 109, 0.2);
+  outline: none;
+  background-color: #fff;
+}
+
+.buttonPrimary {
+  background: linear-gradient(to right, #dc2626, #f97316); /* from-red-600 to-orange-500 */
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  transition: all 0.3s;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.buttonPrimary:hover {
+  box-shadow: 0 4px 15px rgba(255, 95, 109, 0.4);
+  transform: translateY(-2px);
+}
+
+.buttonPrimary:active {
+  transform: translateY(0);
+}
+
+.stepsIndicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+
+.stepDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #e2e8f0;
+  margin: 0 0.5rem;
+  transition: all 0.3s;
+}
+
+.stepDotActive {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: linear-gradient(to right, #ff5f6d, #ff8e53);
+  margin: 0 0.5rem;
+  transform: scale(1.2);
+}
+
+.stepLine {
+  width: 40px;
+  height: 2px;
+  background-color: #e2e8f0;
+}
+
+.stepLineActive {
+  width: 40px;
+  height: 2px;
+  background: linear-gradient(to right, #ff5f6d, #ff8e53);
+}
+
+.errorText {
+  color: #f05252;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+  display: block;
+  padding-left: 0.5rem;
+  border-left: 2px solid #f05252;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.pharmaIconContainer {
+  position: relative;
+  width: 280px;
+  height: 280px;
+  margin-top: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+}
+
+.pharmaIcon {
+  position: absolute;
+  color: white;
+  z-index: 10;
+  filter: drop-shadow(0 10px 15px rgba(220, 38, 38, 0.3));
+  background: rgba(255, 255, 255, 0.2);
+  padding: 20px;
+  border-radius: 50%;
+  backdrop-filter: blur(5px);
+}
+
+.pharmaIconSecondary {
+  position: absolute;
+  top: 60%;
+  left: 20%;
+  color: white;
+  z-index: 8;
+  filter: drop-shadow(0 8px 10px rgba(220, 38, 38, 0.3));
+  background: rgba(255, 255, 255, 0.15);
+  padding: 15px;
+  border-radius: 50%;
+  backdrop-filter: blur(5px);
+}
+
+.pharmaIconTertiary {
+  position: absolute;
+  top: 30%;
+  right: 20%;
+  color: white;
+  z-index: 7;
+  filter: drop-shadow(0 5px 8px rgba(220, 38, 38, 0.3));
+  background: rgba(255, 255, 255, 0.1);
+  padding: 12px;
+  border-radius: 50%;
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.pharmaIconQuaternary {
+  position: absolute;
+  top: 70%;
+  right: 30%;
+  color: white;
+  z-index: 6;
+  filter: drop-shadow(0 4px 6px rgba(220, 38, 38, 0.3));
+  background: rgba(255, 255, 255, 0.05);
+  padding: 10px;
+  border-radius: 50%;
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.pharmaOrnament {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  z-index: 3;
+}
+
+.blob {
+  width: 100%;
+  height: 100%;
+  animation: rotate 20s linear infinite;
+  filter: drop-shadow(0 0 20px rgba(249, 115, 22, 0.4));
+}
+
+.shapeTop {
+  position: absolute;
+  top: -50px;
+  right: -50px;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.shapeBottom {
+  position: absolute;
+  bottom: -100px;
+  left: -100px;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.circleAnimation {
+  position: absolute;
+  opacity: 0.2;
+  border-radius: 50%;
+  background: white;
+}
+
+@media (max-width: 1024px) {
+  .leftColumn {
+    width: 50%;
+  }
+  
+  .rightColumn {
+    width: 50%;
+  }
+}
+
+@media (max-width: 768px) {
+  .registerPage {
+    flex-direction: column;
+  }
+  
+  .leftColumn {
+    width: 100%;
+    padding: 2rem;
+  }
+  
+  .rightColumn {
+    width: 100%;
+    min-height: 300px;
+  }
+  
+  .logoWrapper {
+    position: relative;
+    top: 0;
+    left: 0;
+    margin-bottom: 2rem;
+  }
+  
+  .formWrapper {
+    padding: 0;
+  }
+}
+
+.successCard {
+  background: white;
+  border-radius: 1rem;
+  padding: 3rem 2rem;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+.checkIconWrapper {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(to right, #ff5f6d, #ff8e53);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.5rem;
+}
+
+.socialLinks {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.socialButton {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #f7fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #4a5568;
+  transition: all 0.3s;
+}
+
+.socialButton:hover {
+  background-color: #fef2f2; /* bg-red-50 */
+  color: #dc2626; /* text-red-600 */
+  transform: translateY(-2px);
+}
+
+/* Animations */
+.fadeIn {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+.slideInRight {
+  animation: slideInRight 0.5s ease-in-out;
+}
+
+.slideInLeft {
+  animation: slideInLeft 0.5s ease-in-out;
+}
+
+.bounce {
+  animation: bounce 1s ease infinite;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-15px) rotate(2deg);
+  }
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.bounceDelay1 {
+  animation: bounce 4s ease-in-out 0.5s infinite;
+}
+
+.bounceDelay2 {
+  animation: bounce 5s ease-in-out 1s infinite;
+}
+
+.bounceDelay3 {
+  animation: bounce 3.5s ease-in-out 1.5s infinite;
+}

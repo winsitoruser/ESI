@@ -1,0 +1,433 @@
+================================================================================
+BEDAGANG ERP - PARTNER VS TENANT ANALYSIS
+================================================================================
+Comprehensive Comparison: Mitra (Partner) vs Tenant
+Last Updated: 2026-02-25
+Author: System Architecture Team
+
+================================================================================
+EXECUTIVE SUMMARY
+================================================================================
+
+PARTNER (MITRA):
+- External business entities yang menggunakan sistem
+- Memiliki multiple outlets (cabang/toko)
+- Requires activation approval process
+- Subscription-based model
+- B2B relationship dengan platform
+
+TENANT:
+- Internal system workspace/organization
+- Core operational unit dalam sistem
+- Module-based access control
+- Direct admin creation (no approval needed)
+- Multi-branch capability dengan HQ system
+
+KEY DIFFERENCE:
+Partner = Customer/Client yang membeli layanan
+Tenant = Workspace/Organization yang menjalankan operasional
+
+================================================================================
+DETAILED COMPARISON
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         PARTNER (MITRA)                                 │
+├─────────────────────────────────────────────────────────────────────────┤
+│ CONCEPT: External business entity/customer                             │
+│ PURPOSE: Represents a client/customer of the platform                  │
+│ CREATION: Self-registration OR admin creation                          │
+│ APPROVAL: Requires activation approval workflow                        │
+│ STATUS: pending → approved/rejected → active/inactive/suspended        │
+│ RELATIONSHIP: One-to-many with outlets                                 │
+│ SUBSCRIPTION: Has subscription packages                                │
+│ USERS: PartnerUser (separate user table)                              │
+│ ACCESS: Via partner portal/dashboard                                   │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           TENANT                                        │
+├─────────────────────────────────────────────────────────────────────────┤
+│ CONCEPT: Internal workspace/organization                               │
+│ PURPOSE: Operational unit that uses the ERP system                     │
+│ CREATION: Admin creates directly                                       │
+│ APPROVAL: No approval needed (instant activation)                      │
+│ STATUS: trial → active/inactive/suspended                              │
+│ RELATIONSHIP: One-to-many with users, branches, modules                │
+│ MODULES: Module-based feature access                                   │
+│ USERS: Regular User table with tenantId                               │
+│ ACCESS: Full ERP system access based on enabled modules               │
+└─────────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+DATABASE SCHEMA COMPARISON
+================================================================================
+
+PARTNER TABLE (partners):
+┌──────────────────────────┬─────────────────────────────────────────────┐
+│ Field                    │ Description                                 │
+├──────────────────────────┼─────────────────────────────────────────────┤
+│ id                       │ UUID, Primary Key                           │
+│ business_name            │ Partner's business name                     │
+│ business_type            │ Type of business (string, not FK)           │
+│ owner_name               │ Owner's name                                │
+│ email                    │ Contact email (unique)                      │
+│ phone                    │ Contact phone                               │
+│ address, city, province  │ Location information                        │
+│ postal_code              │ Postal code                                 │
+│ tax_id                   │ Tax identification number                   │
+│ status                   │ pending/active/inactive/suspended           │
+│ activation_status        │ pending/approved/rejected                   │
+│ activation_requested_at  │ When activation was requested               │
+│ activation_approved_at   │ When activation was approved                │
+│ activation_approved_by   │ Admin who approved                          │
+│ rejection_reason         │ Reason if rejected                          │
+│ logo_url                 │ Partner's logo                              │
+│ website                  │ Partner's website                           │
+│ created_at, updated_at   │ Timestamps                                  │
+└──────────────────────────┴─────────────────────────────────────────────┘
+
+TENANT TABLE (tenants):
+┌──────────────────────────┬─────────────────────────────────────────────┐
+│ Field                    │ Description                                 │
+├──────────────────────────┼─────────────────────────────────────────────┤
+│ id                       │ UUID, Primary Key                           │
+│ business_type_id         │ FK to business_types (structured)           │
+│ business_name            │ Tenant's business name                      │
+│ business_email           │ Business email                              │
+│ business_phone           │ Business phone                              │
+│ business_address         │ Business address                            │
+│ setup_completed          │ Onboarding completion flag                  │
+│ onboarding_step          │ Current onboarding step (0-5)               │
+│ name                     │ Tenant name                                 │
+│ code                     │ Unique tenant code                          │
+│ status                   │ trial/active/inactive/suspended             │
+│ subscription_plan        │ basic/professional/enterprise               │
+│ subscription_start       │ Subscription start date                     │
+│ subscription_end         │ Subscription end date                       │
+│ max_users                │ Maximum allowed users                       │
+│ max_branches             │ Maximum allowed branches                    │
+│ contact_name             │ Primary contact name                        │
+│ contact_email            │ Primary contact email                       │
+│ contact_phone            │ Primary contact phone                       │
+│ address, city, province  │ Location information                        │
+│ postal_code              │ Postal code                                 │
+│ settings                 │ JSON configuration                          │
+│ is_active                │ Active flag                                 │
+│ created_at, updated_at   │ Timestamps                                  │
+└──────────────────────────┴─────────────────────────────────────────────┘
+
+================================================================================
+RELATIONSHIPS & ASSOCIATIONS
+================================================================================
+
+PARTNER RELATIONSHIPS:
+Partner → PartnerOutlet (one-to-many)
+  - Partner has many outlets/branches
+  - Each outlet is a physical location
+
+Partner → PartnerUser (one-to-many)
+  - Partner has many users
+  - Separate user table for partner users
+
+Partner → PartnerSubscription (one-to-many)
+  - Partner has subscription history
+  - Tracks subscription packages
+
+Partner → ActivationRequest (one-to-many)
+  - Partner can have multiple activation requests
+  - Tracks approval workflow
+
+TENANT RELATIONSHIPS:
+Tenant → BusinessType (many-to-one)
+  - Tenant belongs to a business type
+  - Determines default modules
+
+Tenant → User (one-to-many)
+  - Tenant has many users
+  - Uses main User table with tenantId
+
+Tenant → Module (many-to-many through TenantModule)
+  - Tenant has enabled modules
+  - Module-based feature access
+
+Tenant → Branch (one-to-many)
+  - Tenant has multiple branches
+  - HQ-based multi-branch system
+
+Tenant → Store (one-to-many)
+  - Tenant has stores
+  - Physical store locations
+
+Tenant → SyncLog (one-to-many)
+  - Tenant has sync logs
+  - Tracks data synchronization
+
+================================================================================
+BUSINESS LOGIC DIFFERENCES
+================================================================================
+
+PARTNER WORKFLOW:
+1. Partner Registration
+   ├─ Partner submits registration form
+   ├─ Status: pending
+   └─ ActivationRequest created
+
+2. Admin Review
+   ├─ Admin reviews partner application
+   ├─ Can approve or reject
+   └─ Sets activation_status
+
+3. Approval
+   ├─ If approved: status → active
+   ├─ Partner can access system
+   └─ Can create outlets
+
+4. Subscription
+   ├─ Partner subscribes to package
+   ├─ PartnerSubscription created
+   └─ Billing/payment tracking
+
+5. Operations
+   ├─ Partner manages outlets
+   ├─ Partner users access system
+   └─ Transaction tracking per outlet
+
+TENANT WORKFLOW:
+1. Tenant Creation (Admin)
+   ├─ Admin creates tenant directly
+   ├─ Selects business type
+   ├─ Selects subscription plan
+   └─ Status: trial
+
+2. Owner User Creation
+   ├─ System auto-creates owner user
+   ├─ Generates temp password
+   └─ Owner receives credentials
+
+3. Module Assignment
+   ├─ Default modules auto-enabled
+   ├─ Based on business type
+   └─ TenantModule records created
+
+4. Onboarding
+   ├─ Owner logs in
+   ├─ Completes 5-step wizard
+   └─ setup_completed = true
+
+5. Operations
+   ├─ Tenant users access modules
+   ├─ Can add branches (if multi-branch)
+   ├─ Full ERP functionality
+   └─ Module-based access control
+
+================================================================================
+USE CASES & SCENARIOS
+================================================================================
+
+WHEN TO USE PARTNER:
+✓ B2B SaaS model where businesses sign up as customers
+✓ Need approval workflow before activation
+✓ Multiple outlets/locations per customer
+✓ Subscription package management
+✓ External customer relationship
+✓ Separate user management for customers
+✓ Partner portal/dashboard needed
+
+EXAMPLE:
+- Franchise management system
+- Multi-outlet retail chains signing up
+- Restaurant chains as customers
+- Third-party businesses using platform
+
+WHEN TO USE TENANT:
+✓ Internal workspace/organization model
+✓ Direct admin-created accounts
+✓ Module-based feature access
+✓ Multi-branch with HQ synchronization
+✓ Onboarding wizard for setup
+✓ Full ERP system access
+✓ Integrated user management
+
+EXAMPLE:
+- Single business using ERP
+- Company with multiple branches
+- Organization needing full system access
+- Internal business operations
+
+================================================================================
+CURRENT SYSTEM IMPLEMENTATION
+================================================================================
+
+PARTNER SYSTEM:
+Location: /admin/partners
+Features:
+- Partner listing with status
+- Activation request management
+- Approve/reject workflow
+- Outlet management
+- Subscription tracking
+- Partner user management
+
+Status: ✅ Implemented
+API: /api/admin/partners
+Pages: /pages/admin/partners/
+
+TENANT SYSTEM:
+Location: /admin/tenants
+Features:
+- Tenant creation with type selection
+- Auto-owner user creation
+- Module auto-assignment
+- Onboarding wizard
+- Branch management
+- User management
+
+Status: ✅ Implemented
+API: /api/admin/tenants
+Pages: /pages/admin/tenants/
+
+================================================================================
+ARCHITECTURAL DECISION
+================================================================================
+
+CURRENT ARCHITECTURE:
+The system implements BOTH Partner and Tenant models, suggesting:
+
+DUAL-MODEL APPROACH:
+┌─────────────────────────────────────────────────────────────────────┐
+│                         PLATFORM LAYER                              │
+│  ┌──────────────────────────────────────────────────────────────┐  │
+│  │                    ADMIN SYSTEM                              │  │
+│  │  - Manages Partners (external customers)                     │  │
+│  │  - Manages Tenants (internal workspaces)                     │  │
+│  │  - Approval workflows                                        │  │
+│  │  - Subscription management                                   │  │
+│  └──────────────────────────────────────────────────────────────┘  │
+│                                                                     │
+│  ┌──────────────────┐              ┌──────────────────┐           │
+│  │   PARTNER        │              │    TENANT        │           │
+│  │   (External)     │              │   (Internal)     │           │
+│  │                  │              │                  │           │
+│  │  - Outlets       │              │  - Modules       │           │
+│  │  - Users         │              │  - Branches      │           │
+│  │  - Subscriptions │              │  - Users         │           │
+│  │  - Activation    │              │  - Onboarding    │           │
+│  └──────────────────┘              └──────────────────┘           │
+└─────────────────────────────────────────────────────────────────────┘
+
+POSSIBLE SCENARIOS:
+
+SCENARIO 1: SEPARATE SYSTEMS
+- Partners: External B2B customers
+- Tenants: Internal operational units
+- No direct relationship between them
+
+SCENARIO 2: PARTNER → TENANT CONVERSION
+- Partner signs up (external)
+- After approval, Tenant created (internal workspace)
+- Partner.id could link to Tenant (currently NOT implemented)
+
+SCENARIO 3: HYBRID MODEL
+- Some businesses are Partners (B2B customers)
+- Some businesses are Tenants (direct ERP users)
+- Different pricing/access models
+
+================================================================================
+RECOMMENDATION FOR CLARITY
+================================================================================
+
+CURRENT STATE:
+The system has BOTH Partner and Tenant models but NO direct relationship
+between them. This suggests they serve different purposes:
+
+PARTNER = Customer/Client Entity
+- External relationship
+- Requires approval
+- Subscription-based
+- Multiple outlets
+
+TENANT = Workspace/Organization
+- Internal operational unit
+- Direct creation
+- Module-based access
+- Full ERP functionality
+
+RECOMMENDED CLARIFICATION:
+
+OPTION A: MERGE MODELS
+If Partner and Tenant serve the same purpose:
+- Consolidate into single model
+- Add fields for both use cases
+- Simplify architecture
+
+OPTION B: CLEAR SEPARATION
+If they serve different purposes:
+- Partner = B2B customer entity
+- Tenant = ERP workspace
+- Add relationship: Partner → Tenant (one-to-one or one-to-many)
+- Partner creates/owns Tenant after approval
+
+OPTION C: CURRENT STATE (Keep Both)
+Maintain dual model for flexibility:
+- Partner for external customer management
+- Tenant for internal ERP operations
+- No direct link (different use cases)
+
+================================================================================
+TECHNICAL COMPARISON SUMMARY
+================================================================================
+
+┌──────────────────────┬─────────────────────┬─────────────────────┐
+│ Aspect               │ PARTNER             │ TENANT              │
+├──────────────────────┼─────────────────────┼─────────────────────┤
+│ Primary Key          │ UUID                │ UUID                │
+│ Business Type        │ String (flexible)   │ FK (structured)     │
+│ Status Values        │ 4 states            │ 4 states            │
+│ Approval Workflow    │ YES (required)      │ NO (instant)        │
+│ Activation Status    │ YES                 │ NO                  │
+│ Subscription         │ Via PartnerSub      │ Built-in field      │
+│ User Management      │ PartnerUser table   │ Main User table     │
+│ Outlets/Branches     │ PartnerOutlet       │ Branch              │
+│ Module System        │ NO                  │ YES (TenantModule)  │
+│ Onboarding           │ NO                  │ YES (5-step wizard) │
+│ Max Users            │ NO                  │ YES (configurable)  │
+│ Max Branches         │ NO                  │ YES (configurable)  │
+│ Settings JSON        │ NO                  │ YES                 │
+│ Tax ID               │ YES                 │ NO                  │
+│ Logo URL             │ YES                 │ NO                  │
+│ Website              │ YES                 │ NO                  │
+│ Setup Completed      │ NO                  │ YES                 │
+│ Onboarding Step      │ NO                  │ YES                 │
+└──────────────────────┴─────────────────────┴─────────────────────┘
+
+================================================================================
+CONCLUSION
+================================================================================
+
+PARTNER (MITRA):
+- Represents external business customers
+- Requires approval before activation
+- Has outlets, users, and subscriptions
+- More like a "client" or "customer" entity
+- B2B relationship model
+
+TENANT:
+- Represents internal workspace/organization
+- Direct admin creation (no approval)
+- Module-based feature access
+- Full ERP operational unit
+- Core system entity for business operations
+
+KEY INSIGHT:
+These are TWO DIFFERENT CONCEPTS serving different purposes:
+- Partner = Who is using the platform (customer)
+- Tenant = What workspace they're using (operational unit)
+
+POTENTIAL RELATIONSHIP:
+Partner (approved) → Creates/Owns → Tenant (workspace)
+Currently NOT implemented, but could be added if needed.
+
+================================================================================
+END OF ANALYSIS
+================================================================================

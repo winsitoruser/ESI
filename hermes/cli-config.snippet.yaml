@@ -1,0 +1,23 @@
+# Hermes CLI config snippet — SumoPod AI untuk ESI ERP
+# Merge ke ~/.hermes/config.yaml atau jalankan: npm run hermes:setup
+
+model:
+  provider: custom:sumopod
+  base_url: https://ai.sumopod.com/v1
+  default: deepseek-v4-flash
+
+terminal:
+  cwd: /Users/winnerharry/Bedagang ERP/esi-erp
+
+skills:
+  external_dirs:
+    - /Users/winnerharry/Bedagang ERP/esi-erp/hermes/skills
+
+agent:
+  custom_instructions: |
+    Kamu mengembangkan ESI ERP untuk PT Ekosistem Satwa Indonesia.
+    Baca AGENTS.md. Gunakan /esi-develop, /esi-hq, /esi-cto.
+    Tidak ada PoS, cabang, DMS, manufaktur. Port dev: 3010.
+
+kanban:
+  orchestrator_profile: esi-cto
