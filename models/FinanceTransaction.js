@@ -159,7 +159,7 @@ const FinanceTransaction = sequelize.define('FinanceTransaction', {
       fields: ['status']
     },
     {
-      fields: ['branchId']
+      fields: ['branch_id']
     },
     {
       fields: ['tenantId']

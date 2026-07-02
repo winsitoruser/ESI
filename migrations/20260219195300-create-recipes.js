@@ -3,7 +3,10 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up (queryInterface, Sequelize) {
-    // Create recipes table
+    // Create recipes table (guarded - may already exist from base migration)
+    const recipesTableName = 'recipes';
+    const existingTables = await queryInterface.showAllTables();
+    if (!existingTables.includes(recipesTableName)) {
     await queryInterface.createTable('recipes', {
       id: {
         type: Sequelize.INTEGER,
@@ -191,6 +194,12 @@ module.exports = {
         allowNull: false
       }
     });
+    }
+
+    // Ensure columns exist before indexing (base migration may be missing them)
+    try { await queryInterface.addColumn('recipes', 'category', { type: Sequelize.STRING(100), allowNull: true }); } catch(e) {}
+    try { await queryInterface.addColumn('recipes', 'status', { type: Sequelize.ENUM('draft','active','archived'), defaultValue: 'draft' }); } catch(e) {}
+    try { await queryInterface.addColumn('recipes', 'created_by', { type: Sequelize.INTEGER }); } catch(e) {}
 
     // Create indexes
     await queryInterface.addIndex('recipes', ['code']);

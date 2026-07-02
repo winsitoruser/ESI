@@ -7,11 +7,11 @@ model:
   default: deepseek-v4-flash
 
 terminal:
-  cwd: /Users/winnerharry/Bedagang ERP/esi-erp
+  cwd: /Users/winnerharry/Bedagang ERP/simesi
 
 skills:
   external_dirs:
-    - /Users/winnerharry/Bedagang ERP/esi-erp/hermes/skills
+    - /Users/winnerharry/Bedagang ERP/simesi/hermes/skills
 
 agent:
   custom_instructions: |

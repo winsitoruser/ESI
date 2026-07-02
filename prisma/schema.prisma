@@ -57,7 +57,6 @@ model Customers {
   companyEmail        String?                     @db.VarChar(255)
   companyAddress      String?
   taxId               String?                     @db.VarChar(50)
-  customer_loyalty    customer_loyalty?
   finance_receivables finance_receivables[]
 
   @@index([companyName], map: "idx_customers_company_name")
@@ -921,24 +920,6 @@ model crm_tickets {
   @@index([tenant_id], map: "crm_tickets_tenant_id")
 }
 
-model customer_loyalty {
-  id               String           @id @db.Uuid
-  customerId       String           @unique @db.Uuid
-  programId        String           @db.Uuid
-  currentTierId    String?          @db.Uuid
-  totalPoints      Int              @default(0)
-  availablePoints  Int              @default(0)
-  lifetimePoints   Int              @default(0)
-  totalSpending    Decimal          @default(0) @db.Decimal(15, 2)
-  enrollmentDate   DateTime         @db.Timestamptz(6)
-  lastActivityDate DateTime?        @db.Timestamptz(6)
-  isActive         Boolean          @default(true)
-  createdAt        DateTime         @db.Timestamptz(6)
-  updatedAt        DateTime         @db.Timestamptz(6)
-  loyalty_tiers    loyalty_tiers?   @relation(fields: [currentTierId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  Customers        Customers        @relation(fields: [customerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  loyalty_programs loyalty_programs @relation(fields: [programId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-}
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model customers {
@@ -2398,113 +2379,9 @@ model job_grades {
   updated_at  DateTime? @default(now()) @db.Timestamptz(6)
 }
 
-/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
-model kitchen_inventory_items {
-  id             String                              @id @db.Uuid
-  tenant_id      String                              @db.Uuid
-  product_id     String?                             @db.Uuid
-  name           String                              @db.VarChar(255)
-  category       String?                             @db.VarChar(255)
-  current_stock  Decimal                             @default(0) @db.Decimal(10, 3)
-  unit           String                              @db.VarChar(255)
-  min_stock      Decimal                             @default(0) @db.Decimal(10, 3)
-  max_stock      Decimal                             @default(0) @db.Decimal(10, 3)
-  reorder_point  Decimal                             @default(0) @db.Decimal(10, 3)
-  unit_cost      Decimal?                            @db.Decimal(15, 2)
-  total_value    Decimal?                            @db.Decimal(15, 2)
-  last_restocked DateTime?                           @db.Timestamptz(6)
-  status         enum_kitchen_inventory_items_status @default(good)
-  warehouse_id   String?                             @db.Uuid
-  location_id    String?                             @db.Uuid
-  is_active      Boolean                             @default(true)
-  created_at     DateTime                            @db.Timestamptz(6)
-  updated_at     DateTime                            @db.Timestamptz(6)
 
-  @@index([category], map: "kitchen_inventory_items_category")
-  @@index([location_id], map: "kitchen_inventory_items_location_id")
-  @@index([product_id], map: "kitchen_inventory_items_product_id")
-  @@index([status], map: "kitchen_inventory_items_status")
-  @@index([tenant_id], map: "kitchen_inventory_items_tenant_id")
-  @@index([warehouse_id], map: "kitchen_inventory_items_warehouse_id")
-}
 
-/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
-model kitchen_inventory_transactions {
-  id                String                                               @id @db.Uuid
-  tenant_id         String                                               @db.Uuid
-  inventory_item_id String                                               @db.Uuid
-  transaction_type  enum_kitchen_inventory_transactions_transaction_type
-  quantity          Decimal                                              @db.Decimal(10, 3)
-  unit              String                                               @db.VarChar(255)
-  previous_stock    Decimal?                                             @db.Decimal(10, 3)
-  new_stock         Decimal?                                             @db.Decimal(10, 3)
-  reference_type    String?                                              @db.VarChar(255)
-  reference_id      String?                                              @db.Uuid
-  notes             String?
-  performed_by      String?                                              @db.Uuid
-  transaction_date  DateTime                                             @db.Timestamptz(6)
-  created_at        DateTime                                             @db.Timestamptz(6)
-  updated_at        DateTime                                             @db.Timestamptz(6)
 
-  @@index([inventory_item_id], map: "kitchen_inventory_transactions_inventory_item_id")
-  @@index([reference_type, reference_id], map: "kitchen_inventory_transactions_reference_type_reference_id")
-  @@index([tenant_id], map: "kitchen_inventory_transactions_tenant_id")
-  @@index([transaction_date], map: "kitchen_inventory_transactions_transaction_date")
-  @@index([transaction_type], map: "kitchen_inventory_transactions_transaction_type")
-}
-
-/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
-model kitchen_order_items {
-  id               String                          @id @db.Uuid
-  kitchen_order_id String                          @db.Uuid
-  product_id       String                          @db.Uuid
-  recipe_id        String?                         @db.Uuid
-  name             String                          @db.VarChar(255)
-  quantity         Int                             @default(1)
-  notes            String?
-  modifiers        Json?                           @db.Json
-  status           enum_kitchen_order_items_status @default(pending)
-  prepared_by      String?                         @db.Uuid
-  created_at       DateTime                        @db.Timestamptz(6)
-  updated_at       DateTime                        @db.Timestamptz(6)
-
-  @@index([kitchen_order_id], map: "kitchen_order_items_kitchen_order_id")
-  @@index([product_id], map: "kitchen_order_items_product_id")
-  @@index([recipe_id], map: "kitchen_order_items_recipe_id")
-  @@index([status], map: "kitchen_order_items_status")
-}
-
-/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
-model kitchen_orders {
-  id                 String                         @id @db.Uuid
-  tenant_id          String                         @db.Uuid
-  order_number       String                         @unique @db.VarChar(255)
-  pos_transaction_id String?                        @db.Uuid
-  table_number       String?                        @db.VarChar(255)
-  order_type         enum_kitchen_orders_order_type @default(dine_in)
-  customer_name      String?                        @db.VarChar(255)
-  status             enum_kitchen_orders_status     @default(new)
-  priority           enum_kitchen_orders_priority   @default(normal)
-  received_at        DateTime                       @db.Timestamptz(6)
-  started_at         DateTime?                      @db.Timestamptz(6)
-  completed_at       DateTime?                      @db.Timestamptz(6)
-  served_at          DateTime?                      @db.Timestamptz(6)
-  estimated_time     Int?
-  actual_prep_time   Int?
-  assigned_chef_id   String?                        @db.Uuid
-  notes              String?
-  total_amount       Decimal?                       @db.Decimal(15, 2)
-  created_at         DateTime                       @db.Timestamptz(6)
-  updated_at         DateTime                       @db.Timestamptz(6)
-  pos_transactions   pos_transactions?              @relation(fields: [pos_transaction_id], references: [id])
-
-  @@index([order_number], map: "kitchen_orders_order_number")
-  @@index([order_type], map: "kitchen_orders_order_type")
-  @@index([pos_transaction_id], map: "kitchen_orders_pos_transaction_id")
-  @@index([received_at], map: "kitchen_orders_received_at")
-  @@index([status], map: "kitchen_orders_status")
-  @@index([tenant_id], map: "kitchen_orders_tenant_id")
-}
 
 model kpi_templates {
   id                    String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
@@ -2737,62 +2614,6 @@ model lookup_options {
   @@index([tenant_id, category], map: "idx_lookup_tenant_cat")
 }
 
-model loyalty_programs {
-  id               String             @id @db.Uuid
-  programName      String             @db.VarChar(255)
-  description      String?
-  isActive         Boolean            @default(true)
-  pointsPerRupiah  Decimal            @default(1) @db.Decimal(10, 2)
-  minimumPurchase  Decimal            @default(0) @db.Decimal(15, 2)
-  pointsExpiry     Int                @default(365)
-  autoEnroll       Boolean            @default(true)
-  startDate        DateTime?          @db.Timestamptz(6)
-  endDate          DateTime?          @db.Timestamptz(6)
-  createdAt        DateTime           @db.Timestamptz(6)
-  updatedAt        DateTime           @db.Timestamptz(6)
-  customer_loyalty customer_loyalty[]
-  loyalty_rewards  loyalty_rewards[]
-  loyalty_tiers    loyalty_tiers[]
-}
-
-model loyalty_rewards {
-  id                 String                          @id @db.Uuid
-  programId          String                          @db.Uuid
-  rewardName         String                          @db.VarChar(255)
-  description        String?
-  pointsRequired     Int
-  rewardType         enum_loyalty_rewards_rewardType
-  rewardValue        Decimal?                        @db.Decimal(15, 2)
-  productId          Int?
-  quantity           Int?
-  validityDays       Int?
-  maxRedemptions     Int?
-  currentRedemptions Int                             @default(0)
-  isActive           Boolean                         @default(true)
-  startDate          DateTime?                       @db.Timestamptz(6)
-  endDate            DateTime?                       @db.Timestamptz(6)
-  createdAt          DateTime                        @db.Timestamptz(6)
-  updatedAt          DateTime                        @db.Timestamptz(6)
-  products           products?                       @relation(fields: [productId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  loyalty_programs   loyalty_programs                @relation(fields: [programId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-}
-
-model loyalty_tiers {
-  id                 String             @id @db.Uuid
-  programId          String             @db.Uuid
-  tierName           String             @db.VarChar(100)
-  tierLevel          Int
-  minSpending        Decimal            @default(0) @db.Decimal(15, 2)
-  pointMultiplier    Decimal            @default(1) @db.Decimal(5, 2)
-  discountPercentage Decimal            @default(0) @db.Decimal(5, 2)
-  benefits           Json?              @db.Json
-  color              String?            @db.VarChar(100)
-  isActive           Boolean            @default(true)
-  createdAt          DateTime           @db.Timestamptz(6)
-  updatedAt          DateTime           @db.Timestamptz(6)
-  customer_loyalty   customer_loyalty[]
-  loyalty_programs   loyalty_programs   @relation(fields: [programId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-}
 
 model mkt_budget_items {
   id             String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
@@ -3331,57 +3152,6 @@ model plans {
   @@index([sort_order], map: "plans_sort_order")
 }
 
-model pos_transaction_items {
-  id                 String           @id @db.Uuid
-  pos_transaction_id String           @db.Uuid
-  product_id         String           @db.Uuid
-  product_name       String           @db.VarChar(255)
-  quantity           Decimal          @db.Decimal(10, 2)
-  unit_price         Decimal          @db.Decimal(15, 2)
-  total_price        Decimal          @db.Decimal(15, 2)
-  discount_amount    Decimal          @default(0) @db.Decimal(15, 2)
-  notes              String?
-  modifiers          Json?            @db.Json
-  created_at         DateTime         @db.Timestamptz(6)
-  updated_at         DateTime         @db.Timestamptz(6)
-  pos_transactions   pos_transactions @relation(fields: [pos_transaction_id], references: [id], onDelete: Cascade)
-
-  @@index([pos_transaction_id], map: "pos_transaction_items_pos_transaction_id")
-  @@index([product_id], map: "pos_transaction_items_product_id")
-}
-
-model pos_transactions {
-  id                    String                               @id @db.Uuid
-  transaction_number    String                               @unique @db.VarChar(50)
-  shift_id              String?                              @db.Uuid
-  customer_id           String?                              @db.Uuid
-  customer_name         String?                              @db.VarChar(255)
-  cashier_id            String                               @db.Uuid
-  transaction_date      DateTime                             @db.Timestamptz(6)
-  subtotal              Decimal                              @db.Decimal(15, 2)
-  tax_amount            Decimal                              @default(0) @db.Decimal(15, 2)
-  discount_amount       Decimal                              @default(0) @db.Decimal(15, 2)
-  service_charge        Decimal                              @default(0) @db.Decimal(15, 2)
-  total_amount          Decimal                              @db.Decimal(15, 2)
-  payment_method        enum_pos_transactions_payment_method
-  payment_status        enum_pos_transactions_payment_status @default(paid)
-  table_number          String?                              @db.VarChar(20)
-  order_type            enum_pos_transactions_order_type     @default(dine_in)
-  status                enum_pos_transactions_status         @default(closed)
-  notes                 String?
-  kitchen_order_id      String?                              @db.Uuid
-  created_at            DateTime                             @db.Timestamptz(6)
-  updated_at            DateTime                             @db.Timestamptz(6)
-  kitchen_orders        kitchen_orders[]
-  pos_transaction_items pos_transaction_items[]
-
-  @@index([cashier_id], map: "pos_transactions_cashier_id")
-  @@index([customer_id], map: "pos_transactions_customer_id")
-  @@index([kitchen_order_id], map: "pos_transactions_kitchen_order_id")
-  @@index([status], map: "pos_transactions_status")
-  @@index([transaction_date], map: "pos_transactions_transaction_date")
-  @@index([transaction_number], map: "pos_transactions_transaction_number")
-}
 
 model products {
   id              Int               @id @default(autoincrement())
@@ -3400,7 +3170,6 @@ model products {
   is_active       Boolean?          @default(true)
   created_at      DateTime          @default(now()) @db.Timestamptz(6)
   updated_at      DateTime          @default(now()) @db.Timestamptz(6)
-  loyalty_rewards loyalty_rewards[]
 
   @@index([category], map: "products_category")
   @@index([is_active], map: "products_is_active")
@@ -5929,53 +5698,6 @@ enum enum_invoices_status {
   refunded
 }
 
-enum enum_kitchen_inventory_items_status {
-  good
-  low
-  critical
-  overstock
-}
-
-enum enum_kitchen_inventory_transactions_transaction_type {
-  in
-  out
-  adjustment
-  waste
-  transfer
-}
-
-enum enum_kitchen_order_items_status {
-  pending
-  preparing
-  ready
-}
-
-enum enum_kitchen_orders_order_type {
-  dine_in  @map("dine-in")
-  takeaway
-  delivery
-}
-
-enum enum_kitchen_orders_priority {
-  normal
-  urgent
-}
-
-enum enum_kitchen_orders_status {
-  new
-  preparing
-  ready
-  served
-  cancelled
-}
-
-enum enum_loyalty_rewards_rewardType {
-  discount
-  product
-  shipping
-  voucher
-  service
-}
 
 enum enum_payment_transactions_status {
   pending
@@ -5990,48 +5712,6 @@ enum enum_plans_billing_interval {
   yearly
 }
 
-enum enum_point_transactions_referenceType {
-  pos_transaction
-  reward_redemption
-  manual
-  expiry
-  refund
-}
-
-enum enum_point_transactions_transactionType {
-  earn
-  redeem
-  expire
-  adjust
-  refund
-}
-
-enum enum_pos_transactions_order_type {
-  dine_in  @map("dine-in")
-  takeaway
-  delivery
-}
-
-enum enum_pos_transactions_payment_method {
-  cash
-  card
-  transfer
-  ewallet
-  mixed
-}
-
-enum enum_pos_transactions_payment_status {
-  pending
-  paid
-  refunded
-  void
-}
-
-enum enum_pos_transactions_status {
-  open
-  closed
-  void
-}
 
 enum enum_subscriptions_status {
   trial

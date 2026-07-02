@@ -6,11 +6,9 @@ import { useSession } from "next-auth/react";
 import { 
   FaChartLine, FaBoxOpen, FaShoppingCart, FaUsers, FaMoneyBillWave, 
   FaArrowUp, FaArrowDown, FaSpinner, FaWarehouse,
-  FaReceipt, FaClock, FaCalendarAlt, FaChartBar, FaChartPie,
-  FaExclamationTriangle, FaBell, FaStar, FaTicketAlt, FaUtensils,
-  FaCalendar, FaDollarSign
+  FaReceipt, FaClock, FaCalendarAlt, FaChartBar, FaChartPie
 } from "react-icons/fa";
-import { ChefHat, UtensilsCrossed, ClipboardList } from "lucide-react";
+// [SIMESI] Removed — kitchen/FnB not in scope
 import DashboardLayout from "@/components/layouts/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -27,13 +25,12 @@ const Dashboard: NextPage = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [salesPeriod, setSalesPeriod] = useState<'today' | 'week' | 'month'>('today');
   const MOCK_DASHBOARD = { mainStats: { sales: 12500000, transactions: 85, products: 320, customers: 45 }, changes: { sales: 8.5, transactions: 12.3, products: 0, customers: 5.2 }, topProducts: [{ name: 'Nasi Goreng Spesial', qty: 28, revenue: 2800000 }, { name: 'Es Teh Manis', qty: 45, revenue: 450000 }], recentTransactions: [{ id: 'txn-1', total: 185000, date: '2026-03-15', status: 'completed' }] };
-  const MOCK_KITCHEN_ORDERS = [{ id: 'ko1', orderNumber: '#ORD-085', items: [{ name: 'Nasi Goreng', qty: 2 }], status: 'new', createdAt: new Date().toISOString() }];
+  // [SIMESI] Removed — kitchen/FnB not in scope
   const [dashboardData, setDashboardData] = useState<any>(MOCK_DASHBOARD);
   const [loading, setLoading] = useState(true);
-  const [kitchenOrders, setKitchenOrders] = useState<any[]>(MOCK_KITCHEN_ORDERS);
+  // [SIMESI] Removed — kitchen/FnB not in scope
   
-  // Check if F&B business type
-  const isFnB = businessType === 'fnb' || hasModule('kitchen');
+  // [SIMESI] Removed — kitchen/FnB not in scope
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -43,12 +40,9 @@ const Dashboard: NextPage = () => {
     
     // Wait for business type to load before redirecting
     if (status === "authenticated" && !isLoadingBusinessType) {
-      if (isFnB) {
-        console.log('Redirecting to F&B dashboard, businessType:', businessType);
-        router.push("/dashboard-fnb");
-      }
+      // [SIMESI] Removed — FnB redirect not in scope
     }
-  }, [session, status, router, isFnB, isLoadingBusinessType, businessType]);
+  }, [session, status, router, isLoadingBusinessType, businessType]);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -58,24 +52,9 @@ const Dashboard: NextPage = () => {
   useEffect(() => {
     if (session) {
       fetchDashboardData();
-      if (isFnB) {
-        fetchKitchenOrders();
-      }
+      // [SIMESI] Removed — kitchen/FnB not in scope
     }
-  }, [session, salesPeriod, isFnB]);
-
-  const fetchKitchenOrders = async () => {
-    try {
-      const response = await fetch('/api/kitchen/orders?status=new&limit=6');
-      const data = await response.json();
-      if (data.success) {
-        setKitchenOrders(data.data || []);
-      }
-    } catch (error) {
-      console.error('Error fetching kitchen orders:', error);
-      setKitchenOrders(MOCK_KITCHEN_ORDERS);
-    }
-  };
+  }, [session, salesPeriod]);
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -520,88 +499,12 @@ const Dashboard: NextPage = () => {
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle>{t('dashboard.quickActions')}</CardTitle>
-              <CardDescription>{isFnB ? t('dashboard.quickActionsFnb') : t('dashboard.quickActionsStd')}</CardDescription>
+              <CardDescription>{t('dashboard.quickActionsStd')}</CardDescription>
             </CardHeader>
             <CardContent>
-              {isFnB ? (
-                /* F&B Specific Quick Actions */
-                <div className="grid grid-cols-2 gap-3">
-                  <Link href="/kitchen/display">
-                    <div className="group relative overflow-hidden bg-gradient-to-br from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 rounded-xl p-4 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer">
-                      <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-10 -mt-10"></div>
-                      <div className="relative z-10">
-                        <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-3">
-                          <UtensilsCrossed className="w-6 h-6 text-white" />
-                        </div>
-                        <p className="text-white font-semibold text-sm" style={{ whiteSpace: 'pre-line' }}>{t('dashboard.kitchenDisplay')}</p>
-                      </div>
-                    </div>
-                  </Link>
-
-                  <Link href="/kitchen/orders">
-                    <div className="group relative overflow-hidden bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 rounded-xl p-4 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer">
-                      <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-10 -mt-10"></div>
-                      <div className="relative z-10">
-                        <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-3">
-                          <ClipboardList className="w-6 h-6 text-white" />
-                        </div>
-                        <p className="text-white font-semibold text-sm" style={{ whiteSpace: 'pre-line' }}>{t('dashboard.orderList')}</p>
-                      </div>
-                    </div>
-                  </Link>
-
-                  <Link href="/tables">
-                    <div className="group relative overflow-hidden bg-gradient-to-br from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 rounded-xl p-4 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer">
-                      <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-10 -mt-10"></div>
-                      <div className="relative z-10">
-                        <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-3">
-                          <FaUtensils className="w-6 h-6 text-white" />
-                        </div>
-                        <p className="text-white font-semibold text-sm" style={{ whiteSpace: 'pre-line' }}>{t('dashboard.tableManagement')}</p>
-                      </div>
-                    </div>
-                  </Link>
-
-                  <Link href="/reservations">
-                    <div className="group relative overflow-hidden bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 rounded-xl p-4 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer">
-                      <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-10 -mt-10"></div>
-                      <div className="relative z-10">
-                        <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-3">
-                          <FaCalendar className="w-6 h-6 text-white" />
-                        </div>
-                        <p className="text-white font-semibold text-sm" style={{ whiteSpace: 'pre-line' }}>{t('dashboard.tableReservation')}</p>
-                      </div>
-                    </div>
-                  </Link>
-
-                  <Link href="/kitchen/recipes">
-                    <div className="group relative overflow-hidden bg-gradient-to-br from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-xl p-4 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer">
-                      <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-10 -mt-10"></div>
-                      <div className="relative z-10">
-                        <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-3">
-                          <ChefHat className="w-6 h-6 text-white" />
-                        </div>
-                        <p className="text-white font-semibold text-sm" style={{ whiteSpace: 'pre-line' }}>{t('dashboard.recipeMenu')}</p>
-                      </div>
-                    </div>
-                  </Link>
-
-                  <Link href="/pos/cashier">
-                    <div className="group relative overflow-hidden bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-xl p-4 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer">
-                      <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-10 -mt-10"></div>
-                      <div className="relative z-10">
-                        <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-3">
-                          <FaShoppingCart className="w-6 h-6 text-white" />
-                        </div>
-                        <p className="text-white font-semibold text-sm" style={{ whiteSpace: 'pre-line' }}>{t('dashboard.newTransaction')}</p>
-                      </div>
-                    </div>
-                  </Link>
-                </div>
-              ) : (
-                /* Standard Quick Actions */
-                <div className="grid grid-cols-2 gap-3">
-                  <Link href="/pos/cashier">
+              {/* [SIMESI] Quick Actions — ESI modules */}
+              <div className="grid grid-cols-2 gap-3">
+                <Link href="/hq/home">
                   <div className="group relative overflow-hidden bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-xl p-4 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer">
                     <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-10 -mt-10"></div>
                     <div className="relative z-10">
@@ -672,103 +575,12 @@ const Dashboard: NextPage = () => {
                     </div>
                   </div>
                 </Link>
-
-                <Link href="/tables">
-                  <div className="group relative overflow-hidden bg-gradient-to-br from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 rounded-xl p-4 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer">
-                    <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-10 -mt-10"></div>
-                    <div className="relative z-10">
-                      <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-3">
-                        <FaUtensils className="w-6 h-6 text-white" />
-                      </div>
-                      <p className="text-white font-semibold text-sm" style={{ whiteSpace: 'pre-line' }}>{t('dashboard.tableManagement')}</p>
-                    </div>
-                  </div>
-                </Link>
-
-                <Link href="/reservations">
-                  <div className="group relative overflow-hidden bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 rounded-xl p-4 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer">
-                    <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-10 -mt-10"></div>
-                    <div className="relative z-10">
-                      <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-3">
-                        <FaCalendar className="w-6 h-6 text-white" />
-                      </div>
-                      <p className="text-white font-semibold text-sm" style={{ whiteSpace: 'pre-line' }}>{t('dashboard.reservations')}</p>
-                    </div>
-                  </div>
-                </Link>
               </div>
-              )}
             </CardContent>
           </Card>
         </div>
 
-        {/* F&B Specific: Kitchen Orders Grid */}
-        {isFnB && kitchenOrders.length > 0 && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-gray-800 flex items-center">
-                  <ChefHat className="w-6 h-6 mr-2 text-orange-600" />
-                  {t('dashboard.newKitchenOrders')}
-                </h2>
-                <p className="text-sm text-gray-600">{t('dashboard.ordersToProcess')}</p>
-              </div>
-              <Link href="/kitchen/display">
-                <button className="px-4 py-2 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-lg font-medium transition-all">
-                  {t('dashboard.openKDS')}
-                </button>
-              </Link>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {kitchenOrders.slice(0, 6).map((order: any) => (
-                <Card key={order.id} className="border-2 border-orange-200 hover:border-orange-400 hover:shadow-lg transition-all">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
-                          <UtensilsCrossed className="w-4 h-4 text-orange-600" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-gray-900">{order.order_number}</p>
-                          <p className="text-xs text-gray-500">
-                            {order.table_number ? t('dashboard.table', { number: order.table_number }) : order.customer_name || t('dashboard.takeaway')}
-                          </p>
-                        </div>
-                      </div>
-                      {order.priority === 'urgent' && (
-                        <Badge className="bg-red-500 text-white">{t('dashboard.urgent')}</Badge>
-                      )}
-                    </div>
-
-                    <div className="space-y-2 mb-3">
-                      {order.items?.slice(0, 2).map((item: any, idx: number) => (
-                        <div key={idx} className="text-sm bg-gray-50 rounded p-2">
-                          <span className="font-medium">{item.quantity}x</span> {item.name}
-                        </div>
-                      ))}
-                      {order.items?.length > 2 && (
-                        <p className="text-xs text-gray-500">{t('common.otherItems', { count: order.items.length - 2 })}</p>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between pt-3 border-t border-gray-200">
-                      <div className="flex items-center text-sm text-gray-600">
-                        <FaClock className="w-3 h-3 mr-1" />
-                        <span>{order.estimated_time || 15} {t('common.minute')}</span>
-                      </div>
-                      <Link href={`/kitchen/display`}>
-                        <button className="text-sm text-orange-600 hover:text-orange-700 font-medium">
-                          {t('common.viewDetails')} →
-                        </button>
-                      </Link>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* [SIMESI] Removed — kitchen/FnB not in scope — Kitchen Orders Grid */}
 
         {/* Recent Transactions */}
         <Card className="shadow-lg">
@@ -781,7 +593,7 @@ const Dashboard: NextPage = () => {
                 </CardTitle>
                 <CardDescription>{t('dashboard.last4Transactions')}</CardDescription>
               </div>
-              <Link href="/pos/transactions">
+              <Link href="/hq/finance">
                 <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
                   {t('common.viewAll')} →
                 </button>

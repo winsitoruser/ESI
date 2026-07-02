@@ -83,17 +83,25 @@ Ganti: `/model sumopod:<model-id>` di Hermes CLI.
 2. Cek `.hermes/HANDOFF.md` untuk konteks terakhir
 3. Implementasi → `npm run build` → update HANDOFF jika selesai
 
-## Hermes Team
+## Hermes Team — Viking Division
 
-| Profile | Peran |
-|---|---|
-| `esi-cto` | CTO orchestrator + kanban |
-| `esi-pm` | Backlog & prioritas |
-| `esi-architect-1` | Schema & API design |
-| `esi-backend-1`, `esi-backend-2` | API & DB |
-| `esi-frontend-1`, `esi-frontend-2` | UI HQ |
-| `esi-qa-1` | Test & smoke |
+Sumber hierarki: [Viking Division Roles & Hierarchy](https://docs.google.com/document/d/1yT5Vq56Z7VQZQ5Sve1LoepPcSK3n7B1ZvgQLYSxiwE4/edit?usp=sharing)  
+Detail lengkap: `.hermes/SOUL.md` · `hermes/team.yaml`
+
+| Viking | Profile | Peran |
+|---|---|---|
+| **KING** | `esi-king` (alias `esi-cto`) | CTO orchestrator + kanban |
+| **QUEEN** | `esi-queen` | VP Engineering, code governance |
+| Engine Room | `esi-backend-sr-*`, `esi-backend-mid-*`, `esi-backend-jr-*` | API & DB |
+| Shield Wall | `esi-frontend-sr-*`, `esi-frontend-mid-*`, `esi-frontend-jr-*` | UI HQ |
+| Scouts | `esi-mobile-sr`, `esi-mobile-mid`, `esi-mobile-jr` | Mobile lapangan |
+| Valkyries | `esi-qa-lead`, `esi-qa-eng`, `esi-qa-auto` | QA & automation |
+| The Seers | `esi-product` | Product & requirement |
+| The Oracle | `esi-oracle` | AI & Data |
+| The Fort Builders | `esi-fort` | DevOps & security |
+| The Skalds | `esi-skalds` (alias `esi-pm`) | PMO & Agile |
+| Royal Advisor | `esi-architect-1` | Schema & API design |
 
 Setup: `npm run hermes:setup` lalu `npm run hermes:team`  
 Board: `esi-erp`  
-Mulai: `hermes --profile esi-cto` → `/esi-cto`
+Mulai: `hermes --profile esi-king` → `/esi-cto`

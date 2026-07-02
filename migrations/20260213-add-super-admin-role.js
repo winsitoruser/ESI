@@ -19,11 +19,19 @@ module.exports = {
       END $$;
     `);
 
-    // Make tenant_id nullable for super admin
-    await queryInterface.changeColumn('users', 'tenant_id', {
-      type: Sequelize.UUID,
-      allowNull: true
-    });
+    // Make tenant_id nullable for super admin (with guard)
+    const columns = await queryInterface.describeTable('users');
+    if (!columns.tenant_id) {
+      await queryInterface.addColumn('users', 'tenant_id', {
+        type: Sequelize.UUID,
+        allowNull: true
+      });
+    } else {
+      await queryInterface.changeColumn('users', 'tenant_id', {
+        type: Sequelize.UUID,
+        allowNull: true
+      });
+    }
   },
 
   down: async (queryInterface, Sequelize) => {

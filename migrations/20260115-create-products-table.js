@@ -2,6 +2,9 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
+    // Guard: table may already exist from base migration
+    const tables = await queryInterface.showAllTables();
+    if (!tables.includes('products')) {
     await queryInterface.createTable('products', {
       id: {
         type: Sequelize.INTEGER,
@@ -162,6 +165,7 @@ module.exports = {
         updated_at: new Date()
       }
     ]);
+    }
   },
 
   down: async (queryInterface, Sequelize) => {

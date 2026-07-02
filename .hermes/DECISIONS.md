@@ -1,9 +1,14 @@
-# ESI ERP — Architectural Decisions
+# SIMESI — Architectural Decisions (formerly ESI ERP)
 
-## D-001: Fork slim dari NainERP/Bedagang
-Proyek terpisah di `esi-erp/`. Bukan monorepo dengan Bedagang PoS.
+## D-001: SIMESI Platform Mandiri (formerly Fork from Bedagang)
+**2026-07-02** — SIMESI bukan lagi fork Bedagang/NainERP. Refactoring Phase 1-3 selesai:
+- Semua branding NainERP/bedagang → SIMESI
+- Semua kode FnB/PoS/Kitchen/DMS dihapus
+- Build lulus
+- ADR: `docs/adr/ADR-010-simesi-platform-mandiri.md`
 
 ## D-002: Organisasi tunggal (D-ESI-001)
+
 ESI tidak memakai multi-cabang. API `GET /api/hq/branches` adalah **stub** satu entitas HQ.
 Jangan implementasi modul cabang penuh.
 
@@ -29,7 +34,15 @@ AI developer: [Hermes Agent](https://github.com/NousResearch/hermes-agent) + Sum
 - Tim: `npm run hermes:team`
 - Skills: `/esi-develop`, `/esi-hq`, `/esi-cto`
 - Kanban: `esi-erp`
-- CTO profile: `esi-cto`
+- CTO profile: `esi-king` (legacy: `esi-cto`)
 
 ## D-008: Fokus domain konservasi
 Prioritas fitur: proyek lapangan, aset kandang, basis pengetahuan SOP, inventori pakan/obat, grant & laporan keuangan, SDM ranger, mitra/donor.
+
+## D-009: Viking Division (Hermes AI Team)
+Hierarki agent AI mengikuti **Viking Division** untuk ERP Sobatpaws.
+- Sumber: [Google Doc Roles & Hierarchy](https://docs.google.com/document/d/1yT5Vq56Z7VQZQ5Sve1LoepPcSK3n7B1ZvgQLYSxiwE4/edit?usp=sharing)
+- SOUL: `.hermes/SOUL.md`
+- Roster: `hermes/team.yaml`
+- Orchestrator kanban: `esi-king` (legacy alias: `esi-cto`)
+- Budaya: No Silos, Data-Driven, Automate Everything, Shield Wall Loyalty

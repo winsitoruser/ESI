@@ -221,19 +221,24 @@ module.exports = {
     });
 
     // 8. Update users table - add tenant and role
-    await queryInterface.addColumn('users', 'tenant_id', {
-      type: Sequelize.UUID,
-      references: {
-        model: 'tenants',
-        key: 'id'
-      },
-      onDelete: 'SET NULL'
-    });
+    const userCols = await queryInterface.describeTable('users');
+    if (!userCols.tenant_id) {
+      await queryInterface.addColumn('users', 'tenant_id', {
+        type: Sequelize.UUID,
+        references: {
+          model: 'tenants',
+          key: 'id'
+        },
+        onDelete: 'SET NULL'
+      });
+    }
 
-    await queryInterface.addColumn('users', 'role', {
-      type: Sequelize.STRING(50),
-      defaultValue: 'staff'
-    });
+    if (!userCols.role) {
+      await queryInterface.addColumn('users', 'role', {
+        type: Sequelize.STRING(50),
+        defaultValue: 'staff'
+      });
+    }
 
     // 9. Add index for users.tenant_id
     await queryInterface.addIndex('users', ['tenant_id'], {

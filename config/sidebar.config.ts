@@ -204,6 +204,9 @@ export interface SidebarConfig {
   };
 }
 
+// [SIMESI] Disabled — not in scope for conservation platform
+// Removed: pos, tables, reservations, kitchen, bumdes, loyalty sections
+
 // ============================================
 // HQ SIDEBAR CONFIGURATION
 // ============================================
@@ -653,12 +656,8 @@ export const hqSidebarConfig: SidebarConfig = {
         }
       ]
     },
-    {
-      // ════════════════════════════════════════════════════════════════
-      // BUM DESA (Badan Usaha Milik Desa)
-      // Berbasis Kepmendesa No. 136 Tahun 2022 - Standar Akuntansi
-      // BUM Desa / BUM Desa Bersama, dan PP No. 11 Tahun 2021.
-      // ════════════════════════════════════════════════════════════════
+    // [SIMESI] Disabled — BUMDes section (entire subtree ~19 items)
+    /*
       id: 'bumdes',
       title: 'BUM Desa',
       items: [
@@ -691,7 +690,7 @@ export const hqSidebarConfig: SidebarConfig = {
           ]
         }
       ]
-    },
+    },*/
     {
       // ════════════════════════════════════════════════════════════════
       // BRANKAS DIGITAL NASIONAL — File Management System
@@ -911,7 +910,7 @@ export const branchSidebarConfig: SidebarConfig = {
       title: 'OUTLET',
       items: [
         { id: 'dashboard', name: 'Dasbor', href: '/dashboard', icon: LayoutDashboard, modules: ['dashboard'] },
-        { id: 'pos', name: 'Kasir', href: '/pos', icon: ShoppingCart, modules: ['pos'] },
+        // [SIMESI] Disabled — { id: 'pos', name: 'Kasir', href: '/pos', icon: ShoppingCart, modules: ['pos'] },
         { id: 'inventory', name: 'Inventori', href: '/inventory', icon: Package, modules: ['inventory'] },
         { id: 'customers', name: 'Pelanggan', href: '/customers', icon: Users, modules: ['customers'] },
         {
@@ -924,16 +923,16 @@ export const branchSidebarConfig: SidebarConfig = {
             { id: 'employees-mobile', name: 'Aplikasi Mobile Karyawan', href: '/employee', icon: Smartphone },
           ]
         },
-        { id: 'loyalty', name: 'Program Loyalitas', href: '/loyalty-program', icon: Award, modules: ['loyalty'] },
+        // [SIMESI] Disabled — { id: 'loyalty', name: 'Program Loyalitas', href: '/loyalty-program', icon: Award, modules: ['loyalty'] },
       ]
     },
     {
       id: 'operations',
       title: 'OPERASIONAL',
       items: [
-        { id: 'tables', name: 'Manajemen Meja', href: '/tables', icon: Utensils, modules: ['tables'] },
-        { id: 'reservations', name: 'Reservasi', href: '/reservations', icon: Calendar, modules: ['reservations'] },
-        { id: 'kitchen', name: 'Manajemen Dapur', href: '/kitchen', icon: ChefHat, modules: ['kitchen'] },
+        // [SIMESI] Disabled — { id: 'tables', name: 'Manajemen Meja', href: '/tables', icon: Utensils, modules: ['tables'] },
+        // [SIMESI] Disabled — { id: 'reservations', name: 'Reservasi', href: '/reservations', icon: Calendar, modules: ['reservations'] },
+        // [SIMESI] Disabled — { id: 'kitchen', name: 'Manajemen Dapur', href: '/kitchen', icon: ChefHat, modules: ['kitchen'] },
         { id: 'promo', name: 'Promo & Voucher', href: '/promo-voucher', icon: Ticket, modules: ['promo'] },
         {
           id: 'fleet',

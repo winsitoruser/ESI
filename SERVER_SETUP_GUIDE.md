@@ -2,7 +2,7 @@
 
 ## 🖥️ Server Information
 
-**Server IP:** 103.253.212.64  
+**Server IP:** $SERVER_IP  
 **Environment:** Production  
 **Application:** Bedagang POS System
 
@@ -30,10 +30,10 @@ ssh-keygen -t rsa -b 4096 -C "your_email@example.com"
 
 ```bash
 # Method 1: Using ssh-copy-id (recommended)
-ssh-copy-id -i ~/.ssh/id_rsa.pub root@103.253.212.64
+ssh-copy-id -i ~/.ssh/id_rsa.pub root@$SERVER_IP
 
 # Method 2: Manual copy
-cat ~/.ssh/id_rsa.pub | ssh root@103.253.212.64 "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
+cat ~/.ssh/id_rsa.pub | ssh root@$SERVER_IP "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
 ```
 
 ### 3. Create SSH Config File
@@ -50,7 +50,7 @@ Add this configuration:
 ```
 # Bedagang Production Server
 Host bedagang-prod
-    HostName 103.253.212.64
+    HostName $SERVER_IP
     User root
     Port 22
     IdentityFile ~/.ssh/id_rsa
@@ -59,7 +59,7 @@ Host bedagang-prod
     
 # Alternative with different user
 Host bedagang-prod-user
-    HostName 103.253.212.64
+    HostName $SERVER_IP
     User ubuntu
     Port 22
     IdentityFile ~/.ssh/id_rsa
@@ -82,13 +82,13 @@ chmod 600 ~/.ssh/config
 ssh bedagang-prod
 
 # Or direct connection
-ssh root@103.253.212.64
+ssh root@$SERVER_IP
 
 # With specific key
-ssh -i ~/.ssh/id_rsa root@103.253.212.64
+ssh -i ~/.ssh/id_rsa root@$SERVER_IP
 
 # With specific port
-ssh -p 22 root@103.253.212.64
+ssh -p 22 root@$SERVER_IP
 ```
 
 ---
@@ -246,7 +246,7 @@ DB_USER=bedagang_user
 DB_PASSWORD=your_secure_password
 
 # NextAuth
-NEXTAUTH_URL=http://103.253.212.64:3000
+NEXTAUTH_URL=http://$SERVER_IP:3000
 NEXTAUTH_SECRET=your_nextauth_secret_here
 
 # Application
@@ -321,7 +321,7 @@ Add this configuration:
 ```nginx
 server {
     listen 80;
-    server_name 103.253.212.64;
+    server_name $SERVER_IP;
 
     location / {
         proxy_pass http://localhost:3000;
@@ -593,10 +593,10 @@ psql -U bedagang_user bedagang_production
 
 ## 📞 Support
 
-**Server IP:** 103.253.212.64  
+**Server IP:** $SERVER_IP  
 **Application Port:** 3000  
 **Database Port:** 5432  
-**Web Access:** http://103.253.212.64
+**Web Access:** http://$SERVER_IP
 
 **Repository:** https://github.com/winsitoruser/bedagang
 

@@ -2,7 +2,9 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('users', {
+    const tables = await queryInterface.showAllTables();
+    if (!tables.includes('users')) {
+      await queryInterface.createTable('users', {
       id: {
         type: Sequelize.INTEGER,
         primaryKey: true,
@@ -54,10 +56,16 @@ module.exports = {
       }
     });
 
-    await queryInterface.addIndex('users', ['email'], {
-      unique: true,
-      name: 'users_email_unique'
-    });
+    try {
+      await queryInterface.addIndex('users', ['email'], {
+        unique: true,
+        name: 'users_email_unique'
+      });
+    } catch (e) {
+      // Index may already exist
+      console.log('  ⚠️ users_email_unique already exists, skipping');
+    }
+    } // end if !tables.includes('users')
   },
 
   down: async (queryInterface, Sequelize) => {

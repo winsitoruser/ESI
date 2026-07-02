@@ -405,11 +405,7 @@ module.exports = {
       },
       usedInTransactionId: {
         type: Sequelize.UUID,
-        allowNull: true,
-        references: {
-          model: 'pos_transactions',
-          key: 'id'
-        }
+        allowNull: true
       },
       processedBy: {
         type: Sequelize.UUID,

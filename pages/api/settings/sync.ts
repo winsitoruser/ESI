@@ -115,22 +115,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         
         await transaction.commit();
         
-        // Send WebSocket notification to connected clients in branches
-        const WebSocket = require('ws');
-        const wss = new WebSocket.Server({ port: 8080 });
-        
-        wss.clients.forEach((client: any) => {
-          if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({
-              type: 'settingsSynced',
-              data: {
-                timestamp: new Date().toISOString(),
-                syncedBy: session.user?.email || 'unknown',
-                branches: targetBranchIds
+        // WebSocket notification — wrapped to prevent crash (no WS server in simesi)
+        try {
+          const WebSocket = require('ws');
+          // Only notify if there's an existing server (we don't create one here)
+          const wss = global.__wsServer;
+          if (wss && typeof wss.clients !== 'undefined') {
+            wss.clients.forEach((client: any) => {
+              if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify({
+                  type: 'settingsSynced',
+                  data: {
+                    timestamp: new Date().toISOString(),
+                    syncedBy: session.user?.email || 'unknown',
+                    branches: targetBranchIds
+                  }
+                }));
               }
-            }));
+            });
           }
-        });
+        } catch {
+          // WS not available — settings sync still succeeded
+        }
         
         return res.status(200).json({
           success: true,

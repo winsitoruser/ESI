@@ -83,10 +83,10 @@ export const appTranslations: Record<Language, Record<string, any>> = {
       logoutSuccess: 'Anda berhasil logout',
 
       // Register
-      registerTitle: 'Daftar Gratis - NainERP Cloud POS',
-      registerDesc: 'Daftar gratis dan mulai kelola bisnis Anda dengan NainERP. Tanpa biaya setup, tanpa kontrak.',
+      registerTitle: 'Daftar Gratis - SIMESI Konservasi',
+      registerDesc: 'Daftar gratis dan mulai kelola bisnis Anda dengan SIMESI. Tanpa biaya setup, tanpa kontrak.',
       startFreeToday: 'Mulai Gratis\nHari Ini! 🚀',
-      joinBusinesses: 'Bergabunglah dengan <span>10,000+</span> bisnis yang telah berkembang bersama NainERP',
+      joinBusinesses: 'Bergabunglah dengan <span>10,000+</span> bisnis yang telah berkembang bersama SIMESI',
       freeForever: 'Gratis selamanya untuk paket Starter',
       setupIn5Min: 'Pengaturan dalam 5 menit',
       noCreditCard: 'Tidak perlu kartu kredit',
@@ -416,13 +416,13 @@ export const appTranslations: Record<Language, Record<string, any>> = {
 
     // ─── Landing Page ───
     landing: {
-      heroTitle: 'NainERP - Sistem POS Cloud untuk Bisnis Modern | Uji Coba Gratis 14 Hari',
+      heroTitle: 'SIMESI - Platform Konservasi untuk Bisnis Modern | Uji Coba Gratis 14 Hari',
       heroDesc: 'Sistem kasir cloud terlengkap untuk retail, F&B, dan bisnis jasa. Fitur POS, Inventori, CRM, Program Loyalitas, Multi-outlet, dan Analitik. Coba gratis 14 hari tanpa kartu kredit!',
     },
 
     // ─── F&B Dashboard ───
     dashboardFnb: {
-      title: 'Dasbor F&B | NainERP Cloud POS',
+      title: 'Dasbor F&B | SIMESI Konservasi',
       loading: 'Memuat dasbor F&B...',
       someDataFailed: 'Beberapa data gagal dimuat',
       loadFailed: 'Gagal memuat data dasbor',
@@ -466,13 +466,13 @@ export const appTranslations: Record<Language, Record<string, any>> = {
 
     // ─── Customers Module ───
     customers: {
-      pageTitle: 'Manajemen Pelanggan | NainERP Cloud POS',
+      pageTitle: 'Manajemen Pelanggan | SIMESI Konservasi',
       loadingDashboard: 'Memuat Dasbor Pelanggan...',
     },
 
     // ─── Inventory Module ───
     inventory: {
-      pageTitle: 'Manajemen Inventori | NainERP Cloud POS',
+      pageTitle: 'Manajemen Inventori | SIMESI Konservasi',
       title: 'Manajemen Inventori',
       subtitle: 'Kelola stok produk dan inventori Anda dengan mudah',
       loading: 'Memuat inventori...',
@@ -495,14 +495,14 @@ export const appTranslations: Record<Language, Record<string, any>> = {
       loadingProducts: 'Memuat produk...',
       noProducts: 'Tidak ada produk ditemukan',
       tryChangeFilter: 'Coba ubah filter atau tambah produk baru',
-      masterPageTitle: 'Data Utama Inventori | NainERP Cloud POS',
+      masterPageTitle: 'Data Utama Inventori | SIMESI Konservasi',
       masterTitle: 'Data Utama Inventori',
       masterSubtitle: 'Kelola kategori, pemasok, satuan, dan data utama lainnya',
       recentActivity: 'Aktivitas Terbaru',
       reportsTitle: 'Laporan Inventori',
       reportsSubtitle: 'Analisis dan laporan mengenai stok, nilai, dan pergerakan inventori',
       loadingReports: 'Memuat data laporan...',
-      alertsPageTitle: 'Peringatan & Rekomendasi Inventori | NainERP Cloud POS',
+      alertsPageTitle: 'Peringatan & Rekomendasi Inventori | SIMESI Konservasi',
       todayTime: 'Hari ini, 14:30',
       liveUpdates: 'Pembaruan Langsung',
       alertsCount: 'peringatan',
@@ -728,7 +728,7 @@ export const appTranslations: Record<Language, Record<string, any>> = {
         print: 'Cetak',
         approveRequest: 'Setujui Request',
         rejectRequest: 'Tolak Request',
-        pageTitle: 'Manajemen Request Stok & RAC | NainERP Cloud POS',
+        pageTitle: 'Manajemen Request Stok & RAC | SIMESI Konservasi',
         title: 'Manajemen Request Stok & RAC',
         subtitle: 'Sistem permintaan stok dan relokasi antar cabang',
         createNew: 'Buat Request Baru',
@@ -838,7 +838,7 @@ export const appTranslations: Record<Language, Record<string, any>> = {
 
       // Price History
       priceHistory: {
-        pageTitle: 'Riwayat Harga | NainERP Cloud POS',
+        pageTitle: 'Riwayat Harga | SIMESI Konservasi',
       },
 
       // Master
@@ -953,7 +953,7 @@ export const appTranslations: Record<Language, Record<string, any>> = {
 
       // Recipes
       recipes: {
-        pageTitle: 'Manajemen Resep & Formula | NainERP Cloud POS',
+        pageTitle: 'Manajemen Resep & Formula | SIMESI Konservasi',
         title: 'Manajemen Resep & Formula',
         subtitle: 'Sistem manajemen peracikan & formula bahan baku untuk FMCG',
         loading: 'Memuat data resep...',
@@ -1185,7 +1185,7 @@ export const appTranslations: Record<Language, Record<string, any>> = {
 
       // Transfers
       transfers: {
-        pageTitle: 'Transfer Antar Lokasi | NainERP Cloud POS',
+        pageTitle: 'Transfer Antar Lokasi | SIMESI Konservasi',
         title: 'Transfer Antar Lokasi',
         subtitle: 'Kelola transfer stok antar toko dan gudang',
         loading: 'Memuat data transfer...',
@@ -1265,7 +1265,7 @@ export const appTranslations: Record<Language, Record<string, any>> = {
 
       // Returns
       returns: {
-        pageTitle: 'Manajemen Retur | NainERP Cloud POS',
+        pageTitle: 'Manajemen Retur | SIMESI Konservasi',
         title: 'Manajemen Retur',
         subtitle: 'Kelola retur pemasok, pelanggan, dan internal',
         createNew: 'Buat Retur Baru',
@@ -1427,7 +1427,7 @@ export const appTranslations: Record<Language, Record<string, any>> = {
 
     // ─── Employees Module ───
     employees: {
-      pageTitle: 'Jadwal & Shift Karyawan | NainERP',
+      pageTitle: 'Jadwal & Shift Karyawan | SIMESI',
       loadingSchedule: 'Memuat jadwal...',
       scheduleTitle: 'Jadwal & Shift Karyawan',
       scheduleSubtitle: 'Kelola jadwal dan shift karyawan',
@@ -1440,7 +1440,7 @@ export const appTranslations: Record<Language, Record<string, any>> = {
 
     // ─── Kitchen Module ───
     kitchen: {
-      pageTitle: 'Sistem Tampilan Dapur - NainERP',
+      pageTitle: 'Sistem Tampilan Dapur - SIMESI',
       title: 'Sistem Tampilan Dapur',
       activeOrders: 'Pesanan Aktif',
       analyticsTitle: 'Analitik Dapur',
@@ -1507,8 +1507,8 @@ export const appTranslations: Record<Language, Record<string, any>> = {
     },
 
     auth: {
-      loginTitle: 'Login - NainERP Cloud POS',
-      loginDesc: 'Login to your NainERP account',
+      loginTitle: 'Login - SIMESI Konservasi',
+      loginDesc: 'Login to your SIMESI account',
       welcomeBack: 'Welcome back!',
       email: 'Email',
       password: 'Password',
@@ -1526,10 +1526,10 @@ export const appTranslations: Record<Language, Record<string, any>> = {
       loginError: 'An error occurred. Please try again.',
       logoutSuccess: 'You have successfully logged out',
 
-      registerTitle: 'Register Free - NainERP Cloud POS',
-      registerDesc: 'Register for free and start managing your business with NainERP. No setup fees, no contracts.',
+      registerTitle: 'Register Free - SIMESI Konservasi',
+      registerDesc: 'Register for free and start managing your business with SIMESI. No setup fees, no contracts.',
       startFreeToday: 'Start Free\nToday! 🚀',
-      joinBusinesses: 'Join <span>10,000+</span> businesses that have grown with NainERP',
+      joinBusinesses: 'Join <span>10,000+</span> businesses that have grown with SIMESI',
       freeForever: 'Free forever for Starter plan',
       setupIn5Min: 'Setup in 5 minutes',
       noCreditCard: 'No credit card required',
@@ -1835,12 +1835,12 @@ export const appTranslations: Record<Language, Record<string, any>> = {
     },
 
     landing: {
-      heroTitle: 'NainERP - Cloud POS System for Modern Business | 14-Day Free Trial',
+      heroTitle: 'SIMESI - Platform Konservasi for Modern Business | 14-Day Free Trial',
       heroDesc: 'The most complete cloud POS system for retail, F&B, and service businesses. POS, Inventory, CRM, Loyalty Program, Multi-outlet, and Analytics. Try free for 14 days without credit card!',
     },
 
     dashboardFnb: {
-      title: 'F&B Dashboard | NainERP Cloud POS',
+      title: 'F&B Dashboard | SIMESI Konservasi',
       loading: 'Loading F&B dashboard...',
       someDataFailed: 'Some data failed to load',
       loadFailed: 'Failed to load dashboard data',
@@ -1883,12 +1883,12 @@ export const appTranslations: Record<Language, Record<string, any>> = {
     },
 
     customers: {
-      pageTitle: 'Customer Management | NainERP Cloud POS',
+      pageTitle: 'Customer Management | SIMESI Konservasi',
       loadingDashboard: 'Loading Customer Dashboard...',
     },
 
     inventory: {
-      pageTitle: 'Inventory Management | NainERP Cloud POS',
+      pageTitle: 'Inventory Management | SIMESI Konservasi',
       title: 'Inventory Management',
       subtitle: 'Manage your product stock and inventory easily',
       loading: 'Loading inventory...',
@@ -1911,14 +1911,14 @@ export const appTranslations: Record<Language, Record<string, any>> = {
       loadingProducts: 'Loading products...',
       noProducts: 'No products found',
       tryChangeFilter: 'Try changing the filter or add a new product',
-      masterPageTitle: 'Inventory Master Data | NainERP Cloud POS',
+      masterPageTitle: 'Inventory Master Data | SIMESI Konservasi',
       masterTitle: 'Inventory Master Data',
       masterSubtitle: 'Manage categories, suppliers, units, and other master data',
       recentActivity: 'Recent Activity',
       reportsTitle: 'Inventory Reports',
       reportsSubtitle: 'Analysis and reports on stock, value, and inventory movement',
       loadingReports: 'Loading report data...',
-      alertsPageTitle: 'Inventory Alerts & Recommendations | NainERP Cloud POS',
+      alertsPageTitle: 'Inventory Alerts & Recommendations | SIMESI Konservasi',
       todayTime: 'Today, 14:30',
       liveUpdates: 'Live Updates',
       alertsCount: 'alerts',
@@ -2144,7 +2144,7 @@ export const appTranslations: Record<Language, Record<string, any>> = {
         print: 'Print',
         approveRequest: 'Approve Request',
         rejectRequest: 'Reject Request',
-        pageTitle: 'Stock Request & RAC Management | NainERP Cloud POS',
+        pageTitle: 'Stock Request & RAC Management | SIMESI Konservasi',
         title: 'Stock Request & RAC Management',
         subtitle: 'Stock request and inter-branch relocation system',
         createNew: 'Create New Request',
@@ -2254,7 +2254,7 @@ export const appTranslations: Record<Language, Record<string, any>> = {
 
       // Price History
       priceHistory: {
-        pageTitle: 'Price History | NainERP Cloud POS',
+        pageTitle: 'Price History | SIMESI Konservasi',
       },
 
       // Master
@@ -2369,7 +2369,7 @@ export const appTranslations: Record<Language, Record<string, any>> = {
 
       // Recipes
       recipes: {
-        pageTitle: 'Recipe & Formula Management | NainERP Cloud POS',
+        pageTitle: 'Recipe & Formula Management | SIMESI Konservasi',
         title: 'Recipe & Formula Management',
         subtitle: 'Raw material compounding & formula management system for FMCG',
         loading: 'Loading recipe data...',
@@ -2601,7 +2601,7 @@ export const appTranslations: Record<Language, Record<string, any>> = {
 
       // Transfers
       transfers: {
-        pageTitle: 'Inter-Location Transfer | NainERP Cloud POS',
+        pageTitle: 'Inter-Location Transfer | SIMESI Konservasi',
         title: 'Inter-Location Transfer',
         subtitle: 'Manage stock transfers between stores and warehouses',
         loading: 'Loading transfer data...',
@@ -2681,7 +2681,7 @@ export const appTranslations: Record<Language, Record<string, any>> = {
 
       // Returns
       returns: {
-        pageTitle: 'Returns Management | NainERP Cloud POS',
+        pageTitle: 'Returns Management | SIMESI Konservasi',
         title: 'Returns Management',
         subtitle: 'Manage supplier, customer, and internal returns',
         createNew: 'Create New Return',
@@ -2841,7 +2841,7 @@ export const appTranslations: Record<Language, Record<string, any>> = {
     },
 
     employees: {
-      pageTitle: 'Employee Schedule & Shifts | NainERP',
+      pageTitle: 'Employee Schedule & Shifts | SIMESI',
       loadingSchedule: 'Loading schedule...',
       scheduleTitle: 'Employee Schedule & Shifts',
       scheduleSubtitle: 'Manage employee schedules and shifts',
@@ -2853,7 +2853,7 @@ export const appTranslations: Record<Language, Record<string, any>> = {
     },
 
     kitchen: {
-      pageTitle: 'Kitchen Display System - NainERP',
+      pageTitle: 'Kitchen Display System - SIMESI',
       title: 'Kitchen Display System',
       activeOrders: 'Active Orders',
       analyticsTitle: 'Kitchen Analytics',
@@ -2919,8 +2919,8 @@ export const appTranslations: Record<Language, Record<string, any>> = {
     },
 
     auth: {
-      loginTitle: 'ログイン - NainERP Cloud POS',
-      loginDesc: 'NainERPアカウントにログイン',
+      loginTitle: 'ログイン - SIMESI Konservasi',
+      loginDesc: 'SIMESIアカウントにログイン',
       welcomeBack: 'おかえりなさい！',
       email: 'メールアドレス',
       password: 'パスワード',
@@ -2938,10 +2938,10 @@ export const appTranslations: Record<Language, Record<string, any>> = {
       loginError: 'エラーが発生しました。もう一度お試しください。',
       logoutSuccess: 'ログアウトしました',
 
-      registerTitle: '無料登録 - NainERP Cloud POS',
-      registerDesc: '無料で登録してNainERPでビジネスを管理しましょう。初期費用なし、契約なし。',
+      registerTitle: '無料登録 - SIMESI Konservasi',
+      registerDesc: '無料で登録してSIMESIでビジネスを管理しましょう。初期費用なし、契約なし。',
       startFreeToday: '今日から\n無料で始めよう！🚀',
-      joinBusinesses: '<span>10,000+</span>のビジネスがNainERPで成長しています',
+      joinBusinesses: '<span>10,000+</span>のビジネスがSIMESIで成長しています',
       freeForever: 'Starterプランは永久無料',
       setupIn5Min: '5分でセットアップ',
       noCreditCard: 'クレジットカード不要',
@@ -3199,12 +3199,12 @@ export const appTranslations: Record<Language, Record<string, any>> = {
     },
 
     landing: {
-      heroTitle: 'NainERP - 現代ビジネスのためのクラウドPOSシステム | 14日間無料トライアル',
+      heroTitle: 'SIMESI - 現代ビジネスのためのクラウドPOSシステム | 14日間無料トライアル',
       heroDesc: '小売、F&B、サービス業に最適な統合クラウドPOSシステム。POS、在庫、CRM、ロイヤルティプログラム、マルチ店舗、分析機能。クレジットカード不要で14日間無料お試し！',
     },
 
     dashboardFnb: {
-      title: 'F&Bダッシュボード | NainERP Cloud POS',
+      title: 'F&Bダッシュボード | SIMESI Konservasi',
       loading: 'F&Bダッシュボードを読み込み中...',
       someDataFailed: '一部のデータの読み込みに失敗しました',
       loadFailed: 'ダッシュボードデータの読み込みに失敗しました',
@@ -3247,12 +3247,12 @@ export const appTranslations: Record<Language, Record<string, any>> = {
     },
 
     customers: {
-      pageTitle: '顧客管理 | NainERP Cloud POS',
+      pageTitle: '顧客管理 | SIMESI Konservasi',
       loadingDashboard: '顧客ダッシュボードを読み込み中...',
     },
 
     inventory: {
-      pageTitle: '在庫管理 | NainERP Cloud POS',
+      pageTitle: '在庫管理 | SIMESI Konservasi',
       title: '在庫管理',
       subtitle: '製品在庫を簡単に管理',
       loading: '在庫を読み込み中...',
@@ -3275,14 +3275,14 @@ export const appTranslations: Record<Language, Record<string, any>> = {
       loadingProducts: '製品を読み込み中...',
       noProducts: '製品が見つかりません',
       tryChangeFilter: 'フィルターを変更するか、新しい製品を追加してください',
-      masterPageTitle: '在庫マスターデータ | NainERP Cloud POS',
+      masterPageTitle: '在庫マスターデータ | SIMESI Konservasi',
       masterTitle: '在庫マスターデータ',
       masterSubtitle: 'カテゴリ、サプライヤー、単位などのマスターデータを管理',
       recentActivity: '最近のアクティビティ',
       reportsTitle: '在庫レポート',
       reportsSubtitle: '在庫の値、動き、分析レポート',
       loadingReports: 'レポートデータを読み込み中...',
-      alertsPageTitle: '在庫アラート＆推奨 | NainERP Cloud POS',
+      alertsPageTitle: '在庫アラート＆推奨 | SIMESI Konservasi',
 
       // HQ Inventory Quick Links
       qlGlobalStock: 'グローバル在庫',
@@ -3443,7 +3443,7 @@ export const appTranslations: Record<Language, Record<string, any>> = {
     },
 
     employees: {
-      pageTitle: '従業員スケジュール＆シフト | NainERP',
+      pageTitle: '従業員スケジュール＆シフト | SIMESI',
       loadingSchedule: 'スケジュールを読み込み中...',
       scheduleTitle: '従業員スケジュール＆シフト',
       scheduleSubtitle: '従業員のスケジュールとシフトを管理',
@@ -3455,7 +3455,7 @@ export const appTranslations: Record<Language, Record<string, any>> = {
     },
 
     kitchen: {
-      pageTitle: 'キッチンディスプレイ - NainERP',
+      pageTitle: 'キッチンディスプレイ - SIMESI',
       title: 'キッチンディスプレイ',
       activeOrders: 'アクティブ注文',
       analyticsTitle: 'キッチン分析',
@@ -3521,8 +3521,8 @@ export const appTranslations: Record<Language, Record<string, any>> = {
     },
 
     auth: {
-      loginTitle: '登录 - NainERP 云端POS',
-      loginDesc: '登录您的NainERP账户',
+      loginTitle: '登录 - SIMESI 云端POS',
+      loginDesc: '登录您的SIMESI账户',
       welcomeBack: '欢迎回来！',
       email: '邮箱',
       password: '密码',
@@ -3540,10 +3540,10 @@ export const appTranslations: Record<Language, Record<string, any>> = {
       loginError: '发生错误，请重试。',
       logoutSuccess: '您已成功退出登录',
 
-      registerTitle: '免费注册 - NainERP 云端POS',
-      registerDesc: '免费注册并使用NainERP管理您的业务。无安装费，无合同。',
+      registerTitle: '免费注册 - SIMESI 云端POS',
+      registerDesc: '免费注册并使用SIMESI管理您的业务。无安装费，无合同。',
       startFreeToday: '今天开始\n免费使用！🚀',
-      joinBusinesses: '加入<span>10,000+</span>与NainERP共同成长的企业',
+      joinBusinesses: '加入<span>10,000+</span>与SIMESI共同成长的企业',
       freeForever: 'Starter套餐永久免费',
       setupIn5Min: '5分钟完成设置',
       noCreditCard: '无需信用卡',
@@ -3801,12 +3801,12 @@ export const appTranslations: Record<Language, Record<string, any>> = {
     },
 
     landing: {
-      heroTitle: 'NainERP - 现代商业云端POS系统 | 14天免费试用',
+      heroTitle: 'SIMESI - 现代商业云端POS系统 | 14天免费试用',
       heroDesc: '最完整的零售、餐饮和服务业云端POS系统。POS、库存、CRM、会员计划、多门店和分析功能。无需信用卡，免费试用14天！',
     },
 
     dashboardFnb: {
-      title: 'F&B仪表板 | NainERP Cloud POS',
+      title: 'F&B仪表板 | SIMESI Konservasi',
       loading: '正在加载F&B仪表板...',
       someDataFailed: '部分数据加载失败',
       loadFailed: '加载仪表板数据失败',
@@ -3849,12 +3849,12 @@ export const appTranslations: Record<Language, Record<string, any>> = {
     },
 
     customers: {
-      pageTitle: '客户管理 | NainERP Cloud POS',
+      pageTitle: '客户管理 | SIMESI Konservasi',
       loadingDashboard: '正在加载客户仪表板...',
     },
 
     inventory: {
-      pageTitle: '库存管理 | NainERP Cloud POS',
+      pageTitle: '库存管理 | SIMESI Konservasi',
       title: '库存管理',
       subtitle: '轻松管理产品库存',
       loading: '正在加载库存...',
@@ -3877,14 +3877,14 @@ export const appTranslations: Record<Language, Record<string, any>> = {
       loadingProducts: '正在加载产品...',
       noProducts: '未找到产品',
       tryChangeFilter: '请尝试更改筛选条件或添加新产品',
-      masterPageTitle: '库存主数据 | NainERP Cloud POS',
+      masterPageTitle: '库存主数据 | SIMESI Konservasi',
       masterTitle: '库存主数据',
       masterSubtitle: '管理分类、供应商、单位等主数据',
       recentActivity: '最近活动',
       reportsTitle: '库存报表',
       reportsSubtitle: '库存价值、变动和分析报表',
       loadingReports: '正在加载报表数据...',
-      alertsPageTitle: '库存警报和建议 | NainERP Cloud POS',
+      alertsPageTitle: '库存警报和建议 | SIMESI Konservasi',
 
       // HQ Inventory Quick Links
       qlGlobalStock: '全局库存',
@@ -4045,7 +4045,7 @@ export const appTranslations: Record<Language, Record<string, any>> = {
     },
 
     employees: {
-      pageTitle: '员工排班表 | NainERP',
+      pageTitle: '员工排班表 | SIMESI',
       loadingSchedule: '正在加载排班...',
       scheduleTitle: '员工排班表',
       scheduleSubtitle: '管理员工排班和轮班',
@@ -4057,7 +4057,7 @@ export const appTranslations: Record<Language, Record<string, any>> = {
     },
 
     kitchen: {
-      pageTitle: '厨房显示屏 - NainERP',
+      pageTitle: '厨房显示屏 - SIMESI',
       title: '厨房显示屏',
       activeOrders: '活跃订单',
       analyticsTitle: '厨房分析',

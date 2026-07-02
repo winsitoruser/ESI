@@ -3,7 +3,7 @@
 **Date:** 2026-06-28
 **Reviewer:** bedagang-devops-1
 **Project:** Bedagang ERP (bedagang---PoS)
-**Server:** 103.253.212.64 (claw.pdagang.com)
+**Server:** $SERVER_IP (claw.pdagang.com)
 
 ---
 
@@ -36,7 +36,7 @@ No branch protection rules exist. No CI gates prevent direct pushes to `main`.
 | `check-server.sh` | Root | Server diagnostics script | MEDIUM |
 
 ### Script deployment method
-All scripts use `ssh root@103.253.212.64` with password-based authentication. No SSH key pair usage.
+All scripts use `ssh root@$SERVER_IP` with password-based authentication. No SSH key pair usage.
 
 ---
 
@@ -82,7 +82,7 @@ echo "   (You will be prompted for password: winner123)"
 ### 3.5 Environment Files in Git
 - `package-lock.json` listed in `.gitignore` — breaks **reproducible builds**
 - `.env.development` committed to repo (secrets-bearing file)
-- Hardcoded production IP: `http://103.253.212.64:3000` in multiple files
+- Hardcoded production IP: `http://$SERVER_IP:3000` in multiple files
 
 ### 3.6 PM2 Single Instance
 - `instances: 1` with `fork` mode — no load balancing, single point of failure
@@ -163,7 +163,7 @@ echo "   (You will be prompted for password: winner123)"
 ```bash
 # Current manual deploy process:
 ./deploy.sh deploy
-# → SSH to root@103.253.212.64
+# → SSH to root@$SERVER_IP
 # → git fetch && git pull origin main
 # → npm install --production
 # → npm run migrate

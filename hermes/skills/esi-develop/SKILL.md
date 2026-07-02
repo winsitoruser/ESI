@@ -17,13 +17,45 @@ description: Workflow pengembangan ESI ERP — konservasi satwa, Next.js, Postgr
 
 ## Setup lokal
 ```bash
-cd "/Users/winnerharry/Bedagang ERP/esi-erp"
-npm install
-npm run dev                    # http://localhost:3010
-npm run build                  # verifikasi sebelum selesai
+cd '/Users/winnerharry/Bedagang ERP/simesi'
+npm install --legacy-peer-deps   # gunakan --legacy-peer-deps jika TypeScript conflict
+npm run dev                      # http://localhost:3010
+npm run build                    # verifikasi sebelum selesai
+```
+
+## Setup VPS (SSH backend)
+```bash
+cd /home/ubuntu/esi-repo         # clone dari git@github.com:winsitoruser/esi.git
+npm install --legacy-peer-deps   # WAJIB — TypeScript 4.9.5 vs Prisma 6 conflict
+npm run dev                      # port 3010
 ```
 
 Login: `superadmin@bedagang.com` / `superadmin123`
+
+## Repo Path Clarification
+
+Repo ESI tidak selalu di path yang sama tergantung runner:
+
+| Runner | Path | Sumber |
+|--------|------|--------|
+| MacBook | `/Users/winnerharry/Bedagang ERP/simesi` | Local clone |
+| VPS (SSH) | `/home/ubuntu/esi-repo` | Clone dari GitHub |
+| GitHub | `git@github.com:winsitoruser/esi.git` | Remote |
+
+**⚠️ Nama path berubah:** kadang `simesi`, kadang `esi-erp`, kadang `esi-repo`. Jangan hardcode path — cek dengan:
+```bash
+find /home -maxdepth 4 -name ".git" -type d 2>/dev/null | grep -i "esi\|erp"
+```
+
+## Dependency Conflict: TypeScript 4.9.5 vs Prisma 6
+
+```bash
+# ERESOLVE error:
+# typescript@4.9.5 tidak kompatibel dengan @prisma/client@6.x (butuh >=5.1.0)
+npm install --legacy-peer-deps   # bypass peer dep check
+```
+
+Jangan upgrade TypeScript ke 5.x — bisa break Next.js 14 dan dependencies lain.
 
 ## Modul ESI (fokus)
 

@@ -2,7 +2,10 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    // Create stocks table
+    // Create stocks table (guarded - may already exist from base migration)
+    const stocksTable = 'stocks';
+    const existingTables = await queryInterface.showAllTables();
+    if (!existingTables.includes(stocksTable)) {
     await queryInterface.createTable('stocks', {
       id: {
         type: Sequelize.UUID,
@@ -10,12 +13,8 @@ module.exports = {
         primaryKey: true
       },
       productId: {
-        type: Sequelize.UUID,
-        allowNull: false,
-        references: {
-          model: 'products',
-          key: 'id'
-        }
+        type: Sequelize.INTEGER,
+        allowNull: false
       },
       branchId: {
         type: Sequelize.UUID,
@@ -86,12 +85,8 @@ module.exports = {
         primaryKey: true
       },
       productId: {
-        type: Sequelize.UUID,
-        allowNull: false,
-        references: {
-          model: 'products',
-          key: 'id'
-        }
+        type: Sequelize.INTEGER,
+        allowNull: false
       },
       branchId: {
         type: Sequelize.UUID,
@@ -209,12 +204,8 @@ module.exports = {
         unique: true
       },
       supplierId: {
-        type: Sequelize.UUID,
-        allowNull: false,
-        references: {
-          model: 'suppliers',
-          key: 'id'
-        }
+        type: Sequelize.INTEGER,
+        allowNull: false
       },
       branchId: {
         type: Sequelize.UUID,
@@ -343,12 +334,8 @@ module.exports = {
         onDelete: 'CASCADE'
       },
       productId: {
-        type: Sequelize.UUID,
-        allowNull: false,
-        references: {
-          model: 'products',
-          key: 'id'
-        }
+        type: Sequelize.INTEGER,
+        allowNull: false
       },
       quantity: {
         type: Sequelize.DECIMAL(15, 2),
@@ -490,12 +477,8 @@ module.exports = {
         }
       },
       productId: {
-        type: Sequelize.UUID,
-        allowNull: false,
-        references: {
-          model: 'products',
-          key: 'id'
-        }
+        type: Sequelize.INTEGER,
+        allowNull: false
       },
       orderedQuantity: {
         type: Sequelize.DECIMAL(15, 2),
@@ -708,12 +691,8 @@ module.exports = {
         onDelete: 'CASCADE'
       },
       productId: {
-        type: Sequelize.UUID,
-        allowNull: false,
-        references: {
-          model: 'products',
-          key: 'id'
-        }
+        type: Sequelize.INTEGER,
+        allowNull: false
       },
       quantity: {
         type: Sequelize.DECIMAL(15, 2),
@@ -859,12 +838,8 @@ module.exports = {
         onDelete: 'CASCADE'
       },
       productId: {
-        type: Sequelize.UUID,
-        allowNull: false,
-        references: {
-          model: 'products',
-          key: 'id'
-        }
+        type: Sequelize.INTEGER,
+        allowNull: false
       },
       systemQuantity: {
         type: Sequelize.DECIMAL(15, 2),
@@ -930,6 +905,7 @@ module.exports = {
     
     await queryInterface.addIndex('stock_adjustments', ['adjustmentNumber'], { unique: true });
     await queryInterface.addIndex('stock_adjustments', ['status']);
+    }
   },
 
   down: async (queryInterface, Sequelize) => {

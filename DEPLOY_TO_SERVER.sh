@@ -42,8 +42,8 @@ DB_USER=bedagang_user
 DB_PASSWORD=winner123
 NODE_ENV=production
 PORT=3000
-APP_URL=http://103.253.212.64:3000
-NEXTAUTH_URL=http://103.253.212.64:3000
+APP_URL=http://$SERVER_IP:3000
+NEXTAUTH_URL=http://$SERVER_IP:3000
 NEXTAUTH_SECRET=bedagang-secret-key-production-2026
 SESSION_SECRET=bedagang-session-secret-production-2026
 EOF
@@ -92,6 +92,6 @@ echo "Email: admin@bedagang.com"
 echo "Password: admin123"
 echo ""
 echo "Access at:"
-echo "  → http://103.253.212.64:3000"
-echo "  → http://103.253.212.64"
+echo "  → http://$SERVER_IP:3000"
+echo "  → http://$SERVER_IP"
 echo ""

@@ -1,53 +1,209 @@
-# ESI ERP — Hermes Team Roster
-# PT Ekosistem Satwa Indonesia — konservasi satwa liar
+# ESI ERP — Viking Division Hermes Team Roster
+# PT Ekosistem Satwa Indonesia — ERP Sobatpaws
+# Sumber: https://docs.google.com/document/d/1yT5Vq56Z7VQZQ5Sve1LoepPcSK3n7B1ZvgQLYSxiwE4/edit
 
 board: esi-erp
-orchestrator: esi-cto
-repo: local  # fork dari bedagang---PoS
+orchestrator: esi-king
+orchestrator_legacy: esi-cto
+repo: git@github.com:winsitoruser/esi.git
 provider: custom:sumopod
 base_url: https://ai.sumopod.com/v1
 dev_port: 3010
 
+# ── HIGH COMMAND ──────────────────────────────────────────────
 roles:
-  - id: esi-cto
-    title: CTO Orchestrator
+  - id: esi-king
+    viking: KING
+    title: CTO / Chief Technology Officer
     count: 1
     model: deepseek-v4-flash
     clone_from: wins
     toolsets: [hermes-cli, kanban]
-    description: Analisis arsitektur ESI, decompose tiket, assign tim, gatekeeper merge.
+    description: >
+      Pemimpin klan Viking. Arah teknologi ERP Sobatpaws, keputusan arsitektur
+      tinggi, alokasi resource, gatekeeper merge & rilis.
 
-  - id: esi-pm
-    title: Product Manager
+  - id: esi-queen
+    viking: QUEEN
+    title: VP Engineering / Head of Engineering
     count: 1
     model: deepseek-v4-flash
     clone_from: wins
-    description: Backlog konservasi, user stories, prioritas modul ESI.
+    description: >
+      Jenderal medan perang. Code governance, standar kualitas, routing task
+      ke Backend/Frontend/Mobile/QA, mentorship Lead & Developer.
 
-  - id: esi-architect
-    title: System Architect
-    count: 1
-    model: seed-2-0-pro
-    clone_from: architect
-    description: Schema DB, API contracts, integrasi modul konservasi.
-
-  - id: esi-backend
-    title: Backend Developer
+  # ── BACKEND — The Engine Room ───────────────────────────────
+  - id: esi-backend-sr
+    viking: Engine Room (Senior)
+    title: Backend Senior Developer
     count: 2
+    ids: [esi-backend-sr-1, esi-backend-sr-2]
+    model: seed-2-0-pro
+    clone_from: backend
+    description: Arsitektur DB/API, keamanan transaksi finance, integrasi pihak ketiga.
+
+  - id: esi-backend-mid
+    viking: Engine Room (Mid)
+    title: Backend Mid Developer
+    count: 2
+    ids: [esi-backend-mid-1, esi-backend-mid-2]
     model: seed-2-0-code
     clone_from: backend
-    description: Next.js API routes, Sequelize, PostgreSQL, stub single-org.
+    description: Fitur core ERP, optimasi query, sinkronisasi data antar divisi.
 
-  - id: esi-frontend
-    title: Frontend Developer
+  - id: esi-backend-jr
+    viking: Engine Room (Junior)
+    title: Backend Junior Developer
+    count: 1
+    ids: [esi-backend-jr-1]
+    model: deepseek-v4-flash
+    clone_from: backend
+    description: Bug fix, unit test, API sederhana di bawah bimbingan senior.
+
+  # ── FRONTEND — The Shield Wall ───────────────────────────────
+  - id: esi-frontend-sr
+    viking: Shield Wall (Senior)
+    title: Frontend Senior Developer
     count: 2
+    ids: [esi-frontend-sr-1, esi-frontend-sr-2]
+    model: seed-2-0-pro
+    clone_from: frontend
+    description: State management, arsitektur UI ERP, performa web optimal.
+
+  - id: esi-frontend-mid
+    viking: Shield Wall (Mid)
+    title: Frontend Mid Developer
+    count: 2
+    ids: [esi-frontend-mid-1, esi-frontend-mid-2]
     model: seed-2-0-code
     clone_from: frontend
-    description: HQ UI, esi-sidebar, HQLayout, i18n.
+    description: UI/UX → komponen web interaktif, integrasi API Backend.
 
-  - id: esi-qa
+  - id: esi-frontend-jr
+    viking: Shield Wall (Junior)
+    title: Frontend Junior Developer
+    count: 1
+    ids: [esi-frontend-jr-1]
+    model: deepseek-v4-flash
+    clone_from: frontend
+    description: Slicing UI, minor bug tampilan, kompatibilitas browser.
+
+  # ── MOBILE — The Scouts ──────────────────────────────────────
+  - id: esi-mobile-sr
+    viking: Scouts (Senior)
+    title: Senior Mobile Developer
+    count: 1
+    model: seed-2-0-pro
+    clone_from: frontend
+    description: Arsitektur Android/iOS, offline-first, performa mobile.
+
+  - id: esi-mobile-mid
+    viking: Scouts (Mid)
+    title: Mobile Developer
+    count: 1
+    model: seed-2-0-code
+    clone_from: frontend
+    description: Fitur mobile, integrasi GPS/kamera operasional lapangan.
+
+  - id: esi-mobile-jr
+    viking: Scouts (Junior)
+    title: Junior Mobile Developer
+    count: 1
+    model: deepseek-v4-flash
+    clone_from: frontend
+    description: Maintenance aplikasi, update library, perbaikan crash log.
+
+  # ── QA — The Valkyries ───────────────────────────────────────
+  - id: esi-qa-lead
+    viking: Valkyries (Lead)
+    title: QA Lead
+    count: 1
+    model: deepseek-v4-flash
+    clone_from: backend
+    description: Strategi testing manual & automation, skenario beban kerja ERP.
+
+  - id: esi-qa-eng
+    viking: Valkyries (Engineer)
     title: QA Engineer
     count: 1
     model: deepseek-v4-flash
     clone_from: backend
-    description: Build verify, smoke test, integration-check API.
+    description: Uji fungsional detail per modul ERP (Sales, Finance, dll.).
+
+  - id: esi-qa-auto
+    viking: Valkyries (Automation)
+    title: Automation Tester
+    count: 1
+    model: deepseek-v4-flash
+    clone_from: backend
+    description: Skrip automation test, regression testing sebelum deployment.
+
+  # ── NAVIGATORS — lintas fungsi ───────────────────────────────
+  - id: esi-product
+    viking: The Seers
+    title: VP Product / Head of Product
+    count: 1
+    model: deepseek-v4-flash
+    clone_from: wins
+    description: >
+      PM, BA, PO, UI/UX — roadmap ERP Sobatpaws, requirement bisnis,
+      alur digital dari proses manual.
+
+  - id: esi-oracle
+    viking: The Oracle
+    title: Head of AI & Data
+    count: 1
+    model: seed-2-0-pro
+    clone_from: architect
+    description: >
+      Prediksi bisnis, rekomendasi stok otomatis, churn prediction,
+      data pipeline, dashboard performa direksi.
+
+  - id: esi-fort
+    viking: The Fort Builders
+    title: Head of Infrastructure & Security
+    count: 1
+    model: deepseek-v4-flash
+    clone_from: devops
+    description: >
+      CI/CD, server cloud, uptime 24/7, keamanan data keuangan & user PT. ESI.
+
+  - id: esi-skalds
+    viking: The Skalds
+    title: Head of PMO
+    count: 1
+    model: deepseek-v4-flash
+    clone_from: wins
+    description: >
+      Timeline, budget, transparansi proyek, ritual Agile
+      (Daily, Sprint Planning, Retrospective).
+
+  - id: esi-architect-1
+    viking: Royal Advisor
+    title: System Architect
+    count: 1
+    model: seed-2-0-pro
+    clone_from: architect
+    description: Schema DB, API contracts, integrasi single-org, OpenAPI.
+
+# ── LEGACY PROFILES (backward compat) ─────────────────────────
+legacy:
+  - esi-cto        # alias KING
+  - esi-pm         # alias Skalds
+  - esi-backend-1
+  - esi-backend-2
+  - esi-frontend-1
+  - esi-frontend-2
+  - esi-qa-1
+
+# ── ERP SQUAD ROUTING ──────────────────────────────────────────
+squads:
+  finance:
+    users: [Tim Finance]
+  sales_crm:
+    users: [Tim Sales & Lapangan]
+  marketing:
+    users: [Tim Marketing]
+  inventory:
+    users: [Tim Operasional Bisnis]

@@ -1,57 +1,87 @@
-# Handoff — ESI ERP
+# Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 24 Mei 2026 — **Hermes AI Developer setup**
+> Diperbarui: 2 Juli 2026 — **Refactoring Phase 1-3 selesai · Viking Division aktif · Phase 4 tiket terbuat**
 
-## Status project
+## Status project — Pasca Refactor
 
 | Item | Status |
 |---|---|
-| Fork slim dari Bedagang/NainERP | ✅ |
-| Modul dikecualikan dihapus | ✅ |
-| Integrasi sidebar, API stub, dead links | ✅ |
-| `npm run build` | ✅ |
-| Hermes skills & team ESI | ✅ |
-| Demo data proyek konservasi (PJM) | ✅ |
+| NainERP branding → SIMESI | ✅ 111 replacements |
+| Bedagang references dihapus | ✅ |
+| PoS/FnB/Kitchen code dihapus | ✅ (9 files + full kitchen API dir) |
+| Stale deploy scripts + IP hardcoded | ✅ Dibersihkan |
+| Stale export/ + _backup_dupes/ | ✅ Dihapus |
+| Migrasi excluded module diarsipkan | ✅ 13 files ke `migrations/_archived/` |
+| Build | ✅ `npm run build` sukses |
+| Login page | ✅ Berfungsi di `localhost:3010` |
 
-## Hermes AI Developer
+## Kredensial
 
-**Setup selesai** — board `esi-erp`, 8 profil agent.
+| Email | Password | Role |
+|---|---|---|
+| `superadmin@bedagang.com` | `MasterAdmin2026!` | super_admin |
+| `demo@bedagang.com` | `demo123` | owner |
 
-```bash
-hermes --profile esi-cto
-/esi-cto
-hermes kanban --board esi-erp list
+## Arsitektur saat ini
+
+```
+SIMESI (Next.js 15, Pages Router)
+├── pages/
+│   ├── auth/login.tsx         # NextAuth credentials
+│   ├── hq/*                   # Dashboard HQ (HQLayout)
+│   │   ├── home.tsx
+│   │   ├── project-management/
+│   │   ├── assets/
+│   │   ├── finance/
+│   │   ├── hris/
+│   │   ├── inventory/
+│   │   └── ...
+│   ├── api/
+│   │   ├── auth/[...nextauth].ts
+│   │   ├── hq/*               # HQ API
+│   │   └── ...
+│   └── settings/*
+├── models/                     # Sequelize models (~120+)
+├── migrations/                 # 129 migration files (13 archived)
+│   └── _archived/              # PoS, FnB, DMS, Loyalty migrations
+│   └── FK_ORDERING_ANALYSIS.md # 154 potential ordering issues
+├── config/
+│   ├── sidebar.config.ts       # Legacy (PoS/FnB disabled)
+│   └── esi-sidebar.config.ts   # SIMESI sidebar (clean)
+├── lib/
+│   └── translations/           # Branding updated → SIMESI
+└── docs/adr/
+    └── ADR-010-simesi-platform-mandiri.md
 ```
 
-## Manajemen Proyek Konservasi
+## Backlog prioritas (Phase 4) — ✅ Tiket terbuat di kanban `esi-erp`
 
-- UI: `/hq/project-management`
-- Demo: Elang Jawa, Orangutan, Badak Jawa, Edukasi, Grant KLHK
-- File: `lib/projectManagement/esi-demo-data.ts`
+| # | Tiket | Assignee | Priority | Status |
+|---|---|---|---|---|
+| 1 | 🔥 Phase 4.1 — Hapus model FnB/PoS/DMS dari Prisma | `esi-backend-sr-1` | P1 | ✅ ready |
+| 2 | 🔥 Phase 4.2 — CI/CD Pipeline GitHub Actions | `esi-fort` | P1 | ✅ ready |
+| 3 | ⚡ Phase 4.3 — Fix 154 FK ordering migrasi | `esi-backend-sr-2` | P2 | ✅ ready |
+| 4 | 📋 Phase 4.4 — Dependencies cleanup | `esi-frontend-sr-1` | P3 | ✅ ready |
+| 5 | 📋 Phase 4.5 — Cek runtime dashboard.tsx | `esi-frontend-mid-1` | P2 | ✅ ready |
+| 6 | 📋 Phase 4.6 — Cek settings API kitchen/PoS | `esi-backend-mid-1` | P3 | ✅ ready |
+
+## Viking Division — Status Tim
+
+✅ Semua 20+ profil aktif di Hermes
+✅ Kanban board `esi-erp` siap
+✅ Orchestrator: `esi-king` (KING/CTO)
+⚠️ Gateway belum running — dispatcher manual dulu
 
 ## Dev server
 
-- URL: http://localhost:3010
-- Login: `superadmin@bedagang.com` / `superadmin123`
-
-## Backlog prioritas (untuk Hermes tim)
-
-1. **Manajemen Proyek** — API + UI program konservasi
-2. **Manajemen Aset** — kandang, peralatan, lokasi
-3. **Basis Pengetahuan** — SOP & protokol satwa
-4. **Inventori konservasi** — kategori pakan/obat khusus ESI
-5. **Laporan grant** — template laporan donor di finance_pro
-
-## Verifikasi cepat
-
 ```bash
-npm run dev          # port 3010
-npm run build
-curl -s http://localhost:3010/api/system/integration-check | head
+npm run dev          # http://localhost:3010
+npm run build        # verifikasi build
+npm run test         # test (login tests lulus)
 ```
 
-## Catatan integrasi
-
-- `GET /api/hq/branches` → stub `Kantor Pusat ESI`
-- `PUT /api/hq/modules/config` → simpan config modul settings
-- Sidebar: `config/esi-sidebar.config.ts`
+## CATATAN PENTING
+- `dashboard.tsx` masih punya referensi kitchen (perlu dicek runtime, build lolos)
+- `prisma/schema.prisma` masih mengandung model kitchen, PoS, loyalty
+- Beberapa `pages/api/settings/` mungkin masih referensi kitchen/PoS (perlu test manual)
+- Migration chain masih butuh perbaikan FK ordering

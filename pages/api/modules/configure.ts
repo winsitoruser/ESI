@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 import { moduleRegistry } from '@/lib/modules/ModuleRegistry';
-import { flowOrchestrator } from '@/lib/integration/FlowOrchestrator';
+// FlowOrchestrator removed — SIMESI doesn't use FnB integration
 
 const getDb = () => require('../../../models');
 

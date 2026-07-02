@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { ApiError, errorHandler } from '@/middleware/error-handler';
+import { ApiError, handleApiError as errorHandler } from '@/middleware/error-handler';
 import { DatabaseService } from '@/services/database-service';
 import sequelize from '@/lib/db';
 

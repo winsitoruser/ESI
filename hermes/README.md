@@ -22,7 +22,7 @@ Salin template: `cp hermes/env.example ~/.hermes/.env` (lalu isi key).
 ## Setup project ESI
 
 ```bash
-cd "/Users/winnerharry/Bedagang ERP/esi-erp"
+cd "/Users/winnerharry/Bedagang ERP/simesi"
 npm run hermes:setup    # skills + cwd + SumoPod
 npm run hermes:team     # profil tim + kanban board esi-erp
 ```
@@ -30,7 +30,7 @@ npm run hermes:team     # profil tim + kanban board esi-erp
 ## Mulai develop (solo)
 
 ```bash
-cd "/Users/winnerharry/Bedagang ERP/esi-erp"
+cd "/Users/winnerharry/Bedagang ERP/simesi"
 hermes
 ```
 

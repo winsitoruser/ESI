@@ -23,7 +23,7 @@ node scripts/test-auth.js
 
 **Server (Production):**
 ```bash
-ssh root@103.253.212.64
+ssh root@$SERVER_IP
 cd /var/www/bedagang
 node scripts/test-auth.js
 ```
@@ -47,7 +47,7 @@ node scripts/create-default-user.js
 
 ### Server:
 ```bash
-ssh root@103.253.212.64
+ssh root@$SERVER_IP
 cd /var/www/bedagang
 node scripts/create-default-user.js
 ```
@@ -70,7 +70,7 @@ psql -U bedagang_user -d bedagang_development
 
 **Server:**
 ```bash
-ssh root@103.253.212.64
+ssh root@$SERVER_IP
 sudo -u postgres psql -d bedagang_production
 ```
 
@@ -162,14 +162,14 @@ cat .env | grep -E "DATABASE_URL|NEXTAUTH"
 
 **Server:**
 ```bash
-ssh root@103.253.212.64
+ssh root@$SERVER_IP
 cat /var/www/bedagang/.env | grep -E "DATABASE_URL|NEXTAUTH"
 ```
 
 **Required variables:**
 ```env
 DATABASE_URL=postgresql://bedagang_user:winner123@localhost:5432/bedagang_production
-NEXTAUTH_URL=http://103.253.212.64:3000
+NEXTAUTH_URL=http://$SERVER_IP:3000
 NEXTAUTH_SECRET=bedagang-secret-key-production-2026
 SESSION_SECRET=bedagang-session-secret-production-2026
 ```
@@ -187,7 +187,7 @@ psql -U bedagang_user -d bedagang_development -c "SELECT version();"
 
 **Server:**
 ```bash
-ssh root@103.253.212.64
+ssh root@$SERVER_IP
 sudo -u postgres psql -d bedagang_production -c "SELECT version();"
 ```
 
@@ -214,7 +214,7 @@ npm run migrate
 
 **Server:**
 ```bash
-ssh root@103.253.212.64
+ssh root@$SERVER_IP
 cd /var/www/bedagang
 npm run migrate
 ```
@@ -308,7 +308,7 @@ Before testing login, ensure:
 ## 🧪 Test Login
 
 ### Via Browser:
-1. Go to http://103.253.212.64:3000/auth/login
+1. Go to http://$SERVER_IP:3000/auth/login
 2. Enter credentials:
    - Email: `admin@bedagang.com`
    - Password: `admin123`
@@ -316,12 +316,12 @@ Before testing login, ensure:
 
 ### Via API (curl):
 ```bash
-curl -X POST http://103.253.212.64:3000/api/auth/callback/credentials \
+curl -X POST http://$SERVER_IP:3000/api/auth/callback/credentials \
   -H "Content-Type: application/json" \
   -d '{
     "email": "admin@bedagang.com",
     "password": "admin123",
-    "callbackUrl": "http://103.253.212.64:3000/dashboard"
+    "callbackUrl": "http://$SERVER_IP:3000/dashboard"
   }'
 ```
 
@@ -396,7 +396,7 @@ node scripts/create-user.js "John Doe" "john@example.com" "password123" "cashier
 
 **Server:**
 ```bash
-ssh root@103.253.212.64
+ssh root@$SERVER_IP
 pm2 logs bedagang --lines 100
 ```
 

@@ -155,23 +155,27 @@ module.exports = {
       name: 'idx_held_transactions_hold_number'
     });
 
-    // Add columns to pos_transactions table
-    await queryInterface.addColumn('pos_transactions', 'held_transaction_id', {
-      type: Sequelize.UUID,
-      allowNull: true,
-      references: {
-        model: 'held_transactions',
-        key: 'id'
-      },
-      onUpdate: 'CASCADE',
-      onDelete: 'SET NULL'
-    });
+    // Add columns to pos_transactions table (with guard)
+    const posTableExists = await queryInterface.tableExists ?
+      await queryInterface.tableExists('pos_transactions') : false;
+    if (posTableExists) {
+      await queryInterface.addColumn('pos_transactions', 'held_transaction_id', {
+        type: Sequelize.UUID,
+        allowNull: true,
+        references: {
+          model: 'held_transactions',
+          key: 'id'
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'SET NULL'
+      });
 
-    await queryInterface.addColumn('pos_transactions', 'was_held', {
-      type: Sequelize.BOOLEAN,
-      defaultValue: false,
-      allowNull: false
-    });
+      await queryInterface.addColumn('pos_transactions', 'was_held', {
+        type: Sequelize.BOOLEAN,
+        defaultValue: false,
+        allowNull: false
+      });
+    }
   },
 
   down: async (queryInterface, Sequelize) => {

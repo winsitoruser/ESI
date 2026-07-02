@@ -446,11 +446,11 @@ const createRecord = async (formData) => {
 7. Test branch deletion/deactivation
 
 ### For Production Deployment
-1. Connect to server: `ssh root@103.253.212.64`
+1. Connect to server: `ssh root@$SERVER_IP`
 2. Pull latest code: `cd /var/www/bedagang && git pull origin main`
 3. Run migrations: See DEPLOYMENT_GUIDE_STORE_SETTINGS.md
 4. Restart application: `pm2 restart bedagang`
-5. Test in browser: http://103.253.212.64:3001/settings/store
+5. Test in browser: http://$SERVER_IP:3001/settings/store
 
 ### For Module Integration
 1. Start with POS module (highest priority)

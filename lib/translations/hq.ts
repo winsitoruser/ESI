@@ -48,11 +48,11 @@ export const hqTranslations: Record<Language, Record<string, any>> = {
       // Review banner
       accountUnderReview: 'Akun Dalam Proses Peninjauan',
       underReview: 'Dalam Peninjauan',
-      reviewDescription: 'Data bisnis Anda sedang ditinjau oleh tim <strong>Naincode</strong>. Seluruh modul akan dapat diakses setelah proses verifikasi selesai. Estimasi waktu peninjauan: <strong>1–2 hari kerja</strong>.',
+      reviewDescription: 'Data bisnis Anda sedang ditinjau oleh tim <strong>SIMESI</strong>. Seluruh modul akan dapat diakses setelah proses verifikasi selesai. Estimasi waktu peninjauan: <strong>1–2 hari kerja</strong>.',
       kybSubmitted: 'KYB Terkirim',
       waitingVerification: 'Menunggu Verifikasi',
       moduleActivation: 'Aktivasi Modul',
-      reviewToast: 'Akun Anda masih dalam proses peninjauan oleh tim Naincode. Modul akan segera dapat diakses setelah peninjauan selesai.',
+      reviewToast: 'Akun Anda masih dalam proses peninjauan oleh tim SIMESI. Modul akan segera dapat diakses setelah peninjauan selesai.',
       waitingReview: 'Menunggu peninjauan',
 
       // Search & filter
@@ -2919,11 +2919,11 @@ export const hqTranslations: Record<Language, Record<string, any>> = {
 
       accountUnderReview: 'Account Under Review',
       underReview: 'Under Review',
-      reviewDescription: 'Your business data is being reviewed by the <strong>Naincode</strong> team. All modules will be accessible after verification is complete. Estimated review time: <strong>1–2 business days</strong>.',
+      reviewDescription: 'Your business data is being reviewed by the <strong>SIMESI</strong> team. All modules will be accessible after verification is complete. Estimated review time: <strong>1–2 business days</strong>.',
       kybSubmitted: 'KYB Submitted',
       waitingVerification: 'Awaiting Verification',
       moduleActivation: 'Module Activation',
-      reviewToast: 'Your account is still under review by the Naincode team. Modules will be accessible once the review is complete.',
+      reviewToast: 'Your account is still under review by the SIMESI team. Modules will be accessible once the review is complete.',
       waitingReview: 'Awaiting review',
 
       searchModules: 'Search modules...',
@@ -5521,11 +5521,11 @@ export const hqTranslations: Record<Language, Record<string, any>> = {
 
       accountUnderReview: 'アカウント審査中',
       underReview: '審査中',
-      reviewDescription: 'お客様のビジネスデータは<strong>Naincode</strong>チームによって審査中です。検証完了後、すべてのモジュールにアクセスできます。予想審査期間：<strong>1〜2営業日</strong>。',
+      reviewDescription: 'お客様のビジネスデータは<strong>SIMESI</strong>チームによって審査中です。検証完了後、すべてのモジュールにアクセスできます。予想審査期間：<strong>1〜2営業日</strong>。',
       kybSubmitted: 'KYB提出済み',
       waitingVerification: '検証待ち',
       moduleActivation: 'モジュール有効化',
-      reviewToast: 'アカウントはNaincodeチームによるレビュー中です。レビュー完了後、モジュールにアクセスできるようになります。',
+      reviewToast: 'アカウントはSIMESIチームによるレビュー中です。レビュー完了後、モジュールにアクセスできるようになります。',
       waitingReview: 'レビュー待ち',
 
       searchModules: 'モジュールを検索...',
@@ -7975,11 +7975,11 @@ export const hqTranslations: Record<Language, Record<string, any>> = {
 
       accountUnderReview: '账户审核中',
       underReview: '审核中',
-      reviewDescription: '您的业务数据正在由<strong>Naincode</strong>团队审核中。验证完成后即可访问所有模块。预计审核时间：<strong>1-2个工作日</strong>。',
+      reviewDescription: '您的业务数据正在由<strong>SIMESI</strong>团队审核中。验证完成后即可访问所有模块。预计审核时间：<strong>1-2个工作日</strong>。',
       kybSubmitted: 'KYB已提交',
       waitingVerification: '等待验证',
       moduleActivation: '模块激活',
-      reviewToast: '您的账户仍在Naincode团队审核中。审核完成后即可访问模块。',
+      reviewToast: '您的账户仍在SIMESI团队审核中。审核完成后即可访问模块。',
       waitingReview: '等待审核',
 
       searchModules: '搜索模块...',

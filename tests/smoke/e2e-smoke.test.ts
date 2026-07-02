@@ -314,7 +314,7 @@ describe('[Smoke] 10. E2E Regression — Full Flow', () => {
   it('login page served', async () => {
     const r = await httpGet(`${API}/auth/login`);
     expect(r.status).toBe(200);
-    expect(r.text).toContain('NainERP');
+    expect(r.text).toContain('SIMESI');
     expect(r.text).toContain('email');
     expect(r.text).toContain('password');
   });

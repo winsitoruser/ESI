@@ -318,6 +318,16 @@ export default function FieldAssetsPage() {
   const [selectedAsset, setSelectedAsset] = useState<FieldAsset | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
+  // CRUD state
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingAsset, setEditingAsset] = useState<FieldAsset | null>(null);
+  const [createCategory, setCreateCategory] = useState<'enclosure' | 'field_equipment' | 'monitoring_station'>('enclosure');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingAsset, setDeletingAsset] = useState<FieldAsset | null>(null);
+
+  // Next counter for mock IDs
+  const [nextIdCounter, setNextIdCounter] = useState(100);
+
   useEffect(() => {
     if (tab && typeof tab === 'string') setActiveTab(tab);
   }, [tab]);
@@ -370,6 +380,170 @@ export default function FieldAssetsPage() {
     });
   };
 
+  // ========== CRUD HANDLERS ==========
+  const generateAssetCode = (category: string, counter: number) => {
+    const prefix = category === 'enclosure' ? 'KAND' :
+                   category === 'field_equipment' ? 'EQUIP' : 'STAT';
+    return `${prefix}-${String(counter).padStart(4, '0')}`;
+  };
+
+  const handleCreateAsset = (formData: any) => {
+    const category = formData.category || createCategory;
+    const newCounter = nextIdCounter + 1;
+    setNextIdCounter(newCounter);
+
+    const newAsset: FieldAsset = {
+      id: `field-${newCounter}`,
+      asset_code: generateAssetCode(category, newCounter),
+      name: formData.name,
+      category: category,
+      category_name: category === 'enclosure' ? 'Kandang' :
+                     category === 'field_equipment' ? 'Peralatan Lapangan' : 'Stasiun Monitoring',
+      status: formData.status || 'active',
+      condition: formData.condition || 'good',
+      location: formData.location || 'HQ',
+      zone: formData.zone || undefined,
+      assigned_to: formData.assigned_to || undefined,
+      purchase_price: formData.purchase_price || 0,
+      purchase_date: formData.purchase_date || new Date().toISOString().split('T')[0],
+      last_maintenance: undefined,
+      next_maintenance: formData.next_maintenance || undefined,
+      warranty_expiry: formData.warranty_expiry || undefined,
+      tags: formData.tags ? formData.tags.split(',').map((t: string) => t.trim()) : [],
+      notes: formData.notes || undefined,
+
+      // Category-specific fields
+      ...(category === 'enclosure' ? {
+        habitat_type: formData.habitat_type || 'terrestrial',
+        enclosure_size: formData.enclosure_size || undefined,
+        capacity: formData.capacity || 0,
+        current_occupancy: formData.current_occupancy || 0,
+        climate_control: formData.climate_control === true,
+        species: formData.species ? formData.species.split(',').map((s: string) => s.trim()) : [],
+      } : {}),
+
+      ...(category === 'field_equipment' ? {
+        equipment_type: formData.equipment_type || 'camera_trap',
+        model: formData.model || undefined,
+        serial_number: formData.serial_number || undefined,
+        battery_level: formData.battery_level || undefined,
+        last_calibration: formData.last_calibration || undefined,
+        next_calibration: formData.next_calibration || undefined,
+        deployment_count: 0,
+        last_deployed: undefined,
+      } : {}),
+
+      ...(category === 'monitoring_station' ? {
+        habitat_zone: formData.habitat_zone || undefined,
+        elevation: formData.elevation || undefined,
+        gps_lat: formData.gps_lat || undefined,
+        gps_lng: formData.gps_lng || undefined,
+        connectivity: formData.connectivity || 'online',
+        last_reading: undefined,
+        sensor_types: formData.sensor_types ? formData.sensor_types.split(',').map((s: string) => s.trim()) : [],
+      } : {}),
+    };
+
+    if (category === 'enclosure') {
+      setEnclosures(prev => [...prev, newAsset]);
+      setDashboardData((prev: any) => prev ? { ...prev, byCategory: { ...prev.byCategory, enclosures: prev.byCategory.enclosures + 1 } } : prev);
+    } else if (category === 'field_equipment') {
+      setFieldEquipment(prev => [...prev, newAsset]);
+      setDashboardData((prev: any) => prev ? { ...prev, byCategory: { ...prev.byCategory, fieldEquipment: prev.byCategory.fieldEquipment + 1 } } : prev);
+    } else {
+      setMonitoringStations(prev => [...prev, newAsset]);
+      setDashboardData((prev: any) => prev ? { ...prev, byCategory: { ...prev.byCategory, monitoringStations: prev.byCategory.monitoringStations + 1 } } : prev);
+    }
+
+    setShowCreateModal(false);
+    setEditingAsset(null);
+  };
+
+  const handleUpdateAsset = (formData: any) => {
+    if (!editingAsset) return;
+
+    const updatedAsset: FieldAsset = {
+      ...editingAsset,
+      name: formData.name || editingAsset.name,
+      status: formData.status || editingAsset.status,
+      condition: formData.condition || editingAsset.condition,
+      location: formData.location !== undefined ? formData.location : editingAsset.location,
+      zone: formData.zone !== undefined ? formData.zone : editingAsset.zone,
+      assigned_to: formData.assigned_to !== undefined ? formData.assigned_to : editingAsset.assigned_to,
+      purchase_price: formData.purchase_price !== undefined ? formData.purchase_price : editingAsset.purchase_price,
+      purchase_date: formData.purchase_date || editingAsset.purchase_date,
+      next_maintenance: formData.next_maintenance !== undefined ? formData.next_maintenance : editingAsset.next_maintenance,
+      warranty_expiry: formData.warranty_expiry !== undefined ? formData.warranty_expiry : editingAsset.warranty_expiry,
+      tags: formData.tags ? formData.tags.split(',').map((t: string) => t.trim()) : editingAsset.tags,
+      notes: formData.notes !== undefined ? formData.notes : editingAsset.notes,
+      
+      // Category-specific
+      ...(editingAsset.category === 'enclosure' ? {
+        habitat_type: formData.habitat_type || editingAsset.habitat_type,
+        enclosure_size: formData.enclosure_size !== undefined ? formData.enclosure_size : editingAsset.enclosure_size,
+        capacity: formData.capacity !== undefined ? formData.capacity : editingAsset.capacity,
+        current_occupancy: formData.current_occupancy !== undefined ? formData.current_occupancy : editingAsset.current_occupancy,
+        climate_control: formData.climate_control !== undefined ? formData.climate_control === true : editingAsset.climate_control,
+        species: formData.species ? formData.species.split(',').map((s: string) => s.trim()) : editingAsset.species,
+      } : {}),
+
+      ...(editingAsset.category === 'field_equipment' ? {
+        equipment_type: formData.equipment_type || editingAsset.equipment_type,
+        model: formData.model !== undefined ? formData.model : editingAsset.model,
+        serial_number: formData.serial_number !== undefined ? formData.serial_number : editingAsset.serial_number,
+        battery_level: formData.battery_level !== undefined ? formData.battery_level : editingAsset.battery_level,
+        last_calibration: formData.last_calibration || editingAsset.last_calibration,
+        next_calibration: formData.next_calibration || editingAsset.next_calibration,
+      } : {}),
+
+      ...(editingAsset.category === 'monitoring_station' ? {
+        habitat_zone: formData.habitat_zone !== undefined ? formData.habitat_zone : editingAsset.habitat_zone,
+        elevation: formData.elevation !== undefined ? formData.elevation : editingAsset.elevation,
+        gps_lat: formData.gps_lat !== undefined ? formData.gps_lat : editingAsset.gps_lat,
+        gps_lng: formData.gps_lng !== undefined ? formData.gps_lng : editingAsset.gps_lng,
+        connectivity: formData.connectivity || editingAsset.connectivity,
+        sensor_types: formData.sensor_types ? formData.sensor_types.split(',').map((s: string) => s.trim()) : editingAsset.sensor_types,
+      } : {}),
+    };
+
+    const updateList = (list: FieldAsset[]) => list.map(a => a.id === editingAsset.id ? updatedAsset : a);
+
+    if (editingAsset.category === 'enclosure') setEnclosures(updateList);
+    else if (editingAsset.category === 'field_equipment') setFieldEquipment(updateList);
+    else setMonitoringStations(updateList);
+
+    // If selected asset in detail, update it too
+    if (selectedAsset?.id === editingAsset.id) setSelectedAsset(updatedAsset);
+
+    setShowCreateModal(false);
+    setEditingAsset(null);
+  };
+
+  const handleDeleteAsset = () => {
+    if (!deletingAsset) return;
+
+    const removeFromList = (list: FieldAsset[]) => list.filter(a => a.id !== deletingAsset.id);
+
+    if (deletingAsset.category === 'enclosure') {
+      setEnclosures(removeFromList);
+      setDashboardData((prev: any) => prev ? { ...prev, byCategory: { ...prev.byCategory, enclosures: Math.max(0, prev.byCategory.enclosures - 1) } } : prev);
+    } else if (deletingAsset.category === 'field_equipment') {
+      setFieldEquipment(removeFromList);
+      setDashboardData((prev: any) => prev ? { ...prev, byCategory: { ...prev.byCategory, fieldEquipment: Math.max(0, prev.byCategory.fieldEquipment - 1) } } : prev);
+    } else {
+      setMonitoringStations(removeFromList);
+      setDashboardData((prev: any) => prev ? { ...prev, byCategory: { ...prev.byCategory, monitoringStations: Math.max(0, prev.byCategory.monitoringStations - 1) } } : prev);
+    }
+
+    if (selectedAsset?.id === deletingAsset.id) {
+      setShowDetailModal(false);
+      setSelectedAsset(null);
+    }
+
+    setShowDeleteConfirm(false);
+    setDeletingAsset(null);
+  };
+
   return (
     <HQLayout title="Manajemen Aset Lapangan" noPadding>
     <ModuleGuard moduleCode="asset_management">
@@ -387,8 +561,15 @@ export default function FieldAssetsPage() {
         selectedAsset={selectedAsset} showDetailModal={showDetailModal}
         onView={(a) => { setSelectedAsset(a); setShowDetailModal(true); }}
         onCloseDetail={() => { setShowDetailModal(false); setSelectedAsset(null); }}
+        onEdit={(a: FieldAsset) => { setEditingAsset(a); setShowCreateModal(true); }}
+        onDelete={(a: FieldAsset) => { setDeletingAsset(a); setShowDeleteConfirm(true); }}
         formatCurrency={formatCurrency} formatDate={formatDate}
         router={router}
+        showCreateModal={showCreateModal} setShowCreateModal={setShowCreateModal}
+        editingAsset={editingAsset} createCategory={createCategory} setCreateCategory={setCreateCategory}
+        onSaveAsset={editingAsset ? handleUpdateAsset : handleCreateAsset}
+        showDeleteConfirm={showDeleteConfirm} deletingAsset={deletingAsset}
+        onConfirmDelete={handleDeleteAsset} onCancelDelete={() => { setShowDeleteConfirm(false); setDeletingAsset(null); }}
       />
     </ModuleGuard>
     </HQLayout>
@@ -403,15 +584,47 @@ function FieldAssetsContent(props: any) {
     activeTab, setActiveTab, tabs, loading,
     dashboardData, enclosures, fieldEquipment, monitoringStations, maintenanceLogs,
     searchTerm, filterStatus, onSearch, onFilterStatus,
-    selectedAsset, showDetailModal, onView, onCloseDetail,
-    formatCurrency, formatDate, router
+    selectedAsset, showDetailModal, onView, onCloseDetail, onEdit, onDelete,
+    formatCurrency, formatDate, router,
+    showCreateModal, setShowCreateModal,
+    editingAsset, createCategory, setCreateCategory,
+    onSaveAsset,
+    showDeleteConfirm, deletingAsset, onConfirmDelete, onCancelDelete,
   } = props;
+
+  // Get category from active tab
+  const getCategoryFromTab = () => {
+    if (activeTab === 'enclosures') return 'enclosure';
+    if (activeTab === 'equipment') return 'field_equipment';
+    if (activeTab === 'stations') return 'monitoring_station';
+    return 'enclosure';
+  };
+
+  const handleCreateClick = () => {
+    setCreateCategory(getCategoryFromTab());
+    setShowCreateModal(true);
+  };
+
+  // Assets for active tab
+  const getActiveAssets = () => {
+    if (activeTab === 'enclosures') return enclosures;
+    if (activeTab === 'equipment') return fieldEquipment;
+    if (activeTab === 'stations') return monitoringStations;
+    return [];
+  };
 
   const renderAssetCard = (asset: FieldAsset) => {
     const Icon = CATEGORY_ICONS[asset.category] || Package;
+    const handleCardClick = (e: React.MouseEvent) => {
+      // Don't open detail if clicking action buttons
+      const target = e.target as HTMLElement;
+      if (target.closest('.card-actions')) return;
+      onView(asset);
+    };
+
     return (
       <div key={asset.id} className="bg-white rounded-xl p-4 shadow-sm border hover:shadow-md transition cursor-pointer"
-        onClick={() => onView(asset)}>
+        onClick={handleCardClick}>
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
@@ -428,9 +641,23 @@ function FieldAssetsContent(props: any) {
               <p className="text-xs text-gray-400 font-mono">{asset.asset_code}</p>
             </div>
           </div>
-          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[asset.status]}`}>
-            {asset.status}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[asset.status]}`}>
+              {asset.status}
+            </span>
+            <div className="card-actions flex items-center gap-1 ml-1" onClick={e => e.stopPropagation()}>
+              <button onClick={() => onEdit(asset)}
+                className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-blue-600 transition"
+                title="Edit">
+                <Edit className="w-4 h-4" />
+              </button>
+              <button onClick={() => onDelete(asset)}
+                className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-red-600 transition"
+                title="Hapus">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         </div>
 
         {asset.category === 'enclosure' && asset.species && (
@@ -475,7 +702,7 @@ function FieldAssetsContent(props: any) {
                 {asset.connectivity}
               </span>
             )}
-            {asset.gps_lat && (
+            {asset.gps_lat && asset.gps_lng && (
               <span className="text-xs text-gray-400 font-mono">
                 {asset.gps_lat.toFixed(4)}°S, {asset.gps_lng.toFixed(4)}°E
               </span>
@@ -547,6 +774,10 @@ function FieldAssetsContent(props: any) {
             <option value="retired">Retired</option>
             <option value="lost">Lost</option>
           </select>
+          <button onClick={handleCreateClick}
+            className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition text-sm font-medium">
+            <Plus className="w-4 h-4" /> Tambah
+          </button>
         </div>
       )}
 
@@ -610,8 +841,27 @@ function FieldAssetsContent(props: any) {
 
       {/* Detail Modal */}
       {showDetailModal && selectedAsset && (
-        <AssetDetailModal asset={selectedAsset} onClose={onCloseDetail}
+        <AssetDetailModal asset={selectedAsset} onClose={onCloseDetail} onEdit={onEdit}
           formatCurrency={formatCurrency} formatDate={formatDate} />
+      )}
+
+      {/* Create/Edit Form Modal */}
+      {showCreateModal && (
+        <FieldAssetFormModal
+          asset={editingAsset}
+          initialCategory={createCategory}
+          onClose={() => { setShowCreateModal(false); setEditingAsset(null); }}
+          onSave={onSaveAsset}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && deletingAsset && (
+        <DeleteConfirmModal
+          asset={deletingAsset}
+          onClose={onCancelDelete}
+          onConfirm={onConfirmDelete}
+        />
       )}
     </div>
   );
@@ -870,7 +1120,7 @@ function MaintenanceTab({ logs, formatCurrency, formatDate }: any) {
 // ============================================================
 // ASSET DETAIL MODAL
 // ============================================================
-function AssetDetailModal({ asset, onClose, formatCurrency, formatDate }: any) {
+function AssetDetailModal({ asset, onClose, onEdit, formatCurrency, formatDate }: any) {
   const Icon = CATEGORY_ICONS[asset.category] || Package;
   const [activeSubTab, setActiveSubTab] = useState('overview');
 
@@ -1003,7 +1253,7 @@ function AssetDetailModal({ asset, onClose, formatCurrency, formatDate }: any) {
                     <div className="space-y-2 text-sm">
                       <DetailRow label="Tipe Habitat" value={asset.habitat_zone} />
                       <DetailRow label="Elevasi" value={asset.elevation ? `${asset.elevation} mdpl` : '-'} />
-                      <DetailRow label="Koordinat GPS" value={asset.gps_lat ? `${asset.gps_lat.toFixed(4)}°S, ${asset.gps_lng.toFixed(4)}°E` : '-'} />
+                      <DetailRow label="Koordinat GPS" value={asset.gps_lat && asset.gps_lng ? `${asset.gps_lat.toFixed(4)}°S, ${asset.gps_lng.toFixed(4)}°E` : '-'} />
                       <DetailRow label="Konektivitas" value={
                         <span className={`px-2 py-0.5 rounded text-xs font-medium ${CONNECTIVITY_COLORS[asset.connectivity] || 'bg-gray-100 text-gray-600'}`}>
                           {asset.connectivity}
@@ -1096,9 +1346,12 @@ function AssetDetailModal({ asset, onClose, formatCurrency, formatDate }: any) {
           <button className="px-4 py-2 text-sm text-gray-600 hover:bg-white border rounded-lg flex items-center gap-2">
             <Eye className="w-4 h-4" /> Lihat Log
           </button>
-          <button className="px-4 py-2 text-sm text-gray-600 hover:bg-white border rounded-lg flex items-center gap-2">
-            <Edit className="w-4 h-4" /> Edit
-          </button>
+          {onEdit && (
+            <button onClick={() => { onClose(); onEdit(asset); }}
+              className="px-4 py-2 text-sm text-gray-600 hover:bg-white border rounded-lg flex items-center gap-2">
+              <Edit className="w-4 h-4" /> Edit
+            </button>
+          )}
           <button className="px-4 py-2 text-sm bg-teal-600 text-white hover:bg-teal-700 rounded-lg flex items-center gap-2">
             <ArrowRightLeft className="w-4 h-4" /> Transfer/Deploy
           </button>
@@ -1115,6 +1368,463 @@ function DetailRow({ label, value }: { label: string; value: any }) {
       {typeof value === 'string' || typeof value === 'number' || value === undefined ? (
         <span className="text-gray-900">{value || '-'}</span>
       ) : value}
+    </div>
+  );
+}
+
+// ============================================================
+// DELETE CONFIRMATION MODAL
+// ============================================================
+function DeleteConfirmModal({ asset, onClose, onConfirm }: any) {
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="px-6 py-4 border-b">
+          <h2 className="text-lg font-bold text-gray-900">Konfirmasi Penghapusan</h2>
+          <p className="text-sm text-gray-500 mt-1">{asset.name} ({asset.asset_code})</p>
+        </div>
+        <div className="p-6">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-800">
+            <AlertTriangle className="w-5 h-5 inline-block mr-2" />
+            <span>Anda yakin ingin menghapus aset ini? Tindakan ini tidak dapat dibatalkan.</span>
+          </div>
+        </div>
+        <div className="px-6 py-4 border-t flex justify-end gap-3">
+          <button onClick={onClose}
+            className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">
+            Batal
+          </button>
+          <button onClick={onConfirm}
+            className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">
+            Hapus Permanen
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// FIELD ASSET FORM MODAL
+// ============================================================
+function FieldAssetFormModal({ asset, initialCategory, onClose, onSave }: any) {
+  const isEdit = !!asset;
+  const [formCategory, setFormCategory] = useState<string>(
+    asset?.category || initialCategory || 'enclosure'
+  );
+
+  // Common fields
+  const [form, setForm] = useState({
+    name: asset?.name || '',
+    status: asset?.status || 'active',
+    condition: asset?.condition || 'good',
+    location: asset?.location || '',
+    zone: asset?.zone || '',
+    assigned_to: asset?.assigned_to || '',
+    purchase_price: asset?.purchase_price || 0,
+    purchase_date: asset?.purchase_date || '',
+    warranty_expiry: asset?.warranty_expiry || '',
+    next_maintenance: asset?.next_maintenance || '',
+    tags: asset?.tags?.join(', ') || '',
+    notes: asset?.notes || '',
+
+    // Enclosure-specific
+    habitat_type: asset?.habitat_type || 'terrestrial',
+    enclosure_size: asset?.enclosure_size || '',
+    capacity: asset?.capacity || 0,
+    current_occupancy: asset?.current_occupancy || 0,
+    climate_control: asset?.climate_control || false,
+    species: asset?.species?.join(', ') || '',
+
+    // Field Equipment-specific
+    equipment_type: asset?.equipment_type || 'camera_trap',
+    model: asset?.model || '',
+    serial_number: asset?.serial_number || '',
+    battery_level: asset?.battery_level || 100,
+    last_calibration: asset?.last_calibration || '',
+    next_calibration: asset?.next_calibration || '',
+
+    // Monitoring Station-specific
+    habitat_zone: asset?.habitat_zone || '',
+    elevation: asset?.elevation || undefined,
+    gps_lat: asset?.gps_lat || undefined,
+    gps_lng: asset?.gps_lng || undefined,
+    connectivity: asset?.connectivity || 'online',
+    sensor_types: asset?.sensor_types?.join(', ') || '',
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name.trim()) {
+      alert('Nama aset wajib diisi');
+      return;
+    }
+
+    const submitData = {
+      ...form,
+      category: formCategory,
+    };
+
+    // Parse number fields
+    if (submitData.purchase_price !== undefined) {
+      submitData.purchase_price = parseFloat(submitData.purchase_price as any) || 0;
+    }
+    if (submitData.capacity !== undefined) {
+      submitData.capacity = parseInt(submitData.capacity as any) || 0;
+    }
+    if (submitData.current_occupancy !== undefined) {
+      submitData.current_occupancy = parseInt(submitData.current_occupancy as any) || 0;
+    }
+    if (submitData.battery_level !== undefined) {
+      submitData.battery_level = parseInt(submitData.battery_level as any) || 0;
+    }
+    if (submitData.elevation !== undefined && submitData.elevation !== '') {
+      submitData.elevation = parseFloat(submitData.elevation as any);
+    }
+    if (submitData.gps_lat !== undefined && submitData.gps_lat !== '') {
+      submitData.gps_lat = parseFloat(submitData.gps_lat as any);
+    }
+    if (submitData.gps_lng !== undefined && submitData.gps_lng !== '') {
+      submitData.gps_lng = parseFloat(submitData.gps_lng as any);
+    }
+
+    onSave(submitData);
+  };
+
+  const categoryTabs = [
+    { id: 'enclosure', label: 'Kandang', icon: Home },
+    { id: 'field_equipment', label: 'Peralatan', icon: Radio },
+    { id: 'monitoring_station', label: 'Stasiun', icon: MapPin },
+  ];
+
+  const equipmentTypes = [
+    'camera_trap', 'radio_tracker', 'drone', 'binocular', 'field_gear', 'safety_equipment', 'communication', 'other'
+  ];
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center pt-6 overflow-y-auto pb-10">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl mx-4 mb-10">
+        <div className="px-6 py-4 border-b flex items-center justify-between sticky top-0 bg-white z-10">
+          <h2 className="text-lg font-bold text-gray-900">
+            {isEdit ? 'Edit Aset Lapangan' : 'Tambah Aset Lapangan Baru'}
+          </h2>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
+            <XCircle className="w-5 h-5 text-gray-400" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+          {/* Category Selector (for create only) */}
+          {!isEdit && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Kategori Aset *</label>
+              <div className="flex gap-2">
+                {categoryTabs.map((ct) => {
+                  const Icon = ct.icon;
+                  const isActive = formCategory === ct.id;
+                  return (
+                    <button key={ct.id} type="button"
+                      onClick={() => setFormCategory(ct.id)}
+                      className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 transition font-medium text-sm ${
+                        isActive
+                          ? 'border-teal-500 bg-teal-50 text-teal-700'
+                          : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                      }`}>
+                      <Icon className="w-4 h-4" />
+                      {ct.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Basic Info */}
+          <div>
+            <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <Package className="w-4 h-4" /> Informasi Dasar
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
+                <label className="block text-xs text-gray-500 mb-1">Nama Aset *</label>
+                <input type="text" required
+                  value={form.name}
+                  onChange={e => setForm({...form, name: e.target.value})}
+                  className="w-full px-3 py-2 border rounded-lg text-sm"
+                  placeholder="Masukkan nama aset..." />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Status</label>
+                <select value={form.status}
+                  onChange={e => setForm({...form, status: e.target.value})}
+                  className="w-full px-3 py-2 border rounded-lg text-sm">
+                  <option value="active">Active</option>
+                  <option value="deployed">Deployed</option>
+                  <option value="maintenance">Maintenance</option>
+                  <option value="retired">Retired</option>
+                  <option value="lost">Lost</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Kondisi</label>
+                <select value={form.condition}
+                  onChange={e => setForm({...form, condition: e.target.value})}
+                  className="w-full px-3 py-2 border rounded-lg text-sm">
+                  <option value="excellent">Excellent</option>
+                  <option value="good">Good</option>
+                  <option value="fair">Fair</option>
+                  <option value="poor">Poor</option>
+                  <option value="broken">Broken</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Lokasi</label>
+                <input type="text" value={form.location}
+                  onChange={e => setForm({...form, location: e.target.value})}
+                  className="w-full px-3 py-2 border rounded-lg text-sm"
+                  placeholder="e.g., Site A, HQ" />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Zona</label>
+                <input type="text" value={form.zone}
+                  onChange={e => setForm({...form, zone: e.target.value})}
+                  className="w-full px-3 py-2 border rounded-lg text-sm"
+                  placeholder="e.g., Zona 1, Timur" />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Penanggung Jawab</label>
+                <input type="text" value={form.assigned_to}
+                  onChange={e => setForm({...form, assigned_to: e.target.value})}
+                  className="w-full px-3 py-2 border rounded-lg text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Harga Perolehan (Rp)</label>
+                <input type="number" value={form.purchase_price}
+                  onChange={e => setForm({...form, purchase_price: e.target.value})}
+                  className="w-full px-3 py-2 border rounded-lg text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Tanggal Perolehan</label>
+                <input type="date" value={form.purchase_date}
+                  onChange={e => setForm({...form, purchase_date: e.target.value})}
+                  className="w-full px-3 py-2 border rounded-lg text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Garansi s/d</label>
+                <input type="date" value={form.warranty_expiry}
+                  onChange={e => setForm({...form, warranty_expiry: e.target.value})}
+                  className="w-full px-3 py-2 border rounded-lg text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Maintenance Berikutnya</label>
+                <input type="date" value={form.next_maintenance}
+                  onChange={e => setForm({...form, next_maintenance: e.target.value})}
+                  className="w-full px-3 py-2 border rounded-lg text-sm" />
+              </div>
+            </div>
+          </div>
+
+          {/* Category-Specific Fields */}
+          {formCategory === 'enclosure' && (
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <Home className="w-4 h-4" /> Informasi Kandang
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Tipe Habitat</label>
+                  <select value={form.habitat_type}
+                    onChange={e => setForm({...form, habitat_type: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-lg text-sm">
+                    <option value="terrestrial">Terestrial (Darat)</option>
+                    <option value="aquatic">Akuatik (Air)</option>
+                    <option value="semi_aquatic">Semi Akuatik</option>
+                    <option value="arboreal">Arboreal (Pohon)</option>
+                    <option value="aviary">Aviary (Burung)</option>
+                    <option value="mixed">Campuran</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Ukuran</label>
+                  <input type="text" value={form.enclosure_size}
+                    onChange={e => setForm({...form, enclosure_size: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                    placeholder="e.g., 10m x 8m x 5m" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Kapasitas</label>
+                  <input type="number" value={form.capacity}
+                    onChange={e => setForm({...form, capacity: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Penghuni Saat Ini</label>
+                  <input type="number" value={form.current_occupancy}
+                    onChange={e => setForm({...form, current_occupancy: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-lg text-sm" />
+                </div>
+                <div className="col-span-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={form.climate_control}
+                      onChange={e => setForm({...form, climate_control: e.target.checked})}
+                      className="rounded" />
+                    <span className="text-sm text-gray-700">Climate Control terpasang</span>
+                  </label>
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs text-gray-500 mb-1">Spesies (pisahkan dengan koma)</label>
+                  <input type="text" value={form.species}
+                    onChange={e => setForm({...form, species: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                    placeholder="e.g., Panthera tigris, Hylobates moloch" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {formCategory === 'field_equipment' && (
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <Radio className="w-4 h-4" /> Informasi Peralatan
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Tipe Peralatan</label>
+                  <select value={form.equipment_type}
+                    onChange={e => setForm({...form, equipment_type: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-lg text-sm">
+                    {equipmentTypes.map((t) => (
+                      <option key={t} value={t}>
+                        {t.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Model</label>
+                  <input type="text" value={form.model}
+                    onChange={e => setForm({...form, model: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Serial Number</label>
+                  <input type="text" value={form.serial_number}
+                    onChange={e => setForm({...form, serial_number: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Level Baterai (%)</label>
+                  <input type="number" min={0} max={100} value={form.battery_level}
+                    onChange={e => setForm({...form, battery_level: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Kalibrasi Terakhir</label>
+                  <input type="date" value={form.last_calibration}
+                    onChange={e => setForm({...form, last_calibration: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Kalibrasi Berikutnya</label>
+                  <input type="date" value={form.next_calibration}
+                    onChange={e => setForm({...form, next_calibration: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-lg text-sm" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {formCategory === 'monitoring_station' && (
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <MapPin className="w-4 h-4" /> Informasi Stasiun Monitoring
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Zona Habitat</label>
+                  <input type="text" value={form.habitat_zone}
+                    onChange={e => setForm({...form, habitat_zone: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                    placeholder="e.g., Rainforest Zone" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Elevasi (mdpl)</label>
+                  <input type="number" step="0.01" value={form.elevation}
+                    onChange={e => setForm({...form, elevation: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">GPS Latitude (°S)</label>
+                  <input type="number" step="0.0001" value={form.gps_lat}
+                    onChange={e => setForm({...form, gps_lat: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                    placeholder="-6.1234" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">GPS Longitude (°E)</label>
+                  <input type="number" step="0.0001" value={form.gps_lng}
+                    onChange={e => setForm({...form, gps_lng: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                    placeholder="106.1234" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Konektivitas</label>
+                  <select value={form.connectivity}
+                    onChange={e => setForm({...form, connectivity: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-lg text-sm">
+                    <option value="online">Online</option>
+                    <option value="offline">Offline</option>
+                    <option value="intermittent">Intermittent</option>
+                  </select>
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs text-gray-500 mb-1">Tipe Sensor (pisahkan dengan koma)</label>
+                  <input type="text" value={form.sensor_types}
+                    onChange={e => setForm({...form, sensor_types: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                    placeholder="e.g., temperature, humidity, camera" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Tags & Notes */}
+          <div>
+            <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <Tag className="w-4 h-4" /> Lainnya
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Tags (pisahkan dengan koma)</label>
+                <input type="text" value={form.tags}
+                  onChange={e => setForm({...form, tags: e.target.value})}
+                  className="w-full px-3 py-2 border rounded-lg text-sm"
+                  placeholder="e.g., konservasi, site-a, prioritas" />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Catatan</label>
+                <textarea value={form.notes}
+                  onChange={e => setForm({...form, notes: e.target.value})}
+                  rows={3}
+                  className="w-full px-3 py-2 border rounded-lg text-sm"
+                  placeholder="Catatan tambahan..." />
+              </div>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <button type="button" onClick={onClose}
+              className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">
+              Batal
+            </button>
+            <button type="submit"
+              className="px-6 py-2 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700 font-medium">
+              {isEdit ? 'Simpan Perubahan' : 'Daftarkan Aset'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

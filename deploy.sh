@@ -3,7 +3,7 @@
 # ============================================================================
 # Bedagang POS System - Deployment Script
 # ============================================================================
-# Server: 103.253.212.64
+# Server: $SERVER_IP
 # Usage: ./deploy.sh
 # ============================================================================
 
@@ -17,7 +17,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-SERVER_IP="103.253.212.64"
+SERVER_IP=""
 SERVER_USER="root"
 APP_DIR="/var/www/bedagang"
 APP_NAME="bedagang"

@@ -1,6 +1,6 @@
 # Quick Fix Guide - ERR_CONNECTION_REFUSED
 
-## 🚨 Problem: Cannot Access http://103.253.212.64
+## 🚨 Problem: Cannot Access http://$SERVER_IP
 
 **Error:** ERR_CONNECTION_REFUSED
 
@@ -25,7 +25,7 @@
 
 ```bash
 # Connect to server
-ssh root@103.253.212.64
+ssh root@$SERVER_IP
 
 # Navigate to app directory
 cd /var/www/bedagang
@@ -47,17 +47,17 @@ pm2 logs bedagang
 
 ```bash
 # From your local machine
-ssh root@103.253.212.64 "pm2 status"
+ssh root@$SERVER_IP "pm2 status"
 
 # Check if port 3000 is listening
-ssh root@103.253.212.64 "netstat -tulpn | grep :3000"
+ssh root@$SERVER_IP "netstat -tulpn | grep :3000"
 ```
 
 ### Solution 4: Open Firewall Ports
 
 ```bash
 # Connect to server
-ssh root@103.253.212.64
+ssh root@$SERVER_IP
 
 # Allow port 3000 (application)
 sudo ufw allow 3000/tcp
@@ -82,7 +82,7 @@ sudo ufw status
 **Solution:**
 ```bash
 # Connect to server
-ssh root@103.253.212.64
+ssh root@$SERVER_IP
 
 # Create directory
 sudo mkdir -p /var/www/bedagang
@@ -115,7 +115,7 @@ pm2 save
 
 **Solution:**
 ```bash
-ssh root@103.253.212.64 "cd /var/www/bedagang && pm2 start npm --name bedagang -- start"
+ssh root@$SERVER_IP "cd /var/www/bedagang && pm2 start npm --name bedagang -- start"
 ```
 
 ### 3. Application Crashed
@@ -127,7 +127,7 @@ ssh root@103.253.212.64 "cd /var/www/bedagang && pm2 start npm --name bedagang -
 **Solution:**
 ```bash
 # View logs to identify error
-ssh root@103.253.212.64 "pm2 logs bedagang --lines 50"
+ssh root@$SERVER_IP "pm2 logs bedagang --lines 50"
 
 # Common fixes:
 # - Missing .env file
@@ -135,7 +135,7 @@ ssh root@103.253.212.64 "pm2 logs bedagang --lines 50"
 # - Port already in use
 
 # Restart application
-ssh root@103.253.212.64 "pm2 restart bedagang"
+ssh root@$SERVER_IP "pm2 restart bedagang"
 ```
 
 ### 4. Firewall Blocking Connection
@@ -146,7 +146,7 @@ ssh root@103.253.212.64 "pm2 restart bedagang"
 
 **Solution:**
 ```bash
-ssh root@103.253.212.64 << 'EOF'
+ssh root@$SERVER_IP << 'EOF'
 sudo ufw allow 3000/tcp
 sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
@@ -157,14 +157,14 @@ EOF
 ### 5. Wrong Port or URL
 
 **Try these URLs:**
-- http://103.253.212.64:3000 (with port 3000)
-- http://103.253.212.64 (if Nginx configured)
+- http://$SERVER_IP:3000 (with port 3000)
+- http://$SERVER_IP (if Nginx configured)
 
 ### 6. Node.js Not Installed
 
 **Solution:**
 ```bash
-ssh root@103.253.212.64 << 'EOF'
+ssh root@$SERVER_IP << 'EOF'
 curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 sudo apt install -y nodejs
 node --version
@@ -176,19 +176,19 @@ EOF
 
 **Solution:**
 ```bash
-ssh root@103.253.212.64 "sudo npm install -g pm2"
+ssh root@$SERVER_IP "sudo npm install -g pm2"
 ```
 
 ### 8. Missing Environment Variables
 
 **Solution:**
 ```bash
-ssh root@103.253.212.64 << 'EOF'
+ssh root@$SERVER_IP << 'EOF'
 cd /var/www/bedagang
 # Create .env file
 cat > .env << 'ENVEOF'
 DATABASE_URL=postgresql://bedagang_user:password@localhost:5432/bedagang_production
-NEXTAUTH_URL=http://103.253.212.64:3000
+NEXTAUTH_URL=http://$SERVER_IP:3000
 NEXTAUTH_SECRET=$(openssl rand -base64 32)
 NODE_ENV=production
 PORT=3000
@@ -203,7 +203,7 @@ EOF
 
 ### Step 1: Connect to Server
 ```bash
-ssh root@103.253.212.64
+ssh root@$SERVER_IP
 ```
 
 ### Step 2: Install Prerequisites
@@ -284,7 +284,7 @@ netstat -tulpn | grep :3000
 curl http://localhost:3000
 
 # Access from browser
-# http://103.253.212.64:3000
+# http://$SERVER_IP:3000
 ```
 
 ---
@@ -293,37 +293,37 @@ curl http://localhost:3000
 
 ### Check Application Status
 ```bash
-ssh root@103.253.212.64 "pm2 status"
+ssh root@$SERVER_IP "pm2 status"
 ```
 
 ### View Logs
 ```bash
-ssh root@103.253.212.64 "pm2 logs bedagang --lines 50"
+ssh root@$SERVER_IP "pm2 logs bedagang --lines 50"
 ```
 
 ### Restart Application
 ```bash
-ssh root@103.253.212.64 "pm2 restart bedagang"
+ssh root@$SERVER_IP "pm2 restart bedagang"
 ```
 
 ### Stop Application
 ```bash
-ssh root@103.253.212.64 "pm2 stop bedagang"
+ssh root@$SERVER_IP "pm2 stop bedagang"
 ```
 
 ### Check Port Usage
 ```bash
-ssh root@103.253.212.64 "netstat -tulpn | grep :3000"
+ssh root@$SERVER_IP "netstat -tulpn | grep :3000"
 ```
 
 ### Check Firewall
 ```bash
-ssh root@103.253.212.64 "sudo ufw status"
+ssh root@$SERVER_IP "sudo ufw status"
 ```
 
 ### Test Connection from Server
 ```bash
-ssh root@103.253.212.64 "curl http://localhost:3000"
+ssh root@$SERVER_IP "curl http://localhost:3000"
 ```
 
 ---
@@ -332,27 +332,27 @@ ssh root@103.253.212.64 "curl http://localhost:3000"
 
 ### Check All Listening Ports
 ```bash
-ssh root@103.253.212.64 "sudo netstat -tulpn | grep LISTEN"
+ssh root@$SERVER_IP "sudo netstat -tulpn | grep LISTEN"
 ```
 
 ### Check Running Node Processes
 ```bash
-ssh root@103.253.212.64 "ps aux | grep node"
+ssh root@$SERVER_IP "ps aux | grep node"
 ```
 
 ### Kill Process on Port 3000
 ```bash
-ssh root@103.253.212.64 "sudo kill -9 \$(sudo lsof -t -i:3000)"
+ssh root@$SERVER_IP "sudo kill -9 \$(sudo lsof -t -i:3000)"
 ```
 
 ### Check System Resources
 ```bash
-ssh root@103.253.212.64 "free -h && df -h"
+ssh root@$SERVER_IP "free -h && df -h"
 ```
 
 ### View System Logs
 ```bash
-ssh root@103.253.212.64 "sudo journalctl -u nginx -n 50"
+ssh root@$SERVER_IP "sudo journalctl -u nginx -n 50"
 ```
 
 ---
@@ -366,7 +366,7 @@ ssh root@103.253.212.64 "sudo journalctl -u nginx -n 50"
 ```
 
 ### Check These:
-1. ✅ Server is accessible (ping 103.253.212.64)
+1. ✅ Server is accessible (ping $SERVER_IP)
 2. ✅ SSH connection works
 3. ✅ Application directory exists
 4. ✅ Node.js is installed
@@ -389,11 +389,11 @@ ssh root@103.253.212.64 "sudo journalctl -u nginx -n 50"
 After fixing, you should see:
 - ✅ `pm2 status` shows "online"
 - ✅ `netstat -tulpn | grep :3000` shows LISTEN
-- ✅ Browser can access http://103.253.212.64:3000
+- ✅ Browser can access http://$SERVER_IP:3000
 - ✅ No errors in `pm2 logs bedagang`
 
 ---
 
 **Last Updated:** February 10, 2026  
-**Server:** 103.253.212.64  
+**Server:** $SERVER_IP  
 **Application:** Bedagang POS System

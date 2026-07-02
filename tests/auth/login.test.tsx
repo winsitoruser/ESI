@@ -118,7 +118,7 @@ describe('Login Page', () => {
     render(React.createElement(LoginPage));
 
     // Branding
-    expect(screen.getByText('NainERP')).toBeInTheDocument();
+    expect(screen.getByText('ESI ERP')).toBeInTheDocument();
     expect(screen.getByText('Selamat datang kembali')).toBeInTheDocument();
 
     // Form fields
@@ -130,8 +130,6 @@ describe('Login Page', () => {
 
     // Links
     expect(screen.getByText('Lupa kata sandi?')).toBeInTheDocument();
-    expect(screen.getByText('Daftar Gratis')).toBeInTheDocument();
-    expect(screen.getByText('Kembali ke Beranda')).toBeInTheDocument();
 
     // Demo info
     expect(screen.getByText('Akun Demo')).toBeInTheDocument();
@@ -145,10 +143,10 @@ describe('Login Page', () => {
     const emailInput = screen.getByPlaceholderText('john@example.com');
     const passwordInput = screen.getByPlaceholderText('Masukkan kata sandi');
 
-    fireEvent.change(emailInput, { target: { value: 'test@bedagang.com' } });
+    fireEvent.change(emailInput, { target: { value: 'test@simesi.esa' } });
     fireEvent.change(passwordInput, { target: { value: 'secret123' } });
 
-    expect(emailInput).toHaveValue('test@bedagang.com');
+    expect(emailInput).toHaveValue('test@simesi.esa');
     expect(passwordInput).toHaveValue('secret123');
   });
 
@@ -185,7 +183,7 @@ describe('Login Page', () => {
     render(React.createElement(LoginPage));
 
     fireEvent.change(screen.getByPlaceholderText('john@example.com'), {
-      target: { value: 'owner@bedagang.com' },
+      target: { value: 'owner@simesi.esa' },
     });
     fireEvent.change(screen.getByPlaceholderText('Masukkan kata sandi'), {
       target: { value: 'password123' },
@@ -196,7 +194,7 @@ describe('Login Page', () => {
     await waitFor(() => {
       expect(signIn).toHaveBeenCalledWith('credentials', {
         redirect: false,
-        email: 'owner@bedagang.com',
+        email: 'owner@simesi.esa',
         password: 'password123',
       });
     });

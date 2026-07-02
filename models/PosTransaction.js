@@ -116,7 +116,7 @@ const PosTransaction = sequelize.define('PosTransaction', {
       fields: ['status']
     },
     {
-      fields: ['branchId']
+      fields: ['branch_id']
     }
   ]
 });
