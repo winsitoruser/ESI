@@ -11,7 +11,7 @@ async function q(sql: string, replacements?: any): Promise<any[]> {
     const [rows] = await sequelize.query(sql, replacements ? { replacements } : undefined);
     return rows || [];
   } catch (e: any) {
-    console.error('Notification Query Error:', e.message);
+    console.warn('Notification Query (table may not exist):', e.message);
     return [];
   }
 }
