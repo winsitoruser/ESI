@@ -137,6 +137,24 @@ function letterheadHTML(lh: LetterheadConfig, headerColor: string): string {
   return `<div style="${border}text-align:center;color:${headerColor};">${centerLogo}${info}</div>`;
 }
 
+function formatBodyHtml(body: string, bodyAlign: string): string {
+  const blocks = (body || '').replace(/\r\n/g, '\n').split(/\n\n+/);
+  return blocks.map((block) => {
+    const trimmed = block.trim();
+    if (!trimmed) return '';
+    const lines = trimmed.split('\n');
+    const nonEmpty = lines.map((l) => l.replace(/\t+/g, ' ').trim()).filter(Boolean);
+    const kvLines = nonEmpty.map((l) => parseKeyValueLine(l));
+    if (nonEmpty.length >= 2 && kvLines.every(Boolean)) {
+      const rows = kvLines.map((kv) =>
+        `<div class="kv-row"><span>${escapeHtml(kv!.label)}</span><span>:</span><span>${escapeHtml(kv!.value)}</span></div>`
+      ).join('');
+      return `<div class="kv">${rows}</div>`;
+    }
+    return `<p style="text-align:${bodyAlign}">${escapeHtml(trimmed)}</p>`;
+  }).join('');
+}
+
 /** HTML document matching editor preview — used for print preview API */
 export function buildDisciplinaryLetterHTML(data: DisciplinaryLetterRenderData, meta: DisciplinaryLetterMeta): string {
   const dc = buildDraftContent(data);
@@ -180,7 +198,10 @@ export function buildDisciplinaryLetterHTML(data: DisciplinaryLetterRenderData, 
     .meta { display: flex; justify-content: space-between; font-size: 10pt; margin-bottom: 24px; font-family: system-ui, sans-serif; }
     .meta .accent { color: ${st.accentColor}; font-weight: 600; }
     .salutation { white-space: pre-line; margin-bottom: 24px; font-size: 10.5pt; }
-    .body { white-space: pre-line; margin-bottom: 16px; text-indent: 2em; text-align: ${st.bodyAlign}; }
+    .body { margin-bottom: 16px; text-align: ${st.bodyAlign}; }
+    .body p { margin: 0 0 12px; text-indent: 2em; white-space: pre-line; }
+    .body .kv { margin: 12px 0 12px 1.5em; text-indent: 0; }
+    .body .kv-row { display: grid; grid-template-columns: 7.5em 0.75em 1fr; gap: 0 0.4em; margin: 2px 0; text-indent: 0; }
     .closing { white-space: pre-line; margin-bottom: 32px; text-align: ${st.bodyAlign}; }
     @media print {
       body { background: #fff; padding: 0; }
@@ -202,7 +223,7 @@ export function buildDisciplinaryLetterHTML(data: DisciplinaryLetterRenderData, 
     </div>
     <div class="salutation">${escapeHtml(dc.salutation || `Kepada Yth.\n${data.employeeName || ''}`)}</div>
     <p style="margin-bottom:16px;">Dengan hormat,</p>
-    <div class="body">${escapeHtml(dc.body)}</div>
+    <div class="body">${formatBodyHtml(dc.body, st.bodyAlign)}</div>
     ${violationBox}
     <div class="closing">${escapeHtml(dc.closing)}</div>
     <p style="margin-bottom:64px;">Demikian surat ini disampaikan untuk dapat diperhatikan dan dijadikan pedoman.</p>
@@ -250,6 +271,137 @@ function ensureSpace(doc: any, y: number, needed: number, margin: number, pageHe
   return y;
 }
 
+/** Detect "Label : value" / "Label\t: value" rows used in surat body */
+function parseKeyValueLine(line: string): { label: string; value: string } | null {
+  const cleaned = line.replace(/\t+/g, ' ').trim();
+  if (!cleaned) return null;
+  const m = cleaned.match(/^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s/]{0,24}?)\s*:\s*(.+)$/);
+  if (!m) return null;
+  const label = m[1].trim();
+  if (label.split(/\s+/).length > 4) return null; // too long → prose, not a field
+  return { label, value: m[2].trim() };
+}
+
+function isKeyValueBlock(lines: string[]): boolean {
+  const nonEmpty = lines.map((l) => l.trim()).filter(Boolean);
+  if (nonEmpty.length < 2) return false;
+  const kvCount = nonEmpty.filter((l) => parseKeyValueLine(l)).length;
+  return kvCount >= 2 && kvCount === nonEmpty.length;
+}
+
+function writeKeyValueBlock(
+  doc: any,
+  lines: string[],
+  x: number,
+  y: number,
+  maxWidth: number,
+  style: LetterStyleConfig,
+  pageHeight: number,
+  margin: number,
+): number {
+  const font = pdfFont(style.fontFamily);
+  const size = ptSize(style.fontSize);
+  const lh = lineSpacing(style);
+  const blockIndent = 8;
+  const labelColW = 32; // mm — fixed column so colons align
+  const left = x + blockIndent;
+
+  doc.setFont(font, 'normal');
+  doc.setFontSize(size);
+  doc.setTextColor(17, 24, 39);
+
+  for (const raw of lines) {
+    if (!raw.trim()) continue;
+    const kv = parseKeyValueLine(raw);
+    y = ensureSpace(doc, y, lh + 2, margin, pageHeight);
+    if (kv) {
+      doc.text(kv.label, left, y);
+      doc.text(':', left + labelColW, y);
+      const valueLines = doc.splitTextToSize(kv.value, maxWidth - blockIndent - labelColW - 4);
+      for (let i = 0; i < valueLines.length; i++) {
+        if (i > 0) {
+          y += lh;
+          y = ensureSpace(doc, y, lh + 2, margin, pageHeight);
+        }
+        doc.text(valueLines[i], left + labelColW + 4, y);
+      }
+    } else {
+      const wrapped = doc.splitTextToSize(raw.trim(), maxWidth - blockIndent);
+      for (const wl of wrapped) {
+        doc.text(wl, left, y);
+        y += lh;
+        y = ensureSpace(doc, y, lh + 2, margin, pageHeight);
+      }
+      y -= lh;
+    }
+    y += lh;
+  }
+  return y + 2;
+}
+
+function writeProseParagraph(
+  doc: any,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  style: LetterStyleConfig,
+  pageHeight: number,
+  margin: number,
+  firstLineIndent: boolean,
+): number {
+  const font = pdfFont(style.fontFamily);
+  const size = ptSize(style.fontSize);
+  const lh = lineSpacing(style);
+  const indentMm = firstLineIndent ? 10 : 0;
+  const hangMm = 8; // uraian / continuation lines after soft newline
+  doc.setFont(font, 'normal');
+  doc.setFontSize(size);
+  doc.setTextColor(17, 24, 39);
+
+  const hardLines = text.replace(/\t+/g, ' ').split('\n');
+  let isFirstHardLine = true;
+
+  for (const hard of hardLines) {
+    if (!hard.trim()) {
+      y += lh * 0.35;
+      continue;
+    }
+
+    if (isFirstHardLine && firstLineIndent) {
+      const wrapWidth = maxWidth - indentMm;
+      const wrapped = doc.splitTextToSize(hard.trim(), wrapWidth);
+      y = ensureSpace(doc, y, wrapped.length * lh + 2, margin, pageHeight);
+      for (let i = 0; i < wrapped.length; i++) {
+        doc.text(wrapped[i], i === 0 ? x + indentMm : x, y);
+        y += lh;
+      }
+    } else if (!isFirstHardLine) {
+      // Soft newline (uraian, quotes, etc.) — slight hang indent, not at margin
+      const wrapWidth = maxWidth - hangMm;
+      const wrapped = doc.splitTextToSize(hard.trim(), wrapWidth);
+      y = ensureSpace(doc, y, wrapped.length * lh + 2, margin, pageHeight);
+      for (const wl of wrapped) {
+        doc.text(wl, x + hangMm, y);
+        y += lh;
+      }
+    } else {
+      const wrapped = doc.splitTextToSize(hard.trim(), maxWidth);
+      y = ensureSpace(doc, y, wrapped.length * lh + 2, margin, pageHeight);
+      for (const wl of wrapped) {
+        doc.text(wl, x, y);
+        y += lh;
+      }
+    }
+    isFirstHardLine = false;
+  }
+  return y + 3;
+}
+
+/**
+ * Render surat body: prose paragraphs + aligned Nama/Jabatan/Departemen blocks.
+ * Fixes jsPDF tab/\n mishandling that made fields and uraian look messy.
+ */
 function writeParagraphs(
   doc: any,
   text: string,
@@ -261,23 +413,18 @@ function writeParagraphs(
   margin: number,
   indent = false,
 ): number {
-  const font = pdfFont(style.fontFamily);
-  const size = ptSize(style.fontSize);
-  const lh = lineSpacing(style);
-  doc.setFont(font, 'normal');
-  doc.setFontSize(size);
-  doc.setTextColor(17, 24, 39);
+  if (!text?.trim()) return y;
 
-  const paragraphs = text.split(/\n\n+/);
-  for (const para of paragraphs) {
-    const lines = doc.splitTextToSize(para.trim(), maxWidth - (indent ? 10 : 0));
-    y = ensureSpace(doc, y, lines.length * lh + 4, margin, pageHeight);
-    for (let i = 0; i < lines.length; i++) {
-      const lineX = indent && i === 0 ? x + 10 : x;
-      doc.text(lines[i], lineX, y);
-      y += lh;
+  const blocks = text.replace(/\r\n/g, '\n').split(/\n\n+/);
+  for (const block of blocks) {
+    const trimmed = block.trim();
+    if (!trimmed) continue;
+    const lines = trimmed.split('\n');
+    if (isKeyValueBlock(lines)) {
+      y = writeKeyValueBlock(doc, lines, x, y, maxWidth, style, pageHeight, margin);
+    } else {
+      y = writeProseParagraph(doc, trimmed, x, y, maxWidth, style, pageHeight, margin, indent);
     }
-    y += 2;
   }
   return y;
 }

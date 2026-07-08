@@ -159,7 +159,35 @@ export function LetterPreviewPaper({
 
       <p className="mb-4">Dengan hormat,</p>
 
-      <div className="whitespace-pre-line mb-4 indent-8" style={{ textAlign: st.bodyAlign }}>{dc.body}</div>
+      <div className="mb-4" style={{ textAlign: st.bodyAlign }}>
+        {dc.body.split(/\n\n+/).map((block, bi) => {
+          const lines = block.trim().split('\n');
+          const isKv = lines.filter((l) => l.trim()).length >= 2
+            && lines.filter((l) => l.trim()).every((l) => /^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s/]{0,24}?\s*:\s*.+/.test(l.replace(/\t+/g, ' ').trim()));
+          if (isKv) {
+            return (
+              <div key={bi} className="my-3 ml-4 space-y-1" style={{ fontFamily: 'inherit' }}>
+                {lines.filter((l) => l.trim()).map((line, li) => {
+                  const m = line.replace(/\t+/g, ' ').trim().match(/^(.+?)\s*:\s*(.+)$/);
+                  if (!m) return <p key={li}>{line}</p>;
+                  return (
+                    <div key={li} className="grid gap-x-2" style={{ gridTemplateColumns: '7.5em 0.75em 1fr' }}>
+                      <span>{m[1].trim()}</span>
+                      <span>:</span>
+                      <span>{m[2].trim()}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          }
+          return (
+            <p key={bi} className="mb-3 whitespace-pre-line indent-8" style={{ textAlign: st.bodyAlign }}>
+              {block.trim()}
+            </p>
+          );
+        })}
+      </div>
 
       {st.showViolationBox && letter.violation_type && (
         <div className="my-4 p-3 rounded text-[10pt]" style={{

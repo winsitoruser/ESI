@@ -516,7 +516,16 @@ export function buildDefaultDraftContent(params: {
     body = `Menindaklanjuti temuan disiplin, dengan ini kami sampaikan Surat Teguran kepada Saudara/i ${employeeName} terkait ${violationLabel.toLowerCase()}.\n\nPada tanggal ${dateStr}, Saudara/i terbukti melakukan pelanggaran:\n${violationDescription}\n\nTeguran ini menjadi peringatan awal agar tidak terulang.`;
     closing = 'Kami harapkan perbaikan sikap dan kepatuhan terhadap peraturan perusahaan. Pelanggaran berulang dapat mengakibatkan Surat Peringatan (SP) sesuai prosedur HR.';
   } else {
-    body = `Berdasarkan hasil pemeriksaan dan/atau laporan atasan langsung, dengan ini ${companyName} menerbitkan ${titles[letterType]} kepada:\n\nNama\t: ${employeeName}\nJabatan\t: ${position || '—'}\nDepartemen\t: ${department || '—'}\n\nKarena telah melakukan pelanggaran ${violationLabel} pada tanggal ${dateStr}, dengan uraian:\n${violationDescription}\n\nPelanggaran ini melanggar Peraturan Perusahaan dan terganggunya ketertiban kerja.`;
+    body = `Berdasarkan hasil pemeriksaan dan/atau laporan atasan langsung, dengan ini ${companyName} menerbitkan ${titles[letterType]} kepada:
+
+Nama        : ${employeeName}
+Jabatan     : ${position || '—'}
+Departemen  : ${department || '—'}
+
+Karena telah melakukan pelanggaran ${violationLabel} pada tanggal ${dateStr}, dengan uraian:
+${violationDescription}
+
+Pelanggaran ini melanggar Peraturan Perusahaan dan terganggunya ketertiban kerja.`;
     closing = letterType === 'SP3'
       ? 'Surat Peringatan III ini merupakan peringatan terakhir. Apabila pelanggaran serupa terulang, perusahaan berhak mengambil tindakan PHK sesuai peraturan perundang-undangan.'
       : `Surat Peringatan ini berlaku selama 6 (enam) bulan. Apabila pelanggaran terulang, perusahaan akan menerbitkan ${letterType === 'SP1' ? 'SP-II' : 'SP-III'} atau tindakan lebih lanjut.`;
