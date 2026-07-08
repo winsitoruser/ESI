@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
+import { isHumanifyHost } from '@/lib/humanify/host';
+import { HUMANIFY_WELCOME } from '@/lib/humanify/paths';
 
 const authSecret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET;
 
@@ -18,6 +20,12 @@ export async function middleware(request: NextRequest) {
   }
 
   const { pathname } = request.nextUrl;
+  const host = request.headers.get('host');
+
+  // humanify.id root → public landing (bukan ESI login)
+  if (pathname === '/' && isHumanifyHost(host)) {
+    return NextResponse.redirect(new URL(HUMANIFY_WELCOME, request.url));
+  }
 
   const isHumanifyPublic =
     pathname === '/humanify/login' ||
