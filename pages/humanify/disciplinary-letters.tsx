@@ -736,13 +736,11 @@ export default function DisciplinaryLettersPage() {
                               variant="button"
                               label="Unduh PDF"
                               data={letterData}
-                              meta={letterMeta || { documentNumber: selected.letter_number, documentDate: selected.effective_date }}
+                              meta={letterMeta || { documentNumber: selected.letter_number || selected.reference_number, documentDate: selected.effective_date || selected.incident_date }}
                               options={{
-                                includeSignature: true,
-                                signatureFields: [
-                                  { label: 'Manajer HRD', position: 'Mengetahui' },
-                                  { label: selected.employee_name || 'Karyawan', position: 'Yang Bersangkutan' },
-                                ],
+                                includeHeader: false,
+                                includeFooter: false,
+                                includeSignature: false,
                               }}
                               showFormats={['pdf', 'html']}
                             />

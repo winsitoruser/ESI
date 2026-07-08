@@ -4,6 +4,11 @@
  */
 
 import { DocumentRequest, CompanyInfo, BranchInfo, DocumentMeta, SignatureField } from './types';
+import {
+  DRAFT_LETTER_TYPES,
+  generateDraftLetterPDF,
+  isDraftBasedLetter,
+} from '@/lib/hris/disciplinary-letter-render';
 
 /** Resolve jspdf-autotable export (default vs named) for CJS/ESM interop */
 function callAutoTable(doc: any, options: any): void {
@@ -34,6 +39,17 @@ export const fmtNumber = (val: number): string => {
 // ============================================
 
 export async function generatePDF(request: DocumentRequest): Promise<Blob> {
+  // Draft editor letters — WYSIWYG PDF matching LetterPreviewPaper
+  if (
+    isDraftBasedLetter(request.data) &&
+    DRAFT_LETTER_TYPES.includes(request.type as typeof DRAFT_LETTER_TYPES[number])
+  ) {
+    return generateDraftLetterPDF(request.data, {
+      documentNumber: request.meta.documentNumber,
+      documentDate: request.meta.documentDate,
+    });
+  }
+
   const { jsPDF } = await import('jspdf');
   await import('jspdf-autotable');
 

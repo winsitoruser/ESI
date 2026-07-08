@@ -43,6 +43,21 @@ function fmtLong(d?: string) {
   return new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
+function LogoBadge({ lh }: { lh: LetterheadConfig }) {
+  if (lh.logoUrl) {
+    return <img src={lh.logoUrl} alt="Logo" className="flex-shrink-0 w-14 h-14 object-contain rounded-lg" />;
+  }
+  if (!lh.logoText) return null;
+  return (
+    <div
+      className="flex-shrink-0 w-14 h-14 rounded-lg flex items-center justify-center text-white font-bold text-lg"
+      style={{ backgroundColor: lh.borderColor || '#1e293b' }}
+    >
+      {lh.logoText.slice(0, 3)}
+    </div>
+  );
+}
+
 function LetterheadBlock({ lh, headerColor }: { lh: LetterheadConfig; headerColor: string }) {
   const contact = [lh.phone && `Telp: ${lh.phone}`, lh.email, lh.website].filter(Boolean).join(' · ');
   const borderStyle = lh.showBorder
@@ -53,14 +68,7 @@ function LetterheadBlock({ lh, headerColor }: { lh: LetterheadConfig; headerColo
     return (
       <div style={borderStyle}>
         <div className="flex items-start gap-4">
-          {lh.logoText && (
-            <div
-              className="flex-shrink-0 w-14 h-14 rounded-lg flex items-center justify-center text-white font-bold text-lg"
-              style={{ backgroundColor: lh.borderColor || '#1e293b' }}
-            >
-              {lh.logoText.slice(0, 3)}
-            </div>
-          )}
+          <LogoBadge lh={lh} />
           <div className="flex-1" style={{ color: headerColor }}>
             <p className="text-lg font-bold tracking-wide uppercase">{lh.companyName}</p>
             {lh.tagline && <p className="text-[9pt] opacity-70 mt-0.5">{lh.tagline}</p>}
@@ -76,10 +84,12 @@ function LetterheadBlock({ lh, headerColor }: { lh: LetterheadConfig; headerColo
   if (lh.layout === 'left') {
     return (
       <div style={{ ...borderStyle, textAlign: 'left', color: headerColor }}>
-        {lh.logoText && (
+        {lh.logoUrl ? (
+          <img src={lh.logoUrl} alt="Logo" className="h-8 object-contain inline-block mr-2 mb-1 align-middle" />
+        ) : lh.logoText ? (
           <span className="inline-block px-2 py-0.5 rounded text-white text-xs font-bold mr-2 mb-1"
             style={{ backgroundColor: lh.borderColor || '#1e293b' }}>{lh.logoText}</span>
-        )}
+        ) : null}
         <p className="text-lg font-bold tracking-wide uppercase">{lh.companyName}</p>
         {lh.tagline && <p className="text-[9pt] opacity-70 mt-0.5">{lh.tagline}</p>}
         <p className="text-[9pt] opacity-80 mt-1">{lh.address}</p>
@@ -91,10 +101,12 @@ function LetterheadBlock({ lh, headerColor }: { lh: LetterheadConfig; headerColo
 
   return (
     <div style={{ ...borderStyle, textAlign: 'center', color: headerColor }}>
-      {lh.logoText && (
+      {lh.logoUrl ? (
+        <img src={lh.logoUrl} alt="Logo" className="w-10 h-10 object-contain mx-auto mb-2" />
+      ) : lh.logoText ? (
         <div className="inline-flex w-10 h-10 rounded-full items-center justify-center text-white text-sm font-bold mb-2"
           style={{ backgroundColor: lh.borderColor || '#1e293b' }}>{lh.logoText.slice(0, 2)}</div>
-      )}
+      ) : null}
       <p className="text-lg font-bold tracking-wide uppercase">{lh.companyName}</p>
       {lh.tagline && <p className="text-[9pt] opacity-70 mt-0.5">{lh.tagline}</p>}
       <p className="text-[9pt] opacity-80 mt-1">{lh.address}</p>

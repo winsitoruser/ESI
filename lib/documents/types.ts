@@ -141,9 +141,9 @@ export const DOCUMENT_REGISTRY: DocumentConfig[] = [
   // ── HRIS ──
   { type: 'payslip', category: 'hris', title: 'Payslip', titleId: 'Slip Gaji', formats: ['pdf'], description: 'Slip gaji karyawan per periode', requiresModule: ['hris'] },
   { type: 'payroll-summary', category: 'hris', title: 'Payroll Summary', titleId: 'Rekap Payroll', formats: ['pdf', 'excel'], description: 'Rekap penggajian seluruh karyawan', requiresModule: ['hris'] },
-  { type: 'warning-letter', category: 'hris', title: 'Warning Letter', titleId: 'Surat Peringatan', formats: ['pdf', 'docx'], description: 'Surat Peringatan (SP1/SP2/SP3)', requiresModule: ['hris'] },
-  { type: 'reprehend-letter', category: 'hris', title: 'Reprimand Letter', titleId: 'Surat Teguran', formats: ['pdf', 'docx'], description: 'Surat Teguran karyawan', requiresModule: ['hris'] },
-  { type: 'termination-letter', category: 'hris', title: 'Termination Letter', titleId: 'Surat PHK', formats: ['pdf', 'docx'], description: 'Surat Pemutusan Hubungan Kerja', requiresModule: ['hris'] },
+  { type: 'warning-letter', category: 'hris', title: 'Warning Letter', titleId: 'Surat Peringatan', formats: ['pdf', 'html', 'docx'], description: 'Surat Peringatan (SP1/SP2/SP3)', requiresModule: ['hris'] },
+  { type: 'reprehend-letter', category: 'hris', title: 'Reprimand Letter', titleId: 'Surat Teguran', formats: ['pdf', 'html', 'docx'], description: 'Surat Teguran karyawan', requiresModule: ['hris'] },
+  { type: 'termination-letter', category: 'hris', title: 'Termination Letter', titleId: 'Surat PHK', formats: ['pdf', 'html', 'docx'], description: 'Surat Pemutusan Hubungan Kerja', requiresModule: ['hris'] },
   { type: 'employment-contract', category: 'hris', title: 'Employment Contract', titleId: 'Kontrak Kerja', formats: ['pdf', 'docx'], description: 'Kontrak kerja PKWT/PKWTT/Magang', requiresModule: ['hris'] },
   { type: 'attendance-report', category: 'hris', title: 'Attendance Report', titleId: 'Laporan Kehadiran', formats: ['pdf', 'excel'], description: 'Rekap kehadiran karyawan', requiresModule: ['hris'] },
   { type: 'leave-report', category: 'hris', title: 'Leave Report', titleId: 'Laporan Cuti', formats: ['pdf', 'excel'], description: 'Rekap pengambilan cuti karyawan', requiresModule: ['hris'] },

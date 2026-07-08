@@ -304,6 +304,7 @@ export function buildLetterDocumentData(letter: Record<string, unknown>, employe
   const letterType = (letter.letter_type || letter.letterType) as DisciplinaryLetterType;
   const empName = employee?.name || letter.employee_name || '-';
   const empCode = employee?.employee_code || letter.employee_code || letter.employee_id || '-';
+  const violationRaw = (letter.violation_type || letter.violationType || 'other') as ViolationType;
 
   const dc = parseDraftContent(letter.draft_content);
   const base = {
@@ -311,7 +312,8 @@ export function buildLetterDocumentData(letter: Record<string, unknown>, employe
     employeeId: empCode,
     position: employee?.position || letter.position || '-',
     department: employee?.department_label || employee?.department || letter.department || '-',
-    violationType: VIOLATION_TYPE_LABELS[(letter.violation_type || letter.violationType || 'other') as ViolationType] || letter.violation_type,
+    violationType: violationRaw,
+    violationTypeLabel: VIOLATION_TYPE_LABELS[violationRaw] || letter.violation_type,
     violationDescription: letter.violation_description || letter.violationDescription || '-',
     expiryDate: letter.expiry_date || letter.expiryDate,
     incidentDate: letter.incident_date || letter.incidentDate,
@@ -321,6 +323,8 @@ export function buildLetterDocumentData(letter: Record<string, unknown>, employe
     salutation: dc.salutation,
     subject: dc.subject,
     place: dc.place,
+    closing: dc.closing,
+    body: dc.body,
   };
 
   if (letterType === 'TERMINATION') {
@@ -400,8 +404,10 @@ export interface LetterheadConfig {
   email?: string;
   website?: string;
   npwp?: string;
-  /** Inisial atau URL logo — tampil di kop jika layout split/left */
+  /** Inisial singkat — tampil jika tidak ada logoUrl */
   logoText?: string;
+  /** URL atau path publik logo perusahaan (mis. /uploads/letter-logos/...) */
+  logoUrl?: string;
   layout: 'centered' | 'left' | 'split';
   showBorder: boolean;
   borderColor?: string;

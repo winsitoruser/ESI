@@ -70,6 +70,18 @@ export async function generateDocument(request: DocumentRequest): Promise<{ blob
 async function generateHTMLDocument(request: DocumentRequest): Promise<Blob> {
   const { type, data, company, branch, meta } = request;
 
+  if (
+    isDraftBasedLetter(data) &&
+    DRAFT_LETTER_TYPES.includes(type as typeof DRAFT_LETTER_TYPES[number])
+  ) {
+    const { buildDisciplinaryLetterHTML } = await import('@/lib/hris/disciplinary-letter-render');
+    const html = buildDisciplinaryLetterHTML(data, {
+      documentNumber: meta.documentNumber,
+      documentDate: meta.documentDate,
+    });
+    return new Blob([html], { type: 'text/html;charset=utf-8' });
+  }
+
   const titleMap: Record<string, string> = {
     'invoice': 'INVOICE / FAKTUR',
     'receipt': 'KWITANSI PEMBAYARAN',

@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import { useRef, useState } from 'react';
+import { ImagePlus, Loader2, X } from 'lucide-react';
 import {
   DEFAULT_LETTERHEAD,
   DEFAULT_LETTER_STYLE,
@@ -29,13 +31,61 @@ const selectCls = 'w-full px-3 py-2 border rounded-lg text-sm bg-white';
 
 export function LetterheadPanel({ draft, onChange }: Props) {
   const lh = draft.letterhead || DEFAULT_LETTERHEAD;
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
 
   const setLh = (patch: Partial<LetterheadConfig>) =>
     onChange({ ...draft, letterhead: { ...lh, ...patch } });
 
+  const handleLogoUpload = async (file: File) => {
+    setUploading(true);
+    setUploadError('');
+    try {
+      const fd = new FormData();
+      fd.append('logo', file);
+      const res = await fetch('/api/humanify/upload-letter-logo', { method: 'POST', body: fd });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || 'Upload gagal');
+      setLh({ logoUrl: json.data.url });
+    } catch (e: any) {
+      setUploadError(e.message || 'Gagal upload logo');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <div className="space-y-3">
       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Konfigurasi Kop Surat</p>
+
+      <Field label="Logo Perusahaan">
+        <div className="flex items-start gap-3">
+          {lh.logoUrl ? (
+            <div className="relative">
+              <img src={lh.logoUrl} alt="Logo" className="w-16 h-16 object-contain border rounded-lg bg-gray-50 p-1" />
+              <button type="button" onClick={() => setLh({ logoUrl: undefined })}
+                className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center">
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ) : (
+            <div className="w-16 h-16 border-2 border-dashed border-gray-200 rounded-lg flex items-center justify-center text-gray-400">
+              <ImagePlus className="w-6 h-6" />
+            </div>
+          )}
+          <div className="flex-1 space-y-1">
+            <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml" className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoUpload(f); e.target.value = ''; }} />
+            <button type="button" disabled={uploading} onClick={() => fileRef.current?.click()}
+              className="px-3 py-1.5 rounded-lg text-xs border bg-white hover:bg-gray-50 disabled:opacity-50">
+              {uploading ? <><Loader2 className="w-3.5 h-3.5 inline animate-spin mr-1" />Mengunggah...</> : 'Upload Logo'}
+            </button>
+            <p className="text-[10px] text-gray-400">PNG, JPG, WebP, SVG · maks. 2MB</p>
+            {uploadError && <p className="text-[10px] text-red-500">{uploadError}</p>}
+          </div>
+        </div>
+      </Field>
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Layout Kop">
@@ -45,7 +95,7 @@ export function LetterheadPanel({ draft, onChange }: Props) {
             <option value="split">Split (Logo + Info)</option>
           </select>
         </Field>
-        <Field label="Inisial / Logo Text">
+        <Field label="Inisial (fallback tanpa logo)">
           <input value={lh.logoText || ''} onChange={(e) => setLh({ logoText: e.target.value })} className={inputCls} placeholder="NI" />
         </Field>
       </div>
