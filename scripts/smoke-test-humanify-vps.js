@@ -103,48 +103,58 @@ const PUBLIC_PAGES = [
 
 const AUTH_PAGES = [
   '/humanify',
+  '/humanify/calendar',
+  '/humanify/announcements',
   '/humanify/employees',
+  '/humanify/organization',
+  '/humanify/onboarding',
+  '/humanify/offboarding',
+  '/humanify/contracts',
+  '/humanify/assets',
+  '/humanify/esign',
+  '/humanify/org-settings',
+  '/humanify/ess',
+  '/humanify/mss',
   '/humanify/attendance',
+  '/humanify/attendance-management',
   '/humanify/attendance/daily',
   '/humanify/attendance/devices',
   '/humanify/attendance/settings',
-  '/humanify/attendance-management',
   '/humanify/leave',
+  '/humanify/okr',
   '/humanify/kpi',
   '/humanify/kpi-settings',
   '/humanify/performance',
+  '/humanify/engagement',
   '/humanify/payroll',
   '/humanify/payroll/main',
-  '/humanify/payroll/bpjs',
-  '/humanify/payroll/thr',
-  '/humanify/payroll/laporan',
-  '/humanify/payroll/lembur',
-  '/humanify/payroll/pph21',
   '/humanify/payroll/slip-gaji',
+  '/humanify/payroll/thr',
+  '/humanify/payroll/pph21',
+  '/humanify/payroll/bpjs',
+  '/humanify/payroll/lembur',
+  '/humanify/payroll/bonus',
+  '/humanify/payroll/cash-advance',
+  '/humanify/payroll/loan',
+  '/humanify/payroll/laporan',
+  '/humanify/payroll/disbursement',
+  '/humanify/reimbursement',
   '/humanify/casual-workforce',
   '/humanify/recruitment',
   '/humanify/training',
   '/humanify/training-development',
   '/humanify/training-scoring',
-  '/humanify/reports',
-  '/humanify/activities',
+  '/humanify/certificates',
   '/humanify/team-members',
   '/humanify/tasks',
-  '/humanify/organization',
+  '/humanify/activities',
   '/humanify/mutations',
-  '/humanify/workforce-analytics',
   '/humanify/travel-expense',
-  '/humanify/engagement',
-  '/humanify/announcements',
-  '/humanify/onboarding',
-  '/humanify/offboarding',
-  '/humanify/contracts',
+  '/humanify/project-management',
   '/humanify/industrial-relations',
   '/humanify/disciplinary-letters',
-  '/humanify/project-management',
-  '/humanify/ess',
-  '/humanify/mss',
-  '/humanify/calendar',
+  '/humanify/reports',
+  '/humanify/workforce-analytics',
   '/employee',
 ];
 
@@ -196,6 +206,17 @@ const API_READS = [
   ['travel-expense', 'GET', '/api/humanify/travel-expense?action=overview'],
   ['project-management', 'GET', '/api/humanify/project-management?action=overview'],
   ['reminders', 'GET', '/api/humanify/reminders?action=list'],
+  ['reminders summary', 'GET', '/api/humanify/reminders?action=summary'],
+  ['reminders upcoming', 'GET', '/api/humanify/reminders?action=upcoming&days=60'],
+  ['lifecycle onboarding', 'GET', '/api/humanify/lifecycle?action=onboarding'],
+  ['lifecycle offboarding', 'GET', '/api/humanify/lifecycle?action=offboarding'],
+  ['lifecycle contracts', 'GET', '/api/humanify/lifecycle?action=contracts'],
+  ['employee-documents', 'GET', '/api/humanify/employee-documents?action=completeness&employee_id=__EMP__'],
+  ['nine-box', 'GET', '/api/humanify/nine-box'],
+  ['okr', 'GET', '/api/humanify/okr?action=overview'],
+  ['assets', 'GET', '/api/humanify/assets?action=overview'],
+  ['reimbursement expenses', 'GET', '/api/humanify/travel-expense?action=expenses'],
+  ['certificates', 'GET', '/api/humanify/certificates?action=list'],
   ['realtime', 'GET', '/api/humanify/realtime'],
 ];
 
@@ -238,8 +259,15 @@ async function main() {
   }
 
   console.log('\n══ Humanify APIs ══');
+  const empList = await api('GET', '/api/humanify/employee-profile?action=list&limit=1');
+  const firstEmpId = empList.json?.data?.[0]?.id || '';
   for (const [name, method, path] of API_READS) {
-    expectApi(name, await api(method, path));
+    const resolved = path.replace('__EMP__', firstEmpId || '00000000-0000-0000-0000-000000000001');
+    if (path.includes('__EMP__') && !firstEmpId) {
+      fail(name, 'no employee for document test');
+      continue;
+    }
+    expectApi(name, await api(method, resolved));
   }
 
   console.log('\n══ Employee portal APIs ══');
@@ -277,6 +305,64 @@ async function main() {
   });
   if ([200, 201].includes(act.res.status)) ok('CRUD activity create');
   else fail('CRUD activity create', `HTTP ${act.res.status}`);
+
+  // Org CRUD
+  const org = await api('POST', '/api/humanify/organization?action=org', {
+    name: `SMOKE ORG ${stamp}`,
+    code: `SMK${String(stamp).slice(-4)}`,
+    level: 1,
+    sort_order: 99,
+  });
+  const orgId = org.json.data?.id;
+  if (org.res.status === 200 && orgId) {
+    ok('CRUD org create');
+    const delOrg = await api('DELETE', `/api/humanify/organization?action=org&id=${orgId}`);
+    if (delOrg.res.status === 200) ok('CRUD org delete');
+    else fail('CRUD org delete', `HTTP ${delOrg.res.status}`);
+  } else {
+    fail('CRUD org create', `HTTP ${org.res.status}`);
+  }
+
+  // Reminders generate
+  const gen = await api('POST', '/api/humanify/reminders?action=generate');
+  if (gen.res.status === 200) ok('CRUD reminders generate');
+  else fail('CRUD reminders generate', `HTTP ${gen.res.status}`);
+
+  console.log('\n══ Stress test (30 concurrent reads) ══');
+  const stressPaths = [
+    '/api/humanify/dashboard',
+    '/api/humanify/employees?limit=5',
+    '/api/humanify/organization?action=org-tree',
+    '/api/humanify/lifecycle?action=contracts-overview',
+    '/api/humanify/payroll?action=runs',
+    '/api/humanify/attendance?period=' + month,
+  ];
+  const stressStart = Date.now();
+  const stressResults = await Promise.all(
+    Array.from({ length: 30 }, (_, i) => api('GET', stressPaths[i % stressPaths.length]))
+  );
+  const stressOk = stressResults.filter((r) => r.res.status === 200).length;
+  const stressMs = Date.now() - stressStart;
+  if (stressOk === 30) ok(`Stress ${stressOk}/30 in ${stressMs}ms`);
+  else fail('Stress test', `${stressOk}/30 OK in ${stressMs}ms`);
+
+  console.log('\n══ DevOps / System ══');
+  const healthPaths = [
+    ['auth csrf', '/api/auth/csrf', false],
+    ['auth providers', '/api/auth/providers', false],
+    ['login page', '/humanify/login', false],
+  ];
+  for (const [name, path, auth] of healthPaths) {
+    const r = await get(path, auth);
+    if ([200, 307, 308].includes(r.res.status)) ok(`devops ${name}`);
+    else fail(`devops ${name}`, `HTTP ${r.res.status}`);
+  }
+  const t0 = Date.now();
+  const dash = await api('GET', '/api/humanify/dashboard');
+  const dashMs = Date.now() - t0;
+  if (dash.res.status === 200 && dashMs < 5000) ok(`latency dashboard ${dashMs}ms`);
+  else if (dash.res.status === 200) fail('latency dashboard', `${dashMs}ms (>5s)`);
+  else fail('latency dashboard', `HTTP ${dash.res.status}`);
 
   console.log('\n═══════════════════════════════════════');
   console.log(`Result: ${passed} passed, ${failed} failed`);

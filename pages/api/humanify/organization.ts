@@ -338,7 +338,7 @@ async function upsertJobGrade(req: NextApiRequest, res: NextApiResponse, session
 // ===== DELETE: Org =====
 async function deleteOrg(req: NextApiRequest, res: NextApiResponse) {
   if (!sequelize) return res.status(503).json({ success: false, error: 'Database tidak tersedia' });
-  const { id } = req.body;
+  const id = String(req.query.id || req.body?.id || '').trim();
   if (!id || !UUID_RE.test(id)) return res.status(400).json({ success: false, error: 'ID tidak valid' });
 
   try {
@@ -353,7 +353,7 @@ async function deleteOrg(req: NextApiRequest, res: NextApiResponse) {
 // ===== DELETE: Job Grade =====
 async function deleteJobGrade(req: NextApiRequest, res: NextApiResponse) {
   if (!sequelize) return res.status(503).json({ success: false, error: 'Database tidak tersedia' });
-  const { id } = req.body;
+  const id = String(req.query.id || req.body?.id || '').trim();
   if (!id || !UUID_RE.test(id)) return res.status(400).json({ success: false, error: 'ID tidak valid' });
 
   try {

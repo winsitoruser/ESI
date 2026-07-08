@@ -190,7 +190,7 @@ async function dismissReminder(req: NextApiRequest, res: NextApiResponse, sessio
 async function generateReminders(req: NextApiRequest, res: NextApiResponse, session: any) {
   if (!sequelize) return res.json({ success: true, message: 'No DB' });
   await ensureReminderTables();
-  const tenantId = (session.user as any).tenantId;
+  const tenantId = (session.user as any).tenantId || (session.user as any).tenant_id || null;
   let created = 0;
 
   // Contract reminders
@@ -201,7 +201,7 @@ async function generateReminders(req: NextApiRequest, res: NextApiResponse, sess
     WHERE ec.status = 'active' AND ec.end_date IS NOT NULL
       AND NOT EXISTS (
         SELECT 1 FROM contract_reminders cr 
-        WHERE cr.reference_id = ec.id AND cr.reminder_type = 'contract_expiry' AND cr.status = 'active'
+        WHERE cr.reference_id::text = ec.id::text AND cr.reminder_type = 'contract_expiry' AND cr.status = 'active'
       )
   `);
 
@@ -220,7 +220,8 @@ async function generateReminders(req: NextApiRequest, res: NextApiResponse, sess
     created++;
   }
 
-  // Certification reminders
+  // Certification reminders (skip if table missing)
+  try {
   const [certs] = await sequelize.query(`
     SELECT ec.id, ec.employee_id, ec.name as cert_name, ec.expiry_date, e.name as emp_name
     FROM employee_certifications ec
@@ -228,7 +229,7 @@ async function generateReminders(req: NextApiRequest, res: NextApiResponse, sess
     WHERE ec.is_active = true AND ec.expiry_date IS NOT NULL
       AND NOT EXISTS (
         SELECT 1 FROM contract_reminders cr 
-        WHERE cr.reference_id = ec.id AND cr.reminder_type = 'certification_expiry' AND cr.status = 'active'
+        WHERE cr.reference_id::text = ec.id::text AND cr.reminder_type = 'certification_expiry' AND cr.status = 'active'
       )
   `);
 
@@ -245,6 +246,9 @@ async function generateReminders(req: NextApiRequest, res: NextApiResponse, sess
       }
     });
     created++;
+  }
+  } catch (certErr: any) {
+    console.warn('[reminders] certification scan skipped:', certErr?.message || certErr);
   }
 
   return res.json({ success: true, message: `${created} reminders generated` });
