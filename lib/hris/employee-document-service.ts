@@ -10,6 +10,34 @@ import {
 
 export const EMPLOYEE_DOC_UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads', 'employee-documents');
 
+export async function resolveEmployeeDocumentFile(
+  sequelize: any,
+  docId: string,
+  tenantId: string | null
+): Promise<{ fullPath: string; fileName: string; mimeType: string } | null> {
+  if (!sequelize) return null;
+  const allowed = await verifyDocumentTenant(sequelize, docId, tenantId);
+  if (!allowed) return null;
+
+  const [rows]: any = await sequelize.query(
+    `SELECT file_url, file_name, mime_type FROM employee_documents WHERE id = :id`,
+    { replacements: { id: docId } }
+  );
+  const doc = rows?.[0];
+  if (!doc?.file_url || !String(doc.file_url).startsWith('/uploads/employee-documents/')) {
+    return null;
+  }
+
+  const fullPath = path.join(process.cwd(), 'public', doc.file_url);
+  if (!fs.existsSync(fullPath)) return null;
+
+  return {
+    fullPath,
+    fileName: doc.file_name || path.basename(doc.file_url),
+    mimeType: doc.mime_type || 'application/octet-stream',
+  };
+}
+
 export function ensureDocUploadDir() {
   if (!fs.existsSync(EMPLOYEE_DOC_UPLOAD_DIR)) {
     fs.mkdirSync(EMPLOYEE_DOC_UPLOAD_DIR, { recursive: true });
@@ -20,6 +48,13 @@ export function fieldVal(fields: formidable.Fields, key: string): string {
   const v = fields[key];
   if (Array.isArray(v)) return v[0] || '';
   return (v as string) || '';
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function asUuidOrNull(value?: string | null): string | null {
+  if (!value) return null;
+  return UUID_RE.test(value) ? value : null;
 }
 
 export function resolveDocStatus(expiryDate: string | null, verificationStatus = 'pending'): string {
@@ -68,7 +103,7 @@ export async function verifyEmployeeTenant(
   if (!tenantId) return true;
   try {
     const [rows] = await sequelize.query(
-      `SELECT id FROM employees WHERE id = :empId AND tenant_id = :tenantId`,
+      `SELECT id FROM employees WHERE id = :empId AND (:tenantId IS NULL OR tenant_id = :tenantId OR tenant_id IS NULL)`,
       { replacements: { empId, tenantId } }
     );
     return rows && rows.length > 0;
@@ -86,7 +121,7 @@ export async function verifyDocumentTenant(
   if (!tenantId) return true;
   try {
     const [rows] = await sequelize.query(
-      `SELECT id FROM employee_documents WHERE id = :id AND tenant_id = :tenantId`,
+      `SELECT id FROM employee_documents WHERE id = :id AND (:tenantId IS NULL OR tenant_id = :tenantId OR tenant_id IS NULL)`,
       { replacements: { id: docId, tenantId } }
     );
     return rows && rows.length > 0;
@@ -255,7 +290,7 @@ export async function saveEmployeeDocument(input: SaveDocumentInput) {
     ) RETURNING *`,
     {
       replacements: {
-        tenantId,
+        tenantId: asUuidOrNull(tenantId),
         employeeId,
         documentType,
         documentNumber,
@@ -269,7 +304,7 @@ export async function saveEmployeeDocument(input: SaveDocumentInput) {
         expiryDate: expiryDate || null,
         signedBy,
         status: docStatus,
-        createdBy,
+        createdBy: asUuidOrNull(createdBy),
       },
     }
   );
@@ -285,7 +320,7 @@ export async function listEmployeeDocuments(
   if (!sequelize) return [];
   const [rows] = await sequelize.query(
     `SELECT * FROM employee_documents
-     WHERE employee_id = :empId AND (:tenantId IS NULL OR tenant_id = :tenantId)
+     WHERE employee_id = :empId AND (:tenantId IS NULL OR tenant_id = :tenantId OR tenant_id IS NULL)
      ORDER BY created_at DESC`,
     { replacements: { empId: employeeId, tenantId } }
   );

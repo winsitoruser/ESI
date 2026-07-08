@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, type MouseEvent } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import {
   FileText, Plus, Search, Filter, Calendar, AlertTriangle, CheckCircle,
@@ -108,6 +108,22 @@ export default function ContractsPage() {
     }
   }
 
+  const closeCreateModal = () => {
+    setShowModal(false);
+    setEditing(null);
+    setForm({ contractType: 'PKWT', status: 'active' });
+  };
+
+  const closeRenewModal = () => {
+    setShowRenewModal(false);
+    setSelected(null);
+    setForm({ contractType: 'PKWT', status: 'active' });
+  };
+
+  const handleBackdropMouseDown = (e: MouseEvent<HTMLDivElement>, onClose: () => void) => {
+    if (e.target === e.currentTarget) onClose();
+  };
+
   async function handleSave() {
     if (!form.employeeId || !form.contractType || !form.startDate) {
       showToast('error', 'Employee ID, tipe, dan tanggal mulai wajib');
@@ -123,14 +139,13 @@ export default function ContractsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
-      if (!res.ok) throw new Error();
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || `Gagal menyimpan (HTTP ${res.status})`);
       showToast('success', editing ? 'Kontrak diperbarui' : 'Kontrak dibuat');
-      setShowModal(false);
-      setEditing(null);
-      setForm({ contractType: 'PKWT', status: 'active' });
+      closeCreateModal();
       await fetchAll();
-    } catch {
-      showToast('error', 'Gagal menyimpan kontrak');
+    } catch (err: any) {
+      showToast('error', err?.message || 'Gagal menyimpan kontrak');
     }
   }
 
@@ -144,8 +159,7 @@ export default function ContractsPage() {
       });
       if (!res.ok) throw new Error();
       showToast('success', 'Kontrak diperpanjang');
-      setShowRenewModal(false);
-      setSelected(null);
+      closeRenewModal();
       await fetchAll();
     } catch {
       showToast('error', 'Gagal memperpanjang kontrak');
@@ -201,7 +215,13 @@ export default function ContractsPage() {
       .sort((a, b) => (a.daysLeft as number) - (b.daysLeft as number));
   }, [contracts]);
 
-  if (!mounted) return null;
+  if (!mounted) {
+    return (
+      <HQLayout title="Kontrak Karyawan" subtitle="Kelola kontrak kerja, perpanjangan, dan reminder kedaluwarsa">
+        <div className="py-24 text-center text-gray-400 text-sm">Memuat halaman...</div>
+      </HQLayout>
+    );
+  }
 
   return (
     <HQLayout title="Kontrak Karyawan" subtitle="Kelola kontrak kerja, perpanjangan, dan reminder kedaluwarsa">
@@ -319,11 +339,20 @@ export default function ContractsPage() {
 
       {/* Create/Edit modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setShowModal(false)}>
-          <div className="bg-white rounded-xl shadow-xl max-w-xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
+          onMouseDown={(e) => handleBackdropMouseDown(e, closeCreateModal)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl max-w-xl w-full max-h-[90vh] overflow-y-auto"
+            onMouseDown={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="contract-modal-title"
+          >
             <div className="flex items-center justify-between p-5 border-b">
-              <h3 className="text-lg font-bold">{editing ? 'Edit Kontrak' : 'Buat Kontrak Baru'}</h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+              <h3 id="contract-modal-title" className="text-lg font-bold">{editing ? 'Edit Kontrak' : 'Buat Kontrak Baru'}</h3>
+              <button type="button" onClick={closeCreateModal} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
             </div>
             <div className="p-5 space-y-3">
               {!editing && (
@@ -362,7 +391,7 @@ export default function ContractsPage() {
                 <Input label="No. Kontrak" value={form.contractNumber || ''} onChange={(v) => setForm(f => ({ ...f, contractNumber: v }))} />
                 <div>
                   <label className="block text-xs font-medium mb-1">Tipe Kontrak *</label>
-                  <select value={form.contractType || 'PKWT'} onChange={(e) => setForm(f => ({ ...f, contractType: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm">
+                  <select value={form.contractType || 'PKWT'} onChange={(e) => setForm(f => ({ ...f, contractType: e.target.value }))} onMouseDown={(e) => e.stopPropagation()} className="w-full px-3 py-2 border rounded-lg text-sm">
                     {Object.entries(TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                   </select>
                 </div>
@@ -371,7 +400,7 @@ export default function ContractsPage() {
                 <Input label="Posisi" value={form.position || ''} onChange={(v) => setForm(f => ({ ...f, position: v }))} />
                 <div>
                   <label className="block text-xs font-medium mb-1">Departemen</label>
-                  <select value={form.department || ''} onChange={(e) => setForm(f => ({ ...f, department: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm">
+                  <select value={form.department || ''} onChange={(e) => setForm(f => ({ ...f, department: e.target.value }))} onMouseDown={(e) => e.stopPropagation()} className="w-full px-3 py-2 border rounded-lg text-sm">
                     <option value="">Pilih departemen</option>
                     {HRIS_DEPARTMENTS.map(d => <option key={d.code} value={d.code}>{d.label}</option>)}
                   </select>
@@ -389,8 +418,8 @@ export default function ContractsPage() {
               </div>
             </div>
             <div className="flex justify-end gap-2 p-5 border-t bg-gray-50">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2 border rounded-lg text-sm hover:bg-white">Batal</button>
-              <button onClick={handleSave} className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700">
+              <button type="button" onClick={closeCreateModal} className="px-4 py-2 border rounded-lg text-sm hover:bg-white">Batal</button>
+              <button type="button" onClick={handleSave} className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700">
                 {editing ? 'Simpan Perubahan' : 'Buat Kontrak'}
               </button>
             </div>
@@ -400,11 +429,19 @@ export default function ContractsPage() {
 
       {/* Renew modal */}
       {showRenewModal && selected && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setShowRenewModal(false)}>
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
+          onMouseDown={(e) => handleBackdropMouseDown(e, closeRenewModal)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl max-w-md w-full"
+            onMouseDown={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+          >
             <div className="flex items-center justify-between p-5 border-b">
               <h3 className="text-lg font-bold">Perpanjang Kontrak</h3>
-              <button onClick={() => setShowRenewModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+              <button type="button" onClick={closeRenewModal} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
             </div>
             <div className="p-5 space-y-3">
               <div className="text-sm bg-gray-50 rounded-lg p-3">
@@ -414,7 +451,7 @@ export default function ContractsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium mb-1">Tipe Baru</label>
-                  <select value={form.contractType || selected.contractType} onChange={(e) => setForm(f => ({ ...f, contractType: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm">
+                  <select value={form.contractType || selected.contractType} onChange={(e) => setForm(f => ({ ...f, contractType: e.target.value }))} onMouseDown={(e) => e.stopPropagation()} className="w-full px-3 py-2 border rounded-lg text-sm">
                     {Object.entries(TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                   </select>
                 </div>
@@ -426,8 +463,8 @@ export default function ContractsPage() {
               </div>
             </div>
             <div className="flex justify-end gap-2 p-5 border-t bg-gray-50">
-              <button onClick={() => setShowRenewModal(false)} className="px-4 py-2 border rounded-lg text-sm hover:bg-white">Batal</button>
-              <button onClick={handleRenew} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 flex items-center gap-1">
+              <button type="button" onClick={closeRenewModal} className="px-4 py-2 border rounded-lg text-sm hover:bg-white">Batal</button>
+              <button type="button" onClick={handleRenew} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 flex items-center gap-1">
                 <RefreshCw className="w-4 h-4" /> Perpanjang
               </button>
             </div>

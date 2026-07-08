@@ -102,6 +102,7 @@ export default function EmployeePicker({
       <select
         value={value || ''}
         onChange={(e) => handleSelect(e.target.value)}
+        onMouseDown={(e) => e.stopPropagation()}
         className="w-full px-3 py-2 border rounded-lg text-sm"
         required={required}
         disabled={disabled || loading}

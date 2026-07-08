@@ -8,6 +8,7 @@ import {
   wouldCreateCycle,
   inferWorkRole,
 } from '../../../lib/hris/employee-genealogy';
+import { ensureEmployeeDocumentsTable } from '../../../lib/hris/ensure-employee-documents-table';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch (e) {}
@@ -401,6 +402,7 @@ async function getEmployeeDetail(req: NextApiRequest, res: NextApiResponse, tena
     `SELECT * FROM employee_work_experiences WHERE employee_id = :empId AND (:tenantId IS NULL OR tenant_id = :tenantId) ORDER BY start_date DESC NULLS LAST`,
     { empId, tenantId }
   );
+  await ensureEmployeeDocumentsTable(sequelize);
   const documents = await safeQuery(
     `SELECT * FROM employee_documents WHERE employee_id = :empId AND (:tenantId IS NULL OR tenant_id = :tenantId) ORDER BY created_at DESC`,
     { empId, tenantId }

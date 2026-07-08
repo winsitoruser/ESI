@@ -1,16 +1,20 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import fs from 'fs';
 import { withHQAuth } from '../../../lib/middleware/withHQAuth';
 import { MAX_DOCUMENT_SIZE_MB } from '../../../lib/hris/employee-document-types';
 import {
   parseDocumentUpload,
   fieldVal,
+  asUuidOrNull,
   saveEmployeeDocument,
   deleteEmployeeDocumentRecord,
   verifyEmployeeTenant,
   verifyDocumentTenant,
   listEmployeeDocuments,
+  resolveEmployeeDocumentFile,
 } from '../../../lib/hris/employee-document-service';
 import { computeDocumentCompleteness } from '../../../lib/hris/employee-document-types';
+import { ensureEmployeeDocumentsTable } from '../../../lib/hris/ensure-employee-documents-table';
 
 export const config = {
   api: { bodyParser: false },
@@ -33,7 +37,26 @@ function getUserId(req: NextApiRequest): string | null {
   return session?.user?.id || null;
 }
 
+async function readJsonBody(req: NextApiRequest): Promise<Record<string, any>> {
+  if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
+    return req.body as Record<string, any>;
+  }
+  const raw = await new Promise<string>((resolve, reject) => {
+    let body = '';
+    req.on('data', (chunk) => { body += chunk; });
+    req.on('end', () => resolve(body));
+    req.on('error', reject);
+  });
+  if (!raw.trim()) return {};
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
+
 async function handler(req: NextApiRequest, res: NextApiResponse) {
+  await ensureEmployeeDocumentsTable(sequelize);
   const tenantId = getTenantId(req);
   const { action } = req.query;
 
@@ -44,6 +67,10 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (!isAllowed) return res.status(404).json({ success: false, error: 'Karyawan tidak ditemukan' });
     const documents = await listEmployeeDocuments(sequelize, employeeId, tenantId);
     return res.json({ success: true, data: { documents, completeness: computeDocumentCompleteness(documents) } });
+  }
+
+  if (req.method === 'GET' && action === 'download') {
+    return handleDownload(req, res, tenantId);
   }
 
   if (req.method === 'POST') {
@@ -59,6 +86,23 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   return res.status(405).json({ success: false, error: 'Method not allowed' });
+}
+
+async function handleDownload(req: NextApiRequest, res: NextApiResponse, tenantId: string | null) {
+  const docId = req.query.id as string;
+  if (!docId) return res.status(400).json({ success: false, error: 'id dokumen wajib diisi' });
+
+  try {
+    const file = await resolveEmployeeDocumentFile(sequelize, docId, tenantId);
+    if (!file) return res.status(404).json({ success: false, error: 'File dokumen tidak ditemukan' });
+
+    const disposition = req.query.disposition === 'attachment' ? 'attachment' : 'inline';
+    res.setHeader('Content-Type', file.mimeType);
+    res.setHeader('Content-Disposition', `${disposition}; filename="${encodeURIComponent(file.fileName)}"`);
+    fs.createReadStream(file.fullPath).pipe(res);
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error?.message || 'Gagal mengunduh dokumen' });
+  }
 }
 
 async function handleUpload(req: NextApiRequest, res: NextApiResponse, tenantId: string | null) {
@@ -121,7 +165,7 @@ async function handleUpload(req: NextApiRequest, res: NextApiResponse, tenantId:
 }
 
 async function handleVerify(req: NextApiRequest, res: NextApiResponse, tenantId: string | null) {
-  const { id, status, rejection_reason } = req.body || {};
+  const { id, status, rejection_reason } = await readJsonBody(req);
   if (!id || !status) return res.status(400).json({ success: false, error: 'id dan status wajib diisi' });
   if (!['verified', 'rejected', 'pending'].includes(status)) {
     return res.status(400).json({ success: false, error: 'Status tidak valid' });
@@ -142,14 +186,14 @@ async function handleVerify(req: NextApiRequest, res: NextApiResponse, tenantId:
     const metadata = {
       ...prevMeta,
       verification_status: newStatus,
-      verified_by: getUserId(req),
+      verified_by: asUuidOrNull(getUserId(req)),
       verified_at: new Date().toISOString(),
       ...(rejection_reason ? { rejection_reason } : {}),
     };
 
     const replacements: any = { id, status: newStatus, metadata: JSON.stringify(metadata) };
     const whereClause = tenantId ? 'WHERE id = :id AND tenant_id = :tenantId' : 'WHERE id = :id';
-    if (tenantId) replacements.tenantId = tenantId;
+    if (tenantId) replacements.tenantId = asUuidOrNull(tenantId);
 
     await sequelize.query(
       `UPDATE employee_documents SET status = :status, metadata = :metadata::jsonb, updated_at = NOW() ${whereClause}`,

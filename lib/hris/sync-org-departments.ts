@@ -84,15 +84,31 @@ export async function syncOrgDepartments(sequelize: any, tenantId?: string | nul
       { replacements: { code: dept.code } }
     );
     if (existing?.id) {
-      await sequelize.query(
-        `UPDATE org_structures SET name = :name, parent_id = :parentId, level = 1,
-         sort_order = :sortOrder, is_active = true, updated_at = NOW() WHERE id = :id`,
-        { replacements: { name: dept.label, parentId: rootId, sortOrder: order, id: existing.id } }
+      const [[rowMeta]] = await sequelize.query(
+        `SELECT metadata->>'source' AS source FROM org_structures WHERE id = :id LIMIT 1`,
+        { replacements: { id: existing.id } }
       );
+      const isUserCustomized = rowMeta?.source === 'user';
+
+      if (isUserCustomized) {
+        // Jangan timpa hierarki/tata letak yang sudah diatur user — hanya pastikan aktif
+        await sequelize.query(
+          `UPDATE org_structures SET is_active = true, updated_at = NOW() WHERE id = :id`,
+          { replacements: { id: existing.id } }
+        );
+      } else {
+        await sequelize.query(
+          `UPDATE org_structures SET name = :name, parent_id = :parentId, level = 1,
+           sort_order = :sortOrder, is_active = true,
+           metadata = COALESCE(metadata, '{}'::jsonb) || '{"source":"master"}'::jsonb,
+           updated_at = NOW() WHERE id = :id`,
+          { replacements: { name: dept.label, parentId: rootId, sortOrder: order, id: existing.id } }
+        );
+      }
     } else {
       await sequelize.query(
-        `INSERT INTO org_structures (tenant_id, name, code, parent_id, level, sort_order, is_active)
-         VALUES (:tenantId, :name, :code, :parentId, 1, :sortOrder, true)`,
+        `INSERT INTO org_structures (tenant_id, name, code, parent_id, level, sort_order, is_active, metadata)
+         VALUES (:tenantId, :name, :code, :parentId, 1, :sortOrder, true, '{"source":"master"}'::jsonb)`,
         {
           replacements: {
             tenantId: tenantId || null,
@@ -106,14 +122,16 @@ export async function syncOrgDepartments(sequelize: any, tenantId?: string | nul
     }
   }
 
-  // Nonaktifkan unit legacy yang bukan master dept & bukan root
   const masterCodes = HRIS_DEPARTMENTS.map((d) => d.code);
+
+  // Nonaktifkan hanya baris master yang sudah tidak ada di daftar resmi
   await sequelize.query(
     `UPDATE org_structures SET is_active = false, updated_at = NOW()
      WHERE is_active = true
+       AND metadata->>'source' = 'master'
        AND code IS NOT NULL
        AND code NOT IN (:rootCode, :codes)
-       AND (parent_id = :rootId OR parent_id IS NULL AND code NOT IN (:rootCode))`,
+       AND parent_id = :rootId`,
     { replacements: { rootCode: ROOT_ORG_CODE, codes: masterCodes, rootId } }
   );
 }

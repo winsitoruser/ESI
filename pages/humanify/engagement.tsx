@@ -30,8 +30,19 @@ export default function EngagementPage() {
   const [recForm, setRecForm] = useState({ toEmployeeId: '', recognitionType: 'kudos', title: '', message: '', points: 10, badge: 'star', category: 'general' });
   const [annForm, setAnnForm] = useState({ title: '', content: '', category: 'general', priority: 'normal', isPinned: false });
   const [newQuestion, setNewQuestion] = useState({ text: '', type: 'rating' });
+  const [employees, setEmployees] = useState<any[]>([]);
 
   const showToast = (msg: string, type = 'success') => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
+
+  useEffect(() => {
+    fetch('/api/humanify/employees?action=list&limit=500', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((json) => {
+        const data = json.data || json;
+        setEmployees(data.employees || data || []);
+      })
+      .catch(() => {});
+  }, []);
 
   const api = useCallback(async (action: string, method = 'GET', body?: any, extra = '') => {
     const opts: any = { method, headers: { 'Content-Type': 'application/json' } };
@@ -78,11 +89,14 @@ export default function EngagementPage() {
   const handleSave = async () => {
     try {
       if (modalType === 'survey') {
+        if (!surveyForm.title.trim()) { showToast('Judul survey wajib diisi', 'error'); return; }
         if (editingItem) await api('survey', 'PUT', surveyForm, `&id=${editingItem.id}`);
         else await api('survey', 'POST', surveyForm);
       } else if (modalType === 'recognition') {
+        if (!recForm.toEmployeeId) { showToast('Pilih karyawan penerima', 'error'); return; }
         await api('recognition', 'POST', recForm);
       } else if (modalType === 'announcement') {
+        if (!annForm.title.trim()) { showToast('Judul pengumuman wajib diisi', 'error'); return; }
         if (editingItem) await api('announcement', 'PUT', annForm, `&id=${editingItem.id}`);
         else await api('announcement', 'POST', annForm);
       }
@@ -93,8 +107,10 @@ export default function EngagementPage() {
 
   const handleDelete = async (action: string, id: string) => {
     if (!confirm('Hapus data ini?')) return;
-    await api(action, 'DELETE', null, `&id=${id}`);
-    showToast('Dihapus'); loadData();
+    try {
+      await api(action, 'DELETE', null, `&id=${id}`);
+      showToast('Dihapus'); loadData();
+    } catch (e) { showToast('Gagal menghapus', 'error'); }
   };
 
   const viewSurveyDetail = async (id: string) => {
@@ -391,7 +407,17 @@ export default function EngagementPage() {
                 </div>
               </>)}
               {modalType === 'recognition' && (<>
-                <div><label className="text-sm font-medium text-gray-700">ID Karyawan Penerima</label><input type="number" value={recForm.toEmployeeId} onChange={e => setRecForm({ ...recForm, toEmployeeId: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" /></div>
+                <div><label className="text-sm font-medium text-gray-700">Karyawan Penerima *</label>
+                  <select value={recForm.toEmployeeId} onChange={e => setRecForm({ ...recForm, toEmployeeId: e.target.value })}
+                    className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
+                    <option value="">Pilih karyawan...</option>
+                    {employees.map((emp: any) => (
+                      <option key={emp.id} value={emp.id}>
+                        {(emp.employee_id || emp.employeeId || emp.id)} — {emp.full_name || emp.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <div><label className="text-sm font-medium text-gray-700">Tipe</label>
                   <select value={recForm.recognitionType} onChange={e => setRecForm({ ...recForm, recognitionType: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
                     <option value="kudos">👏 Apresiasi</option><option value="achievement">🏆 Pencapaian</option><option value="milestone">🎯 Pencapaian Target</option><option value="teamwork">🤝 Kerja Tim</option><option value="innovation">💡 Inovasi</option><option value="leadership">👑 Kepemimpinan</option><option value="service">⭐ Pelayanan Prima</option>

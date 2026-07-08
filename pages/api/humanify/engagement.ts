@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]';
 import { formatRelativeTime } from '../../../lib/employee-portal';
+import { ensureEngagementTables } from '../../../lib/hris/ensure-engagement-tables';
 
 let Survey: any, SurveyResponse: any, Recognition: any, Announcement: any;
 let sequelize: any;
@@ -14,6 +15,12 @@ try { sequelize = require('../../../lib/sequelize'); } catch(e) {}
 function isMissingTableError(error: any): boolean {
   const msg = String(error?.message || error?.parent?.message || error?.original?.message || '');
   return msg.includes('does not exist') || error?.original?.code === '42P01';
+}
+
+function asUuidOrNull(value: unknown): string | null {
+  if (value == null || value === '') return null;
+  const s = String(value);
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s) ? s : null;
 }
 
 async function safeCount(table: string, where = ''): Promise<number> {
@@ -147,6 +154,7 @@ function mapAnnouncementRow(r: any) {
     expireDate: r.expires_at ? String(r.expires_at).split('T')[0] : undefined,
     view_count: Number(r.view_count || 0),
     viewCount: Number(r.view_count || 0),
+    read_count: Number(r.view_count || r.read_count || 0),
     created_at: r.created_at,
     createdAt: r.created_at,
     time: formatRelativeTime(r.published_at || r.created_at),
@@ -181,6 +189,65 @@ async function fanOutAnnouncementNotifications(ann: any, tenantId: string | null
   } catch { /* notifications table may not exist yet */ }
 }
 
+async function getSurveyByIdRaw(id: string) {
+  if (!sequelize) return null;
+  const [rows] = await sequelize.query(
+    `SELECT id, tenant_id, title, description, survey_type, status,
+            start_date, end_date, is_anonymous, is_mandatory, questions,
+            COALESCE(total_responses, 0) AS total_responses, created_at, updated_at
+     FROM surveys WHERE id = :id LIMIT 1`,
+    { replacements: { id } }
+  );
+  return (rows as any[])[0] || null;
+}
+
+async function getSurveyDetailRaw(id: string) {
+  const surveyRow = await getSurveyByIdRaw(id);
+  if (!surveyRow) return null;
+
+  let responseRows: any[] = [];
+  try {
+    const [rows] = await sequelize.query(
+      `SELECT answers FROM survey_responses WHERE survey_id = :id`,
+      { replacements: { id } }
+    );
+    responseRows = rows as any[];
+  } catch {
+    responseRows = [];
+  }
+
+  const questions = Array.isArray(surveyRow.questions) ? surveyRow.questions : [];
+  const results: Record<string, any> = {};
+  if (questions.length > 0 && responseRows.length > 0) {
+    for (const q of questions) {
+      const answers = responseRows.map((r) => {
+        const list = Array.isArray(r.answers) ? r.answers : [];
+        const ans = list.find((a: any) => a.question_id === q.id || a.questionId === q.id);
+        return ans?.answer;
+      }).filter((v) => v !== undefined && v !== null && v !== '');
+      if (q.type === 'rating' || q.type === 'scale') {
+        const nums = answers.map(Number).filter((n: number) => !Number.isNaN(n));
+        results[q.id] = {
+          avg: nums.length > 0 ? (nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(1) : 0,
+          count: nums.length,
+          distribution: {},
+        };
+        nums.forEach((n: number) => {
+          results[q.id].distribution[n] = (results[q.id].distribution[n] || 0) + 1;
+        });
+      } else {
+        results[q.id] = { answers, count: answers.length };
+      }
+    }
+  }
+
+  return {
+    survey: mapSurveyRow(surveyRow),
+    responses: responseRows.length,
+    results,
+  };
+}
+
 async function listHrisAnnouncements(filters: { status?: string; category?: string } = {}) {
   if (!sequelize) return [];
   const where: string[] = ['1=1'];
@@ -210,6 +277,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { action } = req.query;
 
   try {
+    if (sequelize) await ensureEngagementTables(sequelize);
     switch (method) {
       case 'GET': return handleGet(req, res, action as string);
       case 'POST': return handlePost(req, res, action as string, session);
@@ -266,13 +334,23 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
     }
     case 'survey-detail': {
       const { id } = req.query;
-      if (!id || !Survey) return res.status(404).json({ error: 'Not found' });
+      if (!id) return res.status(400).json({ error: 'ID required' });
+      if (sequelize) {
+        try {
+          const detail = await getSurveyDetailRaw(String(id));
+          if (detail) return res.json({ success: true, data: detail });
+        } catch (e: any) {
+          if (!isMissingTableError(e)) console.warn('survey-detail raw:', e.message);
+        }
+      }
+      if (!Survey) return res.status(404).json({ error: 'Not found' });
       const survey = await Survey.findByPk(id);
+      if (!survey) return res.status(404).json({ error: 'Not found' });
       const responses = SurveyResponse ? await SurveyResponse.findAll({ where: { surveyId: id } }) : [];
-      // Compute aggregated results
       const results: any = {};
-      if (survey?.questions && responses.length > 0) {
-        for (const q of survey.questions) {
+      const questions = survey.questions || [];
+      if (questions.length > 0 && responses.length > 0) {
+        for (const q of questions) {
           const answers = responses.map((r: any) => {
             const ans = (r.answers || []).find((a: any) => a.question_id === q.id);
             return ans?.answer;
@@ -282,7 +360,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
             results[q.id] = {
               avg: nums.length > 0 ? (nums.reduce((a: number, b: number) => a + b, 0) / nums.length).toFixed(1) : 0,
               count: nums.length,
-              distribution: {}
+              distribution: {},
             };
             nums.forEach((n: number) => { results[q.id].distribution[n] = (results[q.id].distribution[n] || 0) + 1; });
           } else {
@@ -290,7 +368,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
           }
         }
       }
-      return res.json({ success: true, data: { survey, responses: responses.length, results } });
+      return res.json({ success: true, data: { survey: mapSurveyRow(survey.toJSON?.() || survey), responses: responses.length, results } });
     }
     case 'recognitions': {
       const { recognition_type } = req.query;
@@ -343,11 +421,11 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
   const body = req.body;
   switch (action) {
     case 'survey': {
-      if (!Survey && sequelize) {
+      if (sequelize) {
         try {
           const [rows] = await sequelize.query(`
-            INSERT INTO surveys (tenant_id, title, description, survey_type, status, is_anonymous, is_mandatory, questions)
-            VALUES (:tid, :title, :description, :surveyType, 'draft', :isAnonymous, :isMandatory, :questions::jsonb)
+            INSERT INTO surveys (tenant_id, title, description, survey_type, status, is_anonymous, is_mandatory, questions, created_by)
+            VALUES (:tid, :title, :description, :surveyType, 'draft', :isAnonymous, :isMandatory, :questions::jsonb, :createdBy)
             RETURNING *
           `, {
             replacements: {
@@ -358,6 +436,7 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
               isAnonymous: body.isAnonymous ?? body.is_anonymous ?? true,
               isMandatory: body.isMandatory ?? body.is_mandatory ?? false,
               questions: JSON.stringify(body.questions || []),
+              createdBy: (session.user as any)?.id || null,
             },
           });
           return res.json({ success: true, data: mapSurveyRow(rows?.[0]) });
@@ -380,27 +459,61 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
     }
     case 'publish-survey': {
       const { id } = body;
-      if (!Survey || !id) return res.json({ success: true });
+      if (!id) return res.status(400).json({ error: 'ID required' });
+      if (sequelize) {
+        try {
+          const [rows] = await sequelize.query(`
+            UPDATE surveys SET status = 'active', start_date = COALESCE(start_date, NOW()), updated_at = NOW()
+            WHERE id = :id RETURNING id
+          `, { replacements: { id } });
+          if (rows?.length) return res.json({ success: true, message: 'Survey published' });
+        } catch (e: any) {
+          if (!isMissingTableError(e)) throw e;
+        }
+      }
+      if (!Survey) return res.json({ success: true });
       await Survey.update({ status: 'active', startDate: new Date() }, { where: { id } });
       return res.json({ success: true, message: 'Survey published' });
     }
     case 'close-survey': {
       const { id: sId } = body;
-      if (!Survey || !sId) return res.json({ success: true });
+      if (!sId) return res.status(400).json({ error: 'ID required' });
+      if (sequelize) {
+        try {
+          const [rows] = await sequelize.query(`
+            UPDATE surveys SET status = 'closed', end_date = COALESCE(end_date, NOW()), updated_at = NOW()
+            WHERE id = :sId RETURNING id
+          `, { replacements: { sId } });
+          if (rows?.length) return res.json({ success: true, message: 'Survey closed' });
+        } catch (e: any) {
+          if (!isMissingTableError(e)) throw e;
+        }
+      }
+      if (!Survey) return res.json({ success: true });
       await Survey.update({ status: 'closed', endDate: new Date() }, { where: { id: sId } });
       return res.json({ success: true, message: 'Survey closed' });
     }
     case 'recognition': {
-      if (!Recognition && sequelize) {
+      const toEmployeeId = parseInt(String(body.toEmployeeId || body.to_employee_id || ''), 10);
+      const fromEmployeeId = parseInt(
+        String(body.fromEmployeeId || body.from_employee_id || (session.user as any)?.employeeId || (session.user as any)?.id || '1'),
+        10
+      );
+      if (!toEmployeeId) {
+        return res.status(400).json({ success: false, error: 'toEmployeeId wajib diisi' });
+      }
+      if (sequelize) {
         try {
           const [rows] = await sequelize.query(`
-            INSERT INTO recognitions (tenant_id, from_employee_id, recognition_type, title, message, points, badge, category)
-            VALUES (:tid, :fromId, :rtype, :title, :message, :points, :badge, :category)
+            INSERT INTO recognitions (
+              tenant_id, from_employee_id, to_employee_id, recognition_type, title, message, points, badge, category
+            ) VALUES (:tid, :fromId, :toId, :rtype, :title, :message, :points, :badge, :category)
             RETURNING *
           `, {
             replacements: {
               tid: (session.user as any)?.tenantId || null,
-              fromId: body.fromEmployeeId || (session.user as any)?.id || null,
+              fromId: fromEmployeeId,
+              toId: toEmployeeId,
               rtype: body.recognitionType || body.recognition_type || 'kudos',
               title: body.title || '',
               message: body.message || '',
@@ -415,7 +528,11 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
         }
       }
       if (!Recognition) return res.json({ success: true, data: body });
-      const rec = await Recognition.create({ ...body, fromEmployeeId: body.fromEmployeeId || (session.user as any)?.employeeId });
+      const rec = await Recognition.create({
+        ...body,
+        fromEmployeeId,
+        toEmployeeId,
+      });
       return res.json({ success: true, data: mapRecognitionRow(rec?.toJSON?.() || rec) });
     }
     case 'like-recognition': {
@@ -433,7 +550,7 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
     }
     case 'announcement': {
       const tenantId = (session.user as any)?.tenantId || null;
-      const createdBy = (session.user as any)?.id || null;
+      const createdBy = asUuidOrNull((session.user as any)?.id);
       const b = body;
       const status = b.status || 'published';
       const isActive = status !== 'archived';
@@ -474,9 +591,12 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
           return res.json({ success: true, data: mapAnnouncementRow(ann) });
         } catch (e: any) {
           console.warn('hris_announcements insert:', e.message);
+          if (!isMissingTableError(e)) throw e;
         }
       }
-      if (!Announcement) return res.json({ success: true, data: body });
+      if (!Announcement) {
+        return res.status(500).json({ success: false, error: 'Tabel pengumuman belum tersedia' });
+      }
       const ann = await Announcement.create({ ...body, publishedBy: createdBy });
       return res.json({ success: true, data: ann });
     }
@@ -524,6 +644,35 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, action: stri
 
   switch (action) {
     case 'survey': {
+      if (sequelize) {
+        try {
+          const b = req.body;
+          const [rows] = await sequelize.query(`
+            UPDATE surveys SET
+              title = COALESCE(:title, title),
+              description = COALESCE(:description, description),
+              survey_type = COALESCE(:surveyType, survey_type),
+              is_anonymous = COALESCE(:isAnonymous, is_anonymous),
+              is_mandatory = COALESCE(:isMandatory, is_mandatory),
+              questions = COALESCE(:questions::jsonb, questions),
+              updated_at = NOW()
+            WHERE id = :id RETURNING *
+          `, {
+            replacements: {
+              id,
+              title: b.title || null,
+              description: b.description ?? null,
+              surveyType: b.surveyType || b.survey_type || null,
+              isAnonymous: b.isAnonymous ?? b.is_anonymous ?? null,
+              isMandatory: b.isMandatory ?? b.is_mandatory ?? null,
+              questions: b.questions ? JSON.stringify(b.questions) : null,
+            },
+          });
+          if (rows?.[0]) return res.json({ success: true, data: mapSurveyRow(rows[0]), message: 'Survey updated' });
+        } catch (e: any) {
+          if (!isMissingTableError(e)) throw e;
+        }
+      }
       if (!Survey) return res.json({ success: true });
       await Survey.update(req.body, { where: { id } });
       return res.json({ success: true, message: 'Survey updated' });
@@ -592,6 +741,22 @@ async function handleDelete(req: NextApiRequest, res: NextApiResponse, action: s
       );
       return res.json({ success: true, message: 'Deleted' });
     } catch { /* fall through */ }
+  }
+
+  if (sequelize) {
+    const tableMap: Record<string, string> = {
+      survey: 'surveys',
+      recognition: 'recognitions',
+    };
+    const table = tableMap[action];
+    if (table) {
+      try {
+        await sequelize.query(`DELETE FROM ${table} WHERE id = :id`, { replacements: { id } });
+        return res.json({ success: true, message: 'Deleted' });
+      } catch (e: any) {
+        if (!isMissingTableError(e)) throw e;
+      }
+    }
   }
 
   const models: any = { survey: Survey, recognition: Recognition, announcement: Announcement };

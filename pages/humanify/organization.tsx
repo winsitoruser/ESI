@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import OrgChartTree from '@/components/humanify/OrgChartTree';
 import { useTranslation } from '@/lib/i18n';
 import {
   Building2, Network, Award, Plus, Edit, Trash2, X, Save,
   ChevronRight, ChevronDown, Users, Briefcase, Search,
-  BarChart3, Layers, Shield, DollarSign
+  BarChart3, Layers, Shield, DollarSign, LayoutGrid, List as ListIcon,
 } from 'lucide-react';
 
 type MainTab = 'org-structure' | 'job-grades' | 'summary';
+type OrgView = 'chart' | 'list';
 
 const EMPTY_SUMMARY = {
   totalUnits: 0, totalDepartments: 0, totalBranches: 0, totalDivisions: 0,
@@ -17,9 +20,11 @@ const EMPTY_SUMMARY = {
 
 export default function OrganizationPage() {
   const { t } = useTranslation();
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<MainTab>('org-structure');
+  const [orgView, setOrgView] = useState<OrgView>('chart');
 
   // Org data
   const [orgTree, setOrgTree] = useState<any[]>([]);
@@ -44,6 +49,13 @@ export default function OrganizationPage() {
   };
 
   useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    if (!router.isReady) return;
+    const tab = String(router.query.tab || '');
+    if (tab === 'grades' || tab === 'job-grades') setActiveTab('job-grades');
+    else if (tab === 'summary') setActiveTab('summary');
+    else if (tab === 'org-structure' || tab === 'org') setActiveTab('org-structure');
+  }, [router.isReady, router.query.tab]);
   useEffect(() => { if (mounted) loadAll(); }, [mounted]);
 
   const loadAll = async () => {
@@ -54,19 +66,37 @@ export default function OrganizationPage() {
 
   const fetchOrgTree = async () => {
     try {
-      const res = await fetch('/api/humanify/organization?action=org-tree');
+      const res = await fetch(`/api/humanify/organization?action=org-tree&_=${Date.now()}`, { cache: 'no-store' });
       const json = await res.json();
       if (json.success) {
         const tree = json.data || [];
         const flat = json.flat || [];
-        setOrgTree(tree.length ? tree : []);
-        setOrgFlat(flat.length ? flat : []);
+        setOrgTree(tree.length ? [...tree] : []);
+        setOrgFlat(flat.length ? [...flat] : []);
         const ids = new Set<string>();
-        tree.forEach((n: any) => ids.add(n.id));
+        const walk = (nodes: any[]) => {
+          nodes.forEach((n: any) => {
+            ids.add(n.id);
+            if (n.children?.length) walk(n.children);
+          });
+        };
+        walk(tree);
         setExpanded(ids);
       }
     } catch (e) { console.error(e); setOrgTree([]); setOrgFlat([]); }
   };
+
+  const levelForParent = (parentId: string | null | undefined) => {
+    if (!parentId) return 0;
+    const parent = orgFlat.find((o: any) => o.id === parentId);
+    return parent ? (parent.level ?? 0) + 1 : 0;
+  };
+
+  const parentOptions = orgFlat.filter((o: any) => {
+    if (!orgForm.id) return true;
+    if (o.id === orgForm.id) return false;
+    return true;
+  });
 
   const fetchJobGrades = async () => {
     try {
@@ -90,11 +120,12 @@ export default function OrganizationPage() {
       return;
     }
     const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const parentId = orgForm.parent_id || null;
     const payload: any = {
       name: orgForm.name,
       code: orgForm.code,
-      parent_id: orgForm.parent_id || null,
-      level: orgForm.level ?? 0,
+      parent_id: parentId,
+      level: parentId ? levelForParent(parentId) : 0,
       sort_order: orgForm.sort_order ?? 0,
       head_employee_id: orgForm.head_employee_id || null,
       description: orgForm.description,
@@ -111,8 +142,7 @@ export default function OrganizationPage() {
         showToast('success', orgForm.id ? 'Unit organisasi diperbarui' : 'Unit organisasi berhasil disimpan');
         setShowOrgModal(false);
         setOrgForm({});
-        fetchOrgTree();
-        fetchSummary();
+        await loadAll();
       } else showToast('error', json.error || 'Gagal menyimpan');
     } catch (e) { showToast('error', 'Gagal menyimpan'); }
   };
@@ -225,10 +255,16 @@ export default function OrganizationPage() {
     );
   };
 
-  if (!mounted) return null;
+  if (!mounted) {
+    return (
+      <HQLayout title={t('hris.organizationTitle')}>
+        <div className="flex items-center justify-center py-24 text-gray-400 text-sm">Memuat halaman...</div>
+      </HQLayout>
+    );
+  }
 
   return (
-    <HQLayout title={t('hris.organizationTitle')} currentMenu="hris">
+    <HQLayout title={t('hris.organizationTitle')}>
       {toast && (
         <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white text-sm ${toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
           {toast.message}
@@ -291,12 +327,33 @@ export default function OrganizationPage() {
             {/* ===== ORG STRUCTURE TAB ===== */}
             {activeTab === 'org-structure' && (
               <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-gray-800">Hierarki Organisasi</h3>
-                  <button onClick={() => { setOrgForm({ level: 0 }); setShowOrgModal(true); }}
-                    className="flex items-center gap-1 px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
-                    <Plus className="w-3.5 h-3.5" /> Tambah Unit
-                  </button>
+                <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                  <div>
+                    <h3 className="font-semibold text-gray-800">Hierarki Organisasi</h3>
+                    <p className="text-xs text-gray-500 mt-0.5">Bagan struktur unit kerja perusahaan</p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex rounded-lg border overflow-hidden text-sm">
+                      <button
+                        type="button"
+                        onClick={() => setOrgView('chart')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 ${orgView === 'chart' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                      >
+                        <LayoutGrid className="w-4 h-4" /> Bagan
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setOrgView('list')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 border-l ${orgView === 'list' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                      >
+                        <ListIcon className="w-4 h-4" /> Daftar
+                      </button>
+                    </div>
+                    <button onClick={() => { setOrgForm({ level: 0 }); setShowOrgModal(true); }}
+                      className="flex items-center gap-1 px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+                      <Plus className="w-3.5 h-3.5" /> Tambah Unit
+                    </button>
+                  </div>
                 </div>
 
                 {loading ? (
@@ -305,7 +362,31 @@ export default function OrganizationPage() {
                   <div className="text-center py-12">
                     <Network className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                     <p className="text-gray-500">Belum ada struktur organisasi</p>
-                    <p className="text-xs text-gray-400 mt-1">Klik "Tambah Unit" untuk memulai</p>
+                    <p className="text-xs text-gray-400 mt-1">Klik &quot;Tambah Unit&quot; untuk memulai</p>
+                  </div>
+                ) : orgView === 'chart' ? (
+                  <div className="bg-gradient-to-b from-slate-50 to-white rounded-xl border p-6">
+                    <OrgChartTree
+                      nodes={orgTree}
+                      onAddChild={(parentId, parentLevel) => {
+                        setOrgForm({ parent_id: parentId, level: parentLevel });
+                        setShowOrgModal(true);
+                      }}
+                      onEdit={(node) => {
+                        setOrgForm({
+                          id: node.id,
+                          name: node.name,
+                          code: node.code,
+                          parent_id: node.parent_id,
+                          level: node.level,
+                          sort_order: node.sort_order,
+                          head_employee_id: node.head_employee_id,
+                          description: node.description,
+                        });
+                        setShowOrgModal(true);
+                      }}
+                      onDelete={deleteOrg}
+                    />
                   </div>
                 ) : (
                   <div className="space-y-0.5">
@@ -417,8 +498,9 @@ export default function OrganizationPage() {
                   ) : (
                     <div className="space-y-2">
                       {summary.departmentBreakdown.map((d: any, i: number) => {
-                        const maxCnt = Math.max(...summary.departmentBreakdown.map((x: any) => parseInt(x.cnt)));
-                        const pct = maxCnt > 0 ? (parseInt(d.cnt) / maxCnt) * 100 : 0;
+                        const counts = (summary.departmentBreakdown || []).map((x: any) => parseInt(x.cnt, 10) || 0);
+                        const maxCnt = counts.length ? Math.max(...counts) : 0;
+                        const pct = maxCnt > 0 ? ((parseInt(d.cnt, 10) || 0) / maxCnt) * 100 : 0;
                         return (
                           <div key={i} className="flex items-center gap-3">
                             <span className="text-sm text-gray-600 w-40 truncate">{d.department || 'N/A'}</span>
@@ -487,20 +569,45 @@ export default function OrganizationPage() {
                     className="w-full px-3 py-2 border rounded-lg text-sm mt-1" placeholder="OPS, FIN, HR" />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-500">Level</label>
-                  <input type="number" value={orgForm.level ?? 0} onChange={e => setOrgForm((f: any) => ({ ...f, level: parseInt(e.target.value) || 0 }))}
-                    className="w-full px-3 py-2 border rounded-lg text-sm mt-1" />
+                  <label className="text-xs font-medium text-gray-500">Urutan Tampil</label>
+                  <input
+                    type="number"
+                    value={orgForm.sort_order ?? 0}
+                    onChange={e => setOrgForm((f: any) => ({ ...f, sort_order: parseInt(e.target.value, 10) || 0 }))}
+                    className="w-full px-3 py-2 border rounded-lg text-sm mt-1"
+                    min={0}
+                  />
                 </div>
               </div>
               <div>
                 <label className="text-xs font-medium text-gray-500">Unit Induk</label>
-                <select value={orgForm.parent_id || ''} onChange={e => setOrgForm((f: any) => ({ ...f, parent_id: e.target.value || null }))}
-                  className="w-full px-3 py-2 border rounded-lg text-sm mt-1">
-                  <option value="">-- Tingkat Atas --</option>
-                  {orgFlat.map((o: any) => (
-                    <option key={o.id} value={o.id}>{'  '.repeat(o.level)}{o.name} ({o.code || '-'})</option>
+                <select
+                  value={orgForm.parent_id || ''}
+                  onChange={e => {
+                    const parent_id = e.target.value || null;
+                    setOrgForm((f: any) => ({
+                      ...f,
+                      parent_id,
+                      level: parent_id ? levelForParent(parent_id) : 0,
+                    }));
+                  }}
+                  className="w-full px-3 py-2 border rounded-lg text-sm mt-1"
+                >
+                  <option value="">-- Tingkat Atas (Root) --</option>
+                  {parentOptions.map((o: any) => (
+                    <option key={o.id} value={o.id}>{'  '.repeat(o.level || 0)}{o.name} ({o.code || '-'})</option>
                   ))}
                 </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500">Level hierarki</label>
+                <input
+                  type="number"
+                  value={orgForm.parent_id ? levelForParent(orgForm.parent_id) : (orgForm.level ?? 0)}
+                  readOnly
+                  className="w-full px-3 py-2 border rounded-lg text-sm mt-1 bg-gray-50 text-gray-600"
+                />
+                <p className="text-[10px] text-gray-400 mt-0.5">Dihitung otomatis dari unit induk</p>
               </div>
               <div>
                 <label className="text-xs font-medium text-gray-500">Deskripsi</label>

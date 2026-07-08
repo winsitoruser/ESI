@@ -208,3 +208,9 @@ export function computeDocumentCompleteness(documents: any[]): DocumentCompleten
     expired,
   };
 }
+
+export function getEmployeeDocumentDownloadUrl(docId: string, download = false): string {
+  const params = new URLSearchParams({ action: 'download', id: String(docId) });
+  if (download) params.set('disposition', 'attachment');
+  return `/api/humanify/employee-documents?${params.toString()}`;
+}

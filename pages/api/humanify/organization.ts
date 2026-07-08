@@ -9,6 +9,13 @@ try { sequelize = require('../../../lib/sequelize'); } catch (e) {}
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+function sortOrgNodes(nodes: any[]) {
+  nodes.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || String(a.name || '').localeCompare(String(b.name || '')));
+  nodes.forEach((n) => {
+    if (n.children?.length) sortOrgNodes(n.children);
+  });
+}
+
 async function ensureOrgTables() {
   if (!sequelize) return false;
   await sequelize.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
@@ -114,7 +121,15 @@ async function getOrgTree(req: NextApiRequest, res: NextApiResponse) {
         map[r.parent_id].children.push(r);
       } else if (!r.parent_id) {
         tree.push(r);
+      } else {
+        // Parent tidak aktif / hilang — tampilkan sebagai root agar tidak lenyap dari UI
+        tree.push(r);
       }
+    });
+
+    sortOrgNodes(tree);
+    (rows || []).forEach((r: any) => {
+      if (r.children?.length) sortOrgNodes(r.children);
     });
 
     return res.json({ success: true, data: tree, flat: rows });
@@ -208,15 +223,31 @@ async function upsertOrg(req: NextApiRequest, res: NextApiResponse, session: any
   const cleanHeadId = head_employee_id && UUID_RE.test(head_employee_id) ? head_employee_id : null;
   const isUpdate = id && UUID_RE.test(id);
 
+  if (isUpdate && cleanParentId === id) {
+    return res.status(400).json({ success: false, error: 'Unit tidak boleh menjadi induk dirinya sendiri' });
+  }
+
   try {
     await ensureOrgTables();
+
+    if (cleanParentId) {
+      const [[parentRow]] = await sequelize.query(
+        `SELECT id, level FROM org_structures WHERE id = :parentId AND is_active = true LIMIT 1`,
+        { replacements: { parentId: cleanParentId } }
+      );
+      if (!parentRow?.id) {
+        return res.status(400).json({ success: false, error: 'Unit induk tidak ditemukan' });
+      }
+    }
 
     if (isUpdate) {
       await sequelize.query(`
         UPDATE org_structures SET
           name = :name, code = :code, parent_id = :parent_id,
           level = :level, sort_order = :sort_order, head_employee_id = :head_employee_id,
-          description = :description, updated_at = NOW()
+          description = :description,
+          metadata = COALESCE(metadata, '{}'::jsonb) || '{"source":"user","customized":true}'::jsonb,
+          updated_at = NOW()
         WHERE id = :id
       `, {
         replacements: {
@@ -229,8 +260,8 @@ async function upsertOrg(req: NextApiRequest, res: NextApiResponse, session: any
     }
 
     const [result] = await sequelize.query(`
-      INSERT INTO org_structures (tenant_id, name, code, parent_id, level, sort_order, head_employee_id, description)
-      VALUES (:tenantId, :name, :code, :parent_id, :level, :sort_order, :head_employee_id, :description)
+      INSERT INTO org_structures (tenant_id, name, code, parent_id, level, sort_order, head_employee_id, description, metadata)
+      VALUES (:tenantId, :name, :code, :parent_id, :level, :sort_order, :head_employee_id, :description, '{"source":"user"}'::jsonb)
       RETURNING *
     `, {
       replacements: {
@@ -312,7 +343,7 @@ async function deleteOrg(req: NextApiRequest, res: NextApiResponse) {
 
   try {
     await ensureOrgTables();
-    await sequelize.query(`UPDATE org_structures SET is_active = false, updated_at = NOW() WHERE id = :id`, { replacements: { id } });
+    await sequelize.query(`UPDATE org_structures SET is_active = false, metadata = COALESCE(metadata, '{}'::jsonb) || '{"deleted":true}'::jsonb, updated_at = NOW() WHERE id = :id`, { replacements: { id } });
     return res.json({ success: true, message: 'Unit organisasi dihapus' });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: e.message });

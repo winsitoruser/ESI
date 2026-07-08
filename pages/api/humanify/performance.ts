@@ -96,7 +96,7 @@ async function getPerformanceReviews(req: NextApiRequest, res: NextApiResponse) 
       if (rows.length > 0) {
         const ids = rows.map((r: any) => r.id);
         const [allCats] = await sequelize.query(
-          `SELECT * FROM performance_review_categories WHERE review_id = ANY(:ids) ORDER BY sort_order`,
+          `SELECT * FROM performance_review_categories WHERE review_id IN (:ids) ORDER BY sort_order`,
           { replacements: { ids } }
         );
         const catMap: Record<string, any[]> = {};

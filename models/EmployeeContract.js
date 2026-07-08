@@ -5,7 +5,7 @@ const sequelize = require('../lib/sequelize');
 const EmployeeContract = sequelize.define('EmployeeContract', {
   id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
   tenantId: { type: DataTypes.UUID, allowNull: true, field: 'tenant_id' },
-  employeeId: { type: DataTypes.INTEGER, allowNull: false, field: 'employee_id' },
+  employeeId: { type: DataTypes.UUID, allowNull: false, field: 'employee_id' },
   contractType: { type: DataTypes.STRING(20), allowNull: false, defaultValue: 'PKWTT', field: 'contract_type', comment: 'PKWT, PKWTT, MAGANG, FREELANCE' },
   contractNumber: { type: DataTypes.STRING(100), allowNull: true, field: 'contract_number' },
   startDate: { type: DataTypes.DATEONLY, allowNull: false, field: 'start_date' },

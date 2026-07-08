@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]';
 import { loadEmployeesList } from '../../../lib/hris/employee-lookup';
 import { getDepartmentLabel } from '../../../lib/hris/master-data';
+import { isUuid } from '../../../lib/hris/serialize-rows';
 import {
   listOnboarding, createOnboarding, updateOnboarding, deleteOnboarding,
   listOffboarding, createOffboarding, updateOffboarding, deleteOffboarding,
@@ -189,9 +190,21 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
   switch (action) {
     case 'contract': {
       if (!EmployeeContract) return res.json({ success: true, data: { id: uuid(), ...body } });
-      const payload: any = { ...body };
+      const payload: any = {
+        employeeId: body.employeeId,
+        contractType: body.contractType,
+        contractNumber: body.contractNumber || null,
+        startDate: body.startDate,
+        endDate: body.endDate || null,
+        probationEnd: body.probationEnd || null,
+        status: body.status || 'active',
+        salary: body.salary || null,
+        position: body.position || null,
+        department: body.department || null,
+        notes: body.notes || null,
+      };
       if (tenantId) payload.tenantId = tenantId;
-      payload.createdBy = session?.user?.id || null;
+      payload.createdBy = isUuid(session?.user?.id) ? session.user.id : null;
       const created = await EmployeeContract.create(payload);
       // Auto-create reminder if endDate is set
       if (created?.endDate && ContractReminder) {
@@ -294,7 +307,7 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, action: stri
         status: 'active',
         renewalCount: (old.renewalCount || 0) + 1,
         previousContractId: old.id,
-        createdBy: session?.user?.id || null,
+        createdBy: isUuid(session?.user?.id) ? session.user.id : null,
       };
       const created = await EmployeeContract.create(payload);
       return res.json({ success: true, data: created });

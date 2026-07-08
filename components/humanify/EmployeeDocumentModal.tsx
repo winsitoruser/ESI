@@ -10,6 +10,7 @@ import {
   isAcceptedFile,
   getExpiryState,
   getVerificationLabel,
+  getEmployeeDocumentDownloadUrl,
 } from '@/lib/hris/employee-document-types';
 
 interface Props {
@@ -139,7 +140,8 @@ export default function EmployeeDocumentModal({
     setSaving(false);
   };
 
-  const existingFileUrl = form.file_url as string | undefined;
+  const existingFileUrl = form.id && form.file_url ? getEmployeeDocumentDownloadUrl(form.id) : undefined;
+  const existingFileDownloadUrl = form.id && form.file_url ? getEmployeeDocumentDownloadUrl(form.id, true) : undefined;
   const existingFileName = (form.file_name as string) || 'Lihat dokumen';
 
   return (
@@ -253,7 +255,7 @@ export default function EmployeeDocumentModal({
                 <a href={existingFileUrl} target="_blank" rel="noopener noreferrer" className="p-1 text-blue-600 hover:bg-blue-100 rounded" title="Lihat">
                   <Eye className="w-4 h-4" />
                 </a>
-                <a href={existingFileUrl} download className="p-1 text-blue-600 hover:bg-blue-100 rounded" title="Unduh">
+                <a href={existingFileDownloadUrl || existingFileUrl} download className="p-1 text-blue-600 hover:bg-blue-100 rounded" title="Unduh">
                   <Download className="w-4 h-4" />
                 </a>
               </div>
@@ -369,6 +371,8 @@ export function EmployeeDocumentCard({
   fmtDate: (d: any) => string;
 }) {
   const typeLabel = getDocumentTypeLabel(doc.document_type);
+  const fileAccessUrl = doc.id && doc.file_url ? getEmployeeDocumentDownloadUrl(doc.id) : null;
+  const fileDownloadUrl = doc.id && doc.file_url ? getEmployeeDocumentDownloadUrl(doc.id, true) : null;
   const isImage = doc.mime_type?.startsWith('image/') || /\.(jpe?g|png|webp)$/i.test(doc.file_url || '');
   const expiryState = getExpiryState(doc.expiry_date);
   const verLabel = getVerificationLabel(doc.status);
@@ -380,8 +384,8 @@ export function EmployeeDocumentCard({
     }`}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-3 min-w-0 flex-1">
-          {isImage && doc.file_url ? (
-            <img src={doc.file_url} alt={doc.title} className="w-12 h-12 rounded-lg object-cover border shrink-0" />
+          {isImage && fileAccessUrl ? (
+            <img src={fileAccessUrl} alt={doc.title} className="w-12 h-12 rounded-lg object-cover border shrink-0" />
           ) : (
             <div className="p-2 bg-blue-50 rounded-lg shrink-0">
               <FileText className="w-5 h-5 text-blue-600" />
@@ -413,12 +417,12 @@ export function EmployeeDocumentCard({
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          {doc.file_url && (
+          {fileAccessUrl && (
             <>
-              <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded" title="Lihat">
+              <a href={fileAccessUrl} target="_blank" rel="noopener noreferrer" className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded" title="Lihat">
                 <Eye className="w-3.5 h-3.5" />
               </a>
-              <a href={doc.file_url} download className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded" title="Unduh">
+              <a href={fileDownloadUrl || fileAccessUrl} download className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded" title="Unduh">
                 <Download className="w-3.5 h-3.5" />
               </a>
             </>
