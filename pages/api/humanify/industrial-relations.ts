@@ -96,6 +96,81 @@ async function countActiveDisciplinaryWarnings(): Promise<number | null> {
   }
 }
 
+/** Unified PHK register — source of truth: hr_disciplinary_letters (TERMINATION) */
+async function listDisciplinaryTerminations(filters: {
+  employee_id?: string | string[];
+  status?: string | string[];
+  scope?: string | string[];
+}) {
+  if (!sequelize) return null;
+  try {
+    const { employee_id, status, scope } = filters;
+    let where = `WHERE dl.letter_type = 'TERMINATION'`;
+    const rep: Record<string, unknown> = {};
+
+    if (employee_id) {
+      where += ' AND dl.employee_id::text = :employee_id';
+      rep.employee_id = String(employee_id);
+    }
+
+    const scopeVal = String(scope || 'all');
+    if (scopeVal === 'active') {
+      where += ` AND dl.status IN ('issued','acknowledged')`;
+    } else if (scopeVal === 'pipeline') {
+      where += ` AND dl.status IN ('draft','drafting','investigating','review','pending_approval','approved','submitted')`;
+    } else if (status) {
+      where += ' AND dl.status = :status';
+      rep.status = String(status);
+    }
+
+    const [rows] = await sequelize.query(`
+      SELECT
+        dl.id,
+        dl.employee_id,
+        e.name AS employee_name,
+        e.employee_code,
+        e.position,
+        e.department,
+        COALESCE(dl.termination_type, 'PHK') AS termination_type,
+        COALESCE(dl.letter_number, dl.reference_number) AS letter_number,
+        dl.reference_number,
+        dl.effective_date,
+        dl.violation_description AS reason,
+        dl.severance_amount,
+        dl.status,
+        dl.notes,
+        dl.incident_date,
+        dl.created_at,
+        dl.updated_at,
+        'disciplinary' AS source
+      FROM hr_disciplinary_letters dl
+      LEFT JOIN employees e ON dl.employee_id::text = e.id::text
+      ${where}
+      ORDER BY COALESCE(dl.effective_date, dl.created_at) DESC
+      LIMIT 200
+    `, { replacements: rep });
+    return rows || [];
+  } catch (e: any) {
+    console.warn('disciplinary terminations proxy failed:', e?.message || e);
+    return null;
+  }
+}
+
+async function countPendingDisciplinaryTerminations(): Promise<number | null> {
+  if (!sequelize) return null;
+  try {
+    const [rows] = await sequelize.query(`
+      SELECT COUNT(*)::int AS cnt
+      FROM hr_disciplinary_letters
+      WHERE letter_type = 'TERMINATION'
+        AND status IN ('draft','drafting','investigating','review','pending_approval','approved','submitted')
+    `);
+    return rows?.[0]?.cnt ?? 0;
+  } catch {
+    return null;
+  }
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
   if (!session) return res.status(401).json({ error: 'Unauthorized' });
@@ -121,11 +196,12 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
   switch (action) {
     case 'overview': {
       const discWarnings = await countActiveDisciplinaryWarnings();
-      const [regs, legacyWarnings, cases, terminations, checklists] = await Promise.all([
+      const discTerminations = await countPendingDisciplinaryTerminations();
+      const [regs, legacyWarnings, cases, legacyTerminations, checklists] = await Promise.all([
         CompanyRegulation?.count({ where: { status: 'active' } }) || 0,
         WarningLetter?.count({ where: { status: 'active' } }).catch(() => 0) || 0,
         IrCase?.count({ where: { status: 'open' } }) || 0,
-        TerminationRequest?.count({ where: { status: 'pending_approval' } }) || 0,
+        TerminationRequest?.count({ where: { status: 'pending_approval' } }).catch(() => 0) || 0,
         ComplianceChecklist?.count({ where: { status: 'pending' } }) || 0,
       ]);
       return res.json({
@@ -134,9 +210,10 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
           activeRegulations: regs,
           activeWarnings: discWarnings ?? legacyWarnings,
           openCases: cases,
-          pendingTerminations: terminations,
+          pendingTerminations: discTerminations ?? legacyTerminations,
           pendingChecklists: checklists,
           warningsSource: discWarnings !== null ? 'disciplinary' : 'legacy',
+          terminationsSource: discTerminations !== null ? 'disciplinary' : 'legacy',
         }
       });
     }
@@ -184,12 +261,25 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
       return res.json({ success: true, data: rows.map(serializeIrCase) });
     }
     case 'terminations': {
+      const { employee_id, status, scope } = req.query;
+      const disc = await listDisciplinaryTerminations({ employee_id, status, scope });
+      if (disc !== null) {
+        return res.json({
+          success: true,
+          data: disc,
+          meta: {
+            source: 'disciplinary',
+            note: 'PHK terintegrasi dengan modul Surat Disiplin & SOP',
+            manageUrl: '/humanify/disciplinary-letters',
+          },
+        });
+      }
       const { status: tStatus, termination_type } = req.query;
       const where: any = {};
       if (tStatus) where.status = tStatus;
       if (termination_type) where.terminationType = termination_type;
       const rows = TerminationRequest ? await TerminationRequest.findAll({ where, order: [['createdAt', 'DESC']] }) : [];
-      return res.json({ success: true, data: rowsToSnake(rows) });
+      return res.json({ success: true, data: rowsToSnake(rows), meta: { source: 'legacy' } });
     }
     case 'checklists': {
       const { status: clStatus, category: clCat } = req.query;
@@ -238,10 +328,11 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
       return res.json({ success: true, data: irCase });
     }
     case 'termination': {
-      if (!TerminationRequest) return res.json({ success: true, data: body, message: 'Created (mock)' });
-      const term = await TerminationRequest.create(body);
-      await logAudit(session, 'create', 'termination_request', term.id, null, body);
-      return res.json({ success: true, data: term });
+      return res.status(410).json({
+        success: false,
+        error: 'PHK kini dikelola di modul Surat Disiplin & SOP. Gunakan /humanify/disciplinary-letters untuk mengajukan surat PHK.',
+        redirect: '/humanify/disciplinary-letters?view=create&type=TERMINATION',
+      });
     }
     case 'checklist': {
       if (!ComplianceChecklist) return res.json({ success: true, data: body, message: 'Created (mock)' });
@@ -324,9 +415,11 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, action: stri
       return res.json({ success: true, message: 'Case updated' });
     }
     case 'termination': {
-      if (!TerminationRequest) return res.json({ success: true, message: 'Updated (mock)' });
-      await TerminationRequest.update(body, { where: { id } });
-      return res.json({ success: true, message: 'Termination updated' });
+      return res.status(410).json({
+        success: false,
+        error: 'PHK kini dikelola di modul Surat Disiplin & SOP.',
+        redirect: `/humanify/disciplinary-letters?id=${id}`,
+      });
     }
     case 'checklist': {
       if (!ComplianceChecklist) return res.json({ success: true, message: 'Updated (mock)' });
@@ -350,7 +443,15 @@ async function handleDelete(req: NextApiRequest, res: NextApiResponse, action: s
     });
   }
 
-  const models: any = { regulation: CompanyRegulation, case: IrCase, termination: TerminationRequest, checklist: ComplianceChecklist };
+  if (action === 'termination') {
+    return res.status(410).json({
+      success: false,
+      error: 'PHK tidak dihapus dari sini. Kelola lewat modul Surat Disiplin & SOP.',
+      redirect: `/humanify/disciplinary-letters?id=${id}`,
+    });
+  }
+
+  const models: any = { regulation: CompanyRegulation, case: IrCase, checklist: ComplianceChecklist };
   const model = models[action];
   if (!model) return res.status(400).json({ error: 'Invalid action' });
   await model.destroy({ where: { id } });

@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import { useTranslation } from '@/lib/i18n';
-import DocumentExportButton from '@/components/documents/DocumentExportButton';
 import { STATUS_LABELS, VIOLATION_TYPE_LABELS, getDocumentTypeForLetter, type ViolationType } from '@/lib/hris/disciplinary-workflow';
 import { Shield, FileText, AlertTriangle, Users, CheckSquare, Plus, Edit, Trash2, Eye, Search, ChevronDown, X, Clock, AlertCircle, Download, ExternalLink, ArrowRight } from 'lucide-react';
 
@@ -27,7 +26,23 @@ interface Warning {
   source?: string;
 }
 interface IrCase { id: string; case_number: string; title: string; category: string; priority: string; status: string; reported_by: number; reported_date: string; description: string; involved_employees: any[]; resolution: string; }
-interface Termination { id: string; employee_id: number; termination_type: string; reason: string; effective_date: string; status: string; clearance_status: any; exit_interview_done: boolean; severance_amount: number; }
+interface Termination {
+  id: string;
+  employee_id: string | number;
+  employee_name?: string;
+  employee_code?: string;
+  position?: string;
+  department?: string;
+  termination_type: string;
+  letter_number?: string;
+  reference_number?: string;
+  reason: string;
+  effective_date: string;
+  status: string;
+  severance_amount: number;
+  notes?: string;
+  source?: string;
+}
 interface Checklist { id: string; name: string; category: string; description: string; items: any[]; status: string; completion_percent: number; due_date: string; period: string; }
 
 type TabKey = 'regulations' | 'warnings' | 'cases' | 'terminations' | 'compliance';
@@ -51,7 +66,7 @@ const MOCK_IR_CASES: IrCase[] = [
 ];
 
 const MOCK_TERMINATIONS: Termination[] = [
-  { id: 't1', employee_id: 30, termination_type: 'resignation', reason: 'Pindah ke perusahaan lain', effective_date: '2026-04-01', status: 'pending_approval', clearance_status: { it: false, finance: false, hr: true, asset: false }, exit_interview_done: false, severance_amount: 0 },
+  { id: 't1', employee_id: '30', employee_name: 'Contoh Karyawan PHK', termination_type: 'resignation', letter_number: 'PHK/0001/HR/2026', reason: 'Pindah ke perusahaan lain', effective_date: '2026-04-01', status: 'pending_approval', severance_amount: 0, source: 'disciplinary' },
 ];
 
 const MOCK_CHECKLISTS: Checklist[] = [
@@ -67,6 +82,8 @@ export default function IndustrialRelationsPage() {
   const [warnings, setWarnings] = useState<Warning[]>(MOCK_WARNINGS);
   const [warningScope, setWarningScope] = useState<'all' | 'active' | 'pipeline'>('all');
   const [warningsSource, setWarningsSource] = useState<'disciplinary' | 'legacy' | 'mock'>('mock');
+  const [terminationScope, setTerminationScope] = useState<'all' | 'active' | 'pipeline'>('all');
+  const [terminationsSource, setTerminationsSource] = useState<'disciplinary' | 'legacy' | 'mock'>('mock');
   const [cases, setCases] = useState<IrCase[]>(MOCK_IR_CASES);
   const [terminations, setTerminations] = useState<Termination[]>(MOCK_TERMINATIONS);
   const [checklists, setChecklists] = useState<Checklist[]>(MOCK_CHECKLISTS);
@@ -80,7 +97,6 @@ export default function IndustrialRelationsPage() {
 
   const [regForm, setRegForm] = useState({ title: '', regulationNumber: '', category: 'company_rule', description: '', content: '', effectiveDate: '', status: 'draft' });
   const [caseForm, setCaseForm] = useState({ title: '', category: 'misconduct', priority: 'medium', reportedDate: '', description: '', involvedEmployees: [] as any[] });
-  const [termForm, setTermForm] = useState({ employeeId: '', terminationType: 'resignation', reason: '', effectiveDate: '', noticePeriodDays: 30 });
 
   const showToast = (msg: string, type = 'success') => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
 
@@ -97,11 +113,17 @@ export default function IndustrialRelationsPage() {
     setWarningsSource((warns.meta?.source as any) || 'legacy');
   }, [api, warningScope]);
 
+  const loadTerminations = useCallback(async (scope: 'all' | 'active' | 'pipeline' = terminationScope) => {
+    const terms = await api('terminations', 'GET', null, `&scope=${scope}`);
+    setTerminations(terms.data || []);
+    setTerminationsSource((terms.meta?.source as any) || 'legacy');
+  }, [api, terminationScope]);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const [ov, regs, warns, cs, terms, cls] = await Promise.all([
-        api('overview'), api('regulations'), api('warnings', 'GET', null, `&scope=${warningScope}`), api('cases'), api('terminations'), api('checklists')
+        api('overview'), api('regulations'), api('warnings', 'GET', null, `&scope=${warningScope}`), api('cases'), api('terminations', 'GET', null, `&scope=${terminationScope}`), api('checklists')
       ]);
       setOverview(ov.data || {});
       setRegulations(regs.data || []);
@@ -109,6 +131,7 @@ export default function IndustrialRelationsPage() {
       setWarningsSource((warns.meta?.source as any) || ov.data?.warningsSource || 'legacy');
       setCases(cs.data || []);
       setTerminations(terms.data || []);
+      setTerminationsSource((terms.meta?.source as any) || ov.data?.terminationsSource || 'legacy');
       setChecklists(cls.data || []);
     } catch (e) {
       console.error(e);
@@ -118,10 +141,11 @@ export default function IndustrialRelationsPage() {
       setWarningsSource('mock');
       setCases(MOCK_IR_CASES);
       setTerminations(MOCK_TERMINATIONS);
+      setTerminationsSource('mock');
       setChecklists(MOCK_CHECKLISTS);
     }
     setLoading(false);
-  }, [api, warningScope]);
+  }, [api, warningScope, terminationScope]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -129,15 +153,22 @@ export default function IndustrialRelationsPage() {
     if (tab === 'warnings') loadWarnings(warningScope);
   }, [warningScope, tab, loadWarnings]);
 
+  useEffect(() => {
+    if (tab === 'terminations') loadTerminations(terminationScope);
+  }, [terminationScope, tab, loadTerminations]);
+
   const openAdd = (type: string) => {
     if (type === 'warning') {
       router.push('/humanify/disciplinary-letters?view=create&type=SP1');
       return;
     }
+    if (type === 'termination') {
+      router.push('/humanify/disciplinary-letters?view=create&type=TERMINATION');
+      return;
+    }
     setEditingItem(null); setModalType(type); setShowModal(true);
     if (type === 'regulation') setRegForm({ title: '', regulationNumber: '', category: 'company_rule', description: '', content: '', effectiveDate: '', status: 'draft' });
     if (type === 'case') setCaseForm({ title: '', category: 'misconduct', priority: 'medium', reportedDate: new Date().toISOString().split('T')[0], description: '', involvedEmployees: [] });
-    if (type === 'termination') setTermForm({ employeeId: '', terminationType: 'resignation', reason: '', effectiveDate: '', noticePeriodDays: 30 });
   };
 
   const handleSave = async () => {
@@ -148,9 +179,6 @@ export default function IndustrialRelationsPage() {
       } else if (modalType === 'case') {
         if (editingItem) await api('case', 'PUT', caseForm, `&id=${editingItem.id}`);
         else await api('case', 'POST', caseForm);
-      } else if (modalType === 'termination') {
-        if (editingItem) await api('termination', 'PUT', termForm, `&id=${editingItem.id}`);
-        else await api('termination', 'POST', termForm);
       }
       showToast(editingItem ? 'Berhasil diperbarui' : 'Berhasil dibuat');
       setShowModal(false); loadData();
@@ -161,6 +189,41 @@ export default function IndustrialRelationsPage() {
     if (!confirm('Hapus data ini?')) return;
     await api(action, 'DELETE', null, `&id=${id}`);
     showToast('Dihapus'); loadData();
+  };
+
+  const openTerminationPdf = async (t: Termination) => {
+    try {
+      const res = await fetch(`/api/humanify/disciplinary-letters?action=letter-data&id=${t.id}`);
+      const json = await res.json();
+      if (!json.success || !json.data?.letterData) {
+        showToast('Data surat belum siap untuk unduh PDF', 'error');
+        return;
+      }
+      const gen = await fetch('/api/hq/documents?action=generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: getDocumentTypeForLetter('TERMINATION'),
+          format: 'pdf',
+          data: json.data.letterData,
+          meta: json.data.meta,
+          options: { includeHeader: false, includeFooter: false, includeSignature: false },
+        }),
+      });
+      if (!gen.ok) throw new Error('Gagal generate PDF');
+      const blob = await gen.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${t.letter_number || 'PHK'}_${Date.now()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('PDF berhasil diunduh');
+    } catch (e: any) {
+      showToast(e.message || 'Gagal unduh PDF', 'error');
+    }
   };
 
   const openWarningPdf = async (w: Warning) => {
@@ -228,6 +291,27 @@ export default function IndustrialRelationsPage() {
       .filter(Boolean)
       .some((v) => String(v).toLowerCase().includes(q));
   });
+
+  const filteredTerminations = terminations.filter((t) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return [t.letter_number, t.employee_name, t.employee_code, t.reason, t.termination_type]
+      .filter(Boolean)
+      .some((v) => String(v).toLowerCase().includes(q));
+  });
+
+  const terminationTypeLabel = (type: string) => {
+    const m: Record<string, string> = {
+      resignation: 'Pengunduran Diri',
+      dismissal: 'Pemecatan',
+      mutual: 'Kesepakatan Bersama',
+      contract_end: 'Berakhir Kontrak',
+      retirement: 'Pensiun',
+      restructuring: 'Restrukturisasi',
+      PHK: 'PHK',
+    };
+    return m[type] || type;
+  };
 
   const warningStatusLabel = (s: string) =>
     (STATUS_LABELS as Record<string, string>)[s] || s;
@@ -500,76 +584,143 @@ export default function IndustrialRelationsPage() {
         </div>
       )}
 
-      {/* TERMINATIONS TAB */}
+      {/* TERMINATIONS TAB — integrated with /humanify/disciplinary-letters */}
       {!loading && tab === 'terminations' && (
-        <div>
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold">Workflow PHK / Pemutusan Hubungan Kerja</h2>
-            <button onClick={() => openAdd('termination')} className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg text-sm hover:bg-gray-900">
-              <Plus className="w-4 h-4" /> Ajukan PHK
+        <div className="space-y-4">
+          <div className="rounded-xl border border-gray-300 bg-gray-50/80 px-4 py-3 flex flex-wrap items-start gap-3 justify-between">
+            <div className="flex gap-2 text-sm text-gray-950 max-w-2xl">
+              <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-gray-600" />
+              <div>
+                <p className="font-semibold">Terintegrasi dengan Surat Disiplin & SOP</p>
+                <p className="text-gray-700/80 mt-0.5">
+                  Pengajuan PHK dan surat pemutusan hubungan kerja dikelola melalui workflow disiplin
+                  (draft → approval → penerbitan). Clearance, pesangon, dan dokumen resmi di modul Surat Disiplin.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => router.push('/humanify/disciplinary-letters')}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-800 hover:text-gray-950 px-3 py-1.5 rounded-lg border border-gray-300 bg-white"
+            >
+              Buka modul lengkap <ExternalLink className="w-3.5 h-3.5" />
             </button>
           </div>
-          <div className="space-y-3">
-            {terminations.map(t => (
-              <div key={t.id} className="bg-white border rounded-xl p-4">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(t.status)}`}>{t.status}</span>
-                      <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">{t.termination_type}</span>
-                    </div>
-                    <p className="font-medium">Karyawan #{t.employee_id}</p>
-                    <p className="text-sm text-gray-500 mt-1">{t.reason}</p>
-                    {t.effective_date && <p className="text-xs text-gray-400 mt-1">Efektif: {new Date(t.effective_date).toLocaleDateString('id-ID')}</p>}
-                  </div>
-                  <div className="text-right flex items-start gap-2">
-                    <div>
-                      {t.severance_amount > 0 && <p className="text-sm font-medium">Pesangon: Rp {Number(t.severance_amount).toLocaleString('id-ID')}</p>}
-                    </div>
-                    <DocumentExportButton
-                      documentType="termination-letter"
-                      variant="icon"
-                      data={{
-                        employeeId: t.employee_id,
-                        employeeName: `Karyawan #${t.employee_id}`,
-                        terminationType: t.termination_type,
-                        reason: t.reason,
-                        effectiveDate: t.effective_date,
-                        severanceAmount: t.severance_amount,
-                        clearanceStatus: t.clearance_status,
-                      }}
-                      meta={{ documentNumber: `PHK-${t.id?.substring(0,8)}`, documentDate: t.effective_date || new Date().toISOString().split('T')[0] }}
-                      options={{
-                        includeSignature: true,
-                        signatureFields: [
-                          { label: 'Direktur', position: 'Perusahaan' },
-                          { label: 'Manajer HRD', position: 'Mengetahui' },
-                          { label: 'Karyawan', position: 'Yang Bersangkutan' },
-                        ],
-                      }}
-                      showFormats={['pdf']}
-                    />
-                  </div>
-                </div>
-                {/* Clearance Status */}
-                {t.clearance_status && (
-                  <div className="mt-3 flex gap-2 flex-wrap">
-                    {Object.entries(t.clearance_status).map(([k, v]) => (
-                      <span key={k} className={`text-xs px-2 py-1 rounded ${v ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                        {k.toUpperCase()} {v ? '✓' : '○'}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <div className="flex gap-1 mt-3">
-                  {t.status === 'pending_approval' && (
-                    <button onClick={async () => { await api('approve-termination', 'POST', { id: t.id }); showToast('PHK disetujui'); loadData(); }} className="text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700">Setujui</button>
-                  )}
-                  <button onClick={() => handleDelete('termination', t.id)} className="text-xs px-2 py-1 text-red-600 hover:bg-red-50 rounded">Hapus</button>
-                </div>
+
+          <div className="flex flex-wrap justify-between items-center gap-3">
+            <div>
+              <h2 className="text-lg font-semibold">PHK / Pemutusan Hubungan Kerja</h2>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Sumber: {terminationsSource === 'disciplinary' ? 'Surat Disiplin (hr_disciplinary_letters)' : terminationsSource === 'legacy' ? 'Legacy termination_requests' : 'Demo'}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <div className="flex rounded-lg border overflow-hidden text-xs">
+                {([
+                  ['all', 'Semua'],
+                  ['active', 'Terbit / Selesai'],
+                  ['pipeline', 'Dalam proses'],
+                ] as const).map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setTerminationScope(key)}
+                    className={`px-3 py-2 font-medium ${terminationScope === key ? 'bg-gray-800 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
-            ))}
-            {terminations.length === 0 && <p className="text-center text-gray-400 py-8">Tidak ada pengajuan PHK</p>}
+              <button
+                onClick={() => openAdd('termination')}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg text-sm hover:bg-gray-900"
+              >
+                <Plus className="w-4 h-4" /> Ajukan PHK
+              </button>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto border rounded-xl bg-white">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-gray-600">
+                <tr>
+                  <th className="px-4 py-3 text-left">No. Surat</th>
+                  <th className="px-4 py-3 text-left">Karyawan</th>
+                  <th className="px-4 py-3 text-left">Tipe PHK</th>
+                  <th className="px-4 py-3 text-left">Alasan</th>
+                  <th className="px-4 py-3 text-left">Tgl Efektif</th>
+                  <th className="px-4 py-3 text-left">Pesangon</th>
+                  <th className="px-4 py-3 text-left">Status</th>
+                  <th className="px-4 py-3 text-left">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {filteredTerminations.map(t => {
+                  const canExport = ['issued', 'acknowledged', 'approved', 'active'].includes(t.status);
+                  return (
+                    <tr key={t.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 font-mono text-xs">{t.letter_number || t.reference_number || '—'}</td>
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-gray-900">{t.employee_name || `Karyawan #${t.employee_id}`}</div>
+                        {t.employee_code && <div className="text-[11px] text-gray-400">{t.employee_code}{t.position ? ` · ${t.position}` : ''}</div>}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">{terminationTypeLabel(t.termination_type)}</span>
+                      </td>
+                      <td className="px-4 py-3 max-w-xs truncate text-gray-800">{t.reason || '—'}</td>
+                      <td className="px-4 py-3 text-xs">{t.effective_date ? new Date(t.effective_date).toLocaleDateString('id-ID') : '—'}</td>
+                      <td className="px-4 py-3 text-xs">
+                        {t.severance_amount > 0 ? `Rp ${Number(t.severance_amount).toLocaleString('id-ID')}` : '—'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(t.status)}`}>{warningStatusLabel(t.status)}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            title="Buka di Surat Disiplin"
+                            onClick={() => router.push(`/humanify/disciplinary-letters?id=${t.id}`)}
+                            className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                          {canExport && (
+                            <button
+                              type="button"
+                              title="Unduh PDF"
+                              onClick={() => openTerminationPdf(t)}
+                              className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            title="Kelola proses"
+                            onClick={() => router.push(`/humanify/disciplinary-letters?id=${t.id}`)}
+                            className="inline-flex items-center gap-0.5 px-2 py-1 text-[11px] font-medium text-gray-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg"
+                          >
+                            Kelola <ArrowRight className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {filteredTerminations.length === 0 && (
+              <div className="text-center text-gray-400 py-10 px-4">
+                <p>Belum ada pengajuan PHK{terminationScope !== 'all' ? ` (filter: ${terminationScope})` : ''}.</p>
+                <button
+                  type="button"
+                  onClick={() => openAdd('termination')}
+                  className="mt-3 text-sm text-gray-700 font-medium hover:text-gray-900"
+                >
+                  Mulai proses PHK di Surat Disiplin →
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -628,7 +779,7 @@ export default function IndustrialRelationsPage() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center p-5 border-b">
-              <h3 className="text-lg font-semibold">{editingItem ? 'Edit' : 'Tambah'} {modalType === 'regulation' ? 'Peraturan' : modalType === 'case' ? 'Kasus' : 'PHK'}</h3>
+              <h3 className="text-lg font-semibold">{editingItem ? 'Edit' : 'Tambah'} {modalType === 'regulation' ? 'Peraturan' : 'Kasus'}</h3>
               <button onClick={() => setShowModal(false)} className="p-1 hover:bg-gray-100 rounded"><X className="w-5 h-5" /></button>
             </div>
             <div className="p-5 space-y-4">
@@ -664,17 +815,6 @@ export default function IndustrialRelationsPage() {
                 </div>
                 <div><label className="text-sm font-medium text-gray-700">Tanggal Laporan</label><input type="date" value={caseForm.reportedDate} onChange={e => setCaseForm({ ...caseForm, reportedDate: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" /></div>
                 <div><label className="text-sm font-medium text-gray-700">Deskripsi</label><textarea value={caseForm.description} onChange={e => setCaseForm({ ...caseForm, description: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" rows={4} /></div>
-              </>)}
-              {modalType === 'termination' && (<>
-                <div><label className="text-sm font-medium text-gray-700">ID Karyawan</label><input type="number" value={termForm.employeeId} onChange={e => setTermForm({ ...termForm, employeeId: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" /></div>
-                <div><label className="text-sm font-medium text-gray-700">Tipe PHK</label>
-                  <select value={termForm.terminationType} onChange={e => setTermForm({ ...termForm, terminationType: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
-                    <option value="resignation">Pengunduran Diri</option><option value="dismissal">Pemecatan</option><option value="mutual">Kesepakatan Bersama</option><option value="contract_end">Berakhir Kontrak</option><option value="retirement">Pensiun</option><option value="restructuring">Restrukturisasi</option>
-                  </select>
-                </div>
-                <div><label className="text-sm font-medium text-gray-700">Alasan</label><textarea value={termForm.reason} onChange={e => setTermForm({ ...termForm, reason: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" rows={3} /></div>
-                <div><label className="text-sm font-medium text-gray-700">Tanggal Efektif</label><input type="date" value={termForm.effectiveDate} onChange={e => setTermForm({ ...termForm, effectiveDate: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" /></div>
-                <div><label className="text-sm font-medium text-gray-700">Masa Pemberitahuan (hari)</label><input type="number" value={termForm.noticePeriodDays} onChange={e => setTermForm({ ...termForm, noticePeriodDays: parseInt(e.target.value) || 30 })} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" /></div>
               </>)}
             </div>
             <div className="flex justify-end gap-2 p-5 border-t">
