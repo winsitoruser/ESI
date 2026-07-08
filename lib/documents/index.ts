@@ -13,6 +13,7 @@ export { generateExcel, generateCSV } from './excel-generator';
 import { DocumentRequest, DocumentFormat, DocumentType, CompanyInfo, DocumentMeta, DOCUMENT_REGISTRY, getDocumentConfig } from './types';
 import { generatePDF } from './pdf-generator';
 import { generateExcel, generateCSV } from './excel-generator';
+import { DRAFT_LETTER_TYPES, isDraftBasedLetter } from '@/lib/hris/disciplinary-letter-render';
 
 /**
  * Generate a document in the requested format
