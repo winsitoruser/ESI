@@ -150,6 +150,7 @@ for script in migrate-team-members-tables migrate-mutation-workflow migrate-casu
 done
 node scripts/seed-payroll-demo-data.js 2>&1 | tail -3 || true
 node scripts/migrate-recruitment-training-align.js 2>&1 | tail -1 || true
+node scripts/migrate-disciplinary-letter-workflow.js 2>&1 | tail -3 || true
 node scripts/run-humanify-pending-migrations.js 2>&1 | tail -1 || true
 node scripts/seed-recruitment-training-demo.js 2>&1 | tail -3 || true
 node scripts/migrate-multifinance-workforce.js 2>&1 | tail -1 || true

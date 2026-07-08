@@ -84,8 +84,81 @@ function getUserId(session: any): number | null {
 
 async function ensureSchema() {
   if (!sequelize) return;
+  await sequelize.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
+  await sequelize.query(`
+    CREATE TABLE IF NOT EXISTS hr_letter_sop_templates (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      tenant_id UUID,
+      name VARCHAR(100) NOT NULL,
+      letter_type VARCHAR(30) NOT NULL,
+      description TEXT,
+      phases JSONB NOT NULL DEFAULT '[]',
+      approval_levels JSONB NOT NULL DEFAULT '[]',
+      prerequisites JSONB DEFAULT '{}',
+      validity_months INTEGER DEFAULT 6,
+      is_active BOOLEAN DEFAULT true,
+      is_default BOOLEAN DEFAULT false,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await sequelize.query(`
+    CREATE TABLE IF NOT EXISTS hr_disciplinary_letters (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      tenant_id UUID,
+      employee_id UUID NOT NULL,
+      letter_type VARCHAR(30) NOT NULL,
+      letter_number VARCHAR(50),
+      reference_number VARCHAR(50),
+      current_phase VARCHAR(30) DEFAULT 'request',
+      status VARCHAR(30) DEFAULT 'draft',
+      violation_type VARCHAR(50) DEFAULT 'discipline',
+      violation_description TEXT,
+      regulation_id UUID,
+      previous_letter_id UUID,
+      incident_date DATE,
+      effective_date DATE,
+      expiry_date DATE,
+      request_reason TEXT,
+      investigation_notes TEXT,
+      draft_content JSONB DEFAULT '{}',
+      requested_by INTEGER,
+      drafted_by INTEGER,
+      issued_by INTEGER,
+      issued_at TIMESTAMPTZ,
+      acknowledged BOOLEAN DEFAULT false,
+      acknowledged_at TIMESTAMPTZ,
+      sop_template_id UUID REFERENCES hr_letter_sop_templates(id),
+      current_approval_step INTEGER DEFAULT 1,
+      total_approval_steps INTEGER DEFAULT 1,
+      related_case_id UUID,
+      related_termination_id UUID,
+      termination_type VARCHAR(30),
+      severance_amount DECIMAL(15,2) DEFAULT 0,
+      attachments JSONB DEFAULT '[]',
+      audit_trail JSONB DEFAULT '[]',
+      notes TEXT,
+      e_file_id UUID,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await sequelize.query(`
+    CREATE TABLE IF NOT EXISTS hr_disciplinary_approval_steps (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      letter_id UUID NOT NULL REFERENCES hr_disciplinary_letters(id) ON DELETE CASCADE,
+      step_order INTEGER NOT NULL DEFAULT 1,
+      phase VARCHAR(30) DEFAULT 'approval',
+      approver_id INTEGER,
+      approver_role VARCHAR(50),
+      approver_title VARCHAR(100),
+      status VARCHAR(20) DEFAULT 'waiting',
+      comments TEXT,
+      acted_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
   try {
-    await sequelize.query(`SELECT 1 FROM hr_disciplinary_letters LIMIT 1`);
     const [cols] = await sequelize.query(`
       SELECT data_type FROM information_schema.columns
       WHERE table_name = 'hr_disciplinary_letters' AND column_name = 'employee_id'
@@ -96,8 +169,30 @@ async function ensureSchema() {
       await sequelize.query(`ALTER TABLE hr_disciplinary_letters ALTER COLUMN employee_id TYPE UUID USING NULL`);
       await sequelize.query(`ALTER TABLE hr_disciplinary_letters ALTER COLUMN employee_id SET NOT NULL`);
     }
-  } catch {
-    // Tables missing — run: npm run db:disciplinary-migrate
+  } catch { /* noop */ }
+
+  try {
+    const [existing] = await sequelize.query(`SELECT COUNT(*)::int as cnt FROM hr_letter_sop_templates`);
+    if ((existing[0]?.cnt || 0) === 0) {
+      for (const tpl of DEFAULT_SOP_TEMPLATES) {
+        await sequelize.query(`
+          INSERT INTO hr_letter_sop_templates (name, letter_type, description, phases, approval_levels, prerequisites, validity_months, is_active, is_default)
+          VALUES (:name, :letterType, :description, :phases::jsonb, :approvalLevels::jsonb, :prerequisites::jsonb, :validityMonths, true, true)
+        `, {
+          replacements: {
+            name: tpl.name,
+            letterType: tpl.letterType,
+            description: tpl.description,
+            phases: JSON.stringify(tpl.phases),
+            approvalLevels: JSON.stringify(tpl.approvalLevels),
+            prerequisites: JSON.stringify(tpl.prerequisites),
+            validityMonths: tpl.validityMonths,
+          },
+        });
+      }
+    }
+  } catch (seedErr: any) {
+    console.warn('[disciplinary] SOP seed skipped:', seedErr?.message || seedErr);
   }
 }
 
