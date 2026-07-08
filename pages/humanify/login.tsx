@@ -14,7 +14,7 @@ export default function HumanifyLoginPage({ csrfToken }: Props) {
       <Head>
         <title>Masuk — {HUMANIFY_BRAND.name} {HUMANIFY_BRAND.productType}</title>
         <meta name="description" content={`Login ${HUMANIFY_BRAND.name} — ${HUMANIFY_BRAND.productType} oleh ${HUMANIFY_BRAND.company}`} />
-        <link rel="icon" href={HUMANIFY_BRAND.logoPath} type="image/png" />
+        <link rel="icon" href={HUMANIFY_BRAND.welcomeLogoPath} type="image/png" />
       </Head>
       <HumanifyLoginForm csrfToken={csrfToken} defaultRedirect={HUMANIFY_BRAND.appPath} />
     </>

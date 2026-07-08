@@ -11,6 +11,10 @@ type HumanifyLogoProps = {
   href?: string;
   className?: string;
   priority?: boolean;
+  /** Override image src (e.g. welcome wordmark) */
+  src?: string;
+  /** Width/height ratio when `variant` is `full` */
+  aspect?: number;
   /** Text color classes when variant is `withText` */
   textClassName?: string;
   subtitleClassName?: string;
@@ -25,11 +29,15 @@ export function HumanifyLogo({
   href,
   className = '',
   priority,
+  src,
+  aspect,
   textClassName = 'font-bold text-gray-900 tracking-tight',
   subtitleClassName = 'text-xs text-gray-400 font-medium',
 }: HumanifyLogoProps) {
   const alt = `${HUMANIFY_BRAND.name} — ${HUMANIFY_BRAND.tagline}`;
   const markSize = MARK_SIZES[size];
+  const logoSrc = src ?? HUMANIFY_BRAND.logoPath;
+  const logoAspect = aspect ?? LOGO_ASPECT;
 
   const mark = (
     <span
@@ -37,7 +45,7 @@ export function HumanifyLogo({
       style={{ width: markSize, height: markSize }}
     >
       <Image
-        src={HUMANIFY_BRAND.logoPath}
+        src={logoSrc}
         alt={alt}
         fill
         priority={priority}
@@ -58,12 +66,12 @@ export function HumanifyLogo({
       </span>
     ) : variant === 'full' ? (
       <Image
-        src={HUMANIFY_BRAND.logoPath}
+        src={logoSrc}
         alt={alt}
-        width={Math.round(FULL_HEIGHTS[size] * LOGO_ASPECT)}
+        width={Math.round(FULL_HEIGHTS[size] * logoAspect)}
         height={FULL_HEIGHTS[size]}
         priority={priority}
-        className={`object-contain flex-shrink-0 rounded-xl ${className}`}
+        className={`object-contain flex-shrink-0 ${className}`}
       />
     ) : (
       mark

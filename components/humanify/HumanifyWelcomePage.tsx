@@ -155,7 +155,7 @@ function CodeHero() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.8, delay: 0.2 }}
-      className="inline-flex flex-col items-start gap-1 px-5 py-3.5 rounded-2xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-sm font-mono text-sm mb-8"
+      className="inline-flex flex-col items-start gap-1 px-5 py-3.5 rounded-2xl border border-white/[0.1] bg-[#050508]/55 backdrop-blur-md font-mono text-sm mb-8 shadow-lg shadow-violet-950/30"
     >
       <div className="flex items-center gap-1.5 mb-2">
         <span className="w-2.5 h-2.5 rounded-full bg-red-400/70" />
@@ -248,10 +248,10 @@ export default function HumanifyWelcomePage() {
           <HumanifyLogo
             href={HUMANIFY_BRAND.welcomePath}
             size="md"
-            variant="withText"
+            variant="full"
+            src={HUMANIFY_BRAND.welcomeLogoPath}
+            aspect={HUMANIFY_BRAND.welcomeLogoAspect}
             priority
-            textClassName="font-bold text-[15px] tracking-tight leading-none text-white"
-            subtitleClassName="text-[9px] uppercase tracking-[0.2em] text-violet-400/70 font-medium mt-0.5"
           />
           <nav className="flex items-center gap-2 sm:gap-5">
             <a
@@ -280,7 +280,17 @@ export default function HumanifyWelcomePage() {
 
       <main className="relative z-10">
         {/* Hero */}
-        <section className="max-w-7xl mx-auto px-6 pt-32 sm:pt-40 pb-20 sm:pb-28">
+        <section className="relative overflow-hidden">
+          <div className="pointer-events-none absolute inset-0" aria-hidden>
+            <div
+              className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-40"
+              style={{ backgroundImage: "url('/images/humanify-hero-bg.png')" }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-[#050508]/92 via-[#050508]/78 to-[#050508]" />
+            <div className="absolute inset-0 bg-gradient-to-r from-violet-950/50 via-[#050508]/20 to-fuchsia-950/40" />
+          </div>
+
+          <div className="relative max-w-7xl mx-auto px-6 pt-32 sm:pt-40 pb-20 sm:pb-28">
           <div className="max-w-4xl mx-auto text-center">
             <CodeHero />
 
@@ -335,6 +345,7 @@ export default function HumanifyWelcomePage() {
                 Portal Karyawan
               </Link>
             </motion.div>
+          </div>
           </div>
         </section>
 
@@ -560,9 +571,9 @@ export default function HumanifyWelcomePage() {
             <HumanifyLogo
               href={HUMANIFY_BRAND.welcomePath}
               size="sm"
-              variant="withText"
-              textClassName="text-sm font-medium text-violet-200"
-              subtitleClassName="text-xs text-violet-400/40"
+              variant="full"
+              src={HUMANIFY_BRAND.welcomeLogoPath}
+              aspect={HUMANIFY_BRAND.welcomeLogoAspect}
             />
             <p className="text-xs text-violet-400/40">Bagian dari {NAINCODE.legalName}</p>
           </div>

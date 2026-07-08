@@ -104,10 +104,10 @@ export default function HumanifyLoginForm({
           <HumanifyLogo
             href={HUMANIFY_BRAND.welcomePath}
             size="lg"
-            variant="withText"
+            variant="full"
+            src={HUMANIFY_BRAND.welcomeLogoPath}
+            aspect={HUMANIFY_BRAND.welcomeLogoAspect}
             priority
-            textClassName="font-bold text-xl tracking-tight text-white"
-            subtitleClassName="text-[11px] uppercase tracking-widest text-violet-300/70 font-medium"
           />
         </motion.div>
 
@@ -180,9 +180,9 @@ export default function HumanifyLoginForm({
             <HumanifyLogo
               href={HUMANIFY_BRAND.welcomePath}
               size="md"
-              variant="withText"
-              textClassName="font-bold text-lg tracking-tight text-white"
-              subtitleClassName="text-[10px] uppercase tracking-widest text-violet-300/70"
+              variant="full"
+              src={HUMANIFY_BRAND.welcomeLogoPath}
+              aspect={HUMANIFY_BRAND.welcomeLogoAspect}
             />
           </div>
 

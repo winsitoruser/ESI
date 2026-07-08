@@ -12,6 +12,9 @@ export const HUMANIFY_BRAND = {
   productType: 'HRIS System',
   tagline: 'HRIS Software for People & Growth',
   logoPath: '/images/humanify-logo.png',
+  /** Full white wordmark for dark marketing pages (welcome, landing) */
+  welcomeLogoPath: '/images/humanify-logo-welcome.png',
+  welcomeLogoAspect: 1024 / 405,
   description:
     'Sistem HRIS lengkap untuk mengelola karyawan, kehadiran, payroll, rekrutmen, dan kinerja — bagian dari ekosistem produk Naincode.',
   company: NAINCODE.legalName,

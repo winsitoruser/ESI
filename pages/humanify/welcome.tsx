@@ -11,7 +11,7 @@ export default function WelcomePage() {
       <Head>
         <title>{HUMANIFY_BRAND.name} — {HUMANIFY_BRAND.productType} | {NAINCODE.name}</title>
         <meta name="description" content={HUMANIFY_BRAND.description} />
-        <link rel="icon" href={HUMANIFY_BRAND.logoPath} type="image/png" />
+        <link rel="icon" href={HUMANIFY_BRAND.welcomeLogoPath} type="image/png" />
       </Head>
       <HumanifyWelcomePage />
     </>

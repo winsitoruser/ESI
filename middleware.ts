@@ -55,6 +55,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/') ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/static') ||
+    pathname.startsWith('/images/') ||
+    pathname.startsWith('/uploads/') ||
     pathname.startsWith('/procurement') ||
     pathname === '/favicon.ico'
   ) {
@@ -126,6 +128,6 @@ export const preferredRegion = 'auto';
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|api/|procurement).*)',
+    '/((?!_next/static|_next/image|favicon.ico|images/|uploads/|api/|procurement).*)',
   ],
 };
