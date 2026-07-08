@@ -1,11 +1,31 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/router';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import { useTranslation } from '@/lib/i18n';
 import DocumentExportButton from '@/components/documents/DocumentExportButton';
-import { Shield, FileText, AlertTriangle, Users, CheckSquare, Plus, Edit, Trash2, Eye, Search, ChevronDown, X, Clock, AlertCircle, Download } from 'lucide-react';
+import { STATUS_LABELS, VIOLATION_TYPE_LABELS, getDocumentTypeForLetter, type ViolationType } from '@/lib/hris/disciplinary-workflow';
+import { Shield, FileText, AlertTriangle, Users, CheckSquare, Plus, Edit, Trash2, Eye, Search, ChevronDown, X, Clock, AlertCircle, Download, ExternalLink, ArrowRight } from 'lucide-react';
 
 interface Regulation { id: string; title: string; regulation_number: string; category: string; description: string; content: string; effective_date: string; expiry_date: string; status: string; version: number; tags: string[]; }
-interface Warning { id: string; employee_id: number; warning_type: string; letter_number: string; issue_date: string; expiry_date: string; violation_type: string; violation_description: string; status: string; acknowledged: boolean; notes: string; }
+interface Warning {
+  id: string;
+  employee_id: string | number;
+  employee_name?: string;
+  employee_code?: string;
+  position?: string;
+  department?: string;
+  warning_type: string;
+  letter_number: string;
+  reference_number?: string;
+  issue_date: string;
+  expiry_date: string;
+  violation_type: string;
+  violation_description: string;
+  status: string;
+  acknowledged: boolean;
+  notes: string;
+  source?: string;
+}
 interface IrCase { id: string; case_number: string; title: string; category: string; priority: string; status: string; reported_by: number; reported_date: string; description: string; involved_employees: any[]; resolution: string; }
 interface Termination { id: string; employee_id: number; termination_type: string; reason: string; effective_date: string; status: string; clearance_status: any; exit_interview_done: boolean; severance_amount: number; }
 interface Checklist { id: string; name: string; category: string; description: string; items: any[]; status: string; completion_percent: number; due_date: string; period: string; }
@@ -21,8 +41,8 @@ const MOCK_REGULATIONS: Regulation[] = [
 ];
 
 const MOCK_WARNINGS: Warning[] = [
-  { id: 'w1', employee_id: 15, warning_type: 'SP1', letter_number: 'SP1-2026-003', issue_date: '2026-03-05', expiry_date: '2026-09-05', violation_type: 'discipline', violation_description: 'Terlambat masuk kerja lebih dari 5 kali dalam 1 bulan', status: 'active', acknowledged: true, notes: '' },
-  { id: 'w2', employee_id: 22, warning_type: 'SP2', letter_number: 'SP2-2026-001', issue_date: '2026-02-20', expiry_date: '2026-08-20', violation_type: 'misconduct', violation_description: 'Tidak mengikuti SOP keamanan', status: 'active', acknowledged: true, notes: '' },
+  { id: 'w1', employee_id: '15', employee_name: 'Contoh Karyawan', warning_type: 'SP1', letter_number: 'SP1/0003/HR/2026', issue_date: '2026-03-05', expiry_date: '2026-09-05', violation_type: 'discipline', violation_description: 'Terlambat masuk kerja lebih dari 5 kali dalam 1 bulan', status: 'issued', acknowledged: true, notes: '', source: 'disciplinary' },
+  { id: 'w2', employee_id: '22', employee_name: 'Contoh Karyawan 2', warning_type: 'SP2', letter_number: 'SP2/0001/HR/2026', issue_date: '2026-02-20', expiry_date: '2026-08-20', violation_type: 'misconduct', violation_description: 'Tidak mengikuti SOP keamanan', status: 'issued', acknowledged: true, notes: '', source: 'disciplinary' },
 ];
 
 const MOCK_IR_CASES: IrCase[] = [
@@ -41,9 +61,12 @@ const MOCK_CHECKLISTS: Checklist[] = [
 
 export default function IndustrialRelationsPage() {
   const { t } = useTranslation();
+  const router = useRouter();
   const [tab, setTab] = useState<TabKey>('regulations');
   const [regulations, setRegulations] = useState<Regulation[]>(MOCK_REGULATIONS);
   const [warnings, setWarnings] = useState<Warning[]>(MOCK_WARNINGS);
+  const [warningScope, setWarningScope] = useState<'all' | 'active' | 'pipeline'>('all');
+  const [warningsSource, setWarningsSource] = useState<'disciplinary' | 'legacy' | 'mock'>('mock');
   const [cases, setCases] = useState<IrCase[]>(MOCK_IR_CASES);
   const [terminations, setTerminations] = useState<Termination[]>(MOCK_TERMINATIONS);
   const [checklists, setChecklists] = useState<Checklist[]>(MOCK_CHECKLISTS);
@@ -56,7 +79,6 @@ export default function IndustrialRelationsPage() {
   const [search, setSearch] = useState('');
 
   const [regForm, setRegForm] = useState({ title: '', regulationNumber: '', category: 'company_rule', description: '', content: '', effectiveDate: '', status: 'draft' });
-  const [warnForm, setWarnForm] = useState({ employeeId: '', warningType: 'SP1', issueDate: '', violationType: 'discipline', violationDescription: '', notes: '' });
   const [caseForm, setCaseForm] = useState({ title: '', category: 'misconduct', priority: 'medium', reportedDate: '', description: '', involvedEmployees: [] as any[] });
   const [termForm, setTermForm] = useState({ employeeId: '', terminationType: 'resignation', reason: '', effectiveDate: '', noticePeriodDays: 30 });
 
@@ -69,15 +91,22 @@ export default function IndustrialRelationsPage() {
     return r.json();
   }, []);
 
+  const loadWarnings = useCallback(async (scope: 'all' | 'active' | 'pipeline' = warningScope) => {
+    const warns = await api('warnings', 'GET', null, `&scope=${scope}`);
+    setWarnings(warns.data || []);
+    setWarningsSource((warns.meta?.source as any) || 'legacy');
+  }, [api, warningScope]);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const [ov, regs, warns, cs, terms, cls] = await Promise.all([
-        api('overview'), api('regulations'), api('warnings'), api('cases'), api('terminations'), api('checklists')
+        api('overview'), api('regulations'), api('warnings', 'GET', null, `&scope=${warningScope}`), api('cases'), api('terminations'), api('checklists')
       ]);
       setOverview(ov.data || {});
       setRegulations(regs.data || []);
       setWarnings(warns.data || []);
+      setWarningsSource((warns.meta?.source as any) || ov.data?.warningsSource || 'legacy');
       setCases(cs.data || []);
       setTerminations(terms.data || []);
       setChecklists(cls.data || []);
@@ -86,19 +115,27 @@ export default function IndustrialRelationsPage() {
       setOverview(MOCK_IR_OVERVIEW);
       setRegulations(MOCK_REGULATIONS);
       setWarnings(MOCK_WARNINGS);
+      setWarningsSource('mock');
       setCases(MOCK_IR_CASES);
       setTerminations(MOCK_TERMINATIONS);
       setChecklists(MOCK_CHECKLISTS);
     }
     setLoading(false);
-  }, [api]);
+  }, [api, warningScope]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  useEffect(() => {
+    if (tab === 'warnings') loadWarnings(warningScope);
+  }, [warningScope, tab, loadWarnings]);
+
   const openAdd = (type: string) => {
+    if (type === 'warning') {
+      router.push('/humanify/disciplinary-letters?view=create&type=SP1');
+      return;
+    }
     setEditingItem(null); setModalType(type); setShowModal(true);
     if (type === 'regulation') setRegForm({ title: '', regulationNumber: '', category: 'company_rule', description: '', content: '', effectiveDate: '', status: 'draft' });
-    if (type === 'warning') setWarnForm({ employeeId: '', warningType: 'SP1', issueDate: new Date().toISOString().split('T')[0], violationType: 'discipline', violationDescription: '', notes: '' });
     if (type === 'case') setCaseForm({ title: '', category: 'misconduct', priority: 'medium', reportedDate: new Date().toISOString().split('T')[0], description: '', involvedEmployees: [] });
     if (type === 'termination') setTermForm({ employeeId: '', terminationType: 'resignation', reason: '', effectiveDate: '', noticePeriodDays: 30 });
   };
@@ -108,9 +145,6 @@ export default function IndustrialRelationsPage() {
       if (modalType === 'regulation') {
         if (editingItem) await api('regulation', 'PUT', regForm, `&id=${editingItem.id}`);
         else await api('regulation', 'POST', regForm);
-      } else if (modalType === 'warning') {
-        if (editingItem) await api('warning', 'PUT', warnForm, `&id=${editingItem.id}`);
-        else await api('warning', 'POST', warnForm);
       } else if (modalType === 'case') {
         if (editingItem) await api('case', 'PUT', caseForm, `&id=${editingItem.id}`);
         else await api('case', 'POST', caseForm);
@@ -129,6 +163,41 @@ export default function IndustrialRelationsPage() {
     showToast('Dihapus'); loadData();
   };
 
+  const openWarningPdf = async (w: Warning) => {
+    try {
+      const res = await fetch(`/api/humanify/disciplinary-letters?action=letter-data&id=${w.id}`);
+      const json = await res.json();
+      if (!json.success || !json.data?.letterData) {
+        showToast('Data surat belum siap untuk unduh PDF', 'error');
+        return;
+      }
+      const gen = await fetch('/api/hq/documents?action=generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: getDocumentTypeForLetter(w.warning_type as any),
+          format: 'pdf',
+          data: json.data.letterData,
+          meta: json.data.meta,
+          options: { includeHeader: false, includeFooter: false, includeSignature: false },
+        }),
+      });
+      if (!gen.ok) throw new Error('Gagal generate PDF');
+      const blob = await gen.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${w.letter_number || w.warning_type}_${Date.now()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('PDF berhasil diunduh');
+    } catch (e: any) {
+      showToast(e.message || 'Gagal unduh PDF', 'error');
+    }
+  };
+
   const handleChecklistItem = async (checklistId: string, itemIndex: number, status: string) => {
     await api('update-checklist-item', 'POST', { id: checklistId, itemIndex, status });
     showToast('Item checklist diperbarui'); loadData();
@@ -143,13 +212,25 @@ export default function IndustrialRelationsPage() {
   ];
 
   const statusColor = (s: string) => {
-    const m: any = { active: 'bg-green-100 text-green-800', draft: 'bg-gray-100 text-gray-800', expired: 'bg-red-100 text-red-800', revoked: 'bg-yellow-100 text-yellow-800',
+    const m: any = { active: 'bg-green-100 text-green-800', draft: 'bg-gray-100 text-gray-800', drafting: 'bg-gray-100 text-gray-800', expired: 'bg-red-100 text-red-800', revoked: 'bg-yellow-100 text-yellow-800',
       open: 'bg-blue-100 text-blue-800', investigating: 'bg-yellow-100 text-yellow-800', resolved: 'bg-green-100 text-green-800', closed: 'bg-gray-100 text-gray-800',
-      pending: 'bg-yellow-100 text-yellow-800', pending_approval: 'bg-orange-100 text-orange-800', approved: 'bg-green-100 text-green-800', completed: 'bg-green-100 text-green-800',
-      rejected: 'bg-red-100 text-red-800', in_progress: 'bg-blue-100 text-blue-800', overdue: 'bg-red-100 text-red-800'
+      pending: 'bg-yellow-100 text-yellow-800', pending_approval: 'bg-orange-100 text-orange-800', approved: 'bg-green-100 text-green-800', issued: 'bg-emerald-100 text-emerald-800',
+      acknowledged: 'bg-teal-100 text-teal-800', completed: 'bg-green-100 text-green-800',
+      rejected: 'bg-red-100 text-red-800', cancelled: 'bg-gray-100 text-gray-500', in_progress: 'bg-blue-100 text-blue-800', overdue: 'bg-red-100 text-red-800', review: 'bg-indigo-100 text-indigo-800', submitted: 'bg-blue-100 text-blue-800'
     };
-    return m[s] || 'bg-gray-100 text-gray-800';
+    return m[s] || 'bg-gray-100 text-gray-700';
   };
+
+  const filteredWarnings = warnings.filter((w) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return [w.letter_number, w.employee_name, w.employee_code, w.violation_description, w.warning_type]
+      .filter(Boolean)
+      .some((v) => String(v).toLowerCase().includes(q));
+  });
+
+  const warningStatusLabel = (s: string) =>
+    (STATUS_LABELS as Record<string, string>)[s] || s;
 
   const priorityColor = (p: string) => {
     const m: any = { low: 'bg-gray-100 text-gray-700', medium: 'bg-blue-100 text-blue-700', high: 'bg-orange-100 text-orange-700', critical: 'bg-red-100 text-red-700' };
@@ -236,21 +317,67 @@ export default function IndustrialRelationsPage() {
         </div>
       )}
 
-      {/* WARNINGS TAB */}
+      {/* WARNINGS TAB — integrated with /humanify/disciplinary-letters */}
       {!loading && tab === 'warnings' && (
-        <div>
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold">Surat Peringatan (SP)</h2>
-            <button onClick={() => openAdd('warning')} className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg text-sm hover:bg-orange-700">
-              <Plus className="w-4 h-4" /> Terbitkan SP
+        <div className="space-y-4">
+          <div className="rounded-xl border border-orange-200 bg-orange-50/80 px-4 py-3 flex flex-wrap items-start gap-3 justify-between">
+            <div className="flex gap-2 text-sm text-orange-950 max-w-2xl">
+              <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-orange-600" />
+              <div>
+                <p className="font-semibold">Terintegrasi dengan Surat Disiplin & SOP</p>
+                <p className="text-orange-800/80 mt-0.5">
+                  Register SP di bawah ini mengambil data dari workflow disiplin (draft → approval → penerbitan).
+                  Buat, edit draft, approval, dan unduh PDF resmi melalui modul Surat Disiplin.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => router.push('/humanify/disciplinary-letters')}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-orange-800 hover:text-orange-950 px-3 py-1.5 rounded-lg border border-orange-300 bg-white"
+            >
+              Buka modul lengkap <ExternalLink className="w-3.5 h-3.5" />
             </button>
           </div>
-          <div className="overflow-x-auto">
+
+          <div className="flex flex-wrap justify-between items-center gap-3">
+            <div>
+              <h2 className="text-lg font-semibold">Surat Peringatan (SP)</h2>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Sumber: {warningsSource === 'disciplinary' ? 'Surat Disiplin (hr_disciplinary_letters)' : warningsSource === 'legacy' ? 'Legacy warning_letters' : 'Demo'}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <div className="flex rounded-lg border overflow-hidden text-xs">
+                {([
+                  ['all', 'Semua'],
+                  ['active', 'Aktif / Terbit'],
+                  ['pipeline', 'Dalam proses'],
+                ] as const).map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setWarningScope(key)}
+                    className={`px-3 py-2 font-medium ${warningScope === key ? 'bg-orange-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => openAdd('warning')}
+                className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg text-sm hover:bg-orange-700"
+              >
+                <Plus className="w-4 h-4" /> Proses / Buat SP
+              </button>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto border rounded-xl bg-white">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-gray-600">
                 <tr>
                   <th className="px-4 py-3 text-left">No. Surat</th>
-                  <th className="px-4 py-3 text-left">Karyawan ID</th>
+                  <th className="px-4 py-3 text-left">Karyawan</th>
                   <th className="px-4 py-3 text-left">Tipe</th>
                   <th className="px-4 py-3 text-left">Pelanggaran</th>
                   <th className="px-4 py-3 text-left">Tanggal</th>
@@ -260,50 +387,77 @@ export default function IndustrialRelationsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {warnings.map(w => (
-                  <tr key={w.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-mono text-xs">{w.letter_number}</td>
-                    <td className="px-4 py-3">{w.employee_id}</td>
-                    <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded text-xs font-bold ${w.warning_type === 'SP3' ? 'bg-red-100 text-red-700' : w.warning_type === 'SP2' ? 'bg-orange-100 text-orange-700' : 'bg-yellow-100 text-yellow-700'}`}>{w.warning_type}</span></td>
-                    <td className="px-4 py-3 max-w-xs truncate">{w.violation_description}</td>
-                    <td className="px-4 py-3 text-xs">{w.issue_date && new Date(w.issue_date).toLocaleDateString('id-ID')}</td>
-                    <td className="px-4 py-3 text-xs">{w.expiry_date && new Date(w.expiry_date).toLocaleDateString('id-ID')}</td>
-                    <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(w.status)}`}>{w.status}</span></td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-1">
-                        <DocumentExportButton
-                          documentType="warning-letter"
-                          variant="icon"
-                          data={{
-                            employeeId: w.employee_id,
-                            employeeName: `Karyawan #${w.employee_id}`,
-                            warningType: w.warning_type,
-                            violationType: w.violation_type,
-                            violationDescription: w.violation_description,
-                            expiryDate: w.expiry_date,
-                            notes: w.notes,
-                          }}
-                          meta={{
-                            documentNumber: w.letter_number,
-                            documentDate: w.issue_date,
-                          }}
-                          options={{
-                            includeSignature: true,
-                            signatureFields: [
-                              { label: 'Manajer HRD', position: 'Mengetahui' },
-                              { label: 'Yang Bersangkutan', position: 'Karyawan' },
-                            ],
-                          }}
-                          showFormats={['pdf', 'html']}
-                        />
-                        <button onClick={() => handleDelete('warning', w.id)} className="p-1 text-gray-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {filteredWarnings.map(w => {
+                  const canExport = ['issued', 'acknowledged', 'approved', 'active'].includes(w.status);
+                  const violationLabel = VIOLATION_TYPE_LABELS[w.violation_type as ViolationType] || w.violation_type;
+                  return (
+                    <tr key={w.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 font-mono text-xs">{w.letter_number || w.reference_number || '—'}</td>
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-gray-900">{w.employee_name || `Karyawan #${w.employee_id}`}</div>
+                        {w.employee_code && <div className="text-[11px] text-gray-400">{w.employee_code}{w.position ? ` · ${w.position}` : ''}</div>}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 rounded text-xs font-bold ${w.warning_type === 'SP3' ? 'bg-red-100 text-red-700' : w.warning_type === 'SP2' ? 'bg-orange-100 text-orange-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                          {w.warning_type}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 max-w-xs">
+                        <div className="text-[11px] text-gray-500">{violationLabel}</div>
+                        <div className="truncate text-gray-800">{w.violation_description}</div>
+                      </td>
+                      <td className="px-4 py-3 text-xs">{w.issue_date ? new Date(w.issue_date).toLocaleDateString('id-ID') : '—'}</td>
+                      <td className="px-4 py-3 text-xs">{w.expiry_date ? new Date(w.expiry_date).toLocaleDateString('id-ID') : '—'}</td>
+                      <td className="px-4 py-3">
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(w.status)}`}>{warningStatusLabel(w.status)}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            title="Buka di Surat Disiplin"
+                            onClick={() => router.push(`/humanify/disciplinary-letters?id=${w.id}`)}
+                            className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                          {canExport && (
+                            <button
+                              type="button"
+                              title="Unduh PDF"
+                              onClick={() => openWarningPdf(w)}
+                              className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            title="Kelola proses"
+                            onClick={() => router.push(`/humanify/disciplinary-letters?id=${w.id}`)}
+                            className="inline-flex items-center gap-0.5 px-2 py-1 text-[11px] font-medium text-gray-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg"
+                          >
+                            Kelola <ArrowRight className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
-            {warnings.length === 0 && <p className="text-center text-gray-400 py-8">Belum ada surat peringatan</p>}
+            {filteredWarnings.length === 0 && (
+              <div className="text-center text-gray-400 py-10 px-4">
+                <p>Belum ada surat peringatan{warningScope !== 'all' ? ` (filter: ${warningScope})` : ''}.</p>
+                <button
+                  type="button"
+                  onClick={() => openAdd('warning')}
+                  className="mt-3 text-sm text-orange-600 font-medium hover:text-orange-800"
+                >
+                  Mulai proses SP di Surat Disiplin →
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -474,7 +628,7 @@ export default function IndustrialRelationsPage() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center p-5 border-b">
-              <h3 className="text-lg font-semibold">{editingItem ? 'Edit' : 'Tambah'} {modalType === 'regulation' ? 'Peraturan' : modalType === 'warning' ? 'Surat Peringatan' : modalType === 'case' ? 'Kasus' : 'PHK'}</h3>
+              <h3 className="text-lg font-semibold">{editingItem ? 'Edit' : 'Tambah'} {modalType === 'regulation' ? 'Peraturan' : modalType === 'case' ? 'Kasus' : 'PHK'}</h3>
               <button onClick={() => setShowModal(false)} className="p-1 hover:bg-gray-100 rounded"><X className="w-5 h-5" /></button>
             </div>
             <div className="p-5 space-y-4">
@@ -493,21 +647,6 @@ export default function IndustrialRelationsPage() {
                     <option value="draft">Draf</option><option value="active">Aktif</option><option value="expired">Kedaluwarsa</option><option value="revised">Direvisi</option>
                   </select>
                 </div>
-              </>)}
-              {modalType === 'warning' && (<>
-                <div><label className="text-sm font-medium text-gray-700">ID Karyawan</label><input type="number" value={warnForm.employeeId} onChange={e => setWarnForm({ ...warnForm, employeeId: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" /></div>
-                <div><label className="text-sm font-medium text-gray-700">Tipe SP</label>
-                  <select value={warnForm.warningType} onChange={e => setWarnForm({ ...warnForm, warningType: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
-                    <option value="SP1">SP1 - Peringatan Pertama</option><option value="SP2">SP2 - Peringatan Kedua</option><option value="SP3">SP3 - Peringatan Ketiga</option>
-                  </select>
-                </div>
-                <div><label className="text-sm font-medium text-gray-700">Tanggal</label><input type="date" value={warnForm.issueDate} onChange={e => setWarnForm({ ...warnForm, issueDate: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" /></div>
-                <div><label className="text-sm font-medium text-gray-700">Jenis Pelanggaran</label>
-                  <select value={warnForm.violationType} onChange={e => setWarnForm({ ...warnForm, violationType: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
-                    <option value="discipline">Disiplin</option><option value="performance">Performa</option><option value="attendance">Kehadiran</option><option value="misconduct">Pelanggaran</option><option value="other">Lainnya</option>
-                  </select>
-                </div>
-                <div><label className="text-sm font-medium text-gray-700">Deskripsi Pelanggaran</label><textarea value={warnForm.violationDescription} onChange={e => setWarnForm({ ...warnForm, violationDescription: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" rows={3} /></div>
               </>)}
               {modalType === 'case' && (<>
                 <div><label className="text-sm font-medium text-gray-700">Judul Kasus</label><input value={caseForm.title} onChange={e => setCaseForm({ ...caseForm, title: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" /></div>

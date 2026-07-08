@@ -121,7 +121,7 @@ export const humanifySidebarConfig: SidebarConfig = {
         { id: 'humanify-travel', name: 'Perjalanan & Biaya', href: '/humanify/travel-expense', icon: Plane, modules: ['humanify', 'hris'] },
         { id: 'humanify-project', name: 'Manajemen Proyek HR', href: '/humanify/project-management', icon: Briefcase, modules: ['humanify', 'hris'] },
         { id: 'humanify-ir', name: 'Hubungan Industrial', href: '/humanify/industrial-relations', icon: AlertTriangle, modules: ['humanify', 'hris'] },
-        { id: 'humanify-disciplinary', name: 'Surat Disiplin & SOP', href: '/humanify/disciplinary-letters', icon: Ban, modules: ['humanify', 'hris'] },
+        { id: 'humanify-disciplinary', name: 'Surat Disiplin (SP & SOP)', href: '/humanify/disciplinary-letters', icon: Ban, modules: ['humanify', 'hris'] },
       ],
     },
     {

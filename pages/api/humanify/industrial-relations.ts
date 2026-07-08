@@ -11,6 +11,91 @@ try { TerminationRequest = require('../../../models/TerminationRequest'); } catc
 try { ComplianceChecklist = require('../../../models/ComplianceChecklist'); } catch(e) {}
 try { AuditLog = require('../../../models/AuditLog'); } catch(e) {}
 
+let sequelize: any;
+try { sequelize = require('../../../lib/sequelize'); } catch (_) {}
+
+/** Unified SP register — source of truth: hr_disciplinary_letters (SP1/SP2/SP3) */
+async function listDisciplinaryWarnings(filters: {
+  employee_id?: string | string[];
+  status?: string | string[];
+  warning_type?: string | string[];
+  scope?: string | string[];
+}) {
+  if (!sequelize) return null;
+  try {
+    const { employee_id, status, warning_type, scope } = filters;
+    let where = `WHERE dl.letter_type IN ('SP1','SP2','SP3')`;
+    const rep: Record<string, unknown> = {};
+
+    if (employee_id) {
+      where += ' AND dl.employee_id::text = :employee_id';
+      rep.employee_id = String(employee_id);
+    }
+    if (warning_type) {
+      where += ' AND dl.letter_type = :warning_type';
+      rep.warning_type = String(warning_type);
+    }
+
+    const scopeVal = String(scope || 'all');
+    if (scopeVal === 'active') {
+      where += ` AND dl.status IN ('issued','acknowledged')`;
+    } else if (scopeVal === 'pipeline') {
+      where += ` AND dl.status IN ('draft','drafting','investigating','review','pending_approval','approved','submitted')`;
+    } else if (status) {
+      where += ' AND dl.status = :status';
+      rep.status = String(status);
+    }
+
+    const [rows] = await sequelize.query(`
+      SELECT
+        dl.id,
+        dl.employee_id,
+        e.name AS employee_name,
+        e.employee_code,
+        e.position,
+        e.department,
+        dl.letter_type AS warning_type,
+        COALESCE(dl.letter_number, dl.reference_number) AS letter_number,
+        dl.reference_number,
+        dl.effective_date AS issue_date,
+        dl.expiry_date,
+        dl.violation_type,
+        dl.violation_description,
+        dl.status,
+        CASE WHEN dl.status = 'acknowledged' THEN true ELSE false END AS acknowledged,
+        dl.notes,
+        dl.incident_date,
+        dl.created_at,
+        dl.updated_at,
+        'disciplinary' AS source
+      FROM hr_disciplinary_letters dl
+      LEFT JOIN employees e ON dl.employee_id::text = e.id::text
+      ${where}
+      ORDER BY COALESCE(dl.effective_date, dl.created_at) DESC
+      LIMIT 200
+    `, { replacements: rep });
+    return rows || [];
+  } catch (e: any) {
+    console.warn('disciplinary warnings proxy failed:', e?.message || e);
+    return null;
+  }
+}
+
+async function countActiveDisciplinaryWarnings(): Promise<number | null> {
+  if (!sequelize) return null;
+  try {
+    const [rows] = await sequelize.query(`
+      SELECT COUNT(*)::int AS cnt
+      FROM hr_disciplinary_letters
+      WHERE letter_type IN ('SP1','SP2','SP3')
+        AND status IN ('issued','acknowledged')
+    `);
+    return rows?.[0]?.cnt ?? 0;
+  } catch {
+    return null;
+  }
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
   if (!session) return res.status(401).json({ error: 'Unauthorized' });
@@ -35,16 +120,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 async function handleGet(req: NextApiRequest, res: NextApiResponse, action: string) {
   switch (action) {
     case 'overview': {
-      const [regs, warnings, cases, terminations, checklists] = await Promise.all([
+      const discWarnings = await countActiveDisciplinaryWarnings();
+      const [regs, legacyWarnings, cases, terminations, checklists] = await Promise.all([
         CompanyRegulation?.count({ where: { status: 'active' } }) || 0,
-        WarningLetter?.count({ where: { status: 'active' } }) || 0,
+        WarningLetter?.count({ where: { status: 'active' } }).catch(() => 0) || 0,
         IrCase?.count({ where: { status: 'open' } }) || 0,
         TerminationRequest?.count({ where: { status: 'pending_approval' } }) || 0,
         ComplianceChecklist?.count({ where: { status: 'pending' } }) || 0,
       ]);
       return res.json({
         success: true,
-        data: { activeRegulations: regs, activeWarnings: warnings, openCases: cases, pendingTerminations: terminations, pendingChecklists: checklists }
+        data: {
+          activeRegulations: regs,
+          activeWarnings: discWarnings ?? legacyWarnings,
+          openCases: cases,
+          pendingTerminations: terminations,
+          pendingChecklists: checklists,
+          warningsSource: discWarnings !== null ? 'disciplinary' : 'legacy',
+        }
       });
     }
     case 'regulations': {
@@ -56,13 +149,30 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
       return res.json({ success: true, data: rowsToSnake(rows) });
     }
     case 'warnings': {
-      const { employee_id, status, warning_type } = req.query;
+      const { employee_id, status, warning_type, scope } = req.query;
+      const disc = await listDisciplinaryWarnings({ employee_id, status, warning_type, scope });
+      if (disc !== null) {
+        return res.json({
+          success: true,
+          data: disc,
+          meta: {
+            source: 'disciplinary',
+            note: 'Surat Peringatan terintegrasi dengan modul Surat Disiplin & SOP',
+            manageUrl: '/humanify/disciplinary-letters',
+          },
+        });
+      }
+      // Fallback legacy table jika modul disiplin belum tersedia
       const where: any = {};
       if (employee_id) where.employeeId = employee_id;
       if (status) where.status = status;
       if (warning_type) where.warningType = warning_type;
       const rows = WarningLetter ? await WarningLetter.findAll({ where, order: [['issueDate', 'DESC']] }) : [];
-      return res.json({ success: true, data: rowsToSnake(rows) });
+      return res.json({
+        success: true,
+        data: rowsToSnake(rows),
+        meta: { source: 'legacy' },
+      });
     }
     case 'cases': {
       const { status: cStatus, category: cCat, priority } = req.query;
@@ -112,19 +222,12 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
       return res.json({ success: true, data: reg });
     }
     case 'warning': {
-      if (!WarningLetter) return res.json({ success: true, data: body, message: 'Created (mock)' });
-      // Auto-generate letter number
-      const count = await WarningLetter.count();
-      body.letterNumber = body.letterNumber || `SP/${body.warningType || 'SP1'}/${String(count + 1).padStart(4, '0')}/${new Date().getFullYear()}`;
-      // Auto-set expiry (6 months for SP)
-      if (!body.expiryDate && body.issueDate) {
-        const exp = new Date(body.issueDate);
-        exp.setMonth(exp.getMonth() + 6);
-        body.expiryDate = exp.toISOString().split('T')[0];
-      }
-      const warning = await WarningLetter.create(body);
-      await logAudit(session, 'create', 'warning_letter', warning.id, null, body);
-      return res.json({ success: true, data: warning });
+      // SP create/update moved to disciplinary workflow — reject dual-write
+      return res.status(410).json({
+        success: false,
+        error: 'Surat Peringatan kini dikelola di modul Surat Disiplin & SOP. Gunakan /humanify/disciplinary-letters untuk membuat atau memproses SP.',
+        redirect: '/humanify/disciplinary-letters?view=create&type=SP1',
+      });
     }
     case 'case': {
       if (!IrCase) return res.json({ success: true, data: body, message: 'Created (mock)' });
@@ -207,9 +310,11 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, action: stri
       return res.json({ success: true, message: 'Regulation updated' });
     }
     case 'warning': {
-      if (!WarningLetter) return res.json({ success: true, message: 'Updated (mock)' });
-      await WarningLetter.update(body, { where: { id } });
-      return res.json({ success: true, message: 'Warning updated' });
+      return res.status(410).json({
+        success: false,
+        error: 'Surat Peringatan kini dikelola di modul Surat Disiplin & SOP.',
+        redirect: `/humanify/disciplinary-letters?id=${id}`,
+      });
     }
     case 'case': {
       if (!IrCase) return res.json({ success: true, message: 'Updated (mock)' });
@@ -237,7 +342,15 @@ async function handleDelete(req: NextApiRequest, res: NextApiResponse, action: s
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: 'ID required' });
 
-  const models: any = { regulation: CompanyRegulation, warning: WarningLetter, case: IrCase, termination: TerminationRequest, checklist: ComplianceChecklist };
+  if (action === 'warning') {
+    return res.status(410).json({
+      success: false,
+      error: 'Surat yang diterbitkan tidak dihapus dari sini. Batalkan atau kelola lewat modul Surat Disiplin & SOP.',
+      redirect: `/humanify/disciplinary-letters?id=${id}`,
+    });
+  }
+
+  const models: any = { regulation: CompanyRegulation, case: IrCase, termination: TerminationRequest, checklist: ComplianceChecklist };
   const model = models[action];
   if (!model) return res.status(400).json({ error: 'Invalid action' });
   await model.destroy({ where: { id } });

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/router';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DocumentExportButton from '@/components/documents/DocumentExportButton';
 import EmployeePicker, { type PickedEmployee } from '@/components/humanify/EmployeePicker';
@@ -34,6 +35,7 @@ const QUICK_FILTERS = [
 ];
 
 export default function DisciplinaryLettersPage() {
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<View>('board');
@@ -75,6 +77,7 @@ export default function DisciplinaryLettersPage() {
 
   const [draftForm, setDraftForm] = useState<DraftContent>({ body: '', closing: '', salutation: '', subject: '', place: 'Jakarta' });
   const [investigationNotes, setInvestigationNotes] = useState('');
+  const [bootstrappedFromQuery, setBootstrappedFromQuery] = useState(false);
 
   const showToast = (type: string, message: string) => {
     setToast({ type, message });
@@ -150,6 +153,29 @@ export default function DisciplinaryLettersPage() {
     loadLetters();
     loadSOP();
   }, [mounted, loadLetters]);
+
+  // Deep-link from IR / other modules: ?view=create&type=SP1  or  ?id=<uuid>
+  useEffect(() => {
+    if (!mounted || !router.isReady || bootstrappedFromQuery) return;
+    const q = router.query;
+    const typeQ = typeof q.type === 'string' ? q.type.toUpperCase() : '';
+    const viewQ = typeof q.view === 'string' ? q.view : '';
+    const idQ = typeof q.id === 'string' ? q.id : '';
+
+    if (viewQ === 'create' || viewQ === 'sop' || viewQ === 'board') {
+      setView(viewQ as View);
+    }
+    if (typeQ && DISCIPLINARY_LADDER.includes(typeQ as DisciplinaryLetterType)) {
+      setForm((f) => ({ ...f, letter_type: typeQ as DisciplinaryLetterType }));
+      setFilterType(typeQ);
+      if (viewQ !== 'sop') setView(viewQ === 'board' ? 'board' : 'create');
+    }
+    if (idQ) {
+      setView('board');
+      loadDetail(idQ);
+    }
+    setBootstrappedFromQuery(true);
+  }, [mounted, router.isReady, router.query, bootstrappedFromQuery]);
 
   useEffect(() => {
     if (pickedEmployee?.id) loadEmployeeHistory(pickedEmployee.id);
