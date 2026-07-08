@@ -19,6 +19,10 @@
 # misc
 .DS_Store
 humanify-repo/
+public/uploads/
+
+# cursor IDE (local agent rules)
+.cursor/
 *.pem
 
 # debug

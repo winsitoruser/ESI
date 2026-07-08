@@ -82,7 +82,8 @@
     "smoke:payroll": "node scripts/smoke-test-humanify-payroll.js",
     "db:recruitment-training-migrate": "node scripts/migrate-recruitment-training-align.js",
     "db:recruitment-training-seed": "node scripts/seed-recruitment-training-demo.js",
-    "smoke:recruitment-training": "node scripts/smoke-test-humanify-recruitment-training.js"
+    "smoke:recruitment-training": "node scripts/smoke-test-humanify-recruitment-training.js",
+    "smoke:ir-disciplinary": "node scripts/smoke-test-ir-disciplinary-integration.js"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

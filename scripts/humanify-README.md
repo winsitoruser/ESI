@@ -1,74 +1,28 @@
-# Humanify
+# Humanify — Panduan Deploy & Scripts
 
-**Humanify** adalah sistem **HRIS** (Human Resource Information System) dari **[Naincode](https://naincode.com)** — bagian dari portofolio inti teknologi **Naincode Inti Teknologi**.
+Dokumentasi produk lengkap: **[README_HUMANIFY.md](../README_HUMANIFY.md)** di root proyek.
 
-Kelola seluruh siklus SDM: karyawan, kehadiran, cuti, payroll, KPI, rekrutmen, training, dan portal karyawan — dalam satu platform yang modern dan terintegrasi.
+## Scripts di folder ini
 
-## Tentang produk
+| Script | Fungsi |
+|--------|--------|
+| `deploy-humanify-vps.sh` | Deploy full-stack ke VPS (rsync, build, PM2, Nginx, SSL opsional) |
+| `setup-humanify-cloudflare.sh` | Konfigurasi Nginx + real IP Cloudflare untuk origin di belakang edge SSL |
+| `smoke-test-ir-disciplinary-integration.js` | Smoke test integrasi IR ↔ Disciplinary ↔ Employee |
+| `smoke-test-hris-full.js` | Smoke test HRIS end-to-end |
+| `ensure-humanify-superadmin.js` | Seed/ensure akun superadmin Humanify |
 
-| | |
-|---|---|
-| **Produk** | Humanify HRIS |
-| **Perusahaan** | Naincode Inti Teknologi |
-| **Kategori** | People & Workforce / HRIS |
-| **Portal karyawan** | `/employee` (ESS mobile) |
-
-## Stack teknologi
-
-- Next.js 15 · React 18 · TypeScript
-- PostgreSQL · Sequelize ORM
-- NextAuth (autentikasi enterprise)
-
-## Menjalankan secara lokal
+## Deploy cepat
 
 ```bash
-cp .env.example .env
-```
+# IP langsung
+VPS_HOST=103.92.215.37 VPS_USER=root VPS_PASS='...' bash scripts/deploy-humanify-vps.sh
 
-Set variabel minimal:
-
-```env
-DATABASE_URL=postgresql://user:pass@localhost:5432/humanify
-NEXTAUTH_SECRET=your-secret-min-32-chars
-NEXTAUTH_URL=http://localhost:3020
-```
-
-```bash
-npm install
-npm run db:hris-migrate
-npm run db:hris-extended-migrate
-npm run db:attendance-migrate
-npm run db:payroll-migrate
-npm run dev
-```
-
-| Halaman | URL |
-|---------|-----|
-| Landing | http://localhost:3020/humanify/welcome |
-| Login | http://localhost:3020/humanify/login |
-| Dashboard HRIS | http://localhost:3020/humanify |
-| Portal karyawan | http://localhost:3020/employee |
-
-## Smoke test
-
-```bash
-npm run dev
-SMOKE_BASE_URL=http://localhost:3020 npm run smoke
-```
-
-## Struktur proyek
-
-```
-pages/humanify/         # Antarmuka HRIS
-pages/api/humanify/     # REST API modul SDM
-pages/employee/         # Portal karyawan (ESS)
-components/humanify/    # Komponen UI
-lib/humanify/           # Branding & konfigurasi platform
-lib/hris/               # Logic bisnis HRIS
-models/                 # Data model Sequelize
-migrations/             # Skema database
+# Domain + Cloudflare
+VPS_HOST=103.92.215.37 VPS_USER=root VPS_PASS='...' \
+  DOMAIN=humanify.id CLOUDFLARE_SSL=true bash scripts/deploy-humanify-vps.sh
 ```
 
 ## Lisensi
 
-Proprietary — Naincode Inti Teknologi. All rights reserved.
+Proprietary — Naincode Inti Teknologi · Dikembangkan oleh Naincode Dev

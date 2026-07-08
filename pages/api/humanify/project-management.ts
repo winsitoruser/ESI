@@ -25,8 +25,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       default: return res.status(405).json({ error: 'Method not allowed' });
     }
   } catch (error: any) {
-    console.warn('Project API error: (table may not exist):', (error as any)?.message || error);
-    return res.status(500).json({ error: error.message });
+    console.warn('Project API error:', (error as any)?.message || error);
+    return res.status(500).json({ success: false, error: error.message || 'Terjadi kesalahan server' });
   }
 }
 
@@ -132,7 +132,9 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
     }
     case 'worker': {
       if (!ProjectWorker) return res.json({ success: true, data: body });
-      const worker = await ProjectWorker.create(body);
+      if (!body.projectId) return res.status(400).json({ success: false, error: 'Proyek wajib dipilih' });
+      if (!body.employeeId) return res.status(400).json({ success: false, error: 'Karyawan wajib dipilih' });
+      const worker = await ProjectWorker.create(mapWorkerPayload(body));
       return res.json({ success: true, data: worker });
     }
     case 'workers-bulk': {
@@ -141,7 +143,7 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
       const created = [];
       for (const w of workers) {
         try {
-          const worker = await ProjectWorker.create({ ...w, projectId });
+          const worker = await ProjectWorker.create(mapWorkerPayload({ ...w, projectId }));
           created.push(worker);
         } catch(e) { /* duplicate, skip */ }
       }
@@ -149,13 +151,15 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
     }
     case 'timesheet': {
       if (!ProjectTimesheet) return res.json({ success: true, data: body });
-      const ts = await ProjectTimesheet.create(body);
+      if (!body.projectId) return res.status(400).json({ success: false, error: 'Proyek wajib dipilih' });
+      if (!body.employeeId) return res.status(400).json({ success: false, error: 'Karyawan wajib dipilih' });
+      const ts = await ProjectTimesheet.create(mapTimesheetPayload(body));
       return res.json({ success: true, data: ts });
     }
     case 'timesheets-bulk': {
       const { entries } = body;
       if (!ProjectTimesheet || !entries?.length) return res.json({ success: true });
-      const created = await ProjectTimesheet.bulkCreate(entries);
+      const created = await ProjectTimesheet.bulkCreate(entries.map(mapTimesheetPayload));
       return res.json({ success: true, data: created, count: created.length });
     }
     case 'approve-timesheet': {
@@ -244,12 +248,12 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, action: stri
     }
     case 'worker': {
       if (!ProjectWorker) return res.json({ success: true });
-      await ProjectWorker.update(req.body, { where: { id } });
+      await ProjectWorker.update(mapWorkerPayload(req.body), { where: { id } });
       return res.json({ success: true, message: 'Worker updated' });
     }
     case 'timesheet': {
       if (!ProjectTimesheet) return res.json({ success: true });
-      await ProjectTimesheet.update(req.body, { where: { id } });
+      await ProjectTimesheet.update(mapTimesheetPayload(req.body), { where: { id } });
       return res.json({ success: true, message: 'Timesheet updated' });
     }
     default:
@@ -296,5 +300,34 @@ function serializeTimesheet(row: any) {
     ...s,
     timesheet_date: s.work_date,
     activity_description: s.description,
+  };
+}
+
+function mapWorkerPayload(body: any) {
+  const dailyRate = Number(body.dailyRate) || 0;
+  const hourlyRate = Number(body.hourlyRate) || (dailyRate > 0 ? dailyRate / 8 : 0);
+  return {
+    projectId: body.projectId,
+    employeeId: body.employeeId || null,
+    resourceName: body.employeeName || body.resourceName || null,
+    resourceType: body.workerType || body.resourceType || 'employee',
+    role: body.role || null,
+    allocationPercent: body.allocationPercent ?? 100,
+    startDate: body.assignmentStart || body.startDate || null,
+    endDate: body.assignmentEnd || body.endDate || null,
+    costPerHour: hourlyRate,
+  };
+}
+
+function mapTimesheetPayload(body: any) {
+  return {
+    projectId: body.projectId,
+    employeeId: body.employeeId || null,
+    employeeName: body.employeeName || null,
+    workDate: body.timesheetDate || body.workDate,
+    hoursWorked: body.hoursWorked ?? 0,
+    overtimeHours: body.overtimeHours ?? 0,
+    description: body.activityDescription || body.description || null,
+    status: body.status || 'submitted',
   };
 }

@@ -65,7 +65,14 @@ const API = '/api/humanify/training-development';
 
 const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
 const fmtCur = (n: number) => !n ? '-' : `Rp ${n.toLocaleString('id-ID')}`;
-const statusBadge = (s: string) => <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[s] || 'bg-gray-100 text-gray-600'}`}>{STATUS_LABELS[s] || s}</span>;
+const statusBadge = (s: string) => (
+  <span className={`inline-flex items-center text-[11px] px-2.5 py-0.5 rounded-full font-semibold ring-1 ring-inset ${STATUS_COLORS[s] || 'bg-gray-100 text-gray-600 ring-gray-200'}`}>
+    {STATUS_LABELS[s] || s}
+  </span>
+);
+
+const TABLE_HEAD = 'px-4 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500';
+const TABLE_HEAD_CENTER = `${TABLE_HEAD} text-center`;
 
 // ═══════════════════════════════════════════
 // Main Component
@@ -254,89 +261,172 @@ export default function TrainingDevelopmentPage() {
   // ═══════════════════════════════════════════
   // RENDER
   // ═══════════════════════════════════════════
+  const heroStats = [
+    { label: 'Kurikulum Aktif', value: dashboard?.curricula?.active ?? 0, icon: BookOpen },
+    { label: 'Batch Berjalan', value: dashboard?.batches?.active ?? 0, icon: Users },
+    { label: 'Lulusan', value: dashboard?.graduations?.passed ?? 0, icon: GraduationCap },
+    { label: 'Tingkat Kelulusan', value: `${Number(dashboard?.exams?.pass_rate || 0).toFixed(0)}%`, icon: Target },
+  ];
+
+  const handleRefresh = () => {
+    setLoading(true);
+    const loads: Promise<void>[] = [fetchDashboard(), fetchPipeline()];
+    if (tab === 'curricula') loads.push(fetchData('curricula', setCurricula));
+    if (tab === 'modules') loads.push(fetchData('modules', setModules));
+    if (tab === 'batches') loads.push(fetchData('batches', setBatches));
+    if (tab === 'schedules') loads.push(fetchData('schedules', setSchedules));
+    if (tab === 'exams') loads.push(fetchData('exams', setExams));
+    if (tab === 'graduations') loads.push(fetchData('graduations', setGraduations));
+    if (tab === 'placements') loads.push(fetchData('placements', setPlacements));
+    Promise.all(loads).finally(() => setLoading(false));
+    showToast('Data diperbarui');
+  };
+
   return (
     <HQLayout title={t('hris.trainingDevTitle')} subtitle={t('hris.trainingDevSubtitle')}>
-      <div className="space-y-6">
-        {toast && <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white ${toast.type === 'error' ? 'bg-red-500' : 'bg-green-500'}`}>{toast.msg}</div>}
+      <div className="space-y-5">
+        {toast && (
+          <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-xl text-white text-sm font-medium animate-in slide-in-from-top-2 ${toast.type === 'error' ? 'bg-red-600' : 'bg-emerald-600'}`}>
+            {toast.type === 'error' ? <AlertCircle className="w-4 h-4 shrink-0" /> : <CheckCircle2 className="w-4 h-4 shrink-0" />}
+            {toast.msg}
+          </div>
+        )}
 
-        {/* Tab Navigation */}
-        <div className="flex gap-1 overflow-x-auto border-b pb-px">
-          {tabs.map(t => (
-            <button key={t.key} onClick={() => { setTab(t.key); setSearch(''); setFilterStatus(''); setFilterType(''); }}
-              className={`px-3 py-2.5 text-sm font-medium border-b-2 flex items-center gap-1.5 transition-colors whitespace-nowrap ${tab === t.key ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-              <t.icon className="w-4 h-4" /> {t.label}
-            </button>
-          ))}
+        {/* Hero Header */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-700 text-white shadow-lg">
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0djItSDI0di0yaDEyek0zNiAyNHYySDI0di0yaDEyeiIvPjwvZz48L2c+PC9zdmc+')] opacity-60" />
+          <div className="relative p-6 md:p-8">
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+              <div className="max-w-2xl">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 text-xs font-medium backdrop-blur-sm mb-3">
+                  <GraduationCap className="w-3.5 h-3.5" />
+                  Learning & Development
+                </div>
+                <h2 className="text-xl md:text-2xl font-bold tracking-tight">Pelatihan & Pengembangan SDM</h2>
+                <p className="text-indigo-100 text-sm mt-1.5 leading-relaxed">
+                  Kelola kurikulum, batch pelatihan, ujian, kelulusan, dan penempatan karyawan — termasuk pipeline outsourcing.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={loading}
+                className="self-start flex items-center gap-2 px-4 py-2 rounded-xl bg-white/15 hover:bg-white/25 backdrop-blur-sm text-sm font-medium transition-colors disabled:opacity-60"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
+              {heroStats.map(s => (
+                <div key={s.label} className="rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 px-4 py-3">
+                  <div className="flex items-center gap-2 text-indigo-100 text-xs mb-1">
+                    <s.icon className="w-3.5 h-3.5" />
+                    {s.label}
+                  </div>
+                  <p className="text-2xl font-bold tabular-nums">{s.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
-        {loading && <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-indigo-600" /><span className="ml-2 text-sm text-gray-500">Memuat data...</span></div>}
+        {/* Tab Navigation */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-1.5">
+          <div className="flex gap-1 overflow-x-auto scrollbar-thin">
+            {tabs.map(tb => (
+              <button
+                key={tb.key}
+                type="button"
+                onClick={() => { setTab(tb.key); setSearch(''); setFilterStatus(''); setFilterType(''); }}
+                className={`px-3.5 py-2.5 text-sm font-medium rounded-lg flex items-center gap-2 transition-all whitespace-nowrap ${
+                  tab === tb.key
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                }`}
+              >
+                <tb.icon className={`w-4 h-4 ${tab === tb.key ? 'text-white' : 'text-gray-400'}`} />
+                {tb.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {loading && (
+          <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-gray-200">
+            <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+            <span className="mt-3 text-sm text-gray-500">Memuat data...</span>
+          </div>
+        )}
 
         {/* ════════════════════════════════════════ */}
         {/* DASHBOARD TAB */}
         {/* ════════════════════════════════════════ */}
         {!loading && tab === 'dashboard' && dashboard && (
-          <div className="space-y-6">
+          <div className="space-y-5">
             {/* Summary Cards */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <StatCard icon={BookOpen} color="blue" value={dashboard.curricula?.active || 0} label="Kurikulum Aktif" />
-              <StatCard icon={Users} color="purple" value={dashboard.batches?.active || 0} label="Batch Aktif" />
-              <StatCard icon={GraduationCap} color="green" value={dashboard.graduations?.passed || 0} label="Lulusan" />
-              <StatCard icon={MapPin} color="orange" value={dashboard.placements?.active || 0} label="Penempatan Aktif" />
-              <StatCard icon={Target} color="teal" value={`${Number(dashboard.exams?.pass_rate || 0).toFixed(0)}%`} label="Tingkat Kelulusan" />
+              <StatCard icon={BookOpen} color="blue" value={dashboard.curricula?.active || 0} label="Kurikulum Aktif" sub={dashboard.curricula?.total ? `${dashboard.curricula.total} total` : undefined} />
+              <StatCard icon={Users} color="purple" value={dashboard.batches?.active || 0} label="Batch Aktif" sub={dashboard.batches?.total ? `${dashboard.batches.total} total` : undefined} />
+              <StatCard icon={GraduationCap} color="green" value={dashboard.graduations?.passed || 0} label="Lulusan" sub={dashboard.graduations?.ready_placement ? `${dashboard.graduations.ready_placement} siap tempat` : undefined} />
+              <StatCard icon={MapPin} color="orange" value={dashboard.placements?.active || 0} label="Penempatan Aktif" sub={dashboard.placements?.pending ? `${dashboard.placements.pending} menunggu` : undefined} />
+              <StatCard icon={Target} color="teal" value={`${Number(dashboard.exams?.pass_rate || 0).toFixed(0)}%`} label="Tingkat Kelulusan" sub={dashboard.exams?.avg_score ? `Avg ${Number(dashboard.exams.avg_score).toFixed(1)}` : undefined} />
             </div>
 
             {/* Detail Cards Row */}
             <div className="grid md:grid-cols-3 gap-4">
-              <div className="bg-white border rounded-xl p-5">
-                <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><Users className="w-4 h-4 text-purple-600" /> Status Batch</h3>
-                <div className="space-y-2">
-                  <MetricRow label="Aktif / Berlangsung" value={dashboard.batches?.active || 0} color="text-yellow-600" />
-                  <MetricRow label="Selesai" value={dashboard.batches?.completed || 0} color="text-green-600" />
-                  <MetricRow label="Outsourcing" value={dashboard.batches?.outsourcing || 0} color="text-blue-600" />
-                  <MetricRow label="Total Batch" value={dashboard.batches?.total || 0} color="text-gray-800" bold />
-                </div>
-              </div>
+              <MetricCard title="Status Batch" icon={Users} iconColor="text-purple-600" bg="from-purple-50 to-white">
+                <MetricRow label="Aktif / Berlangsung" value={dashboard.batches?.active || 0} color="text-yellow-600" />
+                <MetricRow label="Selesai" value={dashboard.batches?.completed || 0} color="text-green-600" />
+                <MetricRow label="Outsourcing" value={dashboard.batches?.outsourcing || 0} color="text-blue-600" />
+                <MetricRow label="Total Batch" value={dashboard.batches?.total || 0} color="text-gray-800" bold />
+              </MetricCard>
 
-              <div className="bg-white border rounded-xl p-5">
-                <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><GraduationCap className="w-4 h-4 text-green-600" /> Status Kelulusan</h3>
-                <div className="space-y-2">
-                  <MetricRow label="Sedang Training" value={dashboard.graduations?.in_progress || 0} color="text-yellow-600" />
-                  <MetricRow label="Lulus" value={dashboard.graduations?.passed || 0} color="text-green-600" />
-                  <MetricRow label="Tidak Lulus" value={dashboard.graduations?.failed || 0} color="text-red-600" />
-                  <MetricRow label="Siap Ditempatkan" value={dashboard.graduations?.ready_placement || 0} color="text-indigo-600" bold />
-                </div>
-              </div>
+              <MetricCard title="Status Kelulusan" icon={GraduationCap} iconColor="text-green-600" bg="from-green-50 to-white">
+                <MetricRow label="Sedang Training" value={dashboard.graduations?.in_progress || 0} color="text-yellow-600" />
+                <MetricRow label="Lulus" value={dashboard.graduations?.passed || 0} color="text-green-600" />
+                <MetricRow label="Tidak Lulus" value={dashboard.graduations?.failed || 0} color="text-red-600" />
+                <MetricRow label="Siap Ditempatkan" value={dashboard.graduations?.ready_placement || 0} color="text-indigo-600" bold />
+              </MetricCard>
 
-              <div className="bg-white border rounded-xl p-5">
-                <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><MapPin className="w-4 h-4 text-orange-600" /> Status Penempatan</h3>
-                <div className="space-y-2">
-                  <MetricRow label="Menunggu" value={dashboard.placements?.pending || 0} color="text-yellow-600" />
-                  <MetricRow label="Aktif" value={dashboard.placements?.active || 0} color="text-green-600" />
-                  <MetricRow label="Outsourcing" value={dashboard.placements?.outsourcing || 0} color="text-blue-600" />
-                  <MetricRow label="Total Penempatan" value={dashboard.placements?.total || 0} color="text-gray-800" bold />
-                </div>
-              </div>
+              <MetricCard title="Status Penempatan" icon={MapPin} iconColor="text-orange-600" bg="from-orange-50 to-white">
+                <MetricRow label="Menunggu" value={dashboard.placements?.pending || 0} color="text-yellow-600" />
+                <MetricRow label="Aktif" value={dashboard.placements?.active || 0} color="text-green-600" />
+                <MetricRow label="Outsourcing" value={dashboard.placements?.outsourcing || 0} color="text-blue-600" />
+                <MetricRow label="Total Penempatan" value={dashboard.placements?.total || 0} color="text-gray-800" bold />
+              </MetricCard>
             </div>
 
             {/* Outsourcing Pipeline */}
             {pipeline && (
-              <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-5">
-                <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2"><Network className="w-5 h-5 text-indigo-600" /> Pipeline Outsourcing (Rekrutmen → Pelatihan → Penyaluran)</h3>
-                <div className="flex items-center gap-2 overflow-x-auto">
+              <div className="bg-gradient-to-br from-indigo-50 via-white to-purple-50 border border-indigo-100 rounded-2xl p-6 shadow-sm">
+                <div className="flex items-center justify-between mb-5">
+                  <div>
+                    <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                      <Network className="w-5 h-5 text-indigo-600" />
+                      Pipeline Outsourcing
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-0.5">Rekrutmen → Pelatihan → Penyaluran karyawan</p>
+                  </div>
+                  <button type="button" onClick={() => setTab('pipeline')} className="text-xs font-medium text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
+                    Lihat detail <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <div className="flex items-stretch gap-2 overflow-x-auto pb-1">
                   {[
-                    { label: 'Rekrutmen', value: pipeline.recruiting || 0, color: 'bg-blue-500' },
-                    { label: 'Dalam Pelatihan', value: pipeline.in_training || 0, color: 'bg-yellow-500' },
-                    { label: 'Siap Ditempatkan', value: pipeline.ready_deploy || 0, color: 'bg-indigo-500' },
-                    { label: 'Ditempatkan', value: pipeline.deployed || 0, color: 'bg-green-500' },
-                    { label: 'Selesai Kontrak', value: pipeline.completed || 0, color: 'bg-gray-500' },
-                  ].map((stage, i) => (
+                    { label: 'Rekrutmen', value: pipeline.recruiting || 0, color: 'bg-blue-500', light: 'bg-blue-50 text-blue-700' },
+                    { label: 'Dalam Pelatihan', value: pipeline.in_training || 0, color: 'bg-amber-500', light: 'bg-amber-50 text-amber-700' },
+                    { label: 'Siap Ditempatkan', value: pipeline.ready_deploy || 0, color: 'bg-indigo-500', light: 'bg-indigo-50 text-indigo-700' },
+                    { label: 'Ditempatkan', value: pipeline.deployed || 0, color: 'bg-emerald-500', light: 'bg-emerald-50 text-emerald-700' },
+                    { label: 'Selesai Kontrak', value: pipeline.completed || 0, color: 'bg-slate-400', light: 'bg-slate-50 text-slate-600' },
+                  ].map((stage, i, arr) => (
                     <div key={stage.label} className="flex items-center gap-2">
-                      <div className="min-w-[130px] bg-white rounded-lg p-3 text-center border shadow-sm">
-                        <p className={`text-2xl font-bold`}>{stage.value}</p>
-                        <p className="text-xs text-gray-500 mt-0.5">{stage.label}</p>
-                        <div className={`h-1 rounded-full mt-2 ${stage.color}`} />
+                      <div className="min-w-[128px] bg-white rounded-xl p-4 text-center border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                        <p className="text-2xl font-bold tabular-nums text-gray-900">{stage.value}</p>
+                        <p className={`text-[11px] font-medium mt-1 px-2 py-0.5 rounded-full inline-block ${stage.light}`}>{stage.label}</p>
+                        <div className={`h-1 rounded-full mt-3 ${stage.color}`} />
                       </div>
-                      {i < 4 && <ArrowRight className="w-5 h-5 text-gray-300 flex-shrink-0" />}
+                      {i < arr.length - 1 && <ArrowRight className="w-4 h-4 text-gray-300 flex-shrink-0" />}
                     </div>
                   ))}
                 </div>
@@ -344,20 +434,23 @@ export default function TrainingDevelopmentPage() {
             )}
 
             {/* Exam Stats */}
-            <div className="bg-white border rounded-xl p-5">
-              <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><PenTool className="w-4 h-4 text-teal-600" /> Statistik Ujian</h3>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="bg-teal-50 rounded-lg p-4 text-center">
-                  <p className="text-2xl font-bold text-teal-600">{dashboard.exams?.total || 0}</p>
-                  <p className="text-xs text-gray-500">Total Peserta Ujian</p>
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+              <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <PenTool className="w-4 h-4 text-teal-600" />
+                Statistik Ujian
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="rounded-xl bg-gradient-to-br from-teal-50 to-white border border-teal-100 p-5 text-center">
+                  <p className="text-3xl font-bold text-teal-600 tabular-nums">{dashboard.exams?.total || 0}</p>
+                  <p className="text-xs text-gray-500 mt-1">Total Peserta Ujian</p>
                 </div>
-                <div className="bg-green-50 rounded-lg p-4 text-center">
-                  <p className="text-2xl font-bold text-green-600">{Number(dashboard.exams?.pass_rate || 0).toFixed(1)}%</p>
-                  <p className="text-xs text-gray-500">Tingkat Kelulusan</p>
+                <div className="rounded-xl bg-gradient-to-br from-emerald-50 to-white border border-emerald-100 p-5 text-center">
+                  <p className="text-3xl font-bold text-emerald-600 tabular-nums">{Number(dashboard.exams?.pass_rate || 0).toFixed(1)}%</p>
+                  <p className="text-xs text-gray-500 mt-1">Tingkat Kelulusan</p>
                 </div>
-                <div className="bg-blue-50 rounded-lg p-4 text-center">
-                  <p className="text-2xl font-bold text-blue-600">{Number(dashboard.exams?.avg_score || 0).toFixed(1)}</p>
-                  <p className="text-xs text-gray-500">Rata-rata Skor</p>
+                <div className="rounded-xl bg-gradient-to-br from-blue-50 to-white border border-blue-100 p-5 text-center">
+                  <p className="text-3xl font-bold text-blue-600 tabular-nums">{Number(dashboard.exams?.avg_score || 0).toFixed(1)}</p>
+                  <p className="text-xs text-gray-500 mt-1">Rata-rata Skor</p>
                 </div>
               </div>
             </div>
@@ -369,43 +462,44 @@ export default function TrainingDevelopmentPage() {
         {/* ════════════════════════════════════════ */}
         {!loading && tab === 'curricula' && (
           <div>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+            <Toolbar>
               <div className="flex gap-2 flex-wrap flex-1">
                 <SearchInput value={search} onChange={setSearch} placeholder="Cari kurikulum..." />
-                <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
-                  <option value="">Semua Status</option>
-                  <option value="active">Aktif</option><option value="draft">Draft</option><option value="archived">Diarsipkan</option>
-                </select>
+                <FilterSelect value={filterStatus} onChange={setFilterStatus} options={[
+                  ['', 'Semua Status'], ['active', 'Aktif'], ['draft', 'Draft'], ['archived', 'Diarsipkan']
+                ]} />
               </div>
-              <button onClick={() => { setForm({}); setShowModal('create-curriculum'); }} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700"><Plus className="w-4 h-4" /> Buat Kurikulum</button>
-            </div>
+              <PrimaryButton onClick={() => { setForm({}); setShowModal('create-curriculum'); }} icon={Plus}>Buat Kurikulum</PrimaryButton>
+            </Toolbar>
             <div className="grid md:grid-cols-2 gap-4">
               {curricula.map(c => (
-                <div key={c.id} className="bg-white border rounded-xl p-5 hover:shadow-lg transition-all cursor-pointer group" onClick={() => { setSelectedItem(c); setShowModal('detail-curriculum'); }}>
-                  <div className="flex justify-between items-start mb-2">
+                <div key={c.id} className="group bg-white border border-gray-200 rounded-2xl p-5 hover:shadow-lg hover:border-indigo-200 transition-all cursor-pointer" onClick={() => { setSelectedItem(c); setShowModal('detail-curriculum'); }}>
+                  <div className="flex justify-between items-start mb-3">
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-mono text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded">{c.code}</span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-mono font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-md">{c.code}</span>
                         {statusBadge(c.status)}
                       </div>
-                      <h3 className="font-semibold text-gray-900 mt-1.5">{c.title}</h3>
+                      <h3 className="font-semibold text-gray-900 mt-2 group-hover:text-indigo-700 transition-colors">{c.title}</h3>
                     </div>
-                    <BookOpen className="w-5 h-5 text-gray-300 group-hover:text-indigo-500 transition-colors" />
+                    <div className="p-2 rounded-xl bg-gray-50 group-hover:bg-indigo-50 transition-colors">
+                      <BookOpen className="w-5 h-5 text-gray-300 group-hover:text-indigo-500 transition-colors" />
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-500 line-clamp-2 mb-3">{c.description || 'Tidak ada deskripsi'}</p>
-                  <div className="flex items-center gap-4 text-xs text-gray-500">
+                  <p className="text-sm text-gray-500 line-clamp-2 mb-4 leading-relaxed">{c.description || 'Tidak ada deskripsi'}</p>
+                  <div className="flex items-center gap-4 text-xs text-gray-500 border-t border-gray-100 pt-3">
                     <span className="flex items-center gap-1"><Layers className="w-3 h-3" />{c.module_count || 0} modul</span>
                     <span className="flex items-center gap-1"><Users className="w-3 h-3" />{c.batch_count || 0} batch</span>
                     <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{c.total_hours || 0} jam</span>
-                    <span className="flex items-center gap-1"><Target className="w-3 h-3" />KKM: {c.passing_score}</span>
+                    <span className="flex items-center gap-1"><Target className="w-3 h-3" />KKM {c.passing_score}</span>
                   </div>
-                  <div className="flex items-center gap-2 mt-2 text-xs">
-                    <span className="bg-gray-100 px-2 py-0.5 rounded">{c.category}</span>
-                    {c.target_audience && <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded">{c.target_audience}</span>}
+                  <div className="flex items-center gap-2 mt-3 text-xs">
+                    <span className="bg-gray-100 px-2 py-0.5 rounded-md font-medium">{c.category}</span>
+                    {c.target_audience && <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md font-medium">{c.target_audience}</span>}
                   </div>
                 </div>
               ))}
-              {curricula.length === 0 && <EmptyState message="Belum ada kurikulum" />}
+              {curricula.length === 0 && <EmptyState message="Belum ada kurikulum" icon={BookOpen} />}
             </div>
           </div>
         )}
@@ -415,41 +509,43 @@ export default function TrainingDevelopmentPage() {
         {/* ════════════════════════════════════════ */}
         {!loading && tab === 'modules' && (
           <div>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+            <Toolbar>
               <SearchInput value={search} onChange={setSearch} placeholder="Cari modul..." />
-              <button onClick={() => { setForm({}); setShowModal('create-module'); }} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700"><Plus className="w-4 h-4" /> Tambah Modul</button>
-            </div>
-            <div className="bg-white border rounded-xl overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50"><tr>
-                  <th className="px-4 py-3 text-left">#</th>
-                  <th className="px-4 py-3 text-left">Modul</th>
-                  <th className="px-4 py-3 text-left">Kurikulum</th>
-                  <th className="px-4 py-3 text-center">Tipe</th>
-                  <th className="px-4 py-3 text-center">Metode</th>
-                  <th className="px-4 py-3 text-center">Durasi</th>
-                  <th className="px-4 py-3 text-center">Ujian</th>
-                  <th className="px-4 py-3 text-center">Status</th>
-                </tr></thead>
-                <tbody className="divide-y">
-                  {modules.filter(m => !search || m.title?.toLowerCase().includes(search.toLowerCase())).map((m, i) => (
-                    <tr key={m.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => { setSelectedItem(m); setShowModal('detail-module'); }}>
-                      <td className="px-4 py-3 text-gray-400">{m.order_index ?? i + 1}</td>
-                      <td className="px-4 py-3">
-                        <p className="font-medium">{m.title}</p>
-                        <p className="text-xs text-gray-400">{m.code}</p>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-gray-500">{m.curriculum_title || '-'}</td>
-                      <td className="px-4 py-3 text-center"><span className="text-xs bg-gray-100 px-2 py-0.5 rounded">{MODULE_TYPES[m.module_type] || m.module_type}</span></td>
-                      <td className="px-4 py-3 text-center text-xs">{DELIVERY_METHODS[m.delivery_method] || m.delivery_method}</td>
-                      <td className="px-4 py-3 text-center text-xs">{m.duration_hours} jam</td>
-                      <td className="px-4 py-3 text-center">{m.has_exam ? <CheckCircle2 className="w-4 h-4 text-green-500 mx-auto" /> : <span className="text-gray-300">-</span>}</td>
-                      <td className="px-4 py-3 text-center">{statusBadge(m.status)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {modules.length === 0 && <EmptyState message="Belum ada modul pembelajaran" />}
+              <PrimaryButton onClick={() => { setForm({}); setShowModal('create-module'); }} icon={Plus}>Tambah Modul</PrimaryButton>
+            </Toolbar>
+            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50/80 border-b border-gray-200"><tr>
+                    <th className={TABLE_HEAD}>#</th>
+                    <th className={TABLE_HEAD}>Modul</th>
+                    <th className={TABLE_HEAD}>Kurikulum</th>
+                    <th className={TABLE_HEAD_CENTER}>Tipe</th>
+                    <th className={TABLE_HEAD_CENTER}>Metode</th>
+                    <th className={TABLE_HEAD_CENTER}>Durasi</th>
+                    <th className={TABLE_HEAD_CENTER}>Ujian</th>
+                    <th className={TABLE_HEAD_CENTER}>Status</th>
+                  </tr></thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {modules.filter(m => !search || m.title?.toLowerCase().includes(search.toLowerCase())).map((m, i) => (
+                      <tr key={m.id} className="hover:bg-indigo-50/40 cursor-pointer transition-colors" onClick={() => { setSelectedItem(m); setShowModal('detail-module'); }}>
+                        <td className="px-4 py-3.5 text-gray-400 tabular-nums">{m.order_index ?? i + 1}</td>
+                        <td className="px-4 py-3.5">
+                          <p className="font-medium text-gray-900">{m.title}</p>
+                          <p className="text-xs text-gray-400 font-mono mt-0.5">{m.code}</p>
+                        </td>
+                        <td className="px-4 py-3.5 text-xs text-gray-500">{m.curriculum_title || '-'}</td>
+                        <td className="px-4 py-3.5 text-center"><span className="text-xs bg-gray-100 px-2 py-0.5 rounded-md font-medium">{MODULE_TYPES[m.module_type] || m.module_type}</span></td>
+                        <td className="px-4 py-3.5 text-center text-xs text-gray-600">{DELIVERY_METHODS[m.delivery_method] || m.delivery_method}</td>
+                        <td className="px-4 py-3.5 text-center text-xs tabular-nums">{m.duration_hours} jam</td>
+                        <td className="px-4 py-3.5 text-center">{m.has_exam ? <CheckCircle2 className="w-4 h-4 text-emerald-500 mx-auto" /> : <span className="text-gray-300">—</span>}</td>
+                        <td className="px-4 py-3.5 text-center">{statusBadge(m.status)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {modules.length === 0 && <EmptyState message="Belum ada modul pembelajaran" icon={Layers} />}
             </div>
           </div>
         )}
@@ -459,51 +555,70 @@ export default function TrainingDevelopmentPage() {
         {/* ════════════════════════════════════════ */}
         {!loading && tab === 'batches' && (
           <div>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+            <Toolbar>
               <div className="flex gap-2 flex-wrap flex-1">
                 <SearchInput value={search} onChange={setSearch} placeholder="Cari batch..." />
-                <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
-                  <option value="">Semua Status</option>
-                  {['planned','registration','in_progress','exam_phase','completed','cancelled'].map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
-                </select>
-                <select value={filterType} onChange={e => setFilterType(e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
-                  <option value="">Semua Tipe</option>
-                  {Object.entries(BATCH_TYPES).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
-                </select>
+                <FilterSelect value={filterStatus} onChange={setFilterStatus} options={[
+                  ['', 'Semua Status'],
+                  ...['planned','registration','in_progress','exam_phase','completed','cancelled'].map(s => [s, STATUS_LABELS[s]])
+                ]} />
+                <FilterSelect value={filterType} onChange={setFilterType} options={[
+                  ['', 'Semua Tipe'],
+                  ...Object.entries(BATCH_TYPES)
+                ]} />
               </div>
-              <button onClick={() => { setForm({}); setShowModal('create-batch'); }} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700"><Plus className="w-4 h-4" /> Buat Batch</button>
-            </div>
+              <PrimaryButton onClick={() => { setForm({}); setShowModal('create-batch'); }} icon={Plus}>Buat Batch</PrimaryButton>
+            </Toolbar>
             <div className="grid md:grid-cols-2 gap-4">
-              {batches.map(b => (
-                <div key={b.id} className="bg-white border rounded-xl p-5 hover:shadow-lg transition-all cursor-pointer" onClick={() => { setSelectedItem(b); setShowModal('detail-batch'); }}>
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-mono text-purple-500 bg-purple-50 px-2 py-0.5 rounded">{b.batch_code}</span>
-                        {statusBadge(b.status)}
-                        <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">{BATCH_TYPES[b.batch_type] || b.batch_type}</span>
+              {batches.map(b => {
+                const enrolled = b.current_participants || b.participant_count || 0;
+                const maxP = b.max_participants || 1;
+                const passPct = b.participant_count > 0 ? Math.round((b.passed_count || 0) / b.participant_count * 100) : 0;
+                const fillPct = Math.min(100, Math.round(enrolled / maxP * 100));
+                return (
+                  <div key={b.id} className="bg-white border border-gray-200 rounded-2xl p-5 hover:shadow-lg hover:border-purple-200 transition-all cursor-pointer" onClick={() => { setSelectedItem(b); setShowModal('detail-batch'); }}>
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-mono font-semibold text-purple-600 bg-purple-50 px-2.5 py-0.5 rounded-md">{b.batch_code}</span>
+                          {statusBadge(b.status)}
+                          <span className="text-xs bg-gray-100 px-2 py-0.5 rounded-md font-medium">{BATCH_TYPES[b.batch_type] || b.batch_type}</span>
+                        </div>
+                        <h3 className="font-semibold text-gray-900 mt-2">{b.batch_name}</h3>
                       </div>
-                      <h3 className="font-semibold text-gray-900 mt-1.5">{b.batch_name}</h3>
                     </div>
-                  </div>
-                  <p className="text-xs text-gray-500 mb-2">{b.curriculum_title || '-'}</p>
-                  <div className="flex items-center gap-4 text-xs text-gray-500 mb-2">
-                    <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{fmtDate(b.start_date)} - {fmtDate(b.end_date)}</span>
-                    <span className="flex items-center gap-1"><Users className="w-3 h-3" />{b.current_participants || b.participant_count || 0}/{b.max_participants}</span>
-                  </div>
-                  {b.client_company && <div className="flex items-center gap-1 text-xs text-blue-600"><Building2 className="w-3 h-3" /> {b.client_company}</div>}
-                  {b.instructor && <div className="flex items-center gap-1 text-xs text-gray-500 mt-1"><UserCheck className="w-3 h-3" /> {b.instructor}</div>}
-                  <div className="flex items-center gap-2 mt-3 pt-3 border-t">
-                    <div className="flex-1">
+                    <p className="text-xs text-gray-500 mb-3">{b.curriculum_title || '-'}</p>
+                    <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
+                      <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{fmtDate(b.start_date)} – {fmtDate(b.end_date)}</span>
+                      <span className="flex items-center gap-1"><Users className="w-3 h-3" />{enrolled}/{maxP}</span>
+                    </div>
+                    <div className="mb-2">
+                      <div className="flex justify-between text-[10px] text-gray-400 mb-1">
+                        <span>Kapasitas</span>
+                        <span>{fillPct}%</span>
+                      </div>
                       <div className="w-full bg-gray-100 rounded-full h-1.5">
-                        <div className="bg-green-500 h-1.5 rounded-full" style={{ width: `${b.participant_count > 0 ? Math.round((b.passed_count || 0) / b.participant_count * 100) : 0}%` }} />
+                        <div className="bg-indigo-500 h-1.5 rounded-full transition-all" style={{ width: `${fillPct}%` }} />
                       </div>
                     </div>
-                    <span className="text-xs text-gray-500">{b.passed_count || 0} lulus</span>
+                    {b.client_company && <div className="flex items-center gap-1 text-xs text-blue-600 mb-1"><Building2 className="w-3 h-3" /> {b.client_company}</div>}
+                    {b.instructor && <div className="flex items-center gap-1 text-xs text-gray-500"><UserCheck className="w-3 h-3" /> {b.instructor}</div>}
+                    <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-100">
+                      <div className="flex-1">
+                        <div className="flex justify-between text-[10px] text-gray-400 mb-1">
+                          <span>Tingkat kelulusan</span>
+                          <span>{passPct}%</span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-1.5">
+                          <div className="bg-emerald-500 h-1.5 rounded-full transition-all" style={{ width: `${passPct}%` }} />
+                        </div>
+                      </div>
+                      <span className="text-xs text-gray-500 whitespace-nowrap">{b.passed_count || 0} lulus</span>
+                    </div>
                   </div>
-                </div>
-              ))}
-              {batches.length === 0 && <EmptyState message="Belum ada batch pelatihan" />}
+                );
+              })}
+              {batches.length === 0 && <EmptyState message="Belum ada batch pelatihan" icon={Users} />}
             </div>
           </div>
         )}
@@ -513,36 +628,36 @@ export default function TrainingDevelopmentPage() {
         {/* ════════════════════════════════════════ */}
         {!loading && tab === 'schedules' && (
           <div>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+            <Toolbar>
               <SearchInput value={search} onChange={setSearch} placeholder="Cari jadwal..." />
-              <button onClick={() => { setForm({}); setShowModal('create-schedule'); }} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700"><Plus className="w-4 h-4" /> Tambah Jadwal</button>
-            </div>
+              <PrimaryButton onClick={() => { setForm({}); setShowModal('create-schedule'); }} icon={Plus}>Tambah Jadwal</PrimaryButton>
+            </Toolbar>
             <div className="space-y-3">
               {schedules.filter(s => !search || s.session_title?.toLowerCase().includes(search.toLowerCase())).map(s => (
-                <div key={s.id} className="bg-white border rounded-xl p-4 flex items-center gap-4 hover:shadow-md transition-all cursor-pointer" onClick={() => { setSelectedItem(s); setShowModal('detail-schedule'); }}>
-                  <div className="text-center min-w-[60px]">
-                    <p className="text-2xl font-bold text-indigo-600">{s.session_date ? new Date(s.session_date).getDate() : '-'}</p>
-                    <p className="text-xs text-gray-500">{s.session_date ? new Date(s.session_date).toLocaleDateString('id-ID', { month: 'short' }) : '-'}</p>
+                <div key={s.id} className="bg-white border border-gray-200 rounded-2xl p-4 flex items-center gap-4 hover:shadow-md hover:border-indigo-200 transition-all cursor-pointer" onClick={() => { setSelectedItem(s); setShowModal('detail-schedule'); }}>
+                  <div className="text-center min-w-[64px] rounded-xl bg-indigo-50 py-2 px-1">
+                    <p className="text-2xl font-bold text-indigo-600 tabular-nums">{s.session_date ? new Date(s.session_date).getDate() : '—'}</p>
+                    <p className="text-[10px] font-medium text-indigo-400 uppercase">{s.session_date ? new Date(s.session_date).toLocaleDateString('id-ID', { month: 'short' }) : '—'}</p>
                   </div>
-                  <div className="w-px h-12 bg-gray-200" />
+                  <div className="w-px h-14 bg-gray-200" />
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-semibold text-gray-900 truncate">{s.session_title}</h3>
                       {statusBadge(s.status)}
                     </div>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                      <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{s.start_time?.substring(0,5)} - {s.end_time?.substring(0,5)}</span>
-                      <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{s.location || '-'}</span>
-                      <span className="flex items-center gap-1"><Users className="w-3 h-3" />{s.batch_name || '-'}</span>
+                    <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-500 flex-wrap">
+                      <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{s.start_time?.substring(0,5)} – {s.end_time?.substring(0,5)}</span>
+                      <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{s.location || '—'}</span>
+                      <span className="flex items-center gap-1"><Users className="w-3 h-3" />{s.batch_name || '—'}</span>
                     </div>
                   </div>
-                  <div className="text-right text-xs text-gray-500">
-                    <p>{s.module_title || '-'}</p>
-                    <p className="text-gray-400">{s.instructor || '-'}</p>
+                  <div className="text-right text-xs text-gray-500 hidden sm:block">
+                    <p className="font-medium text-gray-700">{s.module_title || '—'}</p>
+                    <p className="text-gray-400 mt-0.5">{s.instructor || '—'}</p>
                   </div>
                 </div>
               ))}
-              {schedules.length === 0 && <EmptyState message="Belum ada jadwal" />}
+              {schedules.length === 0 && <EmptyState message="Belum ada jadwal" icon={Calendar} />}
             </div>
           </div>
         )}
@@ -552,48 +667,59 @@ export default function TrainingDevelopmentPage() {
         {/* ════════════════════════════════════════ */}
         {!loading && tab === 'exams' && (
           <div>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+            <Toolbar>
               <div className="flex gap-2 flex-wrap flex-1">
                 <SearchInput value={search} onChange={setSearch} placeholder="Cari ujian..." />
-                <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
-                  <option value="">Semua Status</option>
-                  {['draft','scheduled','open','in_progress','closed','graded'].map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
-                </select>
+                <FilterSelect value={filterStatus} onChange={setFilterStatus} options={[
+                  ['', 'Semua Status'],
+                  ...['draft','scheduled','open','in_progress','closed','graded'].map(s => [s, STATUS_LABELS[s]])
+                ]} />
               </div>
-              <button onClick={() => { setForm({}); setShowModal('create-exam'); }} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700"><Plus className="w-4 h-4" /> Buat Ujian</button>
-            </div>
+              <PrimaryButton onClick={() => { setForm({}); setShowModal('create-exam'); }} icon={Plus}>Buat Ujian</PrimaryButton>
+            </Toolbar>
             <div className="grid md:grid-cols-2 gap-4">
               {exams.filter(e => !search || e.title?.toLowerCase().includes(search.toLowerCase())).map(e => (
-                <div key={e.id} className="bg-white border rounded-xl p-5 hover:shadow-lg transition-all cursor-pointer" onClick={() => { setSelectedItem(e); setShowModal('detail-exam'); fetchQuestions(e.id); }}>
-                  <div className="flex justify-between items-start mb-2">
+                <div key={e.id} className="bg-white border border-gray-200 rounded-2xl p-5 hover:shadow-lg hover:border-teal-200 transition-all cursor-pointer" onClick={() => { setSelectedItem(e); setShowModal('detail-exam'); fetchQuestions(e.id); }}>
+                  <div className="flex justify-between items-start mb-3">
                     <div>
                       <h3 className="font-semibold text-gray-900">{e.title}</h3>
-                      <div className="flex items-center gap-2 mt-1">
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
                         {statusBadge(e.status)}
-                        <span className="text-xs bg-gray-100 px-2 py-0.5 rounded capitalize">{e.exam_type}</span>
-                        <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded capitalize">{e.exam_scope}</span>
+                        <span className="text-xs bg-gray-100 px-2 py-0.5 rounded-md capitalize font-medium">{e.exam_type}</span>
+                        <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-md capitalize font-medium">{e.exam_scope}</span>
                       </div>
                     </div>
-                    <PenTool className="w-5 h-5 text-gray-300" />
+                    <div className="p-2 rounded-xl bg-gray-50">
+                      <PenTool className="w-5 h-5 text-gray-300" />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-4 text-xs text-gray-500 mt-3">
-                    <span><strong>{e.total_questions}</strong> soal</span>
-                    <span>KKM: <strong>{e.passing_score}</strong></span>
-                    <span><Clock className="w-3 h-3 inline" /> {e.duration_minutes} menit</span>
-                    {e.exam_date && <span><Calendar className="w-3 h-3 inline" /> {fmtDate(e.exam_date)}</span>}
+                  <div className="flex items-center gap-4 text-xs text-gray-500">
+                    <span><strong className="text-gray-800">{e.total_questions}</strong> soal</span>
+                    <span>KKM <strong className="text-gray-800">{e.passing_score}</strong></span>
+                    <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {e.duration_minutes} mnt</span>
+                    {e.exam_date && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {fmtDate(e.exam_date)}</span>}
                   </div>
                   <div className="flex items-center gap-4 text-xs mt-2">
-                    {e.batch_name && <span className="text-purple-600">Batch: {e.batch_name}</span>}
+                    {e.batch_name && <span className="text-purple-600 font-medium">Batch: {e.batch_name}</span>}
                     {e.curriculum_title && <span className="text-blue-600">{e.curriculum_title}</span>}
                   </div>
-                  <div className="flex items-center gap-3 mt-3 pt-3 border-t text-xs">
-                    <span className="text-gray-500">Peserta: <strong>{e.total_participants || 0}</strong></span>
-                    <span className="text-green-600">Lulus: <strong>{e.passed_count || 0}</strong></span>
-                    <span className="text-gray-500">Avg: <strong>{Number(e.avg_score || 0).toFixed(1)}</strong></span>
+                  <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-gray-100 text-center">
+                    <div className="rounded-lg bg-gray-50 py-2">
+                      <p className="text-sm font-bold text-gray-800">{e.total_participants || 0}</p>
+                      <p className="text-[10px] text-gray-400">Peserta</p>
+                    </div>
+                    <div className="rounded-lg bg-emerald-50 py-2">
+                      <p className="text-sm font-bold text-emerald-700">{e.passed_count || 0}</p>
+                      <p className="text-[10px] text-emerald-600">Lulus</p>
+                    </div>
+                    <div className="rounded-lg bg-blue-50 py-2">
+                      <p className="text-sm font-bold text-blue-700">{Number(e.avg_score || 0).toFixed(1)}</p>
+                      <p className="text-[10px] text-blue-600">Avg Skor</p>
+                    </div>
                   </div>
                 </div>
               ))}
-              {exams.length === 0 && <EmptyState message="Belum ada ujian" />}
+              {exams.length === 0 && <EmptyState message="Belum ada ujian" icon={PenTool} />}
             </div>
           </div>
         )}
@@ -603,51 +729,53 @@ export default function TrainingDevelopmentPage() {
         {/* ════════════════════════════════════════ */}
         {!loading && tab === 'graduations' && (
           <div>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+            <Toolbar>
               <div className="flex gap-2 flex-wrap flex-1">
                 <SearchInput value={search} onChange={setSearch} placeholder="Cari peserta..." />
-                <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
-                  <option value="">Semua Status</option>
-                  {['in_progress','passed','failed','conditional','remedial','withdrawn'].map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
-                </select>
+                <FilterSelect value={filterStatus} onChange={setFilterStatus} options={[
+                  ['', 'Semua Status'],
+                  ...['in_progress','passed','failed','conditional','remedial','withdrawn'].map(s => [s, STATUS_LABELS[s]])
+                ]} />
               </div>
-            </div>
-            <div className="bg-white border rounded-xl overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50"><tr>
-                  <th className="px-4 py-3 text-left">Peserta</th>
-                  <th className="px-4 py-3 text-left">Batch</th>
-                  <th className="px-4 py-3 text-center">Skor Akhir</th>
-                  <th className="px-4 py-3 text-center">Ujian Avg</th>
-                  <th className="px-4 py-3 text-center">Kehadiran</th>
-                  <th className="px-4 py-3 text-center">Rank</th>
-                  <th className="px-4 py-3 text-center">Status</th>
-                  <th className="px-4 py-3 text-center">Penempatan</th>
-                </tr></thead>
-                <tbody className="divide-y">
-                  {graduations.filter(g => !search || g.employee_name?.toLowerCase().includes(search.toLowerCase())).map(g => (
-                    <tr key={g.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => { setSelectedItem(g); setShowModal('detail-graduation'); }}>
-                      <td className="px-4 py-3">
-                        <p className="font-medium">{g.employee_name || '-'}</p>
-                        <p className="text-xs text-gray-400">{g.employee_id?.substring(0, 8)}</p>
-                      </td>
-                      <td className="px-4 py-3">
-                        <p className="text-sm">{g.batch_name || '-'}</p>
-                        <p className="text-xs text-gray-400">{g.batch_code}</p>
-                      </td>
-                      <td className="px-4 py-3 text-center font-semibold">{g.final_score ? Number(g.final_score).toFixed(1) : '-'}</td>
-                      <td className="px-4 py-3 text-center">{g.exam_score_avg ? Number(g.exam_score_avg).toFixed(1) : '-'}</td>
-                      <td className="px-4 py-3 text-center">{g.attendance_rate ? `${Number(g.attendance_rate).toFixed(0)}%` : '-'}</td>
-                      <td className="px-4 py-3 text-center">{g.rank || '-'}</td>
-                      <td className="px-4 py-3 text-center">{statusBadge(g.graduation_status)}</td>
-                      <td className="px-4 py-3 text-center">
-                        {g.ready_for_placement ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Siap</span> : <span className="text-xs text-gray-400">-</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {graduations.length === 0 && <EmptyState message="Belum ada data kelulusan" />}
+            </Toolbar>
+            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50/80 border-b border-gray-200"><tr>
+                    <th className={TABLE_HEAD}>Peserta</th>
+                    <th className={TABLE_HEAD}>Batch</th>
+                    <th className={TABLE_HEAD_CENTER}>Skor Akhir</th>
+                    <th className={TABLE_HEAD_CENTER}>Ujian Avg</th>
+                    <th className={TABLE_HEAD_CENTER}>Kehadiran</th>
+                    <th className={TABLE_HEAD_CENTER}>Rank</th>
+                    <th className={TABLE_HEAD_CENTER}>Status</th>
+                    <th className={TABLE_HEAD_CENTER}>Penempatan</th>
+                  </tr></thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {graduations.filter(g => !search || g.employee_name?.toLowerCase().includes(search.toLowerCase())).map(g => (
+                      <tr key={g.id} className="hover:bg-indigo-50/40 cursor-pointer transition-colors" onClick={() => { setSelectedItem(g); setShowModal('detail-graduation'); }}>
+                        <td className="px-4 py-3.5">
+                          <p className="font-medium text-gray-900">{g.employee_name || '—'}</p>
+                          <p className="text-xs text-gray-400 font-mono mt-0.5">{g.employee_id?.substring(0, 8)}</p>
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <p className="text-sm text-gray-800">{g.batch_name || '—'}</p>
+                          <p className="text-xs text-gray-400">{g.batch_code}</p>
+                        </td>
+                        <td className="px-4 py-3.5 text-center font-semibold tabular-nums">{g.final_score ? Number(g.final_score).toFixed(1) : '—'}</td>
+                        <td className="px-4 py-3.5 text-center tabular-nums">{g.exam_score_avg ? Number(g.exam_score_avg).toFixed(1) : '—'}</td>
+                        <td className="px-4 py-3.5 text-center tabular-nums">{g.attendance_rate ? `${Number(g.attendance_rate).toFixed(0)}%` : '—'}</td>
+                        <td className="px-4 py-3.5 text-center tabular-nums">{g.rank || '—'}</td>
+                        <td className="px-4 py-3.5 text-center">{statusBadge(g.graduation_status)}</td>
+                        <td className="px-4 py-3.5 text-center">
+                          {g.ready_for_placement ? <span className="text-xs bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full font-semibold">Siap</span> : <span className="text-xs text-gray-400">—</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {graduations.length === 0 && <EmptyState message="Belum ada data kelulusan" icon={GraduationCap} />}
             </div>
           </div>
         )}
@@ -657,54 +785,56 @@ export default function TrainingDevelopmentPage() {
         {/* ════════════════════════════════════════ */}
         {!loading && tab === 'placements' && (
           <div>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+            <Toolbar>
               <div className="flex gap-2 flex-wrap flex-1">
                 <SearchInput value={search} onChange={setSearch} placeholder="Cari penempatan..." />
-                <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
-                  <option value="">Semua Status</option>
-                  {['pending','confirmed','active','completed','cancelled','recalled'].map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
-                </select>
-                <select value={filterType} onChange={e => setFilterType(e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
-                  <option value="">Semua Tipe</option>
-                  {Object.entries(PLACEMENT_TYPES).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
-                </select>
+                <FilterSelect value={filterStatus} onChange={setFilterStatus} options={[
+                  ['', 'Semua Status'],
+                  ...['pending','confirmed','active','completed','cancelled','recalled'].map(s => [s, STATUS_LABELS[s]])
+                ]} />
+                <FilterSelect value={filterType} onChange={setFilterType} options={[
+                  ['', 'Semua Tipe'],
+                  ...Object.entries(PLACEMENT_TYPES)
+                ]} />
               </div>
-              <button onClick={() => { setForm({}); setShowModal('create-placement'); }} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700"><Plus className="w-4 h-4" /> Buat Penempatan</button>
-            </div>
-            <div className="bg-white border rounded-xl overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50"><tr>
-                  <th className="px-4 py-3 text-left">Karyawan</th>
-                  <th className="px-4 py-3 text-left">Posisi</th>
-                  <th className="px-4 py-3 text-left">Tipe</th>
-                  <th className="px-4 py-3 text-left">Lokasi / Klien</th>
-                  <th className="px-4 py-3 text-center">Periode</th>
-                  <th className="px-4 py-3 text-center">Skor Training</th>
-                  <th className="px-4 py-3 text-center">Status</th>
-                </tr></thead>
-                <tbody className="divide-y">
-                  {placements.map(p => (
-                    <tr key={p.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => { setSelectedItem(p); setShowModal('detail-placement'); }}>
-                      <td className="px-4 py-3">
-                        <p className="font-medium">{p.employee_name || '-'}</p>
-                        <p className="text-xs text-gray-400">{p.batch_name || '-'}</p>
-                      </td>
-                      <td className="px-4 py-3">{p.position}<br /><span className="text-xs text-gray-400">{p.department || '-'}</span></td>
-                      <td className="px-4 py-3"><span className="text-xs bg-gray-100 px-2 py-0.5 rounded">{PLACEMENT_TYPES[p.placement_type] || p.placement_type}</span></td>
-                      <td className="px-4 py-3 text-xs">
-                        {p.client_company && <p className="text-blue-600 font-medium">{p.client_company}</p>}
-                        {p.client_site && <p className="text-gray-500">{p.client_site}</p>}
-                        {p.target_branch_name && <p className="text-gray-500">{p.target_branch_name}</p>}
-                        {!p.client_company && !p.target_branch_name && '-'}
-                      </td>
-                      <td className="px-4 py-3 text-center text-xs">{fmtDate(p.start_date)}<br />{p.end_date ? fmtDate(p.end_date) : 'Ongoing'}</td>
-                      <td className="px-4 py-3 text-center font-semibold">{p.final_score ? Number(p.final_score).toFixed(1) : '-'}</td>
-                      <td className="px-4 py-3 text-center">{statusBadge(p.status)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {placements.length === 0 && <EmptyState message="Belum ada data penempatan" />}
+              <PrimaryButton onClick={() => { setForm({}); setShowModal('create-placement'); }} icon={Plus}>Buat Penempatan</PrimaryButton>
+            </Toolbar>
+            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50/80 border-b border-gray-200"><tr>
+                    <th className={TABLE_HEAD}>Karyawan</th>
+                    <th className={TABLE_HEAD}>Posisi</th>
+                    <th className={TABLE_HEAD}>Tipe</th>
+                    <th className={TABLE_HEAD}>Lokasi / Klien</th>
+                    <th className={TABLE_HEAD_CENTER}>Periode</th>
+                    <th className={TABLE_HEAD_CENTER}>Skor Training</th>
+                    <th className={TABLE_HEAD_CENTER}>Status</th>
+                  </tr></thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {placements.map(p => (
+                      <tr key={p.id} className="hover:bg-indigo-50/40 cursor-pointer transition-colors" onClick={() => { setSelectedItem(p); setShowModal('detail-placement'); }}>
+                        <td className="px-4 py-3.5">
+                          <p className="font-medium text-gray-900">{p.employee_name || '—'}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{p.batch_name || '—'}</p>
+                        </td>
+                        <td className="px-4 py-3.5">{p.position}<br /><span className="text-xs text-gray-400">{p.department || '—'}</span></td>
+                        <td className="px-4 py-3.5"><span className="text-xs bg-gray-100 px-2 py-0.5 rounded-md font-medium">{PLACEMENT_TYPES[p.placement_type] || p.placement_type}</span></td>
+                        <td className="px-4 py-3.5 text-xs">
+                          {p.client_company && <p className="text-blue-600 font-medium">{p.client_company}</p>}
+                          {p.client_site && <p className="text-gray-500">{p.client_site}</p>}
+                          {p.target_branch_name && <p className="text-gray-500">{p.target_branch_name}</p>}
+                          {!p.client_company && !p.target_branch_name && '—'}
+                        </td>
+                        <td className="px-4 py-3.5 text-center text-xs">{fmtDate(p.start_date)}<br />{p.end_date ? fmtDate(p.end_date) : 'Ongoing'}</td>
+                        <td className="px-4 py-3.5 text-center font-semibold tabular-nums">{p.final_score ? Number(p.final_score).toFixed(1) : '—'}</td>
+                        <td className="px-4 py-3.5 text-center">{statusBadge(p.status)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {placements.length === 0 && <EmptyState message="Belum ada data penempatan" icon={MapPin} />}
             </div>
           </div>
         )}
@@ -713,53 +843,61 @@ export default function TrainingDevelopmentPage() {
         {/* PIPELINE TAB (Outsourcing) */}
         {/* ════════════════════════════════════════ */}
         {!loading && tab === 'pipeline' && (
-          <div className="space-y-6">
-            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-2">Pipeline Outsourcing</h2>
-              <p className="text-sm text-gray-500 mb-4">Alur lengkap dari perekrutan → pembinaan/pelatihan → penyaluran karyawan outsourcing</p>
+          <div className="space-y-5">
+            <div className="bg-gradient-to-br from-indigo-50 via-white to-purple-50 border border-indigo-100 rounded-2xl p-6 md:p-8 shadow-sm">
+              <div className="mb-6">
+                <h2 className="text-lg font-bold text-gray-900">Pipeline Outsourcing</h2>
+                <p className="text-sm text-gray-500 mt-1">Alur lengkap dari perekrutan → pembinaan/pelatihan → penyaluran karyawan outsourcing</p>
+              </div>
               {pipeline && (
-                <div className="flex items-center gap-3 overflow-x-auto pb-2">
+                <div className="flex items-stretch gap-3 overflow-x-auto pb-2">
                   {[
                     { label: 'Rekrutmen', desc: 'Calon karyawan dalam proses seleksi', value: pipeline.recruiting || 0, color: 'from-blue-500 to-blue-600', icon: UserCheck },
-                    { label: 'Pelatihan', desc: 'Dalam program pelatihan & pembinaan', value: pipeline.in_training || 0, color: 'from-yellow-500 to-yellow-600', icon: BookOpen },
+                    { label: 'Pelatihan', desc: 'Dalam program pelatihan & pembinaan', value: pipeline.in_training || 0, color: 'from-amber-500 to-amber-600', icon: BookOpen },
                     { label: 'Siap Ditempatkan', desc: 'Lulus pelatihan, siap ditempatkan', value: pipeline.ready_deploy || 0, color: 'from-indigo-500 to-indigo-600', icon: GraduationCap },
-                    { label: 'Ditempatkan', desc: 'Aktif bekerja di lokasi klien', value: pipeline.deployed || 0, color: 'from-green-500 to-green-600', icon: MapPin },
-                    { label: 'Selesai', desc: 'Kontrak selesai / selesai penempatan', value: pipeline.completed || 0, color: 'from-gray-500 to-gray-600', icon: CheckCircle2 },
+                    { label: 'Ditempatkan', desc: 'Aktif bekerja di lokasi klien', value: pipeline.deployed || 0, color: 'from-emerald-500 to-emerald-600', icon: MapPin },
+                    { label: 'Selesai', desc: 'Kontrak selesai / selesai penempatan', value: pipeline.completed || 0, color: 'from-slate-500 to-slate-600', icon: CheckCircle2 },
                   ].map((stage, i) => (
                     <div key={stage.label} className="flex items-center gap-3">
-                      <div className="min-w-[160px] bg-white rounded-xl p-4 text-center border shadow-sm">
-                        <div className={`w-10 h-10 mx-auto mb-2 rounded-xl bg-gradient-to-br ${stage.color} flex items-center justify-center`}>
+                      <div className="min-w-[168px] bg-white rounded-2xl p-5 text-center border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                        <div className={`w-11 h-11 mx-auto mb-3 rounded-xl bg-gradient-to-br ${stage.color} flex items-center justify-center shadow-sm`}>
                           <stage.icon className="w-5 h-5 text-white" />
                         </div>
-                        <p className="text-2xl font-bold text-gray-900">{stage.value}</p>
-                        <p className="text-sm font-medium text-gray-700 mt-0.5">{stage.label}</p>
-                        <p className="text-[10px] text-gray-400 mt-1 leading-tight">{stage.desc}</p>
+                        <p className="text-3xl font-bold text-gray-900 tabular-nums">{stage.value}</p>
+                        <p className="text-sm font-semibold text-gray-700 mt-1">{stage.label}</p>
+                        <p className="text-[10px] text-gray-400 mt-1.5 leading-snug px-1">{stage.desc}</p>
                       </div>
-                      {i < 4 && <ArrowRight className="w-6 h-6 text-indigo-300 flex-shrink-0" />}
+                      {i < 4 && <ArrowRight className="w-5 h-5 text-indigo-200 flex-shrink-0" />}
                     </div>
                   ))}
                 </div>
               )}
             </div>
 
-            <div className="bg-white border rounded-xl p-5">
-              <h3 className="font-semibold text-gray-900 mb-3">Integrasi Modul</h3>
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+              <h3 className="font-semibold text-gray-900 mb-4">Integrasi Modul</h3>
               <div className="grid md:grid-cols-3 gap-4">
-                <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
-                  <h4 className="font-medium text-blue-900 flex items-center gap-2"><UserCheck className="w-4 h-4" /> Rekrutmen</h4>
-                  <p className="text-xs text-blue-700 mt-1">Terintegrasi dengan modul Rekrutmen HRIS. Kandidat yang diterima (hired) dapat langsung didaftarkan ke batch pelatihan.</p>
-                  <a href="/humanify/recruitment" className="text-xs text-blue-600 font-medium mt-2 inline-block hover:underline">Buka Modul Rekrutmen →</a>
-                </div>
-                <div className="bg-purple-50 rounded-lg p-4 border border-purple-100">
-                  <h4 className="font-medium text-purple-900 flex items-center gap-2"><GraduationCap className="w-4 h-4" /> Pelatihan & Sertifikasi</h4>
-                  <p className="text-xs text-purple-700 mt-1">Terintegrasi dengan modul Training & Sertifikasi. Program pelatihan dapat dikaitkan dengan kurikulum dan batch.</p>
-                  <a href="/humanify/training" className="text-xs text-purple-600 font-medium mt-2 inline-block hover:underline">Buka Pelatihan →</a>
-                </div>
-                <div className="bg-green-50 rounded-lg p-4 border border-green-100">
-                  <h4 className="font-medium text-green-900 flex items-center gap-2"><Award className="w-4 h-4" /> KPI & Performance</h4>
-                  <p className="text-xs text-green-700 mt-1">Terintegrasi dengan KPI dan Performance Review. Hasil pelatihan dapat mempengaruhi evaluasi kinerja karyawan.</p>
-                  <a href="/humanify/kpi" className="text-xs text-green-600 font-medium mt-2 inline-block hover:underline">Buka KPI →</a>
-                </div>
+                <IntegrationCard
+                  title="Rekrutmen"
+                  desc="Terintegrasi dengan modul Rekrutmen HRIS. Kandidat yang diterima (hired) dapat langsung didaftarkan ke batch pelatihan."
+                  href="/humanify/recruitment"
+                  icon={UserCheck}
+                  color="blue"
+                />
+                <IntegrationCard
+                  title="Pelatihan & Sertifikasi"
+                  desc="Terintegrasi dengan modul Training & Sertifikasi. Program pelatihan dapat dikaitkan dengan kurikulum dan batch."
+                  href="/humanify/training"
+                  icon={GraduationCap}
+                  color="purple"
+                />
+                <IntegrationCard
+                  title="KPI & Performance"
+                  desc="Terintegrasi dengan KPI dan Performance Review. Hasil pelatihan dapat mempengaruhi evaluasi kinerja karyawan."
+                  href="/humanify/kpi"
+                  icon={Award}
+                  color="green"
+                />
               </div>
             </div>
           </div>
@@ -1280,49 +1418,136 @@ export default function TrainingDevelopmentPage() {
 // ═══════════════════════════════════════════
 // Reusable Sub-Components
 // ═══════════════════════════════════════════
-function StatCard({ icon: Icon, color, value, label }: { icon: any; color: string; value: any; label: string }) {
-  const colors: Record<string, string> = { blue: 'bg-blue-100 text-blue-600', purple: 'bg-purple-100 text-purple-600', green: 'bg-green-100 text-green-600', orange: 'bg-orange-100 text-orange-600', teal: 'bg-teal-100 text-teal-600', red: 'bg-red-100 text-red-600' };
+const STAT_COLORS: Record<string, { bg: string; icon: string; border: string }> = {
+  blue: { bg: 'from-blue-50 to-white', icon: 'bg-blue-100 text-blue-600', border: 'border-blue-100' },
+  purple: { bg: 'from-purple-50 to-white', icon: 'bg-purple-100 text-purple-600', border: 'border-purple-100' },
+  green: { bg: 'from-emerald-50 to-white', icon: 'bg-emerald-100 text-emerald-600', border: 'border-emerald-100' },
+  orange: { bg: 'from-orange-50 to-white', icon: 'bg-orange-100 text-orange-600', border: 'border-orange-100' },
+  teal: { bg: 'from-teal-50 to-white', icon: 'bg-teal-100 text-teal-600', border: 'border-teal-100' },
+  red: { bg: 'from-red-50 to-white', icon: 'bg-red-100 text-red-600', border: 'border-red-100' },
+};
+
+function StatCard({ icon: Icon, color, value, label, sub }: { icon: any; color: string; value: any; label: string; sub?: string }) {
+  const c = STAT_COLORS[color] || STAT_COLORS.blue;
   return (
-    <div className="bg-white rounded-xl p-4 border shadow-sm">
-      <div className="flex items-center gap-3">
-        <div className={`p-2 rounded-lg ${colors[color] || colors.blue}`}><Icon className="w-5 h-5" /></div>
-        <div><p className="text-2xl font-bold">{value}</p><p className="text-xs text-gray-500">{label}</p></div>
+    <div className={`rounded-2xl p-4 border bg-gradient-to-br ${c.bg} ${c.border} shadow-sm hover:shadow-md transition-shadow`}>
+      <div className="flex items-start justify-between gap-2">
+        <div className={`p-2.5 rounded-xl ${c.icon}`}><Icon className="w-5 h-5" /></div>
       </div>
+      <p className="text-2xl font-bold text-gray-900 mt-3 tabular-nums">{value}</p>
+      <p className="text-xs text-gray-500 mt-0.5 font-medium">{label}</p>
+      {sub && <p className="text-[10px] text-gray-400 mt-1">{sub}</p>}
+    </div>
+  );
+}
+
+function MetricCard({ title, icon: Icon, iconColor, bg, children }: { title: string; icon: any; iconColor: string; bg: string; children: React.ReactNode }) {
+  return (
+    <div className={`bg-gradient-to-br ${bg} border border-gray-200 rounded-2xl p-5 shadow-sm`}>
+      <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+        <Icon className={`w-4 h-4 ${iconColor}`} />
+        {title}
+      </h3>
+      <div className="space-y-2.5">{children}</div>
     </div>
   );
 }
 
 function MetricRow({ label, value, color, bold }: { label: string; value: any; color?: string; bold?: boolean }) {
   return (
-    <div className="flex justify-between items-center">
+    <div className="flex justify-between items-center py-0.5">
       <span className="text-sm text-gray-600">{label}</span>
-      <span className={`text-sm ${bold ? 'font-bold' : 'font-medium'} ${color || 'text-gray-900'}`}>{value}</span>
+      <span className={`text-sm tabular-nums ${bold ? 'font-bold text-base' : 'font-semibold'} ${color || 'text-gray-900'}`}>{value}</span>
     </div>
   );
 }
 
-function EmptyState({ message }: { message: string }) {
-  return <p className="text-center text-gray-400 py-12 col-span-2">{message}</p>;
+function EmptyState({ message, icon: Icon = HelpCircle }: { message: string; icon?: any }) {
+  return (
+    <div className="col-span-full flex flex-col items-center justify-center py-16 px-4 bg-white rounded-2xl border border-dashed border-gray-200">
+      <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center mb-3">
+        <Icon className="w-6 h-6 text-gray-300" />
+      </div>
+      <p className="text-sm text-gray-500 font-medium">{message}</p>
+      <p className="text-xs text-gray-400 mt-1">Mulai dengan menambahkan data baru</p>
+    </div>
+  );
+}
+
+function Toolbar({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
+      {children}
+    </div>
+  );
+}
+
+function PrimaryButton({ children, onClick, icon: Icon }: { children: React.ReactNode; onClick: () => void; icon?: any }) {
+  return (
+    <button type="button" onClick={onClick} className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 shadow-sm shadow-indigo-200 transition-colors whitespace-nowrap">
+      {Icon && <Icon className="w-4 h-4" />}
+      {children}
+    </button>
+  );
+}
+
+function FilterSelect({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: (string | [string, string])[] }) {
+  return (
+    <select
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      className="px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-w-[140px]"
+    >
+      {options.map(opt => {
+        const [val, lbl] = Array.isArray(opt) ? opt : [opt, opt];
+        return <option key={val || 'all'} value={val}>{lbl}</option>;
+      })}
+    </select>
+  );
+}
+
+function IntegrationCard({ title, desc, href, icon: Icon, color }: { title: string; desc: string; href: string; icon: any; color: 'blue' | 'purple' | 'green' }) {
+  const styles = {
+    blue: { bg: 'bg-blue-50 border-blue-100', title: 'text-blue-900', text: 'text-blue-700', link: 'text-blue-600' },
+    purple: { bg: 'bg-purple-50 border-purple-100', title: 'text-purple-900', text: 'text-purple-700', link: 'text-purple-600' },
+    green: { bg: 'bg-emerald-50 border-emerald-100', title: 'text-emerald-900', text: 'text-emerald-700', link: 'text-emerald-600' },
+  }[color];
+  return (
+    <div className={`rounded-xl p-5 border ${styles.bg} hover:shadow-md transition-shadow`}>
+      <h4 className={`font-semibold flex items-center gap-2 ${styles.title}`}>
+        <Icon className="w-4 h-4" /> {title}
+      </h4>
+      <p className={`text-xs mt-2 leading-relaxed ${styles.text}`}>{desc}</p>
+      <a href={href} className={`text-xs font-semibold mt-3 inline-flex items-center gap-1 hover:underline ${styles.link}`}>
+        Buka modul <ChevronRight className="w-3 h-3" />
+      </a>
+    </div>
+  );
 }
 
 function SearchInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
   return (
     <div className="relative flex-1 min-w-[200px]">
       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-      <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm" />
+      <input
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow"
+      />
     </div>
   );
 }
 
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto">
-        <div className="p-5 border-b flex justify-between items-center sticky top-0 bg-white rounded-t-2xl">
-          <h3 className="font-bold text-lg">{title}</h3>
-          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
+        <div className="px-5 py-4 border-b bg-gradient-to-r from-indigo-50 to-purple-50 flex justify-between items-center shrink-0">
+          <h3 className="font-bold text-lg text-gray-900">{title}</h3>
+          <button type="button" onClick={onClose} className="p-1.5 hover:bg-white/80 rounded-lg transition-colors"><X className="w-5 h-5 text-gray-500" /></button>
         </div>
-        <div className="p-5">{children}</div>
+        <div className="p-5 overflow-y-auto">{children}</div>
       </div>
     </div>
   );
@@ -1333,7 +1558,7 @@ function FormField({ label, value, onChange, type = 'text', placeholder, require
     <div>
       <label className="text-sm font-medium text-gray-700">{label}</label>
       <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} required={required}
-        className="w-full mt-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+        className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
     </div>
   );
 }
@@ -1343,7 +1568,7 @@ function FormTextarea({ label, value, onChange }: { label: string; value: string
     <div>
       <label className="text-sm font-medium text-gray-700">{label}</label>
       <textarea value={value} onChange={e => onChange(e.target.value)} rows={3}
-        className="w-full mt-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+        className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
     </div>
   );
 }
@@ -1353,7 +1578,7 @@ function FormSelect({ label, value, onChange, options, placeholder, required }: 
     <div>
       <label className="text-sm font-medium text-gray-700">{label}</label>
       <select value={value} onChange={e => onChange(e.target.value)} required={required}
-        className="w-full mt-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+        className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
         {placeholder && <option value="">{placeholder}</option>}
         {options.map(([val, lbl]) => <option key={val} value={val}>{lbl}</option>)}
       </select>
@@ -1373,8 +1598,8 @@ function DetailField({ label, value }: { label: string; value: any }) {
 function ModalActions({ saving, onCancel }: { saving: boolean; onCancel: () => void }) {
   return (
     <div className="flex gap-2 pt-2">
-      <button type="button" onClick={onCancel} className="flex-1 px-4 py-2 border rounded-lg text-sm">Batal</button>
-      <button type="submit" disabled={saving} className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2">
+      <button type="button" onClick={onCancel} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">Batal</button>
+      <button type="submit" disabled={saving} className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm transition-colors">
         {saving && <Loader2 className="w-4 h-4 animate-spin" />} Simpan
       </button>
     </div>

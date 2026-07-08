@@ -1,5 +1,7 @@
-import React from 'react';
-import { X } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { X, UserPlus } from 'lucide-react';
+import EmployeePicker, { type PickedEmployee } from '@/components/humanify/EmployeePicker';
 import { ProjectItem, ProjectForm, WorkerForm, TimesheetForm, PayrollCalcForm } from './types';
 
 interface Props {
@@ -25,6 +27,12 @@ export default function CrudModal({
   tsForm, setTsForm, payrollCalcForm, setPayrollCalcForm,
   handleSave, projects,
 }: Props) {
+  const [pickedEmployee, setPickedEmployee] = useState<PickedEmployee | null>(null);
+
+  useEffect(() => {
+    if (!showModal) setPickedEmployee(null);
+  }, [showModal]);
+
   if (!showModal) return null;
 
   const modalTitle = () => {
@@ -81,7 +89,29 @@ export default function CrudModal({
                   {projects.map(p => <option key={p.id} value={p.id}>{p.project_code} - {p.name}</option>)}
                 </select>
               </div>
-              <div><label className="text-sm font-medium text-gray-700">ID Karyawan</label><input type="number" value={workerForm.employeeId} onChange={e => setWorkerForm({ ...workerForm, employeeId: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" /></div>
+              <div>
+                <EmployeePicker
+                  value={workerForm.employeeId || undefined}
+                  onChange={(emp) => {
+                    setPickedEmployee(emp);
+                    setWorkerForm({ ...workerForm, employeeId: emp?.id || '', employeeName: emp?.name || '' });
+                  }}
+                  label="Karyawan"
+                  required
+                  placeholder="Cari nama, UID, posisi, atau departemen..."
+                />
+                <Link
+                  href="/humanify/employees?add=1"
+                  target="_blank"
+                  className="inline-flex items-center gap-1 mt-1.5 text-xs text-indigo-600 hover:text-indigo-800 hover:underline"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  Tambah karyawan baru di Database Karyawan
+                </Link>
+                {pickedEmployee && (
+                  <p className="text-xs text-gray-500 mt-1">UID: <span className="font-mono text-indigo-600">{pickedEmployee.employee_id}</span></p>
+                )}
+              </div>
               <div><label className="text-sm font-medium text-gray-700">Role</label><input value={workerForm.role} onChange={e => setWorkerForm({ ...workerForm, role: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" placeholder="e.g. Site Engineer, Foreman" /></div>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="text-sm font-medium text-gray-700">Rate Harian (Rp)</label><input type="number" value={workerForm.dailyRate} onChange={e => setWorkerForm({ ...workerForm, dailyRate: parseInt(e.target.value) || 0 })} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" /></div>
@@ -102,7 +132,15 @@ export default function CrudModal({
                   {projects.map(p => <option key={p.id} value={p.id}>{p.project_code} - {p.name}</option>)}
                 </select>
               </div>
-              <div><label className="text-sm font-medium text-gray-700">ID Karyawan</label><input type="number" value={tsForm.employeeId} onChange={e => setTsForm({ ...tsForm, employeeId: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" /></div>
+              <EmployeePicker
+                value={tsForm.employeeId || undefined}
+                onChange={(emp) => {
+                  setTsForm({ ...tsForm, employeeId: emp?.id || '', employeeName: emp?.name || '' });
+                }}
+                label="Karyawan"
+                required
+                placeholder="Cari karyawan dari master data..."
+              />
               <div><label className="text-sm font-medium text-gray-700">Tanggal</label><input type="date" value={tsForm.timesheetDate} onChange={e => setTsForm({ ...tsForm, timesheetDate: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" /></div>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="text-sm font-medium text-gray-700">Jam Kerja</label><input type="number" value={tsForm.hoursWorked} onChange={e => setTsForm({ ...tsForm, hoursWorked: parseFloat(e.target.value) || 0 })} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" /></div>
@@ -119,7 +157,15 @@ export default function CrudModal({
                   {projects.map(p => <option key={p.id} value={p.id}>{p.project_code} - {p.name}</option>)}
                 </select>
               </div>
-              <div><label className="text-sm font-medium text-gray-700">ID Karyawan</label><input type="number" value={payrollCalcForm.employeeId} onChange={e => setPayrollCalcForm({ ...payrollCalcForm, employeeId: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" /></div>
+              <EmployeePicker
+                value={payrollCalcForm.employeeId || undefined}
+                onChange={(emp) => {
+                  setPayrollCalcForm({ ...payrollCalcForm, employeeId: emp?.id || '', employeeName: emp?.name || '' });
+                }}
+                label="Karyawan"
+                required
+                placeholder="Cari karyawan dari master data..."
+              />
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="text-sm font-medium text-gray-700">Periode Mulai</label><input type="date" value={payrollCalcForm.periodStart} onChange={e => setPayrollCalcForm({ ...payrollCalcForm, periodStart: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" /></div>
                 <div><label className="text-sm font-medium text-gray-700">Periode Akhir</label><input type="date" value={payrollCalcForm.periodEnd} onChange={e => setPayrollCalcForm({ ...payrollCalcForm, periodEnd: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" /></div>

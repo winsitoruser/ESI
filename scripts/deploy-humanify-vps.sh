@@ -1,6 +1,23 @@
 #!/usr/bin/env bash
 # Deploy Humanify HRIS to VPS
-# Usage: VPS_HOST=103.92.215.37 VPS_USER=root VPS_PASS='...' bash scripts/deploy-humanify-vps.sh
+#
+# Deploy via IP (default):
+#   VPS_HOST=103.92.215.37 VPS_USER=root VPS_PASS='...' bash scripts/deploy-humanify-vps.sh
+#
+# Deploy dengan domain humanify.id (+ Certbot SSL di origin):
+#   VPS_HOST=103.92.215.37 VPS_USER=root VPS_PASS='...' \
+#   DOMAIN=humanify.id CERTBOT_EMAIL=admin@humanify.id \
+#   bash scripts/deploy-humanify-vps.sh
+#
+# Deploy dengan Cloudflare SSL (tanpa Certbot — SSL di edge Cloudflare):
+#   VPS_HOST=103.92.215.37 VPS_USER=root VPS_PASS='...' \
+#   DOMAIN=humanify.id CLOUDFLARE_SSL=true \
+#   bash scripts/deploy-humanify-vps.sh
+#
+# Atau hanya setup Cloudflare di VPS yang sudah jalan:
+#   DOMAIN=humanify.id VPS_PASS='...' bash scripts/setup-humanify-cloudflare.sh
+#
+# Pastikan DNS A record @ dan www → VPS_HOST sebelum deploy domain.
 set -euo pipefail
 
 SRC="$(cd "$(dirname "$0")/.." && pwd)"
@@ -14,12 +31,49 @@ else
   APP_DIR="${APP_DIR:-/home/$VPS_USER/humanify}"
 fi
 DOMAIN="${DOMAIN:-$VPS_HOST}"
+CERTBOT_EMAIL="${CERTBOT_EMAIL:-admin@${DOMAIN#www.}}"
+CLOUDFLARE_SSL="${CLOUDFLARE_SSL:-false}"
+ENABLE_SSL="${ENABLE_SSL:-true}"
+if [ "$CLOUDFLARE_SSL" = true ]; then
+  ENABLE_SSL=false
+fi
+
+is_ip() { [[ "$1" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; }
+USE_DOMAIN=false
+if ! is_ip "$DOMAIN"; then
+  USE_DOMAIN=true
+fi
 
 SSH_OPTS=(-o StrictHostKeyChecking=no -o PreferredAuthentications=password -o PubkeyAuthentication=no -o ServerAliveInterval=60 -o ServerAliveCountMax=120)
 ssh_cmd() { sshpass -p "$VPS_PASS" ssh "${SSH_OPTS[@]}" "$VPS_USER@$VPS_HOST" "$@"; }
 scp_cmd() { sshpass -p "$VPS_PASS" scp "${SSH_OPTS[@]}" "$@"; }
 
+if [ "$USE_DOMAIN" = true ]; then
+  echo "=== DNS pre-check: $DOMAIN → $VPS_HOST ==="
+  RESOLVED="$(dig +short "$DOMAIN" 2>/dev/null | grep -E '^[0-9]+\.' | head -1 || true)"
+  WWW_RESOLVED="$(dig +short "www.$DOMAIN" 2>/dev/null | grep -E '^[0-9]+\.' | head -1 || true)"
+  if [ -z "$RESOLVED" ]; then
+    echo "⚠️  $DOMAIN belum punya A record. Tambahkan di panel registrar:"
+    echo "     Type A  @   → $VPS_HOST"
+    echo "     Type A  www → $VPS_HOST"
+    echo "   Deploy tetap lanjut; SSL (certbot) butuh DNS sudah propagate."
+  elif [ "$RESOLVED" != "$VPS_HOST" ]; then
+    echo "⚠️  $DOMAIN resolve ke $RESOLVED (diharapkan $VPS_HOST)"
+  else
+    echo "✓ $DOMAIN → $RESOLVED"
+  fi
+  if [ -n "$WWW_RESOLVED" ] && [ "$WWW_RESOLVED" = "$VPS_HOST" ]; then
+    echo "✓ www.$DOMAIN → $WWW_RESOLVED"
+  elif [ -z "$WWW_RESOLVED" ]; then
+    echo "⚠️  www.$DOMAIN belum punya A record (disarankan untuk SSL)"
+  fi
+  echo ""
+fi
+
 echo "=== [1/6] Sync app to VPS ==="
+if [ "${DEPLOY_SKIP_SYNC:-false}" = true ]; then
+  echo "  (skip sync — DEPLOY_SKIP_SYNC=true)"
+else
 ssh_cmd "mkdir -p $APP_DIR"
 sshpass -p "$VPS_PASS" rsync -az --delete \
   --exclude .env --exclude .env.local --exclude .env.*.local \
@@ -27,8 +81,12 @@ sshpass -p "$VPS_PASS" rsync -az --delete \
   --exclude node_modules --exclude .next --exclude .git \
   -e "ssh ${SSH_OPTS[*]}" \
   "$APP_SRC/" "$VPS_USER@$VPS_HOST:$APP_DIR/"
+fi
 
 echo "=== [2/6] Install system packages ==="
+if [ "${DEPLOY_SKIP_BOOTSTRAP:-false}" = true ]; then
+  echo "  (skip bootstrap — DEPLOY_SKIP_BOOTSTRAP=true)"
+else
 ssh_cmd "bash -s" <<'REMOTE_BOOT'
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
@@ -46,8 +104,12 @@ fi
 
 echo "node $(node -v) | npm $(npm -v)"
 REMOTE_BOOT
+fi
 
 echo "=== [3/6] PostgreSQL + env ==="
+if [ "${DEPLOY_SKIP_BOOTSTRAP:-false}" = true ]; then
+  echo "  (skip postgres/env — DEPLOY_SKIP_BOOTSTRAP=true)"
+else
 DB_PASS="$(openssl rand -hex 16)"
 AUTH_SECRET="$(openssl rand -base64 32)"
 SESSION_SECRET="$(openssl rand -base64 32)"
@@ -72,11 +134,16 @@ sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE humanify TO humanify;
 REMOTE_DB
 
 if [ "$ENV_EXISTS" = "yes" ]; then
-  echo "  (preserving existing .env)"
+  echo "  (preserving existing .env, sync URL jika DOMAIN diset)"
   ssh_cmd "bash -s" <<REMOTE_ENV_SSL
 set -euo pipefail
-python3 - <<PY
+python3 - \<<PY
 from pathlib import Path
+import re
+
+domain = '$DOMAIN'
+use_domain = '$USE_DOMAIN' == 'true'
+
 p = Path('$APP_DIR/config/database.js')
 if p.exists():
     text = p.read_text()
@@ -85,16 +152,33 @@ if p.exists():
         "ssl: false"
     )
     p.write_text(text)
+
+env_path = Path('$APP_DIR/.env')
+if env_path.exists() and use_domain:
+    text = env_path.read_text()
+    scheme = 'https' if Path('/etc/letsencrypt/live/' + domain).exists() else 'http'
+    base = f'{scheme}://{domain}'
+    if re.search(r'^APP_URL=', text, re.M):
+        text = re.sub(r'^APP_URL=.*$', f'APP_URL={base}', text, flags=re.M)
+    else:
+        text += f'\nAPP_URL={base}\n'
+    if re.search(r'^NEXTAUTH_URL=', text, re.M):
+        text = re.sub(r'^NEXTAUTH_URL=.*$', f'NEXTAUTH_URL={base}', text, flags=re.M)
+    else:
+        text += f'\nNEXTAUTH_URL={base}\n'
+    env_path.write_text(text)
 PY
 REMOTE_ENV_SSL
 else
+APP_SCHEME="http"
+[ "$USE_DOMAIN" = true ] && APP_SCHEME="http"
 ssh_cmd "bash -s" <<REMOTE_ENV
 set -euo pipefail
-cat > $APP_DIR/.env <<EOF
+cat > $APP_DIR/.env \<<EOF
 NODE_ENV=production
 PORT=3020
-APP_URL=http://$DOMAIN
-NEXTAUTH_URL=http://$DOMAIN
+APP_URL=${APP_SCHEME}://$DOMAIN
+NEXTAUTH_URL=${APP_SCHEME}://$DOMAIN
 NEXTAUTH_SECRET=$AUTH_SECRET
 SESSION_SECRET=$SESSION_SECRET
 JWT_SECRET=$JWT_SECRET
@@ -111,7 +195,7 @@ DEFAULT_LANGUAGE=id
 EOF
 chmod 600 $APP_DIR/.env
 
-python3 - <<'PY'
+python3 - \<<'PY'
 from pathlib import Path
 p = Path('$APP_DIR/config/database.js')
 text = p.read_text()
@@ -123,8 +207,12 @@ p.write_text(text)
 PY
 REMOTE_ENV
 fi
+fi
 
 echo "=== [4/6] npm install + migrations ==="
+if [ "${DEPLOY_SKIP_MIGRATE:-false}" = true ]; then
+  echo "  (skip migrations — DEPLOY_SKIP_MIGRATE=true)"
+else
 ssh_cmd "bash -s" <<REMOTE_BUILD
 set -euo pipefail
 cd $APP_DIR
@@ -162,8 +250,12 @@ node scripts/ensure-humanify-superadmin.js || true
 node scripts/sync-org-departments.js || true
 node scripts/seed-hris-demo-data.js 2>&1 | tail -3 || true
 REMOTE_BUILD
+fi
 
 echo "=== [5/6] Build app ==="
+if [ "${DEPLOY_SKIP_BUILD:-false}" = true ]; then
+  echo "  (skip build — DEPLOY_SKIP_BUILD=true)"
+else
 ssh_cmd "bash -s" <<REMOTE_NPM_BUILD
 set -euo pipefail
 cd $APP_DIR
@@ -183,7 +275,7 @@ export NODE_OPTIONS='--max-old-space-size=6144'
 export NEXT_TELEMETRY_DISABLED=1
 export GENERATE_SOURCEMAP=false
 
-python3 - <<'PY'
+python3 - \<<'PY'
 import re
 from pathlib import Path
 p = Path('$APP_DIR/next.config.mjs')
@@ -215,23 +307,63 @@ test -f .next/prerender-manifest.json || { tail -30 /tmp/humanify-build.log; ech
 grep -E 'Failed to compile|FATAL ERROR' /tmp/humanify-build.log && { echo BUILD_FAIL; exit 1; } || true
 test -f .next/server/pages/humanify/employees.html -o -f .next/server/pages/humanify/employees.js && echo PAGES_OK || { echo "WARN: employees page missing"; exit 1; }
 REMOTE_NPM_BUILD
+fi
 
-echo "=== [6/6] PM2 + Nginx + Firewall ==="
+echo "=== [6/6] PM2 + Nginx + SSL + Firewall ==="
 scp_cmd "$SRC/scripts/humanify-ecosystem.config.cjs" "$VPS_USER@$VPS_HOST:$APP_DIR/"
 scp_cmd "$SRC/scripts/humanify-healthcheck.sh" "$VPS_USER@$VPS_HOST:$APP_DIR/"
-ssh_cmd "bash -s" <<REMOTE_PM2
+ssh_cmd "APP_DIR='$APP_DIR' DOMAIN='$DOMAIN' USE_DOMAIN='$USE_DOMAIN' ENABLE_SSL='$ENABLE_SSL' CLOUDFLARE_SSL='$CLOUDFLARE_SSL' CERTBOT_EMAIL='$CERTBOT_EMAIL' VPS_USER='$VPS_USER' bash -s" <<'REMOTE_PM2'
 set -euo pipefail
-cd $APP_DIR
+cd "$APP_DIR"
+
 chmod +x humanify-healthcheck.sh
 pm2 delete humanify 2>/dev/null || true
-HUMANIFY_APP_DIR=$APP_DIR pm2 start humanify-ecosystem.config.cjs
+HUMANIFY_APP_DIR="$APP_DIR" pm2 start humanify-ecosystem.config.cjs
 pm2 save
-sudo tee /etc/nginx/sites-available/humanify >/dev/null <<'NGINX'
-server {
-    listen 80 default_server;
-    listen [::]:80 default_server;
-    server_name _;
 
+if [ "$USE_DOMAIN" = true ]; then
+  SERVER_NAMES="$DOMAIN www.$DOMAIN"
+  LISTEN_DEFAULT=""
+else
+  SERVER_NAMES="_"
+  LISTEN_DEFAULT="default_server"
+fi
+
+if [ "$CLOUDFLARE_SSL" = true ] && [ "$USE_DOMAIN" = true ]; then
+  sudo mkdir -p /etc/nginx/conf.d
+  sudo curl -fsSL https://www.cloudflare.com/ips-v4 -o /tmp/cf-ips-v4
+  sudo curl -fsSL https://www.cloudflare.com/ips-v6 -o /tmp/cf-ips-v6
+  {
+    echo '# Cloudflare real client IP'
+    while read -r ip; do [ -n "$ip" ] && echo "set_real_ip_from $ip;"; done < /tmp/cf-ips-v4
+    while read -r ip; do [ -n "$ip" ] && echo "set_real_ip_from $ip;"; done < /tmp/cf-ips-v6
+    echo 'real_ip_header CF-Connecting-IP;'
+  } | sudo tee /etc/nginx/conf.d/cloudflare-real-ip.conf >/dev/null
+  sudo tee /etc/nginx/conf.d/cloudflare-forwarded-proto.conf >/dev/null <<'CFMAP'
+map $http_cf_visitor $cf_forwarded_proto {
+    default $scheme;
+    ~*"scheme":"https" https;
+}
+CFMAP
+fi
+
+if [ "$CLOUDFLARE_SSL" = true ] && [ "$USE_DOMAIN" = true ]; then
+  CF_INCLUDE='include /etc/nginx/conf.d/cloudflare-real-ip.conf;'
+  CF_PROTO='proxy_set_header X-Forwarded-Proto $cf_forwarded_proto;'
+  CF_IP='proxy_set_header CF-Connecting-IP $http_cf_connecting_ip;'
+else
+  CF_INCLUDE=''
+  CF_PROTO='proxy_set_header X-Forwarded-Proto $scheme;'
+  CF_IP=''
+fi
+
+sudo tee /etc/nginx/sites-available/humanify >/dev/null <<NGINX
+server {
+    listen 80 $LISTEN_DEFAULT;
+    listen [::]:80 $LISTEN_DEFAULT;
+    server_name $SERVER_NAMES;
+
+    $CF_INCLUDE
     client_max_body_size 50M;
 
     location / {
@@ -242,7 +374,8 @@ server {
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
+        $CF_PROTO
+        $CF_IP
         proxy_cache_bypass \$http_upgrade;
         proxy_read_timeout 300s;
     }
@@ -252,20 +385,68 @@ sudo ln -sf /etc/nginx/sites-available/humanify /etc/nginx/sites-enabled/humanif
 sudo rm -f /etc/nginx/sites-enabled/default
 sudo nginx -t
 sudo systemctl reload nginx
+
+SSL_OK=false
+if [ "$USE_DOMAIN" = true ] && [ "$ENABLE_SSL" = true ]; then
+  export DEBIAN_FRONTEND=noninteractive
+  sudo apt-get install -y -qq certbot python3-certbot-nginx 2>/dev/null || true
+  if sudo certbot --nginx -d "$DOMAIN" -d "www.$DOMAIN" \
+      --non-interactive --agree-tos -m "$CERTBOT_EMAIL" --redirect 2>&1; then
+    SSL_OK=true
+    echo "✓ SSL aktif untuk $DOMAIN"
+  else
+    echo "⚠️  Certbot gagal — pastikan DNS A record @ dan www sudah pointing ke VPS, lalu jalankan:"
+    echo "   sudo certbot --nginx -d $DOMAIN -d www.$DOMAIN"
+  fi
+fi
+
+if { [ "$SSL_OK" = true ] || [ "$CLOUDFLARE_SSL" = true ]; } && [ -f "$APP_DIR/.env" ] && [ "$USE_DOMAIN" = true ]; then
+  python3 - <<'PY'
+import os, re
+from pathlib import Path
+app_dir = os.environ['APP_DIR']
+domain = os.environ['DOMAIN']
+p = Path(app_dir) / '.env'
+text = p.read_text()
+base = f'https://{domain}'
+text = re.sub(r'^APP_URL=.*$', f'APP_URL={base}', text, flags=re.M)
+text = re.sub(r'^NEXTAUTH_URL=.*$', f'NEXTAUTH_URL={base}', text, flags=re.M)
+if 'TRUST_PROXY=' not in text:
+    text += '\nTRUST_PROXY=true\n'
+else:
+    text = re.sub(r'^TRUST_PROXY=.*$', 'TRUST_PROXY=true', text, flags=re.M)
+p.write_text(text)
+PY
+  pm2 restart humanify 2>/dev/null || true
+fi
+
 sudo ufw --force enable 2>/dev/null || true
 sudo ufw allow OpenSSH 2>/dev/null || sudo ufw allow 22/tcp
 sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
-sudo env PATH=\$PATH:/usr/bin pm2 startup systemd -u $VPS_USER --hp \$(eval echo ~$VPS_USER) 2>/dev/null | tail -1 | sudo bash || true
+sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u "$VPS_USER" --hp "$(eval echo ~$VPS_USER)" 2>/dev/null | tail -1 | sudo bash || true
 pm2 save
 sleep 3
 bash humanify-healthcheck.sh http://127.0.0.1:3020 || true
 REMOTE_PM2
 
+PUBLIC_SCHEME="http"
+if [ "$USE_DOMAIN" = true ] && { [ "$ENABLE_SSL" = true ] || [ "$CLOUDFLARE_SSL" = true ]; }; then
+  PUBLIC_SCHEME="https"
+fi
+
 echo ""
 echo "✅ Deploy selesai!"
-echo "   URL: http://$DOMAIN/humanify/welcome"
-echo "   Login: http://$DOMAIN/humanify/login"
-echo "   Role & Akses: http://$DOMAIN/humanify/users/roles"
+echo "   URL: ${PUBLIC_SCHEME}://$DOMAIN/humanify/welcome"
+echo "   Login: ${PUBLIC_SCHEME}://$DOMAIN/humanify/login"
+echo "   Role & Akses: ${PUBLIC_SCHEME}://$DOMAIN/humanify/users/roles"
 echo "   Email: superadmin@bedagang.com"
 echo "   Password: superadmin123"
+if [ "$USE_DOMAIN" = true ] && [ -z "${RESOLVED:-}" ]; then
+  echo ""
+  echo "📌 Langkah berikutnya — set DNS di registrar domain:"
+  echo "   A  @   → $VPS_HOST"
+  echo "   A  www → $VPS_HOST"
+  echo "   Setelah propagate (~5–30 menit), jalankan ulang deploy atau:"
+  echo "   ssh $VPS_USER@$VPS_HOST 'sudo certbot --nginx -d $DOMAIN -d www.$DOMAIN'"
+fi

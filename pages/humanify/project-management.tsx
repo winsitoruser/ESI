@@ -84,7 +84,10 @@ export default function ProjectManagementPage() {
     const opts: any = { method, headers: { 'Content-Type': 'application/json' } };
     if (body) opts.body = JSON.stringify(body);
     const r = await fetch(`/api/humanify/project-management?action=${action}${extra}`, opts);
-    return r.json();
+    const json = await r.json().catch(() => ({}));
+    if (!r.ok && !json.error) json.error = json.message || `Permintaan gagal (HTTP ${r.status})`;
+    if (!r.ok && json.success !== false) json.success = false;
+    return json;
   }, []);
 
   const loadData = useCallback(async () => {
@@ -287,18 +290,32 @@ export default function ProjectManagementPage() {
 
   const handleSave = async () => {
     try {
+      let res: any;
       if (modalType === 'project') {
-        if (editingItem) await api('project', 'PUT', projForm, `&id=${editingItem.id}`);
-        else await api('project', 'POST', projForm);
+        if (!projForm.name?.trim()) { showToast('Nama proyek wajib diisi', 'error'); return; }
+        if (editingItem) res = await api('project', 'PUT', projForm, `&id=${editingItem.id}`);
+        else res = await api('project', 'POST', projForm);
       } else if (modalType === 'worker') {
-        await api('worker', 'POST', workerForm);
+        if (!workerForm.projectId) { showToast('Pilih proyek terlebih dahulu', 'error'); return; }
+        if (!workerForm.employeeId) { showToast('Pilih karyawan dari database', 'error'); return; }
+        res = await api('worker', 'POST', workerForm);
       } else if (modalType === 'timesheet') {
-        await api('timesheet', 'POST', tsForm);
+        if (!tsForm.projectId) { showToast('Pilih proyek terlebih dahulu', 'error'); return; }
+        if (!tsForm.employeeId) { showToast('Pilih karyawan dari database', 'error'); return; }
+        if (!tsForm.timesheetDate) { showToast('Tanggal timesheet wajib diisi', 'error'); return; }
+        res = await api('timesheet', 'POST', tsForm);
       } else if (modalType === 'calc-payroll') {
-        await api('calculate-payroll', 'POST', payrollCalcForm);
+        if (!payrollCalcForm.projectId) { showToast('Pilih proyek terlebih dahulu', 'error'); return; }
+        if (!payrollCalcForm.employeeId) { showToast('Pilih karyawan dari database', 'error'); return; }
+        res = await api('calculate-payroll', 'POST', payrollCalcForm);
+      }
+      if (res?.error || res?.success === false) {
+        showToast(res?.error || 'Gagal menyimpan', 'error');
+        return;
       }
       showToast(editingItem ? 'Diperbarui' : 'Dibuat');
-      setShowModal(false); loadData();
+      setShowModal(false);
+      loadData();
     } catch (e) { showToast('Gagal menyimpan', 'error'); }
   };
 

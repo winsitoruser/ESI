@@ -46,7 +46,10 @@ export default function WorkersTab({ workers, projects, selectedProject, openAdd
               return (
                 <tr key={w.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 font-medium">{proj?.project_code || w.project_id.slice(0, 8)}</td>
-                  <td className="px-4 py-3">#{w.employee_id}</td>
+                  <td className="px-4 py-3">
+                    <div className="font-medium">{w.resource_name || 'Karyawan'}</div>
+                    {w.employee_id && <div className="text-xs text-gray-400 font-mono truncate max-w-[120px]">{String(w.employee_id).slice(0, 8)}…</div>}
+                  </td>
                   <td className="px-4 py-3">{w.role || '-'}</td>
                   <td className="px-4 py-3 capitalize">{w.worker_type}</td>
                   <td className="px-4 py-3 text-right">{fmtCur(w.daily_rate)}</td>

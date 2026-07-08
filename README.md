@@ -1,4 +1,17 @@
-# ESI ERP
+# SIMESI / Humanify
+
+Monorepo platform operasional yang mencakup modul **Humanify HRIS** (produk utama Naincode) dan modul ERP **ESI** untuk PT Ekosistem Satwa Indonesia.
+
+> **Humanify HRIS** — dokumentasi lengkap: [`README_HUMANIFY.md`](README_HUMANIFY.md)
+
+| Produk | Deskripsi | Dokumentasi |
+|--------|-----------|-------------|
+| **Humanify** | HRIS lengkap — SDM, payroll, kehadiran, IR, portal karyawan | [README_HUMANIFY.md](README_HUMANIFY.md) |
+| **ESI ERP** | ERP konservasi satwa liar (modul HQ) | Bagian bawah dokumen ini |
+
+---
+
+## ESI ERP
 
 Platform ERP untuk **PT Ekosistem Satwa Indonesia (ESI)** — manajemen operasional konservasi satwa liar, tanpa modul ritel.
 
