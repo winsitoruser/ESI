@@ -43,7 +43,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           data: recipes
         });
       } catch (dbError: any) {
-        console.error('Database error:', dbError);
+        console.warn('Database error: (table may not exist):', (dbError as any)?.message || dbError);
         return res.status(500).json({
           error: 'Database error',
           message: dbError.message
@@ -171,7 +171,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           data: createdRecipe
         });
       } catch (dbError: any) {
-        console.error('Database error:', dbError);
+        console.warn('Database error: (table may not exist):', (dbError as any)?.message || dbError);
         return res.status(500).json({
           error: 'Database error',
           message: dbError.message
@@ -183,7 +183,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(405).json({ error: 'Method not allowed' });
     }
   } catch (error: any) {
-    console.error('Recipe API error:', error);
+    console.warn('Recipe API error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       error: 'Internal server error',
       message: error.message

@@ -111,7 +111,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       message: `Bulk update completed: ${results.success.length} succeeded, ${results.failed.length} failed`
     });
   } catch (error: any) {
-    console.error('Bulk update HPP API error:', error);
+    console.warn('Bulk update HPP API error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message });
   }
 }

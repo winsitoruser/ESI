@@ -24,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     return res.status(405).json(fail('METHOD_NOT_ALLOWED', 'Method not allowed'));
   } catch (error: any) {
-    console.error('[Procurement Auth]', error.message);
+    console.warn('[Procurement Auth]', error.message);
     return res.status(500).json(fail('INTERNAL_ERROR', error.message));
   }
 }

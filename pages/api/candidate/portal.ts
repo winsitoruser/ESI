@@ -428,7 +428,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(405).json({ error: `Method ${method} not allowed` });
   } catch (error: any) {
-    console.error('[candidate portal API]', error.message);
+    console.warn('[candidate portal API]', error.message);
     return res.status(500).json({ error: error.message || 'Internal server error' });
   }
 }

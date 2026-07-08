@@ -92,7 +92,7 @@ export default async function handler(
         });
     }
   } catch (error: any) {
-    console.error('Categories API Error:', error);
+    console.warn('Categories API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ 
       success: false, 
       message: 'Internal server error',
@@ -144,7 +144,7 @@ async function handleGetCategories(req: NextApiRequest, res: NextApiResponse) {
       message: 'Categories retrieved successfully'
     });
   } catch (error: any) {
-    console.error('Error getting categories:', error);
+    console.warn('Error getting categories: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ 
       success: false, 
       message: 'Failed to retrieve categories',
@@ -194,7 +194,7 @@ async function handleCreateCategory(
       }
     });
   } catch (error) {
-    console.error('Error creating category:', error);
+    console.warn('Error creating category: (table may not exist):', (error as any)?.message || error);
     res.status(500).json({ success: false, message: 'Failed to create category' });
   }
 }

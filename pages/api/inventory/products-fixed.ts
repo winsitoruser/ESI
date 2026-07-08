@@ -75,7 +75,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
     }
   } catch (error: any) {
-    console.error('Products API Error:', error);
+    console.warn('Products API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ 
       success: false, 
       message: 'Internal server error',
@@ -149,7 +149,7 @@ async function handleGetProducts(req: NextApiRequest, res: NextApiResponse) {
     });
 
   } catch (error: any) {
-    console.error('Get Products Error:', error);
+    console.warn('Get Products Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       message: 'Gagal mengambil data produk',
@@ -204,7 +204,7 @@ async function handleCreateProduct(req: NextApiRequest, res: NextApiResponse) {
     });
 
   } catch (error: any) {
-    console.error('Create Product Error:', error);
+    console.warn('Create Product Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       message: 'Gagal membuat produk',
@@ -248,7 +248,7 @@ async function handleUpdateProduct(req: NextApiRequest, res: NextApiResponse) {
     });
 
   } catch (error: any) {
-    console.error('Update Product Error:', error);
+    console.warn('Update Product Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       message: 'Gagal memperbarui produk',
@@ -287,7 +287,7 @@ async function handleDeleteProduct(req: NextApiRequest, res: NextApiResponse) {
     });
 
   } catch (error: any) {
-    console.error('Delete Product Error:', error);
+    console.warn('Delete Product Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       message: 'Gagal menghapus produk',

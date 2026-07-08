@@ -89,7 +89,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
   } catch (error: any) {
-    console.error('Reject Activation Error:', error);
+    console.warn('Reject Activation Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Failed to reject activation request',

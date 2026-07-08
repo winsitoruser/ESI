@@ -54,7 +54,7 @@ export default async function handler(
     });
 
   } catch (error: any) {
-    console.error('Error fetching today reservations:', error);
+    console.warn('Error fetching today reservations: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       message: 'Internal server error',

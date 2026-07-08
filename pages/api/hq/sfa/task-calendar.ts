@@ -18,7 +18,7 @@ async function q(sql: string, replacements: Record<string, any> = {}): Promise<a
     const [rows] = await sequelize.query(sql, replacements && Object.keys(replacements).length ? { replacements } : undefined);
     return rows as any[];
   } catch (e: any) {
-    console.error('TaskCal Query Error:', e.message);
+    console.warn('TaskCal Query Error:', e.message);
     return [];
   }
 }
@@ -33,7 +33,7 @@ async function qExec(sql: string, replacements: Record<string, any> = {}): Promi
     await sequelize.query(sql, replacements && Object.keys(replacements).length ? { replacements } : undefined);
     return null;
   } catch (e: any) {
-    console.error('TaskCal Exec Error:', e.message);
+    console.warn('TaskCal Exec Error:', e.message);
     return e.message;
   }
 }
@@ -575,7 +575,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   } catch (error: any) {
-    console.error('Task-Calendar API Error:', error);
+    console.warn('Task-Calendar API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message || 'Internal Server Error' });
   }
 }

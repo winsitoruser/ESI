@@ -134,7 +134,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     return res.status(HttpStatus.OK).json(successResponse(overview));
   } catch (error) {
-    console.error('Fleet API Index Error:', error);
+    console.warn('Fleet API Index Error: (table may not exist):', (error as any)?.message || error);
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(
       errorResponse(ErrorCodes.INTERNAL_SERVER_ERROR, 'Internal server error')
     );

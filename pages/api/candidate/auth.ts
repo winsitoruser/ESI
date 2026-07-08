@@ -182,7 +182,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(400).json({ error: `Unknown action: ${action}` });
   } catch (error: any) {
-    console.error('[candidate auth API]', error.message);
+    console.warn('[candidate auth API]', error.message);
     return res.status(500).json({ error: error.message || 'Internal server error' });
   }
 }

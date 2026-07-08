@@ -52,7 +52,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     });
   } catch (error: any) {
-    console.error('AI Marketing Insights error:', error);
+    console.warn('AI Marketing Insights error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Internal server error',

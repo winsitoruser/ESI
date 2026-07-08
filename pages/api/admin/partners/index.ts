@@ -36,7 +36,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(405).json({ error: 'Method not allowed' });
     }
   } catch (error: any) {
-    console.error('Admin Partners API Error:', error);
+    console.warn('Admin Partners API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Internal server error',
@@ -153,7 +153,7 @@ async function getPartners(req: NextApiRequest, res: NextApiResponse) {
     });
 
   } catch (error: any) {
-    console.error('Get Partners Error:', error);
+    console.warn('Get Partners Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Failed to fetch partners',
@@ -218,7 +218,7 @@ async function createPartner(req: NextApiRequest, res: NextApiResponse, session:
     });
 
   } catch (error: any) {
-    console.error('Create Partner Error:', error);
+    console.warn('Create Partner Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Failed to create partner',

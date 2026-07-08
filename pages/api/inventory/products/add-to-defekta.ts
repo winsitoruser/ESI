@@ -150,7 +150,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
 
     } catch (defektaError) {
-      console.error('Error adding to defekta:', defektaError);
+      console.warn('Error adding to defekta: (table may not exist):', (defektaError as any)?.message || defektaError);
       
       // Still return success but with a note about defekta integration
       return res.status(201).json({
@@ -172,7 +172,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
   } catch (error: any) {
-    console.error('Error in add-to-defekta API:', error);
+    console.warn('Error in add-to-defekta API: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ 
       error: 'Internal server error',
       message: error.message || 'Failed to process defekta request'

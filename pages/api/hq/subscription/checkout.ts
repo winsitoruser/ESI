@@ -56,7 +56,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     });
     return res.status(200).json({ success: true, data: result });
   } catch (error: any) {
-    console.error('Checkout error:', error);
+    console.warn('Checkout error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message || 'Checkout failed' });
   }
 }

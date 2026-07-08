@@ -112,7 +112,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   } catch (e: any) {
-    console.error('[driver API]', e?.message || e);
+    console.warn('[driver API] (table may not exist):', e?.message || e);
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }

@@ -16,7 +16,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
     }
   } catch (error) {
-    console.error('User API Error:', error);
+    console.warn('User API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
@@ -82,7 +82,7 @@ async function getUsers(req: NextApiRequest, res: NextApiResponse) {
       totalPages: Math.ceil(count / limitNum)
     });
   } catch (error) {
-    console.error('Error fetching users:', error);
+    console.warn('Error fetching users: (table may not exist):', (error as any)?.message || error);
     return res.status(200).json({
       users: getMockUsers(),
       total: 5,
@@ -123,7 +123,7 @@ async function createUser(req: NextApiRequest, res: NextApiResponse) {
 
     return res.status(201).json({ user: userResponse, message: 'User created successfully' });
   } catch (error: any) {
-    console.error('Error creating user:', error);
+    console.warn('Error creating user: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: 'Failed to create user' });
   }
 }

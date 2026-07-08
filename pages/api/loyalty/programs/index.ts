@@ -69,7 +69,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       return res.status(200).json({ programs });
     } catch (error: any) {
-      console.error('Error fetching loyalty programs:', error);
+      console.warn('Error fetching loyalty programs: (table may not exist):', (error as any)?.message || error);
       return res.status(500).json({ error: 'Internal server error', details: error.message });
     }
   }
@@ -109,7 +109,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         program
       });
     } catch (error: any) {
-      console.error('Error creating loyalty program:', error);
+      console.warn('Error creating loyalty program: (table may not exist):', (error as any)?.message || error);
       return res.status(500).json({ error: 'Internal server error', details: error.message });
     }
   }
@@ -135,7 +135,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         program
       });
     } catch (error: any) {
-      console.error('Error updating loyalty program:', error);
+      console.warn('Error updating loyalty program: (table may not exist):', (error as any)?.message || error);
       return res.status(500).json({ error: 'Internal server error', details: error.message });
     }
   }

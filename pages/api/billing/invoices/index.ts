@@ -100,7 +100,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
     });
 
   } catch (error: any) {
-    console.error('Error fetching invoices:', error);
+    console.warn('Error fetching invoices: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Internal server error',

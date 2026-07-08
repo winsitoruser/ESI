@@ -13,13 +13,13 @@ try { sequelize = require('../../../../lib/sequelize'); } catch (e) {}
 async function q(sql: string, r?: any): Promise<any[]> {
   if (!sequelize) return [];
   try { const [rows] = await sequelize.query(sql, r ? { replacements: r } : undefined); return rows || []; }
-  catch (e: any) { console.error('MKT DB:', e.message); return []; }
+  catch (e: any) { console.warn('MKT DB: (table may not exist):', e.message); return []; }
 }
 async function qOne(sql: string, r?: any) { return (await q(sql, r))[0] || null; }
 async function qExec(sql: string, r?: any): Promise<boolean> {
   if (!sequelize) return false;
   try { await sequelize.query(sql, r ? { replacements: r } : undefined); return true; }
-  catch (e: any) { console.error('MKT Exec:', e.message); return false; }
+  catch (e: any) { console.warn('MKT Exec: (table may not exist):', e.message); return false; }
 }
 
 function ok(res: NextApiResponse, data: any, code = 200) { return res.status(code).json({ success: true, ...data }); }
@@ -87,7 +87,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return fail(res, `Method ${req.method} Not Allowed`, 405);
   } catch (error: any) {
-    console.error('Marketing API Error:', error);
+    console.warn('Marketing API Error: (table may not exist):', (error as any)?.message || error);
     return fail(res, error.message || 'Internal Server Error', 500);
   }
 }

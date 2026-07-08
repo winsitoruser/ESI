@@ -123,7 +123,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return err(res, `Unknown action: ${action}`);
     }
   } catch (e: any) {
-    console.error('[driver-app integration]', e);
+    console.warn('[driver-app integration] (table may not exist):', (e as any)?.message || e);
     return err(res, e?.message || 'Internal error', 500);
   }
 }

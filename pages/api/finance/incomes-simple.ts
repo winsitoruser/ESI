@@ -70,7 +70,7 @@ export default async function handler(
     });
 
   } catch (error: any) {
-    console.error('Incomes API Error:', error);
+    console.warn('Incomes API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: error.message || 'Internal server error'

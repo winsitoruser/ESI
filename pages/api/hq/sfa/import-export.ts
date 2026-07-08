@@ -12,7 +12,7 @@ async function q(query: string, replacements?: any): Promise<any[]> {
     const [rows] = await sequelize.query(query, replacements ? { replacements } : undefined);
     return rows || [];
   } catch (e: any) {
-    console.error('IE Query Error:', e.message);
+    console.warn('IE Query Error:', e.message);
     return [];
   }
 }
@@ -23,7 +23,7 @@ async function qExec(query: string, replacements?: any): Promise<boolean> {
     await sequelize.query(query, replacements ? { replacements } : undefined);
     return true;
   } catch (e: any) {
-    console.error('IE Exec Error:', e.message);
+    console.warn('IE Exec Error:', e.message);
     return false;
   }
 }
@@ -298,7 +298,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   } catch (error: any) {
-    console.error('Import/Export API Error:', error);
+    console.warn('Import/Export API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message || 'Internal Server Error' });
   }
 }

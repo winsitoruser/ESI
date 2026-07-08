@@ -127,7 +127,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       } catch (e) { /* business_types table may not exist yet */ }
 
     } catch (dbError) {
-      console.error('Database query error:', dbError);
+      console.warn('Database query error: (table may not exist):', (dbError as any)?.message || dbError);
       // Use fallback values if DB queries fail
       totalPartners = 2;
       activePartners = 2;
@@ -243,7 +243,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
   } catch (error: any) {
-    console.error('Admin Dashboard Stats Error:', error);
+    console.warn('Admin Dashboard Stats Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Failed to fetch dashboard statistics',

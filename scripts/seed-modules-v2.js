@@ -113,7 +113,7 @@ const MODULES = [
   },
   {
     code: 'hris', name: 'HRIS', description: 'Human Resource Information System: KPI, performance review, attendance management, cuti, payroll-ready',
-    icon: 'UserCheck', route: '/hq/hris', category: 'hr', pricing_tier: 'professional', setup_complexity: 'complex',
+    icon: 'UserCheck', route: '/humanify', category: 'hr', pricing_tier: 'professional', setup_complexity: 'complex',
     color: '#7C3AED', is_core: false, sort_order: 31,
     features: '["KPI karyawan","Performance review","Attendance management","Manajemen cuti","Scoring & formula engine","Export laporan HR","Payroll-ready data","Device absensi"]',
     tags: '["addon","pro","hr","premium"]'

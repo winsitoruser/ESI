@@ -98,7 +98,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       allEnabled: false
     });
   } catch (error: any) {
-    console.error('Module status error:', error);
+    console.warn('Module status error: (table may not exist):', (error as any)?.message || error);
     // On error, return all modules as enabled to not block users
     return res.json({
       success: true,

@@ -186,7 +186,7 @@ export default async function handler(
     }
 
   } catch (error: any) {
-    console.error('API aggregator error:', error);
+    console.warn('API aggregator error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Internal server error',

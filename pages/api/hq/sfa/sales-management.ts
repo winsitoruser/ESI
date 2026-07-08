@@ -36,7 +36,7 @@ const err = (res: NextApiResponse, msg: string, code = 400) => res.status(code).
 async function q(sql: string, replacements?: any): Promise<any[]> {
   if (!sequelize) return [];
   try { const [rows] = await sequelize.query(sql, replacements ? { replacements } : undefined); return (rows as any[]) || []; }
-  catch (e: any) { console.error('[sales-mgmt] Q error:', e.message); return []; }
+  catch (e: any) { console.warn('[sales-mgmt] Q error: (table may not exist):', e.message); return []; }
 }
 async function qOne(sql: string, replacements?: any): Promise<any> {
   const rows = await q(sql, replacements);
@@ -45,7 +45,7 @@ async function qOne(sql: string, replacements?: any): Promise<any> {
 async function qExec(sql: string, replacements?: any): Promise<boolean> {
   if (!sequelize) return false;
   try { await sequelize.query(sql, replacements ? { replacements } : undefined); return true; }
-  catch (e: any) { console.error('[sales-mgmt] Exec error:', e.message); return false; }
+  catch (e: any) { console.warn('[sales-mgmt] Exec error: (table may not exist):', e.message); return false; }
 }
 
 /** Tanpa baris penjualan di DB → pakai payload demo agar chart Manajemen Penjualan terisi. */
@@ -326,7 +326,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         return err(res, `Unknown action: ${action}`);
     }
   } catch (error: any) {
-    console.error('[sales-mgmt] Handler error:', error);
+    console.warn('[sales-mgmt] Handler error: (table may not exist):', (error as any)?.message || error);
     return err(res, error.message || 'Internal Server Error', 500);
   }
 }

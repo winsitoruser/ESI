@@ -79,7 +79,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         { replacements: { id: webhookId } }
       );
     } catch (processError: any) {
-      console.error(`Webhook processing error [${platform}/${eventType}]:`, processError.message);
+      console.warn(`Webhook processing error [${platform}/${eventType}]:`, processError.message);
       await sequelize.query(
         `UPDATE marketplace_webhooks SET processing_status = 'failed', error_message = :err, retry_count = retry_count + 1 WHERE id = :id`,
         { replacements: { id: webhookId, err: processError.message } }
@@ -104,7 +104,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
   } catch (error: any) {
-    console.error(`Webhook handler error [${platform}]:`, error.message);
+    console.warn(`Webhook handler error [${platform}]:`, error.message);
     // Still return 200 to prevent marketplace retries
     if (!res.headersSent) {
       return res.status(200).json({ success: true, message: 'Event acknowledged with errors' });

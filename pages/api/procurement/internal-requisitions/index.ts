@@ -423,7 +423,7 @@ export default async function handler(
     }
 
   } catch (error: any) {
-    console.error('Internal requisition API error:', error);
+    console.warn('Internal requisition API error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Internal server error',

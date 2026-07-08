@@ -200,7 +200,7 @@ export default async function handler(
       }
     });
   } catch (error) {
-    console.error('Stock search error:', error);
+    console.warn('Stock search error: (table may not exist):', (error as any)?.message || error);
     res.status(500).json({ success: false, message: 'Failed to search stock items' });
   }
 };

@@ -23,10 +23,10 @@ const ROLE_REDIRECTS: Record<string, string> = {
   // Finance → Finance module
   'finance_staff': '/finance',
   'finance': '/finance',
-  // HR/HRIS → HRIS module
-  'hr_staff': '/hq/hris',
-  'hris_staff': '/hq/hris',
-  'hr': '/hq/hris',
+  // HR → Humanify platform
+  'hr_staff': '/humanify',
+  'hris_staff': '/humanify',
+  'hr': '/humanify',
   // Auditor → Audit Logs
   'auditor': '/hq/audit-logs',
   'regulator': '/hq/audit-logs',
@@ -196,6 +196,13 @@ const Login: React.FC<LoginProps> = ({ csrfToken }) => {
               <p className="text-gray-600">{t('auth.welcomeBack')}</p>
               <p className="text-xs text-gray-400 mt-1">PT Ekosistem Satwa Indonesia</p>
             </div>
+
+            <p className="text-center text-sm text-gray-500 mb-4">
+              SDM & workforce?{' '}
+              <Link href="/humanify/login" className="text-violet-600 font-medium hover:underline">
+                Masuk Humanify
+              </Link>
+            </p>
 
             {/* Login Form */}
             <form onSubmit={handleSubmit} action="/api/auth/callback/credentials" method="POST" className="space-y-5">

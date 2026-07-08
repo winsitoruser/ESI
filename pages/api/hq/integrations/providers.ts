@@ -66,7 +66,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       total: providers.length
     });
   } catch (error) {
-    console.error('Error fetching providers:', error);
+    console.warn('Error fetching providers: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

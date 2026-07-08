@@ -27,7 +27,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const sequelizeHandler = require('./monthly-income-sequelize').default;
     return sequelizeHandler(req, res);
   } catch (err: any) {
-    console.error('Error handling finance monthly income report request:', err);
+    console.warn('Error handling finance monthly income report request: (table may not exist):', (err as any)?.message || err);
     return res.status(500).json({
       error: 'Internal Server Error',
       message: err.message,

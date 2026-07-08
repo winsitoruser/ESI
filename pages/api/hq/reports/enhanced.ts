@@ -194,7 +194,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         return fail(res, `Unknown action: ${action}`, 400);
     }
   } catch (error: any) {
-    console.error('Enhanced Reports API Error:', error);
+    console.warn('Enhanced Reports API Error: (table may not exist):', (error as any)?.message || error);
     return fail(res, error.message || 'Internal Server Error');
   }
 }

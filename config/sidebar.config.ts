@@ -139,6 +139,7 @@ export type ModuleCode =
   | 'reports'
   | 'settings'
   | 'hris'
+  | 'humanify'
   | 'branches'
   | 'supply_chain'
   | 'products'

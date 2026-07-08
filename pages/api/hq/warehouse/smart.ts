@@ -50,7 +50,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       default: return res.status(400).json(errorResponse(ErrorCodes.INVALID_INPUT, `Unknown action: ${action}`));
     }
   } catch (e: any) {
-    console.error(`[SmartWH] ${action}:`, e.message);
+    console.warn(`[SmartWH] ${action}:`, e.message);
     return res.status(500).json(errorResponse(ErrorCodes.INTERNAL_SERVER_ERROR, e.message));
   } finally { console.log(`[SmartWH] ${action} ${Date.now()-t0}ms`); }
 }

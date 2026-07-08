@@ -9,6 +9,33 @@ export interface ExportColumn {
   format?: (value: any) => string;
 }
 
+// Ekspor ke CSV
+export const exportToCSV = <T extends Record<string, any>>(data: T[], filename: string): { success: boolean; error?: Error } => {
+  try {
+    if (!data.length) return { success: false, error: new Error('Tidak ada data untuk diekspor') };
+    const headers = Object.keys(data[0]);
+    const escape = (val: unknown) => {
+      const s = val == null ? '' : String(val);
+      return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [
+      headers.join(','),
+      ...data.map(row => headers.map(h => escape(row[h])).join(','))
+    ];
+    const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${filename}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    return { success: true };
+  } catch (error) {
+    console.error('Export to CSV failed:', error);
+    return { success: false, error: error instanceof Error ? error : new Error('Failed to export to CSV') };
+  }
+};
+
 // Ekspor ke Excel
 export const exportToExcel = <T extends Record<string, any>>(data: T[], filename: string): { success: boolean; error?: Error } => {
   try {

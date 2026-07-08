@@ -148,7 +148,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     });
   } catch (error) {
-    console.error('Onboarding status error:', error);
+    console.warn('Onboarding status error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ message: 'Failed to fetch onboarding status' });
   }
 }

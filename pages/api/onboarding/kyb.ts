@@ -13,7 +13,7 @@ async function resolveTenantId(db: any, userId: number, sessionTenantId: string 
     const user = await db.User.findByPk(userId, { attributes: ['id', 'tenantId'] });
     if (user?.tenantId) return user.tenantId;
   } catch (e: any) {
-    console.error('resolveTenantId error:', e.message);
+    console.warn('resolveTenantId error:', e.message);
   }
   
   // Lookup from any existing KYB
@@ -24,7 +24,7 @@ async function resolveTenantId(db: any, userId: number, sessionTenantId: string 
     });
     if (existingKyb?.tenantId) return existingKyb.tenantId;
   } catch (e: any) {
-    console.error('resolveTenantId KYB lookup error:', e.message);
+    console.warn('resolveTenantId KYB lookup error:', e.message);
   }
   
   // Fallback: get first tenant
@@ -32,7 +32,7 @@ async function resolveTenantId(db: any, userId: number, sessionTenantId: string 
     const tenant = await db.Tenant.findOne({ attributes: ['id'] });
     if (tenant) return tenant.id;
   } catch (e: any) {
-    console.error('resolveTenantId fallback error:', e.message);
+    console.warn('resolveTenantId fallback error:', e.message);
   }
   
   return null;
@@ -60,7 +60,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           order: [['created_at', 'DESC']]
         });
       } catch (e: any) {
-        console.error('[KYB GET] findOne error:', e.message);
+        console.warn('[KYB GET] findOne error:', e.message);
       }
 
       // Step 2: If no KYB exists, create one
@@ -77,7 +77,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           const tenant = await db.Tenant.findByPk(tenantId, { attributes: ['id', 'businessName'] });
           businessName = tenant?.businessName || '';
         } catch (e: any) {
-          console.error('[KYB GET] Tenant lookup error:', e.message);
+          console.warn('[KYB GET] Tenant lookup error:', e.message);
         }
         
         try {
@@ -91,7 +91,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           });
           console.log('[KYB GET] Created new KYB:', kyb.id);
         } catch (createErr: any) {
-          console.error('[KYB GET] Create error:', createErr.message);
+          console.warn('[KYB GET] Create error:', createErr.message);
           return res.status(500).json({ 
             success: false, 
             message: 'Gagal membuat aplikasi KYB',
@@ -237,8 +237,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(405).json({ success: false, message: 'Method not allowed' });
   } catch (error: any) {
-    console.error('[KYB API] Unhandled error:', error.message);
-    console.error('[KYB API] Stack:', error.stack);
+    console.warn('[KYB API] Unhandled error:', error.message);
+    console.warn('[KYB API] Stack:', error.stack);
     return res.status(500).json({ 
       success: false, 
       message: 'Server error', 

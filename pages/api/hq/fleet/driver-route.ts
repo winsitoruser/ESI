@@ -97,7 +97,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     });
   } catch (e: any) {
-    console.error('[hq/fleet/driver-route]', e?.message || e);
+    console.warn('[hq/fleet/driver-route] (table may not exist):', e?.message || e);
     return res.status(500).json({ success: false, error: 'Internal error' });
   }
 }

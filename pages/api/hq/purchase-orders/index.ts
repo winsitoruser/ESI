@@ -15,7 +15,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
     }
   } catch (error) {
-    console.error('Purchase Order API Error:', error);
+    console.warn('Purchase Order API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
@@ -86,7 +86,7 @@ async function getPurchaseOrders(req: NextApiRequest, res: NextApiResponse) {
       totalPages: Math.ceil(count / limitNum)
     });
   } catch (error) {
-    console.error('Error fetching purchase orders:', error);
+    console.warn('Error fetching purchase orders: (table may not exist):', (error as any)?.message || error);
     return res.status(200).json({
       purchaseOrders: getMockPurchaseOrders(),
       total: 5,
@@ -140,7 +140,7 @@ async function createPurchaseOrder(req: NextApiRequest, res: NextApiResponse) {
 
     return res.status(201).json({ purchaseOrder, message: 'Purchase order created successfully' });
   } catch (error) {
-    console.error('Error creating purchase order:', error);
+    console.warn('Error creating purchase order: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: 'Failed to create purchase order' });
   }
 }

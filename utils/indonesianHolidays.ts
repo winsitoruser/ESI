@@ -288,10 +288,85 @@ export const getIndonesianHolidays = (year: number = new Date().getFullYear()): 
   if (year === 2025) {
     specialHolidays = getHolidays2025();
     jointLeaves = getJointLeaves2025();
+  } else if (year === 2026) {
+    specialHolidays = getHolidays2026();
+    jointLeaves = getJointLeaves2026();
   }
-  
+
   return [...nationalHolidays, ...specialHolidays, ...jointLeaves];
 };
+
+/** Libur keagamaan & nasional bergerak — SKB 3 Menteri 2026 */
+const getHolidays2026 = (): HolidayEvent[] => {
+  const y = 2026;
+  const items: Array<{ id: string; title: string; month: number; day: number; description: string }> = [
+    { id: 'isra-miraj', title: 'Isra Mikraj Nabi Muhammad SAW', month: 0, day: 16, description: 'Isra Mikraj' },
+    { id: 'imlek', title: 'Tahun Baru Imlek', month: 1, day: 17, description: 'Imlek 2577 Kongzili' },
+    { id: 'nyepi', title: 'Hari Suci Nyepi', month: 2, day: 19, description: 'Tahun Baru Saka 1948' },
+    { id: 'idul-fitri-1', title: 'Idul Fitri', month: 2, day: 21, description: 'Idul Fitri 1447 H' },
+    { id: 'idul-fitri-2', title: 'Idul Fitri', month: 2, day: 22, description: 'Idul Fitri 1447 H' },
+    { id: 'good-friday', title: 'Wafat Yesus Kristus', month: 3, day: 3, description: 'Wafat Yesus Kristus' },
+    { id: 'easter', title: 'Paskah', month: 3, day: 5, description: 'Kebangkitan Yesus Kristus' },
+    { id: 'ascension', title: 'Kenaikan Yesus Kristus', month: 4, day: 14, description: 'Kenaikan Yesus Kristus' },
+    { id: 'idul-adha', title: 'Idul Adha', month: 4, day: 27, description: 'Idul Adha 1447 H' },
+    { id: 'waisak', title: 'Hari Raya Waisak', month: 4, day: 31, description: 'Waisak 2570 BE' },
+    { id: 'islamic-new-year', title: 'Tahun Baru Islam', month: 5, day: 16, description: '1 Muharram 1448 H' },
+    { id: 'maulid', title: 'Maulid Nabi Muhammad SAW', month: 7, day: 25, description: 'Maulid Nabi' },
+  ];
+  return items.map((h) => ({
+    id: `${h.id}-${y}`,
+    title: h.title,
+    start: new Date(y, h.month, h.day),
+    end: new Date(y, h.month, h.day),
+    allDay: true,
+    color: '#ef4444',
+    textColor: 'white',
+    type: 'religious' as const,
+    description: h.description,
+  }));
+};
+
+const getJointLeaves2026 = (): HolidayEvent[] => {
+  const y = 2026;
+  const items: Array<{ id: string; title: string; month: number; day: number; description: string }> = [
+    { id: 'cb-imlek', title: 'Cuti Bersama Imlek', month: 1, day: 16, description: 'Cuti bersama Tahun Baru Imlek' },
+    { id: 'cb-nyepi', title: 'Cuti Bersama Nyepi', month: 2, day: 18, description: 'Cuti bersama Hari Suci Nyepi' },
+    { id: 'cb-idul-1', title: 'Cuti Bersama Idul Fitri', month: 2, day: 20, description: 'Cuti bersama Idul Fitri' },
+    { id: 'cb-idul-2', title: 'Cuti Bersama Idul Fitri', month: 2, day: 23, description: 'Cuti bersama Idul Fitri' },
+    { id: 'cb-idul-3', title: 'Cuti Bersama Idul Fitri', month: 2, day: 24, description: 'Cuti bersama Idul Fitri' },
+    { id: 'cb-ascension', title: 'Cuti Bersama Kenaikan Yesus', month: 4, day: 15, description: 'Cuti bersama Kenaikan Yesus Kristus' },
+    { id: 'cb-idul-adha', title: 'Cuti Bersama Idul Adha', month: 4, day: 28, description: 'Cuti bersama Idul Adha' },
+    { id: 'cb-natal', title: 'Cuti Bersama Natal', month: 11, day: 24, description: 'Cuti bersama Natal' },
+  ];
+  return items.map((h) => ({
+    id: `${h.id}-${y}`,
+    title: h.title,
+    start: new Date(y, h.month, h.day),
+    end: new Date(y, h.month, h.day),
+    allDay: true,
+    color: '#f97316',
+    textColor: 'white',
+    type: 'joint-leave' as const,
+    description: h.description,
+  }));
+};
+
+/** Format tanggal YYYY-MM-DD (lokal) */
+export function toDateKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+/** Daftar libur untuk API / kalender HR */
+export function getIndonesianHolidaysForCalendar(year: number) {
+  return getIndonesianHolidays(year).map((h) => ({
+    id: h.id,
+    date: toDateKey(h.start),
+    title: h.title,
+    description: h.description || '',
+    type: h.type,
+    category: h.type === 'joint-leave' ? 'joint_leave' : 'national_holiday',
+  }));
+}
 
 // Fungsi untuk menandai hari Minggu sebagai hari libur
 export const getSundayEvents = (year: number): HolidayEvent[] => {

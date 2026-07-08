@@ -41,7 +41,7 @@ async function handler(
     
     return success(res, statistics);
   } catch (error) {
-    console.error('Error fetching customer statistics:', error);
+    console.warn('Error fetching customer statistics: (table may not exist):', (error as any)?.message || error);
     
     // Fall back to mock data in case of error
     res.setHeader('X-Data-Source', 'fallback');

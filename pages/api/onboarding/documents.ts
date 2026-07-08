@@ -68,7 +68,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       return res.status(200).json({ success: true, data: documents });
     } catch (error) {
-      console.error('KYB documents fetch error:', error);
+      console.warn('KYB documents fetch error: (table may not exist):', (error as any)?.message || error);
       return res.status(500).json({ message: 'Failed to fetch documents' });
     }
   }
@@ -147,8 +147,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       return res.status(200).json({ success: true, data: document });
     } catch (error: any) {
-      console.error('[Documents POST] Upload error:', error.message);
-      console.error('[Documents POST] Stack:', error.stack);
+      console.warn('[Documents POST] Upload error:', error.message);
+      console.warn('[Documents POST] Stack:', error.stack);
       return res.status(500).json({ success: false, message: error.message || 'Failed to upload document' });
     }
   }
@@ -186,7 +186,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       return res.status(200).json({ success: true, message: 'Document deleted' });
     } catch (error) {
-      console.error('KYB document delete error:', error);
+      console.warn('KYB document delete error: (table may not exist):', (error as any)?.message || error);
       return res.status(500).json({ message: 'Failed to delete document' });
     }
   }

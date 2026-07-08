@@ -49,7 +49,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.setHeader('Allow', ['GET']);
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error: any) {
-    console.error('Products API error:', error);
+    console.warn('Products API error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       error: 'Internal server error',
       message: error.message

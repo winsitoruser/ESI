@@ -316,7 +316,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ success: false, error: `Unknown action: ${action}` });
     }
   } catch (error: any) {
-    console.error('Integration API error:', error);
+    console.warn('Integration API error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message || 'Internal server error' });
   }
 }

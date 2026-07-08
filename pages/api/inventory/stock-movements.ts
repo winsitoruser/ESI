@@ -213,7 +213,7 @@ export default async function handler(
     // Method not allowed
     return res.status(405).json({ message: 'Method not allowed' });
   } catch (error) {
-    console.error('Error processing stock movements request:', error);
+    console.warn('Error processing stock movements request: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ message: 'Internal server error' });
   }
 }

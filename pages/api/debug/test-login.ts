@@ -84,7 +84,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
   } catch (error: any) {
-    console.error('Test login error:', error);
+    console.warn('Test login error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ 
       success: false, 
       error: error.message 

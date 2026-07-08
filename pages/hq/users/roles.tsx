@@ -136,7 +136,6 @@ const emptyForm = {
 };
 
 export default function UserRoles() {
-  const [mounted, setMounted] = useState(false);
   const [tab, setTab] = useState<TabKey>('list');
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
@@ -278,11 +277,8 @@ export default function UserRoles() {
   };
 
   useEffect(() => {
-    setMounted(true);
     fetchRoles();
   }, []);
-
-  if (!mounted) return null;
 
   const resetForm = () => setForm(emptyForm);
 

@@ -12,17 +12,17 @@ const err = (res: NextApiResponse, msg: string, code = 400) => res.status(code).
 const q = async (sql: string, r?: any) => {
   if (!sequelize) return [];
   try { const [rows] = await sequelize.query(sql, { replacements: r }); return rows as any[]; }
-  catch (e: any) { console.error('Advanced Q:', e.message); return []; }
+  catch (e: any) { console.warn('Advanced Q: (table may not exist):', e.message); return []; }
 };
 const qOne = async (sql: string, r?: any) => {
   if (!sequelize) return null;
   try { const [rows] = await sequelize.query(sql, { replacements: r }); return (rows as any[])[0] || null; }
-  catch (e: any) { console.error('Advanced QOne:', e.message); return null; }
+  catch (e: any) { console.warn('Advanced QOne: (table may not exist):', e.message); return null; }
 };
 const qExec = async (sql: string, r?: any) => {
   if (!sequelize) return false;
   try { await sequelize.query(sql, { replacements: r }); return true; }
-  catch (e: any) { console.error('Advanced Exec:', e.message); return false; }
+  catch (e: any) { console.warn('Advanced Exec: (table may not exist):', e.message); return false; }
 };
 /** Extract pagination params */
 function getPagination(qry: any): { limit: number; offset: number; page: number } {
@@ -266,7 +266,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
               }
             }
           } catch (syncErr: any) {
-            console.error('[advanced] auto-sync sales entry error:', syncErr.message);
+            console.warn('[advanced] auto-sync sales entry error:', syncErr.message);
           }
         }
 
@@ -778,7 +778,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         return err(res, `Unknown action: ${action}`);
     }
   } catch (error: any) {
-    console.error('SFA Advanced API error:', error);
+    console.warn('SFA Advanced API error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message || 'Internal server error' });
   }
 }

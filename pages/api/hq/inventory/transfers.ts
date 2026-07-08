@@ -122,7 +122,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     res.setHeader('Allow', ['GET', 'POST', 'PUT']);
     return res.status(HttpStatus.METHOD_NOT_ALLOWED).json(errorResponse(ErrorCodes.METHOD_NOT_ALLOWED, `Method ${req.method} Not Allowed`));
   } catch (error: any) {
-    console.error('Inventory Transfers API Error:', error.message);
+    console.warn('Inventory Transfers API Error:', error.message);
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(errorResponse(ErrorCodes.INTERNAL_SERVER_ERROR, error.message));
   }
 }

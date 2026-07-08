@@ -35,7 +35,7 @@ async function q(query: string, replacements?: any): Promise<any[]> {
     const [rows] = await sequelize.query(query, replacements ? { replacements } : undefined);
     return rows || [];
   } catch (e: any) {
-    console.error('SFA DB Error:', e.message);
+    console.warn('SFA DB Error:', e.message);
     return [];
   }
 }
@@ -51,7 +51,7 @@ async function qExec(query: string, replacements?: any): Promise<boolean> {
     await sequelize.query(query, replacements ? { replacements } : undefined);
     return true;
   } catch (e: any) {
-    console.error('SFA DB Exec Error:', e.message);
+    console.warn('SFA DB Exec Error:', e.message);
     return false;
   }
 }
@@ -168,7 +168,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE']);
     return res.status(405).json({ success: false, error: `Method ${req.method} Not Allowed` });
   } catch (error: any) {
-    console.error('SFA API Error:', error);
+    console.warn('SFA API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message || 'Internal Server Error' });
   }
 }

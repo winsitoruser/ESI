@@ -190,7 +190,7 @@ async function handler(
       const customersData = await getCustomers(tenantId, params.limit, offset, { search: params.search });
       return success(res, customersData);
     } catch (dbError) {
-      console.error('Database error fetching customers:', dbError);
+      console.warn('Database error fetching customers: (table may not exist):', (dbError as any)?.message || dbError);
       
       // Fall back to mock data when database is unavailable
       console.warn('Falling back to mock customer data');
@@ -245,7 +245,7 @@ async function handler(
       const newCustomer = await createCustomer(customerData);
       return success(res, newCustomer, 201);
     } catch (dbError) {
-      console.error('Error creating customer:', dbError);
+      console.warn('Error creating customer: (table may not exist):', (dbError as any)?.message || dbError);
       throw new ApiError(500, 'Failed to create customer', 'DATABASE_ERROR');
     }
   } else if (req.method === 'PUT') {
@@ -264,7 +264,7 @@ async function handler(
       
       return success(res, updatedCustomer);
     } catch (dbError) {
-      console.error('Error updating customer:', dbError);
+      console.warn('Error updating customer: (table may not exist):', (dbError as any)?.message || dbError);
       
       // Check if it's a not found error
       if ((dbError as any).code === 'P2025') {
@@ -289,7 +289,7 @@ async function handler(
       
       return success(res, { message: 'Customer deleted successfully' });
     } catch (dbError) {
-      console.error('Error deleting customer:', dbError);
+      console.warn('Error deleting customer: (table may not exist):', (dbError as any)?.message || dbError);
       
       // Check if it's a not found error
       if ((dbError as any).code === 'P2025') {

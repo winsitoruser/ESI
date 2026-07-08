@@ -69,7 +69,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         recentTransactions
       });
     } catch (error: any) {
-      console.error('Error fetching customer loyalty:', error);
+      console.warn('Error fetching customer loyalty: (table may not exist):', (error as any)?.message || error);
       return res.status(500).json({ error: 'Internal server error', details: error.message });
     }
   }
@@ -115,7 +115,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         customerLoyalty
       });
     } catch (error: any) {
-      console.error('Error enrolling customer:', error);
+      console.warn('Error enrolling customer: (table may not exist):', (error as any)?.message || error);
       return res.status(500).json({ error: 'Internal server error', details: error.message });
     }
   }

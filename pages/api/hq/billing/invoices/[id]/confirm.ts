@@ -108,7 +108,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     });
   } catch (error: any) {
     try { await tx.rollback(); } catch (_) {}
-    console.error('Manual confirm error:', error);
+    console.warn('Manual confirm error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message });
   }
 }

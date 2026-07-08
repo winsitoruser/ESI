@@ -286,7 +286,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
 
     } catch (dbError: any) {
-      console.error('Database error:', dbError);
+      console.warn('Database error: (table may not exist):', (dbError as any)?.message || dbError);
       
       // Fallback to empty data
       return res.status(200).json({
@@ -319,7 +319,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
   } catch (error: any) {
-    console.error('Dashboard Stats API Error:', error);
+    console.warn('Dashboard Stats API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Failed to fetch dashboard stats',

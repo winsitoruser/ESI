@@ -60,7 +60,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         return res.status(200).json({ success: true, data: layout });
       } catch (e: any) {
-        console.error('Save widget layout error:', e.message);
+        console.warn('Save widget layout error:', e.message);
         // Fallback: just return success (client will use localStorage)
         return res.status(200).json({ success: true, data: layout, fallback: true });
       }
@@ -68,7 +68,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   } catch (error: any) {
-    console.error('Widget layout API error:', error);
+    console.warn('Widget layout API error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message });
   }
 }

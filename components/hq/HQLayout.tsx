@@ -31,18 +31,26 @@ import {
   ModuleCode
 } from '@/config/sidebar.config';
 import { esiHqSidebarConfig as hqSidebarConfig } from '@/config/esi-sidebar.config';
+import { humanifySidebarConfig } from '@/config/humanify-sidebar.config';
+import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
 import { useTranslation, Language, Currency, languageNames, languageFlags, currencySymbols, currencyNames, currencyFlags } from '@/lib/i18n';
+
+export type HQPlatform = 'simesi' | 'humanify';
 
 interface HQLayoutProps {
   children: React.ReactNode;
   title?: string;
   subtitle?: string;
   noPadding?: boolean;
+  platform?: HQPlatform;
 }
 
-function HQLayoutContent({ children, title, subtitle, noPadding }: HQLayoutProps) {
+function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'simesi' }: HQLayoutProps) {
   const router = useRouter();
   const { data: session } = useSession();
+  const isHumanify = platform === 'humanify' || router.pathname.startsWith('/humanify');
+  const sidebarStorageKey = isHumanify ? 'humanify-sidebar-collapsed' : 'hq-sidebar-collapsed';
+  const baseSidebarConfig = isHumanify ? humanifySidebarConfig : hqSidebarConfig;
   // Use safe localStorage hook for sidebar collapsed state
   // Initialize with default (false) and update from localStorage on client
   const [sidebarCollapsed, setSidebarCollapsedState] = useState(false);
@@ -60,8 +68,8 @@ function HQLayoutContent({ children, title, subtitle, noPadding }: HQLayoutProps
 
   // Filter sidebar config based on role (modules can be added later)
   const filteredConfig = useMemo(() => {
-    return filterSidebarConfig(hqSidebarConfig, userRole);
-  }, [userRole]);
+    return filterSidebarConfig(baseSidebarConfig, userRole);
+  }, [userRole, baseSidebarConfig]);
 
   // Load sidebar collapsed state from localStorage ONCE on mount
   useEffect(() => {
@@ -69,7 +77,7 @@ function HQLayoutContent({ children, title, subtitle, noPadding }: HQLayoutProps
     hasReadLocalStorage.current = true;
     
     try {
-      const saved = localStorage.getItem('hq-sidebar-collapsed');
+      const saved = localStorage.getItem(sidebarStorageKey);
       if (saved !== null) {
         setSidebarCollapsedState(saved === 'true');
       }
@@ -94,6 +102,7 @@ function HQLayoutContent({ children, title, subtitle, noPadding }: HQLayoutProps
   const [unreadCount, setUnreadCount] = useState(0);
 
   const fetchNotifications = async () => {
+    if (isHumanify) return;
     try {
       const res = await fetch('/api/hq/sfa/notifications?action=my-notifications&limit=10&unreadOnly=false');
       if (res.ok) {
@@ -124,6 +133,7 @@ function HQLayoutContent({ children, title, subtitle, noPadding }: HQLayoutProps
   }, []);
 
   const handleMarkRead = async (notifId?: number) => {
+    if (isHumanify) return;
     try {
       await fetch('/api/hq/sfa/notifications?action=mark-read', {
         method: 'POST',
@@ -161,7 +171,7 @@ function HQLayoutContent({ children, title, subtitle, noPadding }: HQLayoutProps
   const toggleSidebarCollapse = () => {
     const newState = !sidebarCollapsed;
     setSidebarCollapsedState(newState);
-    localStorage.setItem('hq-sidebar-collapsed', String(newState));
+    localStorage.setItem(sidebarStorageKey, String(newState));
   };
 
   const isActive = (href?: string) => {
@@ -184,7 +194,7 @@ function HQLayoutContent({ children, title, subtitle, noPadding }: HQLayoutProps
 
   const handleLogout = async () => {
     await signOut({ redirect: false });
-    router.push('/auth/login');
+    router.push(isHumanify ? '/humanify/login' : '/auth/login');
   };
 
   const getTranslatedItem = (id: string, fallback: string) => {
@@ -201,6 +211,22 @@ function HQLayoutContent({ children, title, subtitle, noPadding }: HQLayoutProps
     return fallback;
   };
 
+  const accent = isHumanify
+    ? {
+        active: 'bg-violet-600 text-white shadow-sm shadow-violet-200',
+        activeChild: 'bg-violet-600 text-white',
+        expanded: 'bg-violet-50/80 text-violet-700',
+        badge: 'bg-violet-500',
+        logo: 'from-violet-600 to-fuchsia-700',
+      }
+    : {
+        active: 'bg-blue-600 text-white shadow-sm shadow-blue-200',
+        activeChild: 'bg-blue-600 text-white',
+        expanded: 'bg-blue-50/80 text-blue-700',
+        badge: 'bg-blue-500',
+        logo: 'from-blue-600 to-indigo-700',
+      };
+
   const renderNavItem = (item: MenuItem, depth = 0) => {
     const hasChildren = item.children && item.children.length > 0;
     const isExpanded = expandedMenus.includes(item.id);
@@ -214,7 +240,7 @@ function HQLayoutContent({ children, title, subtitle, noPadding }: HQLayoutProps
           <button
             onClick={() => toggleMenu(item.id)}
             className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-all duration-150 ${
-              isExpanded ? 'bg-blue-50/80 text-blue-700' : 'text-gray-600 hover:bg-gray-50'
+              isExpanded ? accent.expanded : 'text-gray-600 hover:bg-gray-50'
             }`}
           >
             <div className="flex items-center gap-3 min-w-0">
@@ -243,8 +269,8 @@ function HQLayoutContent({ children, title, subtitle, noPadding }: HQLayoutProps
         } ${
           active 
             ? isChild
-              ? 'bg-blue-600 text-white'
-              : 'bg-blue-600 text-white shadow-sm shadow-blue-200'
+              ? accent.activeChild
+              : accent.active
             : isChild
               ? 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
               : 'text-gray-600 hover:bg-gray-50'
@@ -259,7 +285,7 @@ function HQLayoutContent({ children, title, subtitle, noPadding }: HQLayoutProps
           )}
         </div>
         {!sidebarCollapsed && item.badge !== undefined && (
-          <span className={`ml-auto flex-shrink-0 px-1.5 py-0.5 text-[10px] font-bold text-white rounded-full ${item.badgeColor || 'bg-blue-500'}`}>
+          <span className={`ml-auto flex-shrink-0 px-1.5 py-0.5 text-[10px] font-bold text-white rounded-full ${item.badgeColor || accent.badge}`}>
             {item.badge}
           </span>
         )}
@@ -313,19 +339,42 @@ function HQLayoutContent({ children, title, subtitle, noPadding }: HQLayoutProps
       } w-72`}>
         {/* Logo */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-gray-100">
-          <Link href={filteredConfig.logo.href} className={`flex items-center gap-3 ${sidebarCollapsed ? 'lg:justify-center lg:w-full' : ''}`}>
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl flex items-center justify-center flex-shrink-0">
-              <LogoIcon className="w-6 h-6 text-white" />
-            </div>
-            {!sidebarCollapsed && (
-              <div className={`${sidebarCollapsed ? 'hidden' : ''}`}>
-                <h1 className="text-base font-bold text-gray-900 leading-tight">{filteredConfig.logo.title}</h1>
-                {filteredConfig.logo.subtitle && (
-                  <p className="text-xs text-gray-400 font-medium leading-tight">{filteredConfig.logo.subtitle}</p>
-                )}
+          {isHumanify ? (
+            <Link
+              href={filteredConfig.logo.href}
+              className={`inline-flex shrink-0 hover:opacity-90 transition-opacity ${sidebarCollapsed ? 'lg:mx-auto' : 'items-center gap-3'}`}
+            >
+              <span className="relative block h-10 w-10 shrink-0 overflow-hidden rounded-xl">
+                <img
+                  src={HUMANIFY_BRAND.logoPath}
+                  alt={HUMANIFY_BRAND.name}
+                  className="absolute inset-0 h-full w-full scale-[2.4] object-cover object-[22%_center]"
+                />
+              </span>
+              {!sidebarCollapsed && (
+                <div>
+                  <h1 className="text-base font-bold text-gray-900 leading-tight">{filteredConfig.logo.title}</h1>
+                  {filteredConfig.logo.subtitle && (
+                    <p className="text-xs text-gray-400 font-medium leading-tight">{filteredConfig.logo.subtitle}</p>
+                  )}
+                </div>
+              )}
+            </Link>
+          ) : (
+            <Link href={filteredConfig.logo.href} className={`flex items-center gap-3 ${sidebarCollapsed ? 'lg:justify-center lg:w-full' : ''}`}>
+              <div className={`w-10 h-10 bg-gradient-to-br ${accent.logo} rounded-xl flex items-center justify-center flex-shrink-0`}>
+                <LogoIcon className="w-6 h-6 text-white" />
               </div>
-            )}
-          </Link>
+              {!sidebarCollapsed && (
+                <div className={`${sidebarCollapsed ? 'hidden' : ''}`}>
+                  <h1 className="text-base font-bold text-gray-900 leading-tight">{filteredConfig.logo.title}</h1>
+                  {filteredConfig.logo.subtitle && (
+                    <p className="text-xs text-gray-400 font-medium leading-tight">{filteredConfig.logo.subtitle}</p>
+                  )}
+                </div>
+              )}
+            </Link>
+          )}
           <button
             onClick={() => setSidebarOpen(false)}
             className="lg:hidden p-1.5 rounded-md hover:bg-gray-100 text-gray-400"
@@ -507,7 +556,7 @@ function HQLayoutContent({ children, title, subtitle, noPadding }: HQLayoutProps
                       ))}
                     </div>
                     <div className="p-3 bg-gray-50 text-center">
-                      <Link href="/hq/notifications" className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                      <Link href={isHumanify ? '/humanify/announcements' : '/hq/notifications'} className="text-sm text-blue-600 hover:text-blue-700 font-medium">
                         {t('layout.viewAllNotifications')}
                       </Link>
                     </div>
@@ -546,30 +595,34 @@ function HQLayoutContent({ children, title, subtitle, noPadding }: HQLayoutProps
                       </div>
                     </div>
                     <div className="py-1">
+                      {!isHumanify && (
+                        <Link
+                          href="/hq/billing-info"
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                          onClick={() => setShowUserMenu(false)}
+                        >
+                          <CreditCard className="w-4 h-4 text-gray-400" />
+                          {t('layout.billingInfo')}
+                        </Link>
+                      )}
                       <Link
-                        href="/hq/billing-info"
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                        onClick={() => setShowUserMenu(false)}
-                      >
-                        <CreditCard className="w-4 h-4 text-gray-400" />
-                        {t('layout.billingInfo')}
-                      </Link>
-                      <Link
-                        href="/hq/settings"
+                        href={isHumanify ? '/humanify/users' : '/hq/settings'}
                         className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                         onClick={() => setShowUserMenu(false)}
                       >
                         <Settings className="w-4 h-4 text-gray-400" />
                         {t('layout.accountSettings')}
                       </Link>
-                      <Link
-                        href="/hq/knowledge-base"
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                        onClick={() => setShowUserMenu(false)}
-                      >
-                        <BookOpen className="w-4 h-4 text-gray-400" />
-                        {t('layout.knowledgeBase')}
-                      </Link>
+                      {!isHumanify && (
+                        <Link
+                          href="/hq/knowledge-base"
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                          onClick={() => setShowUserMenu(false)}
+                        >
+                          <BookOpen className="w-4 h-4 text-gray-400" />
+                          {t('layout.knowledgeBase')}
+                        </Link>
+                      )}
                     </div>
                     <div className="border-t border-gray-100 py-1">
                       <button

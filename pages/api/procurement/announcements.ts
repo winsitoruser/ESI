@@ -105,7 +105,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       rfqCount: parseInt(rc.count),
     }));
   } catch (error: any) {
-    console.error('[Procurement Announcements]', error.message);
+    console.warn('[Procurement Announcements]', error.message);
     return res.status(500).json(fail('INTERNAL_ERROR', error.message));
   }
 }

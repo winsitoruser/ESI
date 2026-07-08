@@ -316,7 +316,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method not allowed' });
 
   } catch (error: any) {
-    console.error('Finance Transactions API Error:', error);
+    console.warn('Finance Transactions API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Internal server error',

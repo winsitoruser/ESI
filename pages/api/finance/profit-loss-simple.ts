@@ -88,7 +88,7 @@ export default async function handler(
     });
 
   } catch (error: any) {
-    console.error('Profit & Loss API Error:', error);
+    console.warn('Profit & Loss API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: error.message || 'Internal server error'

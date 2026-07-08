@@ -124,7 +124,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         );
     }
   } catch (error) {
-    console.error('Budget API Error:', error);
+    console.warn('Budget API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(
       errorResponse(ErrorCodes.INTERNAL_SERVER_ERROR, 'Internal server error')
     );

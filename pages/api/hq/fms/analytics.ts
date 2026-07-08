@@ -13,7 +13,7 @@ const err = (res: NextApiResponse, msg: string, code = 400) => res.status(code).
 const q = async (sql: string, replacements?: any) => {
   if (!sequelize) return [];
   try { const [rows] = await sequelize.query(sql, { replacements }); return rows as any[]; }
-  catch (e: any) { console.error('[FMS-Analytics] Q:', e.message); return []; }
+  catch (e: any) { console.warn('[FMS-Analytics] Q: (table may not exist):', e.message); return []; }
 };
 const qOne = async (sql: string, replacements?: any) => {
   const rows = await q(sql, replacements); return rows[0] || null;
@@ -450,7 +450,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         return err(res, `Unknown analytics action: ${action}`);
     }
   } catch (error: any) {
-    console.error('[FMS-Analytics] Error:', error);
+    console.warn('[FMS-Analytics] Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message || 'Internal server error' });
   } finally {
     console.log(`[FMS-Analytics] ${req.query.action} completed in ${Date.now() - t0}ms`);

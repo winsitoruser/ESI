@@ -24,7 +24,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         );
     }
   } catch (error: any) {
-    console.error('Inventory Stock API Error:', error.message);
+    console.warn('Inventory Stock API Error:', error.message);
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(
       errorResponse(ErrorCodes.INTERNAL_SERVER_ERROR, error.message)
     );

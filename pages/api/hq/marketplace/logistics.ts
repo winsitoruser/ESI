@@ -153,7 +153,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       default: return fail(res, `Unknown logistics action: ${action}`);
     }
   } catch (error: any) {
-    console.error(`Logistics API [${action}] error:`, error);
+    console.warn(`Logistics API [${action}] error: (table may not exist):`, (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message || 'Internal server error' });
   }
 }

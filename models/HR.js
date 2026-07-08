@@ -13,10 +13,16 @@ const TeamMember = sequelize.define('TeamMember', {
   joinDate: { type: DataTypes.DATEONLY, field: 'join_date' },
   userId: { type: DataTypes.UUID, field: 'user_id' },
   tenantId: { type: DataTypes.UUID, field: 'tenant_id' },
+  location: { type: DataTypes.STRING(100) },
+  workArea: { type: DataTypes.STRING(100), field: 'work_area' },
+  employeeId: { type: DataTypes.UUID, field: 'employee_id', allowNull: true },
   createdBy: { type: DataTypes.UUID, field: 'created_by' },
 }, {
   tableName: 'team_members', timestamps: true, underscored: true,
-  indexes: [{ fields: ['role'] }, { fields: ['department'] }, { fields: ['status'] }, { fields: ['tenant_id'] }],
+  indexes: [
+    { fields: ['role'] }, { fields: ['department'] }, { fields: ['status'] },
+    { fields: ['tenant_id'] }, { fields: ['employee_id'] },
+  ],
 });
 
 const Task = sequelize.define('Task', {
@@ -28,6 +34,10 @@ const Task = sequelize.define('Task', {
   assigneeId: { type: DataTypes.UUID, field: 'assignee_id' },
   dueDate: { type: DataTypes.DATEONLY, field: 'due_date' },
   completedAt: { type: DataTypes.DATE, field: 'completed_at' },
+  taskType: { type: DataTypes.ENUM('target', 'routine', 'sop', 'project'), defaultValue: 'routine', field: 'task_type' },
+  targetValue: { type: DataTypes.STRING(100), field: 'target_value' },
+  targetUnit: { type: DataTypes.STRING(50), field: 'target_unit' },
+  category: { type: DataTypes.STRING(50) },
   relatedTo: { type: DataTypes.STRING(50), field: 'related_to' },
   relatedId: { type: DataTypes.UUID, field: 'related_id' },
   tenantId: { type: DataTypes.UUID, field: 'tenant_id' },
@@ -35,7 +45,7 @@ const Task = sequelize.define('Task', {
   updatedBy: { type: DataTypes.UUID, field: 'updated_by' },
 }, {
   tableName: 'tasks', timestamps: true, underscored: true,
-  indexes: [{ fields: ['assignee_id'] }, { fields: ['status'] }, { fields: ['priority'] }, { fields: ['due_date'] }, { fields: ['tenant_id'] }],
+  indexes: [{ fields: ['assignee_id'] }, { fields: ['status'] }, { fields: ['priority'] }, { fields: ['due_date'] }, { fields: ['tenant_id'] }, { fields: ['task_type'] }],
 });
 
 module.exports = { TeamMember, Task };

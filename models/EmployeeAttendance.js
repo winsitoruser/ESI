@@ -115,6 +115,7 @@ const EmployeeAttendance = sequelize.define('EmployeeAttendance', {
 }, {
   tableName: 'employee_attendance',
   timestamps: true,
+  underscored: true,
   indexes: [
     { fields: ['employeeId'] },
     { fields: ['branchId'] },

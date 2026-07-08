@@ -25,7 +25,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(405).json({ success: false, error: 'Method not allowed' });
     }
   } catch (error: any) {
-    console.error('Tenant Dashboard API error:', error);
+    console.warn('Tenant Dashboard API error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message });
   }
 }
@@ -84,7 +84,7 @@ async function getTenantDashboard(req: NextApiRequest, res: NextApiResponse, ten
       }
     });
   } catch (error: any) {
-    console.error('Error fetching tenant dashboard:', error);
+    console.warn('Error fetching tenant dashboard: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message });
   }
 }
@@ -126,7 +126,7 @@ async function updateTenantDashboard(
       message: 'Dashboard customization updated successfully'
     });
   } catch (error: any) {
-    console.error('Error updating tenant dashboard:', error);
+    console.warn('Error updating tenant dashboard: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message });
   }
 }

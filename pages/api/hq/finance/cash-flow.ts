@@ -59,7 +59,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         );
     }
   } catch (error) {
-    console.error('Cash Flow API Error:', error);
+    console.warn('Cash Flow API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(
       errorResponse(ErrorCodes.INTERNAL_SERVER_ERROR, 'Internal server error')
     );
@@ -143,7 +143,7 @@ async function getCashFlow(req: NextApiRequest, res: NextApiResponse) {
       successResponse({ summary: mockSummary, items: mockCashFlowItems, accounts: mockBankAccounts, forecast: mockForecast, period })
     );
   } catch (error) {
-    console.error('Error fetching cash flow:', error);
+    console.warn('Error fetching cash flow: (table may not exist):', (error as any)?.message || error);
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(
       errorResponse(ErrorCodes.DATABASE_ERROR, 'Failed to fetch cash flow')
     );

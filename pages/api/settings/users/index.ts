@@ -35,7 +35,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           data: users
         });
       } catch (dbError: any) {
-        console.error('Database error:', dbError);
+        console.warn('Database error: (table may not exist):', (dbError as any)?.message || dbError);
         // Fallback: return users without role details if association fails
         const users = await User.findAll({
           attributes: ['id', 'name', 'email', 'phone', 'role', 'roleId', 'position', 'isActive', 'createdAt', 'lastLoginAt'],
@@ -114,7 +114,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
   } catch (error: any) {
-    console.error('Error in users API:', error);
+    console.warn('Error in users API: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Failed to process users',

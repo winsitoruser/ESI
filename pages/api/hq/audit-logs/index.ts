@@ -11,7 +11,7 @@ async function q(sql: string, replacements?: any): Promise<any[]> {
     const [rows] = await sequelize.query(sql, replacements ? { replacements } : undefined);
     return rows || [];
   } catch (e: any) {
-    console.error('AuditLog Query Error:', e.message);
+    console.warn('AuditLog Query Error:', e.message);
     return [];
   }
 }
@@ -25,7 +25,7 @@ async function qExec(sql: string, replacements?: any): Promise<boolean> {
     await sequelize.query(sql, replacements ? { replacements } : undefined);
     return true;
   } catch (e: any) {
-    console.error('AuditLog Exec Error:', e.message);
+    console.warn('AuditLog Exec Error:', e.message);
     return false;
   }
 }
@@ -327,7 +327,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.setHeader('Allow', ['GET', 'POST']);
     return res.status(405).json({ success: false, error: `Method ${req.method} Not Allowed` });
   } catch (error: any) {
-    console.error('Audit Log API Error:', error);
+    console.warn('Audit Log API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message || 'Internal server error' });
   }
 }

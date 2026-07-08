@@ -24,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           data: roles
         });
       } catch (dbError: any) {
-        console.error('Database error in roles API:', dbError);
+        console.warn('Database error in roles API: (table may not exist):', (dbError as any)?.message || dbError);
         // Return empty array if database not ready
         return res.status(200).json({
           success: true,
@@ -63,7 +63,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           data: role
         });
       } catch (dbError: any) {
-        console.error('Database error creating role:', dbError);
+        console.warn('Database error creating role: (table may not exist):', (dbError as any)?.message || dbError);
         return res.status(500).json({
           success: false,
           error: 'Failed to create role',
@@ -76,7 +76,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
   } catch (error: any) {
-    console.error('Error in roles API:', error);
+    console.warn('Error in roles API: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Failed to process roles',

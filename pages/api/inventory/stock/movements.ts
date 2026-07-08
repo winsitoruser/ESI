@@ -69,7 +69,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         offset: parseInt(offset as string)
       });
     } catch (error: any) {
-      console.error('Error fetching stock movements:', error);
+      console.warn('Error fetching stock movements: (table may not exist):', (error as any)?.message || error);
       return res.status(500).json({ error: 'Internal server error', details: error.message });
     }
   }
@@ -170,7 +170,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     } catch (error: any) {
       await transaction.rollback();
-      console.error('Error creating stock movement:', error);
+      console.warn('Error creating stock movement: (table may not exist):', (error as any)?.message || error);
       return res.status(500).json({ error: 'Internal server error', details: error.message });
     }
   }

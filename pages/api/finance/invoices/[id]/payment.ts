@@ -82,7 +82,7 @@ export default async function handler(
     });
 
   } catch (error) {
-    console.error('Payment API error:', error);
+    console.warn('Payment API error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Internal server error',

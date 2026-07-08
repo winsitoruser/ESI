@@ -36,7 +36,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (req.method === 'POST') return bulk(req, res, tenantId, approverId);
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   } catch (e: any) {
-    console.error('[hq/fleet/expenses]', e?.message || e);
+    console.warn('[hq/fleet/expenses] (table may not exist):', e?.message || e);
     return res.status(500).json({ success: false, error: 'Internal error' });
   }
 }

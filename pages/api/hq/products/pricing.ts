@@ -63,7 +63,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
     }
   } catch (error) {
-    console.error('Product Pricing API Error:', error);
+    console.warn('Product Pricing API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

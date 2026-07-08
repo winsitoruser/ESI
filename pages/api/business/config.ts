@@ -134,8 +134,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
   } catch (error: any) {
-    console.error('Business config error:', error?.message, error?.original?.message || '');
-    console.error('Stack:', error?.stack?.split('\n').slice(0, 5).join('\n'));
+    console.warn('Business config error: (table may not exist):', error?.message, error?.original?.message || '');
+    console.warn('Stack:', error?.stack?.split('\n').slice(0, 5).join('\n'));
     return res.status(500).json({
       success: false,
       error: 'Failed to fetch business configuration',

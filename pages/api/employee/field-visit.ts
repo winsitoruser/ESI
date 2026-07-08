@@ -17,7 +17,61 @@ import { authOptions } from '../auth/[...nextauth]';
 import { ensureVisitLinkedTask, syncTaskStatusFromVisit } from '../../../lib/sfa/visitTaskSync';
 
 let sequelize: any;
-try { ({ sequelize } = require('../../../lib/sequelize')); } catch {}
+try { sequelize = require('../../../lib/sequelize'); } catch {}
+
+async function ensureSfaVisitsTable() {
+  if (!sequelize) return;
+  try {
+    await sequelize.query(`
+      CREATE TABLE IF NOT EXISTS sfa_visits (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        tenant_id UUID,
+        salesperson_id INTEGER,
+        employee_id UUID,
+        lead_id UUID,
+        customer_id UUID,
+        customer_name VARCHAR(200),
+        visit_type VARCHAR(30) DEFAULT 'regular',
+        purpose TEXT,
+        visit_date DATE DEFAULT CURRENT_DATE,
+        status VARCHAR(20) DEFAULT 'planned',
+        is_adhoc BOOLEAN DEFAULT false,
+        check_in_time TIMESTAMPTZ,
+        check_in_lat DECIMAL(10,7),
+        check_in_lng DECIMAL(10,7),
+        check_in_address TEXT,
+        check_in_photo_url TEXT,
+        check_out_time TIMESTAMPTZ,
+        check_out_lat DECIMAL(10,7),
+        check_out_lng DECIMAL(10,7),
+        check_out_address TEXT,
+        check_out_photo_url TEXT,
+        duration_minutes INTEGER DEFAULT 0,
+        outcome VARCHAR(30),
+        outcome_notes TEXT,
+        order_taken BOOLEAN DEFAULT false,
+        order_value DECIMAL(15,2) DEFAULT 0,
+        next_visit_date DATE,
+        products_discussed JSONB DEFAULT '[]'::jsonb,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_sfa_visits_tenant_date ON sfa_visits(tenant_id, visit_date)`);
+    await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_sfa_visits_salesperson ON sfa_visits(salesperson_id, visit_date)`);
+  } catch { /* table may partially exist */ }
+}
+
+async function resolveSalesperson(userId: string, tenantId: string) {
+  const uid = parseInt(userId, 10) || 0;
+  const [emp] = await q(`
+    SELECT id FROM employees
+    WHERE user_id = :uid
+      AND (:tid = '' OR tenant_id IS NULL OR tenant_id = :tid::uuid)
+    LIMIT 1
+  `, { uid, tid: tenantId || '' });
+  return { userId: uid, employeeId: emp?.id || null };
+}
 
 const q = async (sql: string, params: any = {}) => {
   if (!sequelize) return [];
@@ -60,7 +114,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   } catch (e: any) {
-    console.error('[field-visit API]', e.message);
+    console.warn('[field-visit API]', e.message);
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -73,32 +127,45 @@ async function getVisits(res: NextApiResponse, userId: string, tenantId: string,
   const { date, status } = req.query;
   const today = (date as string) || new Date().toISOString().split('T')[0];
 
-  const MOCK_VISITS = [
-    { id: 'v1', visit_number: 'VIS-001', customer_name: 'Toko Maju Jaya', customer_address: 'Jl. Sudirman No.10, Jakarta', visit_type: 'regular', purpose: 'Pengecekan stok & ambil pesanan', status: 'planned', visit_date: today, check_in_time: null, check_out_time: null, outcome: null, duration_minutes: 0, is_adhoc: false, evidence_photos: [] },
-    { id: 'v2', visit_number: 'VIS-002', customer_name: 'Warung Bu Sari', customer_address: 'Jl. Kebon Jeruk No.5, Jakarta', visit_type: 'follow_up', purpose: 'Follow up pembayaran & demo produk baru', status: 'completed', visit_date: today, check_in_time: new Date(Date.now() - 7200000).toISOString(), check_out_time: new Date(Date.now() - 5400000).toISOString(), outcome: 'order_taken', order_value: 850000, duration_minutes: 30, is_adhoc: false, evidence_photos: [] },
-    { id: 'v3', visit_number: 'VIS-003', customer_name: 'Minimarket Sejahtera', customer_address: 'Jl. Raya Bogor No.22, Depok', visit_type: 'prospect', purpose: 'Presentasi produk baru ke calon pelanggan', status: 'planned', visit_date: today, check_in_time: null, check_out_time: null, outcome: null, duration_minutes: 0, is_adhoc: false, evidence_photos: [] },
-  ];
-  if (!sequelize) return res.json({ success: true, data: { visits: MOCK_VISITS, stats: { total: 3, planned: 2, checked_in: 0, completed: 1, target: 5 } } });
+  if (!sequelize) {
+    const MOCK_VISITS = [
+      { id: 'v1', visit_number: 'VIS-001', customer_name: 'Toko Maju Jaya', customer_address: 'Jl. Sudirman No.10, Jakarta', visit_type: 'regular', purpose: 'Pengecekan stok & ambil pesanan', status: 'planned', visit_date: today, check_in_time: null, check_out_time: null, outcome: null, duration_minutes: 0, is_adhoc: false, evidence_photos: [] },
+    ];
+    return res.json({ success: true, data: { visits: MOCK_VISITS, stats: { total: 1, planned: 1, checked_in: 0, completed: 0, target: 5 } } });
+  }
 
+  await ensureSfaVisitsTable();
   try {
-    const [emp] = await q(`SELECT id FROM employees WHERE user_id = :uid AND tenant_id = :tid LIMIT 1`, { uid: userId, tid: tenantId });
-    const sid = emp?.id || userId;
+    const { userId: spId } = await resolveSalesperson(userId, tenantId);
     const whereStatus = status ? `AND v.status = :status` : '';
     const visits = await q(`
-      SELECT v.*, COALESCE(c.name, v.customer_name) as customer_name, c.phone as customer_phone, c.address as customer_address,
-        EXTRACT(EPOCH FROM (v.check_out_time - v.check_in_time)) / 60 as duration_minutes
-      FROM sfa_visits v LEFT JOIN customers c ON v.customer_id = c.id
-      WHERE v.tenant_id = :tid AND v.salesperson_id = :sid AND v.visit_date = :date ${whereStatus}
+      SELECT v.*, v.customer_name,
+        COALESCE(v.check_in_address, '') as customer_address,
+        COALESCE(v.duration_minutes, 0) as duration_minutes,
+        COALESCE(v.products_discussed, '[]'::jsonb) as evidence_photos
+      FROM sfa_visits v
+      WHERE (v.tenant_id IS NULL OR v.tenant_id = :tid::uuid OR :tid = '')
+        AND (v.salesperson_id = :sp OR v.employee_id IN (
+          SELECT id FROM employees WHERE user_id = :sp
+        ))
+        AND v.visit_date = :date ${whereStatus}
       ORDER BY v.check_in_time ASC NULLS FIRST, v.created_at ASC
-    `, { tid: tenantId, sid, date: today, ...(status ? { status } : {}) });
+    `, { tid: tenantId || null, sp: spId, date: today, ...(status ? { status } : {}) });
     const [stats] = await q(`
-      SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE status='planned') as planned,
-        COUNT(*) FILTER (WHERE status='checked_in') as checked_in,
-        COUNT(*) FILTER (WHERE status='completed') as completed
-      FROM sfa_visits WHERE tenant_id = :tid AND salesperson_id = :sid AND visit_date = :date
-    `, { tid: tenantId, sid, date: today });
-    return res.json({ success: true, data: { visits, stats } });
-  } catch { return res.json({ success: true, data: { visits: MOCK_VISITS, stats: { total: 3, planned: 2, checked_in: 0, completed: 1, target: 5 } } }); }
+      SELECT COUNT(*)::int as total,
+        COUNT(*) FILTER (WHERE status='planned')::int as planned,
+        COUNT(*) FILTER (WHERE status='checked_in')::int as checked_in,
+        COUNT(*) FILTER (WHERE status='completed')::int as completed
+      FROM sfa_visits
+      WHERE (tenant_id IS NULL OR tenant_id = :tid::uuid OR :tid = '')
+        AND (salesperson_id = :sp OR employee_id IN (SELECT id FROM employees WHERE user_id = :sp))
+        AND visit_date = :date
+    `, { tid: tenantId || null, sp: spId, date: today });
+    return res.json({ success: true, data: { visits, stats: { ...stats, target: 5 } } });
+  } catch (e: any) {
+    console.warn('[field-visit getVisits]', e.message);
+    return res.json({ success: true, data: { visits: [], stats: { total: 0, planned: 0, checked_in: 0, completed: 0, target: 5 } } });
+  }
 }
 
 // ─────────────────────────────────────────
@@ -139,48 +206,62 @@ async function getRoutePlan(res: NextApiResponse, userId: string, tenantId: stri
 // POST: Create a new visit (planned/walk-in)
 // ─────────────────────────────────────────
 async function createVisit(req: NextApiRequest, res: NextApiResponse, userId: string, tenantId: string) {
-  const { customer_name, customer_id, visit_type = 'regular', purpose, visit_date, scheduled_time, lead_id, is_adhoc = false } = req.body;
+  const { customer_name, customer_id, visit_type = 'regular', purpose, visit_date, lead_id, is_adhoc = false } = req.body;
   if (!customer_name) return res.status(400).json({ success: false, error: 'customer_name wajib diisi' });
 
   if (!sequelize) {
-    return res.json({ success: true, message: 'Kunjungan berhasil dibuat', data: { id: `v${Date.now()}`, visit_number: `VIS-${Date.now()}`, customer_name, visit_type, purpose, status: 'planned', visit_date: visit_date || new Date().toISOString().split('T')[0] } });
+    return res.json({ success: true, message: 'Kunjungan berhasil dibuat', data: { id: `v${Date.now()}`, visit_number: `VIS-${Date.now()}`, customer_name, visit_type, purpose, status: 'planned', visit_date: visit_date || new Date().toISOString().split('T')[0], customer_address: '', duration_minutes: 0, is_adhoc: true, evidence_photos: [] } });
   }
+
+  await ensureSfaVisitsTable();
   try {
-    const [emp] = await q(`SELECT id FROM employees WHERE user_id=:uid AND tenant_id=:tid LIMIT 1`, { uid: userId, tid: tenantId });
-    const sid = emp?.id || userId;
+    const { userId: spId, employeeId } = await resolveSalesperson(userId, tenantId);
     const vDate = visit_date || new Date().toISOString().split('T')[0];
-    const [count] = await q(`SELECT COUNT(*) as c FROM sfa_visits WHERE tenant_id=:tid AND TO_CHAR(created_at,'YYYY-MM')=:m`, { tid: tenantId, m: vDate.slice(0, 7) });
+    const [count] = await q(`SELECT COUNT(*)::int as c FROM sfa_visits WHERE tenant_id = :tid AND TO_CHAR(created_at,'YYYY-MM') = :m`, { tid: tenantId || null, m: vDate.slice(0, 7) });
     const num = `VIS-${vDate.replace(/-/g, '')}-${String(Number(count?.c || 0) + 1).padStart(3, '0')}`;
 
     const [visitRows] = await sequelize.query(`
-      INSERT INTO sfa_visits (id, tenant_id, salesperson_id, customer_id, customer_name, visit_type, purpose, visit_date, status, is_adhoc, lead_id, created_at, updated_at)
-      VALUES (uuid_generate_v4(), :tid, :sid, :cid, :cname, :vtype, :purpose, :vdate, 'planned', :adhoc, :lid, NOW(), NOW())
-      RETURNING *, :num as visit_number
-    `, { replacements: { tid: tenantId, sid, cid: customer_id || null, cname: customer_name, vtype: visit_type, purpose: purpose || '', vdate: vDate, adhoc: is_adhoc, lid: lead_id || null, num } });
+      INSERT INTO sfa_visits (
+        tenant_id, salesperson_id, employee_id, customer_id, customer_name,
+        visit_type, purpose, visit_date, status, is_adhoc, lead_id, created_at, updated_at
+      ) VALUES (
+        :tid, :sp, :eid, :cid, :cname, :vtype, :purpose, :vdate, 'planned', :adhoc, :lid, NOW(), NOW()
+      ) RETURNING *
+    `, { replacements: {
+      tid: tenantId || null, sp: spId, eid: employeeId, cid: customer_id || null,
+      cname: customer_name, vtype: visit_type, purpose: purpose || '', vdate: vDate,
+      adhoc: !!is_adhoc, lid: lead_id || null,
+    } });
 
     const row = Array.isArray(visitRows) ? visitRows[0] : visitRows;
+    const data = row ? {
+      ...row,
+      visit_number: num,
+      customer_address: row.check_in_address || '',
+      duration_minutes: 0,
+      evidence_photos: [],
+    } : null;
+
     if (row?.id) {
-      await ensureVisitLinkedTask({
-        tenantId,
-        visit: {
-          id: row.id,
-          customer_name: row.customer_name || customer_name,
-          purpose: row.purpose || purpose,
-          visit_date: row.visit_date || vDate,
-          salesperson_id: row.salesperson_id != null ? Number(row.salesperson_id) : null,
-        },
-        createdByUserId: Number(userId) || null,
-        assigneeUserId: Number(userId) || null,
-      });
+      try {
+        await ensureVisitLinkedTask({
+          tenantId,
+          visit: {
+            id: row.id,
+            customer_name: row.customer_name || customer_name,
+            purpose: row.purpose || purpose,
+            visit_date: row.visit_date || vDate,
+            salesperson_id: spId,
+          },
+          createdByUserId: spId || null,
+          assigneeUserId: spId || null,
+        });
+      } catch { /* task sync optional */ }
     }
 
-    // Also record as CRM interaction if customer_id exists
-    if (customer_id) {
-      await q(`INSERT INTO crm_interactions (id, tenant_id, crm_customer_id, type, subject, content, created_by, created_at, updated_at) VALUES (uuid_generate_v4(), :tid, :cid, 'visit', :subj, :content, :uid, NOW(), NOW())`,
-        { tid: tenantId, cid: customer_id, subj: `Kunjungan ${visit_type}`, content: purpose || '', uid: userId });
-    }
-    return res.json({ success: true, message: 'Kunjungan berhasil dibuat', data: row });
+    return res.json({ success: true, message: 'Kunjungan berhasil dibuat', data });
   } catch (e: any) {
+    console.warn('[field-visit createVisit]', e.message);
     return res.status(500).json({ success: false, error: 'Gagal membuat kunjungan', details: e.message });
   }
 }

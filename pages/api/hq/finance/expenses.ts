@@ -68,7 +68,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     return getExpenses(req, res);
   } catch (error) {
-    console.error('Expenses API Error:', error);
+    console.warn('Expenses API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(
       errorResponse(ErrorCodes.INTERNAL_SERVER_ERROR, 'Internal server error')
     );

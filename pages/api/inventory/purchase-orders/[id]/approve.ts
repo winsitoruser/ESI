@@ -41,7 +41,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         purchaseOrder
       });
     } catch (error: any) {
-      console.error('Error approving purchase order:', error);
+      console.warn('Error approving purchase order: (table may not exist):', (error as any)?.message || error);
       return res.status(500).json({ error: 'Internal server error', details: error.message });
     }
   }

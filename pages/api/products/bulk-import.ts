@@ -107,7 +107,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       data: results
     });
   } catch (error: any) {
-    console.error('Bulk Import API Error:', error);
+    console.warn('Bulk Import API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: error.message });
   }
 }

@@ -7,25 +7,22 @@ const IrCase = sequelize.define('IrCase', {
   tenantId: { type: DataTypes.UUID, allowNull: true, field: 'tenant_id' },
   caseNumber: { type: DataTypes.STRING(50), allowNull: true, field: 'case_number' },
   title: { type: DataTypes.STRING(200), allowNull: false },
-  category: { type: DataTypes.STRING(50), defaultValue: 'misconduct' },
-  priority: { type: DataTypes.STRING(20), defaultValue: 'medium' },
-  status: { type: DataTypes.STRING(30), defaultValue: 'open' },
-  reportedBy: { type: DataTypes.INTEGER, allowNull: true, field: 'reported_by' },
-  reportedDate: { type: DataTypes.DATEONLY, allowNull: false, field: 'reported_date' },
-  involvedEmployees: { type: DataTypes.JSONB, defaultValue: [], field: 'involved_employees' },
+  caseType: { type: DataTypes.STRING(50), defaultValue: 'misconduct', field: 'case_type' },
+  employeeId: { type: DataTypes.UUID, allowNull: true, field: 'employee_id' },
   description: { type: DataTypes.TEXT, allowNull: true },
-  investigationNotes: { type: DataTypes.TEXT, allowNull: true, field: 'investigation_notes' },
+  status: { type: DataTypes.STRING(30), defaultValue: 'open' },
+  priority: { type: DataTypes.STRING(20), defaultValue: 'medium' },
+  assignedTo: { type: DataTypes.INTEGER, allowNull: true, field: 'assigned_to' },
+  openedDate: { type: DataTypes.DATEONLY, allowNull: true, field: 'opened_date' },
+  closedDate: { type: DataTypes.DATEONLY, allowNull: true, field: 'closed_date' },
   resolution: { type: DataTypes.TEXT, allowNull: true },
-  resolutionDate: { type: DataTypes.DATEONLY, allowNull: true, field: 'resolution_date' },
-  investigatorId: { type: DataTypes.INTEGER, allowNull: true, field: 'investigator_id' },
-  hearingDate: { type: DataTypes.DATE, allowNull: true, field: 'hearing_date' },
-  hearingNotes: { type: DataTypes.TEXT, allowNull: true, field: 'hearing_notes' },
-  actionsTaken: { type: DataTypes.JSONB, defaultValue: [], field: 'actions_taken' },
-  attachments: { type: DataTypes.JSONB, defaultValue: [] }
+  evidence: { type: DataTypes.JSONB, defaultValue: [] },
+  witnesses: { type: DataTypes.JSONB, defaultValue: [] },
+  createdBy: { type: DataTypes.INTEGER, allowNull: true, field: 'created_by' },
 }, {
   tableName: 'ir_cases',
   timestamps: true,
-  underscored: true
+  underscored: true,
 });
 
 module.exports = IrCase;

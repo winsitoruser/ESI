@@ -129,7 +129,7 @@ async function getPriceGroups(req: NextApiRequest, res: NextApiResponse, context
       isFromMock: result.isFromMock
     });
   } catch (err) {
-    console.error('Error fetching price groups:', err);
+    console.warn('Error fetching price groups: (table may not exist):', (err as any)?.message || err);
     return error(res, 'Terjadi kesalahan saat mengambil data group harga', 500);
   }
 }
@@ -158,7 +158,7 @@ async function createPriceGroup(req: NextApiRequest, res: NextApiResponse, conte
       isFromMock: result.isFromMock
     });
   } catch (err) {
-    console.error('Error creating price group:', err);
+    console.warn('Error creating price group: (table may not exist):', (err as any)?.message || err);
     const statusCode = err instanceof ApiError ? err.statusCode : 500;
     return error(res, 'Terjadi kesalahan saat menambahkan group harga', statusCode);
   }
@@ -192,7 +192,7 @@ async function updatePriceGroup(req: NextApiRequest, res: NextApiResponse, conte
       isFromMock: result.isFromMock
     });
   } catch (err) {
-    console.error('Error updating price group:', err);
+    console.warn('Error updating price group: (table may not exist):', (err as any)?.message || err);
     const statusCode = err instanceof ApiError ? err.statusCode : 500;
     return error(res, 'Terjadi kesalahan saat memperbarui group harga', statusCode);
   }
@@ -218,7 +218,7 @@ async function deletePriceGroup(req: NextApiRequest, res: NextApiResponse, conte
       isFromMock: result.isFromMock
     });
   } catch (err) {
-    console.error('Error deleting price group:', err);
+    console.warn('Error deleting price group: (table may not exist):', (err as any)?.message || err);
     const statusCode = err instanceof ApiError ? err.statusCode : 500;
     return error(res, 'Terjadi kesalahan saat menghapus group harga', statusCode);
   }
@@ -259,7 +259,7 @@ async function fetchPriceGroupsFromDatabase(context: ExtendedApiContext) {
       throw new Error(`Database query failed: ${(error as Error).message}`);
     }
   } catch (err) {
-    console.error('Error fetching price groups from database:', err);
+    console.warn('Error fetching price groups from database: (table may not exist):', (err as any)?.message || err);
     return { priceGroups: mockPriceGroups, isFromMock: true };
   }
 }
@@ -308,7 +308,7 @@ async function createPriceGroupInDatabase(context: ExtendedApiContext, priceGrou
       throw new Error(`Database operation failed: ${(error as Error).message}`);
     }
   } catch (err) {
-    console.error('Error creating price group in database:', err);
+    console.warn('Error creating price group in database: (table may not exist):', (err as any)?.message || err);
     // Fallback to mock data
     const mockData = {
       id: `${mockPriceGroups.length + 1}`,
@@ -380,7 +380,7 @@ async function updatePriceGroupInDatabase(context: ExtendedApiContext, priceGrou
       throw err;
     }
     
-    console.error('Error updating price group in database:', err);
+    console.warn('Error updating price group in database: (table may not exist):', (err as any)?.message || err);
     
     // Fallback to mock data
     const index = mockPriceGroups.findIndex(pg => pg.id === priceGroupData.id);
@@ -449,7 +449,7 @@ async function deletePriceGroupFromDatabase(context: ExtendedApiContext, id: str
       throw err;
     }
     
-    console.error('Error deleting price group from database:', err);
+    console.warn('Error deleting price group from database: (table may not exist):', (err as any)?.message || err);
     
     // Fallback to mock data
     const index = mockPriceGroups.findIndex(pg => pg.id === id);

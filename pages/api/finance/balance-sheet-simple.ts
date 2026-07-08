@@ -114,7 +114,7 @@ export default async function handler(
     });
 
   } catch (error: any) {
-    console.error('Balance Sheet API Error:', error);
+    console.warn('Balance Sheet API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: error.message || 'Internal server error'

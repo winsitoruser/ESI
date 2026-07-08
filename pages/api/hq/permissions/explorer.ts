@@ -150,7 +150,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       error: 'Param `mode` wajib: byPermission | byUser | byRole'
     });
   } catch (err: any) {
-    console.error('permissions/explorer error:', err);
+    console.warn('permissions/explorer error: (table may not exist):', (err as any)?.message || err);
     return res.status(500).json({ error: 'Internal server error', details: err?.message });
   }
 }

@@ -135,7 +135,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         newBalance: balanceAfter
       });
     } catch (error: any) {
-      console.error('Error redeeming reward:', error);
+      console.warn('Error redeeming reward: (table may not exist):', (error as any)?.message || error);
       return res.status(500).json({ error: 'Internal server error', details: error.message });
     }
   }
@@ -175,7 +175,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       return res.status(200).json({ redemptions });
     } catch (error: any) {
-      console.error('Error fetching redemptions:', error);
+      console.warn('Error fetching redemptions: (table may not exist):', (error as any)?.message || error);
       return res.status(500).json({ error: 'Internal server error', details: error.message });
     }
   }

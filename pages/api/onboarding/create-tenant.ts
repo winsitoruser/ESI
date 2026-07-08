@@ -182,7 +182,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     });
   } catch (error: any) {
-    console.error('Create tenant error:', error);
+    console.warn('Create tenant error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       message: error.message || 'Failed to create tenant'

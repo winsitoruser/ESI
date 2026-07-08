@@ -24,7 +24,7 @@ export default async function handler(
     });
 
   } catch (error: any) {
-    console.error('Error fetching analytics:', error);
+    console.warn('Error fetching analytics: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: 'Internal server error', message: error.message });
   }
 }

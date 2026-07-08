@@ -1,0 +1,31 @@
+{
+  "name": "humanify",
+  "version": "1.0.0",
+  "description": "Humanify — HRIS System by Naincode Inti Teknologi",
+  "author": "Naincode Inti Teknologi",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port=3020",
+    "build": "next build",
+    "start": "next start --port=3020",
+    "lint": "next lint",
+    "db:migrate": "sequelize-cli db:migrate",
+    "db:hris-migrate": "node scripts/migrate-hris-core-tables.js",
+    "db:hris-extended-migrate": "node scripts/migrate-hris-extended-tables.js",
+    "db:hris-field-migrate": "node scripts/migrate-hris-field-integration.js",
+    "db:attendance-migrate": "node scripts/migrate-attendance-tables.js",
+    "db:payroll-migrate": "node scripts/migrate-payroll-tables.js",
+    "db:org-migrate": "node scripts/migrate-org-tables.js",
+    "db:employee-portal-migrate": "node scripts/migrate-employee-portal.js",
+    "db:employee-lifecycle-migrate": "node scripts/migrate-employee-lifecycle.js",
+    "db:humanify-superadmin": "node scripts/ensure-humanify-superadmin.js",
+    "db:hris-smoke-deps": "node scripts/migrate-hris-smoke-deps.js",
+    "db:hris-seed": "node scripts/seed-hris-demo-data.js",
+    "smoke": "node scripts/smoke-test-hris-full.js",
+    "smoke:attendance": "node scripts/smoke-test-attendance.js",
+    "smoke:payroll": "node scripts/smoke-test-payroll.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

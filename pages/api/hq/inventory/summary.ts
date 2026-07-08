@@ -116,7 +116,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       }))
     });
   } catch (error: any) {
-    console.error('[Inventory Summary] DB error:', error.message);
+    console.warn('[Inventory Summary] DB error:', error.message);
     return res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 }

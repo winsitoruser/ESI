@@ -55,7 +55,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(405).json({ error: 'Method not allowed' });
     }
   } catch (error: any) {
-    console.error('Inventory Realtime API Error:', error);
+    console.warn('Inventory Realtime API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message });
   }
 }
@@ -234,7 +234,7 @@ async function getRealtimeData(
     });
 
   } catch (error: any) {
-    console.error('Error fetching realtime inventory:', error);
+    console.warn('Error fetching realtime inventory: (table may not exist):', (error as any)?.message || error);
     return res.status(200).json({
       success: true,
       data: getMockRealtimeData()

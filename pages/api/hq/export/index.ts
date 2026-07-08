@@ -45,7 +45,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ error: 'Invalid export type' });
     }
   } catch (error: any) {
-    console.error('HQ Export API Error:', error);
+    console.warn('HQ Export API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message });
   }
 }

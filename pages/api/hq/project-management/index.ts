@@ -192,7 +192,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         return res.status(400).json({ success: false, error: 'UNKNOWN_ACTION', message: `Unknown action: ${action}` });
     }
   } catch (error: any) {
-    console.error('Project Management API Error:', error);
+    console.warn('Project Management API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ 
       success: false, 
       error: 'SERVER_ERROR', 
@@ -304,7 +304,7 @@ async function handleDashboard(req: NextApiRequest, res: NextApiResponse, tenant
       }
     });
   } catch (e) {
-    console.error('Dashboard error:', e);
+    console.warn('Dashboard error: (table may not exist):', (e as any)?.message || e);
     // Fallback to demo data
     return res.status(200).json({ success: true, data: buildEsiDemoDashboard() });
   }
@@ -380,7 +380,7 @@ async function handleGetProjects(req: NextApiRequest, res: NextApiResponse, tena
       data: { rows: enrichedRows, total: count, page: pageNum, limit: limitNum, totalPages: Math.ceil(count / limitNum) }
     });
   } catch (e: any) {
-    console.error('Get projects error:', e);
+    console.warn('Get projects error (table may not exist):', (e as any)?.message || e);
     // Fallback to demo
     const filtered = filterEsiDemoProjects({ 
       status: status as string, 
@@ -1644,7 +1644,7 @@ async function refreshProjectRollups(projectId: string): Promise<void> {
       { where: { id: projectId } }
     );
   } catch (e) {
-    console.error('Error refreshing project rollups:', e);
+    console.warn('Error refreshing project rollups (table may not exist):', (e as any)?.message || e);
   }
 }
 
@@ -1668,7 +1668,7 @@ async function logActivity(
       });
     }
   } catch (e) {
-    console.error('Error logging activity:', e);
+    console.warn('Error logging activity: (table may not exist):', (e as any)?.message || e);
   }
 }
 

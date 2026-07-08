@@ -296,7 +296,7 @@ export default async function handler(
     }
 
   } catch (error: any) {
-    console.error('Low stock alert API error:', error);
+    console.warn('Low stock alert API error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Internal server error',

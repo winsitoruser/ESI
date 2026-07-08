@@ -171,7 +171,7 @@ export default async function handler(
 
         createdCount++;
       } catch (insertError: any) {
-        console.error(`Error inserting transaction ${i}:`, insertError.message);
+        console.warn(`Error inserting transaction ${i}:`, insertError.message);
         // Return the first error to help debug
         if (createdCount === 0) {
           return res.status(500).json({
@@ -208,7 +208,7 @@ export default async function handler(
     });
 
   } catch (error: any) {
-    console.error('Seed transactions error:', error);
+    console.warn('Seed transactions error: (table may not exist):', (error as any)?.message || error);
     res.status(500).json({
       success: false,
       error: error.message,

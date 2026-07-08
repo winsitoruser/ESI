@@ -234,7 +234,7 @@ const convertToPDF = (reportData: ReportData, type: string): Buffer => {
     // Convert to buffer and return
     return Buffer.from(doc.output('arraybuffer'));
   } catch (error) {
-    console.error('Error generating PDF:', error);
+    console.warn('Error generating PDF: (table may not exist):', (error as any)?.message || error);
     // Fallback to simple text if PDF generation fails
     const flatData = {};
     // Get data based on report type
@@ -349,7 +349,7 @@ export default async function handler(
     // Send the response
     res.status(200).send(content);
   } catch (error) {
-    console.error('Error exporting financial reports:', error);
+    console.warn('Error exporting financial reports: (table may not exist):', (error as any)?.message || error);
     const { status, message } = handleApiError(error);
     res.status(status).json({ error: message });
   }

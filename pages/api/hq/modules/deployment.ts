@@ -27,7 +27,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(405).json({ success: false, error: 'Method not allowed' });
     }
   } catch (error: any) {
-    console.error('Module Deployment API error:', error);
+    console.warn('Module Deployment API error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message });
   }
 }
@@ -137,7 +137,7 @@ async function getDeploymentStatus(
       }
     });
   } catch (error: any) {
-    console.error('Error getting deployment status:', error);
+    console.warn('Error getting deployment status: (table may not exist):', (error as any)?.message || error);
     return res.status(200).json({
       success: true,
       data: getMockDeploymentStatus()
@@ -331,7 +331,7 @@ async function deployModules(
       }
     });
   } catch (error: any) {
-    console.error('Error deploying modules:', error);
+    console.warn('Error deploying modules: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: error.message

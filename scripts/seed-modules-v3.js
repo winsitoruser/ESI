@@ -122,7 +122,7 @@ const MODULES = [
   {
     code: 'hris', name: 'HRIS & SDM', 
     description: 'Human Resource Information System lengkap: karyawan, kehadiran, shift, KPI, performance review, cuti, payroll, organisasi, IR, ESS/MSS',
-    icon: 'UserCheck', route: '/hq/hris', category: 'hr', pricing_tier: 'professional', setup_complexity: 'complex',
+    icon: 'UserCheck', route: '/humanify', category: 'hr', pricing_tier: 'professional', setup_complexity: 'complex',
     color: '#7C3AED', is_core: false, sort_order: 31,
     features: JSON.stringify(['Database karyawan lengkap', 'Kehadiran multi-method', 'Manajemen shift & rotasi', 'KPI & Performance', 'Manajemen cuti', 'Payroll', 'Struktur organisasi', 'Industrial Relations', 'ESS/MSS', 'Workforce Analytics', 'Travel & Expense', 'Project Management']),
     tags: JSON.stringify(['addon', 'pro', 'hr', 'premium'])

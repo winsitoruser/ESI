@@ -37,7 +37,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       res.status(405).end(`Method ${req.method} Not Allowed`);
     }
   } catch (error: any) {
-    console.error('Error handling batch rack operation:', error);
+    console.warn('Error handling batch rack operation: (table may not exist):', (error as any)?.message || error);
     res.status(500).json({ 
       success: false, 
       message: 'An error occurred while processing the request', 
@@ -95,7 +95,7 @@ async function handleBatchCreate(
         data: createdRacks
       });
     } catch (dbError: any) {
-      console.error('Database error during batch rack creation:', dbError);
+      console.warn('Database error during batch rack creation: (table may not exist):', (dbError as any)?.message || dbError);
       
       // Fall back to mock data in case of database error
       const mockRacks = createMockRacks(tenantId, racks.length);
@@ -111,7 +111,7 @@ async function handleBatchCreate(
       });
     }
   } catch (error: any) {
-    console.error('Error in batch create racks:', error);
+    console.warn('Error in batch create racks: (table may not exist):', (error as any)?.message || error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to create racks in batch', 
@@ -152,7 +152,7 @@ async function handleBatchDelete(
         data: { count: result.count, ids }
       });
     } catch (dbError: any) {
-      console.error('Database error during batch rack deletion:', dbError);
+      console.warn('Database error during batch rack deletion: (table may not exist):', (dbError as any)?.message || dbError);
       
       return res.status(200).json({
         success: true,
@@ -165,7 +165,7 @@ async function handleBatchDelete(
       });
     }
   } catch (error: any) {
-    console.error('Error in batch delete racks:', error);
+    console.warn('Error in batch delete racks: (table may not exist):', (error as any)?.message || error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to delete racks in batch', 

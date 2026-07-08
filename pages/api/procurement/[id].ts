@@ -71,7 +71,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(400).json(fail('INVALID_TYPE', 'type must be tender or rfq'));
   } catch (error: any) {
-    console.error('[Procurement Detail]', error.message);
+    console.warn('[Procurement Detail]', error.message);
     return res.status(500).json(fail('INTERNAL_ERROR', error.message));
   }
 }

@@ -29,7 +29,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(405).json({ error: 'Method not allowed' });
     }
   } catch (error: any) {
-    console.error('Partner Detail API Error:', error);
+    console.warn('Partner Detail API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Internal server error',
@@ -74,7 +74,7 @@ async function getPartnerDetail(id: string, res: NextApiResponse) {
       data: partner
     });
   } catch (error: any) {
-    console.error('Get Partner Detail Error:', error);
+    console.warn('Get Partner Detail Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Failed to fetch partner details',
@@ -138,7 +138,7 @@ async function updatePartner(id: string, req: NextApiRequest, res: NextApiRespon
       message: 'Partner updated successfully'
     });
   } catch (error: any) {
-    console.error('Update Partner Error:', error);
+    console.warn('Update Partner Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Failed to update partner',
@@ -176,7 +176,7 @@ async function deletePartner(id: string, res: NextApiResponse) {
       message: 'Partner deleted successfully'
     });
   } catch (error: any) {
-    console.error('Delete Partner Error:', error);
+    console.warn('Delete Partner Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Failed to delete partner',

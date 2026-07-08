@@ -27,7 +27,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     return await triggerSync(req, res);
   } catch (error) {
-    console.error('Sync trigger API Error:', error);
+    console.warn('Sync trigger API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
@@ -86,7 +86,7 @@ async function triggerSync(req: NextApiRequest, res: NextApiResponse) {
       results
     });
   } catch (error: any) {
-    console.error('Error triggering sync:', error);
+    console.warn('Error triggering sync: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ 
       error: 'Failed to trigger sync',
       message: error.message

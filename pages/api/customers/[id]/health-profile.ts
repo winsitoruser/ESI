@@ -141,7 +141,7 @@ const fetchRealCustomerHealthData = async (customerId: string): Promise<Customer
     
     return null;
   } catch (error) {
-    console.error('Error fetching customer health data:', error);
+    console.warn('Error fetching customer health data: (table may not exist):', (error as any)?.message || error);
     return null;
   }
 };
@@ -187,7 +187,7 @@ export default async function handler(
     
     res.status(200).json(customerData);
   } catch (error) {
-    console.error('Error in customer health profile API:', error);
+    console.warn('Error in customer health profile API: (table may not exist):', (error as any)?.message || error);
     res.status(500).json({ 
       error: 'An error occurred while processing your request',
       isFromMock: true

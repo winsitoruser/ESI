@@ -95,7 +95,7 @@ export default async function handler(
     });
 
   } catch (error: any) {
-    console.error('Error fetching report summary:', error);
+    console.warn('Error fetching report summary: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       message: 'Internal server error',

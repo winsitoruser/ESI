@@ -150,7 +150,7 @@ export default async function handler(
     }
 
   } catch (error: any) {
-    console.error('Payment processing error:', error);
+    console.warn('Payment processing error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Payment processing failed',

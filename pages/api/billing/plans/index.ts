@@ -87,7 +87,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
     });
 
   } catch (error: any) {
-    console.error('Error fetching plans:', error);
+    console.warn('Error fetching plans: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Internal server error',
@@ -176,7 +176,7 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
     });
 
   } catch (error: any) {
-    console.error('Error creating plan:', error);
+    console.warn('Error creating plan: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Internal server error',

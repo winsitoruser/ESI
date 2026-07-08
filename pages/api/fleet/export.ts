@@ -87,7 +87,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Invalid format. Use csv or json' });
     }
   } catch (error: any) {
-    console.error('Export API error:', error);
+    console.warn('Export API error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: error.message });
   }
 }

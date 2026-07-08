@@ -96,7 +96,7 @@ export default async function handler(
     });
 
   } catch (error) {
-    console.error('Error generating consolidated report:', error);
+    console.warn('Error generating consolidated report: (table may not exist):', (error as any)?.message || error);
     res.status(500).json({ error: 'Internal server error' });
   }
 }

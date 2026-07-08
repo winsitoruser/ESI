@@ -66,7 +66,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(405).json({ error: 'Method not allowed' });
     }
   } catch (error: any) {
-    console.error('Table Session API Error:', error);
+    console.warn('Table Session API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: error.message });
   }
 }

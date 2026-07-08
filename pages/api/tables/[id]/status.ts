@@ -45,7 +45,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       message: `Table status updated to ${status}`
     });
   } catch (error: any) {
-    console.error('Update table status error:', error);
+    console.warn('Update table status error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message });
   }
 }

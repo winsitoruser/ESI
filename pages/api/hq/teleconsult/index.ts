@@ -19,7 +19,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         return res.status(405).json({ success: false, error: 'Method not allowed' });
     }
   } catch (error: any) {
-    console.error('Teleconsult API error:', error);
+    console.warn('Teleconsult API error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message || 'Internal server error' });
   }
 }

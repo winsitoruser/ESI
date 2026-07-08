@@ -13,7 +13,7 @@ async function q(query: string, replacements?: any): Promise<any[]> {
     const [rows] = await sequelize.query(query, replacements ? { replacements } : undefined);
     return rows;
   } catch (e: any) {
-    console.error('CRM Query Error:', e.message);
+    console.warn('CRM Query Error:', e.message);
     return [];
   }
 }
@@ -29,7 +29,7 @@ async function qExec(query: string, replacements?: any): Promise<string | null> 
     await sequelize.query(query, replacements ? { replacements } : undefined);
     return null;
   } catch (e: any) {
-    console.error('CRM Exec Error:', e.message);
+    console.warn('CRM Exec Error:', e.message);
     return e.message || 'Database error';
   }
 }
@@ -209,7 +209,7 @@ export async function crmApiHandler(req: NextApiRequest, res: NextApiResponse) {
     res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE']);
     return res.status(405).json({ success: false, error: `Method ${req.method} Not Allowed` });
   } catch (error: any) {
-    console.error('CRM API Error:', error);
+    console.warn('CRM API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message || 'Internal Server Error' });
   }
 }

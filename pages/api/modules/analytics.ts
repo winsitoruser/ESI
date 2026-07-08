@@ -22,7 +22,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   } catch (error: any) {
-    console.error('Module Analytics API error:', error);
+    console.warn('Module Analytics API error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message });
   }
 }
@@ -95,7 +95,7 @@ async function getModuleAnalytics(
       }
     });
   } catch (error: any) {
-    console.error('Error in getModuleAnalytics:', error);
+    console.warn('Error in getModuleAnalytics: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: error.message

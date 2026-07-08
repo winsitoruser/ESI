@@ -5,7 +5,7 @@ const sequelize = require('../lib/sequelize');
 const ProjectPayroll = sequelize.define('ProjectPayroll', {
   id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
   projectId: { type: DataTypes.UUID, allowNull: false, field: 'project_id' },
-  employeeId: { type: DataTypes.INTEGER, allowNull: false, field: 'employee_id' },
+  employeeId: { type: DataTypes.UUID, allowNull: false, field: 'employee_id' },
   periodStart: { type: DataTypes.DATEONLY, allowNull: false, field: 'period_start' },
   periodEnd: { type: DataTypes.DATEONLY, allowNull: false, field: 'period_end' },
   regularHours: { type: DataTypes.DECIMAL(7, 2), defaultValue: 0, field: 'regular_hours' },

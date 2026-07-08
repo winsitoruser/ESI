@@ -17,7 +17,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         return res.status(405).json(errorResponse('METHOD_NOT_ALLOWED', `Method ${req.method} Not Allowed`));
     }
   } catch (error: any) {
-    console.error('Commissions API Error:', error);
+    console.warn('Commissions API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json(errorResponse('INTERNAL_SERVER_ERROR', error.message || 'Internal server error'));
   }
 }
@@ -136,7 +136,7 @@ async function createCommission(req: NextApiRequest, res: NextApiResponse) {
 
     return res.status(201).json(successResponse(commission, undefined, 'Commission created successfully'));
   } catch (dbError: any) {
-    console.error('Create commission DB error:', dbError);
+    console.warn('Create commission DB error: (table may not exist):', (dbError as any)?.message || dbError);
     // Fallback: return mock created commission
     const mockCommission = {
       id: `mock-${Date.now()}`,

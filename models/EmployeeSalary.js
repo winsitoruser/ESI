@@ -24,7 +24,7 @@ const EmployeeSalary = sequelize.define('EmployeeSalary', {
     allowNull: false,
     defaultValue: 'monthly',
     field: 'pay_type',
-    comment: 'monthly, daily, hourly, weekly'
+    comment: 'monthly, daily, hourly, weekly, project, piecework'
   },
   baseSalary: {
     type: DataTypes.DECIMAL(15, 2),
@@ -46,6 +46,36 @@ const EmployeeSalary = sequelize.define('EmployeeSalary', {
     type: DataTypes.DECIMAL(5, 1),
     defaultValue: 40,
     field: 'weekly_hours'
+  },
+  projectRate: {
+    type: DataTypes.DECIMAL(15, 2),
+    defaultValue: 0,
+    field: 'project_rate'
+  },
+  pieceRate: {
+    type: DataTypes.DECIMAL(15, 2),
+    defaultValue: 0,
+    field: 'piece_rate'
+  },
+  pieceUnit: {
+    type: DataTypes.STRING(50),
+    defaultValue: 'unit',
+    field: 'piece_unit'
+  },
+  bpjsEligible: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true,
+    field: 'bpjs_eligible'
+  },
+  taxEligible: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true,
+    field: 'tax_eligible'
+  },
+  projectId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'project_id'
   },
   overtimeRateMultiplier: {
     type: DataTypes.DECIMAL(5, 2),

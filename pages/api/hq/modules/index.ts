@@ -179,7 +179,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(405).json({ success: false, error: 'Method not allowed' });
     }
   } catch (error: any) {
-    console.error('Module Management API error:', error);
+    console.warn('Module Management API error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message });
   }
 }
@@ -243,8 +243,8 @@ async function getModules(
       });
       console.log(`✅ Found ${allModules.length} modules in database`);
     } catch (err: any) {
-      console.error('❌ Error fetching modules:', err.message);
-      console.error('Full error:', err);
+      console.warn('❌ Error fetching modules:', err.message);
+      console.warn('Full error: (table may not exist):', (err as any)?.message || err);
       throw err; // Re-throw to see the actual error
     }
 
@@ -263,7 +263,7 @@ async function getModules(
       tenantModules = await TenantModule.findAll({
         where: { tenantId }
       }).catch((err: any) => {
-        console.error('Error fetching tenant modules:', err.message);
+        console.warn('Error fetching tenant modules:', err.message);
         return [];
       });
     }
@@ -368,7 +368,7 @@ async function getModules(
       }
     });
   } catch (error: any) {
-    console.error('Error in getModules:', error.message);
+    console.warn('Error in getModules:', error.message);
     // Fall back to mock data so the page still renders
     console.warn('⚠️ Falling back to mock module data');
     const mockData = getMockModuleData();

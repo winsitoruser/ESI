@@ -10,13 +10,13 @@ const err = (res: NextApiResponse, msg: string, code = 400) => res.status(code).
 const q = async (sql: string, replacements?: any) => {
   if (!sequelize) return [];
   try { const [rows] = await sequelize.query(sql, { replacements }); return rows as any[]; }
-  catch (e: any) { console.error('FMS-TMS Q:', e.message); return []; }
+  catch (e: any) { console.warn('FMS-TMS Q: (table may not exist):', e.message); return []; }
 };
 const qOne = async (sql: string, replacements?: any) => { const rows = await q(sql, replacements); return rows[0] || null; };
 const qExec = async (sql: string, replacements?: any) => {
   if (!sequelize) return false;
   try { await sequelize.query(sql, { replacements }); return true; }
-  catch (e: any) { console.error('FMS-TMS Exec:', e.message); return false; }
+  catch (e: any) { console.warn('FMS-TMS Exec: (table may not exist):', e.message); return false; }
 };
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -130,7 +130,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         return err(res, `Unknown action: ${action}`);
     }
   } catch (error: any) {
-    console.error('FMS-TMS Integration error:', error);
+    console.warn('FMS-TMS Integration error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message || 'Internal server error' });
   }
 }

@@ -63,7 +63,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         );
     }
   } catch (error) {
-    console.error('Profit & Loss API Error:', error);
+    console.warn('Profit & Loss API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(
       errorResponse(ErrorCodes.INTERNAL_SERVER_ERROR, 'Internal server error')
     );
@@ -154,7 +154,7 @@ async function getProfitLoss(req: NextApiRequest, res: NextApiResponse) {
       successResponse({ summary: mockPLSummary, items: mockPLItems, branches: mockBranchPL, period })
     );
   } catch (error) {
-    console.error('Error fetching P&L:', error);
+    console.warn('Error fetching P&L: (table may not exist):', (error as any)?.message || error);
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(
       errorResponse(ErrorCodes.DATABASE_ERROR, 'Failed to fetch profit & loss')
     );

@@ -47,7 +47,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       total: 1,
     });
   } catch (error: any) {
-    console.error('ESI branches stub error:', error);
+    console.warn('ESI branches stub error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }

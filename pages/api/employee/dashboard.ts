@@ -1,6 +1,25 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
+import {
+  buildLastCheckIn,
+  buildLastCheckOut,
+  buildClockEvent,
+  pickLatestClockEvent,
+  normalizeAnnouncement,
+  normalizeNotification,
+  resolveEmployeeContext,
+  formatRelativeTime,
+  formatCheckInTime,
+} from '../../../lib/employee-portal';
+import {
+  getTodayAttendance,
+  getMonthStatusSummary,
+  getLastClockRow,
+  getAttendanceHistoryRows,
+  portalClockIn,
+  portalClockOut,
+} from '../../../lib/hris/attendance-store';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch (e) {}
@@ -26,6 +45,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         case 'overtime-history':   return getOvertimeHistory(req, res, userId, tenantId);
         case 'travel': return getTravel(res, userId, tenantId);
         case 'notifications': return getNotifications(res, userId);
+        case 'announcements': return getAnnouncements(res, userId, tenantId);
         case 'summary': return getSummary(res, userId, tenantId);
         default: return res.status(400).json({ error: 'Unknown action' });
       }
@@ -41,13 +61,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         case 'submit-overtime':  return submitOvertime(req, res, userId, tenantId);
         case 'cancel-overtime':  return cancelOvertime(req, res, userId, tenantId);
         case 'travel-request': return createTravelRequest(req, res, userId, tenantId);
+        case 'mark-notification-read': return markNotificationRead(req, res, userId);
+        case 'mark-all-notifications-read': return markAllNotificationsRead(res, userId);
         default: return res.status(400).json({ error: 'Unknown action' });
       }
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error: any) {
-    console.error('Employee Dashboard API Error:', error);
+    console.warn('Employee Dashboard API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -58,16 +80,25 @@ async function getProfile(res: NextApiResponse, userId: string, tenantId: string
   try {
     const [rows] = await sequelize.query(`
       SELECT u.id, u.name, u.email, u.phone, u.role,
-        e.employee_id as employee_code, e.position, e.department, e.join_date,
+        e.id as employee_id, e.employee_code, e.position, e.department, e.hire_date as join_date,
+        e.employment_category, e.business_vertical, e.agent_type, e.territory,
         b.name as branch_name, b.code as branch_code
       FROM users u
       LEFT JOIN employees e ON e.user_id = u.id OR e.email = u.email
       LEFT JOIN branches b ON u.assigned_branch_id = b.id OR e.branch_id = b.id
       WHERE u.id = :userId LIMIT 1
     `, { replacements: { userId } });
-    return res.json({ success: true, data: rows[0] || mockProfile() });
+    const profile = rows[0] || mockProfile();
+    const mfCategories = ['account_officer', 'collector', 'surveyor', 'telemarketing', 'field_agent'];
+    const isMfAgent = profile.business_vertical === 'multifinance'
+      || mfCategories.includes(profile.employment_category || '');
+    return res.json({ success: true, data: { ...profile, isMfAgent } });
   } catch { return res.json({ success: true, data: mockProfile() }); }
 }
+
+const employeeAttendanceWhere = `(employee_id IN (
+  SELECT id FROM employees WHERE user_id = :userId OR email = (SELECT email FROM users WHERE id = :userId)
+))`;
 
 // ─── Attendance ───
 async function getAttendance(res: NextApiResponse, userId: string, tenantId: string) {
@@ -75,33 +106,37 @@ async function getAttendance(res: NextApiResponse, userId: string, tenantId: str
   try {
     const today = new Date().toISOString().split('T')[0];
     const monthStart = today.substring(0, 7) + '-01';
-    const [todayRows] = await sequelize.query(`
-      SELECT check_in, check_out, status FROM employee_attendances
-      WHERE (user_id = :userId OR employee_id IN (SELECT id FROM employees WHERE user_id = :userId OR email = (SELECT email FROM users WHERE id = :userId)))
-      AND date = :today LIMIT 1
-    `, { replacements: { userId, today } });
 
-    const [monthRows] = await sequelize.query(`
-      SELECT status, COUNT(*)::int as count FROM employee_attendances
-      WHERE (user_id = :userId OR employee_id IN (SELECT id FROM employees WHERE user_id = :userId OR email = (SELECT email FROM users WHERE id = :userId)))
-      AND date >= :monthStart AND date <= :today
-      GROUP BY status
-    `, { replacements: { userId, monthStart, today } });
+    const todayRow = await getTodayAttendance(sequelize, userId, today);
+    const todayCheckIn = buildClockEvent('check_in', todayRow);
+    const todayCheckOut = buildClockEvent('check_out', todayRow);
+    const monthSummary = await getMonthStatusSummary(sequelize, userId, monthStart, today);
 
-    const monthSummary: Record<string, number> = {};
-    (monthRows || []).forEach((r: any) => { monthSummary[r.status] = r.count; });
+    let lastCheckIn: any = todayCheckIn;
+    let lastCheckOut: any = todayCheckOut;
+    if (!lastCheckIn) lastCheckIn = buildLastCheckIn(await getLastClockRow(sequelize, userId, 'in'));
+    if (!lastCheckOut) lastCheckOut = buildLastCheckOut(await getLastClockRow(sequelize, userId, 'out'));
+
+    const lastClockEvent = pickLatestClockEvent(todayCheckOut, todayCheckIn, lastCheckOut, lastCheckIn);
 
     return res.json({
       success: true,
       data: {
-        today: todayRows[0] || null,
+        today: todayRow ? {
+          ...todayRow,
+          check_in: formatCheckInTime(todayRow.check_in || todayRow.check_in_at),
+          check_out: formatCheckInTime(todayRow.check_out || todayRow.check_out_at),
+        } : null,
         thisMonth: {
           present: monthSummary['present'] || 0,
           late: monthSummary['late'] || 0,
           absent: monthSummary['absent'] || 0,
           leave: monthSummary['leave'] || 0,
-        }
-      }
+        },
+        lastCheckIn,
+        lastCheckOut,
+        lastClockEvent,
+      },
     });
   } catch { return res.json({ success: true, data: mockAttendance() }); }
 }
@@ -118,41 +153,17 @@ async function getAttendanceHistory(req: NextApiRequest, res: NextApiResponse, u
   if (!sequelize) return res.json({ success: true, data: mockAttendanceHistory(targetMonth) });
 
   try {
-    const [rows] = await sequelize.query(`
-      SELECT
-        date,
-        check_in, check_out, status, notes,
-        CASE
-          WHEN check_in IS NOT NULL AND check_out IS NOT NULL
-          THEN ROUND(EXTRACT(EPOCH FROM (check_out::time - check_in::time)) / 3600, 2)
-          ELSE NULL
-        END AS work_hours,
-        CASE
-          WHEN check_in IS NOT NULL AND check_in::time > '08:15:00'
-          THEN ROUND(EXTRACT(EPOCH FROM (check_in::time - '08:00:00')) / 60)
-          ELSE 0
-        END AS late_minutes
-      FROM employee_attendances
-      WHERE (user_id = :userId
-        OR employee_id IN (
-          SELECT id FROM employees WHERE user_id = :userId
-          OR email = (SELECT email FROM users WHERE id = :userId)
-        ))
-        AND date >= :monthStart AND date < :monthEnd
-      ORDER BY date DESC
-    `, { replacements: { userId, monthStart, monthEnd } });
-
-    const records = rows as any[];
+    const records = await getAttendanceHistoryRows(sequelize, userId, monthStart, monthEnd);
     const summary = {
       present: records.filter(r => r.status === 'present').length,
       late:    records.filter(r => r.status === 'late').length,
       absent:  records.filter(r => r.status === 'absent').length,
       leave:   records.filter(r => r.status === 'leave').length,
-      wfh:     records.filter(r => r.status === 'wfh').length,
+      wfh:     records.filter(r => r.status === 'work_from_home' || r.status === 'wfh').length,
       total:   records.length,
     };
-    const totalWorkHours = records.reduce((s, r) => s + (parseFloat(r.work_hours) || 0), 0);
-    const workDaysInMonth = records.filter(r => ['present','late','wfh'].includes(r.status)).length;
+    const totalWorkHours = records.reduce((s, r) => s + (Number(r.work_hours) || 0), 0);
+    const workDaysInMonth = records.filter(r => ['present','late','work_from_home','wfh'].includes(r.status)).length;
     const attendanceRate = summary.total > 0
       ? Math.round(((summary.present + summary.late + summary.wfh) / summary.total) * 100)
       : 0;
@@ -305,33 +316,79 @@ async function cancelOvertime(req: NextApiRequest, res: NextApiResponse, userId:
 
 // ─── Clock In/Out ───
 async function clockIn(req: NextApiRequest, res: NextApiResponse, userId: string, tenantId: string) {
-  if (!sequelize) return res.json({ success: true, data: { checkIn: new Date().toTimeString().substring(0, 5) } });
+  const { latitude, longitude, address, accuracy } = req.body || {};
+  const checkInTime = new Date().toTimeString().substring(0, 5);
+  const locationPayload = (latitude != null && longitude != null)
+    ? { lat: Number(latitude), lng: Number(longitude), address: address || null, accuracy: accuracy != null ? Number(accuracy) : null }
+    : null;
+
+  if (!sequelize) {
+    return res.json({
+      success: true,
+      data: {
+        checkIn: checkInTime,
+        location: locationPayload || { address: 'Kantor Pusat Jakarta', lat: -6.2088, lng: 106.8456 },
+      },
+    });
+  }
+
   try {
     const today = new Date().toISOString().split('T')[0];
-    const now = new Date().toISOString();
-    await sequelize.query(`
-      INSERT INTO employee_attendances (user_id, date, check_in, status, created_at, updated_at)
-      VALUES (:userId, :today, :now, 'present', :now, :now)
-      ON CONFLICT (user_id, date) DO UPDATE SET check_in = :now, status = 'present', updated_at = :now
-    `, { replacements: { userId, today, now } });
-    return res.json({ success: true, data: { checkIn: new Date().toTimeString().substring(0, 5) } });
-  } catch (e: any) {
-    return res.json({ success: true, data: { checkIn: new Date().toTimeString().substring(0, 5) }, message: 'Mock clock-in' });
+    const locationJson = locationPayload ? JSON.stringify(locationPayload) : null;
+    await portalClockIn(sequelize, userId, tenantId, locationJson, 'gps_mobile');
+
+    return res.json({
+      success: true,
+      data: {
+        checkIn: checkInTime,
+        location: locationPayload,
+        mapsUrl: locationPayload ? `https://www.google.com/maps?q=${locationPayload.lat},${locationPayload.lng}` : null,
+      },
+    });
+  } catch {
+    return res.json({
+      success: true,
+      data: { checkIn: checkInTime, location: locationPayload },
+      message: 'Mock clock-in',
+    });
   }
 }
 
 async function clockOut(req: NextApiRequest, res: NextApiResponse, userId: string, tenantId: string) {
-  if (!sequelize) return res.json({ success: true, data: { checkOut: new Date().toTimeString().substring(0, 5) } });
+  const { latitude, longitude, address, accuracy } = req.body || {};
+  const checkOutTime = new Date().toTimeString().substring(0, 5);
+  const locationPayload = (latitude != null && longitude != null)
+    ? { lat: Number(latitude), lng: Number(longitude), address: address || null, accuracy: accuracy != null ? Number(accuracy) : null }
+    : null;
+
+  if (!sequelize) {
+    return res.json({
+      success: true,
+      data: {
+        checkOut: checkOutTime,
+        location: locationPayload || { address: 'Kantor Pusat Jakarta', lat: -6.2088, lng: 106.8456 },
+        mapsUrl: locationPayload ? `https://www.google.com/maps?q=${locationPayload.lat},${locationPayload.lng}` : null,
+      },
+    });
+  }
+
   try {
-    const today = new Date().toISOString().split('T')[0];
-    const now = new Date().toISOString();
-    await sequelize.query(`
-      UPDATE employee_attendances SET check_out = :now, updated_at = :now
-      WHERE user_id = :userId AND date = :today
-    `, { replacements: { userId, today, now } });
-    return res.json({ success: true, data: { checkOut: new Date().toTimeString().substring(0, 5) } });
+    const locationJson = locationPayload ? JSON.stringify(locationPayload) : null;
+    await portalClockOut(sequelize, userId, tenantId, locationJson, 'gps_mobile');
+
+    return res.json({
+      success: true,
+      data: {
+        checkOut: checkOutTime,
+        location: locationPayload,
+        mapsUrl: locationPayload ? `https://www.google.com/maps?q=${locationPayload.lat},${locationPayload.lng}` : null,
+      },
+    });
   } catch {
-    return res.json({ success: true, data: { checkOut: new Date().toTimeString().substring(0, 5) } });
+    return res.json({
+      success: true,
+      data: { checkOut: checkOutTime, location: locationPayload },
+    });
   }
 }
 
@@ -551,7 +608,83 @@ async function createTravelRequest(req: NextApiRequest, res: NextApiResponse, us
 
 // ─── Notifications ───
 async function getNotifications(res: NextApiResponse, userId: string) {
+  if (!sequelize) return res.json({ success: true, data: mockNotifications() });
+  try {
+    const [rows] = await sequelize.query(`
+      SELECT id, title, message, type, read_at, created_at, source_type, source_id
+      FROM employee_notifications
+      WHERE user_id = :userId OR employee_id IN (
+        SELECT id FROM employees WHERE user_id = :userId OR email = (SELECT email FROM users WHERE id = :userId)
+      )
+      ORDER BY created_at DESC LIMIT 30
+    `, { replacements: { userId } });
+    if (rows?.length) {
+      return res.json({ success: true, data: (rows as any[]).map(normalizeNotification) });
+    }
+  } catch { /* fall through */ }
   return res.json({ success: true, data: mockNotifications() });
+}
+
+async function markNotificationRead(req: NextApiRequest, res: NextApiResponse, userId: string) {
+  const { id } = req.body || {};
+  if (!id) return res.status(400).json({ success: false, error: 'id required' });
+  if (!sequelize) return res.json({ success: true });
+  try {
+    await sequelize.query(`
+      UPDATE employee_notifications SET read_at = NOW()
+      WHERE id = :id AND (user_id = :userId OR employee_id IN (
+        SELECT id FROM employees WHERE user_id = :userId
+      ))
+    `, { replacements: { id, userId } });
+    return res.json({ success: true });
+  } catch {
+    return res.json({ success: true });
+  }
+}
+
+async function markAllNotificationsRead(res: NextApiResponse, userId: string) {
+  if (!sequelize) return res.json({ success: true });
+  try {
+    await sequelize.query(`
+      UPDATE employee_notifications SET read_at = NOW()
+      WHERE read_at IS NULL AND (user_id = :userId OR employee_id IN (
+        SELECT id FROM employees WHERE user_id = :userId
+      ))
+    `, { replacements: { userId } });
+    return res.json({ success: true });
+  } catch {
+    return res.json({ success: true });
+  }
+}
+
+// ─── Company Announcements ───
+async function getAnnouncements(res: NextApiResponse, userId: string, tenantId: string) {
+  if (!sequelize) return res.json({ success: true, data: mockAnnouncements() });
+  try {
+    const ctx = await resolveEmployeeContext(sequelize, userId);
+    const tid = tenantId || ctx.tenantId || '';
+    const [rows] = await sequelize.query(`
+      SELECT id, title, content, category, priority, is_pinned, status, target_audience,
+        target_department, target_branch, published_at, expires_at, view_count, created_at
+      FROM hris_announcements
+      WHERE is_active = true
+        AND (status = 'published' OR status IS NULL)
+        AND (tenant_id IS NULL OR tenant_id = :tid OR :tid = '')
+        AND (published_at IS NULL OR published_at <= NOW())
+        AND (expires_at IS NULL OR expires_at > NOW())
+        AND (
+          target_audience = 'all' OR target_audience IS NULL
+          OR (target_audience = 'department' AND (:dept IS NOT NULL AND target_department = :dept))
+          OR (target_audience = 'branch' AND (:branchId IS NOT NULL AND target_branch::text = :branchId::text))
+        )
+      ORDER BY is_pinned DESC, published_at DESC NULLS LAST, created_at DESC
+      LIMIT 15
+    `, { replacements: { tid, dept: ctx.department, branchId: ctx.branchId } });
+    if (rows?.length) {
+      return res.json({ success: true, data: (rows as any[]).map(normalizeAnnouncement) });
+    }
+  } catch { /* fall through */ }
+  return res.json({ success: true, data: mockAnnouncements() });
 }
 
 // ─── Summary ───
@@ -592,7 +725,55 @@ function mockProfile() {
   return { name: 'Budi Santoso', email: 'budi@bedagang.com', phone: '08123456789', position: 'Senior Developer', department: 'Engineering', branch_name: 'Cabang Jakarta Pusat', employee_code: 'EMP-2024-007', join_date: '2023-06-15' };
 }
 function mockAttendance() {
-  return { today: { check_in: '08:15', check_out: null, status: 'present' }, thisMonth: { present: 18, late: 2, absent: 1, leave: 1 } };
+  const locIn = { lat: -6.2088, lng: 106.8456, address: 'Kantor Pusat Jakarta, Jl. Sudirman', accuracy: 12 };
+  const today = new Date().toISOString().split('T')[0];
+  const lastIn = {
+    type: 'check_in' as const,
+    label: 'Clock In',
+    time: '08:15',
+    date: today,
+    location: locIn,
+    mapsUrl: 'https://www.google.com/maps?q=-6.2088,106.8456',
+  };
+  return {
+    today: { check_in: '08:15', check_out: null, status: 'present' },
+    thisMonth: { present: 18, late: 2, absent: 1, leave: 1 },
+    lastCheckIn: lastIn,
+    lastCheckOut: null,
+    lastClockEvent: lastIn,
+  };
+}
+
+function mockAnnouncements() {
+  return [
+    {
+      id: 'ann1',
+      title: 'Kebijakan Kerja Hybrid 2026',
+      content: 'Mulai Juli 2026, karyawan HQ dapat WFH maksimal 2 hari per minggu dengan persetujuan atasan langsung.',
+      priority: 'high',
+      is_pinned: true,
+      published_at: new Date(Date.now() - 3600000).toISOString(),
+      time: '1 jam lalu',
+    },
+    {
+      id: 'ann2',
+      title: 'Libur Nasional — Hari Raya',
+      content: 'Kantor tutup pada tanggal merah sesuai kalender resmi. Pastikan handover tugas sebelum libur.',
+      priority: 'normal',
+      is_pinned: true,
+      published_at: new Date(Date.now() - 86400000).toISOString(),
+      time: '1 hari lalu',
+    },
+    {
+      id: 'ann3',
+      title: 'Program Kesehatan Karyawan',
+      content: 'Medical check-up gratis untuk seluruh karyawan. Daftar melalui HRIS → Benefits sebelum 30 Juli.',
+      priority: 'normal',
+      is_pinned: false,
+      published_at: new Date(Date.now() - 172800000).toISOString(),
+      time: '2 hari lalu',
+    },
+  ];
 }
 function mockKPI() {
   return { overallScore: 87, metrics: [

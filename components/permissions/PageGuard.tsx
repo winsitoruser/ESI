@@ -1,7 +1,9 @@
 import React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { ShieldAlert, ShieldOff, ArrowLeft, Lock, Info, Loader2 } from 'lucide-react';
 import { useMyPermissions } from '../../contexts/PermissionContext';
+import { HUMANIFY_BASE } from '@/lib/humanify/paths';
 
 // =======================================================================
 // <PageGuard>
@@ -38,7 +40,20 @@ export interface PageGuardProps {
   fallback?: React.ReactNode;
   /** Saat permission masih loading → tampilkan skeleton. */
   loadingComponent?: React.ReactNode;
+  /** Override link dashboard pada UI akses ditolak (default: /humanify atau /hq). */
+  dashboardHref?: string;
+  /** Override link roles pada UI akses ditolak. */
+  rolesHref?: string;
   children: React.ReactNode;
+}
+
+function useAccessDeniedPaths(dashboardHref?: string, rolesHref?: string) {
+  const router = useRouter();
+  const isHumanify = router.pathname.startsWith('/humanify');
+  return {
+    dashboardHref: dashboardHref ?? (isHumanify ? HUMANIFY_BASE : '/hq'),
+    rolesHref: rolesHref ?? (isHumanify ? '/humanify/users/roles' : '/hq/users/roles'),
+  };
 }
 
 function DefaultAccessDenied({
@@ -46,13 +61,17 @@ function DefaultAccessDenied({
   description,
   requiredPermission,
   roleCode,
-  roleLevel
+  roleLevel,
+  dashboardHref,
+  rolesHref,
 }: {
   title?: string;
   description?: string;
   requiredPermission?: string;
   roleCode?: string | null;
   roleLevel?: number | null;
+  dashboardHref: string;
+  rolesHref: string;
 }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-red-50/40 to-orange-50/40 flex items-center justify-center p-6">
@@ -123,14 +142,14 @@ function DefaultAccessDenied({
 
           <div className="flex items-center gap-3 pt-2">
             <Link
-              href="/hq"
+              href={dashboardHref}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 text-white rounded-xl font-semibold hover:bg-slate-800 transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
               Kembali ke Dashboard
             </Link>
             <Link
-              href="/hq/users/roles"
+              href={rolesHref}
               className="flex-1 text-center px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-semibold hover:bg-slate-200 transition-colors"
             >
               Lihat Roles
@@ -163,9 +182,12 @@ export function PageGuard({
   description,
   fallback,
   loadingComponent,
+  dashboardHref: dashboardHrefProp,
+  rolesHref: rolesHrefProp,
   children
 }: PageGuardProps) {
   const { data, loading, can, canAny, canAll } = useMyPermissions();
+  const { dashboardHref, rolesHref } = useAccessDeniedPaths(dashboardHrefProp, rolesHrefProp);
 
   if (loading) {
     return <>{loadingComponent ?? <DefaultLoading />}</>;
@@ -215,6 +237,8 @@ export function PageGuard({
             requiredPermission={requiredLabel}
             roleCode={data.roleCode}
             roleLevel={data.roleLevel}
+            dashboardHref={dashboardHref}
+            rolesHref={rolesHref}
           />
         )}
       </>

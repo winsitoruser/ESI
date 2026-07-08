@@ -15,7 +15,7 @@ const q = async (sql: string, replacements?: any) => {
   try {
     const [rows] = await sequelize.query(sql, { replacements });
     return rows as any[];
-  } catch (e: any) { console.error('Enhanced Q:', e.message); return []; }
+  } catch (e: any) { console.warn('Enhanced Q: (table may not exist):', e.message); return []; }
 };
 const qOne = async (sql: string, replacements?: any) => {
   const rows = await q(sql, replacements);
@@ -26,7 +26,7 @@ const qExec = async (sql: string, replacements?: any) => {
   try {
     await sequelize.query(sql, { replacements });
     return true;
-  } catch (e: any) { console.error('Enhanced Exec:', e.message); return false; }
+  } catch (e: any) { console.warn('Enhanced Exec: (table may not exist):', e.message); return false; }
 };
 
 /** Extract pagination params */
@@ -803,7 +803,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         return err(res, `Unknown action: ${action}`);
     }
   } catch (error: any) {
-    console.error('SFA Enhanced API error:', error);
+    console.warn('SFA Enhanced API error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message || 'Internal server error' });
   }
 }

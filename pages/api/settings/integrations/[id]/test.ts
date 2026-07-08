@@ -82,7 +82,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       data: testResult.details
     });
   } catch (error: any) {
-    console.error('Integration Test API Error:', error);
+    console.warn('Integration Test API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: error.message });
   }
 }

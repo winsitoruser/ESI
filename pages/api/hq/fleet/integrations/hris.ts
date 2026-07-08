@@ -143,7 +143,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return err(res, `Unknown action: ${action}`);
     }
   } catch (e: any) {
-    console.error('[hris integration]', e);
+    console.warn('[hris integration] (table may not exist):', (e as any)?.message || e);
     return err(res, e?.message || 'Internal error', 500);
   }
 }

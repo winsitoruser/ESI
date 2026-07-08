@@ -40,7 +40,7 @@ async function get(req: NextApiRequest, res: NextApiResponse) {
       summary
     });
   } catch (error) {
-    console.error('Error fetching requests:', error);
+    console.warn('Error fetching requests: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
@@ -102,7 +102,7 @@ async function post(req: NextApiRequest, res: NextApiResponse) {
       message: 'Pengajuan berhasil dibuat'
     });
   } catch (error) {
-    console.error('Error creating request:', error);
+    console.warn('Error creating request: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

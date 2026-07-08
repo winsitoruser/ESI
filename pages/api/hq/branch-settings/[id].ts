@@ -73,7 +73,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       errorResponse(ErrorCodes.METHOD_NOT_ALLOWED, `Method ${req.method} Not Allowed`)
     );
   } catch (error: any) {
-    console.error('[branch-settings/[id]] error:', error?.message || error);
+    console.warn('[branch-settings/[id]] error: (table may not exist):', error?.message || error);
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(
       errorResponse(ErrorCodes.INTERNAL_SERVER_ERROR, error?.message || 'Internal server error')
     );

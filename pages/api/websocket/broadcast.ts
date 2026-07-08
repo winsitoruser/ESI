@@ -91,7 +91,7 @@ export async function broadcastEvent(event: string, data: any, branchId?: string
     });
     return true;
   } catch (error) {
-    console.error('[Broadcast] Error:', error);
+    console.warn('[Broadcast] Error: (table may not exist):', (error as any)?.message || error);
     return false;
   }
 }

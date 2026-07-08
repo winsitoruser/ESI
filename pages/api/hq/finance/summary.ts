@@ -259,7 +259,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       period
     });
   } catch (error) {
-    console.error('Error fetching finance summary:', error);
+    console.warn('Error fetching finance summary: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

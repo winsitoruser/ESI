@@ -31,7 +31,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
     }
   } catch (error) {
-    console.error('Tenant API Error:', error);
+    console.warn('Tenant API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
@@ -119,7 +119,7 @@ async function getTenants(req: NextApiRequest, res: NextApiResponse) {
       totalPages: Math.ceil(count / limitNum)
     });
   } catch (error) {
-    console.error('Error fetching tenants:', error);
+    console.warn('Error fetching tenants: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: 'Failed to fetch tenants' });
   }
 }
@@ -182,7 +182,7 @@ async function createTenant(req: NextApiRequest, res: NextApiResponse) {
       message: 'Tenant created successfully'
     });
   } catch (error: any) {
-    console.error('Error creating tenant:', error);
+    console.warn('Error creating tenant: (table may not exist):', (error as any)?.message || error);
     if (error.name === 'SequelizeUniqueConstraintError') {
       return res.status(400).json({ error: 'Tenant code already exists' });
     }

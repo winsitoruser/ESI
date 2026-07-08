@@ -1,11 +1,14 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/router';
+import { HUMANIFY_PERMISSIONS_API } from '@/lib/humanify/paths';
 
 // =======================================================================
 // PermissionContext
 // =======================================================================
 // Context + hook untuk akses permission user yang sedang login.
-// Otomatis memuat `/api/hq/me/permissions` setelah session ready,
+// Otomatis memuat `/api/hq/me/permissions` atau `/api/humanify/me/permissions`
+// setelah session ready,
 // meng-cache hasil, dan menyediakan helper wildcard-aware.
 // =======================================================================
 
@@ -47,6 +50,28 @@ const EMPTY: PermissionSnapshot = {
 
 const PermissionContext = createContext<PermissionContextValue | undefined>(undefined);
 
+const SUPER_ROLES = new Set(['super_admin', 'superhero', 'owner']);
+
+function snapshotFromSession(session: ReturnType<typeof useSession>['data']): PermissionSnapshot | null {
+  const role = ((session?.user as { role?: string } | undefined)?.role || '').toLowerCase();
+  if (!SUPER_ROLES.has(role)) return null;
+  return {
+    user: {
+      id: (session?.user as { id?: string } | undefined)?.id ?? null,
+      email: session?.user?.email ?? null,
+      name: session?.user?.name ?? null,
+      tenantId: (session?.user as { tenantId?: string } | undefined)?.tenantId ?? null,
+    },
+    role,
+    roleId: null,
+    roleCode: 'SUPER_ADMIN',
+    roleLevel: 1,
+    dataScope: 'all_branches',
+    isSuperAdmin: true,
+    permissions: { '*': true },
+  };
+}
+
 export function hasPerm(perms: Record<string, boolean>, key: string): boolean {
   if (perms['*'] === true) return true;
   if (perms[key] === true) return true;
@@ -60,11 +85,16 @@ export function hasPerm(perms: Record<string, boolean>, key: string): boolean {
 }
 
 export function PermissionProvider({ children }: { children: React.ReactNode }) {
-  const { status } = useSession();
+  const { status, data: session } = useSession();
+  const router = useRouter();
   const [data, setData] = useState<PermissionSnapshot>(EMPTY);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lastFetchRef = useRef<number>(0);
+
+  const permissionsApi = router.pathname.startsWith('/humanify')
+    ? HUMANIFY_PERMISSIONS_API
+    : '/api/hq/me/permissions';
 
   const fetchPermissions = useCallback(async (force = false) => {
     const now = Date.now();
@@ -74,12 +104,19 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/hq/me/permissions', { credentials: 'include' });
+      const res = await fetch(permissionsApi, { credentials: 'include' });
       if (res.status === 401) {
         setData(EMPTY);
         return;
       }
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const fallback = snapshotFromSession(session);
+        if (fallback) {
+          setData(fallback);
+          return;
+        }
+        throw new Error(`HTTP ${res.status}`);
+      }
       const json = await res.json();
       setData({
         user: json.user || null,
@@ -92,12 +129,18 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
         permissions: json.permissions || {}
       });
     } catch (err: any) {
-      setError(err?.message || 'Gagal memuat permission');
-      setData(EMPTY);
+      const fallback = snapshotFromSession(session);
+      if (fallback) {
+        setData(fallback);
+        setError(null);
+      } else {
+        setError(err?.message || 'Gagal memuat permission');
+        setData(EMPTY);
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [permissionsApi, session]);
 
   useEffect(() => {
     if (status === 'authenticated') fetchPermissions(true);

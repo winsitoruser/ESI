@@ -53,7 +53,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         offset: parseInt(offset as string)
       });
     } catch (error: any) {
-      console.error('Error fetching point transactions:', error);
+      console.warn('Error fetching point transactions: (table may not exist):', (error as any)?.message || error);
       return res.status(500).json({ error: 'Internal server error', details: error.message });
     }
   }
@@ -135,7 +135,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         newBalance: balanceAfter
       });
     } catch (error: any) {
-      console.error('Error creating point transaction:', error);
+      console.warn('Error creating point transaction: (table may not exist):', (error as any)?.message || error);
       return res.status(500).json({ error: 'Internal server error', details: error.message });
     }
   }

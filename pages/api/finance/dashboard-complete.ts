@@ -391,7 +391,7 @@ export default async function handler(
     });
 
   } catch (error: any) {
-    console.error('Dashboard Complete API Error:', error);
+    console.warn('Dashboard Complete API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: error.message || 'Internal server error',

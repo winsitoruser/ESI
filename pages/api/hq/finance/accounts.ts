@@ -43,7 +43,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         );
     }
   } catch (error) {
-    console.error('Finance Accounts API Error:', error);
+    console.warn('Finance Accounts API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(
       errorResponse(ErrorCodes.INTERNAL_SERVER_ERROR, 'Internal server error')
     );
@@ -93,7 +93,7 @@ async function getAccounts(req: NextApiRequest, res: NextApiResponse) {
       successResponse({ summary: mockSummary, receivables: mockReceivables, payables: mockPayables, agingReceivables: mockAgingReceivables, agingPayables: mockAgingPayables })
     );
   } catch (error) {
-    console.error('Error fetching accounts:', error);
+    console.warn('Error fetching accounts: (table may not exist):', (error as any)?.message || error);
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(
       errorResponse(ErrorCodes.DATABASE_ERROR, 'Failed to fetch accounts')
     );

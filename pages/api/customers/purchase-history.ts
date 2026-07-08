@@ -59,7 +59,7 @@ async function handler(
     
     return success(res, result);
   } catch (error) {
-    console.error('Error fetching customer purchase history:', error);
+    console.warn('Error fetching customer purchase history: (table may not exist):', (error as any)?.message || error);
     
     // Fall back to mock data in case of error
     const filteredHistory = mockPurchaseHistory.filter(p => p.customerId === params.customerId);

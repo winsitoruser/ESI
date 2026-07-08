@@ -383,7 +383,7 @@ export default async function handler(
     });
 
   } catch (error: any) {
-    console.error('Seed error:', error);
+    console.warn('Seed error: (table may not exist):', (error as any)?.message || error);
     res.status(500).json({
       success: false,
       error: error.message,

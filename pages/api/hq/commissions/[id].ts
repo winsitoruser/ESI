@@ -22,7 +22,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         return res.status(405).json(errorResponse('METHOD_NOT_ALLOWED', `Method ${req.method} Not Allowed`));
     }
   } catch (error: any) {
-    console.error('Commission Detail API Error:', error);
+    console.warn('Commission Detail API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json(errorResponse('INTERNAL_SERVER_ERROR', error.message || 'Internal server error'));
   }
 }
@@ -133,7 +133,7 @@ async function updateCommission(req: NextApiRequest, res: NextApiResponse, id: s
 
     return res.status(200).json(successResponse(updated, undefined, 'Commission updated successfully'));
   } catch (dbError: any) {
-    console.error('Update commission error:', dbError);
+    console.warn('Update commission error: (table may not exist):', (dbError as any)?.message || dbError);
     return res.status(500).json(errorResponse('INTERNAL_SERVER_ERROR', dbError.message));
   }
 }
@@ -169,7 +169,7 @@ async function deleteCommission(req: NextApiRequest, res: NextApiResponse, id: s
 
     return res.status(200).json(successResponse(null, undefined, 'Commission deleted successfully'));
   } catch (dbError: any) {
-    console.error('Delete commission error:', dbError);
+    console.warn('Delete commission error: (table may not exist):', (dbError as any)?.message || dbError);
     return res.status(500).json(errorResponse('INTERNAL_SERVER_ERROR', dbError.message));
   }
 }

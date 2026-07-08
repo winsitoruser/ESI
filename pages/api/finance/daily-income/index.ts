@@ -93,7 +93,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     });
   } catch (error: any) {
-    console.error('Daily Income API Error:', error);
+    console.warn('Daily Income API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: error.message });
   }
 }

@@ -105,7 +105,7 @@ export default async function handler(
     });
 
   } catch (error: any) {
-    console.error('Webhook processing error:', error);
+    console.warn('Webhook processing error: (table may not exist):', (error as any)?.message || error);
     res.status(500).json({ 
       error: 'Internal server error',
       message: error.message 

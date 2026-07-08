@@ -11,7 +11,7 @@ async function q(sql: string, replacements?: any): Promise<any[]> {
     const [rows] = await sequelize.query(sql, replacements ? { replacements } : undefined);
     return rows || [];
   } catch (e: any) {
-    console.error('CRM-SFA Integration Error:', e.message);
+    console.warn('CRM-SFA Integration Error:', e.message);
     return [];
   }
 }
@@ -25,7 +25,7 @@ async function qExec(sql: string, replacements?: any): Promise<boolean> {
     await sequelize.query(sql, replacements ? { replacements } : undefined);
     return true;
   } catch (e: any) {
-    console.error('CRM-SFA Exec Error:', e.message);
+    console.warn('CRM-SFA Exec Error:', e.message);
     return false;
   }
 }
@@ -377,7 +377,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.setHeader('Allow', ['GET', 'POST']);
     return res.status(405).json({ success: false, error: `Method ${req.method} Not Allowed` });
   } catch (error: any) {
-    console.error('CRM-SFA Integration Error:', error);
+    console.warn('CRM-SFA Integration Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message || 'Internal server error' });
   }
 }

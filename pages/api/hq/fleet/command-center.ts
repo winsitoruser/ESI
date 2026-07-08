@@ -62,7 +62,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return err(res, `Unknown action: ${action}`);
     }
   } catch (e: any) {
-    console.error('[fleet/command-center] error:', e);
+    console.warn('[fleet/command-center] error: (table may not exist):', (e as any)?.message || e);
     return err(res, e?.message || 'Internal error', 500);
   }
 }

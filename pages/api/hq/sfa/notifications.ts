@@ -25,7 +25,7 @@ async function qExec(sql: string, replacements?: any): Promise<boolean> {
     await sequelize.query(sql, replacements ? { replacements } : undefined);
     return true;
   } catch (e: any) {
-    console.error('Notification Exec Error:', e.message);
+    console.warn('Notification Exec Error:', e.message);
     return false;
   }
 }
@@ -397,7 +397,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.setHeader('Allow', ['GET', 'POST', 'PUT']);
     return res.status(405).json({ success: false, error: `Method ${req.method} Not Allowed` });
   } catch (error: any) {
-    console.error('CRM Notification Error:', error);
+    console.warn('CRM Notification Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message || 'Internal server error' });
   }
 }

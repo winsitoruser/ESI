@@ -25,7 +25,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.log('[Customers API] Menggunakan Sequelize Adapter');
     return handleSequelizeRequest(req, res, tenantId);
   } catch (err: any) {
-    console.error('Error handling customers request:', err);
+    console.warn('Error handling customers request: (table may not exist):', (err as any)?.message || err);
     return res.status(500).json({
       error: 'Internal Server Error',
       message: err.message,

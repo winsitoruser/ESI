@@ -54,7 +54,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ success: false, error: `Unknown action: ${action}` });
     }
   } catch (error: any) {
-    console.error('Billing Info API error:', error);
+    console.warn('Billing Info API error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message || 'Internal server error' });
   }
 }

@@ -353,13 +353,13 @@ export const PERMISSION_CATALOG: PermissionCategory[] = [
   // -----------------------------------------------------
   {
     id: 'hris',
-    name: 'SDM & Payroll',
-    color: 'indigo',
+    name: 'Humanify — SDM & Payroll',
+    color: 'violet',
     modules: [
       {
         code: 'employees',
         name: 'Karyawan',
-        route: '/hq/hris/employees',
+        route: '/humanify/employees',
         operations: [
           ...crud('employees', 'Karyawan'),
           op('employees.import', 'Impor Karyawan', 'import'),
@@ -371,13 +371,13 @@ export const PERMISSION_CATALOG: PermissionCategory[] = [
       {
         code: 'organization',
         name: 'Organisasi & Struktur',
-        route: '/hq/hris/organization',
+        route: '/humanify/organization',
         operations: [...crud('organization', 'Struktur')]
       },
       {
         code: 'attendance',
         name: 'Kehadiran',
-        route: '/hq/hris/attendance',
+        route: '/humanify/attendance',
         operations: [
           op('attendance.view', 'Lihat Kehadiran', 'view'),
           op('attendance.view_all', 'Lihat Semua Karyawan', 'view', true),
@@ -390,7 +390,7 @@ export const PERMISSION_CATALOG: PermissionCategory[] = [
       {
         code: 'leave',
         name: 'Cuti',
-        route: '/hq/hris/leave',
+        route: '/humanify/leave',
         operations: [
           ...crud('leave', 'Cuti'),
           op('leave.approve', 'Setujui Cuti', 'approve', true),
@@ -400,7 +400,7 @@ export const PERMISSION_CATALOG: PermissionCategory[] = [
       {
         code: 'overtime',
         name: 'Lembur',
-        route: '/hq/hris/payroll/lembur',
+        route: '/humanify/payroll/lembur',
         operations: [
           ...crud('overtime', 'Lembur'),
           op('overtime.approve', 'Setujui Lembur', 'approve', true)
@@ -409,7 +409,7 @@ export const PERMISSION_CATALOG: PermissionCategory[] = [
       {
         code: 'payroll',
         name: 'Payroll',
-        route: '/hq/hris/payroll',
+        route: '/humanify/payroll',
         operations: [
           op('payroll.view', 'Lihat Payroll', 'view', true),
           op('payroll.run', 'Jalankan Payroll', 'execute', true),
@@ -427,7 +427,7 @@ export const PERMISSION_CATALOG: PermissionCategory[] = [
       {
         code: 'recruitment',
         name: 'Rekrutmen',
-        route: '/hq/hris/recruitment',
+        route: '/humanify/recruitment',
         operations: [
           ...crud('recruitment', 'Lowongan/Kandidat'),
           op('recruitment.approve_offer', 'Setujui Penawaran', 'approve', true)
@@ -436,7 +436,7 @@ export const PERMISSION_CATALOG: PermissionCategory[] = [
       {
         code: 'performance',
         name: 'Kinerja & KPI',
-        route: '/hq/hris/performance',
+        route: '/humanify/performance',
         operations: [
           ...crud('performance', 'Penilaian Kinerja'),
           op('performance.approve', 'Setujui Penilaian', 'approve'),
@@ -446,7 +446,7 @@ export const PERMISSION_CATALOG: PermissionCategory[] = [
       {
         code: 'training',
         name: 'Training & Development',
-        route: '/hq/hris/training',
+        route: '/humanify/training',
         operations: [
           ...crud('training', 'Training'),
           op('training.scoring', 'Input Nilai Training', 'update'),
@@ -456,7 +456,7 @@ export const PERMISSION_CATALOG: PermissionCategory[] = [
       {
         code: 'travel_expense',
         name: 'Perjalanan Dinas',
-        route: '/hq/hris/travel-expense',
+        route: '/humanify/travel-expense',
         operations: [
           ...crud('travel_expense', 'Travel/Expense'),
           op('travel_expense.approve', 'Setujui Perjalanan', 'approve', true),
@@ -466,7 +466,7 @@ export const PERMISSION_CATALOG: PermissionCategory[] = [
       {
         code: 'industrial_relations',
         name: 'Hub. Industrial',
-        route: '/hq/hris/industrial-relations',
+        route: '/humanify/industrial-relations',
         operations: [
           ...crud('industrial_relations', 'Kasus IR'),
           op('industrial_relations.sensitive', 'Lihat Kasus Sensitif', 'view', true)

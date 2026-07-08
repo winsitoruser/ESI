@@ -149,7 +149,7 @@ export default async function handler(
         try {
           await flowOrchestrator.setupFlowsForTenant(tenantId, allModuleIds);
         } catch (error: any) {
-          console.error('Error setting up flows:', error);
+          console.warn('Error setting up flows: (table may not exist):', (error as any)?.message || error);
         }
         
         return res.status(200).json({
@@ -166,7 +166,7 @@ export default async function handler(
         });
         
       } catch (error: any) {
-        console.error('Module configuration error:', error);
+        console.warn('Module configuration error: (table may not exist):', (error as any)?.message || error);
         return res.status(500).json({
           success: false,
           error: error.message
@@ -213,7 +213,7 @@ export default async function handler(
         });
         
       } catch (error: any) {
-        console.error('Error getting configured modules:', error);
+        console.warn('Error getting configured modules: (table may not exist):', (error as any)?.message || error);
         return res.status(500).json({
           success: false,
           error: error.message
@@ -227,7 +227,7 @@ export default async function handler(
     });
     
   } catch (error: any) {
-    console.error('Module configure API error:', error);
+    console.warn('Module configure API error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: error.message

@@ -104,7 +104,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       });
     } catch (error) {
-      console.error('Admin KYB list error:', error);
+      console.warn('Admin KYB list error: (table may not exist):', (error as any)?.message || error);
       return res.status(500).json({ message: 'Failed to fetch KYB applications' });
     }
   }

@@ -18,7 +18,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
     }
   } catch (error) {
-    console.error('Category API Error:', error);
+    console.warn('Category API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
@@ -49,7 +49,7 @@ async function getCategories(req: NextApiRequest, res: NextApiResponse) {
 
     return res.status(200).json({ categories: formattedCategories });
   } catch (error) {
-    console.error('Error fetching categories:', error);
+    console.warn('Error fetching categories: (table may not exist):', (error as any)?.message || error);
     return res.status(200).json({ categories: getMockCategories() });
   }
 }
@@ -94,7 +94,7 @@ async function createCategory(req: NextApiRequest, res: NextApiResponse) {
     if (error.name === 'SequelizeUniqueConstraintError') {
       return res.status(400).json({ error: 'Category slug already exists' });
     }
-    console.error('Error creating category:', error);
+    console.warn('Error creating category: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: 'Failed to create category' });
   }
 }
@@ -125,7 +125,7 @@ async function updateCategory(req: NextApiRequest, res: NextApiResponse) {
 
     return res.status(200).json({ category, message: 'Category updated successfully' });
   } catch (error) {
-    console.error('Error updating category:', error);
+    console.warn('Error updating category: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: 'Failed to update category' });
   }
 }
@@ -153,7 +153,7 @@ async function deleteCategory(req: NextApiRequest, res: NextApiResponse) {
 
     return res.status(200).json({ message: 'Category deleted successfully' });
   } catch (error) {
-    console.error('Error deleting category:', error);
+    console.warn('Error deleting category: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: 'Failed to delete category' });
   }
 }

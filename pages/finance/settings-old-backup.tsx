@@ -408,7 +408,7 @@ const FinanceSettingsPage: NextPage = () => {
           })));
         }
       } catch (error) {
-        console.error('Failed to fetch assets:', error);
+        console.warn('Failed to fetch assets (table may not exist):', (error as any)?.message || error);
       }
     }
     fetchAssets();

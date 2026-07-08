@@ -102,7 +102,7 @@ export default async function handler(
     }
 
   } catch (error: any) {
-    console.error('Branch performance leaderboard API error:', error);
+    console.warn('Branch performance leaderboard API error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Internal server error',

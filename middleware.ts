@@ -19,6 +19,27 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
+  const isHumanifyPublic =
+    pathname === '/humanify/login' ||
+    pathname === '/humanify/welcome' ||
+    pathname.startsWith('/humanify/welcome/');
+
+  // Humanify platform — pintu masuk & landing publik
+  if (pathname.startsWith('/humanify')) {
+    if (isHumanifyPublic) {
+      return NextResponse.next();
+    }
+    if (!token) {
+      // Root Humanify → landing publik; sub-routes → login
+      if (pathname === '/humanify' || pathname === '/humanify/') {
+        return NextResponse.redirect(new URL('/humanify/welcome', request.url));
+      }
+      const loginUrl = new URL('/humanify/login', request.url);
+      loginUrl.searchParams.set('callbackUrl', pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+  }
+
   // Root & auth — no landing page; login only
   if (
     pathname === '/' ||
@@ -32,7 +53,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Redirect to login if not authenticated
+  // Redirect to login if not authenticated (rute non-Humanify)
   if (!token) {
     const loginUrl = new URL('/auth/login', request.url);
     loginUrl.searchParams.set('callbackUrl', pathname);

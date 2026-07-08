@@ -138,7 +138,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       message: 'HPP calculated and updated successfully'
     });
   } catch (error: any) {
-    console.error('Calculate HPP API error:', error);
+    console.warn('Calculate HPP API error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message });
   }
 }

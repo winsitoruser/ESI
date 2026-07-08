@@ -59,7 +59,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         );
     }
   } catch (error: any) {
-    console.error('Document API Error:', error);
+    console.warn('Document API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(
       errorResponse(ErrorCodes.INTERNAL_SERVER_ERROR, error.message)
     );
@@ -185,7 +185,7 @@ async function handleGenerate(req: NextApiRequest, res: NextApiResponse, session
 
     return res.status(HttpStatus.OK).send(buffer);
   } catch (error: any) {
-    console.error('Document generation error:', error);
+    console.warn('Document generation error: (table may not exist):', (error as any)?.message || error);
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(
       errorResponse(ErrorCodes.INTERNAL_SERVER_ERROR, `Gagal generate dokumen: ${error.message}`)
     );
@@ -256,7 +256,7 @@ function handleGenerateNumber(req: NextApiRequest, res: NextApiResponse, session
 function getPrefix(type: DocumentType): string {
   const prefixMap: Record<string, string> = {
     'invoice': 'INV', 'e-invoice': 'EFP', 'receipt': 'RCP', 'credit-note': 'CN', 'debit-note': 'DN',
-    'payslip': 'PSL', 'payroll-summary': 'PRL', 'warning-letter': 'SP', 'termination-letter': 'PHK',
+    'payslip': 'PSL', 'payroll-summary': 'PRL', 'warning-letter': 'SP', 'reprehend-letter': 'ST', 'termination-letter': 'PHK',
     'employment-contract': 'KTK', 'attendance-report': 'ATT', 'leave-report': 'LVE',
     'kpi-report': 'KPI', 'travel-expense-claim': 'TEC', 'mutation-letter': 'MUT',
     'reference-letter': 'REF', 'employee-certificate': 'SKK',

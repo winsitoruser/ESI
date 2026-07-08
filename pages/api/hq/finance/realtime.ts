@@ -63,7 +63,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         );
     }
   } catch (error: any) {
-    console.error('Finance Realtime API Error:', error);
+    console.warn('Finance Realtime API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(
       errorResponse(ErrorCodes.INTERNAL_SERVER_ERROR, error.message)
     );
@@ -252,7 +252,7 @@ async function getRealtimeData(
     );
 
   } catch (error: any) {
-    console.error('Error fetching realtime finance:', error);
+    console.warn('Error fetching realtime finance: (table may not exist):', (error as any)?.message || error);
     return res.status(HttpStatus.OK).json(
       successResponse(getMockRealtimeData())
     );

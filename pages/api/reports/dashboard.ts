@@ -301,7 +301,7 @@ export default async function handler(
     return res.status(200).json(response);
 
   } catch (error: any) {
-    console.error('Error fetching reports dashboard:', error);
+    console.warn('Error fetching reports dashboard: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ 
       success: false,
       message: 'Failed to fetch reports dashboard',

@@ -55,6 +55,15 @@ export function BusinessTypeProvider({ children }: BusinessTypeProviderProps) {
     try {
       setIsLoading(true);
       const response = await fetch('/api/business/config');
+      if (!response.ok) {
+        setBusinessType(null);
+        setBusinessTypeName(null);
+        setModules([]);
+        setTenant(null);
+        setNeedsOnboarding(false);
+        setIsSuperAdmin(false);
+        return;
+      }
       const data = await response.json();
       
       if (data.success) {

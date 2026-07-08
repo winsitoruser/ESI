@@ -49,8 +49,8 @@ export const ROLE_REDIRECTS: Record<string, string> = {
   // Finance → Finance module
   'finance_staff': '/finance',
   // HR/HRIS → HRIS module
-  'hr_staff': '/hq/hris',
-  'hris_staff': '/hq/hris',
+  'hr_staff': '/humanify',
+  'hris_staff': '/humanify',
   // Auditor → Audit Logs
   'auditor': '/hq/audit-logs',
   // Regulator → Public Audit Portal (fallback to audit-logs)
@@ -80,9 +80,9 @@ export const ROLE_REDIRECTS_INDO: Record<string, string> = {
   'finance': '/finance',
   'finance_staff': '/finance',
   // HR/HRIS → HRIS module
-  'hr': '/hq/hris',
-  'hr_staff': '/hq/hris',
-  'hris_staff': '/hq/hris',
+  'hr': '/humanify',
+  'hr_staff': '/humanify',
+  'hris_staff': '/humanify',
   // Auditor
   'auditor': '/hq/audit-logs',
   'regulator': '/hq/audit-logs',
@@ -154,7 +154,6 @@ export const authOptions: NextAuthOptions = {
 
         try {
           const db = getDb();
-          
           // Find user by email - without includes to avoid schema mismatch
           const user = await db.User.findOne({
             where: { email: credentials.email }
@@ -174,7 +173,6 @@ export const authOptions: NextAuthOptions = {
             credentials.password,
             user.password
           );
-
           if (!isPasswordValid) {
             throw new Error('Email atau password salah');
           }

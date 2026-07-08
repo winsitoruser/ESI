@@ -15,7 +15,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     return await getFinanceReport(req, res);
   } catch (error) {
-    console.error('Finance Report API Error:', error);
+    console.warn('Finance Report API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(
       errorResponse(ErrorCodes.INTERNAL_SERVER_ERROR, 'Internal server error')
     );
@@ -200,7 +200,7 @@ async function getFinanceReport(req: NextApiRequest, res: NextApiResponse) {
       })
     );
   } catch (error) {
-    console.error('Error fetching finance report:', error);
+    console.warn('Error fetching finance report: (table may not exist):', (error as any)?.message || error);
     const mock = getMockFinanceData();
     const totals = mock.reduce(
       (acc, f) => ({

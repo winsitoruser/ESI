@@ -25,7 +25,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         );
     }
   } catch (error: any) {
-    console.error('Product [id] API Error:', error.message);
+    console.warn('Product [id] API Error:', error.message);
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(
       errorResponse(ErrorCodes.INTERNAL_SERVER_ERROR, error.message || 'Internal server error')
     );

@@ -31,7 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(405).json({ success: false, error: 'Method not allowed' });
     }
   } catch (error: any) {
-    console.error('Module Templates API error:', error);
+    console.warn('Module Templates API error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message });
   }
 }
@@ -50,7 +50,7 @@ async function getTemplates(
       data: templates
     });
   } catch (error: any) {
-    console.error('Error getting templates:', error);
+    console.warn('Error getting templates: (table may not exist):', (error as any)?.message || error);
     return res.status(200).json({
       success: true,
       data: getMockTemplates()
@@ -94,7 +94,7 @@ async function createTemplate(
       data: template
     });
   } catch (error: any) {
-    console.error('Error creating template:', error);
+    console.warn('Error creating template: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: error.message
@@ -136,7 +136,7 @@ async function updateTemplate(
       data: template
     });
   } catch (error: any) {
-    console.error('Error updating template:', error);
+    console.warn('Error updating template: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: error.message
@@ -164,7 +164,7 @@ async function deleteTemplate(
       message: 'Template deleted successfully'
     });
   } catch (error: any) {
-    console.error('Error deleting template:', error);
+    console.warn('Error deleting template: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: error.message

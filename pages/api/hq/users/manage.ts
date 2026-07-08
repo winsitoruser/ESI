@@ -45,7 +45,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     return res.status(400).json({ success: false, error: 'Unknown action' });
   } catch (e: any) {
-    console.error('[users/manage]', e.message);
+    console.warn('[users/manage]', e.message);
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }

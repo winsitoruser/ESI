@@ -189,17 +189,17 @@ async function run() {
   const [existingCands] = await sequelize.query('SELECT COUNT(*)::int as c FROM hris_candidates');
   if (parseInt(existingCands[0].c) === 0 && jobs.length > 0) {
     await sequelize.query(`
-      INSERT INTO hris_candidates (tenant_id, job_opening_id, full_name, email, phone, current_stage, status, source, rating, experience_summary, education_level, applied_date, notes) VALUES
-      (:tid, :j1, 'Rina Wulandari', 'rina@email.com', '081234567890', 'interview', 'active', 'Jobstreet', 4, '3 tahun kasir di supermarket', 'SMA', '2026-02-16', 'Pengalaman bagus, komunikatif'),
-      (:tid, :j1, 'Dedi Kurniawan', 'dedi@email.com', '081234567891', 'screening', 'active', 'LinkedIn', 3, '1 tahun kasir minimarket', 'SMK', '2026-02-18', 'Masih junior tapi antusias'),
-      (:tid, :j2, 'Sari Indah', 'sari@email.com', '081234567892', 'applied', 'active', 'Walk-in', 0, 'Fresh graduate', 'SMA', '2026-02-22', ''),
-      (:tid, :j3, 'Agus Prasetyo', 'agus@email.com', '081234567893', 'offer', 'active', 'LinkedIn', 5, '7 tahun management retail', 'S1 Manajemen', '2026-02-12', 'Strong candidate, negosiasi gaji'),
-      (:tid, :j1, 'Maya Putri', 'maya@email.com', '081234567894', 'test', 'active', 'Referral', 4, '2 tahun kasir dept store', 'D3', '2026-02-17', 'Referensi dari Eko, skor tes baik'),
-      (:tid, :j4, 'Bima Aditya', 'bima@email.com', '081234567895', 'hired', 'active', 'Jobstreet', 5, '2 tahun admin keuangan', 'S1 Akuntansi', '2026-01-20', 'Sudah bergabung per 1 Maret'),
-      (:tid, :j2, 'Lina Marlina', 'lina@email.com', '081234567896', 'rejected', 'inactive', 'Walk-in', 2, 'Tidak relevan', 'SMA', '2026-02-21', 'Tidak memenuhi syarat fisik'),
-      (:tid, :j5, 'Fajar Rahman', 'fajar@email.com', '081234567897', 'screening', 'active', 'LinkedIn', 3, '1 tahun social media specialist', 'S1 Komunikasi', '2026-02-26', ''),
-      (:tid, :j5, 'Nadia Safitri', 'nadia@email.com', '081234567898', 'interview', 'active', 'Jobstreet', 4, '3 tahun digital marketing', 'S1 Marketing', '2026-02-27', 'Portfolio bagus'),
-      (:tid, :j6, 'Hendra Susanto', 'hendra@email.com', '081234567899', 'applied', 'active', 'Walk-in', 0, '5 tahun driver ekspedisi', 'SMA', '2026-03-01', 'Familiar area Jabodetabek')
+      INSERT INTO hris_candidates (tenant_id, job_opening_id, name, full_name, email, phone, current_stage, status, source, rating, experience_summary, education_level, applied_date, notes) VALUES
+      (:tid, :j1, 'Rina Wulandari', 'Rina Wulandari', 'rina@email.com', '081234567890', 'interview', 'active', 'Jobstreet', 4, '3 tahun kasir di supermarket', 'SMA', '2026-02-16', 'Pengalaman bagus, komunikatif'),
+      (:tid, :j1, 'Dedi Kurniawan', 'Dedi Kurniawan', 'dedi@email.com', '081234567891', 'screening', 'active', 'LinkedIn', 3, '1 tahun kasir minimarket', 'SMK', '2026-02-18', 'Masih junior tapi antusias'),
+      (:tid, :j2, 'Sari Indah', 'Sari Indah', 'sari@email.com', '081234567892', 'applied', 'active', 'Walk-in', 0, 'Fresh graduate', 'SMA', '2026-02-22', ''),
+      (:tid, :j3, 'Agus Prasetyo', 'Agus Prasetyo', 'agus@email.com', '081234567893', 'offer', 'active', 'LinkedIn', 5, '7 tahun management retail', 'S1 Manajemen', '2026-02-12', 'Strong candidate, negosiasi gaji'),
+      (:tid, :j1, 'Maya Putri', 'Maya Putri', 'maya@email.com', '081234567894', 'test', 'active', 'Referral', 4, '2 tahun kasir dept store', 'D3', '2026-02-17', 'Referensi dari Eko, skor tes baik'),
+      (:tid, :j4, 'Bima Aditya', 'Bima Aditya', 'bima@email.com', '081234567895', 'hired', 'active', 'Jobstreet', 5, '2 tahun admin keuangan', 'S1 Akuntansi', '2026-01-20', 'Sudah bergabung per 1 Maret'),
+      (:tid, :j2, 'Lina Marlina', 'Lina Marlina', 'lina@email.com', '081234567896', 'rejected', 'inactive', 'Walk-in', 2, 'Tidak relevan', 'SMA', '2026-02-21', 'Tidak memenuhi syarat fisik'),
+      (:tid, :j5, 'Fajar Rahman', 'Fajar Rahman', 'fajar@email.com', '081234567897', 'screening', 'active', 'LinkedIn', 3, '1 tahun social media specialist', 'S1 Komunikasi', '2026-02-26', ''),
+      (:tid, :j5, 'Nadia Safitri', 'Nadia Safitri', 'nadia@email.com', '081234567898', 'interview', 'active', 'Jobstreet', 4, '3 tahun digital marketing', 'S1 Marketing', '2026-02-27', 'Portfolio bagus'),
+      (:tid, :j6, 'Hendra Susanto', 'Hendra Susanto', 'hendra@email.com', '081234567899', 'applied', 'active', 'Walk-in', 0, '5 tahun driver ekspedisi', 'SMA', '2026-03-01', 'Familiar area Jabodetabek')
     `, { replacements: { tid, j1: jobs[0]?.id, j2: jobs[1]?.id, j3: jobs[2]?.id, j4: jobs[3]?.id, j5: jobs[4]?.id, j6: jobs[5]?.id } });
 
     // Update applicant counts
@@ -216,14 +216,14 @@ async function run() {
   const [existingPgm] = await sequelize.query('SELECT COUNT(*)::int as c FROM hris_training_programs');
   if (parseInt(existingPgm[0].c) === 0) {
     await sequelize.query(`
-      INSERT INTO hris_training_programs (tenant_id, title, category, training_type, trainer_name, location, status, start_date, end_date, max_participants, current_participants, cost_per_person, rating, description) VALUES
-      (:tid, 'Customer Service Excellence', 'soft_skill', 'workshop', 'PT Training Indonesia', 'Jakarta', 'active', '2026-03-12', '2026-03-13', 30, 18, 500000, 4.5, 'Pelatihan pelayanan pelanggan untuk semua staff'),
-      (:tid, 'Leadership & Management', 'leadership', 'training', 'Trainer Profesional Group', 'Bandung', 'upcoming', '2026-03-20', '2026-03-22', 20, 12, 1500000, 0, 'Program kepemimpinan untuk level supervisor ke atas'),
-      (:tid, 'POS System Advanced', 'technical', 'training', 'Internal IT', 'Online', 'active', '2026-03-05', '2026-03-05', 50, 35, 0, 4.2, 'Pelatihan fitur lanjutan sistem POS'),
-      (:tid, 'Food Safety & Hygiene', 'compliance', 'certification', 'BPOM Training Center', 'Jakarta', 'completed', '2026-02-01', '2026-02-02', 25, 25, 750000, 4.8, 'Sertifikasi keamanan pangan wajib untuk staf F&B'),
-      (:tid, 'Excel & Data Analytics', 'technical', 'workshop', 'Digital Academy', 'Online', 'upcoming', '2026-04-01', '2026-04-03', 40, 8, 350000, 0, 'Analisis data menggunakan Excel dan tools analytics'),
-      (:tid, 'Inventory Management Best Practices', 'technical', 'training', 'Supply Chain Institute', 'Jakarta', 'upcoming', '2026-04-15', '2026-04-16', 25, 5, 800000, 0, 'Best practices pengelolaan inventory modern'),
-      (:tid, 'Effective Communication', 'soft_skill', 'workshop', 'HR Academy', 'Online', 'active', '2026-03-10', '2026-03-10', 50, 30, 200000, 4.3, 'Komunikasi efektif di tempat kerja')
+      INSERT INTO hris_training_programs (tenant_id, code, title, category, training_type, trainer_name, location, status, start_date, end_date, max_participants, current_participants, cost_per_person, description) VALUES
+      (:tid, 'TRN-001', 'Customer Service Excellence', 'soft_skill', 'workshop', 'PT Training Indonesia', 'Jakarta', 'active', '2026-03-12', '2026-03-13', 30, 18, 500000, 'Pelatihan pelayanan pelanggan untuk semua staff'),
+      (:tid, 'TRN-002', 'Leadership & Management', 'leadership', 'training', 'Trainer Profesional Group', 'Bandung', 'upcoming', '2026-03-20', '2026-03-22', 20, 12, 1500000, 'Program kepemimpinan untuk level supervisor ke atas'),
+      (:tid, 'TRN-003', 'POS System Advanced', 'technical', 'training', 'Internal IT', 'Online', 'active', '2026-03-05', '2026-03-05', 50, 35, 0, 'Pelatihan fitur lanjutan sistem POS'),
+      (:tid, 'TRN-004', 'Food Safety & Hygiene', 'compliance', 'certification', 'BPOM Training Center', 'Jakarta', 'completed', '2026-02-01', '2026-02-02', 25, 25, 750000, 'Sertifikasi keamanan pangan wajib untuk staf F&B'),
+      (:tid, 'TRN-005', 'Excel & Data Analytics', 'technical', 'workshop', 'Digital Academy', 'Online', 'upcoming', '2026-04-01', '2026-04-03', 40, 8, 350000, 'Analisis data menggunakan Excel dan tools analytics'),
+      (:tid, 'TRN-006', 'Inventory Management Best Practices', 'technical', 'training', 'Supply Chain Institute', 'Jakarta', 'upcoming', '2026-04-15', '2026-04-16', 25, 5, 800000, 'Best practices pengelolaan inventory modern'),
+      (:tid, 'TRN-007', 'Effective Communication', 'soft_skill', 'workshop', 'HR Academy', 'Online', 'active', '2026-03-10', '2026-03-10', 50, 30, 200000, 'Komunikasi efektif di tempat kerja')
     `, { replacements: { tid } });
     console.log('✅ Seeded 7 training programs');
   }

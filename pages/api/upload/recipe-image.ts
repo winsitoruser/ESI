@@ -47,7 +47,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       url: fileUrl
     });
   } catch (error: any) {
-    console.error('Upload error:', error);
+    console.warn('Upload error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       error: 'Upload failed',
       message: error.message

@@ -37,7 +37,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       message: `Table ${reservation.tableNumber} assigned successfully`
     });
   } catch (error: any) {
-    console.error('Assign table API error:', error);
+    console.warn('Assign table API error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message });
   }
 }

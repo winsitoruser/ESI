@@ -327,7 +327,7 @@ export function QuickActionsWidget({ isEditMode, size }: WidgetComponentProps) {
     { label: 'Proyek Konservasi', icon: Briefcase, href: '/hq/project-management', color: 'from-emerald-500 to-emerald-600' },
     { label: t('dashboard.wc.viewReports'), icon: BarChart3, href: '/hq/reports/sales', color: 'from-emerald-500 to-emerald-600' },
     { label: t('dashboard.wc.manageStock'), icon: Package, href: '/hq/inventory', color: 'from-violet-500 to-violet-600' },
-    { label: t('dashboard.wc.employees'), icon: Users, href: '/hq/hris', color: 'from-amber-500 to-amber-600' },
+    { label: t('dashboard.wc.employees'), icon: Users, href: '/humanify', color: 'from-violet-500 to-fuchsia-600' },
     { label: t('dashboard.wc.finance'), icon: DollarSign, href: '/hq/finance', color: 'from-pink-500 to-pink-600' },
     { label: t('dashboard.wc.settings'), icon: Settings, href: '/hq/settings', color: 'from-gray-500 to-gray-600' },
   ];

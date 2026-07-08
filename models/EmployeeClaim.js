@@ -5,7 +5,7 @@ const sequelize = require('../lib/sequelize');
 const EmployeeClaim = sequelize.define('EmployeeClaim', {
   id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
   tenantId: { type: DataTypes.UUID, allowNull: true, field: 'tenant_id' },
-  employeeId: { type: DataTypes.INTEGER, allowNull: false, field: 'employee_id' },
+  employeeId: { type: DataTypes.UUID, allowNull: false, field: 'employee_id' },
   claimNumber: { type: DataTypes.STRING(50), allowNull: true, field: 'claim_number' },
   claimType: { type: DataTypes.STRING(50), allowNull: false, field: 'claim_type', comment: 'transport, meal, medical, training, travel, equipment, other' },
   amount: { type: DataTypes.DECIMAL(15, 2), allowNull: false, defaultValue: 0 },

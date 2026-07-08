@@ -5,6 +5,16 @@
 
 import { DocumentRequest, CompanyInfo, BranchInfo, DocumentMeta, SignatureField } from './types';
 
+/** Resolve jspdf-autotable export (default vs named) for CJS/ESM interop */
+function callAutoTable(doc: any, options: any): void {
+  const mod = require('jspdf-autotable');
+  const fn = mod?.default ?? mod?.autoTable ?? mod;
+  if (typeof fn !== 'function') {
+    throw new TypeError('autoTable is not a function');
+  }
+  fn(doc, options);
+}
+
 // Format helpers
 export const fmtCurrency = (val: number, currency = 'IDR'): string => {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(val);
@@ -125,6 +135,7 @@ function renderDocumentTitle(doc: any, request: DocumentRequest, y: number, page
     'payslip': 'SLIP GAJI KARYAWAN',
     'payroll-summary': 'REKAP PENGGAJIAN',
     'warning-letter': 'SURAT PERINGATAN',
+    'reprehend-letter': 'SURAT TEGURAN',
     'termination-letter': 'SURAT PEMUTUSAN HUBUNGAN KERJA',
     'employment-contract': 'KONTRAK KERJA',
     'purchase-order': 'PESANAN PEMBELIAN (PURCHASE ORDER)',
@@ -206,6 +217,8 @@ function renderDocumentBody(doc: any, request: DocumentRequest, y: number, pageW
       return renderPayslipBody(doc, data, y, pageWidth, margin);
     case 'warning-letter':
       return renderWarningLetterBody(doc, data, y, pageWidth, margin);
+    case 'reprehend-letter':
+      return renderReprehendLetterBody(doc, data, y, pageWidth, margin);
     case 'purchase-order':
       return renderPurchaseOrderBody(doc, data, y, pageWidth, margin);
     case 'goods-receipt':
@@ -244,8 +257,7 @@ function renderInvoiceBody(doc: any, data: any, y: number, pw: number, m: number
   y += 3;
 
   // Items table
-  const { autoTable } = require('jspdf-autotable');
-  autoTable(doc, {
+callAutoTable(doc, {
     startY: y,
     head: [['No', 'Deskripsi', 'Qty', 'Satuan', 'Harga Satuan', 'Diskon', 'Jumlah']],
     body: (data.items || []).map((item: any, idx: number) => [
@@ -333,10 +345,9 @@ function renderPayslipBody(doc: any, data: any, y: number, pw: number, m: number
 
   // Earnings & Deductions side by side
   const halfW = (pw - 2 * m - 5) / 2;
-  const { autoTable } = require('jspdf-autotable');
 
   // Earnings
-  autoTable(doc, {
+  callAutoTable(doc, {
     startY: y,
     head: [['Pendapatan', 'Jumlah']],
     body: (data.earnings || []).map((e: any) => [e.name, fmtCurrency(e.amount)]),
@@ -349,7 +360,7 @@ function renderPayslipBody(doc: any, data: any, y: number, pw: number, m: number
   });
 
   // Deductions
-  autoTable(doc, {
+  callAutoTable(doc, {
     startY: y,
     head: [['Potongan', 'Jumlah']],
     body: (data.deductions || []).map((d: any) => [d.name, fmtCurrency(d.amount)]),
@@ -437,6 +448,39 @@ function renderWarningLetterBody(doc: any, data: any, y: number, pw: number, m: 
   return y;
 }
 
+// ── REPREHEND LETTER (Teguran) ──
+function renderReprehendLetterBody(doc: any, data: any, y: number, pw: number, m: number): number {
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Kepada Yth:`, m, y); y += 4;
+  doc.setFont('helvetica', 'bold');
+  doc.text(`${data.employeeName || '-'}`, m, y); y += 4;
+  doc.setFont('helvetica', 'normal');
+  doc.text(`NIK: ${data.employeeId || '-'}`, m, y); y += 4;
+  doc.text(`Jabatan: ${data.position || '-'}`, m, y); y += 4;
+  doc.text(`Departemen: ${data.department || '-'}`, m, y); y += 8;
+
+  const body = data.body || `Dengan ini kami menyampaikan Surat Teguran kepada Saudara/i ${data.employeeName || '-'} terkait pelanggaran berikut:`;
+  const splitBody = doc.splitTextToSize(body, pw - 2 * m);
+  doc.text(splitBody, m, y); y += splitBody.length * 4 + 3;
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Jenis Pelanggaran:', m, y); y += 4;
+  doc.setFont('helvetica', 'normal');
+  doc.text(data.violationType || '-', m + 3, y); y += 5;
+  doc.setFont('helvetica', 'bold');
+  doc.text('Deskripsi Pelanggaran:', m, y); y += 4;
+  doc.setFont('helvetica', 'normal');
+  const splitViolation = doc.splitTextToSize(data.violationDescription || '-', pw - 2 * m - 3);
+  doc.text(splitViolation, m + 3, y); y += splitViolation.length * 4 + 5;
+
+  const closing = data.closing || 'Surat teguran ini diharapkan menjadi perhatian serius. Pelanggaran berulang dapat mengakibatkan tindakan disiplin lebih lanjut sesuai peraturan perusahaan.';
+  const splitClosing = doc.splitTextToSize(closing, pw - 2 * m);
+  doc.text(splitClosing, m, y); y += splitClosing.length * 4 + 5;
+
+  return y;
+}
+
 // ── PURCHASE ORDER ──
 function renderPurchaseOrderBody(doc: any, data: any, y: number, pw: number, m: number): number {
   // Supplier info
@@ -449,8 +493,7 @@ function renderPurchaseOrderBody(doc: any, data: any, y: number, pw: number, m: 
   if (data.supplierPhone) { doc.text(`Telp: ${data.supplierPhone}`, m, y); y += 4; }
   y += 3;
 
-  const { autoTable } = require('jspdf-autotable');
-  autoTable(doc, {
+callAutoTable(doc, {
     startY: y,
     head: [['No', 'Kode', 'Nama Barang', 'Qty', 'Satuan', 'Harga', 'Jumlah']],
     body: (data.items || []).map((item: any, idx: number) => [
@@ -504,8 +547,7 @@ function renderGoodsReceiptBody(doc: any, data: any, y: number, pw: number, m: n
   doc.text(`Supplier: ${data.supplierName || '-'}`, pw / 2, y);
   y += 5;
 
-  const { autoTable } = require('jspdf-autotable');
-  autoTable(doc, {
+callAutoTable(doc, {
     startY: y,
     head: [['No', 'Kode', 'Nama Barang', 'Qty Order', 'Qty Diterima', 'Satuan', 'Kondisi', 'Catatan']],
     body: (data.items || []).map((item: any, idx: number) => [
@@ -533,8 +575,7 @@ function renderDeliveryNoteBody(doc: any, data: any, y: number, pw: number, m: n
   doc.text(`No. Kendaraan: ${data.vehicleNumber || '-'}`, pw / 2, y);
   y += 6;
 
-  const { autoTable } = require('jspdf-autotable');
-  autoTable(doc, {
+callAutoTable(doc, {
     startY: y,
     head: [['No', 'Kode', 'Nama Barang', 'Qty', 'Satuan', 'Berat (kg)', 'Catatan']],
     body: (data.items || []).map((item: any, idx: number) => [
@@ -560,8 +601,7 @@ function renderQuotationBody(doc: any, data: any, y: number, pw: number, m: numb
   if (data.validUntil) { doc.text(`Berlaku s/d: ${fmtDate(data.validUntil)}`, m, y); y += 4; }
   y += 3;
 
-  const { autoTable } = require('jspdf-autotable');
-  autoTable(doc, {
+callAutoTable(doc, {
     startY: y,
     head: [['No', 'Deskripsi', 'Qty', 'Harga Satuan', 'Jumlah']],
     body: (data.items || []).map((item: any, idx: number) => [
@@ -604,8 +644,7 @@ function renderStockTransferBody(doc: any, data: any, y: number, pw: number, m: 
   y += 5;
   if (data.reason) { doc.text(`Alasan: ${data.reason}`, m, y); y += 5; }
 
-  const { autoTable } = require('jspdf-autotable');
-  autoTable(doc, {
+callAutoTable(doc, {
     startY: y,
     head: [['No', 'Kode', 'Nama Barang', 'Qty', 'Satuan', 'Catatan']],
     body: (data.items || []).map((item: any, idx: number) => [
@@ -669,13 +708,17 @@ function renderMutationLetterBody(doc: any, data: any, y: number, pw: number, m:
   doc.text(`Kepada Yth: ${data.employeeName || '-'}`, m, y); y += 4;
   doc.text(`NIK: ${data.employeeId || '-'}`, m, y); y += 6;
 
-  const body = data.body || `Berdasarkan pertimbangan kebutuhan organisasi, dengan ini ditetapkan ${data.mutationType === 'promotion' ? 'promosi' : data.mutationType === 'transfer' ? 'mutasi' : 'rotasi'} sebagai berikut:`;
+  const body = data.body || `Berdasarkan pertimbangan kebutuhan organisasi, dengan ini ditetapkan ${
+    data.mutationType === 'assignment' ? 'penugasan'
+    : data.mutationType === 'promotion' ? 'promosi'
+    : data.mutationType === 'transfer' ? 'mutasi'
+    : data.mutationType === 'demotion' ? 'demosi' : 'rotasi'
+  } sebagai berikut:`;
   const split = doc.splitTextToSize(body, pw - 2 * m);
   doc.text(split, m, y); y += split.length * 4 + 3;
 
   // From → To
-  const { autoTable } = require('jspdf-autotable');
-  autoTable(doc, {
+callAutoTable(doc, {
     startY: y,
     body: [
       ['Jabatan Lama', data.oldPosition || '-', 'Jabatan Baru', data.newPosition || '-'],
@@ -708,8 +751,7 @@ function renderGenericTableBody(doc: any, data: any, y: number, pw: number, m: n
   if (rows.length === 0) { doc.text('Tidak ada data', m, y); return y + 5; }
 
   const headers = Object.keys(rows[0]);
-  const { autoTable } = require('jspdf-autotable');
-  autoTable(doc, {
+callAutoTable(doc, {
     startY: y,
     head: [headers],
     body: rows.map((row: any) => headers.map(h => {

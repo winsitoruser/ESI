@@ -157,7 +157,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           createdBy: receivedBy
         });
       } catch (stockError) {
-        console.error('Error recording stock movement:', stockError);
+        console.warn('Error recording stock movement: (table may not exist):', (stockError as any)?.message || stockError);
         // Continue even if stock movement fails (for backward compatibility)
       }
     }
@@ -186,7 +186,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } catch (error: any) {
     await transaction.rollback();
     await pool.end();
-    console.error('Error creating goods receipt:', error);
+    console.warn('Error creating goods receipt: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 }

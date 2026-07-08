@@ -29,6 +29,10 @@ const isExport = process.env.NEXT_EXPORT === 'true';
 const nextConfig = {
   // Enable standalone output for Docker deployment (only in production)
   ...(process.env.NODE_ENV === 'production' ? { output: 'standalone' } : {}),
+  experimental: {
+    workerThreads: false,
+    cpus: 1,
+  },
   reactStrictMode: false,
   eslint: {
     ignoreDuringBuilds: true,
@@ -44,8 +48,8 @@ const nextConfig = {
 
   // Webpack config to fix EMFILE (too many open files) on large projects
   webpack: (config, { dev, isServer }) => {
-    // Disable splitChunks on server build to prevent vendor-chunks/*.js ENOENT
-    if (isServer) {
+    // splitChunks left default in production — disabling caused missing page .js during collect
+    if (dev && isServer) {
       config.optimization = {
         ...config.optimization,
         splitChunks: false,
@@ -137,6 +141,14 @@ const nextConfig = {
    * So you can use `pnpm bv` to check all type warns and errors at once.
    */
   typescript: { ignoreBuildErrors: true },
+
+  async redirects() {
+    return [
+      { source: '/hq/hris', destination: '/humanify', permanent: false },
+      { source: '/hq/hris/:path*', destination: '/humanify/:path*', permanent: false },
+      { source: '/api/hq/hris/:path*', destination: '/api/humanify/:path*', permanent: false },
+    ];
+  },
 };
 
 export default nextConfig;

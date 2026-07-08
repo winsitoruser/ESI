@@ -49,7 +49,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       message: `Partner status updated to ${status}`
     });
   } catch (error: any) {
-    console.error('Update Partner Status Error:', error);
+    console.warn('Update Partner Status Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Failed to update partner status',

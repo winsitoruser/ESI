@@ -20,7 +20,7 @@ async function q(query: string, replacements?: any): Promise<any[]> {
     const [rows] = await sequelize.query(query, replacements ? { replacements } : undefined);
     return rows || [];
   } catch (e: any) {
-    console.error('SFA data-export query error:', e.message);
+    console.warn('SFA data-export query error:', e.message);
     return [];
   }
 }
@@ -443,7 +443,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     res.setHeader('Content-Disposition', `attachment; filename="${fname}"`);
     return res.send(Buffer.from(buffer));
   } catch (error: any) {
-    console.error('data-export error:', error);
+    console.warn('data-export error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message || 'Internal Server Error' });
   }
 }

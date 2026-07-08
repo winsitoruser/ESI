@@ -1,21 +1,26 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 3 Juli 2026 — **Phase 1-5 ✅ — All fixes applied. Dev server running at `:3010`**
+> Diperbarui: 7 Juli 2026 — **HRIS field integration: UID, lokasi, departemen, job grade, team_members link**
 
 ## Status project — Pasca Refactor
 
 | Item | Status |
 |---|---|
-| NainERP branding → SIMESI | ✅ 111 replacements |
-| Bedagang references dihapus | ✅ |
-| PoS/FnB/Kitchen code dihapus | ✅ (9 files + full kitchen API dir) |
-| Stale deploy scripts + IP hardcoded | ✅ Dibersihkan |
-| Stale export/ + _backup_dupes/ | ✅ Dihapus |
-| Migrasi excluded module diarsipkan | ✅ 13 files ke `migrations/_archived/` |
-| Build (dev server) | ✅ `npm run dev` jalan di `:3010` |
-| Build (production) | ⚠️ Webpack vendor-chunks ENOENT fix applied (splitChunks=false on server) |
-| Login page | ✅ Berfungsi, auth simplified (no Branch/Tenant includes) |
-| Latest commit | `37dbb0c` — auth simplification, webpack fix, DB ssl config |
+| Dev server (`:3010`) | ✅ Running, login working |
+| Login superadmin | ✅ `superadmin@bedagang.com` / `MasterAdmin2026!` |
+| HRIS master data (dept, lokasi, cabang, job grade) | ✅ `lib/hris/master-data.ts` + `GET /api/hq/hris/master-data` |
+| HRIS Employees (UID, dept, posisi, lokasi, grade) | ✅ Form edit + API `employee-profile` |
+| HRIS Team Members ↔ Employees | ✅ `employee_id` FK + auto-fill dari master |
+| HRIS Onboarding/Contracts/Offboarding | ✅ `EmployeePicker` (bukan input UID manual) |
+| DB `employees.work_location`, `job_grade_id` | ✅ `npm run db:hris-field-migrate` |
+| DB `team_members.employee_id`, `location`, `work_area` | ✅ `npm run db:hris-field-migrate` |
+| HRIS Employees Genealogy | ✅ Tab Genealogi (list) + Rantai Komando (detail), API `action=genealogy` |
+| HRIS Mutasi & Penugasan | ✅ `/hq/hris/mutations` — approval multi-step + E-Letter PDF |
+| DB `employee_mutations` | ✅ Migrasi `npm run db:mutation-workflow-migrate` |
+| DB `employees.supervisor_id` | ✅ Migrasi `npm run db:employee-genealogy-migrate` (13 karyawan seeded) |
+| Password DB | ✅ Re-hashed bcrypt, verified match |
+| Build error `'fs' already declared` | ✅ Fixed (duplicate `require('fs')` di [...nextauth].ts) |
+| `router is not defined` di employees.tsx | ✅ Fixed (added `const router = useRouter()`) |
 
 ## Kredensial
 
@@ -91,6 +96,7 @@ SIMESI (Next.js 15, Pages Router)
 npm run dev          # http://localhost:3010
 npm run build        # verifikasi build
 npm run test         # test (login tests lulus)
+npm run db:hris-field-migrate   # kolom work_location, job_grade_id, team_members link
 ```
 
 ## CATATAN PENTING

@@ -63,7 +63,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
   } catch (error: any) {
-    console.error('Error in finance monthly income report API:', error);
+    console.warn('Error in finance monthly income report API: (table may not exist):', (error as any)?.message || error);
     
     // Fallback ke mock data jika database gagal
     return res.status(200).json({

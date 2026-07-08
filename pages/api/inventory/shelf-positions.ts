@@ -149,7 +149,7 @@ async function getShelfPositions(req: NextApiRequest, res: NextApiResponse) {
       
       dbResult = result;
     } catch (dbError) {
-      console.error('Database operation failed:', dbError);
+      console.warn('Database operation failed: (table may not exist):', (dbError as any)?.message || dbError);
       dbResult = null;
     }
     
@@ -170,7 +170,7 @@ async function getShelfPositions(req: NextApiRequest, res: NextApiResponse) {
       });
     }
   } catch (error) {
-    console.error('Error fetching shelf positions:', error);
+    console.warn('Error fetching shelf positions: (table may not exist):', (error as any)?.message || error);
     
     // Fallback ke data mock jika terjadi error
     return res.status(200).json({
@@ -224,7 +224,7 @@ async function createShelfPosition(req: NextApiRequest, res: NextApiResponse) {
       
       dbResult = result;
     } catch (dbError) {
-      console.error('Database operation failed:', dbError);
+      console.warn('Database operation failed: (table may not exist):', (dbError as any)?.message || dbError);
       dbResult = null;
     }
     
@@ -260,7 +260,7 @@ async function createShelfPosition(req: NextApiRequest, res: NextApiResponse) {
       });
     }
   } catch (error) {
-    console.error('Error creating shelf position:', error);
+    console.warn('Error creating shelf position: (table may not exist):', (error as any)?.message || error);
     
     // Fallback ke data mock jika terjadi error
     const mockId = Math.floor(Math.random() * 10000).toString();
@@ -333,7 +333,7 @@ async function updateShelfPosition(req: NextApiRequest, res: NextApiResponse) {
       
       dbResult = result;
     } catch (dbError) {
-      console.error('Database operation failed:', dbError);
+      console.warn('Database operation failed: (table may not exist):', (dbError as any)?.message || dbError);
       dbResult = null;
     }
     
@@ -368,7 +368,7 @@ async function updateShelfPosition(req: NextApiRequest, res: NextApiResponse) {
       });
     }
   } catch (error) {
-    console.error('Error updating shelf position:', error);
+    console.warn('Error updating shelf position: (table may not exist):', (error as any)?.message || error);
     
     // Fallback ke data mock jika terjadi error
     const mockData = {
@@ -432,7 +432,7 @@ async function deleteShelfPosition(req: NextApiRequest, res: NextApiResponse) {
       
       dbResult = result;
     } catch (dbError) {
-      console.error('Database operation failed:', dbError);
+      console.warn('Database operation failed: (table may not exist):', (dbError as any)?.message || dbError);
       dbResult = null;
     }
     
@@ -451,7 +451,7 @@ async function deleteShelfPosition(req: NextApiRequest, res: NextApiResponse) {
       });
     }
   } catch (error) {
-    console.error('Error deleting shelf position:', error);
+    console.warn('Error deleting shelf position: (table may not exist):', (error as any)?.message || error);
     
     // Fallback ke data mock jika terjadi error
     return res.status(200).json({

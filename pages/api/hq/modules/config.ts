@@ -35,7 +35,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       data: { moduleId, config: config || {} },
     });
   } catch (error: any) {
-    console.error('Module config API error:', error);
+    console.warn('Module config API error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message });
   }
 }

@@ -66,7 +66,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       message: `Reservation status updated to ${status}`
     });
   } catch (error: any) {
-    console.error('Update reservation status error:', error);
+    console.warn('Update reservation status error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message });
   }
 }

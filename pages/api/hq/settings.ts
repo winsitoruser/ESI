@@ -120,7 +120,7 @@ async function getSettings(req: NextApiRequest, res: NextApiResponse) {
       lastUpdated: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error fetching HQ settings:', error);
+    console.warn('Error fetching HQ settings: (table may not exist):', (error as any)?.message || error);
     res.status(500).json({ error: 'Internal server error' });
   }
 }
@@ -184,7 +184,7 @@ async function updateSettings(req: NextApiRequest, res: NextApiResponse) {
       }
 
     } catch (dbError) {
-      console.error('Database error:', dbError);
+      console.warn('Database error: (table may not exist):', (dbError as any)?.message || dbError);
       // Still return success if we're using mock mode
     }
 
@@ -194,7 +194,7 @@ async function updateSettings(req: NextApiRequest, res: NextApiResponse) {
       settings: newSettings
     });
   } catch (error) {
-    console.error('Error updating HQ settings:', error);
+    console.warn('Error updating HQ settings: (table may not exist):', (error as any)?.message || error);
     res.status(500).json({ error: 'Internal server error' });
   }
 }

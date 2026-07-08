@@ -41,7 +41,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(405).json({ error: 'Method not allowed' });
     }
   } catch (error: any) {
-    console.error('HQ Sync API Error:', error);
+    console.warn('HQ Sync API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message });
   }
 }
@@ -106,7 +106,7 @@ async function getSyncStatus(
     });
 
   } catch (error) {
-    console.error('Error getting sync status:', error);
+    console.warn('Error getting sync status: (table may not exist):', (error as any)?.message || error);
     return res.status(200).json({
       success: true,
       data: {
@@ -235,7 +235,7 @@ async function triggerSync(
     });
 
   } catch (error: any) {
-    console.error('Sync error:', error);
+    console.warn('Sync error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: error.message,

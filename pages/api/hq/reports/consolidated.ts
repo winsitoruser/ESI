@@ -75,7 +75,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       generatedAt: new Date().toISOString(),
     }));
   } catch (error) {
-    console.error('Consolidated Report API Error:', error);
+    console.warn('Consolidated Report API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(HttpStatus.OK).json(successResponse({
       period,
       ...buildMockPayload(label),

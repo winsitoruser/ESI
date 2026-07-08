@@ -67,7 +67,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
 
     } catch (dbError: any) {
-      console.error('Database error:', dbError);
+      console.warn('Database error: (table may not exist):', (dbError as any)?.message || dbError);
       
       // Return empty array if database not ready
       return res.status(200).json({
@@ -81,7 +81,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
   } catch (error: any) {
-    console.error('Employees API Error:', error);
+    console.warn('Employees API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Internal server error',

@@ -148,7 +148,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.json({ success: true, data, summary, timestamp: new Date().toISOString() });
   } catch (e: any) {
-    console.error('[hq/fleet/live]', e?.message || e);
+    console.warn('[hq/fleet/live] (table may not exist):', e?.message || e);
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }

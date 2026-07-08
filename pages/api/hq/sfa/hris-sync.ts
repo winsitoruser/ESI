@@ -10,7 +10,7 @@ async function q(sql: string, replacements?: any): Promise<any[]> {
   try {
     const [rows] = await sequelize.query(sql, replacements ? { replacements } : undefined);
     return rows || [];
-  } catch (e: any) { console.error('HRIS-Sync Q:', e.message); return []; }
+  } catch (e: any) { console.warn('HRIS-Sync Q: (table may not exist):', e.message); return []; }
 }
 async function qOne(sql: string, replacements?: any): Promise<any> {
   const rows = await q(sql, replacements); return rows[0] || null;
@@ -18,7 +18,7 @@ async function qOne(sql: string, replacements?: any): Promise<any> {
 async function qExec(sql: string, replacements?: any): Promise<boolean> {
   if (!sequelize) return false;
   try { await sequelize.query(sql, replacements ? { replacements } : undefined); return true; }
-  catch (e: any) { console.error('HRIS-Sync Exec:', e.message); return false; }
+  catch (e: any) { console.warn('HRIS-Sync Exec: (table may not exist):', e.message); return false; }
 }
 
 // ════════════════════════════════════════════════════════════
@@ -321,7 +321,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(405).json({ success: false, error: `Method ${req.method} Not Allowed` });
   } catch (error: any) {
-    console.error('HRIS-Sync Error:', error);
+    console.warn('HRIS-Sync Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message || 'Internal server error' });
   }
 }

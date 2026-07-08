@@ -64,7 +64,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
     });
 
   } catch (error: any) {
-    console.error('Error fetching payment methods:', error);
+    console.warn('Error fetching payment methods: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Internal server error',
@@ -162,7 +162,7 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
     });
 
   } catch (error: any) {
-    console.error('Error creating payment method:', error);
+    console.warn('Error creating payment method: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Internal server error',

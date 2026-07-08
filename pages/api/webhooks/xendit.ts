@@ -48,7 +48,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(200).json({ success: true, message: 'Webhook processed' });
   } catch (error: any) {
-    console.error('Xendit Webhook Error:', error);
+    console.warn('Xendit Webhook Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: error.message });
   }
 }

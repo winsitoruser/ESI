@@ -83,7 +83,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       data: { messageId: info.messageId }
     });
   } catch (error: any) {
-    console.error('Email Send API Error:', error);
+    console.warn('Email Send API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: error.message });
   }
 }

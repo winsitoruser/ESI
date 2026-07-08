@@ -160,7 +160,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         );
     }
   } catch (error: any) {
-    console.error('[branch-settings] error:', error?.message || error);
+    console.warn('[branch-settings] error: (table may not exist):', error?.message || error);
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(
       errorResponse(ErrorCodes.INTERNAL_SERVER_ERROR, error?.message || 'Internal server error')
     );

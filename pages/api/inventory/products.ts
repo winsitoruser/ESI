@@ -24,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
     }
   } catch (error: any) {
-    console.error('Products API Error:', error);
+    console.warn('Products API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ 
       success: false, 
       message: 'Internal server error',
@@ -76,7 +76,7 @@ async function handleGetProducts(req: NextApiRequest, res: NextApiResponse) {
     });
 
   } catch (error: any) {
-    console.error('Get Products Error:', error);
+    console.warn('Get Products Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       message: 'Failed to fetch products',
@@ -124,7 +124,7 @@ async function handleCreateProduct(req: NextApiRequest, res: NextApiResponse) {
     });
 
   } catch (error: any) {
-    console.error('Create Product Error:', error);
+    console.warn('Create Product Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       message: 'Failed to create product',
@@ -172,7 +172,7 @@ async function handleUpdateProduct(req: NextApiRequest, res: NextApiResponse) {
     });
 
   } catch (error: any) {
-    console.error('Update Product Error:', error);
+    console.warn('Update Product Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       message: 'Failed to update product',
@@ -209,7 +209,7 @@ async function handleDeleteProduct(req: NextApiRequest, res: NextApiResponse) {
     });
 
   } catch (error: any) {
-    console.error('Delete Product Error:', error);
+    console.warn('Delete Product Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       message: 'Failed to delete product',

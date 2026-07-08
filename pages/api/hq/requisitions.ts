@@ -128,7 +128,7 @@ async function getRequisitions(req: NextApiRequest, res: NextApiResponse) {
       total: requisitions.length
     });
   } catch (error) {
-    console.error('Error fetching requisitions:', error);
+    console.warn('Error fetching requisitions: (table may not exist):', (error as any)?.message || error);
     res.status(500).json({ error: 'Internal server error' });
   }
 }
@@ -200,11 +200,11 @@ async function createRequisition(req: NextApiRequest, res: NextApiResponse) {
         message: 'Internal Requisition created successfully'
       });
     } catch (dbError) {
-      console.error('Database error:', dbError);
+      console.warn('Database error: (table may not exist):', (dbError as any)?.message || dbError);
       res.status(500).json({ error: 'Failed to create requisition' });
     }
   } catch (error) {
-    console.error('Error creating requisition:', error);
+    console.warn('Error creating requisition: (table may not exist):', (error as any)?.message || error);
     res.status(500).json({ error: 'Internal server error' });
   }
 }
@@ -341,11 +341,11 @@ async function updateRequisition(req: NextApiRequest, res: NextApiResponse) {
         }
       });
     } catch (dbError) {
-      console.error('Database error:', dbError);
+      console.warn('Database error: (table may not exist):', (dbError as any)?.message || dbError);
       res.status(500).json({ error: 'Failed to update requisition' });
     }
   } catch (error) {
-    console.error('Error updating requisition:', error);
+    console.warn('Error updating requisition: (table may not exist):', (error as any)?.message || error);
     res.status(500).json({ error: 'Internal server error' });
   }
 }

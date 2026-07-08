@@ -38,7 +38,7 @@ async function handler(
       
       return success(res, result);
     } catch (error) {
-      console.error('Error fetching loyalty programs:', error);
+      console.warn('Error fetching loyalty programs: (table may not exist):', (error as any)?.message || error);
       
       // Fall back to mock data in case of error
       res.setHeader('X-Data-Source', 'fallback');

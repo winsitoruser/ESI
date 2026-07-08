@@ -12,7 +12,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse, context: ApiCo
     console.log('[Inventory API] Menggunakan Sequelize Adapter');
     return sequelizeAdapterHandler(req, res);
   } catch (err: any) {
-    console.error('Error handling inventory request:', err);
+    console.warn('Error handling inventory request: (table may not exist):', (err as any)?.message || err);
     return error(res, 'Internal Server Error', 500);
   }
 };

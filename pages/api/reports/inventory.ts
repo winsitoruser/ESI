@@ -125,7 +125,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       data: reportData
     });
   } catch (error: any) {
-    console.error('Inventory Report API Error:', error);
+    console.warn('Inventory Report API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: error.message });
   }
 }

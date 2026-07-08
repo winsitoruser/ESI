@@ -178,7 +178,7 @@ export function HRISAttendanceWidget({ isEditMode, size }: WidgetComponentProps)
   useEffect(() => {
     (async () => {
       try {
-        const r = await fetch('/api/hq/hris/attendance-management?action=today');
+        const r = await fetch('/api/humanify/attendance-management?action=today');
         if (r.ok) { const j = await r.json(); const d = j.data || j; setStats({ total: d.total || 50, present: d.present || 42, absent: d.absent || 3, late: d.late || 4, onLeave: d.onLeave || 1 }); }
       } catch { setStats({ total: 50, present: 42, absent: 3, late: 4, onLeave: 1 }); }
       setLoading(false);

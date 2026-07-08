@@ -26,7 +26,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(405).json({ success: false, error: 'Method not allowed' });
     }
   } catch (error: any) {
-    console.error('Package activation API error:', error);
+    console.warn('Package activation API error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message });
   }
 }
@@ -263,7 +263,7 @@ async function activatePackage(
     
   } catch (error: any) {
     await transaction.rollback();
-    console.error('Error activating package:', error);
+    console.warn('Error activating package: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message });
   }
 }

@@ -23,7 +23,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       default: return res.status(405).json({ error: 'Method not allowed' });
     }
   } catch (error: any) {
-    console.error('Fuel API error:', error);
+    console.warn('Fuel API error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: error.message });
   }
 }

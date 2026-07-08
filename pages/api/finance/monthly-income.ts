@@ -281,7 +281,7 @@ export default async function handler(
       }
     });
   } catch (error) {
-    console.error('Error fetching monthly income data:', error);
+    console.warn('Error fetching monthly income data: (table may not exist):', (error as any)?.message || error);
     
     // Fallback ke mock data
     console.log('Using mock monthly income data');

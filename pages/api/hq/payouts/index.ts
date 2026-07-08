@@ -17,7 +17,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         return res.status(405).json(errorResponse('METHOD_NOT_ALLOWED', `Method ${req.method} Not Allowed`));
     }
   } catch (error: any) {
-    console.error('Payouts API Error:', error);
+    console.warn('Payouts API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json(errorResponse('INTERNAL_SERVER_ERROR', error.message || 'Internal server error'));
   }
 }
@@ -129,7 +129,7 @@ async function createPayout(req: NextApiRequest, res: NextApiResponse) {
 
     return res.status(201).json(successResponse(payout, undefined, 'Payout created successfully'));
   } catch (dbError: any) {
-    console.error('Create payout DB error:', dbError);
+    console.warn('Create payout DB error: (table may not exist):', (dbError as any)?.message || dbError);
     // Fallback mock
     const mockPayout = {
       id: `mock-po-${Date.now()}`,

@@ -40,7 +40,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const result = await SubscriptionService.handlePaymentEvent(event);
     return res.status(200).json({ success: true, ...result });
   } catch (error: any) {
-    console.error(`Webhook error (${provider}):`, error);
+    console.warn(`Webhook error (${provider}): (table may not exist):`, (error as any)?.message || error);
     return res.status(400).json({ success: false, error: error.message });
   }
 }

@@ -143,7 +143,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
     });
 
   } catch (error: any) {
-    console.error('Error fetching subscription:', error);
+    console.warn('Error fetching subscription: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Internal server error',
@@ -230,7 +230,7 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
     });
 
   } catch (error: any) {
-    console.error('Error creating subscription:', error);
+    console.warn('Error creating subscription: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Internal server error',
@@ -342,7 +342,7 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse) {
     }
 
   } catch (error: any) {
-    console.error('Error updating subscription:', error);
+    console.warn('Error updating subscription: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Internal server error',
@@ -402,7 +402,7 @@ async function handleDelete(req: NextApiRequest, res: NextApiResponse) {
     });
 
   } catch (error: any) {
-    console.error('Error cancelling subscription:', error);
+    console.warn('Error cancelling subscription: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Internal server error',

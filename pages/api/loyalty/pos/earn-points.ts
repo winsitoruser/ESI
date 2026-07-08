@@ -112,7 +112,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         pointTransaction
       });
     } catch (error: any) {
-      console.error('Error earning points:', error);
+      console.warn('Error earning points: (table may not exist):', (error as any)?.message || error);
       return res.status(500).json({ error: 'Internal server error', details: error.message });
     }
   }

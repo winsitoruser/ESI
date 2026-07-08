@@ -9,17 +9,15 @@ module.exports = (sequelize, DataTypes) => {
     },
     employeeId: {
       type: DataTypes.STRING,
-      allowNull: false,
-      unique: true,
-      comment: 'Employee ID number (e.g., EMP001)'
+      allowNull: true,
+      unique: false,
+      field: 'employee_code',
+      comment: 'Employee ID number (e.g., EMP001) — maps to employee_code in DB'
     },
     userId: {
-      type: DataTypes.UUID,
+      type: DataTypes.INTEGER,
       allowNull: true,
-      references: {
-        model: 'users',
-        key: 'id'
-      },
+      field: 'user_id',
       comment: 'Link to User account for authentication'
     },
     name: {
@@ -36,7 +34,8 @@ module.exports = (sequelize, DataTypes) => {
     },
     phoneNumber: {
       type: DataTypes.STRING,
-      allowNull: true
+      allowNull: true,
+      field: 'phone',
     },
     address: {
       type: DataTypes.TEXT,
@@ -69,12 +68,8 @@ module.exports = (sequelize, DataTypes) => {
       comment: 'Job position/title'
     },
     department: {
-      type: DataTypes.ENUM(
-        'MANAGEMENT', 'OPERATIONS', 'SALES', 'FINANCE', 'ADMINISTRATION',
-        'WAREHOUSE', 'KITCHEN', 'CUSTOMER_SERVICE', 'IT', 'HR',
-        'CLINICAL', 'PHARMACY', 'MARKETING', 'LOGISTICS', 'PRODUCTION'
-      ),
-      allowNull: false
+      type: DataTypes.STRING,
+      allowNull: true,
     },
     branchId: {
       type: DataTypes.UUID,
@@ -86,32 +81,25 @@ module.exports = (sequelize, DataTypes) => {
       comment: 'Branch assignment for this employee'
     },
     workLocation: {
-      type: DataTypes.ENUM(
-        'MAIN_STORE', 'WAREHOUSE', 'CASHIER_FRONT', 'KITCHEN',
-        'FRONT_DESK', 'ADMIN_OFFICE', 'FINANCE_DEPT', 'FIELD',
-        'MAIN_PHARMACY', 'CLINIC_PHARMACY', 'CASHIER_PHARMACY',
-        'GENERAL_CLINIC', 'SPECIALIST_CLINIC', 'REGISTRATION',
-        'LAB_SECTION', 'INVENTORY', 'MULTIPLE', 'REMOTE'
-      ),
-      allowNull: false
+      type: DataTypes.STRING,
+      allowNull: true,
+      field: 'work_location',
     },
     role: {
-      type: DataTypes.ENUM(
-        'ADMIN', 'MANAGER', 'SUPERVISOR', 'STAFF', 'CASHIER',
-        'INVENTORY_MANAGER', 'WAREHOUSE_STAFF', 'DRIVER', 'CHEF', 'WAITER',
-        'DOCTOR', 'NURSE', 'PHARMACIST', 'RECEPTIONIST', 'SALES_REP'
-      ),
-      allowNull: false,
+      type: DataTypes.STRING,
+      allowNull: true,
+      field: 'work_role',
       comment: 'System role for permissions'
     },
     status: {
-      type: DataTypes.ENUM('ACTIVE', 'INACTIVE', 'ON_LEAVE', 'TERMINATED'),
-      allowNull: false,
-      defaultValue: 'ACTIVE'
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: 'active',
     },
     joinDate: {
       type: DataTypes.DATE,
-      allowNull: false,
+      allowNull: true,
+      field: 'hire_date',
       defaultValue: DataTypes.NOW
     },
     endDate: {
@@ -155,6 +143,13 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: true,
       comment: 'Salary grade level'
     },
+    employmentCategory: {
+      type: DataTypes.STRING(30),
+      allowNull: true,
+      defaultValue: 'permanent',
+      field: 'employment_category',
+      comment: 'permanent, contract, daily_casual, labor, outsource, intern'
+    },
     tenantId: {
       type: DataTypes.UUID,
       allowNull: true,
@@ -173,6 +168,14 @@ module.exports = (sequelize, DataTypes) => {
   }, {
     tableName: 'employees',
     timestamps: true,
+    underscored: true,
+    defaultScope: {
+      attributes: [
+        'id', 'employeeId', 'userId', 'name', 'email', 'phoneNumber', 'address',
+        'position', 'department', 'branchId', 'workLocation', 'status', 'joinDate',
+        'employmentCategory', 'tenantId', 'createdAt', 'updatedAt',
+      ],
+    },
     indexes: [
       {
         unique: true,

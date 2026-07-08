@@ -15,7 +15,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
     }
   } catch (error) {
-    console.error('Supplier API Error:', error);
+    console.warn('Supplier API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
@@ -80,7 +80,7 @@ async function getSuppliers(req: NextApiRequest, res: NextApiResponse) {
       totalPages: Math.ceil(count / limitNum)
     });
   } catch (error) {
-    console.error('Error fetching suppliers:', error);
+    console.warn('Error fetching suppliers: (table may not exist):', (error as any)?.message || error);
     return res.status(200).json({
       suppliers: getMockSuppliers(),
       total: 5,

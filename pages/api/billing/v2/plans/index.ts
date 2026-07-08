@@ -36,7 +36,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
       error: 'Service layer not implemented — PlanService.getPlans not available',
     });
   } catch (error: any) {
-    console.error('Error fetching plans:', error);
+    console.warn('Error fetching plans: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false, error: 'Internal server error', message: error.message
     });
@@ -57,7 +57,7 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
       error: 'Service layer not implemented — PlanService.createPlan not available',
     });
   } catch (error: any) {
-    console.error('Error creating plan:', error);
+    console.warn('Error creating plan: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: 'Internal server error', message: error.message });
   }
 }

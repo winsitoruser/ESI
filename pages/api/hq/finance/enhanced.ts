@@ -412,7 +412,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         return fail(res, `Unknown action: ${action}`, 400);
     }
   } catch (error: any) {
-    console.error('Enhanced Finance API Error:', error);
+    console.warn('Enhanced Finance API Error: (table may not exist):', (error as any)?.message || error);
     return fail(res, error.message || 'Internal Server Error');
   }
 }

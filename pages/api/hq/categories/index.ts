@@ -15,7 +15,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
     }
   } catch (error) {
-    console.error('Category API Error:', error);
+    console.warn('Category API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
@@ -50,7 +50,7 @@ async function getCategories(req: NextApiRequest, res: NextApiResponse) {
 
     return res.status(200).json({ categories: formattedCategories });
   } catch (error) {
-    console.error('Error fetching categories:', error);
+    console.warn('Error fetching categories: (table may not exist):', (error as any)?.message || error);
     return res.status(200).json({ categories: getMockCategories() });
   }
 }

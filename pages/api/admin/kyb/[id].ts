@@ -36,7 +36,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       return res.status(200).json({ success: true, data: kyb });
     } catch (error) {
-      console.error('Admin KYB detail error:', error);
+      console.warn('Admin KYB detail error: (table may not exist):', (error as any)?.message || error);
       return res.status(500).json({ message: 'Failed to fetch KYB detail' });
     }
   }
@@ -130,7 +130,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         data: updated,
       });
     } catch (error) {
-      console.error('Admin KYB review error:', error);
+      console.warn('Admin KYB review error: (table may not exist):', (error as any)?.message || error);
       return res.status(500).json({ message: 'Failed to process review action' });
     }
   }
@@ -341,7 +341,7 @@ async function provisionTenant(db: any, kyb: any, adminUserId: string) {
 
     console.log(`[Provisioning] Tenant ${businessCode} (${tenant.id}) provisioned successfully as ${kyb.businessStructure}`);
   } catch (error) {
-    console.error('[Provisioning] Error:', error);
+    console.warn('[Provisioning] Error: (table may not exist):', (error as any)?.message || error);
     throw error;
   }
 }

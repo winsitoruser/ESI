@@ -255,7 +255,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.setHeader('Content-Type', 'text/html');
     return res.send(html);
   } catch (error: any) {
-    console.error('Print recipe error:', error);
+    console.warn('Print recipe error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       error: 'Internal server error',
       message: error.message

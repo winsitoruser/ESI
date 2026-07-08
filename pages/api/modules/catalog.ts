@@ -70,7 +70,7 @@ export default async function handler(
         });
         
       } catch (error: any) {
-        console.error('Module catalog error:', error);
+        console.warn('Module catalog error: (table may not exist):', (error as any)?.message || error);
         return res.status(500).json({
           success: false,
           error: error.message
@@ -84,7 +84,7 @@ export default async function handler(
     });
     
   } catch (error: any) {
-    console.error('Module catalog API error:', error);
+    console.warn('Module catalog API error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: error.message
@@ -122,7 +122,7 @@ async function getModuleStats(db: any, modules: any[]): Promise<Map<string, any>
     });
     
   } catch (error) {
-    console.error('Error getting module stats:', error);
+    console.warn('Error getting module stats: (table may not exist):', (error as any)?.message || error);
   }
   
   return stats;

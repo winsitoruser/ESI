@@ -18,7 +18,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         return error(res, 'Method not allowed', 405);
     }
   } catch (err: any) {
-    console.error('Accounts Receivable API Error:', err);
+    console.warn('Accounts Receivable API Error: (table may not exist):', (err as any)?.message || err);
     return error(res, err.message || 'Internal server error', 500);
   }
 }
@@ -95,7 +95,7 @@ async function getAccountsReceivable(req: NextApiRequest, res: NextApiResponse) 
       }
     });
   } catch (err: any) {
-    console.error('Get Accounts Receivable Error:', err);
+    console.warn('Get Accounts Receivable Error: (table may not exist):', (err as any)?.message || err);
     return error(res, err.message || 'Failed to fetch accounts receivable', 500);
   }
 }
@@ -140,7 +140,7 @@ async function createAccountReceivable(req: NextApiRequest, res: NextApiResponse
       data: receivable
     }, 201);
   } catch (err: any) {
-    console.error('Create Account Receivable Error:', err);
+    console.warn('Create Account Receivable Error: (table may not exist):', (err as any)?.message || err);
     return error(res, err.message || 'Failed to create account receivable', 500);
   }
 }
@@ -170,7 +170,7 @@ async function updateAccountReceivable(req: NextApiRequest, res: NextApiResponse
       data: receivable
     });
   } catch (err: any) {
-    console.error('Update Account Receivable Error:', err);
+    console.warn('Update Account Receivable Error: (table may not exist):', (err as any)?.message || err);
     return error(res, err.message || 'Failed to update account receivable', 500);
   }
 }

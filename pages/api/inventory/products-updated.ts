@@ -62,7 +62,7 @@ const getMockProducts = (tenantId: string = 'default-tenant') => {
     const generator = new DummyDataGenerator(tenantId);
     return generator.generateProducts(20);
   } catch (err) {
-    console.error('Error generating mock products:', err);
+    console.warn('Error generating mock products: (table may not exist):', (err as any)?.message || err);
     return staticMockProducts;
   }
 };
@@ -179,7 +179,7 @@ async function getProducts(req: NextApiRequest, res: NextApiResponse, context: A
       }
     });
   } catch (error) {
-    console.error('Error getting products:', error);
+    console.warn('Error getting products: (table may not exist):', (error as any)?.message || error);
     return error(res, 'Terjadi kesalahan saat mengambil data produk', 500);
   }
 }
@@ -222,7 +222,7 @@ async function createProduct(req: NextApiRequest, res: NextApiResponse, context:
       data: newProduct || productData
     });
   } catch (error) {
-    console.error('Error creating product:', error);
+    console.warn('Error creating product: (table may not exist):', (error as any)?.message || error);
     return error(res, 'Terjadi kesalahan saat membuat produk', 500);
   }
 }
@@ -251,7 +251,7 @@ async function updateProduct(req: NextApiRequest, res: NextApiResponse, context:
       }
     });
   } catch (error) {
-    console.error('Error updating product:', error);
+    console.warn('Error updating product: (table may not exist):', (error as any)?.message || error);
     return error(res, 'Terjadi kesalahan saat memperbarui produk', 500);
   }
 }
@@ -276,7 +276,7 @@ async function deleteProduct(req: NextApiRequest, res: NextApiResponse, context:
       data: { id }
     });
   } catch (error) {
-    console.error('Error deleting product:', error);
+    console.warn('Error deleting product: (table may not exist):', (error as any)?.message || error);
     return error(res, 'Terjadi kesalahan saat menghapus produk', 500);
   }
 }
@@ -314,7 +314,7 @@ async function fetchProductsFromDatabase(context: ApiContext, params: any) {
     
     return filteredProducts;
   } catch (error) {
-    console.error('Error fetching products from database:', error);
+    console.warn('Error fetching products from database: (table may not exist):', (error as any)?.message || error);
     return [];
   }
 }

@@ -100,7 +100,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       });
     } catch (error: any) {
-      console.error('Error fetching purchase orders:', error);
+      console.warn('Error fetching purchase orders: (table may not exist):', (error as any)?.message || error);
       return res.status(500).json({ error: 'Internal server error', details: error.message });
     }
   }
@@ -201,7 +201,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     } catch (error: any) {
       await transaction.rollback();
-      console.error('Error creating purchase order:', error);
+      console.warn('Error creating purchase order: (table may not exist):', (error as any)?.message || error);
       return res.status(500).json({ error: 'Internal server error', details: error.message });
     }
   }

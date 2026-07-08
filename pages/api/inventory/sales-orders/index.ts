@@ -98,7 +98,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       });
     } catch (error: any) {
-      console.error('Error fetching sales orders:', error);
+      console.warn('Error fetching sales orders: (table may not exist):', (error as any)?.message || error);
       return res.status(500).json({ error: 'Internal server error', details: error.message });
     }
   }
@@ -249,7 +249,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     } catch (error: any) {
       await transaction.rollback();
-      console.error('Error creating sales order:', error);
+      console.warn('Error creating sales order: (table may not exist):', (error as any)?.message || error);
       return res.status(500).json({ error: 'Internal server error', details: error.message });
     }
   }

@@ -157,7 +157,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       metric,
     });
   } catch (e: any) {
-    console.error('[hq/fleet/leaderboard]', e?.message || e);
+    console.warn('[hq/fleet/leaderboard] (table may not exist):', e?.message || e);
     return res.status(500).json({ success: false, error: 'Internal error' });
   }
 }

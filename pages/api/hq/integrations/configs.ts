@@ -39,7 +39,7 @@ async function getConfigs(req: NextApiRequest, res: NextApiResponse) {
       summary
     });
   } catch (error) {
-    console.error('Error fetching configs:', error);
+    console.warn('Error fetching configs: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
@@ -83,7 +83,7 @@ async function postConfig(req: NextApiRequest, res: NextApiResponse) {
       message: 'Konfigurasi berhasil dibuat'
     });
   } catch (error) {
-    console.error('Error creating config:', error);
+    console.warn('Error creating config: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

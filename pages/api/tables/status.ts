@@ -48,7 +48,7 @@ export default async function handler(
         type: QueryTypes.SELECT
       });
     } catch (queryError) {
-      console.error('Table query error:', queryError);
+      console.warn('Table query error: (table may not exist):', (queryError as any)?.message || queryError);
     }
 
     // Return mock data if database is empty
@@ -93,7 +93,7 @@ export default async function handler(
     });
 
   } catch (error: any) {
-    console.error('Error fetching table status:', error);
+    console.warn('Error fetching table status: (table may not exist):', (error as any)?.message || error);
     
     // Return mock data on error
     const mockTables = Array.from({ length: 12 }, (_, i) => ({

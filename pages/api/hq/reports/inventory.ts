@@ -15,7 +15,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     return await getInventoryReport(req, res);
   } catch (error) {
-    console.error('Inventory Report API Error:', error);
+    console.warn('Inventory Report API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(
       errorResponse(ErrorCodes.INTERNAL_SERVER_ERROR, 'Internal server error')
     );
@@ -156,7 +156,7 @@ async function getInventoryReport(req: NextApiRequest, res: NextApiResponse) {
       })
     );
   } catch (error) {
-    console.error('Error fetching inventory report:', error);
+    console.warn('Error fetching inventory report: (table may not exist):', (error as any)?.message || error);
     const mock = getMockStockData();
     return res.status(HttpStatus.OK).json(
       successResponse({
@@ -223,7 +223,7 @@ async function getTopLowStockProducts(warehouseId: string | undefined, search: s
       .sort((a, b) => a.quantity - b.quantity)
       .slice(0, limit);
   } catch (error) {
-    console.error('Error computing top low stock products:', error);
+    console.warn('Error computing top low stock products: (table may not exist):', (error as any)?.message || error);
     return [];
   }
 }

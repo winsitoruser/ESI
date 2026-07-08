@@ -37,7 +37,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       return res.status(200).json({ rewards });
     } catch (error: any) {
-      console.error('Error fetching loyalty rewards:', error);
+      console.warn('Error fetching loyalty rewards: (table may not exist):', (error as any)?.message || error);
       return res.status(500).json({ error: 'Internal server error', details: error.message });
     }
   }
@@ -86,7 +86,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         reward
       });
     } catch (error: any) {
-      console.error('Error creating loyalty reward:', error);
+      console.warn('Error creating loyalty reward: (table may not exist):', (error as any)?.message || error);
       return res.status(500).json({ error: 'Internal server error', details: error.message });
     }
   }
@@ -112,7 +112,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         reward
       });
     } catch (error: any) {
-      console.error('Error updating loyalty reward:', error);
+      console.warn('Error updating loyalty reward: (table may not exist):', (error as any)?.message || error);
       return res.status(500).json({ error: 'Internal server error', details: error.message });
     }
   }
@@ -152,7 +152,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         message: 'Loyalty reward deleted successfully'
       });
     } catch (error: any) {
-      console.error('Error deleting loyalty reward:', error);
+      console.warn('Error deleting loyalty reward: (table may not exist):', (error as any)?.message || error);
       return res.status(500).json({ error: 'Internal server error', details: error.message });
     }
   }

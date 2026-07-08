@@ -52,7 +52,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(200).json({ success: true, data, count: data.length });
   } catch (error: any) {
-    console.error('Available drivers API error:', error);
+    console.warn('Available drivers API error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: error.message });
   }
 }

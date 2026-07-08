@@ -96,7 +96,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.json({ success: true, data: uploaded });
   } catch (e: any) {
-    console.error('[driver/upload] error', e?.message || e);
+    console.warn('[driver/upload] error (table may not exist):', e?.message || e);
     return res.status(500).json({ success: false, error: e?.message || 'Upload failed' });
   }
 }

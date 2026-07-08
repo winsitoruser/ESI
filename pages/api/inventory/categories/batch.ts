@@ -36,7 +36,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       res.status(405).end(`Method ${req.method} Not Allowed`);
     }
   } catch (error: any) {
-    console.error('Error handling batch category operation:', error);
+    console.warn('Error handling batch category operation: (table may not exist):', (error as any)?.message || error);
     res.status(500).json({ 
       success: false, 
       message: 'An error occurred while processing the request', 
@@ -77,7 +77,7 @@ async function handleBatchDelete(
         data: { count: result.count, ids: result.deletedIds }
       });
     } catch (dbError: any) {
-      console.error('Database error during batch category deletion:', dbError);
+      console.warn('Database error during batch category deletion: (table may not exist):', (dbError as any)?.message || dbError);
       
       // Return partial success if some categories were deleted
       if (dbError.deletedIds && dbError.deletedIds.length > 0) {
@@ -105,7 +105,7 @@ async function handleBatchDelete(
       });
     }
   } catch (error: any) {
-    console.error('Error in batch delete categories:', error);
+    console.warn('Error in batch delete categories: (table may not exist):', (error as any)?.message || error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to delete categories in batch', 
@@ -163,7 +163,7 @@ async function handleBatchCreate(
         data: createdCategories
       });
     } catch (dbError: any) {
-      console.error('Database error during batch category creation:', dbError);
+      console.warn('Database error during batch category creation: (table may not exist):', (dbError as any)?.message || dbError);
       
       // Fall back to mock data in case of database error
       const mockCategories = categories.map((cat, index) => ({
@@ -188,7 +188,7 @@ async function handleBatchCreate(
       });
     }
   } catch (error: any) {
-    console.error('Error in batch create categories:', error);
+    console.warn('Error in batch create categories: (table may not exist):', (error as any)?.message || error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to create categories in batch', 

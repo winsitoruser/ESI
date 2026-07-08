@@ -31,7 +31,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     return res.status(200).json({ success: true, data: provider, provider });
   } catch (error) {
-    console.error('Error fetching provider by code:', error);
+    console.warn('Error fetching provider by code: (table may not exist):', (error as any)?.message || error);
     return res
       .status(500)
       .json({ success: false, error: 'SERVER_ERROR', message: 'Internal server error' });

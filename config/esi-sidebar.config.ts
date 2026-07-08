@@ -12,7 +12,7 @@ import {
   PiggyBank, CreditCard, Shield, Link2, Code2, Heart, MapPin, Navigation,
   Fuel, HardHat, Scan, GraduationCap, PenTool, Ship, Anchor, Car,
   Sparkles, Activity, AlertTriangle, Timer, Rocket, Gauge, Cog, Brain, UserPlus,
-  Dog, Syringe, Hotel, Building, Calendar, Percent, Wallet, Users2,
+  Dog, Syringe, Hotel, Building, Calendar, Percent, Wallet, Users2, Award, ArrowRightLeft,
   type LucideIcon,
 } from 'lucide-react';
 import type { SidebarConfig, MenuGroup } from './sidebar.config';
@@ -168,33 +168,24 @@ export const esiHqSidebarConfig: SidebarConfig = {
       ],
     },
     {
-      id: 'hr',
-      title: 'SDM & HRIS',
+      id: 'platforms',
+      title: 'Platform',
       items: [
-        { id: 'users', name: 'Pengguna & Akses', href: '/hq/users', icon: UserCog, modules: ['users'] },
         {
-          id: 'hris',
-          name: 'HRIS',
+          id: 'humanify',
+          name: 'Humanify',
           icon: UserCheck,
-          modules: ['hris'],
+          modules: ['humanify', 'hris'],
           children: [
-            { id: 'hris-dashboard', name: 'Dasbor HRIS', href: '/hq/hris', icon: LayoutDashboard },
-            { id: 'hris-employees', name: 'Karyawan', href: '/hq/hris/employees', icon: Users },
-            { id: 'hris-team', name: 'Tim Marketing & Sales', href: '/hq/hris/team-members', icon: Target },
-            { id: 'hris-tasks', name: 'Tugas Tim', href: '/hq/hris/tasks', icon: ClipboardList },
-            { id: 'hris-attendance', name: 'Kehadiran', href: '/hq/hris/attendance', icon: Timer },
-            { id: 'hris-payroll', name: 'Payroll', href: '/hq/hris/payroll', icon: DollarSign },
-            { id: 'hris-recruitment', name: 'Rekrutmen', href: '/hq/hris/recruitment', icon: UserPlus },
+            { id: 'humanify-welcome', name: 'Tentang Humanify', href: '/humanify/welcome', icon: Sparkles },
+            { id: 'humanify-home', name: 'Beranda Humanify', href: '/humanify', icon: Sparkles },
+            { id: 'humanify-employees', name: 'Karyawan', href: '/humanify/employees', icon: Users },
+            { id: 'humanify-attendance', name: 'Kehadiran', href: '/humanify/attendance', icon: Timer },
+            { id: 'humanify-payroll', name: 'Payroll', href: '/humanify/payroll', icon: DollarSign },
+            { id: 'humanify-casual', name: 'Tenaga Harian', href: '/humanify/casual-workforce', icon: HardHat },
           ],
         },
-      ],
-    },
-    {
-      id: 'hr-planning',
-      title: 'HR & Planning',
-      items: [
-        { id: 'team-members', name: 'Tim Internal', href: '/hq/hris/team-members', icon: Users2, modules: ['hris'] },
-        { id: 'tasks', name: 'Task Management', href: '/hq/hris/tasks', icon: ClipboardList, modules: ['hris'] },
+        { id: 'users', name: 'Pengguna & Akses', href: '/hq/users', icon: UserCog, modules: ['users'] },
       ],
     },
     {
@@ -209,6 +200,8 @@ export const esiHqSidebarConfig: SidebarConfig = {
           children: [
             { id: 'crm-dashboard', name: 'Dasbor CRM', href: '/hq/crm', icon: LayoutDashboard },
             { id: 'crm-pipeline', name: 'Pipeline Leads', href: '/hq/crm', icon: Target },
+            { id: 'crm-planning', name: 'Sales Planning', href: '/hq/crm/planning', icon: Calendar },
+            { id: 'crm-targets', name: 'Target & Realisasi', href: '/hq/crm/targets', icon: TrendingUp },
           ],
         },
         { id: 'helpdesk', name: 'Layanan & Help Desk', href: '/hq/helpdesk', icon: Headphones, modules: ['helpdesk', 'crm'] },
@@ -234,6 +227,16 @@ export const esiHqSidebarConfig: SidebarConfig = {
             { id: 'fin-expenses', name: 'Pengeluaran', href: '/hq/finance/expenses', icon: CreditCard },
             { id: 'fin-pnl', name: 'Laba Rugi', href: '/hq/finance/profit-loss', icon: FileSpreadsheet },
             { id: 'fin-tax', name: 'Pajak', href: '/hq/finance/tax', icon: Calculator },
+          ],
+        },
+        {
+          id: 'multifinance',
+          name: 'Pembiayaan & Multifinance',
+          icon: Building2,
+          modules: ['hris', 'finance_pro'],
+          children: [
+            { id: 'mf-workforce', name: 'Tenaga Kerja Pembiayaan', href: '/hq/multifinance/workforce', icon: Users },
+            { id: 'mf-casual-link', name: 'Tenaga Harian & Borongan', href: '/humanify/casual-workforce', icon: HardHat },
           ],
         },
       ],

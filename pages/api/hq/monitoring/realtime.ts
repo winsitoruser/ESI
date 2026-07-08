@@ -100,7 +100,7 @@ export default async function handler(
     }
 
   } catch (error: any) {
-    console.error('HQ Real-time Monitoring API error:', error);
+    console.warn('HQ Real-time Monitoring API error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Internal server error',

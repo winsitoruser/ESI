@@ -143,11 +143,15 @@ module.exports = {
       }
     });
 
-    // Add unique constraint
-    await queryInterface.addIndex('locations', ['warehouse_id', 'code'], {
-      unique: true,
-      name: 'locations_warehouse_code_unique'
-    });
+    // Add unique constraint (idempotent)
+    try {
+      await queryInterface.addIndex('locations', ['warehouse_id', 'code'], {
+        unique: true,
+        name: 'locations_warehouse_code_unique'
+      });
+    } catch (e) {
+      if (!String(e.message).includes('already exists')) throw e;
+    }
 
     // Insert sample data
     await queryInterface.bulkInsert('warehouses', [

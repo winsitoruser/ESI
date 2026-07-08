@@ -231,7 +231,7 @@ export default async function handler(
     }
 
   } catch (error: any) {
-    console.error('Webhooks API error:', error);
+    console.warn('Webhooks API error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Internal server error',

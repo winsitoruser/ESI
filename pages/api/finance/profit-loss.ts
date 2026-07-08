@@ -388,7 +388,7 @@ export default async function handler(
     const profitLossData = generateMockProfitLossData(period as string, periodType as string);
     return res.status(200).json(profitLossData);
   } catch (error: unknown) {
-    console.error('Error fetching profit/loss data:', error);
+    console.warn('Error fetching profit/loss data: (table may not exist):', (error as any)?.message || error);
     
     // Fallback ke mock data
     console.log('Using mock profit/loss data');

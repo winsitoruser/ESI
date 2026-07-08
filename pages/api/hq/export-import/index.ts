@@ -35,7 +35,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       default: return res.status(405).json(errorResponse('METHOD_NOT_ALLOWED', 'Method not allowed'));
     }
   } catch (error: any) {
-    console.error(`[EXIM API] Error (${action}):`, error.message);
+    console.warn(`[EXIM API] Error (${action}):`, error.message);
     // Handle table not found gracefully
     if (error.message?.includes('does not exist') || error.original?.code === '42P01') {
       return res.status(200).json(successResponse(getEmptyDataForAction(action)));

@@ -40,7 +40,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         );
     }
   } catch (error: any) {
-    console.error(`[Warehouse API] Error in ${action}:`, error.message);
+    console.warn(`[Warehouse API] Error in ${action}:`, error.message);
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(
       errorResponse(ErrorCodes.INTERNAL_SERVER_ERROR, error.message)
     );

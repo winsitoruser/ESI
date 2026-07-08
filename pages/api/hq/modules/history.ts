@@ -24,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   } catch (error: any) {
-    console.error('Deployment History API error:', error);
+    console.warn('Deployment History API error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message });
   }
 }
@@ -71,7 +71,7 @@ async function getDeploymentHistory(
       }
     });
   } catch (error: any) {
-    console.error('Error getting deployment history:', error);
+    console.warn('Error getting deployment history: (table may not exist):', (error as any)?.message || error);
     return res.status(200).json({
       success: true,
       data: {

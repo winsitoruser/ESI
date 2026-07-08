@@ -20,7 +20,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(405).json({ success: false, error: 'Method not allowed' });
     }
   } catch (error: any) {
-    console.error('Package details API error:', error);
+    console.warn('Package details API error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message });
   }
 }
@@ -95,7 +95,7 @@ async function getPackageDetails(req: NextApiRequest, res: NextApiResponse, pack
       }
     });
   } catch (error: any) {
-    console.error('Error fetching package details:', error);
+    console.warn('Error fetching package details: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: error.message });
   }
 }

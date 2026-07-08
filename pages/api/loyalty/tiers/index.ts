@@ -44,7 +44,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       return res.status(200).json({ tiers });
     } catch (error: any) {
-      console.error('Error fetching loyalty tiers:', error);
+      console.warn('Error fetching loyalty tiers: (table may not exist):', (error as any)?.message || error);
       return res.status(500).json({ error: 'Internal server error', details: error.message });
     }
   }
@@ -84,7 +84,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         tier
       });
     } catch (error: any) {
-      console.error('Error creating loyalty tier:', error);
+      console.warn('Error creating loyalty tier: (table may not exist):', (error as any)?.message || error);
       return res.status(500).json({ error: 'Internal server error', details: error.message });
     }
   }
@@ -110,7 +110,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         tier
       });
     } catch (error: any) {
-      console.error('Error updating loyalty tier:', error);
+      console.warn('Error updating loyalty tier: (table may not exist):', (error as any)?.message || error);
       return res.status(500).json({ error: 'Internal server error', details: error.message });
     }
   }
@@ -147,7 +147,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         message: 'Loyalty tier deleted successfully'
       });
     } catch (error: any) {
-      console.error('Error deleting loyalty tier:', error);
+      console.warn('Error deleting loyalty tier: (table may not exist):', (error as any)?.message || error);
       return res.status(500).json({ error: 'Internal server error', details: error.message });
     }
   }

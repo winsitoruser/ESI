@@ -35,7 +35,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     return await getSyncStatus(req, res);
   } catch (error) {
-    console.error('Sync status API Error:', error);
+    console.warn('Sync status API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
@@ -51,7 +51,7 @@ async function getSyncStatus(req: NextApiRequest, res: NextApiResponse) {
       ...status
     });
   } catch (error: any) {
-    console.error('Error getting sync status:', error);
+    console.warn('Error getting sync status: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ 
       error: 'Failed to get sync status',
       message: error.message

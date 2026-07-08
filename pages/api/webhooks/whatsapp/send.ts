@@ -63,7 +63,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(result.success ? 200 : 500).json(result);
   } catch (error: any) {
-    console.error('WhatsApp Send API Error:', error);
+    console.warn('WhatsApp Send API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ error: error.message });
   }
 }

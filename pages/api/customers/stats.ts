@@ -96,7 +96,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
   } catch (error: any) {
-    console.error('Customer Stats API Error:', error);
+    console.warn('Customer Stats API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ 
       error: error.message || 'Internal server error',
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
