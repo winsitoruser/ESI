@@ -106,7 +106,7 @@ async function getContractExpiry(req: NextApiRequest, res: NextApiResponse) {
     SELECT ec.*, e.name as employee_name, e.employee_code as employee_code, e.department, e.position,
       ec.end_date - CURRENT_DATE as days_remaining
     FROM employee_contracts ec
-    LEFT JOIN employees e ON ec.employee_id = e.id
+    LEFT JOIN employees e ON ec.employee_id::uuid = e.id
     WHERE ec.status = 'active' AND ec.end_date IS NOT NULL 
       AND ec.end_date <= CURRENT_DATE + INTERVAL '${days} days'
     ORDER BY ec.end_date ASC
@@ -124,7 +124,7 @@ async function getCertExpiry(req: NextApiRequest, res: NextApiResponse) {
     SELECT ec.*, e.name as employee_name, e.employee_code as employee_code, e.department,
       ec.expiry_date - CURRENT_DATE as days_remaining
     FROM employee_certifications ec
-    LEFT JOIN employees e ON ec.employee_id = e.id
+    LEFT JOIN employees e ON ec.employee_id::uuid = e.id
     WHERE ec.is_active = true AND ec.expiry_date IS NOT NULL 
       AND ec.expiry_date <= CURRENT_DATE + INTERVAL '${days} days'
     ORDER BY ec.expiry_date ASC
@@ -197,7 +197,7 @@ async function generateReminders(req: NextApiRequest, res: NextApiResponse, sess
   const [contracts] = await sequelize.query(`
     SELECT ec.id, ec.employee_id, ec.contract_type, ec.contract_number, ec.end_date, e.name as emp_name
     FROM employee_contracts ec
-    LEFT JOIN employees e ON ec.employee_id = e.id
+    LEFT JOIN employees e ON ec.employee_id::uuid = e.id
     WHERE ec.status = 'active' AND ec.end_date IS NOT NULL
       AND NOT EXISTS (
         SELECT 1 FROM contract_reminders cr 
@@ -225,7 +225,7 @@ async function generateReminders(req: NextApiRequest, res: NextApiResponse, sess
   const [certs] = await sequelize.query(`
     SELECT ec.id, ec.employee_id, ec.name as cert_name, ec.expiry_date, e.name as emp_name
     FROM employee_certifications ec
-    LEFT JOIN employees e ON ec.employee_id = e.id
+    LEFT JOIN employees e ON ec.employee_id::uuid = e.id
     WHERE ec.is_active = true AND ec.expiry_date IS NOT NULL
       AND NOT EXISTS (
         SELECT 1 FROM contract_reminders cr 
