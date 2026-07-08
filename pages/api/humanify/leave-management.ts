@@ -25,6 +25,105 @@ function getTenantId(req: NextApiRequest): string | null {
   return session?.user?.tenantId || null;
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function asUuidOrNull(value: unknown): string | null {
+  if (value == null) return null;
+  const s = String(value);
+  return UUID_RE.test(s) ? s : null;
+}
+
+function balanceRemainingExpr(): string {
+  return `COALESCE(lb.remaining,
+    COALESCE(lb.entitled, lb.entitled_days, 0)
+    + COALESCE(lb.carried_forward_days, 0)
+    + COALESCE(lb.adjustment_days, 0)
+    - COALESCE(lb.used, lb.used_days, 0)
+    - COALESCE(lb.pending, lb.pending_days, 0)
+  )`;
+}
+
+async function fetchDbLeaveRequests(tenantId: string | null, limit = 50): Promise<any[]> {
+  if (!sequelize) return [];
+  try {
+    const tenantClause = tenantId
+      ? 'WHERE (lr.tenant_id = :tenantId OR lr.tenant_id IS NULL)'
+      : '';
+    const [rows] = await sequelize.query(`
+      SELECT lr.*, e.name as employee_name, e.position, e.department, e.branch_id
+      FROM leave_requests lr
+      LEFT JOIN employees e ON lr.employee_id::text = e.id::text
+      ${tenantClause}
+      ORDER BY lr.created_at DESC LIMIT ${limit}
+    `, { replacements: { tenantId } });
+    const list = (rows as any[]) || [];
+    if (list.length === 0) return [];
+
+    const ids = list.map((r: any) => `'${r.id}'`).join(',');
+    const stepsMap: Record<string, any[]> = {};
+    try {
+      const [steps] = await sequelize.query(
+        `SELECT * FROM leave_approval_steps WHERE leave_request_id IN (${ids}) ORDER BY step_order`
+      );
+      ((steps as any[]) || []).forEach((s: any) => {
+        if (!stepsMap[s.leave_request_id]) stepsMap[s.leave_request_id] = [];
+        stepsMap[s.leave_request_id].push(s);
+      });
+    } catch { /* approval steps table may be empty */ }
+
+    return list.map((r: any) => ({ ...r, approvalSteps: stepsMap[r.id] || [] }));
+  } catch (e: any) {
+    console.warn('fetchDbLeaveRequests:', e?.message || e);
+    return [];
+  }
+}
+
+async function getLeaveBalanceRemaining(empId: string, leaveTypeCode: string, year: number): Promise<number | null> {
+  if (!sequelize) return null;
+  try {
+    const [balanceRows] = await sequelize.query(`
+      SELECT lb.*, ${balanceRemainingExpr()} AS remaining_calc
+      FROM leave_balances lb
+      WHERE lb.employee_id = :empId AND lb.year = :year
+      AND lb.leave_type_id = (SELECT id FROM leave_types WHERE code = :code LIMIT 1)
+    `, { replacements: { empId, year, code: leaveTypeCode } });
+    const balance = (balanceRows as any[])?.[0];
+    if (!balance) return null;
+    return parseFloat(balance.remaining_calc ?? balance.remaining ?? 0);
+  } catch {
+    return null;
+  }
+}
+
+async function adjustLeaveBalancePending(empId: string, leaveTypeCode: string, year: number, days: number, mode: 'add' | 'remove' | 'approve') {
+  if (!sequelize) return;
+  const sql =
+    mode === 'add'
+      ? `UPDATE leave_balances SET
+          pending = COALESCE(pending, pending_days, 0) + :days,
+          remaining = GREATEST(0, COALESCE(remaining, entitled, entitled_days, 0) - :days),
+          updated_at = NOW()
+        WHERE employee_id = :empId AND year = :year
+        AND leave_type_id = (SELECT id FROM leave_types WHERE code = :code LIMIT 1)`
+      : mode === 'remove'
+        ? `UPDATE leave_balances SET
+            pending = GREATEST(0, COALESCE(pending, pending_days, 0) - :days),
+            remaining = COALESCE(remaining, entitled, entitled_days, 0) - COALESCE(used, used_days, 0) + :days,
+            updated_at = NOW()
+          WHERE employee_id = :empId AND year = :year
+          AND leave_type_id = (SELECT id FROM leave_types WHERE code = :code LIMIT 1)`
+        : `UPDATE leave_balances SET
+            pending = GREATEST(0, COALESCE(pending, pending_days, 0) - :days),
+            used = COALESCE(used, used_days, 0) + :days,
+            remaining = GREATEST(0, COALESCE(remaining, entitled, entitled_days, 0) - :days),
+            updated_at = NOW()
+          WHERE employee_id = :empId AND year = :year
+          AND leave_type_id = (SELECT id FROM leave_types WHERE code = :code LIMIT 1)`;
+  await sequelize.query(sql, {
+    replacements: { days, empId, year, code: leaveTypeCode },
+  });
+}
+
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     const session = (req as any).session;
@@ -97,24 +196,11 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
     }
     if (approvalConfigs.length === 0) approvalConfigs = getMockApprovalConfigs();
 
-    // Fetch leave requests summary
-    let requests: any[] = [];
-    let summary = { total: 0, pending: 0, approved: 0, rejected: 0, totalDaysUsed: 0 };
-    if (sequelize) {
-      try {
-        const rows = await sequelize.query(`
-          SELECT lr.*, e.name as employee_name, e.position, e.department, e.branch_id
-          FROM leave_requests lr
-          LEFT JOIN employees e ON lr.employee_id = e.id
-          ${tenantId ? "WHERE lr.tenant_id = :tenantId" : ""}
-          ORDER BY lr.created_at DESC LIMIT 50
-        `, { replacements: { tenantId } });
-        requests = (Array.isArray(rows) ? rows[0] : rows) || [];
-      } catch (e) {}
-    }
-    if (requests.length === 0) requests = getMockRequests();
+    // Fetch leave requests — never mix mock IDs with real approve flow
+    let requests: any[] = await fetchDbLeaveRequests(tenantId, 50);
+    if (requests.length === 0 && !sequelize) requests = getMockRequests();
 
-    summary = {
+    const summary = {
       total: requests.length,
       pending: requests.filter((r: any) => r.status === 'pending').length,
       approved: requests.filter((r: any) => r.status === 'approved').length,
@@ -157,6 +243,24 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
     });
   } catch (e: any) {
     console.warn('getOverview error:', e.message);
+    const requests = await fetchDbLeaveRequests(session?.user?.tenantId || null, 50);
+    if (requests.length > 0) {
+      return res.status(200).json({
+        success: true,
+        leaveTypes: getMockLeaveTypes(),
+        approvalConfigs: getMockApprovalConfigs(),
+        requests,
+        balances: [],
+        summary: {
+          total: requests.length,
+          pending: requests.filter((r: any) => r.status === 'pending').length,
+          approved: requests.filter((r: any) => r.status === 'approved').length,
+          rejected: requests.filter((r: any) => r.status === 'rejected').length,
+          totalDaysUsed: requests.filter((r: any) => r.status === 'approved')
+            .reduce((s: number, r: any) => s + (r.total_days || 0), 0),
+        },
+      });
+    }
     return res.status(200).json({
       success: true,
       leaveTypes: getMockLeaveTypes(),
@@ -329,23 +433,12 @@ async function createLeaveRequest(req: NextApiRequest, res: NextApiResponse, ses
   try {
     // Validate leave balance before creating the request
     try {
-      const [balanceRows] = await sequelize.query(`
-        SELECT lb.*,
-          (lb.entitled_days + COALESCE(lb.carried_forward_days,0) + COALESCE(lb.adjustment_days,0)
-           - lb.used_days - lb.pending_days) AS remaining
-        FROM leave_balances lb
-        WHERE lb.employee_id = :empId AND lb.year = :year
-        AND lb.leave_type_id = (SELECT id FROM leave_types WHERE code = :code LIMIT 1)
-      `, { replacements: { empId: employeeId || session.user.id, year: new Date().getFullYear(), code: leaveType } });
-      const balance = balanceRows?.[0];
-      if (balance) {
-        const remaining = parseFloat(balance.remaining);
-        if (remaining < totalDays) {
-          return res.status(400).json({
-            success: false,
-            error: `Saldo cuti tidak mencukupi. Sisa: ${Math.max(0, remaining)} hari, dibutuhkan: ${totalDays} hari`
-          });
-        }
+      const remaining = await getLeaveBalanceRemaining(employeeId || session.user.id, leaveType, new Date().getFullYear());
+      if (remaining !== null && remaining < totalDays) {
+        return res.status(400).json({
+          success: false,
+          error: `Saldo cuti tidak mencukupi. Sisa: ${Math.max(0, remaining)} hari, dibutuhkan: ${totalDays} hari`
+        });
       }
     } catch (e) {} // If no balance record, allow creation (will be caught at approval time)
 
@@ -431,11 +524,7 @@ async function createLeaveRequest(req: NextApiRequest, res: NextApiResponse, ses
     // Update leave balance (add to pending)
     if (leaveRequest && !autoApprove) {
       try {
-        await sequelize.query(`
-          UPDATE leave_balances SET pending_days = pending_days + :days, updated_at = NOW()
-          WHERE employee_id = :empId AND year = :year
-          AND leave_type_id = (SELECT id FROM leave_types WHERE code = :code LIMIT 1)
-        `, { replacements: { days: totalDays, empId: employeeId || session.user.id, year: new Date().getFullYear(), code: leaveType } });
+        await adjustLeaveBalancePending(employeeId || session.user.id, leaveType, new Date().getFullYear(), totalDays, 'add');
       } catch (e) {}
     }
 
@@ -456,87 +545,93 @@ async function approveStep(req: NextApiRequest, res: NextApiResponse, session: a
   const { stepId, leaveRequestId, comments } = req.body;
 
   if (!leaveRequestId) return res.status(400).json({ success: false, error: 'leaveRequestId required' });
+  const requestId = String(leaveRequestId);
+  if (!UUID_RE.test(requestId)) {
+    return res.status(400).json({
+      success: false,
+      error: 'Data cuti tidak valid (mock/demo). Muat ulang halaman lalu coba lagi.',
+    });
+  }
   if (!sequelize) return res.json({ success: true, message: 'Approved (mock)' });
 
+  const approverUuid = asUuidOrNull(session.user?.id);
+  const approverLabel = session.user?.name || session.user?.email || 'Approver';
+
   try {
-    // Update the current step
+    // Update the current step (schema: acted_at, no approver_name/action_date)
     await sequelize.query(`
-      UPDATE leave_approval_steps SET status = 'approved', approver_id = :userId,
-        approver_name = :userName, action_date = NOW(), comments = :comments, updated_at = NOW()
+      UPDATE leave_approval_steps SET status = 'approved',
+        approver_id = :approverUuid,
+        comments = COALESCE(:comments, comments),
+        acted_at = NOW(), updated_at = NOW()
       WHERE ${stepId ? 'id = :stepId' : 'leave_request_id = :requestId AND status = \'pending\''}
       ${!stepId ? 'AND step_order = (SELECT MIN(step_order) FROM leave_approval_steps WHERE leave_request_id = :requestId AND status = \'pending\')' : ''}
     `, {
-      replacements: { stepId, requestId: leaveRequestId, userId: session.user.id, userName: session.user.name || 'User', comments: comments || null }
+      replacements: {
+        stepId,
+        requestId,
+        approverUuid,
+        comments: comments || `Disetujui oleh ${approverLabel}`,
+      },
     });
 
     // Update current step number
     await sequelize.query(`
-      UPDATE leave_requests SET current_approval_step = current_approval_step + 1, updated_at = NOW()
+      UPDATE leave_requests SET current_approval_step = COALESCE(current_approval_step, 1) + 1, updated_at = NOW()
       WHERE id = :requestId
-    `, { replacements: { requestId: leaveRequestId } });
+    `, { replacements: { requestId } });
 
     // Activate next step
     const [nextSteps] = await sequelize.query(`
       SELECT * FROM leave_approval_steps WHERE leave_request_id = :requestId AND status = 'waiting'
       ORDER BY step_order LIMIT 1
-    `, { replacements: { requestId: leaveRequestId } });
+    `, { replacements: { requestId } });
 
-    if (nextSteps && nextSteps.length > 0) {
+    if (nextSteps && (nextSteps as any[]).length > 0) {
       await sequelize.query(`
         UPDATE leave_approval_steps SET status = 'pending', updated_at = NOW() WHERE id = :id
-      `, { replacements: { id: nextSteps[0].id } });
-    } else {
-      // All steps approved - finalize
-      // Validate leave balance before final approval
-      const [lr] = await sequelize.query(`SELECT * FROM leave_requests WHERE id = :id`, { replacements: { id: leaveRequestId } });
-      if (lr?.[0]) {
-        const leaveData = lr[0];
-
-        // Check balance is sufficient
-        const [balanceRows] = await sequelize.query(`
-          SELECT lb.*,
-            (lb.entitled_days + COALESCE(lb.carried_forward_days,0) + COALESCE(lb.adjustment_days,0)
-             - lb.used_days - lb.pending_days) AS remaining
-          FROM leave_balances lb
-          WHERE lb.employee_id = :empId AND lb.year = :year
-          AND lb.leave_type_id = (SELECT id FROM leave_types WHERE code = :code LIMIT 1)
-        `, { replacements: { empId: leaveData.employee_id, year: new Date().getFullYear(), code: leaveData.leave_type } });
-
-        const balance = balanceRows?.[0];
-        const remaining = balance ? parseFloat(balance.remaining) : 0;
-        const days = leaveData.total_days;
-
-        if (remaining < days) {
-          return res.status(400).json({
-            success: false,
-            error: `Saldo cuti tidak mencukupi. Sisa: ${Math.max(0, remaining)} hari, dibutuhkan: ${days} hari`
-          });
-        }
-      }
-
-      await sequelize.query(`
-        UPDATE leave_requests SET status = 'approved', approved_by = :userId, approved_at = NOW(), updated_at = NOW()
-        WHERE id = :requestId
-      `, { replacements: { requestId: leaveRequestId, userId: session.user.id } });
-
-      // Move from pending to used in balance (with the validated balance)
-      if (lr?.[0]) {
-        try {
-          await sequelize.query(`
-            UPDATE leave_balances SET
-              pending_days = GREATEST(0, pending_days - :days),
-              used_days = used_days + :days,
-              updated_at = NOW()
-            WHERE employee_id = :empId AND year = :year
-            AND leave_type_id = (SELECT id FROM leave_types WHERE code = :code LIMIT 1)
-          `, { replacements: { days: lr[0].total_days, empId: lr[0].employee_id, year: new Date().getFullYear(), code: lr[0].leave_type } });
-        } catch (e) {
-          console.warn('Failed to update leave balance: (table may not exist):', (e as any)?.message || e);
-        }
-      }
+      `, { replacements: { id: (nextSteps as any[])[0].id } });
+      return res.json({ success: true, message: 'Step disetujui, lanjut ke level berikutnya' });
     }
 
-    return res.json({ success: true, message: nextSteps?.length > 0 ? 'Step disetujui, lanjut ke level berikutnya' : 'Cuti sepenuhnya disetujui' });
+    // All steps approved — finalize
+    const [lr] = await sequelize.query(`SELECT * FROM leave_requests WHERE id = :id`, { replacements: { id: requestId } });
+    const leaveData = (lr as any[])?.[0];
+    if (!leaveData) {
+      return res.status(404).json({ success: false, error: 'Pengajuan cuti tidak ditemukan' });
+    }
+
+    const days = leaveData.total_days;
+    const remaining = await getLeaveBalanceRemaining(
+      leaveData.employee_id,
+      leaveData.leave_type,
+      new Date().getFullYear()
+    );
+    if (remaining !== null && remaining < days) {
+      return res.status(400).json({
+        success: false,
+        error: `Saldo cuti tidak mencukupi. Sisa: ${Math.max(0, remaining)} hari, dibutuhkan: ${days} hari`,
+      });
+    }
+
+    await sequelize.query(`
+      UPDATE leave_requests SET status = 'approved', approved_by = :approverUuid, approved_at = NOW(), updated_at = NOW()
+      WHERE id = :requestId
+    `, { replacements: { requestId, approverUuid } });
+
+    try {
+      await adjustLeaveBalancePending(
+        leaveData.employee_id,
+        leaveData.leave_type,
+        new Date().getFullYear(),
+        days,
+        'approve'
+      );
+    } catch (e) {
+      console.warn('Failed to update leave balance:', (e as any)?.message || e);
+    }
+
+    return res.json({ success: true, message: 'Cuti sepenuhnya disetujui' });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: 'Failed to approve', details: e.message });
   }
@@ -546,32 +641,34 @@ async function approveStep(req: NextApiRequest, res: NextApiResponse, session: a
 async function rejectRequest(req: NextApiRequest, res: NextApiResponse, session: any) {
   const { leaveRequestId, reason } = req.body;
   if (!leaveRequestId) return res.status(400).json({ success: false, error: 'leaveRequestId required' });
+  const requestId = String(leaveRequestId);
+  if (!UUID_RE.test(requestId)) {
+    return res.status(400).json({ success: false, error: 'Data cuti tidak valid. Muat ulang halaman.' });
+  }
   if (!reason) return res.status(400).json({ success: false, error: 'Rejection reason required' });
   if (!sequelize) return res.json({ success: true, message: 'Rejected (mock)' });
 
+  const approverUuid = asUuidOrNull(session.user?.id);
+  const approverLabel = session.user?.name || session.user?.email || 'Approver';
+
   try {
-    // Reject the request
     await sequelize.query(`
       UPDATE leave_requests SET status = 'rejected', rejection_reason = :reason, updated_at = NOW()
       WHERE id = :id
-    `, { replacements: { id: leaveRequestId, reason } });
+    `, { replacements: { id: requestId, reason } });
 
-    // Mark all pending steps as rejected
     await sequelize.query(`
-      UPDATE leave_approval_steps SET status = 'rejected', approver_id = :userId,
-        approver_name = :userName, action_date = NOW(), comments = :reason, updated_at = NOW()
+      UPDATE leave_approval_steps SET status = 'rejected',
+        approver_id = :approverUuid,
+        comments = :reason, acted_at = NOW(), updated_at = NOW()
       WHERE leave_request_id = :id AND status IN ('pending', 'waiting')
-    `, { replacements: { id: leaveRequestId, userId: session.user.id, userName: session.user.name || 'User', reason } });
+    `, { replacements: { id: requestId, approverUuid, reason: `${reason} (${approverLabel})` } });
 
-    // Restore pending balance
-    const [lr] = await sequelize.query(`SELECT * FROM leave_requests WHERE id = :id`, { replacements: { id: leaveRequestId } });
-    if (lr?.[0]) {
+    const [lr] = await sequelize.query(`SELECT * FROM leave_requests WHERE id = :id`, { replacements: { id: requestId } });
+    if ((lr as any[])?.[0]) {
+      const row = (lr as any[])[0];
       try {
-        await sequelize.query(`
-          UPDATE leave_balances SET pending_days = GREATEST(0, pending_days - :days), updated_at = NOW()
-          WHERE employee_id = :empId AND year = :year
-          AND leave_type_id = (SELECT id FROM leave_types WHERE code = :code LIMIT 1)
-        `, { replacements: { days: lr[0].total_days, empId: lr[0].employee_id, year: new Date().getFullYear(), code: lr[0].leave_type } });
+        await adjustLeaveBalancePending(row.employee_id, row.leave_type, new Date().getFullYear(), row.total_days, 'remove');
       } catch (e) {}
     }
 
