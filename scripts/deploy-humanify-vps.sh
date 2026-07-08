@@ -275,7 +275,7 @@ export NODE_OPTIONS='--max-old-space-size=6144'
 export NEXT_TELEMETRY_DISABLED=1
 export GENERATE_SOURCEMAP=false
 
-python3 - \<<'PY'
+python3 -c "
 import re
 from pathlib import Path
 p = Path('$APP_DIR/next.config.mjs')
@@ -283,12 +283,12 @@ text = p.read_text()
 if 'cpus: 1' not in text:
     text = text.replace('const nextConfig = {', 'const nextConfig = {\n  experimental: { workerThreads: false, cpus: 1 },')
 text = re.sub(
-    r"\.\.\.\(process\.env\.NODE_ENV === ['\"]production['\"] \? \{ output: ['\"]standalone['\"] \} : \{\}\),",
+    r\"\.\.\.\(process\.env\.NODE_ENV === ['\\\"]production['\\\"] \? \{ output: ['\\\"]standalone['\\\"] \} : \{\}\),\",
     '// standalone disabled for VPS (use next start)',
     text
 )
 p.write_text(text)
-PY
+"
 
 rm -rf .next
 nohup env NODE_ENV=production npm run build > /tmp/humanify-build.log 2>&1 &
