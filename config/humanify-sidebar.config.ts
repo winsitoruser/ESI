@@ -8,7 +8,7 @@ import {
   CalendarDays, Settings, Megaphone, FileText, KeyRound, Heart, Shield,
   Briefcase, Plane, BookOpen, PenTool, AlertTriangle, Calculator, Banknote,
   Percent, Gift, Clock, Network, Fingerprint, Sparkles, Layers, Ban,
-  Wallet, Package, CreditCard, Crosshair, PenLine,
+  Wallet, Package, CreditCard, Crosshair, PenLine, Scale,
   type LucideIcon,
 } from 'lucide-react';
 import type { SidebarConfig, MenuGroup } from './sidebar.config';
@@ -120,7 +120,7 @@ export const humanifySidebarConfig: SidebarConfig = {
         { id: 'humanify-mutations', name: 'Mutasi & Penugasan', href: '/humanify/mutations', icon: ArrowRightLeft, modules: ['humanify', 'hris'] },
         { id: 'humanify-travel', name: 'Perjalanan & Biaya', href: '/humanify/travel-expense', icon: Plane, modules: ['humanify', 'hris'] },
         { id: 'humanify-project', name: 'Manajemen Proyek HR', href: '/humanify/project-management', icon: Briefcase, modules: ['humanify', 'hris'] },
-        { id: 'humanify-ir', name: 'Hubungan Industrial', href: '/humanify/industrial-relations', icon: AlertTriangle, modules: ['humanify', 'hris'] },
+        { id: 'humanify-ir', name: 'Hubungan Industrial & Kepatuhan', href: '/humanify/industrial-relations', icon: Scale, modules: ['humanify', 'hris'] },
         { id: 'humanify-disciplinary', name: 'Surat Disiplin (SP & SOP)', href: '/humanify/disciplinary-letters', icon: Ban, modules: ['humanify', 'hris'] },
       ],
     },

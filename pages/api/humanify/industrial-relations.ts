@@ -195,26 +195,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 async function handleGet(req: NextApiRequest, res: NextApiResponse, action: string) {
   switch (action) {
     case 'overview': {
-      const discWarnings = await countActiveDisciplinaryWarnings();
-      const discTerminations = await countPendingDisciplinaryTerminations();
-      const [regs, legacyWarnings, cases, legacyTerminations, checklists] = await Promise.all([
+      const [regs, openCases, investigatingCases, pendingChecklists, allChecklists] = await Promise.all([
         CompanyRegulation?.count({ where: { status: 'active' } }) || 0,
-        WarningLetter?.count({ where: { status: 'active' } }).catch(() => 0) || 0,
-        IrCase?.count({ where: { status: 'open' } }) || 0,
-        TerminationRequest?.count({ where: { status: 'pending_approval' } }).catch(() => 0) || 0,
-        ComplianceChecklist?.count({ where: { status: 'pending' } }) || 0,
+        IrCase?.count({ where: { status: ['open', 'reported', 'triage', 'investigating', 'mitigating'] } }).catch(() => 0) || 0,
+        IrCase?.count({ where: { status: ['investigating', 'mitigating'] } }).catch(() => 0) || 0,
+        ComplianceChecklist?.count({ where: { status: ['pending', 'in_progress'] } }).catch(() => 0) || 0,
+        ComplianceChecklist?.findAll({ attributes: ['completionPercent'], limit: 50 }).catch(() => []) || [],
       ]);
+      const percents = (allChecklists as any[]).map((c) => Number(c.completionPercent ?? c.completion_percent ?? 0));
+      const complianceScore = percents.length
+        ? Math.round(percents.reduce((a, b) => a + b, 0) / percents.length)
+        : 0;
       return res.json({
         success: true,
         data: {
           activeRegulations: regs,
-          activeWarnings: discWarnings ?? legacyWarnings,
-          openCases: cases,
-          pendingTerminations: discTerminations ?? legacyTerminations,
-          pendingChecklists: checklists,
-          warningsSource: discWarnings !== null ? 'disciplinary' : 'legacy',
-          terminationsSource: discTerminations !== null ? 'disciplinary' : 'legacy',
-        }
+          openIncidents: openCases,
+          investigatingIncidents: investigatingCases,
+          pendingChecklists,
+          complianceScore,
+        },
       });
     }
     case 'regulations': {
@@ -322,10 +322,28 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
     case 'case': {
       if (!IrCase) return res.json({ success: true, data: body, message: 'Created (mock)' });
       const count = await IrCase.count();
-      body.caseNumber = body.caseNumber || `IR-${String(count + 1).padStart(4, '0')}`;
-      const irCase = await IrCase.create(body);
+      const evidence = {
+        ...(body.evidence || {}),
+        mitigation_plan: body.mitigationPlan || body.mitigation_plan || '',
+        handling_notes: body.handlingNotes || body.handling_notes || '',
+        involved_employees: body.involvedEmployees || body.involved_employees || [],
+        incident_location: body.incidentLocation || body.incident_location || '',
+      };
+      const irCase = await IrCase.create({
+        title: body.title,
+        caseType: body.category || body.caseType || 'operational',
+        description: body.description,
+        status: body.status || 'reported',
+        priority: body.priority || 'medium',
+        openedDate: body.reportedDate || body.openedDate || new Date().toISOString().split('T')[0],
+        employeeId: body.primaryEmployeeId || body.employeeId || null,
+        resolution: body.mitigationPlan || body.resolution || null,
+        evidence,
+        witnesses: body.involvedEmployees || body.witnesses || [],
+        caseNumber: body.caseNumber || `IR-INS-${String(count + 1).padStart(4, '0')}`,
+      });
       await logAudit(session, 'create', 'ir_case', irCase.id, null, body);
-      return res.json({ success: true, data: irCase });
+      return res.json({ success: true, data: serializeIrCase(irCase) });
     }
     case 'termination': {
       return res.status(410).json({
@@ -410,7 +428,26 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, action: stri
     case 'case': {
       if (!IrCase) return res.json({ success: true, message: 'Updated (mock)' });
       const oldCase = await IrCase.findByPk(id);
-      await IrCase.update(body, { where: { id } });
+      const evidence = {
+        ...((oldCase?.evidence as object) || {}),
+        mitigation_plan: body.mitigationPlan ?? body.mitigation_plan,
+        handling_notes: body.handlingNotes ?? body.handling_notes,
+        involved_employees: body.involvedEmployees ?? body.involved_employees,
+        incident_location: body.incidentLocation ?? body.incident_location,
+      };
+      await IrCase.update({
+        title: body.title,
+        caseType: body.category || body.caseType,
+        description: body.description,
+        status: body.status,
+        priority: body.priority,
+        openedDate: body.reportedDate || body.openedDate,
+        employeeId: body.primaryEmployeeId || body.employeeId,
+        resolution: body.mitigationPlan || body.resolution,
+        evidence,
+        witnesses: body.involvedEmployees || body.witnesses,
+        closedDate: ['resolved', 'closed'].includes(body.status) ? new Date().toISOString().split('T')[0] : null,
+      }, { where: { id } });
       await logAudit(session, 'update', 'ir_case', id as string, oldCase?.toJSON(), body);
       return res.json({ success: true, message: 'Case updated' });
     }
@@ -472,11 +509,15 @@ async function logAudit(session: any, action: string, resource: string, resource
 
 function serializeIrCase(row: any) {
   const s = rowToSnake(row) || {};
+  const evidence = s.evidence || {};
   return {
     ...s,
-    category: s.case_type || s.category || 'misconduct',
+    category: s.case_type || s.category || 'operational',
     reported_date: s.opened_date,
     resolution_date: s.closed_date,
-    involved_employees: s.involved_employees || (s.employee_id ? [s.employee_id] : []),
+    involved_employees: evidence.involved_employees || s.involved_employees || s.witnesses || [],
+    mitigation_plan: evidence.mitigation_plan || s.resolution || '',
+    handling_notes: evidence.handling_notes || '',
+    incident_location: evidence.incident_location || '',
   };
 }
