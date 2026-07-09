@@ -55,8 +55,49 @@ const mgrApi = async (action: string, method = 'GET', body?: any) => {
   const opts: RequestInit = { method, headers: { 'Content-Type': 'application/json' } };
   if (body) opts.body = JSON.stringify(body);
   const r = await fetch(`/api/employee/manager?action=${action}`, opts);
-  return r.json();
+  const text = await r.text();
+  try {
+    const json = JSON.parse(text);
+    if (!json.success && r.status === 413) {
+      return { success: false, error: 'Ukuran bukti terlalu besar. Gunakan foto lebih kecil atau kurangi jumlah file.' };
+    }
+    if (!json.success && !json.error && r.status >= 400) {
+      return { success: false, error: `Gagal (${r.status})` };
+    }
+    return json;
+  } catch {
+    if (r.status === 413) {
+      return { success: false, error: 'Ukuran bukti terlalu besar. Gunakan foto lebih kecil atau kurangi jumlah file.' };
+    }
+    return { success: false, error: `Gagal memproses respons server (${r.status})` };
+  }
 };
+
+/** Kompres gambar sebelum upload agar tidak melebihi batas body API */
+async function compressImageFile(file: File, maxWidth = 1280, quality = 0.72): Promise<File> {
+  if (!file.type.startsWith('image/') || file.size < 250_000) return file;
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const scale = Math.min(1, maxWidth / (img.width || maxWidth));
+      const w = Math.max(1, Math.round((img.width || maxWidth) * scale));
+      const h = Math.max(1, Math.round((img.height || maxWidth) * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext('2d')?.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      canvas.toBlob((blob) => {
+        if (!blob) { resolve(file); return; }
+        const name = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+        resolve(new File([blob], name, { type: 'image/jpeg' }));
+      }, 'image/jpeg', quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
 
 export default function ManagerHubTab({ isSuperAdmin = false }: Props) {
   const [activeTab, setActiveTab] = useState<MgrTab>('approvals');
@@ -124,10 +165,11 @@ export default function ManagerHubTab({ isSuperAdmin = false }: Props) {
     finally { setSubmitting(false); }
   };
 
-  const handleEvidenceFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleEvidenceFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files || []);
     if (!selected.length) return;
-    const combined = [...evidenceFiles, ...selected].slice(0, 5);
+    const compressed = await Promise.all(selected.map(f => compressImageFile(f)));
+    const combined = [...evidenceFiles, ...compressed].slice(0, 5);
     setEvidenceFiles(combined);
     combined.forEach(file => {
       const reader = new FileReader();
@@ -154,11 +196,17 @@ export default function ManagerHubTab({ isSuperAdmin = false }: Props) {
     }
     setSubmitting(true);
     try {
-      const attachments = await Promise.all(evidenceFiles.map(file => new Promise<{ name: string; type: string; data: string }>(resolve => {
+      const compressedFiles = await Promise.all(evidenceFiles.map(f => compressImageFile(f)));
+      const attachments = await Promise.all(compressedFiles.map(file => new Promise<{ name: string; type: string; data: string }>(resolve => {
         const reader = new FileReader();
         reader.onload = () => resolve({ name: file.name, type: file.type, data: reader.result as string });
         reader.readAsDataURL(file);
       })));
+      const totalSize = attachments.reduce((s, a) => s + (a.data?.length || 0), 0);
+      if (totalSize > 8 * 1024 * 1024) {
+        toast.error('Total bukti terlalu besar. Kurangi jumlah/kualitas foto.');
+        return;
+      }
       const res = await mgrApi('create-disciplinary', 'POST', { ...spForm, attachments });
       if (res.success) {
         toast.success(res.message || 'Permohonan SP diajukan ke HR');

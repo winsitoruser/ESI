@@ -15,9 +15,14 @@ import {
   computeExpiryDate,
   type DisciplinaryLetterType,
 } from '@/lib/hris/disciplinary-workflow';
+import { ensureDisciplinarySchema } from '@/lib/hris/disciplinary-schema';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch (_) {}
+
+export const config = {
+  api: { bodyParser: { sizeLimit: '10mb' } },
+};
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
@@ -62,7 +67,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error: any) {
     console.warn('Employee Manager API error:', error?.message || error);
-    return res.status(500).json({ success: false, error: 'Internal server error' });
+    const msg = error?.message || 'Internal server error';
+    return res.status(500).json({ success: false, error: msg });
   }
 }
 
@@ -394,6 +400,8 @@ async function createDisciplinary(req: NextApiRequest, res: NextApiResponse, ses
   }
   if (!sequelize) return res.json({ success: true, message: 'Permohonan SP diajukan (mock)' });
 
+  await ensureDisciplinarySchema(sequelize);
+
   const tenantId = (session.user as any)?.tenantId || null;
   const userId = parseInt(String(session.user.id), 10);
   const letterType = String(letter_type).toUpperCase() as DisciplinaryLetterType;
@@ -420,7 +428,9 @@ async function createDisciplinary(req: NextApiRequest, res: NextApiResponse, ses
     incidentDate: incident_date,
   });
 
-  const [result] = await sequelize.query(`
+  let result: any[];
+  try {
+    [result] = await sequelize.query(`
     INSERT INTO hr_disciplinary_letters (
       tenant_id, employee_id, letter_type, reference_number, status, current_phase,
       violation_type, violation_description, incident_date, request_reason, notes,
@@ -434,25 +444,29 @@ async function createDisciplinary(req: NextApiRequest, res: NextApiResponse, ses
       :auditTrail::jsonb
     ) RETURNING id, letter_type, status, current_phase, created_at
   `, {
-    replacements: {
-      tenantId, employee_id, letter_type: letterType, refNumber,
-      violation_type: violation_type || 'discipline',
-      violation_description, incident_date: incident_date || null,
-      request_reason: request_reason.trim(),
-      notes: notes?.trim() || null,
-      draftContent: JSON.stringify(defaultDraft),
-      requested_by: userId,
-      attachments: JSON.stringify(evidenceList),
-      totalSteps,
-      auditTrail: JSON.stringify([{
-        action: 'manager_request_submitted',
-        by: userId,
-        at: new Date().toISOString(),
-        source: 'employee_portal',
-        evidenceCount: evidenceList.length,
-      }]),
-    },
-  });
+      replacements: {
+        tenantId, employee_id, letter_type: letterType, refNumber,
+        violation_type: violation_type || 'discipline',
+        violation_description, incident_date: incident_date || null,
+        request_reason: request_reason.trim(),
+        notes: notes?.trim() || null,
+        draftContent: JSON.stringify(defaultDraft),
+        requested_by: userId,
+        attachments: JSON.stringify(evidenceList),
+        totalSteps,
+        auditTrail: JSON.stringify([{
+          action: 'manager_request_submitted',
+          by: userId,
+          at: new Date().toISOString(),
+          source: 'employee_portal',
+          evidenceCount: evidenceList.length,
+        }]),
+      },
+    });
+  } catch (e: any) {
+    const msg = e?.message || 'Gagal menyimpan permohonan';
+    return res.status(500).json({ success: false, error: msg });
+  }
 
   const letterId = result[0]?.id;
   if (letterId) {

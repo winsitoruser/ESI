@@ -1,6 +1,6 @@
 /** Role helpers for Humanify manager portal features in /employee */
 
-const MANAGER_ROLES = new Set(['manager', 'branch_manager']);
+const MANAGER_ROLES = new Set(['manager', 'branch_manager', 'manager_toko', 'supervisor']);
 const SUPER_ADMIN_ROLES = new Set(['super_admin', 'superhero', 'owner', 'admin']);
 
 export function isSuperAdminRole(role?: string | null): boolean {
