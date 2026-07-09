@@ -28,9 +28,14 @@ import {
   portalClockIn,
   portalClockOut,
 } from '../../../lib/hris/attendance-store';
+import { loadActiveGeofences, matchGeofences } from '@/lib/hris/geofence-utils';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch (e) {}
+
+export const config = {
+  api: { bodyParser: { sizeLimit: '8mb' } },
+};
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
@@ -341,78 +346,123 @@ async function cancelOvertime(req: NextApiRequest, res: NextApiResponse, userId:
 
 // ─── Clock In/Out ───
 async function clockIn(req: NextApiRequest, res: NextApiResponse, userId: string, tenantId: string) {
-  const { latitude, longitude, address, accuracy } = req.body || {};
+  const { latitude, longitude, address, accuracy, photo_base64, method } = req.body || {};
   const checkInTime = new Date().toTimeString().substring(0, 5);
+  const clockMethod = method === 'photo_mobile' || photo_base64 ? 'photo_mobile' : 'gps_mobile';
   const locationPayload = (latitude != null && longitude != null)
     ? { lat: Number(latitude), lng: Number(longitude), address: address || null, accuracy: accuracy != null ? Number(accuracy) : null }
     : null;
+
+  let geofenceMatch = null;
+  if (locationPayload && sequelize) {
+    const fences = await loadActiveGeofences(sequelize, tenantId || null);
+    geofenceMatch = matchGeofences(locationPayload.lat, locationPayload.lng, fences);
+  }
 
   if (!sequelize) {
     return res.json({
       success: true,
       data: {
         checkIn: checkInTime,
+        method: clockMethod,
         location: locationPayload || { address: 'Kantor Pusat Jakarta', lat: -6.2088, lng: 106.8456 },
+        geofence: geofenceMatch,
+        photoSaved: !!photo_base64,
       },
     });
   }
 
   try {
-    const today = new Date().toISOString().split('T')[0];
-    const locationJson = locationPayload ? JSON.stringify(locationPayload) : null;
-    await portalClockIn(sequelize, userId, tenantId, locationJson, 'gps_mobile');
+    const locationJson = locationPayload
+      ? JSON.stringify({ ...locationPayload, geofence: geofenceMatch })
+      : null;
+    await portalClockIn(
+      sequelize,
+      userId,
+      tenantId,
+      locationJson,
+      clockMethod,
+      photo_base64 || null,
+      geofenceMatch?.inside ? geofenceMatch.id : null,
+    );
 
     return res.json({
       success: true,
       data: {
         checkIn: checkInTime,
+        method: clockMethod,
         location: locationPayload,
+        geofence: geofenceMatch,
+        photoSaved: !!photo_base64,
         mapsUrl: locationPayload ? `https://www.google.com/maps?q=${locationPayload.lat},${locationPayload.lng}` : null,
       },
     });
   } catch {
     return res.json({
       success: true,
-      data: { checkIn: checkInTime, location: locationPayload },
+      data: { checkIn: checkInTime, location: locationPayload, geofence: geofenceMatch },
       message: 'Mock clock-in',
     });
   }
 }
 
 async function clockOut(req: NextApiRequest, res: NextApiResponse, userId: string, tenantId: string) {
-  const { latitude, longitude, address, accuracy } = req.body || {};
+  const { latitude, longitude, address, accuracy, photo_base64, method } = req.body || {};
   const checkOutTime = new Date().toTimeString().substring(0, 5);
+  const clockMethod = method === 'photo_mobile' || photo_base64 ? 'photo_mobile' : 'gps_mobile';
   const locationPayload = (latitude != null && longitude != null)
     ? { lat: Number(latitude), lng: Number(longitude), address: address || null, accuracy: accuracy != null ? Number(accuracy) : null }
     : null;
+
+  let geofenceMatch = null;
+  if (locationPayload && sequelize) {
+    const fences = await loadActiveGeofences(sequelize, tenantId || null);
+    geofenceMatch = matchGeofences(locationPayload.lat, locationPayload.lng, fences);
+  }
 
   if (!sequelize) {
     return res.json({
       success: true,
       data: {
         checkOut: checkOutTime,
+        method: clockMethod,
         location: locationPayload || { address: 'Kantor Pusat Jakarta', lat: -6.2088, lng: 106.8456 },
+        geofence: geofenceMatch,
+        photoSaved: !!photo_base64,
         mapsUrl: locationPayload ? `https://www.google.com/maps?q=${locationPayload.lat},${locationPayload.lng}` : null,
       },
     });
   }
 
   try {
-    const locationJson = locationPayload ? JSON.stringify(locationPayload) : null;
-    await portalClockOut(sequelize, userId, tenantId, locationJson, 'gps_mobile');
+    const locationJson = locationPayload
+      ? JSON.stringify({ ...locationPayload, geofence: geofenceMatch })
+      : null;
+    await portalClockOut(
+      sequelize,
+      userId,
+      tenantId,
+      locationJson,
+      clockMethod,
+      photo_base64 || null,
+      geofenceMatch?.inside ? geofenceMatch.id : null,
+    );
 
     return res.json({
       success: true,
       data: {
         checkOut: checkOutTime,
+        method: clockMethod,
         location: locationPayload,
+        geofence: geofenceMatch,
+        photoSaved: !!photo_base64,
         mapsUrl: locationPayload ? `https://www.google.com/maps?q=${locationPayload.lat},${locationPayload.lng}` : null,
       },
     });
   } catch {
     return res.json({
       success: true,
-      data: { checkOut: checkOutTime, location: locationPayload },
+      data: { checkOut: checkOutTime, location: locationPayload, geofence: geofenceMatch },
     });
   }
 }

@@ -15,9 +15,14 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 import { ensureVisitLinkedTask, syncTaskStatusFromVisit } from '../../../lib/sfa/visitTaskSync';
+import { loadActiveGeofences, matchGeofences, geofenceStatusLabel } from '../../../lib/hris/geofence-utils';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch {}
+
+export const config = {
+  api: { bodyParser: { sizeLimit: '8mb' } },
+};
 
 async function ensureSfaVisitsTable() {
   if (!sequelize) return;
@@ -59,6 +64,11 @@ async function ensureSfaVisitsTable() {
     `);
     await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_sfa_visits_tenant_date ON sfa_visits(tenant_id, visit_date)`);
     await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_sfa_visits_salesperson ON sfa_visits(salesperson_id, visit_date)`);
+    await sequelize.query(`ALTER TABLE sfa_visits ADD COLUMN IF NOT EXISTS check_in_geofence_name VARCHAR(120)`);
+    await sequelize.query(`ALTER TABLE sfa_visits ADD COLUMN IF NOT EXISTS check_in_geofence_status VARCHAR(30)`);
+    await sequelize.query(`ALTER TABLE sfa_visits ADD COLUMN IF NOT EXISTS check_in_geofence_distance_m INTEGER`);
+    await sequelize.query(`ALTER TABLE sfa_visits ADD COLUMN IF NOT EXISTS check_out_geofence_name VARCHAR(120)`);
+    await sequelize.query(`ALTER TABLE sfa_visits ADD COLUMN IF NOT EXISTS check_out_geofence_status VARCHAR(30)`);
   } catch { /* table may partially exist */ }
 }
 
@@ -142,7 +152,12 @@ async function getVisits(res: NextApiResponse, userId: string, tenantId: string,
       SELECT v.*, v.customer_name,
         COALESCE(v.check_in_address, '') as customer_address,
         COALESCE(v.duration_minutes, 0) as duration_minutes,
-        COALESCE(v.products_discussed, '[]'::jsonb) as evidence_photos
+        COALESCE(v.products_discussed, '[]'::jsonb) as evidence_photos,
+        v.check_in_photo_url,
+        v.check_out_photo_url,
+        v.check_in_geofence_name,
+        v.check_in_geofence_status,
+        v.check_in_geofence_distance_m
       FROM sfa_visits v
       WHERE (v.tenant_id IS NULL OR v.tenant_id = :tid::uuid OR :tid = '')
         AND (v.salesperson_id = :sp OR v.employee_id IN (
@@ -277,12 +292,37 @@ async function checkIn(req: NextApiRequest, res: NextApiResponse, userId: string
   if (!sequelize) return res.json({ success: true, message: 'Check-in berhasil', data: { visit_id, check_in_time: new Date().toISOString(), check_in_lat: latitude, check_in_lng: longitude } });
 
   try {
-    // Calculate distance from customer address (simplified — no geofence check here)
-    const photoUrl = photo_base64 ? `visits/checkin/${visit_id}_${Date.now()}.jpg` : null;
-    await q(`UPDATE sfa_visits SET status='checked_in', check_in_time=NOW(), check_in_lat=:lat, check_in_lng=:lng, check_in_address=:addr, check_in_photo_url=:photo, updated_at=NOW() WHERE id=:id AND tenant_id=:tid`,
-      { lat: latitude, lng: longitude, addr: address || null, photo: photoUrl, id: visit_id, tid: tenantId });
+    const [visitRows] = await sequelize.query(`SELECT customer_id FROM sfa_visits WHERE id = :id LIMIT 1`, { replacements: { id: visit_id } });
+    const customerId = visitRows?.[0]?.customer_id || null;
+    const fences = await loadActiveGeofences(sequelize, tenantId || null, customerId);
+    const geofence = matchGeofences(latitude, longitude, fences);
+    const photoUrl = photo_base64 && String(photo_base64).startsWith('data:')
+      ? String(photo_base64).slice(0, 500000)
+      : (photo_base64 ? `visits/checkin/${visit_id}_${Date.now()}.jpg` : null);
+
+    await q(`UPDATE sfa_visits SET status='checked_in', check_in_time=NOW(), check_in_lat=:lat, check_in_lng=:lng, check_in_address=:addr, check_in_photo_url=:photo,
+      check_in_geofence_name=:gfName, check_in_geofence_status=:gfStatus, check_in_geofence_distance_m=:gfDist, updated_at=NOW()
+      WHERE id=:id AND (tenant_id IS NULL OR tenant_id = :tid::uuid OR :tid = '')`,
+      {
+        lat: latitude, lng: longitude, addr: address || null, photo: photoUrl, id: visit_id, tid: tenantId || null,
+        gfName: geofence?.name || null,
+        gfStatus: geofence ? (geofence.inside ? 'inside' : 'outside') : 'unknown',
+        gfDist: geofence?.distanceM ?? null,
+      });
     await syncTaskStatusFromVisit(tenantId, visit_id);
-    return res.json({ success: true, message: 'Check-in berhasil! Lokasi & waktu tercatat.', data: { visit_id, check_in_time: new Date().toISOString(), check_in_lat: latitude, check_in_lng: longitude, check_in_address: address } });
+    return res.json({
+      success: true,
+      message: geofence ? `Check-in berhasil · ${geofenceStatusLabel(geofence)}` : 'Check-in berhasil! Lokasi & waktu tercatat.',
+      data: {
+        visit_id,
+        check_in_time: new Date().toISOString(),
+        check_in_lat: latitude,
+        check_in_lng: longitude,
+        check_in_address: address,
+        geofence,
+        photoSaved: !!photo_base64,
+      },
+    });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: 'Gagal check-in', details: e.message });
   }
@@ -298,12 +338,36 @@ async function checkOut(req: NextApiRequest, res: NextApiResponse, userId: strin
   if (!sequelize) return res.json({ success: true, message: 'Check-out berhasil', data: { visit_id, check_out_time: new Date().toISOString(), outcome } });
 
   try {
-    const photoUrl = photo_base64 ? `visits/checkout/${visit_id}_${Date.now()}.jpg` : null;
-    await q(`UPDATE sfa_visits SET status='completed', check_out_time=NOW(), check_out_lat=:lat, check_out_lng=:lng, check_out_address=:addr, check_out_photo_url=:photo, outcome=:outcome, outcome_notes=:notes, order_taken=:ot, order_value=:ov, next_visit_date=:nvd, products_discussed=:pd::jsonb, duration_minutes=EXTRACT(EPOCH FROM (NOW()-check_in_time))/60, updated_at=NOW() WHERE id=:id AND tenant_id=:tid`,
-      { lat: latitude || null, lng: longitude || null, addr: address || null, photo: photoUrl, outcome, notes: outcome_notes || null, ot: !!order_taken, ov: order_value || 0, nvd: next_visit_date || null, pd: JSON.stringify(products_discussed || []), id: visit_id, tid: tenantId });
+    const lat = latitude != null ? Number(latitude) : null;
+    const lng = longitude != null ? Number(longitude) : null;
+    let geofence = null;
+    if (lat != null && lng != null) {
+      const [visitRows] = await sequelize.query(`SELECT customer_id FROM sfa_visits WHERE id = :id LIMIT 1`, { replacements: { id: visit_id } });
+      const fences = await loadActiveGeofences(sequelize, tenantId || null, visitRows?.[0]?.customer_id || null);
+      geofence = matchGeofences(lat, lng, fences);
+    }
+    const photoUrl = photo_base64 && String(photo_base64).startsWith('data:')
+      ? String(photo_base64).slice(0, 500000)
+      : (photo_base64 ? `visits/checkout/${visit_id}_${Date.now()}.jpg` : null);
+    await q(`UPDATE sfa_visits SET status='completed', check_out_time=NOW(), check_out_lat=:lat, check_out_lng=:lng, check_out_address=:addr, check_out_photo_url=:photo,
+      check_out_geofence_name=:gfName, check_out_geofence_status=:gfStatus,
+      outcome=:outcome, outcome_notes=:notes, order_taken=:ot, order_value=:ov, next_visit_date=:nvd, products_discussed=:pd::jsonb,
+      duration_minutes=EXTRACT(EPOCH FROM (NOW()-check_in_time))/60, updated_at=NOW()
+      WHERE id=:id AND (tenant_id IS NULL OR tenant_id = :tid::uuid OR :tid = '')`,
+      {
+        lat, lng, addr: address || null, photo: photoUrl, outcome, notes: outcome_notes || null,
+        ot: !!order_taken, ov: order_value || 0, nvd: next_visit_date || null,
+        pd: JSON.stringify(products_discussed || []), id: visit_id, tid: tenantId || null,
+        gfName: geofence?.name || null,
+        gfStatus: geofence ? (geofence.inside ? 'inside' : 'outside') : null,
+      });
 
     await syncTaskStatusFromVisit(tenantId, visit_id);
-    return res.json({ success: true, message: 'Check-out berhasil! Hasil kunjungan tersimpan.', data: { visit_id, check_out_time: new Date().toISOString(), outcome } });
+    return res.json({
+      success: true,
+      message: 'Check-out berhasil! Hasil kunjungan tersimpan.',
+      data: { visit_id, check_out_time: new Date().toISOString(), outcome, geofence, photoSaved: !!photo_base64 },
+    });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: 'Gagal check-out', details: e.message });
   }
@@ -316,10 +380,12 @@ async function addEvidence(req: NextApiRequest, res: NextApiResponse, tenantId: 
   const { visit_id, photo_base64, caption } = req.body;
   if (!visit_id) return res.status(400).json({ success: false, error: 'visit_id wajib diisi' });
   // In production: upload photo_base64 to cloud storage, store URL
-  const photoUrl = photo_base64 ? `visits/evidence/${visit_id}_${Date.now()}.jpg` : null;
+  const photoUrl = photo_base64 && String(photo_base64).startsWith('data:')
+    ? String(photo_base64).slice(0, 500000)
+    : (photo_base64 ? `visits/evidence/${visit_id}_${Date.now()}.jpg` : null);
   if (!sequelize || !photoUrl) return res.json({ success: true, message: 'Evidence berhasil ditambahkan', data: { url: photoUrl, caption } });
   try {
-    await q(`UPDATE sfa_visits SET products_discussed = COALESCE(products_discussed,'[]'::jsonb) || :e::jsonb, updated_at=NOW() WHERE id=:id AND tenant_id=:tid`,
+    await q(`UPDATE sfa_visits SET products_discussed = COALESCE(products_discussed,'[]'::jsonb) || :e::jsonb, updated_at=NOW() WHERE id=:id AND (tenant_id IS NULL OR tenant_id = :tid::uuid OR :tid = '')`,
       { e: JSON.stringify([{ type: 'photo', url: photoUrl, caption: caption || '', ts: new Date().toISOString() }]), id: visit_id, tid: tenantId });
     return res.json({ success: true, message: 'Evidence berhasil ditambahkan', data: { url: photoUrl, caption } });
   } catch (e: any) {

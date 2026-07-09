@@ -182,20 +182,25 @@ async function getTeamMemberDetailHandler(
   userId: string,
   isSuperAdmin: boolean,
 ) {
-  const employeeId = String(req.query.employeeId || '');
-  if (!employeeId) {
-    return res.status(400).json({ success: false, error: 'employeeId wajib' });
+  try {
+    const employeeId = String(req.query.employeeId || '');
+    if (!employeeId) {
+      return res.status(400).json({ success: false, error: 'employeeId wajib' });
+    }
+
+    const period = req.query.period ? String(req.query.period) : undefined;
+    const month = req.query.month ? String(req.query.month) : undefined;
+
+    const result = await getTeamMemberDetail(sequelize, userId, employeeId, isSuperAdmin, { period, month });
+    if ('error' in result && result.error) {
+      return res.status(result.status || 403).json({ success: false, error: result.error });
+    }
+
+    return res.json({ success: true, data: result });
+  } catch (detailErr: any) {
+    console.warn('team-member-detail error:', detailErr?.message || detailErr);
+    return res.status(500).json({ success: false, error: detailErr?.message || 'Gagal memuat data karyawan' });
   }
-
-  const period = req.query.period ? String(req.query.period) : undefined;
-  const month = req.query.month ? String(req.query.month) : undefined;
-
-  const result = await getTeamMemberDetail(sequelize, userId, employeeId, isSuperAdmin, { period, month });
-  if ('error' in result && result.error) {
-    return res.status(result.status || 403).json({ success: false, error: result.error });
-  }
-
-  return res.json({ success: true, data: result });
 }
 
 async function getTeam(res: NextApiResponse, userId: string, tenantId: string, isSuperAdmin: boolean) {

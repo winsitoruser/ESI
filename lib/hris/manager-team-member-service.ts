@@ -105,43 +105,45 @@ export async function getTeamMemberKpi(
     };
   }
 
-  const [rows] = await sequelize.query(`
-    SELECT ek.metric_name, ek.category, ek.target, ek.actual,
-      ek.target_value, ek.actual_value, ek.unit, ek.weight, ek.previous_value
-    FROM employee_kpis ek
-    WHERE ek.employee_id::text = :employeeId AND ek.period = :period
-    ORDER BY ek.category, ek.metric_name
-  `, { replacements: { employeeId: String(employeeId), period: targetPeriod } });
+  try {
+    const [rows] = await sequelize.query(`
+      SELECT ek.metric_name, ek.category, ek.target, ek.actual, ek.unit, ek.weight
+      FROM employee_kpis ek
+      WHERE ek.employee_id::text = :employeeId AND ek.period = :period
+      ORDER BY ek.category, ek.metric_name
+    `, { replacements: { employeeId: String(employeeId), period: targetPeriod } });
 
-  const kpiRows = rows as any[];
-  if (!kpiRows?.length) {
+    const kpiRows = rows as any[];
+    if (!kpiRows?.length) {
+      return { overallScore: 0, period: targetPeriod, metrics: [] };
+    }
+
+    const metrics = kpiRows.map((r) => {
+      const target = Number(r.target) || 0;
+      const actual = Number(r.actual) || 0;
+      const achievement = calcAchievement(target, actual);
+      return {
+        name: r.metric_name || r.category || 'KPI',
+        target,
+        actual,
+        unit: r.unit || '%',
+        weight: Number(r.weight) || 25,
+        achievement,
+        trend: 'stable' as const,
+      };
+    });
+
+    const weighted = metrics.reduce((s, m) => s + m.achievement * (m.weight / 100), 0);
+    const totalWeight = metrics.reduce((s, m) => s + m.weight, 0);
+    const overallScore = totalWeight > 0
+      ? Math.round(weighted / (totalWeight / 100))
+      : Math.round(metrics.reduce((s, m) => s + m.achievement, 0) / metrics.length);
+
+    return { overallScore, period: targetPeriod, metrics };
+  } catch (err: any) {
+    console.warn('getTeamMemberKpi error:', err?.message || err);
     return { overallScore: 0, period: targetPeriod, metrics: [] };
   }
-
-  const metrics = kpiRows.map((r) => {
-    const target = Number(r.target_value ?? r.target) || 0;
-    const actual = Number(r.actual_value ?? r.actual) || 0;
-    const achievement = calcAchievement(target, actual);
-    const prev = Number(r.previous_value) || 0;
-    const trend: 'up' | 'down' | 'stable' = actual > prev ? 'up' : actual < prev ? 'down' : 'stable';
-    return {
-      name: r.metric_name || r.category || 'KPI',
-      target,
-      actual,
-      unit: r.unit || '%',
-      weight: Number(r.weight) || 25,
-      achievement,
-      trend,
-    };
-  });
-
-  const weighted = metrics.reduce((s, m) => s + m.achievement * (m.weight / 100), 0);
-  const totalWeight = metrics.reduce((s, m) => s + m.weight, 0);
-  const overallScore = totalWeight > 0
-    ? Math.round(weighted / (totalWeight / 100))
-    : Math.round(metrics.reduce((s, m) => s + m.achievement, 0) / metrics.length);
-
-  return { overallScore, period: targetPeriod, metrics };
 }
 
 export async function getTeamMemberAttendance(
@@ -255,7 +257,10 @@ export async function getTeamMemberDetail(
   const [kpi, attendance] = await Promise.all([
     getTeamMemberKpi(sequelize, employeeId, opts?.period),
     getTeamMemberAttendance(sequelize, employeeId, opts?.month || opts?.period),
-  ]);
+  ]).catch((err) => {
+    console.warn('getTeamMemberDetail data error:', err?.message || err);
+    throw err;
+  });
 
   return {
     employee: {

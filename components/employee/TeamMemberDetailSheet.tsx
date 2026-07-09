@@ -52,7 +52,16 @@ type DetailData = {
 const mgrApi = async (action: string, params?: Record<string, string>) => {
   const qs = new URLSearchParams({ action, ...params });
   const r = await fetch(`/api/employee/manager?${qs}`);
-  return r.json();
+  const text = await r.text();
+  try {
+    const json = JSON.parse(text);
+    if (!json.success && r.status >= 400) {
+      return { success: false, error: json.error || `Gagal (${r.status})` };
+    }
+    return json;
+  } catch {
+    return { success: false, error: `Gagal memproses respons server (${r.status})` };
+  }
 };
 
 export default function TeamMemberDetailSheet({ employeeId, employeeName, onClose }: Props) {

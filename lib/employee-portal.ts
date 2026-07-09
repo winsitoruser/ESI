@@ -7,6 +7,13 @@ export type CheckInLocation = {
   lng?: number;
   address?: string;
   accuracy?: number;
+  geofence?: {
+    id?: string;
+    name?: string;
+    inside?: boolean;
+    distanceM?: number;
+    radiusM?: number;
+  } | null;
 };
 
 export type LastClockEvent = {
@@ -34,9 +41,10 @@ export function parseCheckInLocation(raw: unknown): CheckInLocation | null {
       lng: Number(lng),
       address: loc.address || loc.name || loc.label || undefined,
       accuracy: loc.accuracy != null ? Number(loc.accuracy) : undefined,
+      geofence: loc.geofence || null,
     };
   }
-  if (loc.address || loc.name) return { address: loc.address || loc.name };
+  if (loc.address || loc.name) return { address: loc.address || loc.name, geofence: loc.geofence || null };
   return null;
 }
 

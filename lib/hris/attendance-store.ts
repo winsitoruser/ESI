@@ -16,6 +16,9 @@ export type PortalAttendanceRow = {
   status: string;
   check_in_location?: unknown;
   check_out_location?: unknown;
+  check_in_photo?: string | null;
+  check_out_photo?: string | null;
+  geofence_id?: string | null;
   notes?: string | null;
   work_hours?: number | null;
   late_minutes?: number;
@@ -38,6 +41,9 @@ export function mapCanonicalToPortal(row: any): PortalAttendanceRow | null {
     status: row.status || 'present',
     check_in_location: row.clock_in_location ?? row.check_in_location ?? null,
     check_out_location: row.clock_out_location ?? row.check_out_location ?? null,
+    check_in_photo: row.clock_in_photo ?? null,
+    check_out_photo: row.clock_out_photo ?? null,
+    geofence_id: row.geofence_id ?? null,
     notes: row.notes ?? null,
     work_hours: row.work_hours != null ? Number(row.work_hours) : null,
     late_minutes: Number(row.late_minutes) || 0,
@@ -132,13 +138,25 @@ export async function getAttendanceHistoryRows(
   });
 }
 
+export async function ensureAttendancePhotoColumns(sequelize: any) {
+  if (!sequelize) return;
+  try {
+    await sequelize.query(`ALTER TABLE ${ATTENDANCE_TABLE} ADD COLUMN IF NOT EXISTS clock_in_photo TEXT`);
+    await sequelize.query(`ALTER TABLE ${ATTENDANCE_TABLE} ADD COLUMN IF NOT EXISTS clock_out_photo TEXT`);
+    await sequelize.query(`ALTER TABLE ${ATTENDANCE_TABLE} ADD COLUMN IF NOT EXISTS geofence_id UUID`);
+  } catch { /* noop */ }
+}
+
 export async function portalClockIn(
   sequelize: any,
   userId: string,
   tenantId: string,
   locationJson: string | null,
   method = 'gps_mobile',
+  photo: string | null = null,
+  geofenceId: string | null = null,
 ) {
+  await ensureAttendancePhotoColumns(sequelize);
   const today = new Date().toISOString().split('T')[0];
   const now = new Date().toISOString();
   const ctx = await resolveEmployeeContext(sequelize, userId);
@@ -147,15 +165,17 @@ export async function portalClockIn(
   await sequelize.query(`
     INSERT INTO ${ATTENDANCE_TABLE} (
       id, tenant_id, employee_id, branch_id, date, clock_in, status,
-      clock_in_location, clock_in_method, created_at, updated_at
+      clock_in_location, clock_in_method, clock_in_photo, geofence_id, created_at, updated_at
     ) VALUES (
       uuid_generate_v4(), :tenantId, :employeeId, :branchId, :today, :now, 'present',
-      :locationJson::jsonb, :method, NOW(), NOW()
+      :locationJson::jsonb, :method, :photo, :geofenceId, NOW(), NOW()
     )
     ON CONFLICT (employee_id, date) DO UPDATE SET
       clock_in = COALESCE(${ATTENDANCE_TABLE}.clock_in, EXCLUDED.clock_in),
       clock_in_location = COALESCE(EXCLUDED.clock_in_location, ${ATTENDANCE_TABLE}.clock_in_location),
       clock_in_method = COALESCE(EXCLUDED.clock_in_method, ${ATTENDANCE_TABLE}.clock_in_method),
+      clock_in_photo = COALESCE(EXCLUDED.clock_in_photo, ${ATTENDANCE_TABLE}.clock_in_photo),
+      geofence_id = COALESCE(EXCLUDED.geofence_id, ${ATTENDANCE_TABLE}.geofence_id),
       status = CASE WHEN ${ATTENDANCE_TABLE}.status = 'absent' THEN 'present' ELSE ${ATTENDANCE_TABLE}.status END,
       updated_at = NOW()
   `, {
@@ -167,6 +187,8 @@ export async function portalClockIn(
       now,
       locationJson,
       method,
+      photo,
+      geofenceId,
     },
   });
 }
@@ -177,7 +199,10 @@ export async function portalClockOut(
   tenantId: string,
   locationJson: string | null,
   method = 'gps_mobile',
+  photo: string | null = null,
+  geofenceId: string | null = null,
 ) {
+  await ensureAttendancePhotoColumns(sequelize);
   const today = new Date().toISOString().split('T')[0];
   const now = new Date().toISOString();
   const ctx = await resolveEmployeeContext(sequelize, userId);
@@ -188,6 +213,8 @@ export async function portalClockOut(
       clock_out = :now,
       clock_out_location = COALESCE(:locationJson::jsonb, clock_out_location),
       clock_out_method = COALESCE(:method, clock_out_method),
+      clock_out_photo = COALESCE(:photo, clock_out_photo),
+      geofence_id = COALESCE(:geofenceId, geofence_id),
       work_hours = CASE
         WHEN clock_in IS NOT NULL THEN ROUND(EXTRACT(EPOCH FROM (:now::timestamptz - clock_in)) / 3600, 2)
         ELSE work_hours
@@ -195,16 +222,16 @@ export async function portalClockOut(
       updated_at = NOW()
     WHERE employee_id = :employeeId AND date = :today
     RETURNING id
-  `, { replacements: { employeeId: ctx.employeeId, today, now, locationJson, method } });
+  `, { replacements: { employeeId: ctx.employeeId, today, now, locationJson, method, photo, geofenceId } });
 
   if (!(updated as any[])?.length) {
     await sequelize.query(`
       INSERT INTO ${ATTENDANCE_TABLE} (
         id, tenant_id, employee_id, branch_id, date, clock_out, status,
-        clock_out_location, clock_out_method, created_at, updated_at
+        clock_out_location, clock_out_method, clock_out_photo, geofence_id, created_at, updated_at
       ) VALUES (
         uuid_generate_v4(), :tenantId, :employeeId, :branchId, :today, :now, 'present',
-        :locationJson::jsonb, :method, NOW(), NOW()
+        :locationJson::jsonb, :method, :photo, :geofenceId, NOW(), NOW()
       )
     `, {
       replacements: {
@@ -215,6 +242,8 @@ export async function portalClockOut(
         now,
         locationJson,
         method,
+        photo,
+        geofenceId,
       },
     });
   }

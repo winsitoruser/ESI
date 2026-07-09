@@ -17,6 +17,7 @@ import {
   CheckSquare, AlertCircle, Map, ScanLine, Timer, Banknote, LayoutGrid, Megaphone, ExternalLink
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
+import PhotoCaptureField from '@/components/employee/PhotoCaptureField';
 
 const TabSkeleton = () => (
   <div className="space-y-3 animate-pulse">
@@ -45,7 +46,11 @@ interface FieldVisit {
   check_out_time: string | null; check_out_lat: number | null; check_out_lng: number | null;
   outcome: VisitOutcome | null; outcome_notes: string | null; duration_minutes: number;
   order_taken: boolean; order_value: number; is_adhoc: boolean;
-  next_visit_date: string | null; evidence_photos: string[];
+  next_visit_date: string | null; evidence_photos: any[];
+  check_in_photo_url?: string | null; check_out_photo_url?: string | null;
+  check_in_geofence_name?: string | null; check_in_geofence_status?: string | null;
+  check_in_geofence_distance_m?: number | null;
+  check_out_geofence_name?: string | null; check_out_geofence_status?: string | null;
 }
 type ModalType = 'leave' | 'claim' | 'travel' | null;
 
@@ -118,6 +123,31 @@ function SectionHeader({ title, action }: { title: string; action?: React.ReactN
 
 const claimTypeLabel = (v: string) => CLAIM_TYPES.find(c => c.value === v)?.label || v;
 
+const parseEvidencePhotos = (raw: any): Array<{ url: string; caption?: string }> => {
+  if (!raw) return [];
+  try {
+    const arr = Array.isArray(raw) ? raw : JSON.parse(raw || '[]');
+    return arr.map((item: any) => {
+      if (typeof item === 'string') return { url: item };
+      if (item?.url) return { url: item.url, caption: item.caption };
+      return null;
+    }).filter(Boolean);
+  } catch { return []; }
+};
+
+const GeofenceBadge = ({ name, status, distance }: { name?: string | null; status?: string | null; distance?: number | null }) => {
+  if (!name && (!status || status === 'unknown')) return null;
+  const inside = status === 'inside';
+  return (
+    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+      inside ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+    }`}>
+      <MapPin className="w-3 h-3 flex-shrink-0" />
+      {inside ? `Dalam geofence · ${name}` : name ? `Luar ${distance ?? '?'}m · ${name}` : 'Geofence tidak dikonfigurasi'}
+    </span>
+  );
+};
+
 // ─── API Helper ───
 const api = async (action: string, method = 'GET', body?: any) => {
   const opts: RequestInit = { method, headers: { 'Content-Type': 'application/json' } };
@@ -140,6 +170,8 @@ export default function EmployeeDashboard() {
   const [modal, setModal] = useState<ModalType>(null);
   const [submitting, setSubmitting] = useState(false);
   const [clocking, setClocking] = useState<'in' | 'out' | null>(null);
+  const [clockPhotoModal, setClockPhotoModal] = useState<'in' | 'out' | null>(null);
+  const [clockPhoto, setClockPhoto] = useState<string | null>(null);
 
   // ── Field Visit state ──────────────────────────────────────────────────────
   const [visits, setVisits] = useState<FieldVisit[]>([]);
@@ -152,6 +184,9 @@ export default function EmployeeDashboard() {
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
   const [visitForm, setVisitForm] = useState({ customer_name: '', visit_type: 'regular' as VisitType, purpose: '', outcome: '' as VisitOutcome | '', outcome_notes: '', order_value: '', next_visit_date: '', caption: '' });
+  const [visitCheckInPhoto, setVisitCheckInPhoto] = useState<string | null>(null);
+  const [visitCheckOutPhoto, setVisitCheckOutPhoto] = useState<string | null>(null);
+  const [visitEvidencePhoto, setVisitEvidencePhoto] = useState<string | null>(null);
   const [visitMsg, setVisitMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // ─── Data State ───
@@ -386,19 +421,20 @@ export default function EmployeeDashboard() {
   // ── Field Visit: Check-in ───────────────────────────────────────────────────
   const handleCheckIn = async () => {
     if (!activeVisit) return;
+    if (!visitCheckInPhoto) { setVisitMsg({ type: 'error', text: 'Foto bukti kunjungan wajib diambil' }); return; }
     setGpsLoading(true); setVisitMsg(null);
     try {
       const coords = await getGps();
       setGpsCoords(coords);
       const res = await fetch('/api/employee/field-visit?action=check-in', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ visit_id: activeVisit.id, latitude: coords.lat, longitude: coords.lng, accuracy: coords.accuracy }),
+        body: JSON.stringify({ visit_id: activeVisit.id, latitude: coords.lat, longitude: coords.lng, accuracy: coords.accuracy, photo_base64: visitCheckInPhoto }),
       });
       const data = await res.json();
       if (data.success) {
-        setVisitMsg({ type: 'success', text: 'Check-in berhasil! Lokasi & waktu tercatat.' });
+        setVisitMsg({ type: 'success', text: data.message || 'Check-in berhasil! Lokasi, foto & geofence tercatat.' });
         await fetchVisits();
-        setTimeout(() => { setVisitModal(null); setActiveVisit(null); setVisitMsg(null); }, 1200);
+        setTimeout(() => { setVisitModal(null); setActiveVisit(null); setVisitCheckInPhoto(null); setVisitMsg(null); }, 1200);
       } else setVisitMsg({ type: 'error', text: data.error || 'Gagal check-in' });
     } catch (e: any) { setVisitMsg({ type: 'error', text: e.message }); }
     finally { setGpsLoading(false); }
@@ -412,13 +448,13 @@ export default function EmployeeDashboard() {
       const coords = await getGps().catch(() => null);
       const res = await fetch('/api/employee/field-visit?action=check-out', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ visit_id: activeVisit.id, latitude: coords?.lat, longitude: coords?.lng, outcome: visitForm.outcome, outcome_notes: visitForm.outcome_notes, order_taken: visitForm.outcome === 'order_taken', order_value: Number(visitForm.order_value) || 0, next_visit_date: visitForm.next_visit_date }),
+        body: JSON.stringify({ visit_id: activeVisit.id, latitude: coords?.lat, longitude: coords?.lng, outcome: visitForm.outcome, outcome_notes: visitForm.outcome_notes, order_taken: visitForm.outcome === 'order_taken', order_value: Number(visitForm.order_value) || 0, next_visit_date: visitForm.next_visit_date, photo_base64: visitCheckOutPhoto || undefined }),
       });
       const data = await res.json();
       if (data.success) {
-        setVisitMsg({ type: 'success', text: 'Check-out berhasil! Hasil kunjungan tersimpan.' });
+        setVisitMsg({ type: 'success', text: data.message || 'Check-out berhasil! Hasil kunjungan tersimpan.' });
         await fetchVisits();
-        setTimeout(() => { setVisitModal(null); setActiveVisit(null); setVisitMsg(null); setVisitForm(f => ({ ...f, outcome: '', outcome_notes: '', order_value: '', next_visit_date: '' })); }, 1200);
+        setTimeout(() => { setVisitModal(null); setActiveVisit(null); setVisitCheckOutPhoto(null); setVisitMsg(null); setVisitForm(f => ({ ...f, outcome: '', outcome_notes: '', order_value: '', next_visit_date: '' })); }, 1200);
       } else setVisitMsg({ type: 'error', text: data.error || 'Gagal check-out' });
     } catch (e: any) { setVisitMsg({ type: 'error', text: e.message }); }
     finally { setGpsLoading(false); }
@@ -458,6 +494,27 @@ export default function EmployeeDashboard() {
   };
 
   // ─── Actions ───
+  const handlePhotoClock = async (type: 'in' | 'out') => {
+    if (!clockPhoto) { toast.error('Foto selfie wajib diambil'); return; }
+    setClocking(type);
+    try {
+      const coords = await getGps().catch(() => null);
+      const body: Record<string, unknown> = { photo_base64: clockPhoto, method: 'photo_mobile' };
+      if (coords) { body.latitude = coords.lat; body.longitude = coords.lng; body.accuracy = coords.accuracy; }
+      const res = await api(type === 'in' ? 'clock-in' : 'clock-out', 'POST', body);
+      if (res.success) {
+        const gf = res.data?.geofence;
+        const gfLabel = gf?.inside ? ` · ${gf.name}` : (gf?.name ? ` · luar geofence ${gf.distanceM}m` : '');
+        toast.success(`${type === 'in' ? 'Clock In' : 'Clock Out'} foto berhasil${gfLabel}`);
+        const aRes = await api('attendance');
+        if (aRes.data) setAttendance(aRes.data);
+        setClockPhotoModal(null);
+        setClockPhoto(null);
+      } else toast.error(res.error || `Gagal clock ${type}`);
+    } catch { toast.error(`Gagal clock ${type}`); }
+    setClocking(null);
+  };
+
   const handleClockIn = async () => {
     setClocking('in');
     try {
@@ -903,7 +960,7 @@ export default function EmployeeDashboard() {
           action={todayAttendance?.status ? <StatusBadge status={todayAttendance.status} /> : undefined}
         />
 
-        <div className="grid grid-cols-2 gap-2.5 mb-4">
+        <div className="grid grid-cols-2 gap-2.5 mb-3">
           <button
             onClick={handleClockIn}
             disabled={!canClockIn || clocking === 'in'}
@@ -929,6 +986,31 @@ export default function EmployeeDashboard() {
             {clocking === 'out' ? <Loader2 className="w-6 h-6 animate-spin" /> : <Fingerprint className="w-6 h-6" />}
             <span>Clock Out</span>
             <span className="text-[10px] font-normal opacity-80">+ GPS lokasi</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2.5 mb-4">
+          <button
+            onClick={() => { setClockPhoto(null); setClockPhotoModal('in'); }}
+            disabled={!canClockIn || clocking === 'in'}
+            className={`py-3 rounded-xl text-xs font-bold flex flex-col items-center justify-center gap-1 active:scale-[0.98] transition-all border-2 ${
+              !canClockIn ? 'border-slate-100 text-slate-300 bg-slate-50' : 'border-emerald-200 text-emerald-700 bg-emerald-50'
+            }`}
+          >
+            <Camera className="w-5 h-5" />
+            <span>Absensi Foto Masuk</span>
+            <span className="text-[9px] font-normal opacity-70">Selfie + GPS + geofence</span>
+          </button>
+          <button
+            onClick={() => { setClockPhoto(null); setClockPhotoModal('out'); }}
+            disabled={!canClockOut || clocking === 'out'}
+            className={`py-3 rounded-xl text-xs font-bold flex flex-col items-center justify-center gap-1 active:scale-[0.98] transition-all border-2 ${
+              !canClockOut ? 'border-slate-100 text-slate-300 bg-slate-50' : 'border-orange-200 text-orange-700 bg-orange-50'
+            }`}
+          >
+            <Camera className="w-5 h-5" />
+            <span>Absensi Foto Pulang</span>
+            <span className="text-[9px] font-normal opacity-70">Selfie + GPS + geofence</span>
           </button>
         </div>
 
@@ -984,9 +1066,16 @@ export default function EmployeeDashboard() {
                       ? `${lastClockEvent.location.lat.toFixed(5)}, ${lastClockEvent.location.lng?.toFixed(5)}`
                       : 'Lokasi tidak tercatat')}
                 </p>
-                <div className="flex items-center justify-between mt-2 gap-2">
+                <div className="flex items-center justify-between mt-2 gap-2 flex-wrap">
                   {lastClockEvent.location?.accuracy != null && (
                     <p className="text-[10px] text-slate-400">Akurasi ±{Math.round(lastClockEvent.location.accuracy)}m</p>
+                  )}
+                  {lastClockEvent.location?.geofence && (
+                    <GeofenceBadge
+                      name={lastClockEvent.location.geofence.name}
+                      status={lastClockEvent.location.geofence.inside ? 'inside' : 'outside'}
+                      distance={lastClockEvent.location.geofence.distanceM}
+                    />
                   )}
                   {lastClockEvent.mapsUrl && (
                     <a href={lastClockEvent.mapsUrl} target="_blank" rel="noreferrer"
@@ -1617,7 +1706,14 @@ export default function EmployeeDashboard() {
         </div>
       ) : (
         <div className="space-y-3">
-          {visits.map(v => (
+          {visits.map(v => {
+            const evidence = parseEvidencePhotos(v.evidence_photos);
+            const allPhotos = [
+              ...(v.check_in_photo_url ? [{ url: v.check_in_photo_url, caption: 'Check-in' }] : []),
+              ...(v.check_out_photo_url ? [{ url: v.check_out_photo_url, caption: 'Check-out' }] : []),
+              ...evidence,
+            ];
+            return (
             <div key={v.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="p-4">
                 <div className="flex items-start justify-between gap-2 mb-2">
@@ -1627,10 +1723,15 @@ export default function EmployeeDashboard() {
                   </div>
                   <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${statusColor[v.status]}`}>{statusLabel[v.status]}</span>
                 </div>
-                <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
                   <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${visitTypeColor[v.visit_type]}`}>{visitTypeLabel[v.visit_type]}</span>
                   {v.purpose && <p className="text-xs text-gray-500 truncate">{v.purpose}</p>}
                 </div>
+                {(v.check_in_geofence_name || v.check_in_geofence_status) && (
+                  <div className="mb-2">
+                    <GeofenceBadge name={v.check_in_geofence_name} status={v.check_in_geofence_status} distance={v.check_in_geofence_distance_m} />
+                  </div>
+                )}
                 {/* Timing info */}
                 {v.check_in_time && (
                   <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
@@ -1647,20 +1748,32 @@ export default function EmployeeDashboard() {
                     </span>
                   </div>
                 )}
+                {allPhotos.length > 0 && (
+                  <div className="mb-3">
+                    <p className="text-[10px] font-semibold text-gray-500 mb-1.5 flex items-center gap-1"><Image className="w-3 h-3" />Bukti Kunjungan ({allPhotos.length})</p>
+                    <div className="flex gap-1.5 overflow-x-auto pb-1">
+                      {allPhotos.slice(0, 6).map((p, i) => (
+                        <a key={i} href={p.url} target="_blank" rel="noreferrer" className="flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
+                          <img src={p.url} alt={p.caption || 'Bukti'} className="w-full h-full object-cover" />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {/* Action buttons per status */}
                 <div className="flex gap-2">
                   {v.status === 'planned' && (
-                    <button onClick={() => { setActiveVisit(v); setVisitModal('check-in'); setGpsCoords(null); setVisitMsg(null); }}
+                    <button onClick={() => { setActiveVisit(v); setVisitCheckInPhoto(null); setVisitModal('check-in'); setGpsCoords(null); setVisitMsg(null); }}
                       className="flex-1 flex items-center justify-center gap-1.5 bg-blue-600 text-white py-2 rounded-lg text-xs font-semibold active:scale-95 transition-all">
                       <Navigation className="w-3.5 h-3.5" /> Check-in
                     </button>
                   )}
                   {v.status === 'checked_in' && <>
-                    <button onClick={() => { setActiveVisit(v); setVisitModal('evidence'); setVisitMsg(null); }}
+                    <button onClick={() => { setActiveVisit(v); setVisitEvidencePhoto(null); setVisitModal('evidence'); setVisitMsg(null); }}
                       className="flex-1 flex items-center justify-center gap-1.5 bg-amber-500 text-white py-2 rounded-lg text-xs font-semibold active:scale-95 transition-all">
                       <Camera className="w-3.5 h-3.5" /> Foto Bukti
                     </button>
-                    <button onClick={() => { setActiveVisit(v); setVisitModal('check-out'); setVisitForm(f => ({ ...f, outcome: '', outcome_notes: '', order_value: '', next_visit_date: '' })); setVisitMsg(null); }}
+                    <button onClick={() => { setActiveVisit(v); setVisitCheckOutPhoto(null); setVisitModal('check-out'); setVisitForm(f => ({ ...f, outcome: '', outcome_notes: '', order_value: '', next_visit_date: '' })); setVisitMsg(null); }}
                       className="flex-1 flex items-center justify-center gap-1.5 bg-green-600 text-white py-2 rounded-lg text-xs font-semibold active:scale-95 transition-all">
                       <CheckCircle className="w-3.5 h-3.5" /> Check-out
                     </button>
@@ -1674,14 +1787,15 @@ export default function EmployeeDashboard() {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
       {/* ── Modal: Check-in ─────────────────────────────────────────────────── */}
       {visitModal === 'check-in' && activeVisit && (
         <div className="fixed inset-0 z-50 flex items-end bg-black/50">
-          <div className="bg-white w-full rounded-t-2xl p-5 space-y-4 safe-area-pb">
+          <div className="bg-white w-full rounded-t-2xl p-5 space-y-4 safe-area-pb max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-gray-900">Check-in Kunjungan</h3>
               <button onClick={() => setVisitModal(null)}><X className="w-5 h-5 text-gray-400" /></button>
@@ -1690,6 +1804,14 @@ export default function EmployeeDashboard() {
               <p className="font-semibold text-sm text-gray-900">{activeVisit.customer_name}</p>
               <p className="text-xs text-gray-500 flex items-center gap-1 mt-1"><MapPin className="w-3 h-3" />{activeVisit.customer_address}</p>
             </div>
+            <PhotoCaptureField
+              label="Foto Bukti Kunjungan *"
+              hint="Wajib ambil foto langsung dari kamera perangkat (bukan galeri)."
+              value={visitCheckInPhoto}
+              onChange={setVisitCheckInPhoto}
+              capture="environment"
+              cameraOnly
+            />
             {gpsCoords && <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-2">
               <Navigation className="w-4 h-4 text-green-600 flex-shrink-0" />
               <div><p className="text-xs font-semibold text-green-700">Koordinat GPS diperoleh</p>
@@ -1698,10 +1820,10 @@ export default function EmployeeDashboard() {
             {visitMsg && <div className={`rounded-xl p-3 text-sm font-medium flex items-center gap-2 ${visitMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
               {visitMsg.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}{visitMsg.text}
             </div>}
-            <p className="text-xs text-gray-400 flex items-center gap-1"><ScanLine className="w-3 h-3" />Lokasi GPS Anda akan dicatat sebagai bukti kehadiran.</p>
-            <button onClick={handleCheckIn} disabled={gpsLoading}
+            <p className="text-xs text-gray-400 flex items-center gap-1"><ScanLine className="w-3 h-3" />GPS + foto + tag geofencing akan dicatat sebagai bukti kunjungan.</p>
+            <button onClick={handleCheckIn} disabled={gpsLoading || !visitCheckInPhoto}
               className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-3 rounded-xl text-sm font-semibold disabled:opacity-60 active:scale-95 transition-all">
-              {gpsLoading ? <><Loader2 className="w-4 h-4 animate-spin" />Mendapatkan GPS...</> : <><Navigation className="w-4 h-4" />Check-in Sekarang</>}
+              {gpsLoading ? <><Loader2 className="w-4 h-4 animate-spin" />Mendapatkan GPS & menyimpan...</> : <><Navigation className="w-4 h-4" />Check-in Sekarang</>}
             </button>
           </div>
         </div>
@@ -1744,6 +1866,14 @@ export default function EmployeeDashboard() {
               <input type="date" value={visitForm.next_visit_date} onChange={e => setVisitForm(f => ({ ...f, next_visit_date: e.target.value }))}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none" />
             </div>
+            <PhotoCaptureField
+              label="Foto Bukti Check-out (opsional)"
+              hint="Ambil langsung dari kamera perangkat saat meninggalkan lokasi."
+              value={visitCheckOutPhoto}
+              onChange={setVisitCheckOutPhoto}
+              capture="environment"
+              cameraOnly
+            />
             {visitMsg && <div className={`rounded-xl p-3 text-sm font-medium flex items-center gap-2 ${visitMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
               {visitMsg.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}{visitMsg.text}
             </div>}
@@ -1771,24 +1901,40 @@ export default function EmployeeDashboard() {
               <input type="text" value={visitForm.caption} onChange={e => setVisitForm(f => ({ ...f, caption: e.target.value }))} placeholder="Contoh: Foto display produk di rak"
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none" />
             </div>
+            <PhotoCaptureField
+              label="Foto Bukti"
+              hint="Ambil langsung dari kamera — display, stok, tanda terima, dll."
+              value={visitEvidencePhoto}
+              onChange={setVisitEvidencePhoto}
+              capture="environment"
+              cameraOnly
+            />
             {visitMsg && <div className={`rounded-xl p-3 text-sm font-medium flex items-center gap-2 ${visitMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
               {visitMsg.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}{visitMsg.text}
             </div>}
-            <label className="w-full flex items-center justify-center gap-2 bg-amber-500 text-white py-3 rounded-xl text-sm font-semibold active:scale-95 transition-all cursor-pointer">
-              <Camera className="w-4 h-4" /> Ambil / Pilih Foto
-              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={async e => {
-                const file = e.target.files?.[0]; if (!file) return;
-                const reader = new FileReader();
-                reader.onload = async () => {
-                  setSubmitting(true);
-                  const res = await fetch('/api/employee/field-visit?action=add-evidence', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ visit_id: activeVisit.id, photo_base64: reader.result, caption: visitForm.caption }) });
+            <button
+              type="button"
+              disabled={submitting || !visitEvidencePhoto}
+              onClick={async () => {
+                if (!visitEvidencePhoto || !activeVisit) return;
+                setSubmitting(true);
+                try {
+                  const res = await fetch('/api/employee/field-visit?action=add-evidence', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ visit_id: activeVisit.id, photo_base64: visitEvidencePhoto, caption: visitForm.caption }),
+                  });
                   const data = await res.json();
                   setVisitMsg({ type: data.success ? 'success' : 'error', text: data.message || data.error });
-                  setSubmitting(false);
-                };
-                reader.readAsDataURL(file);
-              }} />
-            </label>
+                  if (data.success) {
+                    await fetchVisits();
+                    setTimeout(() => { setVisitModal(null); setVisitEvidencePhoto(null); setVisitMsg(null); }, 1200);
+                  }
+                } finally { setSubmitting(false); }
+              }}
+              className="w-full flex items-center justify-center gap-2 bg-amber-500 text-white py-3 rounded-xl text-sm font-semibold disabled:opacity-60 active:scale-95 transition-all"
+            >
+              {submitting ? <><Loader2 className="w-4 h-4 animate-spin" />Menyimpan...</> : <><Camera className="w-4 h-4" />Simpan Bukti Foto</>}
+            </button>
             <p className="text-[10px] text-gray-400 text-center">Foto disimpan sebagai bukti kunjungan lapangan</p>
           </div>
         </div>
@@ -2272,6 +2418,36 @@ export default function EmployeeDashboard() {
         <main ref={mainScrollRef} className="emp-portal-scroll px-4 py-4 pb-28">{renderContent()}</main>
 
         {renderModal()}
+
+        {clockPhotoModal && (
+          <div className="fixed inset-0 z-50 flex items-end bg-black/50">
+            <div className="bg-white w-full max-w-lg mx-auto rounded-t-2xl p-5 space-y-4 safe-area-pb max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-gray-900">
+                  {clockPhotoModal === 'in' ? 'Absensi Foto Masuk' : 'Absensi Foto Pulang'}
+                </h3>
+                <button onClick={() => { setClockPhotoModal(null); setClockPhoto(null); }}><X className="w-5 h-5 text-gray-400" /></button>
+              </div>
+              <p className="text-xs text-slate-500">Ambil selfie sebagai bukti kehadiran. GPS dan tag geofencing akan dicatat otomatis.</p>
+              <PhotoCaptureField
+                label="Foto Selfie *"
+                hint="Pastikan wajah terlihat jelas."
+                value={clockPhoto}
+                onChange={setClockPhoto}
+                capture="user"
+              />
+              <button
+                onClick={() => handlePhotoClock(clockPhotoModal)}
+                disabled={!clockPhoto || clocking === clockPhotoModal}
+                className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-60 active:scale-95 transition-all ${
+                  clockPhotoModal === 'in' ? 'bg-emerald-600' : 'bg-orange-500'
+                }`}
+              >
+                {clocking === clockPhotoModal ? <><Loader2 className="w-4 h-4 animate-spin" />Memproses...</> : <><Camera className="w-4 h-4" />{clockPhotoModal === 'in' ? 'Clock In dengan Foto' : 'Clock Out dengan Foto'}</>}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* More menu — bottom sheet */}
         {showMoreMenu && (
