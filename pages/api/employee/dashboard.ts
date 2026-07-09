@@ -12,6 +12,14 @@ import {
   formatRelativeTime,
   formatCheckInTime,
 } from '../../../lib/employee-portal';
+import { canAccessManagerPortal, isSuperAdminRole } from '@/lib/humanify/manager-access';
+import {
+  createPortalLeaveRequest,
+  attachApprovalSteps,
+} from '@/lib/hris/leave-request-service';
+import {
+  notifyManagersForEmployee,
+} from '@/lib/hris/employee-notifications';
 import {
   getTodayAttendance,
   getMonthStatusSummary,
@@ -47,6 +55,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         case 'notifications': return getNotifications(res, userId);
         case 'announcements': return getAnnouncements(res, userId, tenantId);
         case 'summary': return getSummary(res, userId, tenantId);
+        case 'payslip': return getPayslip(req, res, userId);
+        case 'disciplinary-letters': return getDisciplinaryLetters(res, userId, tenantId);
         default: return res.status(400).json({ error: 'Unknown action' });
       }
     }
@@ -63,6 +73,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         case 'travel-request': return createTravelRequest(req, res, userId, tenantId);
         case 'mark-notification-read': return markNotificationRead(req, res, userId);
         case 'mark-all-notifications-read': return markAllNotificationsRead(res, userId);
+        case 'acknowledge-disciplinary': return acknowledgeDisciplinary(req, res, userId);
         default: return res.status(400).json({ error: 'Unknown action' });
       }
     }
@@ -92,7 +103,13 @@ async function getProfile(res: NextApiResponse, userId: string, tenantId: string
     const mfCategories = ['account_officer', 'collector', 'surveyor', 'telemarketing', 'field_agent'];
     const isMfAgent = profile.business_vertical === 'multifinance'
       || mfCategories.includes(profile.employment_category || '');
-    return res.json({ success: true, data: { ...profile, isMfAgent } });
+    const role = String(profile.role || '');
+    const isManagerPortal = canAccessManagerPortal(role);
+    const isSuperAdmin = isSuperAdminRole(role);
+    return res.json({
+      success: true,
+      data: { ...profile, isMfAgent, isManagerPortal, isSuperAdmin },
+    });
   } catch { return res.json({ success: true, data: mockProfile() }); }
 }
 
@@ -295,6 +312,14 @@ async function submitOvertime(req: NextApiRequest, res: NextApiResponse, userId:
         :reason, :desc, :otype, :mult, :pay, 'pending', NOW(), NOW())
     `, { replacements: { tid: tenantId, empId, date, dayType, start: start_time, end: end_time, reason, desc: work_description || null, otype: overtime_type, mult, pay: calcPay } });
 
+    await notifyManagersForEmployee(sequelize, empId, {
+      tenantId,
+      title: 'Pengajuan Lembur Baru',
+      message: `Lembur ${date} (${durHrs.toFixed(1)} jam) menunggu persetujuan Anda.`,
+      type: 'approval',
+      sourceType: 'employee_overtime',
+    });
+
     return res.json({ success: true, message: 'Pengajuan lembur berhasil dikirim dan menunggu persetujuan' });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: 'Gagal mengajukan lembur', details: e.message });
@@ -443,12 +468,13 @@ async function getLeaveRequests(res: NextApiResponse, userId: string, tenantId: 
     const [rows] = await sequelize.query(`
       SELECT lr.*, lt.name as leave_type_name FROM leave_requests lr
       LEFT JOIN leave_types lt ON lr.leave_type = lt.code OR lr.leave_type_id = lt.id
-      LEFT JOIN employees e ON lr.employee_id = e.id
+      LEFT JOIN employees e ON lr.employee_id::text = e.id::text
       WHERE (e.user_id = :userId OR e.email = (SELECT email FROM users WHERE id = :userId))
       ORDER BY lr.created_at DESC LIMIT 20
     `, { replacements: { userId } });
     if (!rows || rows.length === 0) return res.json({ success: true, data: mockLeaveRequests() });
-    return res.json({ success: true, data: rows });
+    const enriched = await attachApprovalSteps(rows as any[]);
+    return res.json({ success: true, data: enriched });
   } catch { return res.json({ success: true, data: mockLeaveRequests() }); }
 }
 
@@ -457,25 +483,45 @@ async function createLeaveRequest(req: NextApiRequest, res: NextApiResponse, use
   if (!leaveType || !startDate || !endDate || !reason) {
     return res.status(400).json({ success: false, error: 'Semua field harus diisi' });
   }
-  const days = Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000) + 1;
-  if (!sequelize) {
-    return res.json({ success: true, data: { id: 'lr-new', leaveType, startDate, endDate, totalDays: days, reason, status: 'pending' } });
-  }
-  try {
-    const now = new Date().toISOString();
+
+  let employeeId = userId;
+  if (sequelize) {
     const [empRows] = await sequelize.query(
       `SELECT id FROM employees WHERE user_id = :userId OR email = (SELECT email FROM users WHERE id = :userId) LIMIT 1`,
-      { replacements: { userId } }
+      { replacements: { userId } },
     );
-    const employeeId = empRows?.[0]?.id || userId;
-    await sequelize.query(`
-      INSERT INTO leave_requests (employee_id, leave_type, start_date, end_date, total_days, reason, status, tenant_id, created_at, updated_at)
-      VALUES (:employeeId, :leaveType, :startDate, :endDate, :days, :reason, 'pending', :tenantId, :now, :now)
-    `, { replacements: { employeeId, leaveType, startDate, endDate, days, reason, tenantId, now } });
-    return res.json({ success: true, message: 'Pengajuan cuti berhasil dikirim' });
-  } catch (e: any) {
-    return res.json({ success: true, data: { leaveType, startDate, endDate, totalDays: days, reason, status: 'pending' }, message: 'Saved (mock)' });
+    employeeId = empRows?.[0]?.id || userId;
   }
+
+  const result = await createPortalLeaveRequest({
+    employeeId,
+    leaveType,
+    startDate,
+    endDate,
+    reason,
+    tenantId,
+  });
+
+  if (!result.success) {
+    return res.status(400).json({ success: false, error: result.error });
+  }
+
+  if (sequelize && !result.autoApproved) {
+    await notifyManagersForEmployee(sequelize, employeeId, {
+      tenantId,
+      title: 'Pengajuan Cuti Baru',
+      message: `Ada pengajuan cuti ${leaveType} (${startDate} – ${endDate}) yang menunggu persetujuan Anda.`,
+      type: 'approval',
+      sourceType: 'leave_request',
+      sourceId: result.data?.id ? String(result.data.id) : null,
+    });
+  }
+
+  return res.json({
+    success: true,
+    message: result.message,
+    data: result.data,
+  });
 }
 
 // ─── Claims ───
@@ -516,6 +562,15 @@ async function createClaim(req: NextApiRequest, res: NextApiResponse, userId: st
       INSERT INTO employee_claims (employee_id, claim_type, amount, description, receipt_date, status, tenant_id, receipt_url, attachments_count, created_at, updated_at)
       VALUES (:employeeId, :claimType, :amount, :description, :receiptDate, 'pending', :tenantId, :receiptUrl, :attachmentsCount, :now, :now)
     `, { replacements: { employeeId, claimType, amount: parseFloat(amount), description, receiptDate: receiptDate || now, tenantId, receiptUrl, attachmentsCount, now } });
+
+    await notifyManagersForEmployee(sequelize, employeeId, {
+      tenantId,
+      title: 'Klaim Baru Menunggu Persetujuan',
+      message: `Klaim ${claimType} sebesar Rp ${parseFloat(amount).toLocaleString('id-ID')} menunggu persetujuan Anda.`,
+      type: 'approval',
+      sourceType: 'employee_claim',
+    });
+
     return res.json({ success: true, message: 'Klaim berhasil dikirim' });
   } catch {
     return res.json({ success: true, data: { claim_type: claimType, amount, description, status: 'pending' }, message: 'Saved (mock)' });
@@ -687,6 +742,99 @@ async function getAnnouncements(res: NextApiResponse, userId: string, tenantId: 
   return res.json({ success: true, data: mockAnnouncements() });
 }
 
+// ─── Payslip (self-service) ───
+function mapPayslipRow(row: any) {
+  let comps = row.components;
+  if (typeof comps === 'string') { try { comps = JSON.parse(comps); } catch { comps = {}; } }
+  const earnings = row.earnings
+    ? (typeof row.earnings === 'string' ? JSON.parse(row.earnings) : row.earnings)
+    : (comps?.earnings || []);
+  const deductions = row.deductions
+    ? (typeof row.deductions === 'string' ? JSON.parse(row.deductions) : row.deductions)
+    : (comps?.deductions || []);
+  return {
+    ...row,
+    earnings,
+    deductions,
+    total_earnings: Number(row.total_earnings ?? row.gross_salary ?? 0),
+    total_deductions: Number(row.total_deductions ?? 0),
+    tax_amount: Number(row.tax_amount ?? 0),
+    net_salary: Number(row.net_salary ?? 0),
+    base_salary: Number(row.base_salary ?? 0),
+  };
+}
+
+async function getPayslip(req: NextApiRequest, res: NextApiResponse, userId: string) {
+  if (!sequelize) return res.json({ success: true, data: mockPayslips() });
+  try {
+    const ctx = await resolveEmployeeContext(sequelize, userId);
+    if (!ctx.employeeId) return res.json({ success: true, data: mockPayslips() });
+
+    const { month } = req.query;
+    let where = 'WHERE pi.employee_id = :empId';
+    const replacements: any = { empId: ctx.employeeId };
+    if (month) {
+      where += ' AND to_char(pr.period_start, \'YYYY-MM\') = :month';
+      replacements.month = month;
+    }
+
+    const [rows] = await sequelize.query(`
+      SELECT pi.*, e.name as employee_name, e.position as employee_position, e.department,
+             pr.run_code, pr.period_start, pr.period_end, pr.pay_date, pr.status as run_status
+      FROM payroll_items pi
+      JOIN payroll_runs pr ON pi.payroll_run_id = pr.id
+      LEFT JOIN employees e ON pi.employee_id = e.id
+      ${where}
+      ORDER BY pr.period_start DESC
+      LIMIT 12
+    `, { replacements });
+
+    if (rows?.length) return res.json({ success: true, data: (rows as any[]).map(mapPayslipRow) });
+  } catch { /* fall through */ }
+  return res.json({ success: true, data: mockPayslips() });
+}
+
+// ─── Disciplinary letters (employee view) ───
+async function getDisciplinaryLetters(res: NextApiResponse, userId: string, tenantId: string) {
+  if (!sequelize) return res.json({ success: true, data: mockDisciplinaryLetters() });
+  try {
+    const ctx = await resolveEmployeeContext(sequelize, userId);
+    if (!ctx.employeeId) return res.json({ success: true, data: mockDisciplinaryLetters() });
+
+    const [rows] = await sequelize.query(`
+      SELECT dl.id, dl.letter_type, dl.letter_number, dl.status, dl.violation_type,
+        dl.violation_description, dl.incident_date, dl.effective_date, dl.expiry_date,
+        dl.acknowledged, dl.acknowledged_at, dl.issued_at, dl.created_at
+      FROM hr_disciplinary_letters dl
+      WHERE dl.employee_id::text = :empId
+        AND dl.status IN ('issued', 'acknowledged', 'pending_approval')
+      ORDER BY dl.issued_at DESC NULLS LAST, dl.created_at DESC
+      LIMIT 20
+    `, { replacements: { empId: String(ctx.employeeId) } });
+
+    if (rows?.length) return res.json({ success: true, data: rows });
+  } catch { /* fall through */ }
+  return res.json({ success: true, data: mockDisciplinaryLetters() });
+}
+
+async function acknowledgeDisciplinary(req: NextApiRequest, res: NextApiResponse, userId: string) {
+  const { id } = req.body || {};
+  if (!id) return res.status(400).json({ success: false, error: 'id required' });
+  if (!sequelize) return res.json({ success: true, message: 'Surat peringatan telah diakui' });
+
+  try {
+    const ctx = await resolveEmployeeContext(sequelize, userId);
+    await sequelize.query(`
+      UPDATE hr_disciplinary_letters SET status = 'acknowledged', acknowledged = true,
+        acknowledged_at = NOW(), current_phase = 'acknowledgment', updated_at = NOW()
+      WHERE id = :id AND employee_id::text = :empId AND status = 'issued'
+    `, { replacements: { id, empId: String(ctx.employeeId) } });
+    return res.json({ success: true, message: 'Anda telah mengakui penerimaan surat peringatan' });
+  } catch (e: any) {
+    return res.status(500).json({ success: false, error: e.message });
+  }
+}
+
 // ─── Summary ───
 async function getSummary(res: NextApiResponse, userId: string, tenantId: string) {
   if (!sequelize) return res.json({ success: true, data: mockSummary() });
@@ -722,7 +870,43 @@ async function getSummary(res: NextApiResponse, userId: string, tenantId: string
 
 // ─── Mock Data ───
 function mockProfile() {
-  return { name: 'Budi Santoso', email: 'budi@bedagang.com', phone: '08123456789', position: 'Senior Developer', department: 'Engineering', branch_name: 'Cabang Jakarta Pusat', employee_code: 'EMP-2024-007', join_date: '2023-06-15' };
+  return {
+    name: 'Budi Santoso', email: 'budi@bedagang.com', phone: '08123456789',
+    position: 'Senior Developer', department: 'Engineering', branch_name: 'Cabang Jakarta Pusat',
+    employee_code: 'EMP-2024-007', join_date: '2023-06-15', role: 'staff',
+    isMfAgent: false, isManagerPortal: false, isSuperAdmin: false,
+  };
+}
+
+function mockPayslips() {
+  const month = new Date().toISOString().slice(0, 7);
+  return [{
+    id: 'mock-ps1',
+    run_code: 'PAY-2026-06',
+    period_start: `${month}-01`,
+    period_end: `${month}-30`,
+    pay_date: `${month}-28`,
+    employee_name: 'Budi Santoso',
+    employee_position: 'Senior Developer',
+    base_salary: 12000000,
+    total_earnings: 13500000,
+    total_deductions: 1200000,
+    tax_amount: 450000,
+    net_salary: 11850000,
+    earnings: [
+      { name: 'Gaji Pokok', amount: 12000000 },
+      { name: 'Tunjangan Transport', amount: 1500000 },
+    ],
+    deductions: [
+      { name: 'BPJS Kesehatan', amount: 120000 },
+      { name: 'BPJS Ketenagakerjaan', amount: 108000 },
+      { name: 'PPh 21', amount: 450000 },
+    ],
+  }];
+}
+
+function mockDisciplinaryLetters() {
+  return [];
 }
 function mockAttendance() {
   const locIn = { lat: -6.2088, lng: 106.8456, address: 'Kantor Pusat Jakarta, Jl. Sudirman', accuracy: 12 };

@@ -18,8 +18,11 @@ import {
 import { signOut } from 'next-auth/react';
 import MultifinanceFieldTab from '@/components/employee/MultifinanceFieldTab';
 import MyFilesTab from '@/components/employee/MyFilesTab';
+import ManagerHubTab from '@/components/employee/ManagerHubTab';
+import PayslipTab from '@/components/employee/PayslipTab';
+import DisciplinaryTab from '@/components/employee/DisciplinaryTab';
 
-type TabKey = 'home' | 'attendance' | 'overtime' | 'kpi' | 'leave' | 'claims' | 'travel' | 'visit' | 'mf' | 'profile' | 'files';
+type TabKey = 'home' | 'attendance' | 'overtime' | 'kpi' | 'leave' | 'claims' | 'travel' | 'visit' | 'mf' | 'profile' | 'files' | 'manager' | 'payslip' | 'disciplinary';
 
 // ─── Field Visit Types ────────────────────────────────────────────────────────
 type VisitStatus = 'planned' | 'checked_in' | 'completed' | 'cancelled' | 'no_contact';
@@ -180,6 +183,11 @@ export default function EmployeeDashboard() {
   const [isMfAgent, setIsMfAgent] = useState(false);
   const [mfOverview, setMfOverview] = useState<any>(null);
 
+  // ── Manager portal (super_admin / manager only) ─────────────────────────────
+  const [isManagerPortal, setIsManagerPortal] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [managerPendingCount, setManagerPendingCount] = useState(0);
+
   // ─── Data Fetching ───
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -190,6 +198,9 @@ export default function EmployeeDashboard() {
         api('claims'), api('travel'), api('notifications'), api('announcements'),
       ]);
       setProfile(pRes.data || null);
+      setIsMfAgent(!!pRes.data?.isMfAgent);
+      setIsManagerPortal(!!pRes.data?.isManagerPortal);
+      setIsSuperAdmin(!!pRes.data?.isSuperAdmin);
       setAttendance(aRes.data || null);
       setKpi(kRes.data || null);
       setLeaveBalance(Array.isArray(lbRes.data) ? lbRes.data : []);
@@ -198,6 +209,13 @@ export default function EmployeeDashboard() {
       setTravel(Array.isArray(trRes.data) ? trRes.data : []);
       setNotifications(Array.isArray(nRes.data) ? nRes.data : []);
       setAnnouncements(Array.isArray(annRes.data) ? annRes.data : []);
+
+      if (pRes.data?.isManagerPortal) {
+        fetch('/api/employee/manager?action=summary')
+          .then(r => r.json())
+          .then(j => { if (j.success) setManagerPendingCount(j.data?.total || 0); })
+          .catch(() => {});
+      }
       // Deteksi agen pembiayaan / tim lapangan multifinance
       try {
         const mfRes = await fetch('/api/employee/multifinance?action=profile').then(r => r.json());
@@ -219,6 +237,30 @@ export default function EmployeeDashboard() {
     }
     setLoading(false);
   }, []);
+
+  const handleNotificationClick = (n: any) => {
+    setShowNotif(false);
+    const src = n.source_type || '';
+    if (src === 'disciplinary_letter' || n.type === 'disciplinary') {
+      goToTab('disciplinary');
+      return;
+    }
+    if (src === 'leave_request') {
+      goToTab('leave');
+      return;
+    }
+    if (src === 'employee_claim') {
+      goToTab('claims');
+      return;
+    }
+    if (src === 'employee_overtime') {
+      goToTab('overtime');
+      return;
+    }
+    if (n.type === 'approval' && isManagerPortal) {
+      goToTab('manager');
+    }
+  };
 
   const openNotifications = async () => {
     setShowNotif(true);
@@ -958,6 +1000,24 @@ export default function EmployeeDashboard() {
         )}
       </Card>
 
+      {isManagerPortal && (
+        <Card className="p-4 ring-2 ring-violet-100/80">
+          <SectionHeader
+            title="Panel Manajer"
+            action={managerPendingCount > 0 ? (
+              <span className="text-[10px] font-bold text-violet-700 bg-violet-100 px-2 py-0.5 rounded-full">
+                {managerPendingCount} pending
+              </span>
+            ) : undefined}
+          />
+          <p className="text-xs text-slate-500 mb-3">Persetujuan cuti, klaim, lembur & surat peringatan tim Anda</p>
+          <button onClick={() => goToTab('manager')}
+            className="w-full py-2.5 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 active:scale-[0.98]">
+            <Shield className="w-4 h-4" /> Buka Panel Manajer
+          </button>
+        </Card>
+      )}
+
       {isMfAgent && (
         <Card className="p-4 ring-2 ring-indigo-100/80">
           <SectionHeader
@@ -1087,9 +1147,9 @@ export default function EmployeeDashboard() {
             { icon: Target, label: 'KPI', gradient: 'from-violet-500 to-purple-600', action: () => goToTab('kpi') },
           ] : [
             { icon: Calendar, label: 'Cuti', gradient: 'from-blue-500 to-indigo-600', action: () => setModal('leave') },
+            { icon: Wallet, label: 'Gaji', gradient: 'from-sky-500 to-blue-600', action: () => goToTab('payslip') },
             { icon: Receipt, label: 'Klaim', gradient: 'from-emerald-500 to-teal-600', action: () => setModal('claim') },
             { icon: Timer, label: 'Lembur', gradient: 'from-orange-500 to-red-500', action: () => { goToTab('overtime'); setTimeout(() => setOtModal('new'), 100); } },
-            { icon: Target, label: 'KPI', gradient: 'from-violet-500 to-purple-600', action: () => goToTab('kpi') },
           ]).map((a, i) => (
             <button key={i} onClick={a.action} className="flex flex-col items-center gap-2 p-2 rounded-2xl active:scale-95 transition-transform">
               <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${a.gradient} flex items-center justify-center shadow-md`}>
@@ -1270,6 +1330,25 @@ export default function EmployeeDashboard() {
                   <span className="flex items-center gap-1"><CalendarDays className="w-3 h-3" />{fmtDate(l.start_date || l.startDate)} - {fmtDate(l.end_date || l.endDate)}</span>
                   <span>{l.total_days || l.totalDays} hari</span>
                 </div>
+                {l.status === 'pending' && l.total_approval_steps > 1 && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-violet-500 rounded-full transition-all"
+                        style={{ width: `${Math.min(100, ((l.current_approval_step || 1) / l.total_approval_steps) * 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] text-violet-600 font-semibold whitespace-nowrap">
+                      Tahap {l.current_approval_step || 1}/{l.total_approval_steps}
+                    </span>
+                  </div>
+                )}
+                {l.status === 'pending' && l.current_step?.approver_role && (
+                  <p className="text-[10px] text-amber-600 mt-1">Menunggu: {l.current_step.approver_role}</p>
+                )}
+                {l.status === 'rejected' && l.rejection_reason && (
+                  <p className="text-[10px] text-rose-600 mt-1">Alasan: {l.rejection_reason}</p>
+                )}
               </div>
             ))}
           </div>
@@ -2026,12 +2105,20 @@ export default function EmployeeDashboard() {
     );
   };
 
-  const tabs: { key: TabKey | 'more'; icon: any; label: string }[] = isMfAgent
+  const tabs: { key: TabKey | 'more'; icon: any; label: string; badge?: number }[] = isMfAgent
     ? [
         { key: 'home',       icon: Home,         label: 'Beranda'  },
         { key: 'attendance', icon: CalendarDays, label: 'Absensi'  },
         { key: 'mf',         icon: Building2,    label: 'Lapangan' },
         { key: 'leave',      icon: Calendar,     label: 'Cuti'     },
+        { key: 'more',       icon: LayoutGrid,   label: 'Lainnya'  },
+      ]
+    : isManagerPortal
+    ? [
+        { key: 'home',       icon: Home,         label: 'Beranda'  },
+        { key: 'attendance', icon: CalendarDays, label: 'Absensi'  },
+        { key: 'leave',      icon: Calendar,     label: 'Cuti'     },
+        { key: 'manager',    icon: Shield,       label: 'Manajer', badge: managerPendingCount || undefined },
         { key: 'more',       icon: LayoutGrid,   label: 'Lainnya'  },
       ]
     : [
@@ -2044,16 +2131,18 @@ export default function EmployeeDashboard() {
 
   const moreMenuItems: { key: TabKey; icon: any; label: string; desc: string; color: string }[] = [
     { key: 'files',    icon: FileText,   label: 'My Files',    desc: 'Upload KTP, KK, ijazah & dokumen', color: 'bg-blue-100 text-blue-600' },
+    { key: 'payslip',  icon: Wallet,     label: 'Slip Gaji',   desc: 'Akses payslip bulanan Anda',       color: 'bg-sky-100 text-sky-600' },
+    { key: 'disciplinary', icon: AlertTriangle, label: 'Surat SP', desc: 'Surat peringatan & disiplin', color: 'bg-red-100 text-red-600' },
     ...(isMfAgent ? [{ key: 'mf' as TabKey, icon: Building2, label: 'Pembiayaan Lapangan', desc: 'Koleksi, portofolio & komisi', color: 'bg-indigo-100 text-indigo-600' }] : []),
-    { key: 'claims',   icon: Wallet,     label: 'Klaim',       desc: 'Klaim biaya & reimbursement', color: 'bg-green-100 text-green-600' },
+    { key: 'claims',   icon: Receipt,    label: 'Klaim',       desc: 'Klaim biaya & reimbursement', color: 'bg-green-100 text-green-600' },
     { key: 'overtime', icon: Timer,      label: 'Lembur',      desc: 'Pengajuan & rekap lembur',    color: 'bg-orange-100 text-orange-600' },
     { key: 'travel',   icon: Plane,      label: 'Perjalanan',  desc: 'Perjalanan dinas',            color: 'bg-purple-100 text-purple-600' },
     { key: 'visit',    icon: Navigation, label: 'Kunjungan',   desc: 'Kunjungan lapangan SFA',      color: 'bg-cyan-100 text-cyan-600' },
-    ...(isMfAgent ? [{ key: 'kpi' as TabKey, icon: Target, label: 'KPI', desc: 'Indikator kinerja', color: 'bg-violet-100 text-violet-600' }] : []),
+    ...((isMfAgent || isManagerPortal) ? [{ key: 'kpi' as TabKey, icon: Target, label: 'KPI', desc: 'Indikator kinerja', color: 'bg-violet-100 text-violet-600' }] : []),
     { key: 'profile',  icon: User,       label: 'Profil',      desc: 'Data & pengaturan akun',      color: 'bg-gray-100 text-gray-600' },
   ];
 
-  const secondaryTabs = new Set<TabKey>(['files', 'claims', 'overtime', 'travel', 'visit', 'mf', 'profile', ...(isMfAgent ? [] : [])]);
+  const secondaryTabs = new Set<TabKey>(['files', 'payslip', 'disciplinary', 'claims', 'overtime', 'travel', 'visit', 'mf', 'profile', 'kpi']);
   const headerTitle = activeTab === 'home'
     ? 'Portal Karyawan'
     : secondaryTabs.has(activeTab)
@@ -2091,13 +2180,16 @@ export default function EmployeeDashboard() {
       case 'mf':         return <MultifinanceFieldTab onNavigateHome={() => goToTab('home')} />;
       case 'files':      return <MyFilesTab />;
       case 'profile':    return renderProfile();
+      case 'manager':    return <ManagerHubTab isSuperAdmin={isSuperAdmin} />;
+      case 'payslip':    return <PayslipTab />;
+      case 'disciplinary': return <DisciplinaryTab />;
     }
   };
 
   return (
     <>
       <Head>
-        <title>Portal Karyawan | BEDAGANG</title>
+        <title>Portal Karyawan — Humanify</title>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         <meta name="theme-color" content="#1e3a8a" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -2140,11 +2232,16 @@ export default function EmployeeDashboard() {
               </div>
               {notifications.length === 0 ? <p className="p-6 text-sm text-slate-400 text-center">Tidak ada notifikasi</p> :
                 notifications.map((n: any) => (
-                  <div key={n.id} className={`p-4 border-b border-slate-50 last:border-0 ${n.read ? '' : 'bg-blue-50/50'}`}>
+                  <button
+                    key={n.id}
+                    type="button"
+                    onClick={() => handleNotificationClick(n)}
+                    className={`w-full text-left p-4 border-b border-slate-50 last:border-0 active:bg-slate-50 ${n.read ? '' : 'bg-blue-50/50'}`}
+                  >
                     <p className="text-sm font-medium text-slate-900">{n.title}</p>
                     <p className="text-xs text-slate-500 mt-0.5">{n.message}</p>
                     <p className="text-[10px] text-slate-400 mt-1">{n.time}</p>
-                  </div>
+                  </button>
                 ))
               }
             </div>
@@ -2203,7 +2300,7 @@ export default function EmployeeDashboard() {
                 <button
                   key={tab.key}
                   onClick={() => handleNavClick(tab.key)}
-                  className={`flex flex-col items-center justify-center gap-0.5 py-1.5 px-1 rounded-2xl min-w-0 flex-1 transition-all active:scale-95 ${
+                  className={`relative flex flex-col items-center justify-center gap-0.5 py-1.5 px-1 rounded-2xl min-w-0 flex-1 transition-all active:scale-95 ${
                     isActive ? 'text-blue-600' : 'text-slate-400'
                   }`}
                 >
@@ -2213,6 +2310,11 @@ export default function EmployeeDashboard() {
                   <span className={`text-[10px] font-semibold leading-none ${isActive ? 'text-blue-600' : 'text-slate-400'}`}>
                     {tab.label}
                   </span>
+                  {tab.badge != null && tab.badge > 0 && (
+                    <span className="absolute -top-0.5 right-1 min-w-[14px] h-3.5 px-0.5 bg-rose-500 rounded-full text-[8px] text-white font-bold flex items-center justify-center">
+                      {tab.badge > 9 ? '9+' : tab.badge}
+                    </span>
+                  )}
                 </button>
               );
             })}

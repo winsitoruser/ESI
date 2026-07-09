@@ -14,6 +14,7 @@ import {
   type DisciplinaryLetterType,
   type LetterSOPTemplate,
 } from '../../../lib/hris/disciplinary-workflow';
+import { notifyEmployeeByEmployeeId } from '../../../lib/hris/employee-notifications';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch (_) {}
@@ -636,6 +637,15 @@ async function issueLetter(req: NextApiRequest, res: NextApiResponse, session: a
   `, { replacements: { id, letterNumber, issueDate, expiryDate, userId, eFileId } });
 
   await appendAudit(id, { action: 'issued', by: userId, letterNumber, at: new Date().toISOString() });
+
+  await notifyEmployeeByEmployeeId(sequelize, letter.employee_id, {
+    tenantId: letter.tenant_id,
+    title: `Surat Peringatan ${letterType} Diterbitkan`,
+    message: `Anda menerima ${letterType} No. ${letterNumber}. Silakan buka menu Surat SP di portal karyawan untuk mengakui penerimaan.`,
+    type: 'disciplinary',
+    sourceType: 'disciplinary_letter',
+    sourceId: String(id),
+  });
 
   if (['SP1', 'SP2', 'SP3'].includes(letterType)) {
     try {

@@ -32,6 +32,16 @@ export async function middleware(request: NextRequest) {
     pathname === '/humanify/welcome' ||
     pathname.startsWith('/humanify/welcome/');
 
+  // humanify.id — arahkan legacy ESI login ke portal karyawan jika target /employee
+  if (pathname === '/auth/login' && isHumanifyHost(host)) {
+    const callback = request.nextUrl.searchParams.get('callbackUrl') || '';
+    if (callback === '/employee' || callback.startsWith('/employee/')) {
+      const dest = new URL('/employee/login', request.url);
+      if (callback !== '/employee') dest.searchParams.set('callbackUrl', callback);
+      return NextResponse.redirect(dest);
+    }
+  }
+
   // Humanify platform — pintu masuk & landing publik
   if (pathname.startsWith('/humanify')) {
     if (isHumanifyPublic) {
@@ -65,6 +75,14 @@ export async function middleware(request: NextRequest) {
 
   // Redirect to login if not authenticated (rute non-Humanify)
   if (!token) {
+    if (pathname === '/employee/login') {
+      return NextResponse.next();
+    }
+    if (pathname === '/employee' || pathname.startsWith('/employee/')) {
+      const loginUrl = new URL('/employee/login', request.url);
+      loginUrl.searchParams.set('callbackUrl', pathname);
+      return NextResponse.redirect(loginUrl);
+    }
     const loginUrl = new URL('/auth/login', request.url);
     loginUrl.searchParams.set('callbackUrl', pathname);
     return NextResponse.redirect(loginUrl);

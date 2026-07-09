@@ -12,8 +12,8 @@ export const HUMANIFY_BRAND = {
   productType: 'HRIS System',
   tagline: 'HRIS Software for People & Growth',
   logoPath: '/images/humanify-logo.png',
-  /** Full white wordmark for dark marketing pages (welcome, landing) */
-  welcomeLogoPath: '/images/humanify-logo-welcome.png',
+  /** Full wordmark for dark marketing pages (welcome, login) */
+  welcomeLogoPath: '/images/humanify-logo-brand.png',
   welcomeLogoAspect: 1024 / 405,
   description:
     'Sistem HRIS lengkap untuk mengelola karyawan, kehadiran, payroll, rekrutmen, dan kinerja — bagian dari ekosistem produk Naincode.',
@@ -23,6 +23,7 @@ export const HUMANIFY_BRAND = {
   welcomePath: '/humanify/welcome',
   appPath: '/humanify',
   employeePortalPath: '/employee',
+  employeeLoginPath: '/employee/login',
 } as const;
 
 export const HUMANIFY_FEATURES = [

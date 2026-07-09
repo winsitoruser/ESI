@@ -247,10 +247,11 @@ export default function HumanifyWelcomePage() {
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <HumanifyLogo
             href={HUMANIFY_BRAND.welcomePath}
-            size="md"
+            size="lg"
             variant="full"
             src={HUMANIFY_BRAND.welcomeLogoPath}
             aspect={HUMANIFY_BRAND.welcomeLogoAspect}
+            className="rounded-lg"
             priority
           />
           <nav className="flex items-center gap-2 sm:gap-5">
@@ -263,7 +264,7 @@ export default function HumanifyWelcomePage() {
               {NAINCODE.name}
             </a>
             <Link
-              href={HUMANIFY_BRAND.employeePortalPath}
+              href={HUMANIFY_BRAND.employeeLoginPath}
               className="hidden sm:inline text-sm text-violet-200/80 hover:text-white transition"
             >
               Portal Karyawan
@@ -338,7 +339,7 @@ export default function HumanifyWelcomePage() {
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
               </Link>
               <Link
-                href={HUMANIFY_BRAND.employeePortalPath}
+                href={HUMANIFY_BRAND.employeeLoginPath}
                 className="inline-flex items-center justify-center gap-2 min-w-[240px] px-8 py-3.5 rounded-xl border border-white/10 text-violet-100 font-medium hover:bg-white/[0.05] hover:border-white/20 transition-all duration-300"
               >
                 <Smartphone className="w-4 h-4" />
@@ -570,15 +571,16 @@ export default function HumanifyWelcomePage() {
           <div className="flex flex-col gap-1">
             <HumanifyLogo
               href={HUMANIFY_BRAND.welcomePath}
-              size="sm"
+              size="md"
               variant="full"
               src={HUMANIFY_BRAND.welcomeLogoPath}
               aspect={HUMANIFY_BRAND.welcomeLogoAspect}
+              className="rounded-lg"
             />
             <p className="text-xs text-violet-400/40">Bagian dari {NAINCODE.legalName}</p>
           </div>
           <div className="flex items-center gap-6 text-sm text-violet-400/50">
-            <Link href={HUMANIFY_BRAND.employeePortalPath} className="hover:text-violet-300 transition">
+            <Link href={HUMANIFY_BRAND.employeeLoginPath} className="hover:text-violet-300 transition">
               Portal Karyawan
             </Link>
             <Link href={HUMANIFY_BRAND.loginPath} className="hover:text-violet-300 transition">
