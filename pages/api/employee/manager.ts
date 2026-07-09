@@ -17,6 +17,12 @@ import {
 } from '@/lib/hris/disciplinary-workflow';
 import { ensureDisciplinarySchema } from '@/lib/hris/disciplinary-schema';
 import { getTeamMemberDetail } from '@/lib/hris/manager-team-member-service';
+import {
+  getTeamMemberVisits,
+  getTeamVisitDetail,
+  getTeamVisitsFeed,
+  getTeamVisitSummary,
+} from '@/lib/hris/manager-visit-service';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch (_) {}
@@ -47,6 +53,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         case 'team': return getTeam(res, userId, tenantId, isSuperAdmin);
         case 'disciplinary-letters': return getDisciplinaryLetters(res, userId, tenantId, isSuperAdmin);
         case 'team-member-detail': return getTeamMemberDetailHandler(req, res, userId, isSuperAdmin);
+        case 'team-visits': return getTeamVisitsHandler(req, res, userId, isSuperAdmin);
+        case 'team-visit-feed': return getTeamVisitFeedHandler(req, res, userId, isSuperAdmin);
+        case 'team-visit-summary': return getTeamVisitSummaryHandler(req, res, userId, isSuperAdmin);
+        case 'team-visit-detail': return getTeamVisitDetailHandler(req, res, userId, isSuperAdmin);
         default: return res.status(400).json({ error: 'Unknown action' });
       }
     }
@@ -201,6 +211,61 @@ async function getTeamMemberDetailHandler(
     console.warn('team-member-detail error:', detailErr?.message || detailErr);
     return res.status(500).json({ success: false, error: detailErr?.message || 'Gagal memuat data karyawan' });
   }
+}
+
+async function getTeamVisitsHandler(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  userId: string,
+  isSuperAdmin: boolean,
+) {
+  const employeeId = String(req.query.employeeId || '');
+  if (!employeeId) return res.status(400).json({ success: false, error: 'employeeId wajib' });
+  const month = req.query.month ? String(req.query.month) : undefined;
+  const date = req.query.date ? String(req.query.date) : undefined;
+  const status = req.query.status ? String(req.query.status) : undefined;
+  const limit = req.query.limit ? Number(req.query.limit) : 50;
+  const data = await getTeamMemberVisits(sequelize, userId, employeeId, isSuperAdmin, { month, date, status, limit });
+  return res.json({ success: true, data });
+}
+
+async function getTeamVisitFeedHandler(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  userId: string,
+  isSuperAdmin: boolean,
+) {
+  const date = req.query.date ? String(req.query.date) : undefined;
+  const month = req.query.month ? String(req.query.month) : undefined;
+  const limit = req.query.limit ? Number(req.query.limit) : 40;
+  const data = await getTeamVisitsFeed(sequelize, userId, isSuperAdmin, { date, month, limit });
+  return res.json({ success: true, data });
+}
+
+async function getTeamVisitSummaryHandler(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  userId: string,
+  isSuperAdmin: boolean,
+) {
+  const date = req.query.date ? String(req.query.date) : undefined;
+  const month = req.query.month ? String(req.query.month) : undefined;
+  const summary = await getTeamVisitSummary(sequelize, userId, isSuperAdmin, { date, month });
+  return res.json({ success: true, data: summary });
+}
+
+async function getTeamVisitDetailHandler(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  userId: string,
+  isSuperAdmin: boolean,
+) {
+  const visitId = String(req.query.visitId || '');
+  const result = await getTeamVisitDetail(sequelize, userId, visitId, isSuperAdmin);
+  if ('error' in result && result.error) {
+    return res.status(result.status || 400).json({ success: false, error: result.error });
+  }
+  return res.json({ success: true, data: result.visit });
 }
 
 async function getTeam(res: NextApiResponse, userId: string, tenantId: string, isSuperAdmin: boolean) {

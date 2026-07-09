@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   X, Loader2, Target, Calendar, Clock, TrendingUp, TrendingDown,
-  Minus, ChevronLeft, ChevronRight, User,
+  Minus, ChevronLeft, ChevronRight, User, MapPin, Navigation, Image, ChevronRight as ChevronRightIcon,
 } from 'lucide-react';
+import VisitDetailModal from './VisitDetailModal';
 
 const fmtTime = (val: string | null) => {
   if (!val) return '-';
@@ -18,6 +19,10 @@ const fmtDate = (d: string) =>
 const STATUS_LABEL: Record<string, string> = {
   present: 'Hadir', late: 'Terlambat', absent: 'Absen', leave: 'Cuti',
   work_from_home: 'WFH', wfh: 'WFH',
+};
+
+const VISIT_STATUS: Record<string, string> = {
+  planned: 'Rencana', checked_in: 'Aktif', completed: 'Selesai', cancelled: 'Batal',
 };
 
 const STATUS_COLOR: Record<string, string> = {
@@ -68,8 +73,14 @@ export default function TeamMemberDetailSheet({ employeeId, employeeName, onClos
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [data, setData] = useState<DetailData | null>(null);
-  const [activeSection, setActiveSection] = useState<'overview' | 'kpi' | 'attendance'>('overview');
+  const [activeSection, setActiveSection] = useState<'overview' | 'kpi' | 'attendance' | 'visits'>('overview');
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [visits, setVisits] = useState<any[]>([]);
+  const [visitSummary, setVisitSummary] = useState<any>(null);
+  const [visitsLoading, setVisitsLoading] = useState(false);
+  const [selectedVisitId, setSelectedVisitId] = useState<string | null>(null);
+  const [visitDetail, setVisitDetail] = useState<any>(null);
+  const [visitDetailLoading, setVisitDetailLoading] = useState(false);
 
   const loadDetail = useCallback(async () => {
     setLoading(true);
@@ -78,6 +89,8 @@ export default function TeamMemberDetailSheet({ employeeId, employeeName, onClos
       const res = await mgrApi('team-member-detail', { employeeId, month, period: month });
       if (res.success) setData(res.data);
       else setError(res.error || 'Gagal memuat data');
+      const visitRes = await mgrApi('team-visits', { employeeId, month, limit: '1' });
+      if (visitRes.success) setVisitSummary(visitRes.data?.summary || null);
     } catch {
       setError('Gagal memuat data karyawan');
     } finally {
@@ -86,6 +99,31 @@ export default function TeamMemberDetailSheet({ employeeId, employeeName, onClos
   }, [employeeId, month]);
 
   useEffect(() => { loadDetail(); }, [loadDetail]);
+
+  const loadVisits = useCallback(async () => {
+    setVisitsLoading(true);
+    try {
+      const res = await mgrApi('team-visits', { employeeId, month });
+      if (res.success) {
+        setVisits(res.data?.visits || []);
+        setVisitSummary(res.data?.summary || null);
+      }
+    } finally { setVisitsLoading(false); }
+  }, [employeeId, month]);
+
+  useEffect(() => {
+    if (activeSection === 'visits') loadVisits();
+  }, [activeSection, loadVisits]);
+
+  const openVisitDetail = async (visitId: string) => {
+    setSelectedVisitId(visitId);
+    setVisitDetailLoading(true);
+    setVisitDetail(null);
+    try {
+      const res = await mgrApi('team-visit-detail', { visitId });
+      if (res.success) setVisitDetail(res.data);
+    } finally { setVisitDetailLoading(false); }
+  };
 
   const shiftMonth = (delta: number) => {
     const d = new Date(`${month}-01`);
@@ -121,20 +159,21 @@ export default function TeamMemberDetailSheet({ employeeId, employeeName, onClos
         </div>
 
         {/* Section tabs */}
-        <div className="flex gap-1 px-4 pt-3">
+        <div className="flex gap-1 px-4 pt-3 overflow-x-auto">
           {([
             { key: 'overview' as const, label: 'Ringkasan', icon: User },
             { key: 'kpi' as const, label: 'KPI', icon: Target },
             { key: 'attendance' as const, label: 'Absensi', icon: Calendar },
+            { key: 'visits' as const, label: 'Kunjungan', icon: Navigation },
           ]).map((t) => (
             <button
               key={t.key}
               onClick={() => setActiveSection(t.key)}
-              className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex-1 min-w-[4.5rem] flex items-center justify-center gap-1 py-2 rounded-lg text-[11px] font-semibold transition-all ${
                 activeSection === t.key ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-600'
               }`}
             >
-              <t.icon className="w-3.5 h-3.5" />
+              <t.icon className="w-3.5 h-3.5 shrink-0" />
               {t.label}
             </button>
           ))}
@@ -225,6 +264,20 @@ export default function TeamMemberDetailSheet({ employeeId, employeeName, onClos
                       {emp.branch_name && <p><span className="font-medium">Cabang:</span> {emp.branch_name}</p>}
                       {emp.email && <p><span className="font-medium">Email:</span> {emp.email}</p>}
                     </div>
+                  )}
+
+                  {visitSummary && visitSummary.total > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveSection('visits')}
+                      className="w-full flex items-center justify-between bg-blue-50 rounded-xl border border-blue-100 p-3 text-left active:scale-[0.98]"
+                    >
+                      <div>
+                        <p className="text-xs font-semibold text-blue-800">Kunjungan {month}</p>
+                        <p className="text-[11px] text-blue-600">{visitSummary.completed} selesai · {visitSummary.with_photos} ada bukti foto</p>
+                      </div>
+                      <ChevronRightIcon className="w-4 h-4 text-blue-500" />
+                    </button>
                   )}
                 </div>
               )}
@@ -328,10 +381,81 @@ export default function TeamMemberDetailSheet({ employeeId, employeeName, onClos
                   ))}
                 </div>
               )}
+
+              {activeSection === 'visits' && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {[
+                      { label: 'Total', value: visitSummary?.total ?? visits.length, color: 'text-slate-700' },
+                      { label: 'Selesai', value: visitSummary?.completed ?? 0, color: 'text-emerald-600' },
+                      { label: 'Aktif', value: visitSummary?.checked_in ?? 0, color: 'text-blue-600' },
+                      { label: 'Bukti', value: visitSummary?.with_photos ?? 0, color: 'text-amber-600' },
+                    ].map((s) => (
+                      <div key={s.label} className="bg-slate-50 rounded-xl p-2 text-center">
+                        <p className={`text-base font-bold ${s.color}`}>{s.value}</p>
+                        <p className="text-[9px] text-slate-500">{s.label}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {visitsLoading ? (
+                    <div className="flex justify-center py-10"><Loader2 className="w-7 h-7 animate-spin text-violet-500" /></div>
+                  ) : visits.length === 0 ? (
+                    <p className="text-center text-sm text-slate-400 py-8">Belum ada kunjungan untuk periode ini</p>
+                  ) : visits.map((v) => (
+                    <button
+                      key={v.id}
+                      type="button"
+                      onClick={() => openVisitDetail(v.id)}
+                      className="w-full text-left bg-white rounded-xl border border-slate-100 p-3 active:scale-[0.99] transition-transform"
+                    >
+                      <div className="flex gap-3">
+                        {v.thumbnail_url ? (
+                          <img src={v.thumbnail_url} alt="" className="w-14 h-14 rounded-lg object-cover shrink-0 border border-slate-100" loading="lazy" />
+                        ) : (
+                          <div className="w-14 h-14 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+                            <Image className="w-5 h-5 text-slate-300" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-sm font-semibold text-slate-900 truncate">{v.customer_name}</p>
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 shrink-0">
+                              {VISIT_STATUS[v.status] || v.status}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 truncate flex items-center gap-1 mt-0.5">
+                            <MapPin className="w-3 h-3 shrink-0" />{v.customer_address || v.purpose || '-'}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <span className="text-[10px] text-slate-400">{fmtDate(v.visit_date)}</span>
+                            {v.check_in_time && <span className="text-[10px] text-slate-400">· {fmtTime(v.check_in_time)}</span>}
+                            {v.has_photos && <span className="text-[10px] text-amber-600 font-medium">· {v.evidence_count} foto</span>}
+                            {v.check_in_geofence_name && (
+                              <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${
+                                v.check_in_geofence_status === 'inside' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                              }`}>{v.check_in_geofence_status === 'inside' ? 'Dalam GF' : 'Luar GF'}</span>
+                            )}
+                          </div>
+                        </div>
+                        <ChevronRightIcon className="w-4 h-4 text-slate-300 shrink-0 self-center" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </>
           )}
         </div>
       </div>
+
+      {(selectedVisitId || visitDetailLoading) && (
+        <VisitDetailModal
+          visit={visitDetail}
+          loading={visitDetailLoading}
+          onClose={() => { setSelectedVisitId(null); setVisitDetail(null); }}
+        />
+      )}
     </div>
   );
 }

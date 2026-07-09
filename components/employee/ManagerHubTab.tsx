@@ -2,10 +2,11 @@ import { useState, useEffect, useCallback, memo } from 'react';
 import {
   Shield, CheckCircle, XCircle, Clock, Calendar, Wallet, Timer,
   AlertTriangle, Users, FileWarning, Plus, Loader2, ChevronRight,
-  Send, Stamp, Paperclip, X, Search,
+  Send, Stamp, Paperclip, X, Search, MapPin, Navigation, Image, RefreshCw,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import TeamMemberDetailSheet from './TeamMemberDetailSheet';
+import VisitDetailModal from './VisitDetailModal';
 
 const fmtCur = (n: number) => `Rp ${(n || 0).toLocaleString('id-ID')}`;
 const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
@@ -64,14 +65,19 @@ const SP_TYPES = [
   { value: 'SP3', label: 'SP 3' },
 ];
 
-type MgrTab = 'approvals' | 'disciplinary' | 'team';
+const VISIT_STATUS_LABEL: Record<string, string> = {
+  planned: 'Rencana', checked_in: 'Aktif', completed: 'Selesai', cancelled: 'Batal',
+};
+
+type MgrTab = 'approvals' | 'disciplinary' | 'team' | 'visits';
 
 type Props = { isSuperAdmin?: boolean };
 
-const mgrApi = async (action: string, method = 'GET', body?: any) => {
+const mgrApi = async (action: string, method = 'GET', body?: any, params?: Record<string, string>) => {
+  const qs = new URLSearchParams({ action, ...params });
   const opts: RequestInit = { method, headers: { 'Content-Type': 'application/json' } };
   if (body) opts.body = JSON.stringify(body);
-  const r = await fetch(`/api/employee/manager?action=${action}`, opts);
+  const r = await fetch(`/api/employee/manager?${qs}`, opts);
   const text = await r.text();
   try {
     const json = JSON.parse(text);
@@ -135,6 +141,11 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
   const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
   const [evidencePreviews, setEvidencePreviews] = useState<{ name: string; url: string; type: string }[]>([]);
   const [selectedMember, setSelectedMember] = useState<{ id: string; name: string } | null>(null);
+  const [visitFeed, setVisitFeed] = useState<any[]>([]);
+  const [visitSummary, setVisitSummary] = useState<any>(null);
+  const [visitDate, setVisitDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [visitDetail, setVisitDetail] = useState<any>(null);
+  const [visitDetailLoading, setVisitDetailLoading] = useState(false);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -151,6 +162,30 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
   }, []);
 
   useEffect(() => { loadAll(); }, [loadAll]);
+
+  const loadVisitFeed = useCallback(async () => {
+    try {
+      const res = await mgrApi('team-visit-feed', 'GET', undefined, { date: visitDate });
+      if (res.success) {
+        setVisitFeed(res.data?.visits || []);
+        setVisitSummary(res.data?.summary || null);
+      }
+    } catch { /* ignore */ }
+  }, [visitDate]);
+
+  useEffect(() => {
+    if (activeTab === 'visits') loadVisitFeed();
+  }, [activeTab, loadVisitFeed]);
+
+  const openVisitDetail = async (visitId: string) => {
+    setVisitDetailLoading(true);
+    setVisitDetail(null);
+    try {
+      const res = await mgrApi('team-visit-detail', 'GET', undefined, { visitId });
+      if (res.success) setVisitDetail(res.data);
+      else toast.error(res.error || 'Gagal memuat detail');
+    } finally { setVisitDetailLoading(false); }
+  };
 
   const handleApprove = async (type: string, id: string) => {
     setSubmitting(true);
@@ -316,13 +351,14 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
       <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
         {([
           { key: 'approvals' as MgrTab, label: 'Persetujuan', icon: CheckCircle },
+          { key: 'visits' as MgrTab, label: 'Kunjungan', icon: Navigation },
           { key: 'disciplinary' as MgrTab, label: 'Surat SP', icon: FileWarning },
           { key: 'team' as MgrTab, label: 'Tim', icon: Users },
         ]).map(t => (
           <button
             key={t.key}
             onClick={() => setActiveTab(t.key)}
-            className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-semibold transition-all ${
+            className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-[11px] font-semibold transition-all ${
               activeTab === t.key ? 'bg-white text-violet-700 shadow-sm' : 'text-slate-500'
             }`}
           >
@@ -491,7 +527,7 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
       {/* Team tab */}
       {activeTab === 'team' && (
         <div className="space-y-2">
-          <p className="text-[11px] text-slate-500 px-1">Ketuk nama karyawan untuk melihat KPI & absensi</p>
+          <p className="text-[11px] text-slate-500 px-1">Ketuk nama karyawan untuk melihat KPI, absensi & kunjungan</p>
           {team.length === 0 ? (
             <div className="text-center py-10 text-slate-400">
               <Users className="w-10 h-10 mx-auto mb-2 opacity-40" />
@@ -521,6 +557,77 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
                 <AlertTriangle className="w-4 h-4" />
               </button>
             </div>
+          ))}
+        </div>
+      )}
+
+      {/* Visits tab — laporan kunjungan tim */}
+      {activeTab === 'visits' && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={visitDate}
+              onChange={e => setVisitDate(e.target.value)}
+              className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm"
+            />
+            <button type="button" onClick={loadVisitFeed} className="p-2.5 rounded-xl bg-violet-50 text-violet-700 active:scale-95">
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          </div>
+
+          {visitSummary && (
+            <div className="grid grid-cols-4 gap-1.5">
+              {[
+                { label: 'Total', value: visitSummary.total, color: 'text-slate-700' },
+                { label: 'Selesai', value: visitSummary.completed, color: 'text-emerald-600' },
+                { label: 'Aktif', value: visitSummary.checked_in, color: 'text-blue-600' },
+                { label: 'Bukti', value: visitSummary.with_photos, color: 'text-amber-600' },
+              ].map(s => (
+                <div key={s.label} className="bg-white rounded-xl border border-slate-100 p-2 text-center">
+                  <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
+                  <p className="text-[9px] text-slate-500">{s.label}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {visitFeed.length === 0 ? (
+            <div className="text-center py-10 text-slate-400">
+              <Navigation className="w-10 h-10 mx-auto mb-2 opacity-40" />
+              <p className="text-sm">Tidak ada kunjungan tim pada tanggal ini</p>
+            </div>
+          ) : visitFeed.map(v => (
+            <button
+              key={v.id}
+              type="button"
+              onClick={() => openVisitDetail(v.id)}
+              className="w-full text-left bg-white rounded-xl border border-slate-100 p-3 shadow-sm active:scale-[0.99]"
+            >
+              <div className="flex gap-3">
+                {v.thumbnail_url ? (
+                  <img src={v.thumbnail_url} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" loading="lazy" />
+                ) : (
+                  <div className="w-12 h-12 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+                    <Image className="w-4 h-4 text-slate-300" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-slate-900 truncate">{v.customer_name}</p>
+                  <p className="text-[11px] text-violet-600 font-medium">{v.employee_name}</p>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <span className="text-[10px] text-slate-400">{VISIT_STATUS_LABEL[v.status] || v.status}</span>
+                    {v.has_photos && <span className="text-[10px] text-amber-600">{v.evidence_count} foto</span>}
+                    {v.check_in_geofence_name && (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
+                        <MapPin className="w-2.5 h-2.5 inline" /> GF
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-300 shrink-0 self-center" />
+              </div>
+            </button>
           ))}
         </div>
       )}
@@ -630,6 +737,14 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
             </button>
           </div>
         </div>
+      )}
+
+      {(visitDetail || visitDetailLoading) && (
+        <VisitDetailModal
+          visit={visitDetail}
+          loading={visitDetailLoading}
+          onClose={() => { setVisitDetail(null); setVisitDetailLoading(false); }}
+        />
       )}
     </div>
   );
