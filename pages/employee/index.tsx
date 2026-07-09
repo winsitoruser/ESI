@@ -18,6 +18,11 @@ import {
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import PhotoCaptureField from '@/components/employee/PhotoCaptureField';
+import {
+  Card, SectionHeader, StatusBadge, GeofenceBadge,
+  PortalLoading, EnterpriseHero, QuickAction, StatTile,
+} from '@/components/employee/portal-ui';
+import { HumanifyLogo } from '@/components/humanify/HumanifyLogo';
 
 const TabSkeleton = () => (
   <div className="space-y-3 animate-pulse">
@@ -83,44 +88,8 @@ const LEAVE_TYPES = [
 
 const LEAVE_COLORS = ['bg-blue-500', 'bg-red-500', 'bg-purple-500', 'bg-pink-500', 'bg-gray-500'];
 
-const StatusBadge = ({ status }: { status: string }) => {
-  const map: Record<string, { bg: string; text: string; dot: string; label: string }> = {
-    approved: { bg: 'bg-emerald-50 ring-emerald-200', text: 'text-emerald-700', dot: 'bg-emerald-500', label: 'Disetujui' },
-    pending: { bg: 'bg-amber-50 ring-amber-200', text: 'text-amber-700', dot: 'bg-amber-500', label: 'Menunggu' },
-    rejected: { bg: 'bg-rose-50 ring-rose-200', text: 'text-rose-700', dot: 'bg-rose-500', label: 'Ditolak' },
-    completed: { bg: 'bg-sky-50 ring-sky-200', text: 'text-sky-700', dot: 'bg-sky-500', label: 'Selesai' },
-    reimbursed: { bg: 'bg-emerald-50 ring-emerald-200', text: 'text-emerald-700', dot: 'bg-emerald-500', label: 'Dibayar' },
-    present: { bg: 'bg-emerald-50 ring-emerald-200', text: 'text-emerald-700', dot: 'bg-emerald-500', label: 'Hadir' },
-    late: { bg: 'bg-amber-50 ring-amber-200', text: 'text-amber-700', dot: 'bg-amber-500', label: 'Terlambat' },
-  };
-  const s = map[status] || { bg: 'bg-slate-50 ring-slate-200', text: 'text-slate-600', dot: 'bg-slate-400', label: status };
-  return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ring-1 ${s.bg} ${s.text}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
-      {s.label}
-    </span>
-  );
-};
-
 const getInitials = (name: string) =>
   (name || 'K').split(' ').filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase()).join('');
-
-function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return (
-    <div className={`bg-white rounded-2xl shadow-sm border border-slate-100/80 overflow-hidden ${className}`}>
-      {children}
-    </div>
-  );
-}
-
-function SectionHeader({ title, action }: { title: string; action?: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-between mb-3">
-      <h3 className="font-semibold text-slate-900 text-sm tracking-tight">{title}</h3>
-      {action}
-    </div>
-  );
-}
 
 const claimTypeLabel = (v: string) => CLAIM_TYPES.find(c => c.value === v)?.label || v;
 
@@ -134,19 +103,6 @@ const parseEvidencePhotos = (raw: any): Array<{ url: string; caption?: string }>
       return null;
     }).filter(Boolean);
   } catch { return []; }
-};
-
-const GeofenceBadge = ({ name, status, distance }: { name?: string | null; status?: string | null; distance?: number | null }) => {
-  if (!name && (!status || status === 'unknown')) return null;
-  const inside = status === 'inside';
-  return (
-    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-      inside ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-    }`}>
-      <MapPin className="w-3 h-3 flex-shrink-0" />
-      {inside ? `Dalam geofence · ${name}` : name ? `Luar ${distance ?? '?'}m · ${name}` : 'Geofence tidak dikonfigurasi'}
-    </span>
-  );
 };
 
 // ─── API Helper ───
@@ -725,11 +681,7 @@ export default function EmployeeDashboard() {
   const pendingClaims = claims.filter((c: any) => c.status === 'pending');
   const pendingTravel = travel.filter((tr: any) => tr.status === 'pending');
 
-  if (!mounted || status === 'loading') return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" />
-    </div>
-  );
+  if (!mounted || status === 'loading') return <PortalLoading />;
 
   if (status === 'unauthenticated') return null;
 
@@ -970,37 +922,21 @@ export default function EmployeeDashboard() {
 
   // ─── TAB: HOME ───
   const renderHome = () => (
-    <div className="space-y-5">
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-800 p-5 text-white shadow-lg">
-        <div className="emp-portal-hero-blur absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl" />
-        <div className="relative">
-          <div className="flex items-start justify-between gap-3 mb-4">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-12 h-12 rounded-2xl bg-white/20 border border-white/20 flex items-center justify-center text-sm font-bold flex-shrink-0">
-                {getInitials(userName)}
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5 text-blue-100 text-xs mb-0.5">{greeting.icon}<span>{greeting.text}</span></div>
-                <h2 className="text-lg font-bold leading-tight truncate">{userName}</h2>
-                <p className="text-xs text-blue-100/90 truncate">{userPosition}</p>
-              </div>
-            </div>
-            <div className="text-right flex-shrink-0">
-              <p className="text-[10px] uppercase tracking-wider text-blue-200/80">Hari ini</p>
-              <p className="text-xs font-medium">{new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</p>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 text-[11px] border border-white/10"><Building2 className="w-3 h-3" />{userBranch}</span>
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 text-[11px] border border-white/10"><Briefcase className="w-3 h-3" />{userDept}</span>
-          </div>
-        </div>
-      </div>
+    <div className="space-y-4">
+      <EnterpriseHero
+        greeting={greeting}
+        userName={userName}
+        userPosition={userPosition}
+        userBranch={userBranch}
+        userDept={userDept}
+        initials={getInitials(userName)}
+      />
 
       {/* Presensi — Clock In/Out + Lokasi */}
-      <Card className="p-4 ring-2 ring-blue-100/80">
+      <Card className="p-4" variant="elevated">
         <SectionHeader
           title="Presensi Hari Ini"
+          subtitle="Clock in/out dengan GPS & geofence"
           action={todayAttendance?.status ? <StatusBadge status={todayAttendance.status} /> : undefined}
         />
 
@@ -1074,10 +1010,11 @@ export default function EmployeeDashboard() {
           ))}
         </div>
 
-        <div className="grid grid-cols-4 gap-1 pt-3 border-t border-slate-100 mb-4">
-          {[{ label: 'Hadir', value: monthAttendance.present, color: 'text-emerald-600' }, { label: 'Telat', value: monthAttendance.late, color: 'text-amber-600' }, { label: 'Izin', value: monthAttendance.leave, color: 'text-blue-600' }, { label: 'Absen', value: monthAttendance.absent, color: 'text-rose-600' }].map((s, i) => (
-            <div key={i} className="text-center"><p className={`text-base font-bold tabular-nums ${s.color}`}>{s.value}</p><p className="text-[10px] text-slate-400">{s.label}</p></div>
-          ))}
+        <div className="grid grid-cols-4 gap-2 pt-3 border-t border-slate-100/80 mb-4">
+          <StatTile label="Hadir" value={monthAttendance.present} accent="emerald" />
+          <StatTile label="Telat" value={monthAttendance.late} accent="amber" />
+          <StatTile label="Izin" value={monthAttendance.leave} accent="sky" />
+          <StatTile label="Absen" value={monthAttendance.absent} accent="rose" />
         </div>
 
         {(lastClockEvent || lastCheckIn || lastCheckOut) && (
@@ -1290,29 +1227,24 @@ export default function EmployeeDashboard() {
         </div>
       </Card>
 
-      <div>
-        <SectionHeader title="Aksi Cepat" />
-        <div className="grid grid-cols-4 gap-2.5">
+      <Card className="p-4" variant="elevated">
+        <SectionHeader title="Aksi Cepat" subtitle="Pengajuan & akses fitur utama" />
+        <div className="grid grid-cols-4 gap-1">
           {(isMfAgent ? [
             { icon: Building2, label: 'Lapangan', gradient: 'from-indigo-500 to-violet-600', action: () => goToTab('mf') },
-            { icon: Calendar, label: 'Cuti', gradient: 'from-blue-500 to-indigo-600', action: () => setModal('leave') },
+            { icon: Calendar, label: 'Cuti', gradient: 'from-violet-500 to-indigo-600', action: () => setModal('leave') },
             { icon: Navigation, label: 'Kunjungan', gradient: 'from-cyan-500 to-blue-600', action: () => goToTab('visit') },
-            { icon: Target, label: 'KPI', gradient: 'from-violet-500 to-purple-600', action: () => goToTab('kpi') },
+            { icon: Target, label: 'KPI', gradient: 'from-fuchsia-500 to-violet-600', action: () => goToTab('kpi') },
           ] : [
-            { icon: Calendar, label: 'Cuti', gradient: 'from-blue-500 to-indigo-600', action: () => setModal('leave') },
+            { icon: Calendar, label: 'Cuti', gradient: 'from-violet-500 to-indigo-600', action: () => setModal('leave') },
             { icon: Wallet, label: 'Gaji', gradient: 'from-sky-500 to-blue-600', action: () => goToTab('payslip') },
             { icon: Receipt, label: 'Klaim', gradient: 'from-emerald-500 to-teal-600', action: () => setModal('claim') },
-            { icon: Timer, label: 'Lembur', gradient: 'from-orange-500 to-red-500', action: () => { goToTab('overtime'); setTimeout(() => setOtModal('new'), 100); } },
+            { icon: Timer, label: 'Lembur', gradient: 'from-orange-500 to-rose-500', action: () => { goToTab('overtime'); setTimeout(() => setOtModal('new'), 100); } },
           ]).map((a, i) => (
-            <button key={i} onClick={a.action} className="flex flex-col items-center gap-2 p-2 rounded-2xl active:scale-95 transition-transform">
-              <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${a.gradient} flex items-center justify-center shadow-md`}>
-                <a.icon className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-[10px] font-semibold text-slate-600">{a.label}</span>
-            </button>
+            <QuickAction key={i} icon={a.icon} label={a.label} gradient={a.gradient} onClick={a.action} />
           ))}
         </div>
-      </div>
+      </Card>
 
       {leaveBalance.length > 0 && (
         <Card className="p-4">
@@ -2487,9 +2419,9 @@ export default function EmployeeDashboard() {
   const renderContent = () => {
     if (loading && !dataReady) return (
       <div className="space-y-4 animate-pulse">
-        <div className="h-36 rounded-3xl bg-slate-200" />
-        <div className="h-48 rounded-2xl bg-slate-200" />
-        <div className="h-32 rounded-2xl bg-slate-200" />
+        <div className="h-40 rounded-3xl bg-slate-200/80" />
+        <div className="h-52 rounded-2xl bg-slate-200/60" />
+        <div className="h-28 rounded-2xl bg-slate-200/50" />
       </div>
     );
     const tab = (() => {
@@ -2519,7 +2451,7 @@ export default function EmployeeDashboard() {
       <Head>
         <title>Portal Karyawan — Humanify</title>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-        <meta name="theme-color" content="#1e3a8a" />
+        <meta name="theme-color" content="#0c0f1a" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="mobile-web-app-capable" content="yes" />
@@ -2527,25 +2459,38 @@ export default function EmployeeDashboard() {
       </Head>
       <Toaster position="top-center" toastOptions={{ duration: 3000, style: { fontSize: '14px', maxWidth: '90vw' } }} />
 
-      {/* Mobile shell — centered phone frame on desktop */}
-      <div className="emp-portal-outer min-h-screen bg-gradient-to-br from-slate-200 via-slate-100 to-blue-100 md:py-6">
-      <div className="emp-portal-root emp-portal-desktop-frame min-h-screen md:min-h-[calc(100vh-3rem)] bg-slate-50 max-w-lg mx-auto relative md:rounded-[1.75rem] md:shadow-2xl md:ring-1 md:ring-slate-300/50 md:overflow-hidden flex flex-col">
-        <header className="sticky top-0 z-40 emp-portal-chrome border-b px-4 h-14 flex items-center justify-between safe-area-pt flex-shrink-0">
-          <div className="flex items-center gap-2 min-w-0">
-            {activeTab !== 'home' && (
-              <button onClick={() => goToTab('home')} className="p-1.5 -ml-1 rounded-lg hover:bg-slate-100 text-slate-500">
+      {/* Enterprise shell — mobile-first, refined frame on desktop */}
+      <div className="emp-portal-outer min-h-screen bg-[#0c0f1a] md:bg-gradient-to-br md:from-[#0c0f1a] md:via-[#12162a] md:to-[#1a1040] md:py-8">
+      <div className="emp-portal-root emp-portal-desktop-frame min-h-screen md:min-h-[calc(100vh-4rem)] bg-[#f8fafc] max-w-md mx-auto relative md:rounded-[2rem] md:shadow-[0_25px_80px_rgba(0,0,0,0.45)] md:ring-1 md:ring-white/10 md:overflow-hidden flex flex-col">
+        <header className="sticky top-0 z-40 emp-portal-chrome border-b px-4 h-[3.25rem] flex items-center justify-between safe-area-pt flex-shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            {activeTab !== 'home' ? (
+              <button onClick={() => goToTab('home')} className="p-2 -ml-1 rounded-xl hover:bg-slate-100/80 text-slate-500 transition-colors">
                 <ChevronRight className="w-5 h-5 rotate-180" />
               </button>
+            ) : (
+              <HumanifyLogo size="sm" variant="mark" className="flex-shrink-0" />
             )}
-            <h1 className="text-base font-bold text-slate-900 truncate">
-              {headerTitle}
-            </h1>
+            <div className="min-w-0">
+              <h1 className="text-sm font-bold text-slate-900 truncate tracking-tight leading-tight">
+                {headerTitle}
+              </h1>
+              {activeTab === 'home' && (
+                <p className="text-[10px] text-slate-400 font-medium truncate">Employee Self-Service</p>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-0.5">
-            <button onClick={fetchAll} className="p-2 rounded-xl hover:bg-slate-100"><RefreshCw className="w-4 h-4 text-slate-500" /></button>
-            <button onClick={() => showNotif ? setShowNotif(false) : openNotifications()} className="relative p-2 rounded-xl hover:bg-slate-100">
-              <Bell className="w-5 h-5 text-slate-600" />
-              {unreadCount > 0 && <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 bg-rose-500 rounded-full text-[9px] text-white font-bold flex items-center justify-center">{unreadCount}</span>}
+          <div className="flex items-center gap-1">
+            <button onClick={fetchAll} className="p-2 rounded-xl hover:bg-slate-100/80 transition-colors" aria-label="Refresh">
+              <RefreshCw className="w-4 h-4 text-slate-500" />
+            </button>
+            <button onClick={() => showNotif ? setShowNotif(false) : openNotifications()} className="relative p-2 rounded-xl hover:bg-slate-100/80 transition-colors" aria-label="Notifikasi">
+              <Bell className="w-[18px] h-[18px] text-slate-600" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 bg-violet-600 rounded-full text-[9px] text-white font-bold flex items-center justify-center ring-2 ring-white">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
             </button>
           </div>
         </header>
@@ -2553,10 +2498,10 @@ export default function EmployeeDashboard() {
         {showNotif && (
           <>
             <div className="fixed inset-0 z-40 bg-black/30" onClick={() => setShowNotif(false)} />
-            <div className="absolute top-14 right-3 left-3 z-50 bg-white rounded-2xl shadow-2xl border border-slate-100 max-h-80 overflow-y-auto">
+            <div className="absolute top-[3.25rem] right-3 left-3 z-50 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200/60 max-h-80 overflow-y-auto">
               <div className="p-4 border-b border-slate-100 flex items-center justify-between">
                 <span className="font-semibold text-sm text-slate-900">Notifikasi</span>
-                {unreadCount > 0 && <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{unreadCount} baru</span>}
+                {unreadCount > 0 && <span className="text-[10px] font-semibold text-violet-700 bg-violet-50 px-2 py-0.5 rounded-full ring-1 ring-violet-200">{unreadCount} baru</span>}
               </div>
               {notifications.length === 0 ? <p className="p-6 text-sm text-slate-400 text-center">Tidak ada notifikasi</p> :
                 notifications.map((n: any) => (
@@ -2576,7 +2521,7 @@ export default function EmployeeDashboard() {
           </>
         )}
 
-        <main ref={mainScrollRef} className="emp-portal-scroll px-4 py-4 pb-28">{renderContent()}</main>
+        <main ref={mainScrollRef} className="emp-portal-scroll px-4 py-4 pb-32 bg-[#f8fafc]">{renderContent()}</main>
 
         {renderModal()}
 
@@ -2614,30 +2559,32 @@ export default function EmployeeDashboard() {
         {showMoreMenu && (
           <>
             <div className="fixed inset-0 z-50 bg-black/40 md:max-w-lg md:mx-auto" onClick={() => setShowMoreMenu(false)} />
-            <div className="fixed bottom-0 left-0 right-0 z-50 max-w-lg mx-auto animate-slide-up">
-              <div className="bg-white rounded-t-2xl shadow-2xl safe-area-pb">
+            <div className="fixed bottom-0 left-0 right-0 z-50 max-w-md mx-auto animate-slide-up">
+              <div className="bg-white/95 backdrop-blur-xl rounded-t-3xl shadow-[0_-8px_40px_rgba(15,23,42,0.12)] border-t border-slate-200/60 safe-area-pb">
                 <div className="flex justify-center pt-3 pb-1">
-                  <div className="w-10 h-1 rounded-full bg-gray-300" />
+                  <div className="w-10 h-1 rounded-full bg-slate-300/80" />
                 </div>
-                <div className="px-4 pb-2 border-b border-gray-100">
-                  <h2 className="font-semibold text-gray-900">Menu Lainnya</h2>
-                  <p className="text-xs text-gray-500">Klaim, lembur, perjalanan & profil</p>
+                <div className="px-5 pb-3 border-b border-slate-100">
+                  <h2 className="font-bold text-slate-900 tracking-tight">Menu Lainnya</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">Klaim, lembur, perjalanan & profil</p>
                 </div>
-                <div className="p-3 grid grid-cols-2 gap-2">
+                <div className="p-3 grid grid-cols-2 gap-2.5">
                   {moreMenuItems.map(item => (
                     <button
                       key={item.key}
                       onClick={() => goToTab(item.key)}
-                      className={`flex items-start gap-3 p-3 rounded-xl border text-left active:scale-[0.98] transition-transform ${
-                        activeTab === item.key ? 'border-blue-300 bg-blue-50' : 'border-gray-100 hover:bg-gray-50'
+                      className={`flex items-start gap-3 p-3.5 rounded-2xl border text-left active:scale-[0.98] transition-all ${
+                        activeTab === item.key
+                          ? 'border-violet-300 bg-violet-50/80 shadow-sm'
+                          : 'border-slate-100 bg-white hover:border-slate-200 hover:shadow-sm'
                       }`}
                     >
-                      <div className={`p-2 rounded-lg ${item.color}`}>
+                      <div className={`p-2.5 rounded-xl ${item.color}`}>
                         <item.icon className="w-4 h-4" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-gray-900">{item.label}</p>
-                        <p className="text-[10px] text-gray-500 leading-tight mt-0.5">{item.desc}</p>
+                        <p className="text-sm font-semibold text-slate-900">{item.label}</p>
+                        <p className="text-[10px] text-slate-500 leading-tight mt-0.5">{item.desc}</p>
                       </div>
                     </button>
                   ))}
@@ -2647,8 +2594,9 @@ export default function EmployeeDashboard() {
           </>
         )}
 
-        <nav className="fixed bottom-0 left-0 right-0 z-40 emp-portal-chrome border-t max-w-lg mx-auto safe-area-pb md:rounded-b-[1.75rem]">
-          <div className="flex items-stretch justify-around py-1.5 px-2">
+        <nav className="fixed bottom-0 left-0 right-0 z-40 emp-portal-nav max-w-md mx-auto safe-area-pb md:rounded-b-[2rem]">
+          <div className="mx-3 mb-2 rounded-2xl bg-white/90 backdrop-blur-xl border border-slate-200/70 shadow-[0_-4px_24px_rgba(15,23,42,0.08)]">
+            <div className="flex items-stretch justify-around py-1 px-1">
             {tabs.map(tab => {
               const isMore = tab.key === 'more';
               const isActive = isMore
@@ -2658,24 +2606,28 @@ export default function EmployeeDashboard() {
                 <button
                   key={tab.key}
                   onClick={() => handleNavClick(tab.key)}
-                  className={`relative flex flex-col items-center justify-center gap-0.5 py-1.5 px-1 rounded-2xl min-w-0 flex-1 ${
-                    isActive ? 'text-blue-600' : 'text-slate-400'
+                  className={`relative flex flex-col items-center justify-center gap-0.5 py-2 px-1 rounded-xl min-w-0 flex-1 transition-all duration-200 ${
+                    isActive ? 'text-violet-700' : 'text-slate-400 hover:text-slate-600'
                   }`}
                 >
-                  <div className={`p-1.5 rounded-xl ${isActive ? 'bg-blue-600 text-white' : ''}`}>
-                    <tab.icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                  {isActive && (
+                    <span className="absolute inset-x-2 top-1 bottom-1 rounded-xl bg-violet-50 -z-10" />
+                  )}
+                  <div className={`relative p-1 ${isActive ? 'text-violet-600' : ''}`}>
+                    <tab.icon className={`w-5 h-5 ${isActive ? 'text-violet-600' : 'text-slate-400'}`} />
                   </div>
-                  <span className={`text-[10px] font-semibold leading-none ${isActive ? 'text-blue-600' : 'text-slate-400'}`}>
+                  <span className={`text-[9px] font-semibold leading-none tracking-wide ${isActive ? 'text-violet-700' : 'text-slate-400'}`}>
                     {tab.label}
                   </span>
                   {tab.badge != null && tab.badge > 0 && (
-                    <span className="absolute -top-0.5 right-1 min-w-[14px] h-3.5 px-0.5 bg-rose-500 rounded-full text-[8px] text-white font-bold flex items-center justify-center">
+                    <span className="absolute top-0.5 right-2 min-w-[14px] h-3.5 px-0.5 bg-violet-600 rounded-full text-[8px] text-white font-bold flex items-center justify-center ring-2 ring-white">
                       {tab.badge > 9 ? '9+' : tab.badge}
                     </span>
                   )}
                 </button>
               );
             })}
+            </div>
           </div>
         </nav>
       </div>
@@ -2708,13 +2660,18 @@ export default function EmployeeDashboard() {
           contain-intrinsic-size: auto 480px;
         }
         .emp-portal-chrome {
-          background: #ffffff;
-          border-color: rgb(226 232 240 / 0.9);
+          background: rgba(255, 255, 255, 0.92);
+          backdrop-filter: blur(16px);
+          -webkit-backdrop-filter: blur(16px);
+          border-color: rgb(226 232 240 / 0.7);
+        }
+        .emp-portal-nav {
+          background: transparent;
+          border: none;
         }
         @media (max-width: 768px) {
-          .emp-portal-hero-blur { display: none; }
           .emp-portal-desktop-frame { border-radius: 0; box-shadow: none; }
-          .emp-portal-outer { background: #f1f5f9 !important; padding: 0 !important; }
+          .emp-portal-outer { background: #f8fafc !important; padding: 0 !important; }
         }
         @media (prefers-reduced-motion: reduce) {
           .animate-slide-up { animation: none !important; }
