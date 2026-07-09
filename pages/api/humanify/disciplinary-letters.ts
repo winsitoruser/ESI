@@ -15,15 +15,21 @@ import {
   type LetterSOPTemplate,
 } from '../../../lib/hris/disciplinary-workflow';
 import { notifyEmployeeByEmployeeId } from '../../../lib/hris/employee-notifications';
+import {
+  notifyHRStaff,
+  notifyDisciplinaryStakeholders,
+} from '../../../lib/hris/disciplinary-notifications';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch (_) {}
 
 const LETTER_SELECT = `
   SELECT dl.*, e.name as employee_name, e.employee_code, e.department, e.position,
-    e.department as department_code
+    e.department as department_code,
+    ru.name as requester_name, ru.email as requester_email
   FROM hr_disciplinary_letters dl
   LEFT JOIN employees e ON dl.employee_id::text = e.id::text
+  LEFT JOIN users ru ON dl.requested_by = ru.id
 `;
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -55,6 +61,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (action === 'issue') return issueLetter(req, res, session);
       if (action === 'acknowledge') return acknowledgeLetter(req, res, session);
       if (action === 'cancel') return cancelLetter(req, res, session);
+      if (action === 'start-investigation') return startInvestigation(req, res, session);
+      if (action === 'complete-investigation') return completeInvestigation(req, res, session);
       if (action === 'sop-template') return saveSOPTemplate(req, res, session);
       return res.status(400).json({ error: 'Unknown action' });
     }
@@ -173,6 +181,13 @@ async function ensureSchema() {
   } catch { /* noop */ }
 
   try {
+    await sequelize.query(`
+      ALTER TABLE hr_disciplinary_letters
+      ADD COLUMN IF NOT EXISTS request_source VARCHAR(30) DEFAULT 'hr_direct'
+    `);
+  } catch { /* noop */ }
+
+  try {
     const [existing] = await sequelize.query(`SELECT COUNT(*)::int as cnt FROM hr_letter_sop_templates`);
     if ((existing[0]?.cnt || 0) === 0) {
       for (const tpl of DEFAULT_SOP_TEMPLATES) {
@@ -242,13 +257,14 @@ async function appendAudit(letterId: string, entry: object) {
 async function listLetters(req: NextApiRequest, res: NextApiResponse, session: any) {
   if (!sequelize) return res.json({ success: true, data: [] });
   const tenantId = getTenantId(session);
-  const { status, letter_type, employee_id } = req.query;
+  const { status, letter_type, employee_id, request_source } = req.query;
   let where = 'WHERE 1=1';
   const rep: any = {};
   if (tenantId) { where += ' AND dl.tenant_id = :tenantId'; rep.tenantId = tenantId; }
   if (status) { where += ' AND dl.status = :status'; rep.status = status; }
   if (letter_type) { where += ' AND dl.letter_type = :letter_type'; rep.letter_type = letter_type; }
   if (employee_id) { where += ' AND dl.employee_id = :employee_id'; rep.employee_id = employee_id; }
+  if (request_source) { where += ' AND dl.request_source = :request_source'; rep.request_source = request_source; }
 
   const [rows] = await sequelize.query(`${LETTER_SELECT} ${where} ORDER BY dl.created_at DESC LIMIT 200`, { replacements: rep });
   return res.json({ success: true, data: rows || [] });
@@ -352,8 +368,9 @@ async function getSummary(req: NextApiRequest, res: NextApiResponse) {
   const pending = await safeCount(`SELECT COUNT(*) as cnt FROM hr_disciplinary_letters WHERE status IN ('submitted','investigating','drafting','review','pending_approval')`);
   const issued = await safeCount(`SELECT COUNT(*) as cnt FROM hr_disciplinary_letters WHERE status IN ('issued','acknowledged')`);
   const draft = await safeCount(`SELECT COUNT(*) as cnt FROM hr_disciplinary_letters WHERE status IN ('draft','drafting')`);
+  const managerRequests = await safeCount(`SELECT COUNT(*) as cnt FROM hr_disciplinary_letters WHERE request_source = 'manager_portal' AND status IN ('submitted','investigating')`);
   const total = await safeCount(`SELECT COUNT(*) as cnt FROM hr_disciplinary_letters`);
-  return res.json({ success: true, data: { pending, issued, draft, total } });
+  return res.json({ success: true, data: { pending, issued, draft, managerRequests, total } });
 }
 
 async function createLetter(req: NextApiRequest, res: NextApiResponse, session: any) {
@@ -563,7 +580,7 @@ async function approveStep(req: NextApiRequest, res: NextApiResponse, session: a
   const [letters] = await sequelize.query(`SELECT * FROM hr_disciplinary_letters WHERE id = :id`, { replacements: { id } });
   const letter = letters[0];
   if (!letter) return res.status(404).json({ error: 'Not found' });
-  if (!['pending_approval', 'submitted', 'investigating', 'review'].includes(letter.status)) {
+  if (!['pending_approval', 'review'].includes(letter.status)) {
     return res.status(400).json({ success: false, error: 'Surat tidak dalam status menunggu persetujuan' });
   }
 
@@ -603,6 +620,9 @@ async function approveStep(req: NextApiRequest, res: NextApiResponse, session: a
   `, { replacements: { id, total: letter.total_approval_steps } });
 
   await appendAudit(id, { action: 'fully_approved', by: userId, at: new Date().toISOString() });
+
+  await notifyDisciplinaryStakeholders(sequelize, letter, 'approved');
+
   return res.json({ success: true, message: 'Semua persetujuan selesai — siap diterbitkan' });
 }
 
@@ -638,14 +658,11 @@ async function issueLetter(req: NextApiRequest, res: NextApiResponse, session: a
 
   await appendAudit(id, { action: 'issued', by: userId, letterNumber, at: new Date().toISOString() });
 
-  await notifyEmployeeByEmployeeId(sequelize, letter.employee_id, {
-    tenantId: letter.tenant_id,
-    title: `Surat Peringatan ${letterType} Diterbitkan`,
-    message: `Anda menerima ${letterType} No. ${letterNumber}. Silakan buka menu Surat SP di portal karyawan untuk mengakui penerimaan.`,
-    type: 'disciplinary',
-    sourceType: 'disciplinary_letter',
-    sourceId: String(id),
-  });
+  await notifyDisciplinaryStakeholders(sequelize, {
+    ...letter,
+    letter_number: letterNumber,
+    letter_type: letterType,
+  }, 'issued');
 
   if (['SP1', 'SP2', 'SP3'].includes(letterType)) {
     try {
@@ -720,15 +737,96 @@ async function rejectLetter(req: NextApiRequest, res: NextApiResponse, session: 
   if (!id || !comments) return res.status(400).json({ error: 'id dan alasan penolakan wajib diisi' });
   const userId = getUserId(session);
 
+  const [letters] = await sequelize.query(`SELECT * FROM hr_disciplinary_letters WHERE id = :id`, { replacements: { id } });
+  const letter = letters[0];
+  if (!letter) return res.status(404).json({ success: false, error: 'Not found' });
+
   await sequelize.query(`
     UPDATE hr_disciplinary_approval_steps SET status = 'rejected', comments = :comments, acted_at = NOW()
-    WHERE letter_id = :id AND status = 'pending'
+    WHERE letter_id = :id AND status IN ('pending','waiting')
   `, { replacements: { id, comments } });
 
   await sequelize.query(`UPDATE hr_disciplinary_letters SET status = 'rejected', notes = :comments, updated_at = NOW() WHERE id = :id`, { replacements: { id, comments } });
   await appendAudit(id, { action: 'rejected', by: userId, reason: comments, at: new Date().toISOString() });
 
+  await notifyDisciplinaryStakeholders(sequelize, letter, 'rejected', { reason: comments });
+
   return res.json({ success: true, message: 'Pengajuan surat ditolak' });
+}
+
+async function startInvestigation(req: NextApiRequest, res: NextApiResponse, session: any) {
+  const { id, investigation_notes } = req.body;
+  if (!id) return res.status(400).json({ error: 'id required' });
+  const userId = getUserId(session);
+  const investigatorName = (session.user as any)?.name || (session.user as any)?.email || 'HR';
+
+  const [letters] = await sequelize.query(`SELECT * FROM hr_disciplinary_letters WHERE id = :id`, { replacements: { id } });
+  const letter = letters[0];
+  if (!letter) return res.status(404).json({ success: false, error: 'Surat tidak ditemukan' });
+  if (!['submitted', 'draft'].includes(letter.status)) {
+    return res.status(400).json({ success: false, error: 'Hanya permohonan yang dapat diinvestigasi' });
+  }
+
+  await sequelize.query(`
+    UPDATE hr_disciplinary_letters SET
+      status = 'investigating', current_phase = 'investigation',
+      investigation_notes = COALESCE(:investigation_notes, investigation_notes),
+      drafted_by = :userId, updated_at = NOW()
+    WHERE id = :id
+  `, { replacements: { id, investigation_notes: investigation_notes || null, userId } });
+
+  await appendAudit(id, { action: 'investigation_started', by: userId, at: new Date().toISOString() });
+
+  await notifyDisciplinaryStakeholders(sequelize, letter, 'investigating', { investigatorName });
+
+  return res.json({ success: true, message: 'Investigasi dimulai — manajer pengaju telah diberi notifikasi' });
+}
+
+async function completeInvestigation(req: NextApiRequest, res: NextApiResponse, session: any) {
+  const { id, investigation_notes } = req.body;
+  if (!id) return res.status(400).json({ error: 'id required' });
+  const userId = getUserId(session);
+
+  const [letters] = await sequelize.query(`${LETTER_SELECT} WHERE dl.id = :id`, { replacements: { id } });
+  const letter = letters[0];
+  if (!letter) return res.status(404).json({ success: false, error: 'Surat tidak ditemukan' });
+  if (letter.status !== 'investigating') {
+    return res.status(400).json({ success: false, error: 'Surat tidak dalam tahap investigasi' });
+  }
+
+  let draftContent = parseDraftContent(letter.draft_content);
+  if (!draftContent?.body) {
+    draftContent = buildDefaultDraftContent({
+      letterType: letter.letter_type,
+      employeeName: letter.employee_name,
+      employeeCode: letter.employee_code,
+      position: letter.position,
+      department: letter.department,
+      violationType: letter.violation_type,
+      violationDescription: letter.violation_description,
+      incidentDate: letter.incident_date,
+    });
+  }
+
+  await sequelize.query(`
+    UPDATE hr_disciplinary_letters SET
+      status = 'drafting', current_phase = 'drafting',
+      investigation_notes = COALESCE(:investigation_notes, investigation_notes),
+      draft_content = :draftContent::jsonb,
+      drafted_by = :userId, updated_at = NOW()
+    WHERE id = :id
+  `, {
+    replacements: {
+      id,
+      investigation_notes: investigation_notes ?? letter.investigation_notes ?? null,
+      draftContent: JSON.stringify(draftContent),
+      userId,
+    },
+  });
+
+  await appendAudit(id, { action: 'investigation_completed', by: userId, at: new Date().toISOString() });
+
+  return res.json({ success: true, message: 'Investigasi selesai — lanjut penyusunan draft surat' });
 }
 
 async function cancelLetter(req: NextApiRequest, res: NextApiResponse, session: any) {

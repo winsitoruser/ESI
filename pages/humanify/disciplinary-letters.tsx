@@ -28,6 +28,7 @@ type View = 'board' | 'create' | 'sop';
 
 const QUICK_FILTERS = [
   { key: '', label: 'Semua' },
+  { key: 'manager_requests', label: 'Permohonan Manager', statuses: ['submitted', 'investigating'], requestSource: 'manager_portal' },
   { key: 'pending', label: 'Menunggu', statuses: ['submitted', 'investigating', 'drafting', 'review', 'pending_approval'] },
   { key: 'draft', label: 'Draft', statuses: ['draft', 'drafting'] },
   { key: 'issued', label: 'Diterbitkan', statuses: ['issued', 'acknowledged', 'approved'] },
@@ -43,7 +44,7 @@ export default function DisciplinaryLettersPage() {
   const [selected, setSelected] = useState<any>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [sopTemplates, setSopTemplates] = useState<any[]>([]);
-  const [summary, setSummary] = useState({ pending: 0, issued: 0, draft: 0, total: 0 });
+  const [summary, setSummary] = useState({ pending: 0, issued: 0, draft: 0, managerRequests: 0, total: 0 });
   const [filterStatus, setFilterStatus] = useState('');
   const [filterType, setFilterType] = useState('');
   const [quickFilter, setQuickFilter] = useState('');
@@ -100,18 +101,24 @@ export default function DisciplinaryLettersPage() {
       const params = new URLSearchParams({ action: 'list' });
       if (filterStatus) params.set('status', filterStatus);
       if (filterType) params.set('letter_type', filterType);
+      const qf = QUICK_FILTERS.find(f => f.key === quickFilter);
+      if (qf?.requestSource) params.set('request_source', qf.requestSource);
       const [listRes, sumRes] = await Promise.all([
         fetch(`/api/humanify/disciplinary-letters?${params}`).then((r) => r.json()),
         api('summary'),
       ]);
-      if (listRes.success) setLetters(listRes.data || []);
+      let data = listRes.data || [];
+      if (qf?.statuses?.length && !filterStatus) {
+        data = data.filter((l: any) => qf.statuses!.includes(l.status));
+      }
+      if (listRes.success) setLetters(data);
       if (sumRes.success) setSummary(sumRes.data || {});
     } catch {
       showToast('error', 'Gagal memuat data surat');
     } finally {
       setLoading(false);
     }
-  }, [filterStatus, filterType, api]);
+  }, [filterStatus, filterType, quickFilter, api]);
 
   const loadSOP = async () => {
     const res = await api('sop-templates');
@@ -216,6 +223,38 @@ export default function DisciplinaryLettersPage() {
     const res = await api('submit', 'POST', { id });
     if (res.success) { showToast('success', res.message); loadDetail(id, true); loadLetters(); }
     else showToast('error', res.error);
+  };
+
+  const handleStartInvestigation = async () => {
+    if (!selected?.id) return;
+    setSubmitting(true);
+    try {
+      const res = await api('start-investigation', 'POST', {
+        id: selected.id,
+        investigation_notes: investigationNotes || undefined,
+      });
+      if (res.success) {
+        showToast('success', res.message);
+        loadDetail(selected.id, true);
+        loadLetters();
+      } else showToast('error', res.error);
+    } finally { setSubmitting(false); }
+  };
+
+  const handleCompleteInvestigation = async () => {
+    if (!selected?.id) return;
+    setSubmitting(true);
+    try {
+      const res = await api('complete-investigation', 'POST', {
+        id: selected.id,
+        investigation_notes: investigationNotes,
+      });
+      if (res.success) {
+        showToast('success', res.message);
+        loadDetail(selected.id, true);
+        loadLetters();
+      } else showToast('error', res.error);
+    } finally { setSubmitting(false); }
   };
 
   const handleSaveDraft = async () => {
@@ -545,7 +584,9 @@ export default function DisciplinaryLettersPage() {
           {view === 'board' && (
             <>
               {/* Stats row */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-5">
+                <StatCard label="Permohonan Manager" value={summary.managerRequests || 0} icon={User} gradient="from-violet-400 to-purple-600"
+                  active={quickFilter === 'manager_requests'} onClick={() => setQuickFilter(quickFilter === 'manager_requests' ? '' : 'manager_requests')} />
                 <StatCard label="Menunggu Proses" value={summary.pending} icon={Clock} gradient="from-amber-400 to-orange-500"
                   active={quickFilter === 'pending'} onClick={() => setQuickFilter(quickFilter === 'pending' ? '' : 'pending')} />
                 <StatCard label="Diterbitkan" value={summary.issued} icon={CheckCircle} gradient="from-emerald-400 to-green-600"
@@ -719,6 +760,37 @@ export default function DisciplinaryLettersPage() {
                             <p className="text-xs font-semibold text-amber-800 mb-1">Deskripsi Pelanggaran</p>
                             <p className="text-sm text-gray-700 leading-relaxed">{selected.violation_description}</p>
                           </div>
+
+                          {selected.request_source === 'manager_portal' && (
+                            <div className="mt-4 p-4 bg-violet-50/50 rounded-xl border border-violet-100">
+                              <p className="text-xs font-semibold text-violet-800 mb-2">Permohonan dari Manajer</p>
+                              <p className="text-sm text-gray-700"><span className="font-medium">Pengaju:</span> {selected.requester_name || '—'}</p>
+                              {selected.request_reason && (
+                                <p className="text-sm text-gray-700 mt-1"><span className="font-medium">Alasan:</span> {selected.request_reason}</p>
+                              )}
+                              {selected.notes && (
+                                <p className="text-sm text-gray-600 mt-1"><span className="font-medium">Catatan:</span> {selected.notes}</p>
+                              )}
+                            </div>
+                          )}
+
+                          {Array.isArray(selected.attachments) && selected.attachments.length > 0 && (
+                            <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                              <p className="text-xs font-semibold text-gray-700 mb-2">Bukti / Evidence ({selected.attachments.length})</p>
+                              <div className="flex flex-wrap gap-2">
+                                {selected.attachments.map((att: any, i: number) => (
+                                  <a key={i} href={att.data || att.url || '#'} target="_blank" rel="noopener noreferrer"
+                                    className="block w-20 h-20 rounded-lg border overflow-hidden bg-white hover:ring-2 hover:ring-indigo-200">
+                                    {att.type?.startsWith('image/') && (att.data || att.url) ? (
+                                      <img src={att.data || att.url} alt={att.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <div className="w-full h-full flex items-center justify-center text-[9px] text-gray-500 p-1 text-center">{att.name || `File ${i + 1}`}</div>
+                                    )}
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -726,13 +798,25 @@ export default function DisciplinaryLettersPage() {
                       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
                         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Aksi HR</p>
                         <div className="flex flex-wrap gap-2">
+                          {selected.status === 'submitted' && (
+                            <button onClick={handleStartInvestigation} disabled={submitting}
+                              className="flex items-center gap-2 px-4 py-2.5 bg-amber-600 text-white rounded-xl text-sm font-medium hover:bg-amber-700 shadow-sm disabled:opacity-50">
+                              <Search className="w-4 h-4" /> Mulai Investigasi
+                            </button>
+                          )}
+                          {selected.status === 'investigating' && (
+                            <button onClick={handleCompleteInvestigation} disabled={submitting}
+                              className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 shadow-sm disabled:opacity-50">
+                              <CheckCircle className="w-4 h-4" /> Selesai Investigasi → Draft
+                            </button>
+                          )}
                           {['draft', 'drafting'].includes(selected.status) && (
                             <button onClick={() => handleSubmit(selected.id)}
                               className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 shadow-sm">
                               <Send className="w-4 h-4" /> Ajukan Persetujuan
                             </button>
                           )}
-                          {['pending_approval', 'drafting', 'submitted', 'investigating', 'review'].includes(selected.status) && (
+                          {['pending_approval', 'review'].includes(selected.status) && (
                             <>
                               <button onClick={() => { setApprovalAction('approve'); setShowApproval(true); }}
                                 className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700">
@@ -743,6 +827,12 @@ export default function DisciplinaryLettersPage() {
                                 <XCircle className="w-4 h-4" /> Tolak
                               </button>
                             </>
+                          )}
+                          {['submitted', 'investigating', 'drafting'].includes(selected.status) && (
+                            <button onClick={() => { setApprovalAction('reject'); setShowApproval(true); }}
+                              className="flex items-center gap-2 px-4 py-2.5 border border-red-200 text-red-600 rounded-xl text-sm font-medium hover:bg-red-50">
+                              <XCircle className="w-4 h-4" /> Tolak Permohonan
+                            </button>
                           )}
                           {selected.status === 'approved' && (
                             <button onClick={handleIssue}

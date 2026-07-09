@@ -7,11 +7,13 @@ import { approveLeaveStep, rejectLeaveRequest } from '@/lib/hris/leave-request-s
 import {
   notifyEmployeeByEmployeeId,
 } from '@/lib/hris/employee-notifications';
+import { notifyHRStaff } from '@/lib/hris/disciplinary-notifications';
 import {
   getDefaultSOP,
   buildDefaultDraftContent,
   generateLetterNumber,
   computeExpiryDate,
+  type DisciplinaryLetterType,
 } from '@/lib/hris/disciplinary-workflow';
 
 let sequelize: any;
@@ -191,8 +193,10 @@ async function getDisciplinaryLetters(res: NextApiResponse, userId: string, tena
   const ownerClause = isSuperAdmin ? '' : 'AND dl.requested_by = :uid';
 
   const [rows] = await sequelize.query(`
-    SELECT dl.id, dl.letter_type, dl.status, dl.violation_type, dl.violation_description,
+    SELECT dl.id, dl.letter_type, dl.status, dl.current_phase, dl.request_source,
+      dl.violation_type, dl.violation_description, dl.request_reason, dl.notes,
       dl.incident_date, dl.effective_date, dl.letter_number, dl.created_at,
+      dl.attachments,
       e.name AS employee_name, e.employee_code, e.department
     FROM hr_disciplinary_letters dl
     LEFT JOIN employees e ON dl.employee_id::text = e.id::text
@@ -378,16 +382,24 @@ async function rejectOvertime(req: NextApiRequest, res: NextApiResponse, session
 }
 
 async function createDisciplinary(req: NextApiRequest, res: NextApiResponse, session: any) {
-  const { employee_id, letter_type, violation_type, violation_description, incident_date, request_reason } = req.body || {};
+  const {
+    employee_id, letter_type, violation_type, violation_description,
+    incident_date, request_reason, notes, attachments,
+  } = req.body || {};
   if (!employee_id || !letter_type || !violation_description) {
     return res.status(400).json({ success: false, error: 'employee_id, letter_type, violation_description wajib' });
   }
-  if (!sequelize) return res.json({ success: true, message: 'Draft SP dibuat (mock)' });
+  if (!request_reason?.trim()) {
+    return res.status(400).json({ success: false, error: 'Alasan permohonan wajib diisi' });
+  }
+  if (!sequelize) return res.json({ success: true, message: 'Permohonan SP diajukan (mock)' });
 
   const tenantId = (session.user as any)?.tenantId || null;
   const userId = parseInt(String(session.user.id), 10);
-  const letterType = String(letter_type).toUpperCase();
-  const sop = getDefaultSOP(letterType as any);
+  const letterType = String(letter_type).toUpperCase() as DisciplinaryLetterType;
+  const sop = getDefaultSOP(letterType);
+  const levels = sop.approvalLevels || [];
+  const totalSteps = levels.length || 1;
 
   const [emps] = await sequelize.query(`
     SELECT id, name, employee_code, position, department FROM employees WHERE id = :employee_id LIMIT 1
@@ -395,9 +407,10 @@ async function createDisciplinary(req: NextApiRequest, res: NextApiResponse, ses
   const emp = emps[0];
   if (!emp) return res.status(404).json({ success: false, error: 'Karyawan tidak ditemukan' });
 
-  const refNumber = `DRAFT-${Date.now()}`;
+  const refNumber = `REQ-${Date.now()}`;
+  const evidenceList = Array.isArray(attachments) ? attachments : [];
   const defaultDraft = buildDefaultDraftContent({
-    letterType: letterType as any,
+    letterType,
     employeeName: emp.name,
     employeeCode: emp.employee_code,
     position: emp.position,
@@ -410,30 +423,67 @@ async function createDisciplinary(req: NextApiRequest, res: NextApiResponse, ses
   const [result] = await sequelize.query(`
     INSERT INTO hr_disciplinary_letters (
       tenant_id, employee_id, letter_type, reference_number, status, current_phase,
-      violation_type, violation_description, incident_date, request_reason,
-      draft_content, requested_by, current_approval_step, total_approval_steps, audit_trail
+      violation_type, violation_description, incident_date, request_reason, notes,
+      draft_content, requested_by, request_source, attachments,
+      current_approval_step, total_approval_steps, audit_trail
     ) VALUES (
-      :tenantId, :employee_id, :letter_type, :refNumber, 'draft', 'drafting',
-      :violation_type, :violation_description, :incident_date, :request_reason,
-      :draftContent::jsonb, :requested_by, 0, 1,
+      :tenantId, :employee_id, :letter_type, :refNumber, 'submitted', 'request',
+      :violation_type, :violation_description, :incident_date, :request_reason, :notes,
+      :draftContent::jsonb, :requested_by, 'manager_portal', :attachments::jsonb,
+      0, :totalSteps,
       :auditTrail::jsonb
-    ) RETURNING id, letter_type, status, created_at
+    ) RETURNING id, letter_type, status, current_phase, created_at
   `, {
     replacements: {
       tenantId, employee_id, letter_type: letterType, refNumber,
       violation_type: violation_type || 'discipline',
       violation_description, incident_date: incident_date || null,
-      request_reason: request_reason || null,
+      request_reason: request_reason.trim(),
+      notes: notes?.trim() || null,
       draftContent: JSON.stringify(defaultDraft),
       requested_by: userId,
-      auditTrail: JSON.stringify([{ action: 'created', by: userId, at: new Date().toISOString(), source: 'employee_portal' }]),
+      attachments: JSON.stringify(evidenceList),
+      totalSteps,
+      auditTrail: JSON.stringify([{
+        action: 'manager_request_submitted',
+        by: userId,
+        at: new Date().toISOString(),
+        source: 'employee_portal',
+        evidenceCount: evidenceList.length,
+      }]),
     },
+  });
+
+  const letterId = result[0]?.id;
+  if (letterId) {
+    for (const level of levels) {
+      await sequelize.query(`
+        INSERT INTO hr_disciplinary_approval_steps (letter_id, step_order, phase, approver_role, approver_title, status)
+        VALUES (:letterId, :stepOrder, :phase, :role, :title, 'waiting')
+      `, {
+        replacements: {
+          letterId,
+          stepOrder: level.level,
+          phase: level.phase,
+          role: level.role,
+          title: level.title,
+        },
+      });
+    }
+  }
+
+  await notifyHRStaff(sequelize, tenantId, {
+    title: `Permohonan ${letterType} dari Manajer`,
+    message: `${session.user?.name || 'Manajer'} mengajukan permohonan ${letterType} untuk ${emp.name}. Perlu review HR.`,
+    type: 'approval',
+    sourceType: 'disciplinary_letter',
+    sourceId: String(letterId),
   });
 
   return res.json({
     success: true,
     data: { ...result[0], employee_name: emp.name },
-    message: `Draft ${letterType} untuk ${emp.name} berhasil dibuat`,
+    message: `Permohonan ${letterType} untuk ${emp.name} berhasil diajukan ke HR`,
   });
 }
 
@@ -443,13 +493,26 @@ async function submitDisciplinary(req: NextApiRequest, res: NextApiResponse, ses
   if (!sequelize) return res.json({ success: true, message: 'SP diajukan untuk persetujuan' });
 
   const userId = parseInt(String(session.user.id), 10);
+  const [rows] = await sequelize.query(`
+    SELECT id, status FROM hr_disciplinary_letters
+    WHERE id = :id AND requested_by = :userId
+  `, { replacements: { id, userId } });
+  const letter = rows[0];
+  if (!letter) return res.status(404).json({ success: false, error: 'Permohonan tidak ditemukan' });
+  if (letter.status === 'submitted') {
+    return res.json({ success: true, message: 'Permohonan sudah diajukan ke HR' });
+  }
+  if (!['draft', 'drafting'].includes(letter.status)) {
+    return res.status(400).json({ success: false, error: 'Status permohonan tidak dapat diajukan ulang' });
+  }
+
   await sequelize.query(`
-    UPDATE hr_disciplinary_letters SET status = 'pending_approval', current_phase = 'approval',
-      current_approval_step = 1, updated_at = NOW()
-    WHERE id = :id AND requested_by = :userId AND status IN ('draft','drafting')
+    UPDATE hr_disciplinary_letters SET status = 'submitted', current_phase = 'request',
+      updated_at = NOW()
+    WHERE id = :id AND requested_by = :userId
   `, { replacements: { id, userId } });
 
-  return res.json({ success: true, message: 'Surat peringatan diajukan untuk persetujuan HR' });
+  return res.json({ success: true, message: 'Permohonan surat peringatan diajukan ke HR' });
 }
 
 async function issueDisciplinary(req: NextApiRequest, res: NextApiResponse, session: any, isSuperAdmin: boolean) {

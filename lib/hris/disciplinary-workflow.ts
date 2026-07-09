@@ -98,7 +98,7 @@ export const PHASE_LABELS: Record<DisciplinaryPhase, string> = {
 
 export const STATUS_LABELS: Record<DisciplinaryStatus, string> = {
   draft: 'Draft',
-  submitted: 'Diajukan',
+  submitted: 'Permohonan Manager',
   investigating: 'Investigasi',
   drafting: 'Penyusunan Draft',
   review: 'Review',

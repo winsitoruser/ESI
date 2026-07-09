@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Shield, CheckCircle, XCircle, Clock, Calendar, Wallet, Timer,
   AlertTriangle, Users, FileWarning, Plus, Loader2, ChevronRight,
-  Send, Stamp,
+  Send, Stamp, Paperclip, X, Search,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -19,6 +19,27 @@ const CLAIM_TYPE_LABEL: Record<string, string> = {
   accommodation: 'Akomodasi', communication: 'Komunikasi', other: 'Lainnya',
 };
 
+const SP_STATUS_LABEL: Record<string, string> = {
+  submitted: 'Permohonan',
+  investigating: 'Investigasi HR',
+  drafting: 'Penyusunan Draft',
+  pending_approval: 'Menunggu Persetujuan',
+  approved: 'Disetujui HR',
+  issued: 'Diterbitkan',
+  rejected: 'Ditolak',
+  cancelled: 'Dibatalkan',
+  draft: 'Draft',
+};
+
+const SP_STATUS_COLOR: Record<string, string> = {
+  submitted: 'bg-blue-50 text-blue-700 ring-blue-200',
+  investigating: 'bg-amber-50 text-amber-700 ring-amber-200',
+  drafting: 'bg-indigo-50 text-indigo-700 ring-indigo-200',
+  pending_approval: 'bg-violet-50 text-violet-700 ring-violet-200',
+  approved: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  issued: 'bg-red-50 text-red-700 ring-red-200',
+  rejected: 'bg-slate-100 text-slate-600',
+};
 const SP_TYPES = [
   { value: 'TEGURAN', label: 'Teguran Lisan/Tertulis' },
   { value: 'SP1', label: 'SP 1' },
@@ -51,8 +72,10 @@ export default function ManagerHubTab({ isSuperAdmin = false }: Props) {
   const [showSpModal, setShowSpModal] = useState(false);
   const [spForm, setSpForm] = useState({
     employee_id: '', letter_type: 'SP1', violation_type: 'discipline',
-    violation_description: '', incident_date: '', request_reason: '',
+    violation_description: '', incident_date: '', request_reason: '', notes: '',
   });
+  const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
+  const [evidencePreviews, setEvidencePreviews] = useState<{ name: string; url: string; type: string }[]>([]);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -101,20 +124,51 @@ export default function ManagerHubTab({ isSuperAdmin = false }: Props) {
     finally { setSubmitting(false); }
   };
 
+  const handleEvidenceFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(e.target.files || []);
+    if (!selected.length) return;
+    const combined = [...evidenceFiles, ...selected].slice(0, 5);
+    setEvidenceFiles(combined);
+    combined.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = () => setEvidencePreviews(prev => {
+        if (prev.find(p => p.name === file.name)) return prev;
+        return [...prev, { url: reader.result as string, name: file.name, type: file.type }];
+      });
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  };
+
+  const removeEvidence = (name: string) => {
+    setEvidenceFiles(prev => prev.filter(f => f.name !== name));
+    setEvidencePreviews(prev => prev.filter(p => p.name !== name));
+  };
+
   const handleCreateSp = async () => {
     if (!spForm.employee_id || !spForm.violation_description) {
       toast.error('Pilih karyawan dan isi deskripsi pelanggaran'); return;
     }
+    if (!spForm.request_reason?.trim()) {
+      toast.error('Alasan permohonan wajib diisi'); return;
+    }
     setSubmitting(true);
     try {
-      const res = await mgrApi('create-disciplinary', 'POST', spForm);
+      const attachments = await Promise.all(evidenceFiles.map(file => new Promise<{ name: string; type: string; data: string }>(resolve => {
+        const reader = new FileReader();
+        reader.onload = () => resolve({ name: file.name, type: file.type, data: reader.result as string });
+        reader.readAsDataURL(file);
+      })));
+      const res = await mgrApi('create-disciplinary', 'POST', { ...spForm, attachments });
       if (res.success) {
-        toast.success(res.message || 'Draft SP dibuat');
+        toast.success(res.message || 'Permohonan SP diajukan ke HR');
         setShowSpModal(false);
-        setSpForm(f => ({ ...f, employee_id: '', violation_description: '', incident_date: '', request_reason: '' }));
+        setSpForm(f => ({ ...f, employee_id: '', violation_description: '', incident_date: '', request_reason: '', notes: '' }));
+        setEvidenceFiles([]);
+        setEvidencePreviews([]);
         loadAll();
-      } else toast.error(res.error || 'Gagal membuat SP');
-    } catch { toast.error('Gagal membuat SP'); }
+      } else toast.error(res.error || 'Gagal mengajukan SP');
+    } catch { toast.error('Gagal mengajukan SP'); }
     finally { setSubmitting(false); }
   };
 
@@ -298,7 +352,7 @@ export default function ManagerHubTab({ isSuperAdmin = false }: Props) {
             onClick={() => setShowSpModal(true)}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-violet-600 text-white text-sm font-semibold active:scale-95"
           >
-            <Plus className="w-4 h-4" /> Buat Surat Peringatan
+            <Plus className="w-4 h-4" /> Ajukan Permohonan SP
           </button>
 
           {letters.length === 0 ? (
@@ -313,18 +367,20 @@ export default function ManagerHubTab({ isSuperAdmin = false }: Props) {
                   <p className="font-semibold text-sm">{letter.letter_type} — {letter.employee_name}</p>
                   <p className="text-[11px] text-slate-500">{letter.employee_code} · {letter.department}</p>
                 </div>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                  letter.status === 'issued' ? 'bg-red-50 text-red-700' :
-                  letter.status === 'draft' ? 'bg-slate-100 text-slate-600' :
-                  'bg-amber-50 text-amber-700'
-                }`}>{letter.status}</span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ring-1 ${
+                  SP_STATUS_COLOR[letter.status] || 'bg-slate-100 text-slate-600 ring-slate-200'
+                }`}>{SP_STATUS_LABEL[letter.status] || letter.status}</span>
               </div>
-              <p className="text-xs text-slate-600 mb-3 line-clamp-2">{letter.violation_description}</p>
+              <p className="text-xs text-slate-600 mb-1 line-clamp-2">{letter.violation_description}</p>
+              {letter.request_reason && (
+                <p className="text-[11px] text-slate-500 mb-2"><span className="font-medium">Alasan:</span> {letter.request_reason}</p>
+              )}
+              <p className="text-[10px] text-slate-400 mb-3">Diajukan {fmtDate(letter.created_at)}</p>
               <div className="flex gap-2">
                 {['draft', 'drafting'].includes(letter.status) && (
                   <button onClick={() => handleSubmitSp(letter.id)} disabled={submitting}
                     className="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl bg-blue-50 text-blue-700 text-xs font-semibold ring-1 ring-blue-200">
-                    <Send className="w-3.5 h-3.5" /> Ajukan
+                    <Send className="w-3.5 h-3.5" /> Ajukan ke HR
                   </button>
                 )}
                 {isSuperAdmin && letter.status !== 'issued' && (
@@ -394,7 +450,8 @@ export default function ManagerHubTab({ isSuperAdmin = false }: Props) {
         <div className="fixed inset-0 z-50 flex items-end justify-center">
           <div className="fixed inset-0 bg-black/40" onClick={() => setShowSpModal(false)} />
           <div className="relative bg-white w-full max-w-lg rounded-t-2xl p-5 space-y-3 max-h-[85vh] overflow-y-auto">
-            <h3 className="font-bold text-slate-900">Buat Surat Peringatan</h3>
+            <h3 className="font-bold text-slate-900">Ajukan Permohonan Surat Peringatan</h3>
+            <p className="text-xs text-slate-500">Permohonan akan masuk ke HR untuk investigasi & penanganan</p>
             <div>
               <label className="text-xs font-semibold text-slate-700 mb-1 block">Karyawan</label>
               <select value={spForm.employee_id} onChange={e => setSpForm(f => ({ ...f, employee_id: e.target.value }))}
@@ -422,14 +479,44 @@ export default function ManagerHubTab({ isSuperAdmin = false }: Props) {
                 className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm resize-none" />
             </div>
             <div>
-              <label className="text-xs font-semibold text-slate-700 mb-1 block">Alasan / Catatan</label>
+              <label className="text-xs font-semibold text-slate-700 mb-1 block">Alasan Permohonan *</label>
               <textarea value={spForm.request_reason} onChange={e => setSpForm(f => ({ ...f, request_reason: e.target.value }))}
-                rows={2} placeholder="Catatan tambahan..."
+                rows={2} placeholder="Mengapa SP perlu dikeluarkan..."
                 className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm resize-none" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-700 mb-1 block">Catatan Tambahan</label>
+              <textarea value={spForm.notes} onChange={e => setSpForm(f => ({ ...f, notes: e.target.value }))}
+                rows={2} placeholder="Catatan internal untuk HR..."
+                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm resize-none" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-700 mb-1 block">Bukti / Evidence</label>
+              <label className="flex items-center justify-center gap-2 py-3 border-2 border-dashed border-slate-200 rounded-xl text-xs text-slate-500 cursor-pointer hover:border-violet-300 hover:text-violet-600">
+                <Paperclip className="w-4 h-4" /> Upload foto/dokumen (max 5)
+                <input type="file" accept="image/*,.pdf" multiple className="hidden" onChange={handleEvidenceFiles} />
+              </label>
+              {evidencePreviews.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {evidencePreviews.map(p => (
+                    <div key={p.name} className="relative group">
+                      {p.type.startsWith('image/') && p.url ? (
+                        <img src={p.url} alt={p.name} className="w-16 h-16 rounded-lg object-cover border" />
+                      ) : (
+                        <div className="w-16 h-16 rounded-lg bg-slate-100 flex items-center justify-center text-[9px] text-slate-500 p-1 text-center border">{p.name.slice(0, 12)}</div>
+                      )}
+                      <button type="button" onClick={() => removeEvidence(p.name)}
+                        className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <button onClick={handleCreateSp} disabled={submitting}
               className="w-full py-3 rounded-xl bg-violet-600 text-white font-semibold text-sm disabled:opacity-50">
-              {submitting ? 'Menyimpan...' : 'Simpan Draft SP'}
+              {submitting ? 'Mengajukan...' : 'Ajukan Permohonan ke HR'}
             </button>
           </div>
         </div>
