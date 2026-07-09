@@ -57,6 +57,8 @@ export default function RecruitmentPage() {
   const [saving, setSaving] = useState(false);
   const [integrations, setIntegrations] = useState<any>(null);
   const [screeningResults, setScreeningResults] = useState<any[]>([]);
+  const [webhookTesting, setWebhookTesting] = useState(false);
+  const [webhookResult, setWebhookResult] = useState<any>(null);
 
   const showToast = (msg: string, type = 'success') => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
   const fmtCur = (n: number) => `Rp ${(n || 0).toLocaleString('id-ID')}`;
@@ -96,6 +98,39 @@ export default function RecruitmentPage() {
       if (data.data) setIntegrations(data.data);
     } catch (e) { console.warn('Failed to fetch integrations:', e); }
   }, []);
+
+  const testWebhook = async (provider = 'dealls') => {
+    setWebhookTesting(true);
+    setWebhookResult(null);
+    try {
+      const res = await fetch('/api/humanify/webhooks/recruitment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider,
+          event: 'candidate.applied',
+          payload: {
+            candidate: {
+              full_name: `Test ${provider} ${Date.now().toString().slice(-4)}`,
+              email: `test.${provider}@humanify.local`,
+              phone: '08123456789',
+              source: provider,
+              experience_summary: '3 tahun di bidang terkait',
+              education_level: 'S1',
+            },
+          },
+        }),
+      });
+      const json = await res.json();
+      setWebhookResult({ ok: res.ok, ...json });
+      if (json.success) {
+        showToast(json.message || 'Webhook berhasil');
+        fetchCandidates();
+      } else showToast(json.error || 'Webhook gagal', 'error');
+    } catch {
+      showToast('Gagal menguji webhook', 'error');
+    } finally { setWebhookTesting(false); }
+  };
 
   const fetchScreening = useCallback(async () => {
     try {
@@ -365,40 +400,59 @@ export default function RecruitmentPage() {
         {/* AI SCREENING TAB */}
         {!loading && tab === 'screening' && (
           <div className="space-y-4">
-            <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 text-sm text-purple-800">
-              <strong>AI Screening</strong> — Scoring otomatis berdasarkan pengalaman, pendidikan, skill match, dan sumber kandidat. Kandidat skor ≥70 otomatis advance ke screening.
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-700 p-5 text-white">
+              <div className="absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/10" />
+              <div className="relative flex items-start justify-between">
+                <div>
+                  <h3 className="flex items-center gap-2 text-lg font-bold"><Star className="h-5 w-5" /> AI Candidate Screening</h3>
+                  <p className="mt-1 text-sm text-violet-100">Scoring otomatis: pengalaman, pendidikan, skill match, rating, sumber kandidat</p>
+                </div>
+                <button onClick={fetchScreening} className="rounded-xl bg-white/15 px-3 py-1.5 text-xs font-medium backdrop-blur hover:bg-white/25">
+                  Refresh
+                </button>
+              </div>
+              <div className="relative mt-4 grid grid-cols-3 gap-2 text-center text-xs">
+                <div className="rounded-xl bg-white/10 p-2"><p className="text-xl font-bold">{screeningResults.filter((r: any) => r.overallScore >= 70).length}</p><p className="text-violet-200">Lolos (≥70)</p></div>
+                <div className="rounded-xl bg-white/10 p-2"><p className="text-xl font-bold">{screeningResults.filter((r: any) => r.overallScore >= 50 && r.overallScore < 70).length}</p><p className="text-violet-200">Review Manual</p></div>
+                <div className="rounded-xl bg-white/10 p-2"><p className="text-xl font-bold">{screeningResults.filter((r: any) => r.autoAdvance).length}</p><p className="text-violet-200">Auto Advance</p></div>
+              </div>
             </div>
-            <div className="bg-white border rounded-xl overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b">
-                  <tr>
-                    <th className="text-left p-3">Kandidat</th>
-                    <th className="text-center p-3">Skor AI</th>
-                    <th className="text-center p-3">Rekomendasi</th>
-                    <th className="text-left p-3">Ringkasan</th>
-                    <th className="text-center p-3">Auto Advance</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(screeningResults.length ? screeningResults : []).map((r: any) => (
-                    <tr key={r.candidateId} className="border-b hover:bg-gray-50">
-                      <td className="p-3 font-medium">{r.candidateName}</td>
-                      <td className="p-3 text-center">
-                        <span className={`px-2 py-1 rounded font-bold ${r.overallScore >= 70 ? 'bg-green-100 text-green-700' : r.overallScore >= 50 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
-                          {r.overallScore}
+
+            <div className="grid gap-3 md:grid-cols-2">
+              {(screeningResults.length ? screeningResults : []).map((r: any) => (
+                <div key={r.candidateId} className={`rounded-2xl border bg-white p-4 shadow-sm ${r.overallScore >= 70 ? 'border-emerald-200' : r.overallScore >= 50 ? 'border-amber-200' : 'border-gray-200'}`}>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="font-semibold text-gray-900">{r.candidateName}</p>
+                      <p className="mt-0.5 text-xs capitalize text-gray-500">{r.recommendation?.replace(/_/g, ' ')}</p>
+                    </div>
+                    <span className={`rounded-xl px-3 py-1 text-lg font-bold ${r.overallScore >= 70 ? 'bg-emerald-100 text-emerald-700' : r.overallScore >= 50 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
+                      {r.overallScore}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs text-gray-600 leading-relaxed">{r.aiSummary}</p>
+                  {r.matchBreakdown?.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-1">
+                      {r.matchBreakdown.map((b: any) => (
+                        <span key={b.criterion} className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${b.passed ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                          {b.criterion} {b.score}/{b.maxScore}
                         </span>
-                      </td>
-                      <td className="p-3 text-center capitalize text-xs">{r.recommendation?.replace('_', ' ')}</td>
-                      <td className="p-3 text-xs text-gray-600 max-w-md">{r.aiSummary}</td>
-                      <td className="p-3 text-center">{r.autoAdvance ? '✅' : '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {!screeningResults.length && (
-                <div className="p-8 text-center text-gray-400 text-sm">Memuat hasil screening...</div>
-              )}
+                      ))}
+                    </div>
+                  )}
+                  {r.flags?.length > 0 && (
+                    <div className="mt-2 text-[10px] text-amber-600">⚠ {r.flags.join(' · ')}</div>
+                  )}
+                  {r.autoAdvance && <div className="mt-2 text-xs font-medium text-emerald-600">✓ Direkomendasikan auto-advance ke screening</div>}
+                </div>
+              ))}
             </div>
+            {!screeningResults.length && (
+              <div className="rounded-2xl border bg-white p-12 text-center text-gray-400">
+                <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-violet-400" />
+                <p className="text-sm">Memuat hasil AI screening...</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -435,6 +489,25 @@ export default function RecruitmentPage() {
                   )}
                 </div>
               ))}
+            </div>
+            <div className="bg-white border rounded-xl p-5">
+              <h3 className="font-semibold mb-3 flex items-center gap-2"><Link2 className="w-4 h-4 text-indigo-600" /> Webhook Endpoint</h3>
+              <p className="text-xs text-gray-500 mb-3 font-mono bg-gray-50 p-2 rounded-lg break-all">
+                POST {typeof window !== 'undefined' ? window.location.origin : ''}/api/humanify/webhooks/recruitment
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {['dealls', 'linkedin', 'indeed'].map(p => (
+                  <button key={p} onClick={() => testWebhook(p)} disabled={webhookTesting}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">
+                    {webhookTesting ? 'Menguji...' : `Test ${p}`}
+                  </button>
+                ))}
+              </div>
+              {webhookResult && (
+                <pre className="mt-3 text-[10px] bg-gray-900 text-green-400 p-3 rounded-lg overflow-x-auto max-h-32">
+                  {JSON.stringify(webhookResult, null, 2)}
+                </pre>
+              )}
             </div>
             <div className="bg-white border rounded-xl p-5">
               <h3 className="font-semibold mb-3 flex items-center gap-2"><MessageCircle className="w-4 h-4 text-green-600" /> Fitur Rekrutmen Advanced</h3>

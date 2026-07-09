@@ -108,15 +108,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const { batchScreen, DEFAULT_SCREENING_CRITERIA, screenCandidate } = await import('@/lib/hris/ai-screening');
         const candidateId = req.query.candidateId as string | undefined;
         const [rows] = await sequelize.query(`
-          SELECT id, full_name as name, experience_years, education, source, rating, skills
+          SELECT id, COALESCE(full_name, name) as name, experience_summary, education_level, source, rating, notes, resume_url
           FROM hris_candidates WHERE (tenant_id = :tid OR tenant_id IS NULL)
           ORDER BY created_at DESC LIMIT 100
         `, { replacements: { tid: tenantId } });
 
+        const parseExpYears = (summary: string | null) => {
+          if (!summary) return 0;
+          const m = summary.match(/(\d+)\s*(tahun|thn|year)/i);
+          return m ? parseInt(m[1], 10) : 0;
+        };
+
+        const parseSkills = (notes: string | null, summary: string | null) => {
+          const text = `${notes || ''} ${summary || ''}`.toLowerCase();
+          const known = ['javascript', 'react', 'node', 'python', 'java', 'leadership', 'management', 'sales', 'marketing', 'hr', 'finance', 'logistics', 'warehouse'];
+          return known.filter(s => text.includes(s));
+        };
+
         const candidates = (rows || []).map((r: any) => ({
-          id: r.id, name: r.name, experienceYears: r.experience_years,
-          education: r.education, source: r.source, rating: r.rating,
-          skills: typeof r.skills === 'string' ? JSON.parse(r.skills) : (r.skills || []),
+          id: r.id,
+          name: r.name,
+          experienceYears: parseExpYears(r.experience_summary),
+          education: r.education_level || '',
+          source: r.source,
+          rating: r.rating,
+          skills: parseSkills(r.notes, r.experience_summary),
+          resumeText: r.notes || r.experience_summary || '',
         }));
 
         if (candidateId) {

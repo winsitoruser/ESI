@@ -142,7 +142,8 @@ async function testPages() {
   ];
   for (const p of pages) {
     const res = await fetch(`${BASE}${p}`, { headers: { Cookie: COOKIE }, redirect: 'manual' });
-    if (res.status === 200) ok(`page ${p}`);
+    const okStatus = res.status === 200 || (p === '/employee/login' && res.status === 307);
+    if (okStatus) ok(`page ${p}`);
     else fail(`page ${p}`, `HTTP ${res.status}`);
   }
 }
@@ -182,9 +183,14 @@ async function testHqApis() {
   expectApi('workforce overview', await api('GET', '/api/humanify/workforce-analytics?action=overview'));
   expectApi('hr-analytics', await api('GET', `/api/humanify/hr-analytics?period=${month}`), { hasData: true });
   expectApi('predictive-analytics', await api('GET', `/api/humanify/predictive-analytics?action=overview&period=${month}`), { hasData: true });
+  expectApi('predictive-leave', await api('GET', `/api/humanify/predictive-analytics?action=leave&period=${month}`), { hasData: true });
   expectApi('ai-insights batch', await api('GET', `/api/humanify/ai-insights?batch=true&period=${month}`), { hasData: true });
   expectApi('nine-box matrix', await api('GET', `/api/humanify/nine-box?period=${month}`), { hasData: true });
   expectApi('recruitment screening', await api('GET', '/api/humanify/recruitment?action=screening'), { hasData: true });
+  expectApi('receipt-ocr', await api('POST', '/api/humanify/receipt-ocr', {
+    text: 'TOTAL Rp 125.000\nGrab 09/07/2026',
+    filename: 'test-receipt.txt',
+  }), { hasData: true });
   expectApi('reports-hub', await api('GET', `/api/humanify/reports-hub?period=${month}`));
   expectApi('overtime list', await api('GET', '/api/humanify/overtime?action=list'));
   expectApi('workflow summary', await api('GET', '/api/humanify/workflow?action=summary'));

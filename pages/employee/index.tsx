@@ -176,6 +176,7 @@ export default function EmployeeDashboard() {
   const [claimForm, setClaimForm] = useState({ claimType: 'medical', amount: '', description: '', receiptDate: '' });
   const [claimFiles, setClaimFiles] = useState<File[]>([]);
   const [claimPreviews, setClaimPreviews] = useState<{ url: string; name: string; type: string }[]>([]);
+  const [ocrScanning, setOcrScanning] = useState(false);
   const [resubmitClaimId, setResubmitClaimId] = useState<string | null>(null);
   const [resubmitReason, setResubmitReason] = useState<string>('');
 
@@ -303,6 +304,42 @@ export default function EmployeeDashboard() {
     }
   }, [status, router]);
   useEffect(() => { if (mounted) fetchAll(); }, [mounted, fetchAll]);
+
+  // PWA: service worker + deep link tab from manifest shortcuts
+  useEffect(() => {
+    if (!mounted || typeof window === 'undefined') return;
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw-employee.js').catch(() => {});
+    }
+    const tab = router.query.tab as string;
+    if (tab && ['home','attendance','overtime','kpi','leave','claims','travel','visit','mf','profile','files','manager','payslip','disciplinary'].includes(tab)) {
+      setActiveTab(tab as TabKey);
+    }
+  }, [mounted, router.query.tab]);
+
+  const scanReceiptOCR = async (file: File, dataUrl: string) => {
+    setOcrScanning(true);
+    try {
+      const res = await fetch('/api/humanify/receipt-ocr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: dataUrl, filename: file.name, mimeType: file.type }),
+      });
+      const json = await res.json();
+      if (json.success && json.data?.confidence >= 50) {
+        const d = json.data;
+        setClaimForm(f => ({
+          ...f,
+          amount: d.amount ? String(d.amount) : f.amount,
+          receiptDate: d.date || f.receiptDate,
+          description: d.description || f.description,
+          claimType: d.category && d.category !== 'other' ? d.category : f.claimType,
+        }));
+        toast.success(`Struk terbaca (${d.confidence}% confidence) — data diisi otomatis`);
+      }
+    } catch { /* OCR optional */ }
+    finally { setOcrScanning(false); }
+  };
 
   // ── Field Visit: Fetch ─────────────────────────────────────────────────────
   const fetchVisits = useCallback(async () => {
@@ -577,11 +614,15 @@ export default function EmployeeDashboard() {
       const isImg = file.type.startsWith('image/');
       if (isImg) {
         const reader = new FileReader();
-        reader.onload = () => setClaimPreviews(prev => {
-          const exists = prev.find(p => p.name === file.name);
-          if (exists) return prev;
-          return [...prev, { url: reader.result as string, name: file.name, type: file.type }];
-        });
+        reader.onload = () => {
+          const dataUrl = reader.result as string;
+          setClaimPreviews(prev => {
+            const exists = prev.find(p => p.name === file.name);
+            if (exists) return prev;
+            return [...prev, { url: dataUrl, name: file.name, type: file.type }];
+          });
+          scanReceiptOCR(file, dataUrl);
+        };
         reader.readAsDataURL(file);
       } else {
         setClaimPreviews(prev => prev.find(p => p.name === file.name) ? prev : [...prev, { url: '', name: file.name, type: file.type }]);
@@ -794,7 +835,10 @@ export default function EmployeeDashboard() {
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-sm font-medium text-gray-700">Lampiran Bukti</label>
-                    {claimFiles.length > 0 && <span className="text-xs text-gray-400">{claimFiles.length}/10 file</span>}
+                    <div className="flex items-center gap-2">
+                      {ocrScanning && <span className="text-xs text-violet-600 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Membaca struk...</span>}
+                      {claimFiles.length > 0 && <span className="text-xs text-gray-400">{claimFiles.length}/10 file</span>}
+                    </div>
                   </div>
 
                   {/* Drop zone / picker */}
@@ -2456,6 +2500,9 @@ export default function EmployeeDashboard() {
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="format-detection" content="telephone=no" />
+        <link rel="manifest" href="/manifest-employee.json" />
+        <meta name="application-name" content="Humanify" />
+        <link rel="apple-touch-icon" href="/icons/credit-card.png" />
       </Head>
       <Toaster position="top-center" toastOptions={{ duration: 3000, style: { fontSize: '14px', maxWidth: '90vw' } }} />
 

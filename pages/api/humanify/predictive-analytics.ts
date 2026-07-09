@@ -9,6 +9,7 @@ import {
   computeAttritionRisk,
   forecastAbsenteeism,
   forecastHeadcount,
+  forecastLeaveDemand,
   buildPredictiveInsights,
   type PredictiveOverview,
 } from '@/lib/hris/predictive-analytics';
@@ -115,6 +116,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       exits.map((e: any) => e.c),
     );
 
+    const leaveMonthly = await safeQuery(`
+      SELECT TO_CHAR(created_at, 'YYYY-MM') as month, COUNT(*)::int as count
+      FROM leave_requests
+      WHERE created_at >= CURRENT_DATE - INTERVAL '12 months'
+      GROUP BY TO_CHAR(created_at, 'YYYY-MM') ORDER BY month
+    `, r);
+
+    const leaveForecast = forecastLeaveDemand(
+      leaveMonthly.map((m: any) => ({ month: m.month, count: m.count })),
+      period,
+    );
+
     const overview: PredictiveOverview = {
       attritionRisk: {
         highRiskCount: risks.filter((r: any) => r.riskLevel === 'high').length,
@@ -124,6 +137,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
       absenteeism,
       headcount,
+      leaveForecast,
       insights: buildPredictiveInsights(risks, absenteeism, headcount),
       generatedAt: new Date().toISOString(),
       dataSource: employees.length > 0 ? dataSource : 'partial',
@@ -152,6 +166,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.json({
       success: true,
       data: forecastHeadcount(count?.c || 0, [hires[0]?.c || 0], [exits[0]?.c || 0]),
+    });
+  }
+
+  if (action === 'leave') {
+    const leaveMonthly = await safeQuery(`
+      SELECT TO_CHAR(created_at, 'YYYY-MM') as month, COUNT(*)::int as count
+      FROM leave_requests
+      WHERE created_at >= CURRENT_DATE - INTERVAL '12 months'
+      GROUP BY TO_CHAR(created_at, 'YYYY-MM') ORDER BY month
+    `, r);
+    return res.json({
+      success: true,
+      data: forecastLeaveDemand(
+        leaveMonthly.map((m: any) => ({ month: m.month, count: m.count })),
+        period,
+      ),
     });
   }
 

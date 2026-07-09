@@ -53,6 +53,7 @@ export default function ReimbursementPage() {
   const [toast, setToast] = useState<{ msg: string; type: string } | null>(null);
   const [pickedEmployee, setPickedEmployee] = useState<PickedEmployee | null>(null);
   const [form, setForm] = useState({ claim_type: 'transport', amount: '', description: '', claim_date: new Date().toISOString().slice(0, 10) });
+  const [ocrLoading, setOcrLoading] = useState(false);
 
   const showToast = (msg: string, type = 'success') => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
   const fmt = (n: number) => `Rp ${(n || 0).toLocaleString('id-ID')}`;
@@ -117,6 +118,36 @@ export default function ReimbursementPage() {
       else showToast(json.error || 'Gagal menolak', 'error');
     } catch { showToast('Gagal menolak', 'error'); }
     finally { setSaving(false); }
+  };
+
+  const handleReceiptScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setOcrLoading(true);
+    try {
+      const dataUrl = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
+      });
+      const res = await fetch('/api/humanify/receipt-ocr', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: dataUrl, filename: file.name, mimeType: file.type }),
+      });
+      const json = await res.json();
+      if (json.success && json.data) {
+        const d = json.data;
+        setForm(f => ({
+          ...f,
+          amount: d.amount ? String(d.amount) : f.amount,
+          claim_date: d.date || f.claim_date,
+          description: d.description || f.description,
+          claim_type: d.category && d.category !== 'other' ? d.category : f.claim_type,
+        }));
+        showToast(`Struk terbaca (${d.confidence}% confidence)`);
+      }
+    } catch { showToast('Gagal membaca struk', 'error'); }
+    finally { setOcrLoading(false); e.target.value = ''; }
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -271,6 +302,16 @@ export default function ReimbursementPage() {
               </div>
               <form onSubmit={handleCreate} className="space-y-4">
                 <EmployeePicker value={pickedEmployee?.id} onChange={setPickedEmployee} required />
+                <div className="rounded-xl border border-dashed border-violet-300 bg-violet-50 p-3">
+                  <label className="flex cursor-pointer items-center gap-3">
+                    <div className="rounded-lg bg-violet-100 p-2"><Upload className="h-4 w-4 text-violet-600" /></div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-violet-900">Scan Struk dengan AI OCR</p>
+                      <p className="text-xs text-violet-600">{ocrLoading ? 'Membaca struk...' : 'Upload foto kwitansi — amount & kategori terisi otomatis'}</p>
+                    </div>
+                    <input type="file" accept="image/*" className="hidden" onChange={handleReceiptScan} disabled={ocrLoading} />
+                  </label>
+                </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium">Kategori</label>
                   <select value={form.claim_type} onChange={e => setForm(f => ({ ...f, claim_type: e.target.value }))} className="w-full rounded-xl border px-3 py-2 text-sm">

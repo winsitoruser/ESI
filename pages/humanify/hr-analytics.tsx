@@ -6,7 +6,7 @@ import EnterprisePageHeader from '@/components/humanify/EnterprisePageHeader';
 import {
   BarChart3, Users, Clock, Target, DollarSign, Wallet, UserPlus,
   TrendingUp, TrendingDown, Award, Activity, ChevronRight, RefreshCw,
-  AlertTriangle, CheckCircle2, Timer, Briefcase, Sparkles, Brain, Zap,
+  AlertTriangle, CheckCircle2, Timer, Briefcase, Sparkles, Brain, Zap, CalendarDays,
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -330,8 +330,29 @@ export default function HRAnalyticsPage() {
               <HRStatCard label="Risiko Kritis" value={predictive.attritionRisk?.criticalCount ?? 0} sub="Perlu intervensi segera" icon={AlertTriangle} gradient="from-rose-500 to-red-700" />
               <HRStatCard label="Risiko Tinggi" value={predictive.attritionRisk?.highRiskCount ?? 0} sub={`Avg score ${predictive.attritionRisk?.avgRiskScore ?? 0}`} icon={TrendingDown} gradient="from-orange-500 to-amber-600" />
               <HRStatCard label="Prediksi Absen" value={`${predictive.absenteeism?.predictedRate ?? 0}%`} sub={predictive.absenteeism?.trend ?? 'stable'} icon={Clock} gradient="from-blue-500 to-indigo-600" />
-              <HRStatCard label="Confidence" value={`${predictive.absenteeism?.confidence ?? 0}%`} sub="Model prediktif" icon={Brain} gradient="from-violet-500 to-purple-700" />
+              <HRStatCard label="Prediksi Cuti" value={predictive.leaveForecast?.predictedRequests ?? 0} sub={`Risiko ops: ${predictive.leaveForecast?.operationalRisk ?? 'low'}`} icon={CalendarDays} gradient="from-teal-500 to-emerald-600" />
             </div>
+
+            {predictive.leaveForecast && (
+              <div className="rounded-2xl border bg-white p-6 shadow-sm">
+                <h3 className="font-semibold">Prediksi Permintaan Cuti</h3>
+                <p className="text-sm text-gray-500">Berdasarkan pola pengajuan 12 bulan terakhir</p>
+                <div className="mt-4 grid gap-4 md:grid-cols-3">
+                  <div className="rounded-xl bg-teal-50 p-4">
+                    <p className="text-xs text-teal-600">Perkiraan bulan depan</p>
+                    <p className="text-2xl font-bold text-teal-900">{predictive.leaveForecast.predictedRequests} pengajuan</p>
+                  </div>
+                  <div className="rounded-xl bg-gray-50 p-4">
+                    <p className="text-xs text-gray-500">Bulan peak</p>
+                    <p className="text-sm font-medium text-gray-900">{(predictive.leaveForecast.peakMonths || []).join(', ') || '—'}</p>
+                  </div>
+                  <div className={`rounded-xl p-4 ${predictive.leaveForecast.operationalRisk === 'high' ? 'bg-red-50' : predictive.leaveForecast.operationalRisk === 'medium' ? 'bg-amber-50' : 'bg-emerald-50'}`}>
+                    <p className="text-xs text-gray-500">Rekomendasi</p>
+                    <p className="text-sm font-medium text-gray-900">{predictive.leaveForecast.recommendation}</p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="grid gap-6 lg:grid-cols-2">
               <div className="rounded-2xl border bg-white p-6 shadow-sm">

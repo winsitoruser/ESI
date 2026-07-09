@@ -114,6 +114,24 @@ async function testBusinessFlows() {
   const nineBox = await api('GET', '/api/humanify/nine-box');
   if (nineBox.body.success && nineBox.body.data?.employees) ok(`flow: 9-box matrix (${nineBox.body.data.employees.length} employees, source: ${nineBox.body.dataSource || 'live'})`);
   else fail('flow: nine-box');
+
+  // Flow 6: Receipt OCR + recruitment webhook
+  const ocr = await api('POST', '/api/humanify/receipt-ocr', { text: 'TOTAL Rp 99.500\nKopi Kenangan 09/07/2026', filename: 'receipt.txt' });
+  if (ocr.body.success && ocr.body.data?.amount) ok(`flow: receipt OCR (Rp ${ocr.body.data.amount})`);
+  else fail('flow: receipt OCR', ocr.body.error);
+
+  const wh = await fetch(`${BASE}/api/humanify/webhooks/recruitment`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      provider: 'dealls',
+      event: 'candidate.applied',
+      payload: { candidate: { full_name: 'Smoke Test Candidate', email: `smoke.${Date.now()}@test.local` } },
+    }),
+  });
+  const whJson = await wh.json();
+  if (whJson.success) ok('flow: recruitment webhook sync');
+  else fail('flow: recruitment webhook', whJson.error);
 }
 
 async function testSecurityBasics() {

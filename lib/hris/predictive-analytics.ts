@@ -42,6 +42,7 @@ export interface PredictiveOverview {
   };
   absenteeism: AbsenteeismForecast;
   headcount: HeadcountForecast[];
+  leaveForecast?: LeaveForecast;
   insights: { type: string; severity: RiskLevel; title: string; description: string; action: string }[];
   generatedAt: string;
   dataSource: 'live' | 'partial' | 'demo';
@@ -209,6 +210,41 @@ export function forecastHeadcount(
     });
   }
   return result;
+}
+
+export interface LeaveForecast {
+  period: string;
+  predictedRequests: number;
+  peakMonths: string[];
+  operationalRisk: 'low' | 'medium' | 'high';
+  recommendation: string;
+}
+
+export function forecastLeaveDemand(
+  monthlyRequests: { month: string; count: number }[],
+  period: string,
+): LeaveForecast {
+  if (monthlyRequests.length === 0) {
+    return { period, predictedRequests: 0, peakMonths: [], operationalRisk: 'low', recommendation: 'Data cuti terbatas — pantau pengajuan manual' };
+  }
+  const avg = monthlyRequests.reduce((s, m) => s + m.count, 0) / monthlyRequests.length;
+  const sorted = [...monthlyRequests].sort((a, b) => b.count - a.count);
+  const peakMonths = sorted.slice(0, 2).map(m => m.month);
+  const recent = monthlyRequests.slice(-3);
+  const recentAvg = recent.reduce((s, m) => s + m.count, 0) / recent.length;
+  const predicted = Math.round(recentAvg * 1.1);
+
+  let operationalRisk: LeaveForecast['operationalRisk'] = 'low';
+  if (predicted > avg * 1.5) operationalRisk = 'high';
+  else if (predicted > avg * 1.2) operationalRisk = 'medium';
+
+  const rec = operationalRisk === 'high'
+    ? 'Rencanakan backup staff untuk periode peak cuti'
+    : operationalRisk === 'medium'
+      ? 'Monitor approval cuti mingguan'
+      : 'Pola cuti normal';
+
+  return { period, predictedRequests: predicted, peakMonths, operationalRisk, recommendation: rec };
 }
 
 export function buildPredictiveInsights(

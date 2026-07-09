@@ -42,20 +42,40 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === 'POST' && action === 'webhook') {
-      const { provider, event, payload } = req.body;
+      const { provider, event, payload, signature } = req.body;
+      const tenantId = (session.user as any)?.tenantId || null;
+
+      const { upsertCandidateFromWebhook, validateWebhookSignature } = await import('@/lib/hris/webhook-candidate-sync');
+      const secretKey = process.env[`${(provider || '').toUpperCase()}_WEBHOOK_SECRET`];
+
+      if (!validateWebhookSignature(provider, signature, secretKey)) {
+        return res.status(401).json({ success: false, error: 'Invalid webhook signature' });
+      }
+
+      let syncResult = null;
+      if (event === 'candidate.applied' || event === 'applicant.created' || !event) {
+        const candidatePayload = payload?.candidate || payload?.applicant || payload;
+        if (candidatePayload?.full_name || candidatePayload?.name) {
+          syncResult = await upsertCandidateFromWebhook(provider || 'unknown', candidatePayload, tenantId);
+        }
+      }
+
       const log = {
         id: `wh-${Date.now()}`,
         provider: provider || 'unknown',
         event: event || 'sync',
         receivedAt: new Date().toISOString(),
         payloadSummary: payload ? Object.keys(payload).join(', ') : 'empty',
-        status: 'processed',
+        status: syncResult ? 'synced' : 'processed',
+        syncResult,
       };
-      // In production: validate signature, upsert candidates to hris_candidates
+
       return res.json({
         success: true,
         data: log,
-        message: `Webhook ${provider} diterima — kandidat akan disinkronkan ke pipeline`,
+        message: syncResult
+          ? `Kandidat ${syncResult.candidateName} ${syncResult.action === 'created' ? 'ditambahkan' : 'diperbarui'} dari ${provider}`
+          : `Webhook ${provider} diterima`,
       });
     }
 
