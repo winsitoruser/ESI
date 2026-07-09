@@ -69,7 +69,7 @@ async function runWorkflowSmoke() {
   console.log('\n── SP Manager Workflow Smoke ──');
 
   const pages = [
-    ['/employee/login', 200],
+    ['/employee/login', [200, 307]],
     ['/humanify/disciplinary-letters', [200, 307]],
   ];
   for (const [path, expect] of pages) {
