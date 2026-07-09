@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/router';
 import { useSession } from 'next-auth/react';
 import { useTranslation } from '@/lib/i18n';
@@ -16,11 +17,20 @@ import {
   CheckSquare, AlertCircle, Map, ScanLine, Timer, Banknote, LayoutGrid, Megaphone, ExternalLink
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
-import MultifinanceFieldTab from '@/components/employee/MultifinanceFieldTab';
-import MyFilesTab from '@/components/employee/MyFilesTab';
-import ManagerHubTab from '@/components/employee/ManagerHubTab';
-import PayslipTab from '@/components/employee/PayslipTab';
-import DisciplinaryTab from '@/components/employee/DisciplinaryTab';
+
+const TabSkeleton = () => (
+  <div className="space-y-3 animate-pulse">
+    <div className="h-24 rounded-2xl bg-slate-200" />
+    <div className="h-32 rounded-2xl bg-slate-200" />
+    <div className="h-20 rounded-2xl bg-slate-200" />
+  </div>
+);
+
+const MultifinanceFieldTab = dynamic(() => import('@/components/employee/MultifinanceFieldTab'), { loading: () => <TabSkeleton />, ssr: false });
+const ManagerHubTab = dynamic(() => import('@/components/employee/ManagerHubTab'), { loading: () => <TabSkeleton />, ssr: false });
+const MyFilesTab = dynamic(() => import('@/components/employee/MyFilesTab'), { loading: () => <TabSkeleton />, ssr: false });
+const PayslipTab = dynamic(() => import('@/components/employee/PayslipTab'), { loading: () => <TabSkeleton />, ssr: false });
+const DisciplinaryTab = dynamic(() => import('@/components/employee/DisciplinaryTab'), { loading: () => <TabSkeleton />, ssr: false });
 
 type TabKey = 'home' | 'attendance' | 'overtime' | 'kpi' | 'leave' | 'claims' | 'travel' | 'visit' | 'mf' | 'profile' | 'files' | 'manager' | 'payslip' | 'disciplinary';
 
@@ -118,12 +128,14 @@ const api = async (action: string, method = 'GET', body?: any) => {
 
 export default function EmployeeDashboard() {
   const router = useRouter();
+  const mainScrollRef = useRef<HTMLElement>(null);
   const { data: session, status } = useSession();
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [dataReady, setDataReady] = useState(false);
   const [showNotif, setShowNotif] = useState(false);
   const [modal, setModal] = useState<ModalType>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -190,25 +202,15 @@ export default function EmployeeDashboard() {
 
   // ─── Data Fetching ───
   const fetchAll = useCallback(async () => {
-    setLoading(true);
     try {
-      const [pRes, aRes, kRes, lbRes, lrRes, cRes, trRes, nRes, annRes] = await Promise.all([
-        api('profile'), api('attendance'), api('kpi'),
-        api('leave-balance'), api('leave-requests'),
-        api('claims'), api('travel'), api('notifications'), api('announcements'),
-      ]);
+      const [pRes, aRes] = await Promise.all([api('profile'), api('attendance')]);
       setProfile(pRes.data || null);
       setIsMfAgent(!!pRes.data?.isMfAgent);
       setIsManagerPortal(!!pRes.data?.isManagerPortal);
       setIsSuperAdmin(!!pRes.data?.isSuperAdmin);
       setAttendance(aRes.data || null);
-      setKpi(kRes.data || null);
-      setLeaveBalance(Array.isArray(lbRes.data) ? lbRes.data : []);
-      setLeaveRequests(Array.isArray(lrRes.data) ? lrRes.data : []);
-      setClaims(Array.isArray(cRes.data) ? cRes.data : []);
-      setTravel(Array.isArray(trRes.data) ? trRes.data : []);
-      setNotifications(Array.isArray(nRes.data) ? nRes.data : []);
-      setAnnouncements(Array.isArray(annRes.data) ? annRes.data : []);
+      setDataReady(true);
+      setLoading(false);
 
       if (pRes.data?.isManagerPortal) {
         fetch('/api/employee/manager?action=summary')
@@ -216,7 +218,20 @@ export default function EmployeeDashboard() {
           .then(j => { if (j.success) setManagerPendingCount(j.data?.total || 0); })
           .catch(() => {});
       }
-      // Deteksi agen pembiayaan / tim lapangan multifinance
+
+      Promise.all([
+        api('kpi'), api('leave-balance'), api('leave-requests'),
+        api('claims'), api('travel'), api('notifications'), api('announcements'),
+      ]).then(([kRes, lbRes, lrRes, cRes, trRes, nRes, annRes]) => {
+        setKpi(kRes.data || null);
+        setLeaveBalance(Array.isArray(lbRes.data) ? lbRes.data : []);
+        setLeaveRequests(Array.isArray(lrRes.data) ? lrRes.data : []);
+        setClaims(Array.isArray(cRes.data) ? cRes.data : []);
+        setTravel(Array.isArray(trRes.data) ? trRes.data : []);
+        setNotifications(Array.isArray(nRes.data) ? nRes.data : []);
+        setAnnouncements(Array.isArray(annRes.data) ? annRes.data : []);
+      }).catch(() => {});
+
       try {
         const mfRes = await fetch('/api/employee/multifinance?action=profile').then(r => r.json());
         if (mfRes.success && mfRes.data?.isMfAgent) {
@@ -234,8 +249,8 @@ export default function EmployeeDashboard() {
       } catch { setIsMfAgent(false); }
     } catch (e) {
       console.error('Fetch error:', e);
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   const handleNotificationClick = (n: any) => {
@@ -271,6 +286,11 @@ export default function EmployeeDashboard() {
   };
 
   useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    if (!mounted) return;
+    document.body.classList.add('employee-portal-active');
+    return () => document.body.classList.remove('employee-portal-active');
+  }, [mounted]);
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.replace(`/auth/login?callbackUrl=${encodeURIComponent('/employee')}`);
@@ -623,7 +643,7 @@ export default function EmployeeDashboard() {
   const goToTab = (key: TabKey) => {
     setActiveTab(key);
     setShowMoreMenu(false);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    mainScrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
   };
 
   // ─── MODAL ───
@@ -850,12 +870,12 @@ export default function EmployeeDashboard() {
   // ─── TAB: HOME ───
   const renderHome = () => (
     <div className="space-y-5">
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-800 p-5 text-white shadow-xl shadow-blue-900/20">
-        <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl" />
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-800 p-5 text-white shadow-lg">
+        <div className="emp-portal-hero-blur absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl" />
         <div className="relative">
           <div className="flex items-start justify-between gap-3 mb-4">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur border border-white/20 flex items-center justify-center text-sm font-bold flex-shrink-0">
+              <div className="w-12 h-12 rounded-2xl bg-white/20 border border-white/20 flex items-center justify-center text-sm font-bold flex-shrink-0">
                 {getInitials(userName)}
               </div>
               <div className="min-w-0">
@@ -2158,16 +2178,14 @@ export default function EmployeeDashboard() {
   };
 
   const renderContent = () => {
-    if (loading) return (
+    if (loading && !dataReady) return (
       <div className="space-y-4 animate-pulse">
         <div className="h-36 rounded-3xl bg-slate-200" />
         <div className="h-48 rounded-2xl bg-slate-200" />
         <div className="h-32 rounded-2xl bg-slate-200" />
-        <div className="grid grid-cols-4 gap-2">
-          {[1,2,3,4].map(i => <div key={i} className="h-20 rounded-2xl bg-slate-200" />)}
-        </div>
       </div>
     );
+    const tab = (() => {
     switch (activeTab) {
       case 'home':       return renderHome();
       case 'attendance': return renderAttendance();
@@ -2183,7 +2201,10 @@ export default function EmployeeDashboard() {
       case 'manager':    return <ManagerHubTab isSuperAdmin={isSuperAdmin} />;
       case 'payslip':    return <PayslipTab />;
       case 'disciplinary': return <DisciplinaryTab />;
+      default: return null;
     }
+    })();
+    return <div key={activeTab} className="emp-portal-tab">{tab}</div>;
   };
 
   return (
@@ -2200,9 +2221,9 @@ export default function EmployeeDashboard() {
       <Toaster position="top-center" toastOptions={{ duration: 3000, style: { fontSize: '14px', maxWidth: '90vw' } }} />
 
       {/* Mobile shell — centered phone frame on desktop */}
-      <div className="min-h-screen bg-gradient-to-br from-slate-200 via-slate-100 to-blue-100 md:py-6">
-      <div className="min-h-screen md:min-h-[calc(100vh-3rem)] bg-slate-50 max-w-lg mx-auto relative md:rounded-[1.75rem] md:shadow-2xl md:ring-1 md:ring-slate-300/50 md:overflow-hidden flex flex-col">
-        <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-200/80 px-4 h-14 flex items-center justify-between safe-area-pt flex-shrink-0">
+      <div className="emp-portal-outer min-h-screen bg-gradient-to-br from-slate-200 via-slate-100 to-blue-100 md:py-6">
+      <div className="emp-portal-root emp-portal-desktop-frame min-h-screen md:min-h-[calc(100vh-3rem)] bg-slate-50 max-w-lg mx-auto relative md:rounded-[1.75rem] md:shadow-2xl md:ring-1 md:ring-slate-300/50 md:overflow-hidden flex flex-col">
+        <header className="sticky top-0 z-40 emp-portal-chrome border-b px-4 h-14 flex items-center justify-between safe-area-pt flex-shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             {activeTab !== 'home' && (
               <button onClick={() => goToTab('home')} className="p-1.5 -ml-1 rounded-lg hover:bg-slate-100 text-slate-500">
@@ -2214,8 +2235,8 @@ export default function EmployeeDashboard() {
             </h1>
           </div>
           <div className="flex items-center gap-0.5">
-            <button onClick={fetchAll} className="p-2 rounded-xl hover:bg-slate-100 active:scale-95 transition-transform"><RefreshCw className="w-4 h-4 text-slate-500" /></button>
-            <button onClick={() => showNotif ? setShowNotif(false) : openNotifications()} className="relative p-2 rounded-xl hover:bg-slate-100 active:scale-95 transition-transform">
+            <button onClick={fetchAll} className="p-2 rounded-xl hover:bg-slate-100"><RefreshCw className="w-4 h-4 text-slate-500" /></button>
+            <button onClick={() => showNotif ? setShowNotif(false) : openNotifications()} className="relative p-2 rounded-xl hover:bg-slate-100">
               <Bell className="w-5 h-5 text-slate-600" />
               {unreadCount > 0 && <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 bg-rose-500 rounded-full text-[9px] text-white font-bold flex items-center justify-center">{unreadCount}</span>}
             </button>
@@ -2224,7 +2245,7 @@ export default function EmployeeDashboard() {
 
         {showNotif && (
           <>
-            <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[1px]" onClick={() => setShowNotif(false)} />
+            <div className="fixed inset-0 z-40 bg-black/30" onClick={() => setShowNotif(false)} />
             <div className="absolute top-14 right-3 left-3 z-50 bg-white rounded-2xl shadow-2xl border border-slate-100 max-h-80 overflow-y-auto">
               <div className="p-4 border-b border-slate-100 flex items-center justify-between">
                 <span className="font-semibold text-sm text-slate-900">Notifikasi</span>
@@ -2248,7 +2269,7 @@ export default function EmployeeDashboard() {
           </>
         )}
 
-        <main className="flex-1 px-4 py-4 pb-28 overflow-y-auto overscroll-contain">{renderContent()}</main>
+        <main ref={mainScrollRef} className="emp-portal-scroll px-4 py-4 pb-28">{renderContent()}</main>
 
         {renderModal()}
 
@@ -2289,7 +2310,7 @@ export default function EmployeeDashboard() {
           </>
         )}
 
-        <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/90 backdrop-blur-xl border-t border-slate-200/80 max-w-lg mx-auto safe-area-pb md:rounded-b-[1.75rem]">
+        <nav className="fixed bottom-0 left-0 right-0 z-40 emp-portal-chrome border-t max-w-lg mx-auto safe-area-pb md:rounded-b-[1.75rem]">
           <div className="flex items-stretch justify-around py-1.5 px-2">
             {tabs.map(tab => {
               const isMore = tab.key === 'more';
@@ -2300,11 +2321,11 @@ export default function EmployeeDashboard() {
                 <button
                   key={tab.key}
                   onClick={() => handleNavClick(tab.key)}
-                  className={`relative flex flex-col items-center justify-center gap-0.5 py-1.5 px-1 rounded-2xl min-w-0 flex-1 transition-all active:scale-95 ${
+                  className={`relative flex flex-col items-center justify-center gap-0.5 py-1.5 px-1 rounded-2xl min-w-0 flex-1 ${
                     isActive ? 'text-blue-600' : 'text-slate-400'
                   }`}
                 >
-                  <div className={`p-1.5 rounded-xl transition-colors ${isActive ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25' : ''}`}>
+                  <div className={`p-1.5 rounded-xl ${isActive ? 'bg-blue-600 text-white' : ''}`}>
                     <tab.icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-slate-400'}`} />
                   </div>
                   <span className={`text-[10px] font-semibold leading-none ${isActive ? 'text-blue-600' : 'text-slate-400'}`}>
@@ -2328,7 +2349,39 @@ export default function EmployeeDashboard() {
         .animate-slide-up { animation: slide-up 0.28s ease-out; }
         .safe-area-pb { padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px); }
         .safe-area-pt { padding-top: env(safe-area-inset-top, 0px); }
-        html { -webkit-tap-highlight-color: transparent; }
+        html, body { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
+        body.employee-portal-active { overflow: hidden; position: fixed; width: 100%; height: 100%; }
+        .emp-portal-root {
+          height: 100dvh;
+          max-height: 100dvh;
+          overflow: hidden;
+          touch-action: manipulation;
+        }
+        .emp-portal-scroll {
+          flex: 1 1 auto;
+          min-height: 0;
+          overflow-x: hidden;
+          overflow-y: auto;
+          overscroll-behavior-y: contain;
+          -webkit-overflow-scrolling: touch;
+          scroll-behavior: auto;
+        }
+        .emp-portal-tab {
+          content-visibility: auto;
+          contain-intrinsic-size: auto 480px;
+        }
+        .emp-portal-chrome {
+          background: #ffffff;
+          border-color: rgb(226 232 240 / 0.9);
+        }
+        @media (max-width: 768px) {
+          .emp-portal-hero-blur { display: none; }
+          .emp-portal-desktop-frame { border-radius: 0; box-shadow: none; }
+          .emp-portal-outer { background: #f1f5f9 !important; padding: 0 !important; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .animate-slide-up { animation: none !important; }
+        }
       `}</style>
     </>
   );

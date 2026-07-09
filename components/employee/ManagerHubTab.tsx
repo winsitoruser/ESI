@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
 import {
   Shield, CheckCircle, XCircle, Clock, Calendar, Wallet, Timer,
   AlertTriangle, Users, FileWarning, Plus, Loader2, ChevronRight,
@@ -116,7 +116,7 @@ async function compressImageFile(file: File, maxWidth = 1280, quality = 0.72): P
   });
 }
 
-export default function ManagerHubTab({ isSuperAdmin = false }: Props) {
+export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
   const [activeTab, setActiveTab] = useState<MgrTab>('approvals');
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState({ leave: 0, claims: 0, overtime: 0, total: 0 });
@@ -633,4 +633,4 @@ export default function ManagerHubTab({ isSuperAdmin = false }: Props) {
       )}
     </div>
   );
-}
+});
