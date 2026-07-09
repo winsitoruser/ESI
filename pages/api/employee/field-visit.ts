@@ -187,19 +187,43 @@ async function getVisits(res: NextApiResponse, userId: string, tenantId: string,
 // GET: Search customers/prospects
 // ─────────────────────────────────────────
 async function searchCustomers(res: NextApiResponse, tenantId: string, req: NextApiRequest) {
-  if (!sequelize) return res.json({ success: true, data: [
+  const mock = [
     { id: 'c1', name: 'Toko Maju Jaya', phone: '081234567890', address: 'Jl. Sudirman No.10', type: 'customer' },
     { id: 'c2', name: 'Warung Bu Sari', phone: '082345678901', address: 'Jl. Kebon Jeruk No.5', type: 'customer' },
     { id: 'c3', name: 'PT Prospek Baru', phone: '083456789012', address: 'Jl. Gatot Subroto No.15', type: 'prospect' },
-  ]});
-  const like = `%${req.query.q || ''}%`;
-  const data = await q(`
-    SELECT id::text, name, phone, address, 'customer' as type FROM customers WHERE tenant_id=:tid AND (name ILIKE :q OR phone ILIKE :q) AND is_active=true
-    UNION ALL
-    SELECT id::text, name, phone, company as address, 'prospect' as type FROM sfa_leads WHERE tenant_id=:tid AND (name ILIKE :q OR company ILIKE :q) AND status!='converted'
-    ORDER BY name LIMIT 20
-  `, { tid: tenantId, q: like });
-  return res.json({ success: true, data });
+  ];
+  if (!sequelize) return res.json({ success: true, data: mock });
+
+  const like = `%${String(req.query.q || '').trim()}%`;
+  const tid = tenantId || null;
+  try {
+    const data = await q(`
+      SELECT id::text, name, phone, address, 'customer' as type
+      FROM crm_customers
+      WHERE (tenant_id IS NULL OR tenant_id = :tid::uuid OR :tid = '')
+        AND (name ILIKE :q OR phone ILIKE :q OR address ILIKE :q)
+        AND (is_active IS NULL OR is_active = true)
+      ORDER BY name LIMIT 20
+    `, { tid, q: like });
+    if (data?.length) return res.json({ success: true, data });
+  } catch { /* try legacy tables */ }
+
+  try {
+    const data = await q(`
+      SELECT id::text, name, phone, address, 'customer' as type FROM customers
+      WHERE (tenant_id IS NULL OR tenant_id = :tid::uuid OR :tid = '')
+        AND (name ILIKE :q OR phone ILIKE :q) AND (is_active IS NULL OR is_active = true)
+      UNION ALL
+      SELECT id::text, name, phone, company as address, 'prospect' as type FROM sfa_leads
+      WHERE (tenant_id IS NULL OR tenant_id = :tid::uuid OR :tid = '')
+        AND (name ILIKE :q OR company ILIKE :q) AND status != 'converted'
+      ORDER BY name LIMIT 20
+    `, { tid, q: like });
+    return res.json({ success: true, data: data || [] });
+  } catch (e: any) {
+    console.warn('[field-visit searchCustomers]', e.message);
+    return res.json({ success: true, data: [] });
+  }
 }
 
 // ─────────────────────────────────────────
