@@ -14,7 +14,7 @@ import {
   Coffee, Heart, Sun, Moon, Sunrise, Building2, MapPin,
   Eye, Send, RefreshCw, Menu, X, Loader2, Fingerprint,
   Navigation, Camera, Image, ClipboardCheck, Package, Store,
-  CheckSquare, AlertCircle, Map, ScanLine, Timer, Banknote, LayoutGrid, Megaphone, ExternalLink
+  CheckSquare, AlertCircle, Map, ScanLine, Timer, Banknote, LayoutGrid, Megaphone, ExternalLink, Users
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import PhotoCaptureField from '@/components/employee/PhotoCaptureField';
@@ -32,6 +32,7 @@ const ManagerHubTab = dynamic(() => import('@/components/employee/ManagerHubTab'
 const MyFilesTab = dynamic(() => import('@/components/employee/MyFilesTab'), { loading: () => <TabSkeleton />, ssr: false });
 const PayslipTab = dynamic(() => import('@/components/employee/PayslipTab'), { loading: () => <TabSkeleton />, ssr: false });
 const DisciplinaryTab = dynamic(() => import('@/components/employee/DisciplinaryTab'), { loading: () => <TabSkeleton />, ssr: false });
+const VisitDetailModal = dynamic(() => import('@/components/employee/VisitDetailModal'), { ssr: false });
 
 type TabKey = 'home' | 'attendance' | 'overtime' | 'kpi' | 'leave' | 'claims' | 'travel' | 'visit' | 'mf' | 'profile' | 'files' | 'manager' | 'payslip' | 'disciplinary';
 
@@ -156,6 +157,13 @@ const api = async (action: string, method = 'GET', body?: any) => {
   return r.json();
 };
 
+const mgrApi = async (action: string, params?: Record<string, string>) => {
+  const qs = new URLSearchParams({ action, ...params });
+  const r = await fetch(`/api/employee/manager?${qs}`);
+  const text = await r.text();
+  try { return JSON.parse(text); } catch { return { success: false, error: 'Gagal memproses respons' }; }
+};
+
 export default function EmployeeDashboard() {
   const router = useRouter();
   const mainScrollRef = useRef<HTMLElement>(null);
@@ -188,6 +196,13 @@ export default function EmployeeDashboard() {
   const [visitCheckOutPhoto, setVisitCheckOutPhoto] = useState<string | null>(null);
   const [visitEvidencePhoto, setVisitEvidencePhoto] = useState<string | null>(null);
   const [visitMsg, setVisitMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [visitViewMode, setVisitViewMode] = useState<'mine' | 'team'>('mine');
+  const [teamVisits, setTeamVisits] = useState<any[]>([]);
+  const [teamVisitSummary, setTeamVisitSummary] = useState<any>(null);
+  const [teamVisitLoading, setTeamVisitLoading] = useState(false);
+  const [teamVisitDate, setTeamVisitDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [teamVisitDetail, setTeamVisitDetail] = useState<any>(null);
+  const [teamVisitDetailLoading, setTeamVisitDetailLoading] = useState(false);
 
   // ─── Data State ───
   const [profile, setProfile] = useState<any>(null);
@@ -351,6 +366,35 @@ export default function EmployeeDashboard() {
     }
   }, []);
   useEffect(() => { if (mounted && activeTab === 'visit') fetchVisits(); }, [mounted, activeTab, fetchVisits]);
+
+  const fetchTeamVisits = useCallback(async () => {
+    if (!isManagerPortal) return;
+    setTeamVisitLoading(true);
+    try {
+      const res = await mgrApi('team-visit-feed', { date: teamVisitDate });
+      if (res.success) {
+        setTeamVisits(res.data?.visits || []);
+        setTeamVisitSummary(res.data?.summary || null);
+      }
+    } catch { /* keep existing */ }
+    finally { setTeamVisitLoading(false); }
+  }, [isManagerPortal, teamVisitDate]);
+
+  useEffect(() => {
+    if (mounted && activeTab === 'visit' && visitViewMode === 'team' && isManagerPortal) {
+      fetchTeamVisits();
+    }
+  }, [mounted, activeTab, visitViewMode, isManagerPortal, fetchTeamVisits]);
+
+  const openTeamVisitDetail = async (visitId: string) => {
+    setTeamVisitDetailLoading(true);
+    setTeamVisitDetail(null);
+    try {
+      const res = await mgrApi('team-visit-detail', { visitId });
+      if (res.success) setTeamVisitDetail(res.data);
+      else toast.error(res.error || 'Gagal memuat detail kunjungan tim');
+    } finally { setTeamVisitDetailLoading(false); }
+  };
 
   // ── Attendance History: Fetch ───────────────────────────────────────────────
   const fetchAttendanceHistory = useCallback(async (month: string) => {
@@ -1669,6 +1713,121 @@ export default function EmployeeDashboard() {
 
   const renderVisit = () => (
     <div className="space-y-4">
+      {isManagerPortal && (
+        <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
+          <button
+            type="button"
+            onClick={() => setVisitViewMode('mine')}
+            className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
+              visitViewMode === 'mine' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500'
+            }`}
+          >
+            Kunjungan Saya
+          </button>
+          <button
+            type="button"
+            onClick={() => setVisitViewMode('team')}
+            className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1 ${
+              visitViewMode === 'team' ? 'bg-white text-violet-700 shadow-sm' : 'text-slate-500'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5" /> Kunjungan Tim
+          </button>
+        </div>
+      )}
+
+      {visitViewMode === 'team' && isManagerPortal ? (
+        <>
+          <p className="text-[11px] text-slate-500 px-1">
+            Log kunjungan karyawan di bawah tanggung jawab Anda sebagai atasan
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="date"
+              value={teamVisitDate}
+              onChange={e => setTeamVisitDate(e.target.value)}
+              className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white"
+            />
+            <button type="button" onClick={fetchTeamVisits} className="p-2.5 rounded-xl bg-violet-50 text-violet-700 active:scale-95">
+              <RefreshCw className={`w-4 h-4 ${teamVisitLoading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+
+          {teamVisitSummary && (
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                { label: 'Total', value: teamVisitSummary.total, color: 'text-slate-700', bg: 'bg-slate-50' },
+                { label: 'Selesai', value: teamVisitSummary.completed, color: 'text-emerald-700', bg: 'bg-emerald-50' },
+                { label: 'Aktif', value: teamVisitSummary.checked_in, color: 'text-blue-700', bg: 'bg-blue-50' },
+                { label: 'Bukti', value: teamVisitSummary.with_photos, color: 'text-amber-700', bg: 'bg-amber-50' },
+              ].map(s => (
+                <div key={s.label} className={`${s.bg} rounded-xl p-2 text-center`}>
+                  <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
+                  <p className="text-[9px] text-slate-500">{s.label}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {teamVisitLoading ? (
+            <div className="flex items-center justify-center py-10"><Loader2 className="w-7 h-7 animate-spin text-violet-500" /></div>
+          ) : teamVisits.length === 0 ? (
+            <div className="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-100">
+              <Users className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+              <p className="text-gray-500 text-sm">Belum ada kunjungan tim pada tanggal ini</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {teamVisits.map(tv => (
+                <button
+                  key={tv.id}
+                  type="button"
+                  onClick={() => openTeamVisitDetail(tv.id)}
+                  className="w-full text-left bg-white rounded-xl border border-slate-100 p-3 shadow-sm active:scale-[0.99]"
+                >
+                  <div className="flex gap-3">
+                    {tv.thumbnail_url ? (
+                      <img src={tv.thumbnail_url} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" loading="lazy" />
+                    ) : (
+                      <div className="w-12 h-12 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+                        <Image className="w-4 h-4 text-slate-300" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-slate-900 truncate">{tv.customer_name}</p>
+                      <p className="text-[11px] text-violet-600 font-medium">{tv.employee_name}</p>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${statusColor[tv.status as VisitStatus] || 'bg-slate-100 text-slate-600'}`}>
+                          {statusLabel[tv.status as VisitStatus] || tv.status}
+                        </span>
+                        {tv.check_in_time && (
+                          <span className="text-[10px] text-slate-400">
+                            {new Date(tv.check_in_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        )}
+                        {tv.has_photos && <span className="text-[10px] text-amber-600">{tv.evidence_count} foto</span>}
+                        {tv.check_in_geofence_name && (
+                          <GeofenceBadge name={tv.check_in_geofence_name} status={tv.check_in_geofence_status} distance={tv.check_in_geofence_distance_m} />
+                        )}
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-300 shrink-0 self-center" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {(teamVisitDetail || teamVisitDetailLoading) && (
+            <VisitDetailModal
+              visit={teamVisitDetail}
+              loading={teamVisitDetailLoading}
+              onClose={() => { setTeamVisitDetail(null); setTeamVisitDetailLoading(false); }}
+            />
+          )}
+        </>
+      ) : (
+        <>
       {/* Stats Summary */}
       <div className="grid grid-cols-4 gap-2">
         {[
@@ -1971,6 +2130,8 @@ export default function EmployeeDashboard() {
             </button>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );
