@@ -256,6 +256,12 @@ export default function HumanifyWelcomePage() {
             priority
           />
           <nav className="flex items-center gap-2 sm:gap-5">
+            <Link
+              href={HUMANIFY_BRAND.roiCalculatorPath}
+              className="hidden md:inline text-sm text-violet-300/60 hover:text-violet-200 transition"
+            >
+              Kalkulator ROI
+            </Link>
             <a
               href={NAINCODE.website}
               target="_blank"

@@ -66,8 +66,8 @@ export default function RecruitmentPage() {
     try {
       const res = await fetch('/api/humanify/recruitment?action=openings');
       const data = await res.json();
-      if (data.data?.length) setOpenings(Array.isArray(data.data) ? data.data : MOCK_OPENINGS);
-      else setOpenings(MOCK_OPENINGS);
+      if (data.success && Array.isArray(data.data)) setOpenings(data.data);
+      else if (!res.ok) setOpenings(MOCK_OPENINGS);
     } catch (e) { console.warn('Failed to fetch openings:', e); setOpenings(MOCK_OPENINGS); }
   }, []);
 
@@ -75,8 +75,8 @@ export default function RecruitmentPage() {
     try {
       const res = await fetch('/api/humanify/recruitment?action=candidates');
       const data = await res.json();
-      if (data.data?.length) setCandidates(Array.isArray(data.data) ? data.data : MOCK_CANDIDATES);
-      else setCandidates(MOCK_CANDIDATES);
+      if (data.success && Array.isArray(data.data)) setCandidates(data.data);
+      else if (!res.ok) setCandidates(MOCK_CANDIDATES);
     } catch (e) { console.warn('Failed to fetch candidates:', e); setCandidates(MOCK_CANDIDATES); }
   }, []);
 
@@ -84,8 +84,8 @@ export default function RecruitmentPage() {
     try {
       const res = await fetch('/api/humanify/recruitment?action=analytics');
       const data = await res.json();
-      if (data.data) setAnalytics(data.data);
-      else setAnalytics(MOCK_RECRUITMENT_ANALYTICS);
+      if (data.success && data.data) setAnalytics(data.data);
+      else if (!res.ok) setAnalytics(MOCK_RECRUITMENT_ANALYTICS);
     } catch (e) { console.warn('Failed to fetch analytics:', e); setAnalytics(MOCK_RECRUITMENT_ANALYTICS); }
   }, []);
 

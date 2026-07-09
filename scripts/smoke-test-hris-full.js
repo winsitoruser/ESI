@@ -131,11 +131,14 @@ async function testPages() {
     '/humanify/mss',
     '/humanify/mutations',
     '/humanify/workforce-analytics',
+    '/humanify/hr-analytics',
+    '/humanify/reimbursement',
     '/humanify/travel-expense',
     '/humanify/engagement',
     '/humanify/announcements',
     '/hq/multifinance/workforce',
     '/employee',
+    '/employee/login',
   ];
   for (const p of pages) {
     const res = await fetch(`${BASE}${p}`, { headers: { Cookie: COOKIE }, redirect: 'manual' });
@@ -177,6 +180,11 @@ async function testHqApis() {
   expectApi('org-tree', await api('GET', '/api/humanify/organization?action=org-tree'));
   expectApi('org summary', await api('GET', '/api/humanify/organization?action=summary'));
   expectApi('workforce overview', await api('GET', '/api/humanify/workforce-analytics?action=overview'));
+  expectApi('hr-analytics', await api('GET', `/api/humanify/hr-analytics?period=${month}`), { hasData: true });
+  expectApi('predictive-analytics', await api('GET', `/api/humanify/predictive-analytics?action=overview&period=${month}`), { hasData: true });
+  expectApi('ai-insights batch', await api('GET', `/api/humanify/ai-insights?batch=true&period=${month}`), { hasData: true });
+  expectApi('nine-box matrix', await api('GET', `/api/humanify/nine-box?period=${month}`), { hasData: true });
+  expectApi('recruitment screening', await api('GET', '/api/humanify/recruitment?action=screening'), { hasData: true });
   expectApi('reports-hub', await api('GET', `/api/humanify/reports-hub?period=${month}`));
   expectApi('overtime list', await api('GET', '/api/humanify/overtime?action=list'));
   expectApi('workflow summary', await api('GET', '/api/humanify/workflow?action=summary'));

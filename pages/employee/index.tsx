@@ -299,7 +299,7 @@ export default function EmployeeDashboard() {
   }, [mounted]);
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.replace(`/auth/login?callbackUrl=${encodeURIComponent('/employee')}`);
+      router.replace(`/employee/login?callbackUrl=${encodeURIComponent('/employee')}`);
     }
   }, [status, router]);
   useEffect(() => { if (mounted) fetchAll(); }, [mounted, fetchAll]);
@@ -1622,7 +1622,7 @@ export default function EmployeeDashboard() {
           <div className="flex items-center gap-3"><div className="w-9 h-9 bg-violet-50 rounded-xl flex items-center justify-center"><Shield className="w-4 h-4 text-violet-600" /></div><span className="text-sm font-medium text-slate-700">HQ Dashboard</span></div>
           <ChevronRight className="w-4 h-4 text-slate-400" />
         </Link>
-        <button onClick={() => signOut({ callbackUrl: '/auth/login' })} className="w-full flex items-center justify-between p-4 bg-white rounded-2xl shadow-sm border border-rose-100 active:scale-[0.99] transition-transform">
+        <button onClick={() => signOut({ callbackUrl: '/employee/login' })} className="w-full flex items-center justify-between p-4 bg-white rounded-2xl shadow-sm border border-rose-100 active:scale-[0.99] transition-transform">
           <div className="flex items-center gap-3"><div className="w-9 h-9 bg-rose-50 rounded-xl flex items-center justify-center"><LogOut className="w-4 h-4 text-rose-500" /></div><span className="text-sm font-medium text-rose-600">Keluar</span></div>
           <ChevronRight className="w-4 h-4 text-rose-400" />
         </button>

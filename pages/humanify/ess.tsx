@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import { useTranslation } from '@/lib/i18n';
 import {
   User, FileText, Calendar, DollarSign, Clock, Bell, Shield,
   Award, GraduationCap, Heart, Briefcase, Send, Eye, CheckCircle,
   XCircle, AlertTriangle, ChevronRight, Plus, RefreshCw,
-  UploadCloud, Image, Paperclip, Trash2, Loader2
+  UploadCloud, Image, Paperclip, Trash2, Loader2, Smartphone, ExternalLink
 } from 'lucide-react';
 
 type ESSTab = 'overview' | 'profile' | 'leave' | 'claims' | 'documents' | 'reminders';
@@ -153,11 +154,17 @@ export default function ESSPortalPage() {
 
       <div className="p-4 md:p-6 space-y-4">
         {/* Header */}
-        <div>
-          <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-            <User className="w-6 h-6 text-emerald-600" /> Employee Self Service (ESS)
-          </h1>
-          <p className="text-sm text-gray-500 mt-0.5">Portal layanan mandiri karyawan</p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+              <User className="w-6 h-6 text-emerald-600" /> Employee Self Service (ESS)
+            </h1>
+            <p className="text-sm text-gray-500 mt-0.5">Konsol HR untuk monitoring klaim & pengingat karyawan</p>
+          </div>
+          <Link href="/employee" target="_blank"
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg hover:shadow-xl transition">
+            <Smartphone className="w-4 h-4" /> Buka Portal Karyawan
+          </Link>
         </div>
 
         {/* Quick Stats */}
@@ -210,9 +217,9 @@ export default function ESSPortalPage() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     {[
                       { label: 'Ajukan Klaim', icon: DollarSign, color: 'bg-emerald-50 text-emerald-600 border-emerald-200', action: () => { setActiveTab('claims'); setShowClaimModal(true); } },
-                      { label: 'Lihat Dokumen', icon: FileText, color: 'bg-blue-50 text-blue-600 border-blue-200', action: () => {} },
+                      { label: 'Portal Karyawan', icon: ExternalLink, color: 'bg-blue-50 text-blue-600 border-blue-200', action: () => window.open('/employee', '_blank') },
                       { label: 'Pengingat', icon: Bell, color: 'bg-orange-50 text-orange-600 border-orange-200', action: () => setActiveTab('reminders') },
-                      { label: 'Data Profil', icon: User, color: 'bg-purple-50 text-purple-600 border-purple-200', action: () => {} },
+                      { label: 'Reimbursement HR', icon: FileText, color: 'bg-purple-50 text-purple-600 border-purple-200', action: () => window.location.href = '/humanify/reimbursement' },
                     ].map((act, i) => (
                       <button key={i} onClick={act.action}
                         className={`flex flex-col items-center gap-2 p-4 rounded-xl border hover:shadow-sm transition-shadow ${act.color}`}>

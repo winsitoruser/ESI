@@ -26,7 +26,7 @@ function FooterColumn({
               href={link.href}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm text-[#9ca3af] hover:text-[#00f590] transition-colors"
+              className="text-sm text-violet-300/50 hover:text-violet-200 transition-colors"
             >
               {link.label}
             </a>
@@ -39,7 +39,7 @@ function FooterColumn({
 
 export function NaincodeFooter() {
   return (
-    <footer className="relative z-10 border-t border-[#00dc82]/10 bg-[#020510]">
+    <footer className="relative z-10 border-t border-white/[0.06] bg-[#050508]">
       <div className="max-w-7xl mx-auto px-6 py-16 sm:py-20">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-10 lg:gap-8">
           <div className="sm:col-span-2 lg:col-span-5">
@@ -58,7 +58,7 @@ export function NaincodeFooter() {
               />
             </a>
 
-            <p className="mt-5 mb-6 text-sm leading-relaxed text-[#9ca3af] max-w-md">
+            <p className="mt-5 mb-6 text-sm leading-relaxed text-violet-200/60 max-w-md">
               {NAINCODE.footerTagline}
             </p>
 
@@ -66,23 +66,23 @@ export function NaincodeFooter() {
               <li>
                 <a
                   href={`mailto:${NAINCODE.email}`}
-                  className="inline-flex items-start gap-3 text-sm text-[#9ca3af] hover:text-[#00f590] transition-colors"
+                  className="inline-flex items-start gap-3 text-sm text-violet-300/50 hover:text-violet-200 transition-colors"
                 >
-                  <Mail className="w-4 h-4 mt-0.5 shrink-0 text-[#9ca3af]" />
+                  <Mail className="w-4 h-4 mt-0.5 shrink-0 text-violet-400/60" />
                   {NAINCODE.email}
                 </a>
               </li>
               <li>
                 <a
                   href={`tel:${NAINCODE.phone.replace(/\s/g, '')}`}
-                  className="inline-flex items-start gap-3 text-sm text-[#9ca3af] hover:text-[#00f590] transition-colors"
+                  className="inline-flex items-start gap-3 text-sm text-violet-300/50 hover:text-violet-200 transition-colors"
                 >
-                  <Phone className="w-4 h-4 mt-0.5 shrink-0 text-[#9ca3af]" />
+                  <Phone className="w-4 h-4 mt-0.5 shrink-0 text-violet-400/60" />
                   {NAINCODE.phone}
                 </a>
               </li>
-              <li className="inline-flex items-start gap-3 text-sm text-[#9ca3af] leading-relaxed">
-                <MapPin className="w-4 h-4 mt-0.5 shrink-0" />
+              <li className="inline-flex items-start gap-3 text-sm text-violet-300/50 leading-relaxed">
+                <MapPin className="w-4 h-4 mt-0.5 shrink-0 text-violet-400/60" />
                 <span>{NAINCODE.address}</span>
               </li>
             </ul>
@@ -107,7 +107,7 @@ export function NaincodeFooter() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={label}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.04] text-[#9ca3af] hover:text-white hover:border-[#00dc82]/30 hover:bg-[#00dc82]/10 transition-colors"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03] text-violet-300/50 hover:text-violet-100 hover:border-violet-400/25 hover:bg-violet-500/10 transition-colors"
                 >
                   <Icon className="w-4 h-4" />
                 </a>
@@ -116,8 +116,8 @@ export function NaincodeFooter() {
           </div>
         </div>
 
-        <div className="mt-14 pt-6 border-t border-[#00dc82]/10">
-          <p className="text-xs text-[#9ca3af]/70">
+        <div className="mt-14 pt-6 border-t border-white/[0.06]">
+          <p className="text-xs text-violet-400/40">
             © {new Date().getFullYear()} {NAINCODE.legalName}. All rights reserved.
           </p>
         </div>

@@ -3,31 +3,82 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]';
 import { buildNineBoxFromReviews, getNineBoxSummary, getMockNineBox } from '@/lib/hris/nine-box-matrix';
 
+let sequelize: any;
+try { sequelize = require('../../../lib/sequelize'); } catch {}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
   if (!session) return res.status(401).json({ error: 'Unauthorized' });
-
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-  try {
-    const reviews = [
-      { employeeId: '1', employeeName: 'Ahmad Wijaya', department: 'MANAGEMENT', position: 'GM', overallRating: 4.5, reviewPeriod: 'Q1 2026' },
-      { employeeId: '2', employeeName: 'Siti Rahayu', department: 'OPERATIONS', position: 'Branch Manager', overallRating: 4.2, reviewPeriod: 'Q1 2026' },
-      { employeeId: '3', employeeName: 'Made Wirawan', department: 'OPERATIONS', position: 'Branch Manager', overallRating: 4.8, reviewPeriod: 'Q1 2026' },
-      { employeeId: '4', employeeName: 'Lisa Permata', department: 'FINANCE', position: 'Finance Manager', overallRating: 4.3, reviewPeriod: 'Q1 2026' },
-      { employeeId: '5', employeeName: 'Fajar Setiawan', department: 'SALES', position: 'Sales Supervisor', overallRating: 3.2, reviewPeriod: 'Q1 2026' },
-      { employeeId: '6', employeeName: 'Budi Santoso', department: 'FINANCE', position: 'Accountant', overallRating: 3.8, reviewPeriod: 'Q1 2026' },
-      { employeeId: '7', employeeName: 'Maya Putri', department: 'HR', position: 'HR Officer', overallRating: 3.5, reviewPeriod: 'Q1 2026' },
-      { employeeId: '8', employeeName: 'Dimas Prasetyo', department: 'IT', position: 'Developer', overallRating: 4.0, reviewPeriod: 'Q1 2026' },
-      { employeeId: '9', employeeName: 'Rani Kusuma', department: 'WAREHOUSE', position: 'Staff', overallRating: 2.8, reviewPeriod: 'Q1 2026' },
-    ];
-    const kpiData = reviews.map((_, i) => ({ employeeId: reviews[i].employeeId, achievement: [95, 88, 92, 85, 62, 78, 75, 90, 55][i] }));
+  const period = (req.query.period as string) || new Date().toISOString().substring(0, 7);
+  let dataSource: 'live' | 'demo' = 'live';
 
+  try {
+    if (!sequelize) {
+      const mock = getMockNineBox();
+      return res.json({ success: true, data: { employees: mock, summary: getNineBoxSummary(mock) }, dataSource: 'demo' });
+    }
+
+    const [reviews] = await sequelize.query(`
+      SELECT pr.employee_id as "employeeId",
+        e.name as "employeeName",
+        e.department,
+        e.position,
+        pr.overall_score as "overallRating",
+        pr.period as "reviewPeriod"
+      FROM performance_reviews pr
+      JOIN employees e ON pr.employee_id = e.id
+      WHERE pr.status = 'completed' AND pr.overall_score IS NOT NULL
+        AND (pr.period LIKE :period || '%' OR pr.period IS NULL)
+      ORDER BY pr.overall_score DESC
+      LIMIT 100
+    `, { replacements: { period } });
+
+    if (!reviews?.length) {
+      // Fallback: use KPI data when no performance reviews
+      const [kpiRows] = await sequelize.query(`
+        SELECT e.id as "employeeId", e.name as "employeeName", e.department, e.position,
+          ROUND(AVG(CASE WHEN ek.target > 0 THEN ek.actual/ek.target*100 ELSE 70 END)::numeric, 0) as achievement
+        FROM employees e
+        LEFT JOIN employee_kpis ek ON ek.employee_id = e.id AND ek.period = :period
+        WHERE e.is_active = true OR e.status = 'active' OR e.status IS NULL
+        GROUP BY e.id, e.name, e.department, e.position
+        LIMIT 50
+      `, { replacements: { period } });
+
+      if (kpiRows?.length) {
+        const syntheticReviews = kpiRows.map((r: any) => ({
+          employeeId: r.employeeId,
+          employeeName: r.employeeName,
+          department: r.department,
+          position: r.position,
+          overallRating: Math.min(5, Math.max(1, (r.achievement || 70) / 20)),
+          reviewPeriod: period,
+        }));
+        const kpiData = kpiRows.map((r: any) => ({ employeeId: r.employeeId, achievement: r.achievement || 70 }));
+        const employees = buildNineBoxFromReviews(syntheticReviews, kpiData);
+        return res.json({ success: true, data: { employees, summary: getNineBoxSummary(employees) }, dataSource: 'live' });
+      }
+
+      const mock = getMockNineBox();
+      return res.json({ success: true, data: { employees: mock, summary: getNineBoxSummary(mock) }, dataSource: 'demo' });
+    }
+
+    const employeeIds = reviews.map((r: any) => r.employeeId);
+    const [kpiRows] = await sequelize.query(`
+      SELECT employee_id, ROUND(AVG(CASE WHEN target > 0 THEN actual/target*100 ELSE 0 END)::numeric, 0) as achievement
+      FROM employee_kpis WHERE employee_id = ANY(:ids) AND period = :period
+      GROUP BY employee_id
+    `, { replacements: { ids: employeeIds, period } });
+
+    const kpiData = (kpiRows || []).map((k: any) => ({ employeeId: k.employee_id, achievement: parseFloat(k.achievement) || 70 }));
     const employees = buildNineBoxFromReviews(reviews, kpiData);
     const summary = getNineBoxSummary(employees);
 
-    return res.json({ success: true, data: { employees, summary } });
+    return res.json({ success: true, data: { employees, summary }, dataSource });
   } catch (error: any) {
-    return res.json({ success: true, data: { employees: getMockNineBox(), summary: getNineBoxSummary(getMockNineBox()) } });
+    const mock = getMockNineBox();
+    return res.json({ success: true, data: { employees: mock, summary: getNineBoxSummary(mock) }, dataSource: 'demo', warning: error?.message });
   }
 }

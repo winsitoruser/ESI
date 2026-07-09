@@ -128,6 +128,7 @@ export const humanifySidebarConfig: SidebarConfig = {
       id: 'analytics',
       title: 'Laporan & Analitik',
       items: [
+        { id: 'humanify-hr-analytics', name: 'HR Analytics Hub', href: '/humanify/hr-analytics', icon: Activity, modules: ['humanify', 'hris'] },
         { id: 'humanify-reports', name: 'Laporan HRIS', href: '/humanify/reports', icon: FileBarChart, modules: ['humanify', 'hris'] },
         { id: 'humanify-analytics', name: 'Workforce Analytics', href: '/humanify/workforce-analytics', icon: BarChart3, modules: ['humanify', 'hris'] },
       ],

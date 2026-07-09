@@ -59,6 +59,7 @@ export const HUMANIFY_BRAND = {
   parent: NAINCODE.name,
   loginPath: '/humanify/login',
   welcomePath: '/humanify/welcome',
+  roiCalculatorPath: '/humanify/pricing/roi-calculator',
   appPath: '/humanify',
   employeePortalPath: '/employee',
   employeeLoginPath: '/employee/login',
