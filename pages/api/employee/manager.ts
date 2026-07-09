@@ -16,6 +16,7 @@ import {
   type DisciplinaryLetterType,
 } from '@/lib/hris/disciplinary-workflow';
 import { ensureDisciplinarySchema } from '@/lib/hris/disciplinary-schema';
+import { getTeamMemberDetail } from '@/lib/hris/manager-team-member-service';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch (_) {}
@@ -45,6 +46,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         case 'pending-approvals': return getPendingApprovals(res, userId, tenantId, isSuperAdmin);
         case 'team': return getTeam(res, userId, tenantId, isSuperAdmin);
         case 'disciplinary-letters': return getDisciplinaryLetters(res, userId, tenantId, isSuperAdmin);
+        case 'team-member-detail': return getTeamMemberDetailHandler(req, res, userId, isSuperAdmin);
         default: return res.status(400).json({ error: 'Unknown action' });
       }
     }
@@ -172,6 +174,28 @@ async function getPendingApprovals(res: NextApiResponse, userId: string, tenantI
   `, { replacements: base }).catch(() => [[]]);
 
   return res.json({ success: true, data: { leave: leave || [], claims: claims || [], overtime: overtime || [] } });
+}
+
+async function getTeamMemberDetailHandler(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  userId: string,
+  isSuperAdmin: boolean,
+) {
+  const employeeId = String(req.query.employeeId || '');
+  if (!employeeId) {
+    return res.status(400).json({ success: false, error: 'employeeId wajib' });
+  }
+
+  const period = req.query.period ? String(req.query.period) : undefined;
+  const month = req.query.month ? String(req.query.month) : undefined;
+
+  const result = await getTeamMemberDetail(sequelize, userId, employeeId, isSuperAdmin, { period, month });
+  if ('error' in result && result.error) {
+    return res.status(result.status || 403).json({ success: false, error: result.error });
+  }
+
+  return res.json({ success: true, data: result });
 }
 
 async function getTeam(res: NextApiResponse, userId: string, tenantId: string, isSuperAdmin: boolean) {

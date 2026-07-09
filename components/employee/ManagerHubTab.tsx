@@ -5,6 +5,7 @@ import {
   Send, Stamp, Paperclip, X, Search,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import TeamMemberDetailSheet from './TeamMemberDetailSheet';
 
 const fmtCur = (n: number) => `Rp ${(n || 0).toLocaleString('id-ID')}`;
 const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
@@ -133,6 +134,7 @@ export default function ManagerHubTab({ isSuperAdmin = false }: Props) {
   });
   const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
   const [evidencePreviews, setEvidencePreviews] = useState<{ name: string; url: string; type: string }[]>([]);
+  const [selectedMember, setSelectedMember] = useState<{ id: string; name: string } | null>(null);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -283,7 +285,7 @@ export default function ManagerHubTab({ isSuperAdmin = false }: Props) {
             <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-semibold">Super Admin</span>
           )}
         </div>
-        <p className="text-violet-100 text-xs">Persetujuan tim & surat peringatan</p>
+        <p className="text-violet-100 text-xs">Persetujuan tim, KPI & absensi karyawan</p>
         {summary.total > 0 && (
           <p className="mt-2 text-sm font-semibold">{summary.total} pengajuan menunggu persetujuan</p>
         )}
@@ -489,6 +491,7 @@ export default function ManagerHubTab({ isSuperAdmin = false }: Props) {
       {/* Team tab */}
       {activeTab === 'team' && (
         <div className="space-y-2">
+          <p className="text-[11px] text-slate-500 px-1">Ketuk nama karyawan untuk melihat KPI & absensi</p>
           {team.length === 0 ? (
             <div className="text-center py-10 text-slate-400">
               <Users className="w-10 h-10 mx-auto mb-2 opacity-40" />
@@ -496,16 +499,23 @@ export default function ManagerHubTab({ isSuperAdmin = false }: Props) {
             </div>
           ) : team.map(member => (
             <div key={member.id} className="flex items-center gap-3 bg-white rounded-xl border border-slate-100 p-3">
-              <div className="w-9 h-9 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center text-xs font-bold">
-                {(member.name || '?').split(' ').map((w: string) => w[0]).slice(0, 2).join('')}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-slate-900 truncate">{member.name}</p>
-                <p className="text-[11px] text-slate-500">{member.position} · {member.department}</p>
-              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedMember({ id: String(member.id), name: member.name })}
+                className="flex items-center gap-3 flex-1 min-w-0 text-left active:scale-[0.98] transition-transform"
+              >
+                <div className="w-9 h-9 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center text-xs font-bold shrink-0">
+                  {(member.name || '?').split(' ').map((w: string) => w[0]).slice(0, 2).join('')}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-slate-900 truncate">{member.name}</p>
+                  <p className="text-[11px] text-slate-500">{member.position} · {member.department}</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+              </button>
               <button
                 onClick={() => { setSpForm(f => ({ ...f, employee_id: member.id })); setShowSpModal(true); setActiveTab('disciplinary'); }}
-                className="p-2 rounded-lg bg-red-50 text-red-600 active:scale-95"
+                className="p-2 rounded-lg bg-red-50 text-red-600 active:scale-95 shrink-0"
                 title="Buat SP"
               >
                 <AlertTriangle className="w-4 h-4" />
@@ -513,6 +523,15 @@ export default function ManagerHubTab({ isSuperAdmin = false }: Props) {
             </div>
           ))}
         </div>
+      )}
+
+      {/* Team member detail sheet */}
+      {selectedMember && (
+        <TeamMemberDetailSheet
+          employeeId={selectedMember.id}
+          employeeName={selectedMember.name}
+          onClose={() => setSelectedMember(null)}
+        />
       )}
 
       {/* Reject modal */}
