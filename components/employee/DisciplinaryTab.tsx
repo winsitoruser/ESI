@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { FileWarning, AlertTriangle, CheckCircle, Loader2, Shield } from 'lucide-react';
+import { FileWarning, AlertTriangle, CheckCircle, Loader2, Shield, ChevronDown, ChevronUp } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { Card, SectionHeader, StatusBadge } from '@/components/employee/portal-ui';
 
 const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-';
 
@@ -9,11 +10,91 @@ const SP_LABEL: Record<string, string> = {
   SP3: 'Surat Peringatan 3', TERMINATION: 'Pemutusan Hubungan Kerja',
 };
 
-const STATUS_STYLE: Record<string, { bg: string; text: string; label: string }> = {
-  issued: { bg: 'bg-red-50 ring-red-200', text: 'text-red-700', label: 'Diterbitkan' },
-  acknowledged: { bg: 'bg-emerald-50 ring-emerald-200', text: 'text-emerald-700', label: 'Diakui' },
-  pending_approval: { bg: 'bg-amber-50 ring-amber-200', text: 'text-amber-700', label: 'Proses' },
+const STATUS_MAP: Record<string, { status: string; label: string }> = {
+  issued: { status: 'pending', label: 'Perlu Diakui' },
+  acknowledged: { status: 'approved', label: 'Diakui' },
+  pending_approval: { status: 'pending', label: 'Proses' },
 };
+
+function LetterCard({ letter, onAcknowledge, acknowledging }: {
+  letter: any;
+  onAcknowledge: (id: string) => void;
+  acknowledging: string | null;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const needsAck = letter.status === 'issued';
+  const st = STATUS_MAP[letter.status] || { status: letter.status, label: letter.status };
+
+  return (
+    <Card
+      variant="elevated"
+      className={`${needsAck ? 'ring-2 ring-red-200/80 border-red-100' : ''}`}
+    >
+      <div className="p-4">
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="w-full flex items-start justify-between gap-3 text-left"
+        >
+          <div className="min-w-0 flex-1">
+            <p className="font-bold text-sm text-slate-900 truncate">
+              {SP_LABEL[letter.letter_type] || letter.letter_type}
+            </p>
+            {letter.letter_number && (
+              <p className="text-[11px] text-slate-500 font-mono truncate">{letter.letter_number}</p>
+            )}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <StatusBadge status={st.status === 'pending' && needsAck ? 'pending' : st.status === 'approved' ? 'approved' : 'pending'} />
+            {expanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+          </div>
+        </button>
+
+        {(expanded || needsAck) && (
+          <div className="mt-3 space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-600">
+              {letter.incident_date && (
+                <p><span className="font-medium text-slate-700">Kejadian:</span> {fmtDate(letter.incident_date)}</p>
+              )}
+              {letter.effective_date && (
+                <p><span className="font-medium text-slate-700">Terbit:</span> {fmtDate(letter.effective_date)}</p>
+              )}
+              {letter.expiry_date && (
+                <p className="sm:col-span-2"><span className="font-medium text-slate-700">Berlaku hingga:</span> {fmtDate(letter.expiry_date)}</p>
+              )}
+            </div>
+
+            <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Pelanggaran</p>
+              <p className="text-xs text-slate-700 leading-relaxed">{letter.violation_description}</p>
+            </div>
+
+            {letter.acknowledged_at && (
+              <div className="flex items-center gap-1.5 text-xs text-emerald-600">
+                <CheckCircle className="w-3.5 h-3.5 shrink-0" />
+                Diakui pada {fmtDate(letter.acknowledged_at)}
+              </div>
+            )}
+
+            {needsAck && (
+              <button
+                onClick={() => onAcknowledge(letter.id)}
+                disabled={acknowledging === letter.id}
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 text-white text-sm font-semibold active:scale-[0.98] disabled:opacity-50 shadow-lg shadow-red-500/15"
+              >
+                {acknowledging === letter.id ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Memproses...</>
+                ) : (
+                  <><CheckCircle className="w-4 h-4" /> Akui Penerimaan Surat</>
+                )}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
 
 export default function DisciplinaryTab() {
   const [loading, setLoading] = useState(true);
@@ -54,27 +135,28 @@ export default function DisciplinaryTab() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <Loader2 className="w-8 h-8 animate-spin text-red-500" />
+      <div className="flex flex-col items-center justify-center py-16 gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
+        <p className="text-xs text-slate-400">Memuat surat peringatan...</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl bg-gradient-to-br from-red-600 to-rose-700 p-4 text-white">
+      <Card variant="accent" className="p-4 !from-red-950 !via-rose-900 !to-red-900">
         <div className="flex items-center gap-2 mb-1">
           <FileWarning className="w-5 h-5" />
           <span className="font-bold text-sm">Surat Peringatan</span>
         </div>
-        <p className="text-red-100 text-xs">Dokumen disiplin & tata tertib perusahaan</p>
+        <p className="text-red-100/80 text-xs">Dokumen disiplin & tata tertib perusahaan</p>
         {pendingAck > 0 && (
-          <div className="mt-2 flex items-center gap-1.5 text-sm font-semibold bg-white/20 rounded-lg px-3 py-1.5">
-            <AlertTriangle className="w-4 h-4" />
-            {pendingAck} surat perlu diakui
+          <div className="mt-3 flex items-center gap-2 text-sm font-semibold bg-white/15 rounded-xl px-3 py-2.5 border border-white/10">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>{pendingAck} surat perlu segera diakui</span>
           </div>
         )}
-      </div>
+      </Card>
 
       {letters.length === 0 ? (
         <div className="text-center py-12 text-slate-400">
@@ -82,68 +164,19 @@ export default function DisciplinaryTab() {
           <p className="text-sm font-medium">Tidak ada surat peringatan</p>
           <p className="text-xs mt-1">Catatan disiplin Anda bersih</p>
         </div>
-      ) : letters.map(letter => {
-        const st = STATUS_STYLE[letter.status] || { bg: 'bg-slate-50', text: 'text-slate-600', label: letter.status };
-        const needsAck = letter.status === 'issued';
-
-        return (
-          <div key={letter.id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${needsAck ? 'border-red-200 ring-2 ring-red-100' : 'border-slate-100'}`}>
-            <div className="p-4">
-              <div className="flex items-start justify-between mb-2">
-                <div>
-                  <p className="font-bold text-sm text-slate-900">
-                    {SP_LABEL[letter.letter_type] || letter.letter_type}
-                  </p>
-                  {letter.letter_number && (
-                    <p className="text-[11px] text-slate-500 font-mono">{letter.letter_number}</p>
-                  )}
-                </div>
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ring-1 ${st.bg} ${st.text}`}>
-                  {st.label}
-                </span>
-              </div>
-
-              <div className="space-y-1 text-xs text-slate-600 mb-3">
-                {letter.incident_date && (
-                  <p><span className="font-medium text-slate-700">Tanggal Kejadian:</span> {fmtDate(letter.incident_date)}</p>
-                )}
-                {letter.effective_date && (
-                  <p><span className="font-medium text-slate-700">Tanggal Terbit:</span> {fmtDate(letter.effective_date)}</p>
-                )}
-                {letter.expiry_date && (
-                  <p><span className="font-medium text-slate-700">Berlaku Hingga:</span> {fmtDate(letter.expiry_date)}</p>
-                )}
-              </div>
-
-              <div className="bg-slate-50 rounded-xl p-3 mb-3">
-                <p className="text-[11px] font-bold text-slate-500 uppercase mb-1">Pelanggaran</p>
-                <p className="text-xs text-slate-700 leading-relaxed">{letter.violation_description}</p>
-              </div>
-
-              {letter.acknowledged_at && (
-                <div className="flex items-center gap-1.5 text-xs text-emerald-600 mb-2">
-                  <CheckCircle className="w-3.5 h-3.5" />
-                  Diakui pada {fmtDate(letter.acknowledged_at)}
-                </div>
-              )}
-
-              {needsAck && (
-                <button
-                  onClick={() => handleAcknowledge(letter.id)}
-                  disabled={acknowledging === letter.id}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-red-600 text-white text-sm font-semibold active:scale-95 disabled:opacity-50"
-                >
-                  {acknowledging === letter.id ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /> Memproses...</>
-                  ) : (
-                    <><CheckCircle className="w-4 h-4" /> Akui Penerimaan Surat</>
-                  )}
-                </button>
-              )}
-            </div>
-          </div>
-        );
-      })}
+      ) : (
+        <div className="space-y-3">
+          <SectionHeader title={`Riwayat (${letters.length})`} subtitle="Ketuk kartu untuk detail" />
+          {letters.map(letter => (
+            <LetterCard
+              key={letter.id}
+              letter={letter}
+              onAcknowledge={handleAcknowledge}
+              acknowledging={acknowledging}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

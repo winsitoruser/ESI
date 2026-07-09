@@ -2676,6 +2676,8 @@ export default function EmployeeDashboard() {
         @media (prefers-reduced-motion: reduce) {
           .animate-slide-up { animation: none !important; }
         }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
       `}</style>
     </>
   );

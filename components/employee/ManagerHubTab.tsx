@@ -2,11 +2,12 @@ import { useState, useEffect, useCallback, memo } from 'react';
 import {
   Shield, CheckCircle, XCircle, Clock, Calendar, Wallet, Timer,
   AlertTriangle, Users, FileWarning, Plus, Loader2, ChevronRight,
-  Send, Stamp, Paperclip, X, Search, MapPin, Navigation, Image, RefreshCw,
+  Send, Stamp, X, Search, MapPin, Navigation, Image, RefreshCw,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import TeamMemberDetailSheet from './TeamMemberDetailSheet';
 import VisitDetailModal from './VisitDetailModal';
+import SpRequestModal from './SpRequestModal';
 
 const fmtCur = (n: number) => `Rp ${(n || 0).toLocaleString('id-ID')}`;
 const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
@@ -59,7 +60,7 @@ const SP_STATUS_COLOR: Record<string, string> = {
   review: 'bg-violet-50 text-violet-700 ring-violet-200',
 };
 const SP_TYPES = [
-  { value: 'TEGURAN', label: 'Teguran Lisan/Tertulis' },
+  { value: 'TEGURAN', label: 'Teguran' },
   { value: 'SP1', label: 'SP 1' },
   { value: 'SP2', label: 'SP 2' },
   { value: 'SP3', label: 'SP 3' },
@@ -347,10 +348,11 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
         ))}
       </div>
 
-      {/* Sub-tabs */}
-      <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
+      {/* Sub-tabs — horizontal scroll on narrow screens */}
+      <div className="overflow-x-auto -mx-1 px-1 scrollbar-hide">
+        <div className="flex gap-1 bg-slate-100 rounded-xl p-1 min-w-max sm:min-w-0">
         {([
-          { key: 'approvals' as MgrTab, label: 'Persetujuan', icon: CheckCircle },
+          { key: 'approvals' as MgrTab, label: 'Persetujuan', icon: CheckCircle, badge: summary.total },
           { key: 'visits' as MgrTab, label: 'Kunjungan', icon: Navigation },
           { key: 'disciplinary' as MgrTab, label: 'Surat SP', icon: FileWarning },
           { key: 'team' as MgrTab, label: 'Tim', icon: Users },
@@ -358,14 +360,20 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
           <button
             key={t.key}
             onClick={() => setActiveTab(t.key)}
-            className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-[11px] font-semibold transition-all ${
+            className={`relative flex items-center justify-center gap-1 py-2.5 px-3 sm:flex-1 rounded-lg text-[11px] font-semibold transition-all whitespace-nowrap ${
               activeTab === t.key ? 'bg-white text-violet-700 shadow-sm' : 'text-slate-500'
             }`}
           >
-            <t.icon className="w-3.5 h-3.5" />
+            <t.icon className="w-3.5 h-3.5 shrink-0" />
             {t.label}
+            {'badge' in t && t.badge != null && t.badge > 0 && (
+              <span className="ml-0.5 min-w-[16px] h-4 px-1 rounded-full bg-violet-600 text-white text-[9px] font-bold flex items-center justify-center">
+                {t.badge > 9 ? '9+' : t.badge}
+              </span>
+            )}
           </button>
         ))}
+        </div>
       </div>
 
       {/* Approvals tab */}
@@ -452,7 +460,7 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
         <div className="space-y-3">
           <button
             onClick={() => setShowSpModal(true)}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-violet-600 text-white text-sm font-semibold active:scale-95"
+            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-sm font-semibold active:scale-[0.98] shadow-lg shadow-violet-500/20"
           >
             <Plus className="w-4 h-4" /> Ajukan Permohonan SP
           </button>
@@ -461,24 +469,27 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
             <div className="text-center py-10 text-slate-400">
               <FileWarning className="w-10 h-10 mx-auto mb-2 opacity-40" />
               <p className="text-sm">Belum ada surat peringatan</p>
+              <p className="text-xs mt-1">Ajukan permohonan SP untuk karyawan tim Anda</p>
             </div>
           ) : letters.map(letter => (
-            <div key={letter.id} className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm">
-              <div className="flex items-start justify-between mb-2">
-                <div>
-                  <p className="font-semibold text-sm">{letter.letter_type} — {letter.employee_name}</p>
-                  <p className="text-[11px] text-slate-500">{letter.employee_code} · {letter.department}</p>
+            <div key={letter.id} className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm overflow-hidden">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2">
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm text-slate-900 truncate">
+                    {SP_TYPES.find(t => t.value === letter.letter_type)?.label || letter.letter_type} — {letter.employee_name}
+                  </p>
+                  <p className="text-[11px] text-slate-500 truncate">{letter.employee_code} · {letter.department}</p>
                 </div>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ring-1 ${
+                <span className={`self-start shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-full ring-1 ${
                   SP_STATUS_COLOR[letter.status] || 'bg-slate-100 text-slate-600 ring-slate-200'
                 }`}>{SP_STATUS_LABEL[letter.status] || letter.status}</span>
               </div>
-              <p className="text-xs text-slate-600 mb-1 line-clamp-2">{letter.violation_description}</p>
+              <p className="text-xs text-slate-600 mb-2 line-clamp-2 leading-relaxed">{letter.violation_description}</p>
               {letter.request_reason && (
-                <p className="text-[11px] text-slate-500 mb-2"><span className="font-medium">Alasan:</span> {letter.request_reason}</p>
+                <p className="text-[11px] text-slate-500 mb-2 line-clamp-2"><span className="font-medium">Alasan:</span> {letter.request_reason}</p>
               )}
               <p className="text-[10px] text-slate-400 mb-3">Diajukan {fmtDate(letter.created_at)}</p>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 {['draft', 'drafting'].includes(letter.status) && letter.request_source !== 'manager_portal' && (
                   <button onClick={() => handleSubmitSp(letter.id)} disabled={submitting}
                     className="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl bg-blue-50 text-blue-700 text-xs font-semibold ring-1 ring-blue-200">
@@ -493,9 +504,9 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
                 )}
                 {SP_IN_PROGRESS_STATUSES.has(letter.status) && (
                   <button type="button" disabled
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-slate-100 text-slate-500 text-xs font-semibold ring-1 ring-slate-200 cursor-not-allowed opacity-90">
+                    className="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-slate-100 text-slate-500 text-xs font-semibold ring-1 ring-slate-200 cursor-not-allowed">
                     <Clock className="w-3.5 h-3.5 shrink-0" />
-                    <span className="text-center leading-tight">
+                    <span className="text-center leading-snug">
                       {SP_PROGRESS_BUTTON_LABEL[letter.status] || 'Dalam proses HR Team'}
                     </span>
                   </button>
@@ -662,82 +673,20 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
         </div>
       )}
 
-      {/* Create SP modal */}
-      {showSpModal && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center">
-          <div className="fixed inset-0 bg-black/40" onClick={() => setShowSpModal(false)} />
-          <div className="relative bg-white w-full max-w-lg rounded-t-2xl p-5 space-y-3 max-h-[85vh] overflow-y-auto">
-            <h3 className="font-bold text-slate-900">Ajukan Permohonan Surat Peringatan</h3>
-            <p className="text-xs text-slate-500">Permohonan akan masuk ke HR untuk investigasi & penanganan</p>
-            <div>
-              <label className="text-xs font-semibold text-slate-700 mb-1 block">Karyawan</label>
-              <select value={spForm.employee_id} onChange={e => setSpForm(f => ({ ...f, employee_id: e.target.value }))}
-                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm">
-                <option value="">Pilih karyawan...</option>
-                {team.map(m => <option key={m.id} value={m.id}>{m.name} — {m.position}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-700 mb-1 block">Jenis Surat</label>
-              <select value={spForm.letter_type} onChange={e => setSpForm(f => ({ ...f, letter_type: e.target.value }))}
-                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm">
-                {SP_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-700 mb-1 block">Tanggal Kejadian</label>
-              <input type="date" value={spForm.incident_date} onChange={e => setSpForm(f => ({ ...f, incident_date: e.target.value }))}
-                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm" />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-700 mb-1 block">Deskripsi Pelanggaran *</label>
-              <textarea value={spForm.violation_description} onChange={e => setSpForm(f => ({ ...f, violation_description: e.target.value }))}
-                rows={3} placeholder="Jelaskan pelanggaran yang dilakukan..."
-                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm resize-none" />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-700 mb-1 block">Alasan Permohonan *</label>
-              <textarea value={spForm.request_reason} onChange={e => setSpForm(f => ({ ...f, request_reason: e.target.value }))}
-                rows={2} placeholder="Mengapa SP perlu dikeluarkan..."
-                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm resize-none" />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-700 mb-1 block">Catatan Tambahan</label>
-              <textarea value={spForm.notes} onChange={e => setSpForm(f => ({ ...f, notes: e.target.value }))}
-                rows={2} placeholder="Catatan internal untuk HR..."
-                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm resize-none" />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-700 mb-1 block">Bukti / Evidence</label>
-              <label className="flex items-center justify-center gap-2 py-3 border-2 border-dashed border-slate-200 rounded-xl text-xs text-slate-500 cursor-pointer hover:border-violet-300 hover:text-violet-600">
-                <Paperclip className="w-4 h-4" /> Upload foto/dokumen (max 5)
-                <input type="file" accept="image/*,.pdf" multiple className="hidden" onChange={handleEvidenceFiles} />
-              </label>
-              {evidencePreviews.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {evidencePreviews.map(p => (
-                    <div key={p.name} className="relative group">
-                      {p.type.startsWith('image/') && p.url ? (
-                        <img src={p.url} alt={p.name} className="w-16 h-16 rounded-lg object-cover border" />
-                      ) : (
-                        <div className="w-16 h-16 rounded-lg bg-slate-100 flex items-center justify-center text-[9px] text-slate-500 p-1 text-center border">{p.name.slice(0, 12)}</div>
-                      )}
-                      <button type="button" onClick={() => removeEvidence(p.name)}
-                        className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center">
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <button onClick={handleCreateSp} disabled={submitting}
-              className="w-full py-3 rounded-xl bg-violet-600 text-white font-semibold text-sm disabled:opacity-50">
-              {submitting ? 'Mengajukan...' : 'Ajukan Permohonan ke HR'}
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Create SP modal — multi-step responsive */}
+      <SpRequestModal
+        open={showSpModal}
+        onClose={() => setShowSpModal(false)}
+        team={team}
+        form={spForm}
+        onChange={(patch) => setSpForm(f => ({ ...f, ...patch }))}
+        evidenceFiles={evidenceFiles}
+        evidencePreviews={evidencePreviews}
+        onEvidenceChange={handleEvidenceFiles}
+        onRemoveEvidence={removeEvidence}
+        onSubmit={handleCreateSp}
+        submitting={submitting}
+      />
 
       {(visitDetail || visitDetailLoading) && (
         <VisitDetailModal
