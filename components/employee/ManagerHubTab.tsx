@@ -20,15 +20,30 @@ const CLAIM_TYPE_LABEL: Record<string, string> = {
 };
 
 const SP_STATUS_LABEL: Record<string, string> = {
-  submitted: 'Permohonan',
+  submitted: 'Review HR Team',
   investigating: 'Investigasi HR',
   drafting: 'Penyusunan Draft',
-  pending_approval: 'Menunggu Persetujuan',
+  review: 'Review HR Team',
+  pending_approval: 'Persetujuan HR',
   approved: 'Disetujui HR',
   issued: 'Diterbitkan',
   rejected: 'Ditolak',
   cancelled: 'Dibatalkan',
   draft: 'Draft',
+};
+
+const SP_IN_PROGRESS_STATUSES = new Set([
+  'submitted', 'investigating', 'drafting', 'review', 'pending_approval',
+]);
+
+/** Label tombol nonaktif untuk manajer selama proses HR */
+const SP_PROGRESS_BUTTON_LABEL: Record<string, string> = {
+  submitted: 'Dalam proses review HR Team',
+  investigating: 'Sedang diinvestigasi HR Team',
+  drafting: 'HR menyusun draft surat',
+  review: 'Dalam proses review HR Team',
+  pending_approval: 'Menunggu persetujuan HR Team',
+  approved: 'Disetujui — menunggu penerbitan HR',
 };
 
 const SP_STATUS_COLOR: Record<string, string> = {
@@ -39,6 +54,7 @@ const SP_STATUS_COLOR: Record<string, string> = {
   approved: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
   issued: 'bg-red-50 text-red-700 ring-red-200',
   rejected: 'bg-slate-100 text-slate-600',
+  review: 'bg-violet-50 text-violet-700 ring-violet-200',
 };
 const SP_TYPES = [
   { value: 'TEGURAN', label: 'Teguran Lisan/Tertulis' },
@@ -425,16 +441,43 @@ export default function ManagerHubTab({ isSuperAdmin = false }: Props) {
               )}
               <p className="text-[10px] text-slate-400 mb-3">Diajukan {fmtDate(letter.created_at)}</p>
               <div className="flex gap-2">
-                {['draft', 'drafting'].includes(letter.status) && (
+                {['draft', 'drafting'].includes(letter.status) && letter.request_source !== 'manager_portal' && (
                   <button onClick={() => handleSubmitSp(letter.id)} disabled={submitting}
                     className="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl bg-blue-50 text-blue-700 text-xs font-semibold ring-1 ring-blue-200">
                     <Send className="w-3.5 h-3.5" /> Ajukan ke HR
                   </button>
                 )}
-                {isSuperAdmin && letter.status !== 'issued' && (
+                {isSuperAdmin && letter.status === 'approved' && (
                   <button onClick={() => handleIssueSp(letter.id)} disabled={submitting}
-                    className="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl bg-red-500 text-white text-xs font-semibold">
+                    className="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl bg-red-500 text-white text-xs font-semibold active:scale-95 disabled:opacity-50">
                     <Stamp className="w-3.5 h-3.5" /> Terbitkan
+                  </button>
+                )}
+                {SP_IN_PROGRESS_STATUSES.has(letter.status) && (
+                  <button type="button" disabled
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-slate-100 text-slate-500 text-xs font-semibold ring-1 ring-slate-200 cursor-not-allowed opacity-90">
+                    <Clock className="w-3.5 h-3.5 shrink-0" />
+                    <span className="text-center leading-tight">
+                      {SP_PROGRESS_BUTTON_LABEL[letter.status] || 'Dalam proses HR Team'}
+                    </span>
+                  </button>
+                )}
+                {letter.status === 'approved' && !isSuperAdmin && (
+                  <button type="button" disabled
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-semibold ring-1 ring-emerald-200 cursor-not-allowed">
+                    <Clock className="w-3.5 h-3.5 shrink-0" />
+                    <span className="text-center leading-tight">Disetujui — menunggu penerbitan HR</span>
+                  </button>
+                )}
+                {letter.status === 'issued' && letter.letter_number && (
+                  <div className="flex-1 text-center py-2 rounded-xl bg-red-50 text-red-700 text-xs font-semibold ring-1 ring-red-200">
+                    No. {letter.letter_number}
+                  </div>
+                )}
+                {['rejected', 'cancelled'].includes(letter.status) && (
+                  <button type="button" disabled
+                    className="flex-1 py-2 rounded-xl bg-slate-100 text-slate-500 text-xs font-semibold ring-1 ring-slate-200 cursor-not-allowed">
+                    {letter.status === 'rejected' ? 'Permohonan ditolak HR' : 'Permohonan dibatalkan'}
                   </button>
                 )}
               </div>
