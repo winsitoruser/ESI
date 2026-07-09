@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { HUMANIFY_BRAND, HUMANIFY_FEATURES, NAINCODE } from '@/lib/humanify/branding';
 import { HumanifyLogo } from '@/components/humanify/HumanifyLogo';
+import { NaincodeFooter } from '@/components/humanify/NaincodeFooter';
 
 const ICONS = [Users, Clock, DollarSign, Target, GraduationCap, Smartphone];
 
@@ -565,34 +566,7 @@ export default function HumanifyWelcomePage() {
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="relative z-10 border-t border-white/[0.06]">
-        <div className="max-w-7xl mx-auto px-6 py-10 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex flex-col gap-1">
-            <HumanifyLogo
-              href={HUMANIFY_BRAND.welcomePath}
-              size="md"
-              variant="full"
-              src={HUMANIFY_BRAND.welcomeLogoPath}
-              aspect={HUMANIFY_BRAND.welcomeLogoAspect}
-              className="rounded-lg"
-            />
-            <p className="text-xs text-violet-400/40">Bagian dari {NAINCODE.legalName}</p>
-          </div>
-          <div className="flex items-center gap-6 text-sm text-violet-400/50">
-            <Link href={HUMANIFY_BRAND.employeeLoginPath} className="hover:text-violet-300 transition">
-              Portal Karyawan
-            </Link>
-            <Link href={HUMANIFY_BRAND.loginPath} className="hover:text-violet-300 transition">
-              Masuk
-            </Link>
-            <a href={NAINCODE.website} target="_blank" rel="noopener noreferrer" className="hover:text-violet-300 transition">
-              {NAINCODE.name}
-            </a>
-          </div>
-          <p className="text-xs text-violet-400/30">© {new Date().getFullYear()} {NAINCODE.legalName}</p>
-        </div>
-      </footer>
+      <NaincodeFooter />
     </div>
   );
 }
