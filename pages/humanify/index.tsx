@@ -1,7 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import Link from 'next/link';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import HRStatCard from '@/components/humanify/HRStatCard';
+import EnterprisePageHeader from '@/components/humanify/EnterprisePageHeader';
+import DashboardModuleGrid from '@/components/humanify/DashboardModuleGrid';
 import { useTranslation } from '@/lib/i18n';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from 'recharts';
 import {
   Users, UserCheck, UserX, Clock, TrendingUp, TrendingDown, Award,
   Calendar, BarChart3, Target, Star, AlertCircle, AlertTriangle,
@@ -9,7 +16,7 @@ import {
   Briefcase, DollarSign, FileText, Shield, Heart, Plane,
   GraduationCap, UserPlus, Settings, FolderOpen, ClipboardList,
   CheckCircle2, XCircle, ArrowRight, Bell, Zap, Activity,
-  PieChart, Layers, MapPin, CircleDot, Megaphone, KeyRound, PenTool, BookOpen, Timer
+  PieChart, Layers, MapPin, CircleDot, Megaphone, KeyRound, PenTool, BookOpen, Timer, RefreshCw, LayoutDashboard
 } from 'lucide-react';
 
 // ── HRIS Module Definitions (translated via t()) ──
@@ -161,6 +168,8 @@ export default function HRISDashboard() {
   const [upcoming, setUpcoming] = useState<any[]>(MOCK_UPCOMING);
   const [expandedCat, setExpandedCat] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<string>('');
+  const [viewTab, setViewTab] = useState<'overview' | 'modules'>('overview');
 
   useEffect(() => {
     setMounted(true);
@@ -315,6 +324,7 @@ export default function HRISDashboard() {
       setUpcoming(MOCK_UPCOMING);
     } finally {
       setLoading(false);
+      setLastUpdated(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
     }
   }
 
@@ -334,48 +344,76 @@ export default function HRISDashboard() {
     }
   }
 
-  if (!mounted) return null;
+  if (!mounted) {
+    return (
+      <HQLayout title="Humanify" subtitle={t('hris.subtitle')}>
+        <div className="space-y-6 animate-pulse">
+          <div className="h-36 rounded-2xl bg-slate-200" />
+          <div className="grid grid-cols-4 gap-4">{Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-24 rounded-2xl bg-slate-100" />)}</div>
+        </div>
+      </HQLayout>
+    );
+  }
 
   const HRIS_MODULES = getHrisModules(t);
   const QUICK_ACTIONS = getQuickActions(t);
 
   const statCards = [
-    { label: t('hris.totalEmployees'), value: stats.total, icon: Users, color: 'bg-blue-500', trend: '+3', trendUp: true },
-    { label: t('hris.activeEmployees'), value: stats.active, icon: UserCheck, color: 'bg-green-500', trend: `${Math.round(stats.active / stats.total * 100)}%`, trendUp: true },
-    { label: t('hris.onLeave'), value: stats.onLeave, icon: Calendar, color: 'bg-yellow-500', trend: null, trendUp: false },
-    { label: t('hris.avgPerformance'), value: `${stats.avgPerf}%`, icon: BarChart3, color: 'bg-purple-500', trend: '+2.3%', trendUp: true },
-    { label: t('hris.avgKpiAchievement'), value: `${stats.avgKpi}%`, icon: Target, color: 'bg-indigo-500', trend: '+5.1%', trendUp: true },
-    { label: t('hris.attendanceToday'), value: `${stats.attendanceToday}%`, icon: Clock, color: 'bg-emerald-500', trend: null, trendUp: true },
-    { label: t('hris.topPerformers'), value: stats.topPerformers, icon: Award, color: 'bg-orange-500', trend: '+5', trendUp: true },
-    { label: t('hris.pendingApproval'), value: pendingApprovals.length, icon: AlertCircle, color: 'bg-red-500', trend: null, trendUp: false },
+    { label: t('hris.totalEmployees'), value: stats.total, icon: Users, gradient: 'from-blue-500 to-indigo-600', trend: { value: '+3', positive: true }, href: '/humanify/employees' },
+    { label: t('hris.activeEmployees'), value: stats.active, icon: UserCheck, gradient: 'from-emerald-500 to-teal-600', trend: stats.total ? { value: `${Math.round(stats.active / stats.total * 100)}%`, positive: true } : undefined, href: '/humanify/employees' },
+    { label: t('hris.onLeave'), value: stats.onLeave, icon: Calendar, gradient: 'from-amber-500 to-orange-600', href: '/humanify/leave' },
+    { label: t('hris.avgPerformance'), value: `${stats.avgPerf}%`, icon: BarChart3, gradient: 'from-violet-500 to-purple-600', trend: { value: '+2.3%', positive: true }, href: '/humanify/performance' },
+    { label: t('hris.avgKpiAchievement'), value: `${stats.avgKpi}%`, icon: Target, gradient: 'from-indigo-500 to-blue-600', trend: { value: '+5.1%', positive: true }, href: '/humanify/kpi' },
+    { label: t('hris.attendanceToday'), value: `${stats.attendanceToday}%`, icon: Clock, gradient: 'from-cyan-500 to-sky-600', href: '/humanify/attendance' },
+    { label: t('hris.topPerformers'), value: stats.topPerformers, icon: Award, gradient: 'from-orange-500 to-rose-600', trend: { value: '+5', positive: true }, href: '/humanify/kpi' },
+    { label: t('hris.pendingApproval'), value: pendingApprovals.length, icon: AlertCircle, gradient: 'from-rose-500 to-red-600', href: '/humanify/leave' },
   ];
+
+  const deptChartData = deptStats.map((d) => ({
+    name: d.department?.length > 12 ? `${d.department.slice(0, 10)}…` : d.department,
+    active: d.active,
+    total: d.total,
+  }));
 
   return (
     <HQLayout title="Humanify" subtitle={t('hris.subtitle')}>
       <div className="space-y-6">
+        <EnterprisePageHeader
+          title="Humanify Command Center"
+          subtitle="Ringkasan workforce real-time — karyawan, kehadiran, KPI, approval, dan modul HRIS terintegrasi"
+          badge="HRIS Dashboard"
+          icon={LayoutDashboard}
+          gradient="indigo"
+          actions={
+            <>
+              {lastUpdated && <span className="rounded-xl bg-white/15 px-3 py-2 text-xs text-white/80 backdrop-blur-sm">Update {lastUpdated}</span>}
+              <button type="button" onClick={fetchDashboardData} disabled={loading} className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50 disabled:opacity-60">
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+              </button>
+              <Link href="/humanify/workforce-analytics" className="rounded-xl bg-white/15 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm hover:bg-white/25">Analytics</Link>
+            </>
+          }
+        />
 
-        {/* ── STATS ROW ── */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+        <div className="flex gap-2 rounded-2xl border border-slate-200/80 bg-white p-1.5 shadow-sm w-fit">
+          {(['overview', 'modules'] as const).map((tab) => (
+            <button key={tab} type="button" onClick={() => setViewTab(tab)}
+              className={`rounded-xl px-4 py-2 text-sm font-medium transition-all ${viewTab === tab ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}>
+              {tab === 'overview' ? 'Ringkasan' : 'Semua Modul'}
+            </button>
+          ))}
+        </div>
+
+        {viewTab === 'overview' && (
+        <>
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-8">
           {statCards.map((s, i) => (
-            <div key={i} className="bg-white rounded-xl p-3.5 shadow-sm border hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-2 mb-2">
-                <div className={`p-1.5 rounded-lg ${s.color} bg-opacity-10`}>
-                  <s.icon className={`w-4 h-4 ${s.color.replace('bg-', 'text-')}`} />
-                </div>
-                {s.trend && (
-                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${s.trendUp ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
-                    {s.trend}
-                  </span>
-                )}
-              </div>
-              <p className="text-xl font-bold text-gray-900">{s.value}</p>
-              <p className="text-[11px] text-gray-500 mt-0.5">{s.label}</p>
-            </div>
+            <HRStatCard key={i} label={s.label} value={s.value} trend={s.trend} icon={s.icon} gradient={s.gradient} onClick={() => router.push(s.href)} />
           ))}
         </div>
 
         {/* ── QUICK ACTIONS ── */}
-        <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 rounded-2xl p-5 text-white">
+        <div className="rounded-2xl bg-gradient-to-br from-slate-900 via-indigo-950 to-violet-900 p-6 text-white shadow-xl">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="font-semibold text-lg">{t('hris.quickActions')}</h3>
@@ -396,36 +434,21 @@ export default function HRISDashboard() {
           </div>
         </div>
 
-        {/* ── MODULE NAVIGATION ── */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">{t('hris.hrisModules')}</h3>
-            <p className="text-sm text-gray-500">{t('hris.modulesAvailable', { count: HRIS_MODULES.reduce((acc, c) => acc + c.modules.length, 0) })}</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {HRIS_MODULES.map((cat) => (
-              <div key={cat.category} className="bg-white rounded-xl border shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-                <div className="px-4 py-3 border-b bg-gray-50/50">
-                  <h4 className="font-semibold text-sm text-gray-800">{cat.category}</h4>
-                </div>
-                <div className="p-2">
-                  {cat.modules.map((m) => (
-                    <a key={m.key} href={m.href}
-                      className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 transition-colors group">
-                      <div className={`w-9 h-9 rounded-lg ${m.color} flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform`}>
-                        <m.icon className="w-4.5 h-4.5 text-white" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 group-hover:text-indigo-600 transition-colors">{m.label}</p>
-                        <p className="text-[11px] text-gray-500 truncate">{m.desc}</p>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-indigo-400 transition-colors" />
-                    </a>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+        {/* ── MODULE NAVIGATION — overview shortcuts ── */}
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
+          {[
+            { label: 'Karyawan', href: '/humanify/employees', icon: Users, c: 'from-blue-500 to-indigo-600' },
+            { label: 'Absensi', href: '/humanify/attendance', icon: Clock, c: 'from-emerald-500 to-teal-600' },
+            { label: 'Payroll', href: '/humanify/payroll', icon: DollarSign, c: 'from-violet-500 to-purple-600' },
+            { label: 'KPI', href: '/humanify/kpi', icon: Target, c: 'from-amber-500 to-orange-600' },
+            { label: 'Rekrutmen', href: '/humanify/recruitment', icon: UserPlus, c: 'from-rose-500 to-pink-600' },
+            { label: 'Laporan', href: '/humanify/reports', icon: BarChart3, c: 'from-cyan-500 to-sky-600' },
+          ].map((item) => (
+            <Link key={item.href} href={item.href} className={`flex items-center gap-3 rounded-2xl bg-gradient-to-br ${item.c} p-4 text-white shadow-md transition hover:scale-[1.02] hover:shadow-lg`}>
+              <item.icon className="h-5 w-5 opacity-90" />
+              <span className="text-sm font-semibold">{item.label}</span>
+            </Link>
+          ))}
         </div>
 
         {/* ── TWO COLUMN: PENDING APPROVALS + RECENT ACTIVITIES ── */}
@@ -493,12 +516,24 @@ export default function HRISDashboard() {
         {/* ── TWO COLUMN: DEPT OVERVIEW + UPCOMING CALENDAR ── */}
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Department Overview */}
-          <div className="lg:col-span-2 bg-white rounded-xl border shadow-sm">
-            <div className="px-5 py-4 border-b">
-              <h3 className="font-semibold text-gray-900">{t('hris.deptOverview')}</h3>
+          <div className="lg:col-span-2 rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+            <div className="border-b border-slate-100 px-5 py-4">
+              <h3 className="font-semibold text-slate-900">{t('hris.deptOverview')}</h3>
+              <p className="text-xs text-slate-500">Headcount aktif per departemen</p>
             </div>
-            <div className="p-5">
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="grid gap-4 p-5 lg:grid-cols-2">
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={deptChartData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={50} />
+                    <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                    <Tooltip />
+                    <Bar dataKey="active" fill="#6366f1" name="Aktif" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {deptStats.map((d) => (
                   <div key={d.department} className="border rounded-xl p-4 hover:shadow-md transition-all hover:border-indigo-200 group">
                     <div className="flex items-center justify-between mb-3">
@@ -520,8 +555,6 @@ export default function HRISDashboard() {
               </div>
             </div>
           </div>
-
-          {/* Upcoming Events */}
           <div className="bg-white rounded-xl border shadow-sm">
             <div className="flex items-center justify-between px-5 py-4 border-b">
               <div className="flex items-center gap-2">
@@ -572,6 +605,16 @@ export default function HRISDashboard() {
             </div>
           </div>
         </div>
+        </>
+        )}
+
+        {viewTab === 'modules' && (
+          <DashboardModuleGrid
+            categories={HRIS_MODULES}
+            title={t('hris.hrisModules')}
+            subtitle={t('hris.modulesAvailable', { count: HRIS_MODULES.reduce((acc, c) => acc + c.modules.length, 0) })}
+          />
+        )}
 
       </div>
     </HQLayout>
