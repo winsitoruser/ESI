@@ -309,8 +309,6 @@ export default function KPIDashboard() {
     finally { setSaving(false); }
   };
 
-  if (!mounted) return null;
-
   const totalEmployees = employeeKPIs.length;
   const exceededCount = employeeKPIs.filter(e => e.status === 'exceeded').length;
   const achievedCount = employeeKPIs.filter(e => e.status === 'achieved').length;

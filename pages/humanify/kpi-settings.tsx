@@ -199,7 +199,13 @@ export default function KPISettings() {
   const filteredTemplates = useMemo(() => selectedCategory === 'all' ? templates : templates.filter(tp => tp.category === selectedCategory), [selectedCategory, templates]);
   const salesMarketingTemplates = useMemo(() => templates.filter(tp => tp.category === 'sales' || tp.category === 'marketing'), [templates]);
 
-  if (!mounted) return null;
+  if (!mounted) {
+    return (
+      <HQLayout title="Pengaturan KPI" subtitle="Konfigurasi template, bobot penilaian, dan analisis AI">
+        <PerformanceModuleChrome active="kpi-settings" title="Pengaturan KPI" subtitle="Memuat..." icon={Settings} />
+      </HQLayout>
+    );
+  }
 
   const tabConfig: { id: TabKey; label: string; icon: any }[] = [
     { id: 'templates', label: 'Template KPI', icon: Target },

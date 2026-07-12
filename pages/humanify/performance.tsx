@@ -162,7 +162,13 @@ export default function PerformancePage() {
 
   useEffect(() => { if (pageTab === 'ninebox') fetchNineBox(); }, [pageTab, fetchNineBox]);
 
-  if (!mounted) return null;
+  if (!mounted) {
+    return (
+      <HQLayout title={t('hris.performanceTitle')} subtitle={t('hris.performanceSubtitle')}>
+        <PerformanceModuleChrome active="performance" title={t('hris.performanceTitle')} subtitle="Memuat..." icon={Award} />
+      </HQLayout>
+    );
+  }
 
   const handleCreate = async () => {
     if (!form.employeeId) {
