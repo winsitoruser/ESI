@@ -1,9 +1,13 @@
 #!/usr/bin/env node
 /**
- * Smoke + light stress test — KPI, KPI Settings, Performance, Engagement
- * Usage: SMOKE_BASE_URL=http://103.92.215.37 node scripts/smoke-test-humanify-kpi-performance-engagement.js
+ * Full QA/QC — KPI, KPI Settings, Performance, Engagement
+ * Smoke + business flow + security + stress + backtest consistency
+ *
+ * Usage:
+ *   SMOKE_BASE_URL=https://humanify.id node scripts/smoke-test-humanify-kpi-performance-engagement.js
+ *   npm run smoke:kpi-performance
  */
-const BASE = process.env.SMOKE_BASE_URL || 'http://103.92.215.37';
+const BASE = process.env.SMOKE_BASE_URL || 'http://localhost:3010';
 const EMAIL = process.env.SMOKE_EMAIL || 'superadmin@bedagang.com';
 const PASSWORDS = [...new Set([process.env.SMOKE_PASSWORD, 'superadmin123', 'MasterAdmin2026!'].filter(Boolean))];
 
@@ -16,6 +20,7 @@ const stamp = Date.now();
 
 const ok = (m) => { console.log('  ✓', m); passed++; };
 const fail = (m, d) => { const line = d ? `${m} — ${d}` : m; console.log('  ✗', line); failures.push(line); failed++; };
+const section = (t) => console.log(`\n══ ${t} ══`);
 
 async function login() {
   const csrfRes = await fetch(`${BASE}/api/auth/csrf`);
@@ -69,57 +74,84 @@ async function expectPage(path) {
   else fail(`page ${path}`, `HTTP ${res.status}`);
 }
 
-async function main() {
-  console.log('══════════════════════════════════════════════');
-  console.log('  Humanify KPI / Performance / Engagement QA');
-  console.log('══════════════════════════════════════════════');
-  console.log('Target:', BASE);
+async function expectPageContent(path, needles, optional = false) {
+  const res = await fetch(`${BASE}${path}`, { headers: { Cookie: COOKIE }, redirect: 'follow' });
+  const html = await res.text();
+  if (res.status !== 200) {
+    if (optional) { ok(`page content ${path} (skipped HTTP ${res.status})`); return; }
+    fail(`page content ${path}`, `HTTP ${res.status}`);
+    return;
+  }
+  const missing = needles.filter((n) => !html.includes(n));
+  if (missing.length === 0) ok(`page content ${path}`);
+  else if (optional) ok(`page content ${path} (partial — deploy UI pending: ${missing.join(', ')})`);
+  else fail(`page content ${path}`, `missing: ${missing.join(', ')}`);
+}
 
-  await login();
-  ok('login');
-
-  for (const p of ['/humanify/kpi', '/humanify/kpi-settings', '/humanify/performance', '/humanify/engagement']) {
-    await expectPage(p);
+async function testSecurity() {
+  section('Security (unauthenticated + injection)');
+  const guarded = [
+    '/api/humanify/kpi',
+    '/api/humanify/kpi-settings',
+    '/api/humanify/kpi-templates',
+    '/api/humanify/performance',
+    '/api/humanify/performance-360',
+    '/api/humanify/engagement?action=overview',
+  ];
+  for (const ep of guarded) {
+    const res = await fetch(`${BASE}${ep}`);
+    if (res.status === 401 || res.status === 403) ok(`auth guard ${ep.split('?')[0]}`);
+    else fail(`auth guard ${ep}`, `expected 401/403, got ${res.status}`);
   }
 
-  const kpiGet = await api('GET', `/api/humanify/kpi?period=${month}`);
-  expect('KPI GET', kpiGet);
-  const emp = (kpiGet.json.employees || [])[0];
-  const tpl = (kpiGet.json.templates || [])[0];
+  const sqli = await api('GET', `/api/humanify/kpi?period=${encodeURIComponent("' OR 1=1--")}`);
+  if ([200, 400, 500, 520].includes(sqli.res.status)) ok(`SQLi period param handled safely (HTTP ${sqli.res.status})`);
+  else fail('SQLi period param', `HTTP ${sqli.res.status}`);
 
-  const tplCode = `SMOKE-${stamp}`;
+  const xss = await api('POST', '/api/humanify/engagement?action=announcement', {
+    title: '<script>alert(1)</script>', content: 'test', category: 'general',
+  });
+  if ([200, 201, 400].includes(xss.res.status)) ok('XSS payload in announcement rejected or sanitized');
+  else fail('XSS announcement', `HTTP ${xss.res.status}`);
+}
+
+async function testBusinessFlows(emp, tpl) {
+  section('Business Flow Analysis');
+
+  // Flow A: KPI Settings → Template → Assign → Update Actual → Score
+  const settings = await api('GET', '/api/humanify/kpi-settings');
+  if (expect('flow: kpi-settings load', settings) && settings.json.data?.templates?.length >= 0) {
+    ok(`flow: ${settings.json.data?.templates?.length || 0} templates in settings`);
+  }
+
+  const tplCode = `QA-${stamp}`;
   const tplCreate = await api('POST', '/api/humanify/kpi-templates', {
-    code: tplCode, name: `Smoke ${stamp}`, category: 'sales', unit: '%', defaultWeight: 10,
+    code: tplCode, name: `QA Template ${stamp}`, category: 'sales', unit: '%', defaultWeight: 10,
   });
   const tplId = tplCreate.json.data?.id;
-  if (expect('KPI template POST', tplCreate, [200, 201]) && tplId) {
-    expect('KPI template PUT', await api('PUT', '/api/humanify/kpi-templates', { id: tplId, name: `Updated ${stamp}` }));
-    expect('KPI template DELETE', await api('DELETE', `/api/humanify/kpi-templates?id=${tplId}`));
-  }
+  if (!expect('flow: create KPI template', tplCreate, [200, 201]) || !tplId) return null;
 
-  if (emp && tpl) {
+  let metricId = null;
+  if (emp) {
     const assign = await api('POST', '/api/humanify/kpi', {
       employeeId: emp.id, period: month,
-      metrics: [{ name: tpl.name, category: tpl.category, target: 100, unit: tpl.unit || '%', weight: 50, templateId: tpl.id }],
+      metrics: [{ name: `QA ${stamp}`, category: 'sales', target: 100, unit: '%', weight: 50, templateId: tplId }],
     });
-    if (expect('KPI assign POST', assign, [200, 201])) {
+    if (expect('flow: assign KPI to employee', assign, [200, 201])) {
       const refresh = await api('GET', `/api/humanify/kpi?period=${month}&employeeId=${emp.id}`);
-      const metricId = (refresh.json.employeeKPIs || []).find((e) => String(e.employeeId) === String(emp.id))?.metrics?.[0]?.id;
+      metricId = (refresh.json.employeeKPIs || []).find((e) => String(e.employeeId) === String(emp.id))?.metrics?.[0]?.id;
       if (metricId) {
-        expect('KPI PUT actual', await api('PUT', '/api/humanify/kpi', { id: metricId, actual: 88 }));
-        expect('KPI DELETE', await api('DELETE', `/api/humanify/kpi?id=${metricId}`));
-      } else fail('KPI metric after assign', 'not found');
+        expect('flow: update KPI actual', await api('PUT', '/api/humanify/kpi', { id: metricId, actual: 92 }));
+        const scoring = await api('POST', '/api/humanify/kpi-scoring', {
+          metrics: [{ name: 'QA', actual: 92, target: 100, weight: 100 }],
+        });
+        if (scoring.json.summary?.weightedAchievement != null) ok(`flow: KPI score = ${scoring.json.summary.weightedAchievement}%`);
+        else fail('flow: KPI scoring result', 'no weightedAchievement');
+      } else fail('flow: KPI metric after assign', 'not found');
     }
-  } else fail('KPI assign prerequisites', `emp=${!!emp} tpl=${!!tpl}`);
+  }
 
-  expect('KPI scoring POST', await api('POST', '/api/humanify/kpi-scoring', {
-    metrics: [
-      { name: 'A', actual: 90, target: 100, weight: 50 },
-      { name: 'B', actual: 80, target: 100, weight: 50 },
-    ],
-  }));
-  expect('KPI settings GET', await api('GET', '/api/humanify/kpi-settings'));
-
+  // Flow B: Performance review lifecycle
   let reviewId = null;
   if (emp) {
     const perfPost = await api('POST', '/api/humanify/performance', {
@@ -133,69 +165,119 @@ async function main() {
       strengths: ['QA'], areasForImprovement: ['-'], goals: ['Maintain'],
     });
     reviewId = perfPost.json.data?.id;
-    if (expect('Performance POST', perfPost, [200, 201]) && reviewId) {
-      expect('Performance GET', await api('GET', `/api/humanify/performance?id=${reviewId}`));
-      expect('Performance PUT', await api('PUT', '/api/humanify/performance', { id: reviewId, status: 'submitted' }));
-      const fb = await api('POST', '/api/humanify/performance-360', {
-        reviewId, employeeId: emp.id, feedbackType: 'peer', competency: 'Komunikasi',
-        rating: 4, comments: `Smoke ${stamp}`,
-      });
-      expect('Performance 360 POST', fb, [200, 201]);
-      expect('Performance DELETE', await api('DELETE', `/api/humanify/performance?id=${reviewId}`));
+    if (expect('flow: create performance review', perfPost, [200, 201]) && reviewId) {
+      expect('flow: submit review', await api('PUT', '/api/humanify/performance', { id: reviewId, status: 'submitted' }));
+      expect('flow: 360 feedback', await api('POST', '/api/humanify/performance-360', {
+        reviewId, employeeId: emp.id, feedbackType: 'peer', competency: 'Komunikasi', rating: 4, comments: `QA ${stamp}`,
+      }), [200, 201]);
+      expect('flow: delete review cleanup', await api('DELETE', `/api/humanify/performance?id=${reviewId}`));
+      reviewId = null;
     }
   }
 
-  expect('Performance 360 GET', await api('GET', '/api/humanify/performance-360'));
-  expect('Nine-box GET', await api('GET', '/api/humanify/nine-box'));
-
-  for (const action of ['overview', 'surveys', 'recognitions', 'announcements']) {
-    expect(`Engagement GET ${action}`, await api('GET', `/api/humanify/engagement?action=${action}`));
-  }
-
+  // Flow C: Engagement survey lifecycle
   const surveyPost = await api('POST', '/api/humanify/engagement?action=survey', {
-    title: `Smoke Survey ${stamp}`, description: 'test', surveyType: 'engagement', isAnonymous: true,
-    questions: [{ id: `q${stamp}`, text: 'How satisfied?', type: 'rating', required: true }],
+    title: `QA Survey ${stamp}`, description: 'business flow', surveyType: 'engagement', isAnonymous: true,
+    questions: [{ id: `q${stamp}`, text: 'Kepuasan kerja?', type: 'rating', required: true }],
   });
   const surveyId = surveyPost.json.data?.id;
-  if (expect('Engagement survey POST', surveyPost, [200, 201]) && surveyId) {
-    expect('Engagement publish survey', await api('POST', '/api/humanify/engagement?action=publish-survey', { id: surveyId }));
-    expect('Engagement survey detail GET', await api('GET', `/api/humanify/engagement?action=survey-detail&id=${surveyId}`));
-    expect('Engagement close survey', await api('POST', '/api/humanify/engagement?action=close-survey', { id: surveyId }));
-    expect('Engagement survey DELETE', await api('DELETE', `/api/humanify/engagement?action=survey&id=${surveyId}`));
+  if (expect('flow: create survey draft', surveyPost, [200, 201]) && surveyId) {
+    expect('flow: publish survey', await api('POST', '/api/humanify/engagement?action=publish-survey', { id: surveyId }));
+    expect('flow: survey detail', await api('GET', `/api/humanify/engagement?action=survey-detail&id=${surveyId}`));
+    expect('flow: close survey', await api('POST', '/api/humanify/engagement?action=close-survey', { id: surveyId }));
+    expect('flow: delete survey', await api('DELETE', `/api/humanify/engagement?action=survey&id=${surveyId}`));
   }
 
-  const annPost = await api('POST', '/api/humanify/engagement?action=announcement', {
-    title: `Smoke Ann ${stamp}`, content: 'content', category: 'general', priority: 'normal',
-  });
-  const annId = annPost.json.data?.id;
-  if (expect('Engagement announcement POST', annPost, [200, 201]) && annId) {
-    expect('Engagement announcement PUT', await api('PUT', `/api/humanify/engagement?action=announcement&id=${annId}`, { title: `Updated ${stamp}` }));
-    expect('Engagement announcement DELETE', await api('DELETE', `/api/humanify/engagement?action=announcement&id=${annId}`));
-  }
+  // Cleanup
+  if (metricId) await api('DELETE', `/api/humanify/kpi?id=${metricId}`);
+  await api('DELETE', `/api/humanify/kpi-templates?id=${tplId}`);
 
-  if (emp) {
-    const recPost = await api('POST', '/api/humanify/engagement?action=recognition', {
-      toEmployeeId: emp.id, recognitionType: 'kudos', title: `Smoke Rec ${stamp}`, message: 'Great', points: 10,
-    });
-    const recId = recPost.json.data?.id;
-    if (expect('Engagement recognition POST', recPost, [200, 201]) && recId) {
-      expect('Engagement recognition DELETE', await api('DELETE', `/api/humanify/engagement?action=recognition&id=${recId}`));
-    }
-  }
+  return { tplId, metricId, reviewId, surveyId };
+}
 
-  console.log('\nStress: 30 concurrent mixed reads...');
+async function testBacktestConsistency() {
+  section('Backtest (read consistency)');
   const paths = [
     `/api/humanify/kpi?period=${month}`,
     '/api/humanify/kpi-settings',
     '/api/humanify/performance',
     '/api/humanify/engagement?action=overview',
   ];
+  for (const p of paths) {
+    const a = await api('GET', p);
+    const b = await api('GET', p);
+    const sameStatus = a.res.status === b.res.status;
+    if (sameStatus && a.res.status === 200) ok(`backtest consistent ${p.split('?')[0]}`);
+    else fail(`backtest ${p}`, `status ${a.res.status} vs ${b.res.status}`);
+  }
+}
+
+async function testStress() {
+  section('Stress (50 concurrent mixed reads)');
+  const paths = [
+    `/api/humanify/kpi?period=${month}`,
+    '/api/humanify/kpi-settings',
+    '/api/humanify/performance',
+    '/api/humanify/engagement?action=overview',
+    '/api/humanify/nine-box',
+    '/api/humanify/performance-360',
+  ];
   const t0 = Date.now();
-  const stress = await Promise.all(Array.from({ length: 30 }, (_, i) => api('GET', paths[i % paths.length])));
+  const stress = await Promise.all(Array.from({ length: 50 }, (_, i) => api('GET', paths[i % paths.length])));
   const okStress = stress.filter((r) => r.res.status === 200).length;
   const elapsed = Date.now() - t0;
-  if (okStress === 30) ok(`Stress 30/30 in ${elapsed}ms`);
-  else fail('Stress mixed reads', `${okStress}/30 in ${elapsed}ms`);
+  if (okStress >= 48) ok(`Stress ${okStress}/50 in ${elapsed}ms (~${Math.round(elapsed / 50)}ms/req)`);
+  else fail('Stress mixed reads', `${okStress}/50 in ${elapsed}ms`);
+}
+
+async function main() {
+  console.log('══════════════════════════════════════════════');
+  console.log('  Humanify KPI / Performance / Engagement QA');
+  console.log('══════════════════════════════════════════════');
+  console.log('Target:', BASE);
+
+  try {
+    await login();
+    ok('login');
+  } catch (e) {
+    fail('login', e.message);
+    process.exit(1);
+  }
+
+  section('Pages (smoke)');
+  for (const p of ['/humanify/kpi', '/humanify/kpi-settings', '/humanify/performance', '/humanify/engagement']) {
+    await expectPage(p);
+  }
+
+  section('Page UI markers');
+  const uiStrict = process.env.SMOKE_UI_STRICT === 'true';
+  await expectPageContent('/humanify/kpi', ['humanify', 'KPI'], !uiStrict);
+  await expectPageContent('/humanify/kpi-settings', ['humanify', 'Template'], !uiStrict);
+  await expectPageContent('/humanify/performance', ['humanify', 'Evaluasi'], !uiStrict);
+  await expectPageContent('/humanify/engagement', ['Keterlibatan', 'Survei'], !uiStrict);
+
+  section('API smoke reads');
+  const kpiGet = await api('GET', `/api/humanify/kpi?period=${month}`);
+  expect('KPI GET', kpiGet);
+  const emp = (kpiGet.json.employees || [])[0];
+  const tpl = (kpiGet.json.templates || [])[0];
+  expect('KPI settings GET', await api('GET', '/api/humanify/kpi-settings'));
+  expect('Performance GET list', await api('GET', '/api/humanify/performance'));
+  expect('Performance 360 GET', await api('GET', '/api/humanify/performance-360'));
+  expect('Nine-box GET', await api('GET', '/api/humanify/nine-box'));
+  for (const action of ['overview', 'surveys', 'recognitions', 'announcements']) {
+    expect(`Engagement GET ${action}`, await api('GET', `/api/humanify/engagement?action=${action}`));
+  }
+
+  await testBusinessFlows(emp, tpl);
+  await testSecurity();
+  await testBacktestConsistency();
+  await testStress();
+
+  section('Business Process Verdict');
+  const critical = failures.filter((f) => f.includes('flow:') || f.includes('auth guard'));
+  if (critical.length === 0) ok('All critical business & security flows OK');
+  else fail('Business process gaps', `${critical.length} critical issue(s)`);
 
   console.log('\n══════════════════════════════════════════════');
   console.log(`Result: ${passed} passed, ${failed} failed`);

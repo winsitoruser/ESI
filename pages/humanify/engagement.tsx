@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import HRStatCard from '@/components/humanify/HRStatCard';
+import PerformanceModuleChrome, { EnterpriseTabBar } from '@/components/humanify/PerformanceModuleChrome';
 import { useTranslation } from '@/lib/i18n';
-import { MessageCircle, Award, Bell, Plus, Edit, Trash2, X, Heart, Star, Send, Eye, BarChart3, Users } from 'lucide-react';
+import { MessageCircle, Award, Bell, Plus, Edit, Trash2, X, Heart, Star, Send, Eye, BarChart3, Users, RefreshCw } from 'lucide-react';
 
 interface SurveyItem { id: string; title: string; description: string; survey_type: string; status: string; start_date: string; end_date: string; is_anonymous: boolean; questions: any[]; total_responses: number; }
 interface RecognitionItem { id: string; from_employee_id: number; to_employee_id: number; recognition_type: string; title: string; message: string; points: number; badge: string; category: string; likes_count: number; created_at: string; }
@@ -137,52 +139,35 @@ export default function EngagementPage() {
   ];
 
   return (
-    <HQLayout title={t('hris.engagementTitle')}>
-    <div className="p-6 max-w-7xl mx-auto">
-      {toast && <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white ${toast.type === 'error' ? 'bg-red-500' : 'bg-green-500'}`}>{toast.msg}</div>}
+    <HQLayout title={t('hris.engagementTitle')} subtitle="Survei, penghargaan, dan komunikasi internal">
+    <div className="space-y-6">
+      {toast && <div className={`fixed top-4 right-4 z-50 rounded-xl px-4 py-3 text-sm text-white shadow-lg ${toast.type === 'error' ? 'bg-rose-500' : 'bg-emerald-500'}`}>{toast.msg}</div>}
 
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Keterlibatan Karyawan & Budaya</h1>
-        <p className="text-gray-500 mt-1">Survei, penghargaan, dan komunikasi internal</p>
-      </div>
+      <PerformanceModuleChrome
+        active="engagement"
+        title="Keterlibatan Karyawan & Budaya"
+        subtitle="Pulse survey, peer recognition, dan pengumuman internal — ukur dan tingkatkan employee experience"
+        icon={Heart}
+        gradient="emerald"
+        actions={
+          <button onClick={loadData} disabled={loading} className="flex items-center gap-2 rounded-xl bg-white/15 px-4 py-2 text-sm text-white backdrop-blur-sm hover:bg-white/25 disabled:opacity-60">
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+          </button>
+        }
+      />
 
       {loadError && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{loadError}</div>
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{loadError}</div>
       )}
 
-      {/* Overview Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl p-4 text-white">
-          <BarChart3 className="w-5 h-5 mb-1 opacity-80" />
-          <p className="text-2xl font-bold">{overview.totalSurveys || 0}</p>
-          <p className="text-xs opacity-80">Total Survei</p>
-        </div>
-        <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl p-4 text-white">
-          <Users className="w-5 h-5 mb-1 opacity-80" />
-          <p className="text-2xl font-bold">{overview.totalResponses || 0}</p>
-          <p className="text-xs opacity-80">Total Respons</p>
-        </div>
-        <div className="bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl p-4 text-white">
-          <Award className="w-5 h-5 mb-1 opacity-80" />
-          <p className="text-2xl font-bold">{overview.totalRecognitions || 0}</p>
-          <p className="text-xs opacity-80">Penghargaan</p>
-        </div>
-        <div className="bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl p-4 text-white">
-          <Bell className="w-5 h-5 mb-1 opacity-80" />
-          <p className="text-2xl font-bold">{overview.publishedAnnouncements || 0}</p>
-          <p className="text-xs opacity-80">Pengumuman Aktif</p>
-        </div>
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <HRStatCard label="Total Survei" value={overview.totalSurveys || 0} sub={`${overview.activeSurveys || 0} aktif`} icon={BarChart3} gradient="from-violet-500 to-purple-600" />
+        <HRStatCard label="Total Respons" value={overview.totalResponses || 0} sub={`Skor ${overview.avgEngagementScore || 0}%`} icon={Users} gradient="from-emerald-500 to-teal-600" />
+        <HRStatCard label="Penghargaan" value={overview.totalRecognitions || 0} icon={Award} gradient="from-amber-500 to-orange-600" />
+        <HRStatCard label="Pengumuman" value={overview.publishedAnnouncements || 0} icon={Bell} gradient="from-blue-500 to-cyan-600" />
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 border-b mb-6">
-        {tabs.map(t => (
-          <button key={t.key} onClick={() => { setTab(t.key); setSurveyDetail(null); }}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${tab === t.key ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-            <t.icon className="w-4 h-4" /> {t.label}
-          </button>
-        ))}
-      </div>
+      <EnterpriseTabBar tabs={tabs} active={tab} onChange={(k) => { setTab(k); setSurveyDetail(null); }} />
 
       {loading && <div className="text-center py-10 text-gray-400">Memuat...</div>}
 
@@ -191,13 +176,13 @@ export default function EngagementPage() {
         <div>
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold">Survei & Pulse Check</h2>
-            <button onClick={() => openAdd('survey')} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">
+            <button onClick={() => openAdd('survey')} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700">
               <Plus className="w-4 h-4" /> Buat Survey
             </button>
           </div>
           <div className="grid md:grid-cols-2 gap-4">
             {surveys.map(s => (
-              <div key={s.id} className="bg-white border rounded-xl p-4 hover:shadow-md transition-shadow">
+              <div key={s.id} className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md">
                 <div className="flex justify-between items-start mb-2">
                   <div>
                     <div className="flex items-center gap-2 mb-1">

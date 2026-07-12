@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import HRStatCard from '@/components/humanify/HRStatCard';
+import PerformanceModuleChrome, { EnterpriseTabBar } from '@/components/humanify/PerformanceModuleChrome';
 import { useTranslation } from '@/lib/i18n';
 import { 
   Star, TrendingUp, TrendingDown, Award, Users, 
@@ -529,49 +531,42 @@ export default function PerformancePage() {
   return (
     <HQLayout title={t('hris.performanceTitle')} subtitle={t('hris.performanceSubtitle')}>
       <div className="space-y-6">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: 'Total Evaluasi', value: reviews.length, icon: Users, color: 'blue' },
-            { label: 'Rata-rata Rating', value: avgRating.toFixed(1), icon: Star, color: 'yellow' },
-            { label: 'Kinerja Sangat Baik', value: excellentPerformers, icon: Award, color: 'green' },
-            { label: 'Perlu Peningkatan', value: needsImprovement, icon: TrendingDown, color: 'red' },
-          ].map((s, i) => (
-            <div key={i} className="bg-white rounded-xl p-4 shadow-sm border">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 bg-${s.color}-100 rounded-lg`}>
-                  <s.icon className={`w-5 h-5 text-${s.color}-600`} />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">{s.label}</p>
-                  <p className="text-xl font-bold">{s.value}</p>
-                </div>
-              </div>
-            </div>
-          ))}
+        <PerformanceModuleChrome
+          active="performance"
+          title={t('hris.performanceTitle')}
+          subtitle="Evaluasi kinerja, feedback 360°, dan nine-box matrix untuk keputusan talent management"
+          icon={Award}
+          gradient="indigo"
+          actions={
+            <button onClick={openCreate} className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50">
+              <Plus className="h-4 w-4" /> Buat Evaluasi
+            </button>
+          }
+        />
+
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <HRStatCard label="Total Evaluasi" value={reviews.length} icon={Users} gradient="from-blue-500 to-indigo-600" />
+          <HRStatCard label="Rata-rata Rating" value={avgRating.toFixed(1)} sub="skala 1–5" icon={Star} gradient="from-amber-500 to-orange-600" />
+          <HRStatCard label="Kinerja Sangat Baik" value={excellentPerformers} sub="rating ≥ 4.5" icon={Award} gradient="from-emerald-500 to-teal-600" />
+          <HRStatCard label="Perlu Peningkatan" value={needsImprovement} sub="rating < 3.5" icon={TrendingDown} gradient="from-rose-500 to-red-600" />
         </div>
 
         {/* Toolbar */}
-        <div className="bg-white rounded-xl shadow-sm border p-4">
-          <div className="flex gap-2 mb-3 border-b pb-3">
-            <button onClick={() => setPageTab('reviews')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium ${pageTab === 'reviews' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
-              Evaluasi Kinerja
-            </button>
-            <button onClick={() => setPageTab('360')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium ${pageTab === '360' ? 'bg-purple-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
-              360° Feedback
-            </button>
-            <button onClick={() => setPageTab('ninebox')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1 ${pageTab === 'ninebox' ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
-              <Grid3X3 className="w-4 h-4" /> 9-Box Matrix
-            </button>
-          </div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+          <EnterpriseTabBar
+            tabs={[
+              { key: 'reviews' as const, label: 'Evaluasi Kinerja', icon: FileText, count: reviews.length },
+              { key: '360' as const, label: '360° Feedback', icon: Star, count: feedback360.length },
+              { key: 'ninebox' as const, label: '9-Box Matrix', icon: Grid3X3 },
+            ]}
+            active={pageTab}
+            onChange={setPageTab}
+          />
           {pageTab === 'reviews' && (
-          <div className="flex flex-wrap gap-3 justify-between items-center">
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex gap-2">
               <button onClick={openCreate}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
+                className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
                 <Plus className="w-4 h-4" /> Buat Evaluasi Baru
               </button>
             </div>

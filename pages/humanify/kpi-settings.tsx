@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import HRStatCard from '@/components/humanify/HRStatCard';
+import PerformanceModuleChrome, { EnterpriseTabBar } from '@/components/humanify/PerformanceModuleChrome';
 import { useTranslation } from '@/lib/i18n';
 import {
   Target, Settings, Plus, Edit2, Trash2, Save, X,
@@ -210,14 +212,29 @@ export default function KPISettings() {
   return (
     <HQLayout title="Pengaturan KPI" subtitle="Konfigurasi template, bobot penilaian, dan analisis AI untuk KPI Sales & Marketing">
       <div className="space-y-6">
-        <div className="bg-white rounded-xl shadow-sm border">
-          <div className="flex overflow-x-auto border-b">
-            {tabConfig.map(tab => (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-5 py-3.5 text-sm font-medium transition-all border-b-2 whitespace-nowrap ${activeTab === tab.id ? 'border-blue-600 text-blue-600 bg-blue-50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
-                <tab.icon className="w-4 h-4" />{tab.label}
-              </button>
-            ))}
+        <PerformanceModuleChrome
+          active="kpi-settings"
+          title="Pengaturan KPI"
+          subtitle="Template metrik, skema penilaian, preset role, dan kalkulator bobot — fondasi modul kinerja Humanify"
+          icon={Settings}
+          gradient="slate"
+          actions={
+            <span className="rounded-xl bg-white/15 px-4 py-2 text-sm text-white backdrop-blur-sm">
+              {templates.length} template · {scoringSchemes.length} skema
+            </span>
+          }
+        />
+
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <HRStatCard label="Template Aktif" value={templates.length} icon={Target} gradient="from-blue-500 to-indigo-600" />
+          <HRStatCard label="Skema Penilaian" value={scoringSchemes.length} icon={Award} gradient="from-violet-500 to-purple-600" />
+          <HRStatCard label="Kategori KPI" value={Object.keys(categories).length} icon={Sliders} gradient="from-emerald-500 to-teal-600" />
+          <HRStatCard label="Preset Role" value={Object.keys(ROLE_KPI_PRESETS).length} icon={Users} gradient="from-amber-500 to-orange-600" />
+        </div>
+
+        <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+          <div className="border-b border-slate-100 p-2">
+            <EnterpriseTabBar tabs={tabConfig} active={activeTab} onChange={setActiveTab} />
           </div>
 
           {/* ─── Templates Tab ─── */}
@@ -662,8 +679,6 @@ export default function KPISettings() {
             </div>
           )}
         </div>
-
-        {/* Template Modal */}
         {showTemplateModal && (
           <TemplateModal 
             template={editingTemplate}

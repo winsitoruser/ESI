@@ -84,7 +84,8 @@
     "db:recruitment-training-seed": "node scripts/seed-recruitment-training-demo.js",
     "smoke:recruitment-training": "node scripts/smoke-test-humanify-recruitment-training.js",
     "smoke:ir-disciplinary": "node scripts/smoke-test-ir-disciplinary-integration.js",
-    "smoke:enterprise": "node scripts/smoke-test-humanify-enterprise.js"
+    "smoke:enterprise": "node scripts/smoke-test-humanify-enterprise.js",
+    "smoke:kpi-performance": "node scripts/smoke-test-humanify-kpi-performance-engagement.js"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

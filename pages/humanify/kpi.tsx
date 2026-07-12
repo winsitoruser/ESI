@@ -1,11 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import HRStatCard from '@/components/humanify/HRStatCard';
+import PerformanceModuleChrome, { EnterpriseTabBar } from '@/components/humanify/PerformanceModuleChrome';
 import { useTranslation } from '@/lib/i18n';
 import { 
   Target, TrendingUp, TrendingDown, Award, Users, 
   Building2, Calendar, Filter, Download, ChevronDown,
   AlertCircle, CheckCircle, Clock, BarChart3, PieChart, Eye,
-  Plus, Save, Trash2, X, Search, FileText, Briefcase, DollarSign, UserPlus
+  Plus, Save, Trash2, X, Search, FileText, Briefcase, DollarSign, UserPlus, RefreshCw
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { getDepartmentLabel } from '@/lib/hris/master-data';
@@ -348,99 +350,52 @@ export default function KPIDashboard() {
   return (
     <HQLayout title={t('hris.kpiTitle')} subtitle={t('hris.kpiSubtitle')}>
       <div className="space-y-6">
+        <PerformanceModuleChrome
+          active="kpi"
+          title={t('hris.kpiTitle')}
+          subtitle="Pantau pencapaian KPI per cabang & karyawan — assign, update aktual, dan ekspor laporan"
+          icon={Target}
+          gradient="violet"
+          actions={
+            <>
+              <select value={periodFilter} onChange={(e) => setPeriodFilter(e.target.value)} className="rounded-xl border-0 bg-white/15 px-3 py-2 text-sm text-white backdrop-blur-sm">
+                <option value="current" className="text-slate-900">{t('hris.thisMonth')}</option>
+                <option value="last" className="text-slate-900">{t('hris.lastMonth')}</option>
+              </select>
+              <button onClick={handleExportCSV} className="flex items-center gap-2 rounded-xl bg-white/15 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm hover:bg-white/25">
+                <Download className="h-4 w-4" />{t('hris.exportCsv')}
+              </button>
+              <button onClick={fetchData} disabled={loading} className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50 disabled:opacity-60">
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+              </button>
+            </>
+          }
+        />
+
         {/* Summary Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          <div className="bg-white rounded-xl p-4 shadow-sm border">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Target className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">{t('hris.avgAchievement')}</p>
-                <p className="text-xl font-bold">{avgAchievement.toFixed(0)}%</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl p-4 shadow-sm border">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <TrendingUp className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">{t('hris.exceeded')}</p>
-                <p className="text-xl font-bold">{exceededCount}</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl p-4 shadow-sm border">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <CheckCircle className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">{t('hris.achieved')}</p>
-                <p className="text-xl font-bold">{achievedCount}</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl p-4 shadow-sm border">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-yellow-100 rounded-lg">
-                <Clock className="w-5 h-5 text-yellow-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">{t('hris.partial')}</p>
-                <p className="text-xl font-bold">{partialCount}</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl p-4 shadow-sm border">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-red-100 rounded-lg">
-                <AlertCircle className="w-5 h-5 text-red-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">{t('hris.notAchieved')}</p>
-                <p className="text-xl font-bold">{notAchievedCount}</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl p-4 shadow-sm border">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Users className="w-5 h-5 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">{t('hris.totalEmployees')}</p>
-                <p className="text-xl font-bold">{totalEmployees}</p>
-              </div>
-            </div>
-          </div>
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+          <HRStatCard label={t('hris.avgAchievement')} value={`${avgAchievement.toFixed(0)}%`} icon={Target} gradient="from-indigo-500 to-violet-600" />
+          <HRStatCard label={t('hris.exceeded')} value={exceededCount} icon={TrendingUp} gradient="from-emerald-500 to-teal-600" />
+          <HRStatCard label={t('hris.achieved')} value={achievedCount} icon={CheckCircle} gradient="from-blue-500 to-cyan-600" />
+          <HRStatCard label={t('hris.partial')} value={partialCount} icon={Clock} gradient="from-amber-500 to-orange-600" />
+          <HRStatCard label={t('hris.notAchieved')} value={notAchievedCount} icon={AlertCircle} gradient="from-rose-500 to-red-600" />
+          <HRStatCard label={t('hris.totalEmployees')} value={totalEmployees} sub={`${templates.length} template`} icon={Users} gradient="from-purple-500 to-fuchsia-600" />
         </div>
 
         {/* Tab Navigation */}
-        <div className="bg-white rounded-xl shadow-sm border p-4">
-          <div className="flex flex-wrap gap-4 justify-between items-center">
-            <div className="flex gap-2">
-              <button onClick={() => setActiveTab('dashboard')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'dashboard' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                <BarChart3 className="w-4 h-4 inline mr-2" />{t('hris.dashboard')}
-              </button>
-              <button onClick={() => setActiveTab('templates')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'templates' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                <FileText className="w-4 h-4 inline mr-2" />{t('hris.templateKpi')} ({templates.length})
-              </button>
-              <button onClick={() => { setShowAssignDialog(true); }} className="px-4 py-2 rounded-lg text-sm font-medium bg-green-600 text-white hover:bg-green-700">
-                <UserPlus className="w-4 h-4 inline mr-2" />{t('hris.assignKpi')}
-              </button>
-            </div>
-            <div className="flex gap-2">
-              <select value={periodFilter} onChange={(e) => setPeriodFilter(e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
-                <option value="current">{t('hris.thisMonth')}</option>
-                <option value="last">{t('hris.lastMonth')}</option>
-              </select>
-              <button onClick={handleExportCSV} className="flex items-center gap-2 px-3 py-2 border rounded-lg text-sm hover:bg-gray-50">
-                <Download className="w-4 h-4" />{t('hris.exportCsv')}
-              </button>
-            </div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <EnterpriseTabBar
+              tabs={[
+                { key: 'dashboard' as const, label: t('hris.dashboard'), icon: BarChart3 },
+                { key: 'templates' as const, label: `${t('hris.templateKpi')} (${templates.length})`, icon: FileText },
+              ]}
+              active={activeTab === 'assign' ? 'dashboard' : activeTab}
+              onChange={(k) => setActiveTab(k)}
+            />
+            <button onClick={() => setShowAssignDialog(true)} className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-emerald-700">
+              <UserPlus className="h-4 w-4" />{t('hris.assignKpi')}
+            </button>
           </div>
 
           {/* Sub-tabs for dashboard view */}
