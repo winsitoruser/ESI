@@ -278,14 +278,14 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
 // ===== GET: Leave Types =====
 async function getLeaveTypes(req: NextApiRequest, res: NextApiResponse, session: any) {
   try {
-    if (!LeaveType) return res.json({ success: true, data: getMockLeaveTypes() });
+    if (!LeaveType) return res.json({ success: true, data: allowHrMockFallback() ? getMockLeaveTypes() : [] });
     const where: any = {};
     const tenantId = session.user.tenantId;
     if (tenantId) where[Op.or] = [{ tenantId }, { tenantId: null }];
     const types = await LeaveType.findAll({ where, order: [['sort_order', 'ASC']] });
-    return res.json({ success: true, data: types.length > 0 ? types : getMockLeaveTypes() });
+    return res.json({ success: true, data: types.length > 0 ? types : (allowHrMockFallback() ? getMockLeaveTypes() : []) });
   } catch (e: any) {
-    return res.json({ success: true, data: getMockLeaveTypes() });
+    return res.json({ success: true, data: allowHrMockFallback() ? getMockLeaveTypes() : [] });
   }
 }
 
@@ -321,14 +321,14 @@ async function getLeaveBalances(req: NextApiRequest, res: NextApiResponse, sessi
 // ===== GET: Approval Configs =====
 async function getApprovalConfigs(req: NextApiRequest, res: NextApiResponse, session: any, tenantId: string | null) {
   try {
-    if (!LeaveApprovalConfig) return res.json({ success: true, data: getMockApprovalConfigs() });
+    if (!LeaveApprovalConfig) return res.json({ success: true, data: allowHrMockFallback() ? getMockApprovalConfigs() : [] });
     const where: any = { isActive: true };
     // 🔒 TENANT ISOLATION: Filter by tenant (or global configs with null tenantId)
     if (tenantId) where[Op.or] = [{ tenantId }, { tenantId: null }];
     const configs = await LeaveApprovalConfig.findAll({ where, order: [['priority', 'DESC']] });
-    return res.json({ success: true, data: configs.length > 0 ? configs : getMockApprovalConfigs() });
+    return res.json({ success: true, data: configs.length > 0 ? configs : (allowHrMockFallback() ? getMockApprovalConfigs() : []) });
   } catch (e: any) {
-    return res.json({ success: true, data: getMockApprovalConfigs() });
+    return res.json({ success: true, data: allowHrMockFallback() ? getMockApprovalConfigs() : [] });
   }
 }
 
@@ -336,7 +336,7 @@ async function getApprovalConfigs(req: NextApiRequest, res: NextApiResponse, ses
 async function getLeaveRequests(req: NextApiRequest, res: NextApiResponse, session: any) {
   const { status, leaveType, employeeId } = req.query;
   try {
-    if (!sequelize) return res.json({ success: true, data: getMockRequests() });
+    if (!sequelize) return res.json({ success: true, data: allowHrMockFallback() ? getMockRequests() : [] });
     let where = 'WHERE 1=1';
     const replacements: any = {};
     if (session.user.tenantId) { where += ' AND lr.tenant_id = :tenantId'; replacements.tenantId = session.user.tenantId; }
@@ -374,9 +374,9 @@ async function getLeaveRequests(req: NextApiRequest, res: NextApiResponse, sessi
       approvalSteps: stepsMap[r.id] || []
     }));
 
-    return res.json({ success: true, data: data.length > 0 ? data : getMockRequests() });
+    return res.json({ success: true, data: data.length > 0 ? data : (allowHrMockFallback() ? getMockRequests() : []) });
   } catch (e: any) {
-    return res.json({ success: true, data: getMockRequests() });
+    return res.json({ success: true, data: allowHrMockFallback() ? getMockRequests() : [] });
   }
 }
 

@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]';
-import { allowHrMockFallback } from '@/lib/hris/data-source';
+import { allowHrMockFallback, resolveDataSource } from '@/lib/hris/data-source';
 
 let sequelize: any, Op: any;
 try { sequelize = require('../../../lib/sequelize'); Op = require('sequelize').Op; } catch (e) {}
@@ -147,6 +147,17 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
   );
   const settingsRaw = await safeModelFindAll(AttendanceSetting, {}, mockSettings);
 
+  const isDemoRow = (row: any) => {
+    const id = String(row?.id ?? '');
+    return /^(sh|g|r)\d+$/i.test(id);
+  };
+  const hasLive = [shifts, geofences, rotations, todayRecords].some(
+    (arr) => Array.isArray(arr) && arr.some((r) => r?.id && !isDemoRow(r))
+  );
+  const usedMock = allowHrMockFallback() && !hasLive && (
+    shifts.length > 0 || geofences.length > 0 || rotations.length > 0 || todayRecords.length > 0
+  );
+
   return res.json({
     success: true,
     shifts,
@@ -157,6 +168,7 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
     settingsRaw,
     todayStats,
     todayRecords,
+    dataSource: resolveDataSource(hasLive, usedMock),
   });
 }
 

@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import {
   Clock, Users, DollarSign, CheckCircle, AlertCircle, Search, ArrowLeft,
   Plus, X, Save, Calendar, Eye, TrendingUp, FileText, Filter
@@ -46,6 +48,8 @@ function calcOTAmount(baseSalary: number, hours: number, type: string): number {
   return Math.round(total);
 }
 
+const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
+
 const MOCK_OT: OvertimeRecord[] = [
   { id: 'ot1', employee_id: '5', employee_name: 'Eko Prasetyo', position: 'Warehouse Supervisor', department: 'WAREHOUSE', date: '2026-03-10', start_time: '17:00', end_time: '20:00', hours: 3, type: 'workday', multiplier: 1.83, base_hourly: 69364, amount: calcOTAmount(12000000, 3, 'workday'), reason: 'Stok opname akhir bulan', status: 'approved', approved_by: 'Ahmad Wijaya' },
   { id: 'ot2', employee_id: '12', employee_name: 'Hendra Gunawan', position: 'Warehouse Staff', department: 'WAREHOUSE', date: '2026-03-10', start_time: '17:00', end_time: '21:00', hours: 4, type: 'workday', multiplier: 1.88, base_hourly: 19075, amount: calcOTAmount(3300000, 4, 'workday'), reason: 'Stok opname akhir bulan', status: 'approved', approved_by: 'Eko Prasetyo' },
@@ -58,6 +62,7 @@ const MOCK_OT: OvertimeRecord[] = [
 export default function LemburPage() {
   const [mounted, setMounted] = useState(false);
   const [records, setRecords] = useState<OvertimeRecord[]>([]);
+  const [dataSource, setDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [showModal, setShowModal] = useState(false);
@@ -93,14 +98,22 @@ export default function LemburPage() {
             status: (r.status || 'approved') as OvertimeRecord['status'],
           }));
           setRecords(mapped);
-        } else if (process.env.NODE_ENV !== 'production') {
+          setDataSource('live');
+        } else if (USE_MOCK_UI) {
           setRecords(MOCK_OT);
+          setDataSource('demo');
         } else {
           setRecords([]);
+          setDataSource('empty');
         }
       } catch {
-        if (process.env.NODE_ENV !== 'production') setRecords(MOCK_OT);
-        else setRecords([]);
+        if (USE_MOCK_UI) {
+          setRecords(MOCK_OT);
+          setDataSource('demo');
+        } else {
+          setRecords([]);
+          setDataSource('empty');
+        }
       }
     })();
   }, []);
@@ -174,6 +187,7 @@ export default function LemburPage() {
         <div className="flex items-center gap-3">
           <Link href="/humanify/payroll" className="p-2 border rounded-lg hover:bg-gray-50"><ArrowLeft className="w-4 h-4" /></Link>
           <div className="flex-1"><h2 className="text-lg font-bold">Manajemen Lembur</h2><p className="text-sm text-gray-500">Sesuai PP No. 35/2021 tentang PKWT & Lembur</p></div>
+          <DataSourceBadge source={dataSource} />
           <button type="button" onClick={handleSyncToAttendance} className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50">
             <TrendingUp className="w-4 h-4" /> Sync ke Absensi
           </button>

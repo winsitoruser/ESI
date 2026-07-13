@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import {
   Clock, Users, UserCheck, UserX, MapPin, Shield, Settings, Calendar,
@@ -73,6 +75,9 @@ const MOCK_AM_RECORDS = [
   { id: 'r3', employee_name: 'Ahmad Wijaya', department: 'Operations', shift: 'PAGI', clock_in: '07:55', clock_out: null, status: 'present', method: 'fingerprint' },
 ];
 
+const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
+const EMPTY_AM_STATS = { total: 0, present: 0, late: 0, absent: 0, leave: 0, clockedIn: 0 };
+
 export default function AttendanceManagementPage() {
   const { t } = useTranslation();
   const [mounted, setMounted] = useState(false);
@@ -80,13 +85,14 @@ export default function AttendanceManagementPage() {
   const [activeTab, setActiveTab] = useState<'shifts' | 'geofence' | 'rotations' | 'settings'>('shifts');
 
   // Data
-  const [shifts, setShifts] = useState<WorkShift[]>(MOCK_AM_SHIFTS);
-  const [geofences, setGeofences] = useState<GeofenceLocation[]>(MOCK_AM_GEO);
+  const [shifts, setShifts] = useState<WorkShift[]>([]);
+  const [geofences, setGeofences] = useState<GeofenceLocation[]>([]);
   const [rotations, setRotations] = useState<ShiftRotation[]>([]);
   const [settings, setSettings] = useState<Record<string, any>>({});
   const [settingsRaw, setSettingsRaw] = useState<any[]>([]);
-  const [todayStats, setTodayStats] = useState<any>(MOCK_AM_STATS);
-  const [todayRecords, setTodayRecords] = useState<any[]>(MOCK_AM_RECORDS);
+  const [todayStats, setTodayStats] = useState<any>(EMPTY_AM_STATS);
+  const [todayRecords, setTodayRecords] = useState<any[]>([]);
+  const [dataSource, setDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
 
   // Modals
   const [showShiftModal, setShowShiftModal] = useState(false);
@@ -144,14 +150,21 @@ export default function AttendanceManagementPage() {
         setRotations(json.rotations || []);
         setSettings(json.settings || {});
         setSettingsRaw(json.settingsRaw || []);
-        setTodayStats(json.todayStats || {});
+        setTodayStats(json.todayStats || EMPTY_AM_STATS);
         setTodayRecords(json.todayRecords || []);
+        if (json.dataSource) setDataSource(json.dataSource);
+        else setDataSource((json.shifts?.length || json.todayRecords?.length) ? 'live' : 'empty');
       }
     } catch {
-      setShifts(MOCK_AM_SHIFTS);
-      setGeofences(MOCK_AM_GEO);
-      setTodayStats(MOCK_AM_STATS);
-      setTodayRecords(MOCK_AM_RECORDS);
+      if (USE_MOCK_UI) {
+        setShifts(MOCK_AM_SHIFTS);
+        setGeofences(MOCK_AM_GEO);
+        setTodayStats(MOCK_AM_STATS);
+        setTodayRecords(MOCK_AM_RECORDS);
+        setDataSource('demo');
+      } else {
+        setDataSource('empty');
+      }
     }
     finally { setLoading(false); }
   };
@@ -286,6 +299,10 @@ export default function AttendanceManagementPage() {
   return (
     <HQLayout title={t('hris.timeAttendanceTitle')} subtitle={t('hris.timeAttendanceSubtitle')}>
       <div className="space-y-6">
+        <div className="flex justify-end">
+          <DataSourceBadge source={dataSource} />
+        </div>
+
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
           {[

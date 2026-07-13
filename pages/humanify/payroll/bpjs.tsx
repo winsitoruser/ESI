@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import {
   Shield, Users, DollarSign, CheckCircle, AlertCircle, Search, ArrowLeft,
   TrendingUp, Eye, X, Heart, Building2, FileText, Settings
@@ -41,6 +43,8 @@ function calcBPJS(salary: number) {
   return { kes_e, kes_c, jht_e, jht_c, jp_e, jp_c, jkk, jkm, total_e: kes_e + jht_e + jp_e, total_c: kes_c + jht_c + jp_c + jkk + jkm };
 }
 
+const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
+
 const MOCK_BPJS: BPJSItem[] = [
   { id: '1', employee_name: 'Ahmad Wijaya', position: 'General Manager', department: 'MANAGEMENT', base_salary: 25000000, bpjs_kes_no: '0001234567890', bpjs_tk_no: '19800115001', dependents: 2, status: 'active', ...(() => { const b = calcBPJS(25000000); return { kes_employee: b.kes_e, kes_company: b.kes_c, jht_employee: b.jht_e, jht_company: b.jht_c, jp_employee: b.jp_e, jp_company: b.jp_c, jkk: b.jkk, jkm: b.jkm, total_employee: b.total_e, total_company: b.total_c }; })() },
   { id: '2', employee_name: 'Siti Rahayu', position: 'Branch Manager', department: 'OPERATIONS', base_salary: 18000000, bpjs_kes_no: '0001234567891', bpjs_tk_no: '19900620002', dependents: 0, status: 'active', ...(() => { const b = calcBPJS(18000000); return { kes_employee: b.kes_e, kes_company: b.kes_c, jht_employee: b.jht_e, jht_company: b.jht_c, jp_employee: b.jp_e, jp_company: b.jp_c, jkk: b.jkk, jkm: b.jkm, total_employee: b.total_e, total_company: b.total_c }; })() },
@@ -53,6 +57,7 @@ const MOCK_BPJS: BPJSItem[] = [
 export default function BPJSPage() {
   const [mounted, setMounted] = useState(false);
   const [items, setItems] = useState<BPJSItem[]>([]);
+  const [dataSource, setDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'kesehatan' | 'ketenagakerjaan' | 'tarif'>('kesehatan');
   const [selectedItem, setSelectedItem] = useState<BPJSItem | null>(null);
@@ -86,11 +91,14 @@ export default function BPJSPage() {
             status: 'active',
           }));
           setItems(mapped);
+          setDataSource(mapped.length ? 'live' : 'empty');
         } else {
-          setItems([]);
+          setItems(USE_MOCK_UI ? MOCK_BPJS : []);
+          if (USE_MOCK_UI) setDataSource('demo');
         }
       } catch {
-        setItems([]);
+        setItems(USE_MOCK_UI ? MOCK_BPJS : []);
+        if (USE_MOCK_UI) setDataSource('demo');
       }
     })();
   }, []);
@@ -122,6 +130,7 @@ export default function BPJSPage() {
         <div className="flex items-center gap-3">
           <Link href="/humanify/payroll" className="p-2 border rounded-lg hover:bg-gray-50"><ArrowLeft className="w-4 h-4" /></Link>
           <div className="flex-1"><h2 className="text-lg font-bold">BPJS Kesehatan & Ketenagakerjaan</h2><p className="text-sm text-gray-500">Iuran BPJS karyawan dan perusahaan</p></div>
+          <DataSourceBadge source={dataSource} />
           <div className="flex gap-2">
             <a href="/api/humanify/compliance-export?action=bpjs&format=csv" download className="flex items-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700"><FileText className="w-4 h-4" /> CSV</a>
             <a href="/api/humanify/compliance-export?action=bpjs&format=edabu" download className="flex items-center gap-2 px-3 py-2 bg-purple-800 text-white rounded-lg text-sm hover:bg-purple-900"><FileText className="w-4 h-4" /> EDABU</a>

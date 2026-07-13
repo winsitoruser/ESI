@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import DocumentExportButton from '@/components/documents/DocumentExportButton';
 import {
@@ -21,6 +23,8 @@ interface PayslipItem {
   run_code?: string; period_start?: string; period_end?: string; pay_date?: string; run_status?: string;
 }
 
+const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
+
 const MOCK_PAYSLIPS: PayslipItem[] = [
   { id: 'ps1', employee_id: '1', employee_name: 'Ahmad Wijaya', employee_position: 'General Manager', department: 'MANAGEMENT', pay_type: 'monthly', base_salary: 25000000, total_earnings: 27250000, total_deductions: 3725000, tax_amount: 2100000, net_salary: 23525000, earnings: [{ name: 'Gaji Pokok', amount: 25000000 }, { name: 'Tunj. Jabatan', amount: 1500000 }, { name: 'Tunj. Makan', amount: 750000 }], deductions: [{ name: 'BPJS Kesehatan', amount: 250000 }, { name: 'BPJS JHT', amount: 500000 }, { name: 'BPJS JP', amount: 95596 }, { name: 'PPh 21', amount: 2100000 }], working_days: 22, run_code: 'PAY-2026-03', period_start: '2026-03-01', period_end: '2026-03-31', pay_date: '2026-03-31', run_status: 'paid' },
   { id: 'ps2', employee_id: '2', employee_name: 'Siti Rahayu', employee_position: 'Branch Manager', department: 'OPERATIONS', pay_type: 'monthly', base_salary: 18000000, total_earnings: 19750000, total_deductions: 2437000, tax_amount: 1200000, net_salary: 17313000, earnings: [{ name: 'Gaji Pokok', amount: 18000000 }, { name: 'Tunj. Jabatan', amount: 1000000 }, { name: 'Tunj. Makan', amount: 750000 }], deductions: [{ name: 'BPJS Kesehatan', amount: 180000 }, { name: 'BPJS JHT', amount: 360000 }, { name: 'BPJS JP', amount: 95596 }, { name: 'PPh 21', amount: 1200000 }], working_days: 22, run_code: 'PAY-2026-03', period_start: '2026-03-01', period_end: '2026-03-31', pay_date: '2026-03-31', run_status: 'paid' },
@@ -34,6 +38,7 @@ export default function SlipGajiPage() {
   const { t } = useTranslation();
   const [mounted, setMounted] = useState(false);
   const [payslips, setPayslips] = useState<PayslipItem[]>([]);
+  const [dataSource, setDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterDept, setFilterDept] = useState('all');
@@ -48,10 +53,17 @@ export default function SlipGajiPage() {
     try {
       const res = await fetch('/api/humanify/payroll?action=payslip');
       const json = await res.json();
-      if (json.success && Array.isArray(json.data)) setPayslips(json.data);
-      else setPayslips([]);
-    } catch { setPayslips([]); }
-    finally { setLoading(false); }
+      if (json.success && Array.isArray(json.data)) {
+        setPayslips(json.data);
+        setDataSource(json.data.length ? 'live' : 'empty');
+      } else {
+        setPayslips(USE_MOCK_UI ? MOCK_PAYSLIPS : []);
+        if (USE_MOCK_UI) setDataSource('demo');
+      }
+    } catch {
+      setPayslips(USE_MOCK_UI ? MOCK_PAYSLIPS : []);
+      if (USE_MOCK_UI) setDataSource('demo');
+    } finally { setLoading(false); }
   };
 
   const filtered = useMemo(() => {
@@ -79,6 +91,7 @@ export default function SlipGajiPage() {
         <div className="flex items-center gap-3">
           <Link href="/humanify/payroll" className="p-2 border rounded-lg hover:bg-gray-50"><ArrowLeft className="w-4 h-4" /></Link>
           <div className="flex-1"><h2 className="text-lg font-bold">Slip Gaji Karyawan</h2><p className="text-sm text-gray-500">Daftar slip gaji dari semua periode penggajian</p></div>
+          <DataSourceBadge source={dataSource} />
           <a href="/api/humanify/payroll?action=export&type=payslip" download className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700"><Download className="w-4 h-4" /> Export CSV</a>
         </div>
 

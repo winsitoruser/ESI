@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import {
   FileText, Users, DollarSign, Calculator, CheckCircle, AlertCircle,
   Search, ArrowLeft, TrendingUp, Percent, Settings, Download, Eye, X
@@ -45,6 +47,8 @@ interface TaxItem {
   tax_method: string;
 }
 
+const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
+
 const MOCK_TAX: TaxItem[] = [
   { id: '1', employee_name: 'Ahmad Wijaya', position: 'General Manager', department: 'MANAGEMENT', tax_status: 'K/1', gross_annual: 327000000, deductible: 16350000, ptkp: 63000000, pkp: 247650000, annual_tax: 31147500, monthly_tax: 2595625, ytd_paid: 7786875, remaining: 23360625, tax_method: 'gross_up' },
   { id: '2', employee_name: 'Siti Rahayu', position: 'Branch Manager', department: 'OPERATIONS', tax_status: 'TK/0', gross_annual: 237000000, deductible: 11850000, ptkp: 54000000, pkp: 171150000, annual_tax: 19672500, monthly_tax: 1639375, ytd_paid: 4918125, remaining: 14754375, tax_method: 'gross_up' },
@@ -56,6 +60,7 @@ const MOCK_TAX: TaxItem[] = [
 export default function PPh21Page() {
   const [mounted, setMounted] = useState(false);
   const [items, setItems] = useState<TaxItem[]>([]);
+  const [dataSource, setDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'summary' | 'ptkp' | 'brackets' | 'simulator'>('summary');
@@ -88,11 +93,14 @@ export default function PPh21Page() {
             tax_method: 'gross',
           }));
           setItems(mapped);
+          setDataSource(mapped.length ? 'live' : 'empty');
         } else {
-          setItems([]);
+          setItems(USE_MOCK_UI ? MOCK_TAX : []);
+          if (USE_MOCK_UI) setDataSource('demo');
         }
       } catch {
-        setItems([]);
+        setItems(USE_MOCK_UI ? MOCK_TAX : []);
+        if (USE_MOCK_UI) setDataSource('demo');
       } finally {
         setLoading(false);
       }
@@ -125,6 +133,7 @@ export default function PPh21Page() {
         <div className="flex items-center gap-3">
           <Link href="/humanify/payroll" className="p-2 border rounded-lg hover:bg-gray-50"><ArrowLeft className="w-4 h-4" /></Link>
           <div className="flex-1"><h2 className="text-lg font-bold">PPh 21 - Pajak Penghasilan</h2><p className="text-sm text-gray-500">Perhitungan pajak penghasilan karyawan (TER 2024)</p></div>
+          <DataSourceBadge source={dataSource} />
           <div className="flex gap-2">
             <a href="/api/humanify/compliance-export?action=pph21&format=csv" download className="flex items-center gap-2 px-3 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700"><Download className="w-4 h-4" /> CSV</a>
             <a href="/api/humanify/compliance-export?action=pph21&format=xml" download className="flex items-center gap-2 px-3 py-2 bg-red-800 text-white rounded-lg text-sm hover:bg-red-900"><FileText className="w-4 h-4" /> e-Bupot XML</a>

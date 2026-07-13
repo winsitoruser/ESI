@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import Link from 'next/link';
 import { PageGuard } from '@/components/permissions';
@@ -52,11 +54,15 @@ export default function PayrollIndexPage() {
   const { t } = useTranslation();
   const [mounted, setMounted] = useState(false);
   const [stats, setStats] = useState(USE_MOCK_UI ? MOCK_STATS : EMPTY_STATS);
+  const [dataSource, setDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
 
   useEffect(() => {
     setMounted(true);
     fetch('/api/humanify/payroll').then(r => r.json()).then(json => {
-      if (json.success && json.stats) setStats({ ...(USE_MOCK_UI ? MOCK_STATS : EMPTY_STATS), ...json.stats });
+      if (json.success && json.stats) {
+        setStats({ ...(USE_MOCK_UI ? MOCK_STATS : EMPTY_STATS), ...json.stats });
+        setDataSource(json.stats.totalEmployees > 0 ? 'live' : 'empty');
+      }
     }).catch(() => {});
   }, []);
 
@@ -77,6 +83,7 @@ export default function PayrollIndexPage() {
             <h2 className="text-xl font-bold">Modul Penggajian (Payroll)</h2>
             <p className="text-sm text-gray-500">Kelola seluruh aspek penggajian karyawan dari satu tempat</p>
           </div>
+          <DataSourceBadge source={dataSource} />
         </div>
 
         {/* Summary Stats */}

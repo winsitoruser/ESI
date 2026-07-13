@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
+import { allowHrMockFallback } from '@/lib/hris/data-source';
 
 let LeaveRequest: any, Employee: any;
 try {
@@ -44,7 +45,11 @@ async function getLeaveRequests(req: NextApiRequest, res: NextApiResponse, sessi
   const tenantId = session.user.tenantId;
 
   if (!LeaveRequest) {
-    return res.status(200).json({ success: true, data: getMockLeaves(), summary: getMockSummary() });
+    return res.status(200).json({
+      success: true,
+      data: allowHrMockFallback() ? getMockLeaves() : [],
+      summary: allowHrMockFallback() ? getMockSummary() : { total: 0, pending: 0, approved: 0, rejected: 0, totalDaysUsed: 0 },
+    });
   }
 
   try {
@@ -63,7 +68,11 @@ async function getLeaveRequests(req: NextApiRequest, res: NextApiResponse, sessi
     });
 
     if (requests.length === 0) {
-      return res.status(200).json({ success: true, data: getMockLeaves(), summary: getMockSummary() });
+      return res.status(200).json({
+        success: true,
+        data: allowHrMockFallback() ? getMockLeaves() : [],
+        summary: allowHrMockFallback() ? getMockSummary() : { total: 0, pending: 0, approved: 0, rejected: 0, totalDaysUsed: 0 },
+      });
     }
 
     // Enrich with employee names
@@ -98,7 +107,11 @@ async function getLeaveRequests(req: NextApiRequest, res: NextApiResponse, sessi
     return res.status(200).json({ success: true, data, summary });
   } catch (e: any) {
     console.warn('Leave DB query failed:', e.message);
-    return res.status(200).json({ success: true, data: getMockLeaves(), summary: getMockSummary() });
+    return res.status(200).json({
+      success: true,
+      data: allowHrMockFallback() ? getMockLeaves() : [],
+      summary: allowHrMockFallback() ? getMockSummary() : { total: 0, pending: 0, approved: 0, rejected: 0, totalDaysUsed: 0 },
+    });
   }
 }
 

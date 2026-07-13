@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import {
   Gift, Users, DollarSign, Calculator, Calendar, CheckCircle, AlertCircle,
@@ -30,6 +32,8 @@ const RELIGIOUS_DAYS = [
   { value: 'imlek', label: 'Imlek' },
 ];
 
+const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
+
 const MOCK_THR: THRItem[] = [
   { id: 't1', employee_id: '1', employee_name: 'Ahmad Wijaya', position: 'General Manager', department: 'MANAGEMENT', join_date: '2020-01-15', months_worked: 74, base_salary: 25000000, allowances: 2250000, thr_amount: 27250000, calculation: '1 bulan gaji (>12 bulan)', status: 'eligible' },
   { id: 't2', employee_id: '2', employee_name: 'Siti Rahayu', position: 'Branch Manager', department: 'OPERATIONS', join_date: '2021-06-01', months_worked: 57, base_salary: 18000000, allowances: 1750000, thr_amount: 19750000, calculation: '1 bulan gaji (>12 bulan)', status: 'eligible' },
@@ -44,6 +48,7 @@ export default function THRPage() {
   const { t } = useTranslation();
   const [mounted, setMounted] = useState(false);
   const [items, setItems] = useState<THRItem[]>([]);
+  const [dataSource, setDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'list' | 'config'>('list');
@@ -68,11 +73,14 @@ export default function THRPage() {
       const json = await res.json().catch(() => null);
       if (res.ok && Array.isArray(json?.data)) {
         setItems(json.data);
+        setDataSource(json.data.length ? 'live' : 'empty');
       } else {
-        setItems([]);
+        setItems(USE_MOCK_UI ? MOCK_THR : []);
+        if (USE_MOCK_UI) setDataSource('demo');
       }
     } catch {
-      setItems([]);
+      setItems(USE_MOCK_UI ? MOCK_THR : []);
+      if (USE_MOCK_UI) setDataSource('demo');
     } finally {
       setLoading(false);
     }
@@ -107,6 +115,7 @@ export default function THRPage() {
         <div className="flex items-center gap-3">
           <Link href="/humanify/payroll" className="p-2 border rounded-lg hover:bg-gray-50"><ArrowLeft className="w-4 h-4" /></Link>
           <div className="flex-1"><h2 className="text-lg font-bold">Tunjangan Hari Raya (THR)</h2><p className="text-sm text-gray-500">Perhitungan THR sesuai PP No. 36/2021</p></div>
+          <DataSourceBadge source={dataSource} />
           <a href={`/api/humanify/payroll?action=export&type=thr&year=${config.year}&minimumMonths=${config.minimumMonths}&includeAllowances=${config.includeAllowances}&refDate=${config.payDate}`} download className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg text-sm hover:bg-amber-700"><FileText className="w-4 h-4" /> Export CSV</a>
         </div>
 
