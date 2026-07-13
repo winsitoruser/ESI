@@ -1488,11 +1488,13 @@ async function getLaporan(req: NextApiRequest, res: NextApiResponse, session: an
       FROM employee_salaries WHERE is_active = true
       GROUP BY bucket ORDER BY bucket
     `);
+    const hasLive = (monthlyRows?.length || 0) > 0 || (deptRows?.length || 0) > 0 || (distRows?.length || 0) > 0;
     return res.json({
       success: true,
       monthly: (monthlyRows || []).reverse(),
       byDepartment: deptRows || [],
       distribution: distRows || [],
+      dataSource: hasLive ? 'live' : 'empty',
     });
   } catch (e: any) {
     return res.json({ success: true, monthly: [], byDepartment: [], distribution: [], error: e.message });

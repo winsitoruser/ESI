@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import dynamic from 'next/dynamic';
 import {
   FileText, Users, DollarSign, TrendingUp, ArrowLeft, BarChart3, PieChart,
@@ -25,13 +27,15 @@ interface DeptData {
   department: string; employees: number; gross: number; net: number; avg_salary: number;
 }
 
-const DEFAULT_MONTHLY: MonthlyData[] = [
+const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
+
+const MOCK_MONTHLY: MonthlyData[] = [
   { month: '2026-01', label: 'Jan', gross: 1790000000, deductions: 358000000, tax: 179000000, bpjs: 89500000, net: 1432000000, employees: 145 },
   { month: '2026-02', label: 'Feb', gross: 1850000000, deductions: 370000000, tax: 185000000, bpjs: 92500000, net: 1480000000, employees: 148 },
   { month: '2026-03', label: 'Mar', gross: 1860000000, deductions: 372000000, tax: 186000000, bpjs: 93000000, net: 1488000000, employees: 148 },
 ];
 
-const DEFAULT_DEPT: DeptData[] = [
+const MOCK_DEPT: DeptData[] = [
   { department: 'MANAGEMENT', employees: 5, gross: 110000000, net: 92000000, avg_salary: 22000000 },
   { department: 'OPERATIONS', employees: 42, gross: 420000000, net: 350000000, avg_salary: 10000000 },
   { department: 'SALES', employees: 30, gross: 270000000, net: 225000000, avg_salary: 9000000 },
@@ -42,7 +46,7 @@ const DEFAULT_DEPT: DeptData[] = [
   { department: 'HR', employees: 6, gross: 60000000, net: 50000000, avg_salary: 10000000 },
 ];
 
-const DEFAULT_DISTRIBUTION = [
+const MOCK_DISTRIBUTION = [
   { range: '< 5jt', count: 22, pct: 14.9 },
   { range: '5-10jt', count: 48, pct: 32.4 },
   { range: '10-15jt', count: 38, pct: 25.7 },
@@ -54,9 +58,10 @@ export default function LaporanPage() {
   const [mounted, setMounted] = useState(false);
   const [activeReport, setActiveReport] = useState<'monthly' | 'department' | 'distribution' | 'ytd'>('monthly');
   const [selectedYear, setSelectedYear] = useState('2026');
-  const [monthly, setMonthly] = useState<MonthlyData[]>(DEFAULT_MONTHLY);
-  const [byDept, setByDept] = useState<DeptData[]>(DEFAULT_DEPT);
-  const [distribution, setDistribution] = useState(DEFAULT_DISTRIBUTION);
+  const [monthly, setMonthly] = useState<MonthlyData[]>(USE_MOCK_UI ? MOCK_MONTHLY : []);
+  const [byDept, setByDept] = useState<DeptData[]>(USE_MOCK_UI ? MOCK_DEPT : []);
+  const [distribution, setDistribution] = useState(USE_MOCK_UI ? MOCK_DISTRIBUTION : []);
+  const [dataSource, setDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
 
   useEffect(() => {
     setMounted(true);
@@ -65,7 +70,9 @@ export default function LaporanPage() {
         const res = await fetch('/api/humanify/payroll?action=laporan');
         const json = await res.json().catch(() => null);
         if (res.ok && json) {
+          let hasLive = false;
           if (Array.isArray(json.monthly) && json.monthly.length > 0) {
+            hasLive = true;
             setMonthly(json.monthly.map((m: any) => ({
               month: m.month, label: m.month.split('-')[1],
               gross: Number(m.gross || 0), net: Number(m.net || 0),
@@ -73,8 +80,11 @@ export default function LaporanPage() {
               deductions: Number(m.gross || 0) - Number(m.net || 0),
               employees: 0,
             })));
+          } else {
+            setMonthly(USE_MOCK_UI ? MOCK_MONTHLY : []);
           }
           if (Array.isArray(json.byDepartment) && json.byDepartment.length > 0) {
+            hasLive = true;
             setByDept(json.byDepartment.map((d: any) => ({
               department: d.department || 'Lainnya',
               employees: Number(d.employees || 0),
@@ -82,14 +92,20 @@ export default function LaporanPage() {
               net: Math.round(Number(d.total_basic || 0) * 0.83),
               avg_salary: d.employees > 0 ? Math.round(Number(d.total_basic) / Number(d.employees)) : 0,
             })));
+          } else {
+            setByDept(USE_MOCK_UI ? MOCK_DEPT : []);
           }
           if (Array.isArray(json.distribution) && json.distribution.length > 0) {
+            hasLive = true;
             const total = json.distribution.reduce((s: number, d: any) => s + Number(d.c || 0), 0) || 1;
             setDistribution(json.distribution.map((d: any) => ({
               range: d.bucket, count: Number(d.c || 0),
               pct: Math.round((Number(d.c || 0) / total) * 1000) / 10,
             })));
+          } else {
+            setDistribution(USE_MOCK_UI ? MOCK_DISTRIBUTION : []);
           }
+          setDataSource(json.dataSource || (hasLive ? 'live' : (USE_MOCK_UI ? 'demo' : 'empty')));
         }
       } catch {}
     })();
@@ -110,6 +126,7 @@ export default function LaporanPage() {
         <div className="flex items-center gap-3">
           <Link href="/humanify/payroll" className="p-2 border rounded-lg hover:bg-gray-50"><ArrowLeft className="w-4 h-4" /></Link>
           <div className="flex-1"><h2 className="text-lg font-bold">Laporan Penggajian</h2><p className="text-sm text-gray-500">Analisis dan rekap penggajian komprehensif</p></div>
+          <DataSourceBadge source={dataSource} />
           <a href="/api/humanify/payroll?action=export&type=salaries" download className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700"><Download className="w-4 h-4" /> Export Gaji</a>
         </div>
 

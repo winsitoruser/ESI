@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import { exportToCSV, exportToExcel } from '@/utils/export-utils';
 import {
@@ -26,6 +28,7 @@ export default function HRISReportsPage() {
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<any>({});
   const [reports, setReports] = useState<any[]>([]);
+  const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [exporting, setExporting] = useState<string | null>(null);
 
@@ -36,7 +39,9 @@ export default function HRISReportsPage() {
       const json = await res.json();
       if (json.success) {
         setSummary(json.summary || {});
-        setReports(json.reports || []);
+        const rows = json.reports || [];
+        setReports(rows);
+        setDataSource(rows.length ? 'live' : 'empty');
       }
     } catch { /* keep empty */ }
     finally { setLoading(false); }
@@ -86,6 +91,7 @@ export default function HRISReportsPage() {
             <p className="text-sm text-gray-500 mt-1">Pusat laporan kepegawaian, kehadiran, KPI, cuti & payroll</p>
           </div>
           <div className="flex items-center gap-3">
+            <DataSourceBadge source={dataSource} />
             <input type="month" value={period} onChange={e => setPeriod(e.target.value)}
               className="px-3 py-2 border rounded-lg text-sm" />
             <button onClick={fetchReports} className="p-2 border rounded-lg hover:bg-gray-50" title="Refresh">

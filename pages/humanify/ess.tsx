@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import {
   User, FileText, Calendar, DollarSign, Clock, Bell, Shield,
@@ -25,6 +27,7 @@ export default function ESSPortalPage() {
   const [claims, setClaims] = useState<any[]>([]);
   const [reminders, setReminders] = useState<any[]>([]);
   const [workflowSummary, setWorkflowSummary] = useState<any>(EMPTY_WORKFLOW);
+  const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [reminderSummary, setReminderSummary] = useState<any>(EMPTY_REMINDER_SUMMARY);
 
   // Claim modal
@@ -53,8 +56,12 @@ export default function ESSPortalPage() {
     try {
       const res = await fetch('/api/humanify/workflow?action=summary');
       const json = await res.json();
-      setWorkflowSummary(json.data || EMPTY_WORKFLOW);
-    } catch (e) { console.error(e); setWorkflowSummary(EMPTY_WORKFLOW); }
+      const summary = json.data || EMPTY_WORKFLOW;
+      setWorkflowSummary(summary);
+      const activity = (summary.claims?.pending || 0) + (summary.claims?.approved || 0)
+        + (summary.mutations?.pending || 0) + (summary.mutations?.approved || 0);
+      setDataSource(activity > 0 ? 'live' : 'empty');
+    } catch (e) { console.error(e); setWorkflowSummary(EMPTY_WORKFLOW); setDataSource('empty'); }
   };
 
   const fetchReminderSummary = async () => {
@@ -69,7 +76,9 @@ export default function ESSPortalPage() {
     try {
       const res = await fetch('/api/humanify/reminders?action=upcoming&days=60');
       const json = await res.json();
-      setReminders(json.data || []);
+      const rows = json.data || [];
+      setReminders(rows);
+      if (rows.length) setDataSource('live');
     } catch (e) { console.error(e); setReminders([]); }
   };
 
@@ -161,10 +170,13 @@ export default function ESSPortalPage() {
             </h1>
             <p className="text-sm text-gray-500 mt-0.5">Konsol HR untuk monitoring klaim & pengingat karyawan</p>
           </div>
-          <Link href="/employee" target="_blank"
+          <div className="flex flex-wrap items-center gap-2">
+            <DataSourceBadge source={dataSource} />
+            <Link href="/employee" target="_blank"
             className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg hover:shadow-xl transition">
             <Smartphone className="w-4 h-4" /> Buka Portal Karyawan
           </Link>
+          </div>
         </div>
 
         {/* Quick Stats */}

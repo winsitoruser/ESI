@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import { PageGuard } from '@/components/permissions';
 import Link from 'next/link';
 import {
@@ -24,6 +26,7 @@ interface Props {
 
 export default function PayrollInputPage({ type, title, subtitle, icon, categories, showInstallment }: Props) {
   const [items, setItems] = useState<any[]>([]);
+  const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [loading, setLoading] = useState(true);
   const Icon = ICONS[icon] || Gift;
   const fmt = (n: number) => `Rp ${(n || 0).toLocaleString('id-ID')}`;
@@ -33,8 +36,10 @@ export default function PayrollInputPage({ type, title, subtitle, icon, categori
     try {
       const r = await fetch(`/api/humanify/payroll-inputs?type=${type}`);
       const j = await r.json();
-      setItems(j.data || []);
-    } catch { setItems([]); }
+      const rows = j.data || [];
+      setItems(rows);
+      setDataSource(rows.length ? 'live' : 'empty');
+    } catch { setItems([]); setDataSource('empty'); }
     setLoading(false);
   }, [type]);
 
@@ -61,6 +66,7 @@ export default function PayrollInputPage({ type, title, subtitle, icon, categori
               <h2 className="text-xl font-bold flex items-center gap-2"><Icon className="w-5 h-5 text-emerald-600" /> {title}</h2>
               <p className="text-sm text-gray-500">{subtitle}</p>
             </div>
+            <DataSourceBadge source={dataSource} />
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">

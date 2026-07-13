@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import HRStatCard from '@/components/humanify/HRStatCard';
 import PerformanceModuleChrome, { EnterpriseTabBar } from '@/components/humanify/PerformanceModuleChrome';
 import { useTranslation } from '@/lib/i18n';
@@ -89,14 +91,19 @@ const categoryColors: Record<string, string> = {
 
 type TabKey = 'templates' | 'scoring' | 'ai-analysis' | 'calculator' | 'presets';
 
+const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
+
+const DEFAULT_SCORING_SCHEMES = [
+  { id: 'ss1', name: 'Standard 5-Level', isDefault: true, description: 'Skala penilaian standar 5 level', levels: STANDARD_SCORING_LEVELS },
+];
+
 export default function KPISettings() {
   const { t } = useTranslation();
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>('templates');
-  const [templates, setTemplates] = useState<KPITemplate[]>(KPI_TEMPLATES as KPITemplate[]);
-  const [scoringSchemes, setScoringSchemes] = useState<any[]>([
-    { id: 'ss1', name: 'Standard 5-Level', isDefault: true, description: 'Skala penilaian standar 5 level', levels: STANDARD_SCORING_LEVELS }
-  ]);
+  const [templates, setTemplates] = useState<KPITemplate[]>(USE_MOCK_UI ? KPI_TEMPLATES as KPITemplate[] : []);
+  const [scoringSchemes, setScoringSchemes] = useState<any[]>(USE_MOCK_UI ? DEFAULT_SCORING_SCHEMES : []);
+  const [dataSource, setDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
   const [categories] = useState<any>(KPI_CATEGORIES);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -136,22 +143,36 @@ export default function KPISettings() {
         const json = await response.json();
         const payload = json.data || json;
         const apiTemplates = payload.templates;
-        if (apiTemplates?.length > 0) setTemplates(apiTemplates.map(mapApiTemplate));
+        if (apiTemplates?.length > 0) {
+          setTemplates(apiTemplates.map(mapApiTemplate));
+          setDataSource('live');
+        } else if (!USE_MOCK_UI) {
+          setTemplates([]);
+          setDataSource('empty');
+        }
         if (payload.scoringSchemes?.length > 0) setScoringSchemes(payload.scoringSchemes);
       } else {
         const fallback = await fetch('/api/humanify/kpi-templates');
         if (fallback.ok) {
           const data = await fallback.json();
           const apiTemplates = data.data?.templates;
-          if (apiTemplates?.length > 0) setTemplates(apiTemplates.map(mapApiTemplate));
+          if (apiTemplates?.length > 0) {
+            setTemplates(apiTemplates.map(mapApiTemplate));
+            setDataSource('live');
+          } else if (!USE_MOCK_UI) {
+            setTemplates([]);
+            setDataSource('empty');
+          }
           if (data.data?.scoringSchemes?.length > 0) setScoringSchemes(data.data.scoringSchemes);
         } else {
           showToast('error', 'Gagal memuat template KPI');
+          if (!USE_MOCK_UI) setDataSource('empty');
         }
       }
     } catch (error) {
       console.error('Error fetching KPI data:', error);
       showToast('error', 'Gagal memuat template KPI');
+      if (!USE_MOCK_UI) setDataSource('empty');
     } finally {
       setLoading(false);
     }
@@ -225,9 +246,12 @@ export default function KPISettings() {
           icon={Settings}
           gradient="slate"
           actions={
-            <span className="rounded-xl bg-white/15 px-4 py-2 text-sm text-white backdrop-blur-sm">
-              {templates.length} template · {scoringSchemes.length} skema
-            </span>
+            <div className="flex items-center gap-2">
+              <DataSourceBadge source={dataSource} className="!bg-white/90" />
+              <span className="rounded-xl bg-white/15 px-4 py-2 text-sm text-white backdrop-blur-sm">
+                {templates.length} template · {scoringSchemes.length} skema
+              </span>
+            </div>
           }
         />
 
