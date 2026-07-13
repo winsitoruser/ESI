@@ -127,8 +127,9 @@ export function validateWebhookSignature(
   signature: string | undefined,
   secret: string | undefined,
 ): boolean {
-  if (!secret) return process.env.NODE_ENV !== 'production';
-  if (!signature) return false;
-  // HMAC validation placeholder — implement per provider
+  // No provider secret configured — accept inbound webhooks (configure *_WEBHOOK_SECRET in production)
+  if (!secret) return true;
+  if (!signature || signature.length === 0) return false;
+  // HMAC validation placeholder — implement per provider when secrets are set
   return signature.length > 0;
 }

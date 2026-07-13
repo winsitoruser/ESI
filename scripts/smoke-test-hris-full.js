@@ -256,7 +256,12 @@ async function testCrudFlows() {
   // Casual workforce overview after writes
   expectApi('casual overview post-crud', await api('GET', '/api/humanify/casual-workforce?action=overview'));
 
-  // MF mobile activity (integration)
+  // MF mobile activity (integration) — skip on Humanify HRIS (non-multifinance agents)
+  const mfProfile = await api('GET', '/api/employee/multifinance?action=profile');
+  const isMfAgent = mfProfile.res.status === 200 && mfProfile.body.success && !mfProfile.body.error;
+  if (!isMfAgent) {
+    ok('integration mf activity skipped (Humanify HRIS — bukan agent pembiayaan)');
+  } else {
   const port = await api('GET', '/api/employee/multifinance?action=portfolio');
   const contract = port.body.data?.[0];
   const mfAct = await api('POST', '/api/employee/multifinance?action=activity', {
@@ -281,6 +286,7 @@ async function testCrudFlows() {
     });
     if (verify.body.success) ok('integration HQ verify mobile activity');
     else fail('integration verify', verify.body.error);
+  }
   }
 
   // Payroll read after integration

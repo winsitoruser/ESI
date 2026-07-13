@@ -122,7 +122,10 @@ async function testBusinessFlows() {
 
   const wh = await fetch(`${BASE}/api/humanify/webhooks/recruitment`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-webhook-signature': process.env.RECRUITMENT_WEBHOOK_SMOKE_SIG || 'smoke-test-signature',
+    },
     body: JSON.stringify({
       provider: 'dealls',
       event: 'candidate.applied',
