@@ -11,15 +11,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (req.method === 'GET') {
       if (req.query.action === 'analytics') {
         const data = await getCertificateAnalytics();
-        return res.json({ success: true, data });
+        return res.json({ success: true, data, dataSource: data.dataSource });
       }
       const filters = {
         status: req.query.status as CertStatus | undefined,
         source: req.query.source as CertSource | undefined,
         employeeId: req.query.employeeId as string | undefined,
       };
-      const data = await listCertificates(filters);
-      return res.json({ success: true, data });
+      const { records, dataSource } = await listCertificates(filters);
+      return res.json({ success: true, data: records, dataSource });
     }
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error: any) {

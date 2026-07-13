@@ -465,22 +465,39 @@ export default function HumanifyRoiCalculator() {
   const router = useRouter();
   const pathname = '/humanify/pricing/roi-calculator';
 
-  const initialValues = useMemo(
-    () => parseRoiQueryParams(router.query as Record<string, string | string[] | undefined>),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [router.isReady],
-  );
-
   const [values, setValues] = useState<RoiInput>(ROI_DEFAULTS);
   const [debouncedValues, setDebouncedValues] = useState<RoiInput>(ROI_DEFAULTS);
+  const [hrisPrefilled, setHrisPrefilled] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
-    if (router.isReady) {
-      setValues(initialValues);
-      setDebouncedValues(initialValues);
+    if (!router.isReady) return;
+    const fromQuery = parseRoiQueryParams(router.query as Record<string, string | string[] | undefined>);
+    const hasQueryParams = Object.keys(router.query).some((k) =>
+      ['jumlahKaryawan', 'rataGajiKaryawan', 'jumlahStaffHR', 'rataGajiStaffHR', 'jamAdminPerMinggu'].includes(k),
+    );
+    if (hasQueryParams) {
+      setValues(fromQuery);
+      setDebouncedValues(fromQuery);
+      return;
     }
-  }, [router.isReady, initialValues]);
+    fetch('/api/humanify/roi-stats')
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.dataSource === 'live' && json.data) {
+          setValues(json.data);
+          setDebouncedValues(json.data);
+          setHrisPrefilled(true);
+        } else {
+          setValues(ROI_DEFAULTS);
+          setDebouncedValues(ROI_DEFAULTS);
+        }
+      })
+      .catch(() => {
+        setValues(ROI_DEFAULTS);
+        setDebouncedValues(ROI_DEFAULTS);
+      });
+  }, [router.isReady, router.query]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -513,6 +530,12 @@ export default function HumanifyRoiCalculator() {
         </div>
 
         <div className="lg:col-span-3 space-y-6">
+          {hrisPrefilled && (
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100 flex items-center gap-2">
+              <Check className="w-4 h-4 shrink-0" />
+              Data karyawan dimuat dari HRIS Anda — sesuaikan angka jika diperlukan.
+            </div>
+          )}
           <ResultCards result={result} />
 
           <div className="grid md:grid-cols-2 gap-6">

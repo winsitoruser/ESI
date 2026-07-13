@@ -175,7 +175,8 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
           console.warn('overview query error:', (e as Error).message);
         }
       }
-      return res.json({ success: true, data: analytics });
+      const hasData = analytics.totalEmployees > 0 || (analytics.departmentBreakdown?.length || 0) > 0;
+      return res.json({ success: true, data: analytics, dataSource: hasData ? 'live' : 'empty' });
     }
     case 'headcount-plans': {
       const { status, department } = req.query;

@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import { PageGuard } from '@/components/permissions';
 import Link from 'next/link';
 import { Award, AlertTriangle, CheckCircle2, XCircle, Search, ArrowLeft, BarChart3 } from 'lucide-react';
@@ -13,6 +15,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
 export default function CertificatesPage() {
   const [certs, setCerts] = useState<any[]>([]);
   const [analytics, setAnalytics] = useState<any>({});
+  const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [filter, setFilter] = useState('');
   const [search, setSearch] = useState('');
 
@@ -24,7 +27,11 @@ export default function CertificatesPage() {
       ]);
       setCerts(c.data || []);
       setAnalytics(a.data || {});
-    } catch { setCerts([]); }
+      setDataSource(c.dataSource || a.dataSource || (c.data?.length ? 'live' : 'empty'));
+    } catch {
+      setCerts([]);
+      setDataSource('empty');
+    }
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -39,14 +46,30 @@ export default function CertificatesPage() {
     <PageGuard anyPermission={['training.view', 'training.*', 'employees.*']} title="Sertifikat" description="Registry sertifikat karyawan">
       <HQLayout title="Certificate Registry" subtitle="Tracker sertifikat, lisensi, compliance — alert expiry otomatis">
         <div className="space-y-6">
-          <div className="flex items-center gap-3">
-            <Link href="/humanify/training" className="p-2 border rounded-lg hover:bg-gray-50"><ArrowLeft className="w-4 h-4" /></Link>
-            <div className="flex-1">
-              <h2 className="text-xl font-bold flex items-center gap-2"><Award className="w-5 h-5 text-amber-600" /> Certificate & Credential Registry</h2>
-              <p className="text-sm text-gray-500">Central registry — training, lisensi, compliance, sertifikasi eksternal</p>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 flex-1">
+              <Link href="/humanify/training" className="p-2 border rounded-lg hover:bg-gray-50"><ArrowLeft className="w-4 h-4" /></Link>
+              <div className="flex-1">
+                <h2 className="text-xl font-bold flex items-center gap-2"><Award className="w-5 h-5 text-amber-600" /> Certificate & Credential Registry</h2>
+                <p className="text-sm text-gray-500">Central registry — training, lisensi, compliance, sertifikasi eksternal</p>
+              </div>
             </div>
-            <Link href="/humanify/workforce-analytics" className="px-3 py-2 text-sm border rounded-lg flex items-center gap-1"><BarChart3 className="w-4 h-4" /> Analytics</Link>
+            <div className="flex items-center gap-2">
+              <Link href="/humanify/workforce-analytics" className="px-3 py-2 text-sm border rounded-lg flex items-center gap-1"><BarChart3 className="w-4 h-4" /> Analytics</Link>
+              <DataSourceBadge source={dataSource} />
+            </div>
           </div>
+
+          {(analytics.expiringSoon > 0 || analytics.expired > 0) && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm flex items-start gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <strong>Perhatian expiry sertifikat:</strong>{' '}
+                {analytics.expiringSoon > 0 && <span>{analytics.expiringSoon} sertifikat akan expired dalam 90 hari. </span>}
+                {analytics.expired > 0 && <span>{analytics.expired} sertifikat sudah expired — perlu perpanjangan atau training ulang.</span>}
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[

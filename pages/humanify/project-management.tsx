@@ -15,30 +15,20 @@ import TemplatesTab from '@/components/humanify/project-management/TemplatesTab'
 import UploadModal from '@/components/humanify/project-management/UploadModal';
 import CrudModal from '@/components/humanify/project-management/CrudModal';
 import BulkImportModal from '@/components/humanify/project-management/BulkImportModal';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 
-const MOCK_PM_OVERVIEW = { totalProjects: 8, activeProjects: 5, totalWorkers: 45, totalBudget: 2500000000, totalActualCost: 1800000000, avgCompletion: 62 };
-const MOCK_PROJECTS: ProjectItem[] = [
-  { id: 'p1', project_code: 'PRJ-2026-001', name: 'Ekspansi Cabang Bali', description: 'Pembukaan cabang baru di Bali', client_name: 'Internal', location: 'Bali', start_date: '2026-01-15', end_date: '2026-06-30', status: 'in_progress', budget_amount: 800000000, actual_cost: 520000000, project_manager_id: 1, department: 'Operations', industry: 'F&B', completion_percent: 65, priority: 'high', milestones: [] },
-  { id: 'p2', project_code: 'PRJ-2026-002', name: 'Sistem POS v3.0', description: 'Upgrade sistem POS ke versi 3.0', client_name: 'Internal', location: 'Jakarta', start_date: '2026-02-01', end_date: '2026-08-31', status: 'in_progress', budget_amount: 500000000, actual_cost: 180000000, project_manager_id: 3, department: 'IT', industry: 'Technology', completion_percent: 35, priority: 'high', milestones: [] },
-  { id: 'p3', project_code: 'PRJ-2026-003', name: 'Renovasi Gudang Surabaya', description: 'Renovasi dan perluasan gudang', client_name: 'Internal', location: 'Surabaya', start_date: '2026-03-01', end_date: '2026-05-31', status: 'planned', budget_amount: 350000000, actual_cost: 0, project_manager_id: 5, department: 'Facilities', industry: 'Construction', completion_percent: 0, priority: 'medium', milestones: [] },
-];
-const MOCK_PM_WORKERS: Worker[] = [
-  { id: 'w1', project_id: 'p1', employee_id: 10, role: 'Site Manager', assignment_start: '2026-01-15', assignment_end: '2026-06-30', daily_rate: 500000, hourly_rate: 62500, allocation_percent: 100, status: 'active', worker_type: 'permanent', contract_number: '' },
-  { id: 'w2', project_id: 'p1', employee_id: 15, role: 'Architect', assignment_start: '2026-01-15', assignment_end: '2026-04-30', daily_rate: 750000, hourly_rate: 93750, allocation_percent: 50, status: 'active', worker_type: 'contract', contract_number: 'CTR-2026-005' },
-];
-const MOCK_PM_TIMESHEETS: Timesheet[] = [
-  { id: 'ts1', project_id: 'p1', employee_id: 10, timesheet_date: '2026-03-12', hours_worked: 8, overtime_hours: 2, activity_description: 'Supervisi pekerjaan struktur', task_category: 'supervision', status: 'approved' },
-  { id: 'ts2', project_id: 'p2', employee_id: 3, timesheet_date: '2026-03-12', hours_worked: 8, overtime_hours: 0, activity_description: 'Development modul payment', task_category: 'development', status: 'submitted' },
-];
+const EMPTY_PM_OVERVIEW = { totalProjects: 0, activeProjects: 0, activeWorkers: 0, totalTimesheets: 0, totalBudget: 0, totalActual: 0 };
 
 export default function ProjectManagementPage() {
   const { t } = useTranslation();
   const [tab, setTab] = useState<TabKey>('projects');
-  const [overview, setOverview] = useState<any>(MOCK_PM_OVERVIEW);
-  const [projects, setProjects] = useState<ProjectItem[]>(MOCK_PROJECTS);
-  const [workers, setWorkers] = useState<Worker[]>(MOCK_PM_WORKERS);
-  const [timesheets, setTimesheets] = useState<Timesheet[]>(MOCK_PM_TIMESHEETS);
+  const [overview, setOverview] = useState<any>(EMPTY_PM_OVERVIEW);
+  const [projects, setProjects] = useState<ProjectItem[]>([]);
+  const [workers, setWorkers] = useState<Worker[]>([]);
+  const [timesheets, setTimesheets] = useState<Timesheet[]>([]);
   const [payrollItems, setPayrollItems] = useState<PayrollItem[]>([]);
+  const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState('');
@@ -96,17 +86,21 @@ export default function ProjectManagementPage() {
       const [ov, pj, wk, ts, pr] = await Promise.all([
         api('overview'), api('projects'), api('workers'), api('timesheets'), api('payroll')
       ]);
-      setOverview(ov.data || {});
+      setOverview(ov.data || EMPTY_PM_OVERVIEW);
       setProjects(pj.data || []);
       setWorkers(wk.data || []);
       setTimesheets(ts.data || []);
       setPayrollItems(pr.data || []);
+      const hasRows = (ov.data?.totalProjects || 0) > 0 || (pj.data?.length || 0) > 0;
+      setDataSource(ov.dataSource || (hasRows ? 'live' : 'empty'));
     } catch (e) {
       console.error(e);
-      setOverview(MOCK_PM_OVERVIEW);
-      setProjects(MOCK_PROJECTS);
-      setWorkers(MOCK_PM_WORKERS);
-      setTimesheets(MOCK_PM_TIMESHEETS);
+      showToast('Gagal memuat data proyek', 'error');
+      setOverview(EMPTY_PM_OVERVIEW);
+      setProjects([]);
+      setWorkers([]);
+      setTimesheets([]);
+      setDataSource('empty');
     }
     setLoading(false);
   }, [api]);
@@ -339,9 +333,12 @@ export default function ProjectManagementPage() {
     <div className="p-6 max-w-7xl mx-auto">
       {toast && <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white ${toast.type === 'error' ? 'bg-red-500' : 'bg-green-500'}`}>{toast.msg}</div>}
 
-      <div className="mb-6">
+      <div className="mb-6 flex items-start justify-between gap-3">
+        <div>
         <h1 className="text-2xl font-bold text-gray-900">Manajemen Proyek & Pekerja Kontrak</h1>
         <p className="text-gray-500 mt-1">Kelola proyek, tenaga kerja kontrak, timesheet, dan payroll berbasis proyek</p>
+        </div>
+        <DataSourceBadge source={dataSource} />
       </div>
 
       {/* Overview Cards */}

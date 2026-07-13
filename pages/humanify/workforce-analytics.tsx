@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import { PageGuard } from '@/components/permissions';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import DepartmentSelect from '@/components/humanify/DepartmentSelect';
 import { useTranslation } from '@/lib/i18n';
 import { BarChart3, Users, TrendingUp, TrendingDown, Plus, Edit, Trash2, X, DollarSign, Target, Clock, AlertCircle, CheckCircle, UserPlus, Activity } from 'lucide-react';
@@ -30,6 +33,7 @@ export default function WorkforceAnalyticsPage() {
   const [modalType, setModalType] = useState('');
   const [editingItem, setEditingItem] = useState<any>(null);
   const [toast, setToast] = useState<{ msg: string; type: string } | null>(null);
+  const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [mounted, setMounted] = useState(false);
 
   const [planForm, setPlanForm] = useState({ name: '', periodStart: '', periodEnd: '', department: '', currentHeadcount: 0, plannedHeadcount: 0, budgetAmount: 0, justification: '', status: 'draft' });
@@ -59,6 +63,7 @@ export default function WorkforceAnalyticsPage() {
       ]);
       const on401 = () => showToast('Sesi berakhir, silakan login ulang', 'error');
       setOverview(applyApiData(ov, EMPTY_OVERVIEW, on401));
+      setDataSource(ov.dataSource || (ov.data?.totalEmployees ? 'live' : 'empty'));
       setPlans(applyApiData(hp, [], on401));
       setBudgets(applyApiData(mb, [], on401));
       setTurnover(applyApiData(ta, { byMonth: [], byType: [], byDepartment: [] }, on401));
@@ -194,13 +199,17 @@ export default function WorkforceAnalyticsPage() {
   ];
 
   return (
+    <PageGuard anyPermission={['employees.view', 'employees.*']} title="Workforce Analytics" description="Perencanaan dan analitik SDM">
     <HQLayout title={t('hris.workforceAnalyticsTitle')}>
     <div className="p-6 max-w-7xl mx-auto">
       {toast && <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white ${toast.type === 'error' ? 'bg-red-500' : 'bg-green-500'}`}>{toast.msg}</div>}
 
-      <div className="mb-6">
+      <div className="mb-6 flex items-start justify-between gap-3">
+        <div>
         <h1 className="text-2xl font-bold text-gray-900">Perencanaan & Analitik SDM</h1>
         <p className="text-gray-500 mt-1">Perencanaan tenaga kerja, analisis turnover, dan produktivitas</p>
+        </div>
+        <DataSourceBadge source={dataSource} />
       </div>
 
       {/* KPI Cards */}
@@ -654,5 +663,6 @@ export default function WorkforceAnalyticsPage() {
       )}
     </div>
     </HQLayout>
+    </PageGuard>
   );
 }

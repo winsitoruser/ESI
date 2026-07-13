@@ -33,9 +33,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 async function handleGet(req: NextApiRequest, res: NextApiResponse, action: string) {
   switch (action) {
     case 'overview': {
+      const { Op } = require('sequelize');
+      const activeWhere = { status: { [Op.in]: ['active', 'in_progress'] } };
       const [total, active] = await Promise.all([
         Project?.count() || 0,
-        Project?.count({ where: { status: 'active' } }) || 0,
+        Project?.count({ where: activeWhere }) || 0,
       ]);
       let workers = 0;
       let timesheets = 0;
@@ -51,9 +53,11 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
       }
       const totalBudget = Project ? (await Project.sum('budgetAmount')) || 0 : 0;
       const totalActual = Project ? (await Project.sum('actualCost')) || 0 : 0;
+      const dataSource = total > 0 ? 'live' : 'empty';
       return res.json({
         success: true,
-        data: { totalProjects: total, activeProjects: active, activeWorkers: workers, totalTimesheets: timesheets, totalBudget, totalActual }
+        data: { totalProjects: total, activeProjects: active, activeWorkers: workers, totalTimesheets: timesheets, totalBudget, totalActual },
+        dataSource,
       });
     }
     case 'projects': {

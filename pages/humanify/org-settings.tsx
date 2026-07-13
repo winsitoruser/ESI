@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import { PageGuard } from '@/components/permissions';
 import Link from 'next/link';
 import {
@@ -9,12 +11,14 @@ import {
 
 export default function OrgSettingsPage() {
   const [data, setData] = useState<any>({ policies: [], structure: [] });
+  const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
 
   const load = useCallback(async () => {
     try {
       const r = await fetch('/api/humanify/integrations?action=org-settings');
       const j = await r.json();
       setData(j.data || { policies: [], structure: [] });
+      setDataSource(j.dataSource || (j.data?.summary?.totalEmployees ? 'live' : 'empty'));
     } catch { /* keep empty */ }
   }, []);
 
@@ -24,12 +28,18 @@ export default function OrgSettingsPage() {
     <PageGuard anyPermission={['employees.view', 'employees.*']} title="Pengaturan Organisasi" description="HR policy & org config">
       <HQLayout title="Pengaturan Organisasi" subtitle="Multi-layer structure, access management, multi-approval workflow">
         <div className="space-y-6">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
             <Link href="/humanify/organization" className="p-2 border rounded-lg hover:bg-gray-50"><ArrowLeft className="w-4 h-4" /></Link>
             <div>
               <h2 className="text-xl font-bold flex items-center gap-2"><Settings className="w-5 h-5 text-gray-700" /> Organization & Management</h2>
-              <p className="text-sm text-gray-500">Company → Job Architecture → Database, Org Structure, Workflow</p>
+              <p className="text-sm text-gray-500">
+                Company → Job Architecture → Database
+                {data.summary?.totalEmployees ? ` · ${data.summary.totalEmployees} karyawan aktif` : ''}
+              </p>
             </div>
+            </div>
+            <DataSourceBadge source={dataSource} />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -78,7 +88,9 @@ export default function OrgSettingsPage() {
                   {!['leave', 'attendance', 'reimbursement'].includes(p.id) && <FileText className="w-4 h-4 text-green-600" />}
                   <div>
                     <p className="font-medium text-sm group-hover:text-green-700">{p.name}</p>
-                    <span className="text-[10px] text-green-600 font-medium uppercase">{p.status}</span>
+                    <span className={`text-[10px] font-medium uppercase ${
+                      p.status === 'active' ? 'text-green-600' : p.status === 'not_configured' ? 'text-amber-600' : 'text-gray-500'
+                    }`}>{p.status === 'not_configured' ? 'belum dikonfigurasi' : p.status}</span>
                   </div>
                 </Link>
               ))}

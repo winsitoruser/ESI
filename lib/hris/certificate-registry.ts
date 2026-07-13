@@ -1,6 +1,8 @@
 /**
  * Central certificate & credential registry across training, licenses, compliance
  */
+import { allowHrMockFallback, type HrisDataSource } from '@/lib/hris/data-source';
+
 let sequelize: any;
 try { sequelize = require('../sequelize'); } catch (_) {}
 
@@ -21,6 +23,11 @@ export interface CertificateRecord {
   documentUrl?: string;
   department?: string;
   reminderSent?: boolean;
+}
+
+export interface CertificateListResult {
+  records: CertificateRecord[];
+  dataSource: HrisDataSource;
 }
 
 export async function ensureCertificateTables(): Promise<boolean> {
@@ -49,7 +56,7 @@ export async function ensureCertificateTables(): Promise<boolean> {
   return true;
 }
 
-function deriveStatus(expiryDate?: string): CertStatus {
+export function deriveStatus(expiryDate?: string): CertStatus {
   if (!expiryDate) return 'valid';
   const exp = new Date(expiryDate);
   const now = new Date();
@@ -60,48 +67,126 @@ function deriveStatus(expiryDate?: string): CertStatus {
 }
 
 function mapCert(row: any): CertificateRecord {
+  const expiry = row.expiry_date ? String(row.expiry_date).split('T')[0] : undefined;
   return {
-    id: row.id,
-    employeeId: row.employee_id,
+    id: String(row.id),
+    employeeId: String(row.employee_id),
     employeeName: row.employee_name,
     title: row.title,
-    issuer: row.issuer,
-    source: row.source,
+    issuer: row.issuer || '',
+    source: row.source || 'internal',
     certificateNumber: row.certificate_number,
-    issuedDate: row.issued_date,
-    expiryDate: row.expiry_date,
-    status: row.status || deriveStatus(row.expiry_date),
+    issuedDate: row.issued_date ? String(row.issued_date).split('T')[0] : undefined,
+    expiryDate: expiry,
+    status: deriveStatus(expiry),
     documentUrl: row.document_url,
     department: row.department,
     reminderSent: row.reminder_sent,
   };
 }
 
-export async function listCertificates(filters?: { status?: CertStatus; source?: CertSource; employeeId?: string }): Promise<CertificateRecord[]> {
-  if (!sequelize) return getMockCertificates(filters);
+function mapEmployeeCert(row: any): CertificateRecord {
+  const expiry = row.expiry_date ? String(row.expiry_date).split('T')[0] : undefined;
+  return {
+    id: String(row.id),
+    employeeId: String(row.employee_id),
+    employeeName: row.employee_name || 'Karyawan',
+    title: row.title,
+    issuer: row.issuer || '',
+    source: 'internal',
+    certificateNumber: row.certificate_number,
+    issuedDate: row.issued_date ? String(row.issued_date).split('T')[0] : undefined,
+    expiryDate: expiry,
+    status: deriveStatus(expiry),
+    documentUrl: row.document_url,
+    department: row.department,
+  };
+}
+
+async function fetchRegistryCerts(): Promise<CertificateRecord[]> {
+  if (!sequelize) return [];
   await ensureCertificateTables();
-  let sql = 'SELECT * FROM hris_certificates WHERE 1=1';
-  const params: any[] = [];
-  if (filters?.status) { params.push(filters.status); sql += ` AND status = $${params.length}`; }
-  if (filters?.source) { params.push(filters.source); sql += ` AND source = $${params.length}`; }
-  if (filters?.employeeId) { params.push(filters.employeeId); sql += ` AND employee_id = $${params.length}`; }
-  sql += ' ORDER BY expiry_date ASC NULLS LAST';
-  const [rows] = await sequelize.query(sql, { bind: params });
-  if (!rows?.length) return getMockCertificates(filters);
-  return rows.map(mapCert);
+  try {
+    const [rows] = await sequelize.query(`
+      SELECT * FROM hris_certificates ORDER BY expiry_date ASC NULLS LAST
+    `);
+    return (rows || []).map(mapCert);
+  } catch {
+    return [];
+  }
+}
+
+async function fetchEmployeeCerts(): Promise<CertificateRecord[]> {
+  if (!sequelize) return [];
+  try {
+    const [rows] = await sequelize.query(`
+      SELECT ec.id, ec.employee_id, e.name AS employee_name, ec.name AS title,
+        ec.issuing_organization AS issuer, ec.credential_id AS certificate_number,
+        ec.issue_date AS issued_date, ec.expiry_date, ec.document_url, e.department
+      FROM employee_certifications ec
+      JOIN employees e ON ec.employee_id = e.id
+      WHERE ec.is_active IS DISTINCT FROM false
+      ORDER BY ec.expiry_date ASC NULLS LAST
+    `);
+    return (rows || []).map(mapEmployeeCert);
+  } catch {
+    return [];
+  }
+}
+
+function mergeCerts(registry: CertificateRecord[], employee: CertificateRecord[]): CertificateRecord[] {
+  const map = new Map<string, CertificateRecord>();
+  for (const c of registry) map.set(c.id, c);
+  for (const c of employee) map.set(c.id, c);
+  return Array.from(map.values()).sort((a, b) => {
+    if (!a.expiryDate && !b.expiryDate) return 0;
+    if (!a.expiryDate) return 1;
+    if (!b.expiryDate) return -1;
+    return a.expiryDate.localeCompare(b.expiryDate);
+  });
+}
+
+function applyFilters(records: CertificateRecord[], filters?: { status?: CertStatus; source?: CertSource; employeeId?: string }) {
+  return records.filter((c) => {
+    if (filters?.status && c.status !== filters.status) return false;
+    if (filters?.source && c.source !== filters.source) return false;
+    if (filters?.employeeId && c.employeeId !== filters.employeeId) return false;
+    return true;
+  });
+}
+
+export async function listCertificates(filters?: { status?: CertStatus; source?: CertSource; employeeId?: string }): Promise<CertificateListResult> {
+  if (!sequelize) {
+    const mock = getMockCertificates(filters);
+    return {
+      records: allowHrMockFallback() ? mock : [],
+      dataSource: allowHrMockFallback() ? 'demo' : 'empty',
+    };
+  }
+
+  const merged = mergeCerts(await fetchRegistryCerts(), await fetchEmployeeCerts());
+  if (merged.length) {
+    return { records: applyFilters(merged, filters), dataSource: 'live' };
+  }
+
+  if (allowHrMockFallback()) {
+    return { records: getMockCertificates(filters), dataSource: 'demo' };
+  }
+  return { records: [], dataSource: 'empty' };
 }
 
 export async function getCertificateAnalytics() {
-  const certs = await listCertificates();
+  const { records, dataSource } = await listCertificates();
   return {
-    total: certs.length,
-    valid: certs.filter(c => c.status === 'valid').length,
-    expiringSoon: certs.filter(c => c.status === 'expiring_soon').length,
-    expired: certs.filter(c => c.status === 'expired').length,
+    dataSource,
+    total: records.length,
+    valid: records.filter((c) => c.status === 'valid').length,
+    expiringSoon: records.filter((c) => c.status === 'expiring_soon').length,
+    expired: records.filter((c) => c.status === 'expired').length,
     bySource: {
-      training: certs.filter(c => c.source === 'training').length,
-      license: certs.filter(c => c.source === 'license').length,
-      compliance: certs.filter(c => c.source === 'compliance').length,
+      training: records.filter((c) => c.source === 'training').length,
+      license: records.filter((c) => c.source === 'license').length,
+      compliance: records.filter((c) => c.source === 'compliance').length,
     },
   };
 }
@@ -114,5 +199,5 @@ function getMockCertificates(filters?: { status?: CertStatus }): CertificateReco
     { id: 'c4', employeeId: '5', employeeName: 'Dimas Prasetyo', title: 'AWS Solutions Architect', issuer: 'Amazon Web Services', source: 'external', certificateNumber: 'AWS-SAA-2025', issuedDate: '2025-01-20', expiryDate: '2028-01-20', status: 'valid', department: 'IT' },
     { id: 'c5', employeeId: '4', employeeName: 'Siti Rahayu', title: 'HR Professional Certification', issuer: 'Humanify Internal', source: 'internal', certificateNumber: 'HRP-2025-012', issuedDate: '2025-09-01', expiryDate: '2026-09-01', status: 'valid', department: 'HR' },
   ];
-  return filters?.status ? all.filter(c => c.status === filters.status) : all;
+  return filters?.status ? all.filter((c) => c.status === filters.status) : all;
 }
