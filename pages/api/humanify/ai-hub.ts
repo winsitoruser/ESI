@@ -11,6 +11,7 @@ import {
 } from '@/lib/hris/hr-automation';
 import { chatWithCopilot, saveConversation } from '@/lib/hris/ai-copilot';
 import { generateModuleInsightsBatchAsync } from '@/lib/hris/ai-service';
+import { getSumopodConfig } from '@/lib/hris/sumopod-config';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch {}
@@ -64,14 +65,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const contexts = sequelize ? await gatherBatchContext(period) : [];
         const insights = contexts.length
           ? await generateModuleInsightsBatchAsync(contexts as any)
-          : { insights: [], source: 'rules' };
+          : { insights: [], source: 'rules' as const };
+        const sumo = getSumopodConfig();
         return res.json({
           success: true,
           data: {
             ...dash,
             insights: insights.insights,
             insightSource: insights.source,
-            llmEnabled: process.env.HRIS_AI_LLM === 'true',
+            llmEnabled: sumo.llmEnabled,
+            llmModel: sumo.chatModel,
           },
         });
       }

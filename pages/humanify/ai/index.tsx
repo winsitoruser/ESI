@@ -136,7 +136,7 @@ export default function AiHubPage() {
           actions={
             <div className="flex gap-2">
               <span className={`text-xs px-3 py-1.5 rounded-full font-medium ${dashboard?.llmEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
-                {dashboard?.llmEnabled ? 'LLM Aktif' : 'Mode Rules'}
+                {dashboard?.llmEnabled ? `SumoPod · ${dashboard?.llmModel || 'LLM'}` : 'Mode Rules'}
               </span>
               <button type="button" onClick={load} className="flex items-center gap-1 rounded-lg border px-3 py-1.5 text-sm hover:bg-slate-50">
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh

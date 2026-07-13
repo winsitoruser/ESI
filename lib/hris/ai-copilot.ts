@@ -2,6 +2,7 @@
  * Humanify HR AI Copilot — conversational assistant over HR context
  */
 import { generateAIInsights, generateRuleBasedInsights, type HRModule } from './ai-service';
+import { getSumopodConfig, sumopodChat } from './sumopod-config';
 
 let sequelize: any;
 try { sequelize = require('../../lib/sequelize'); } catch {}
@@ -86,34 +87,19 @@ export async function chatWithCopilot(opts: {
     reply += '\n\n' + fallback.map(i => `• ${i.summary}`).join('\n');
   }
 
-  // LLM conversational layer
-  const apiKey = process.env.SUMOPOD_API_KEY || process.env.OPENAI_API_KEY;
-  if (apiKey && process.env.HRIS_AI_LLM === 'true') {
-    try {
-      const baseUrl = process.env.SUMOPOD_BASE_URL || 'https://ai.sumopod.com/v1';
-      const res = await fetch(`${baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify({
-          model: process.env.HRIS_AI_MODEL || 'deepseek-v4-flash',
-          messages: [
-            { role: 'system', content: 'Anda adalah HR Copilot Humanify. Jawab singkat dalam bahasa Indonesia, maks 4 kalimat. Gunakan data konteks jika ada.' },
-            ...(opts.history || []).slice(-4).map(h => ({ role: h.role, content: h.content })),
-            { role: 'user', content: `${opts.message}\n\nKonteks: ${JSON.stringify(context)}\nInsight: ${insights.map(i => i.summary).join(' ')}` },
-          ],
-          max_tokens: 300,
-          temperature: 0.4,
-        }),
-        signal: AbortSignal.timeout(10000),
-      });
-      if (res.ok) {
-        const json = await res.json();
-        const llm = json.choices?.[0]?.message?.content?.trim();
-        if (llm) {
-          return { reply: llm, module, insights, source: 'hybrid' };
-        }
-      }
-    } catch { /* fallback */ }
+  // LLM conversational layer (SumoPod)
+  const cfg = getSumopodConfig();
+  if (cfg.llmEnabled) {
+    const llm = await sumopodChat({
+      system: 'Anda adalah HR Copilot Humanify (powered by SumoPod). Jawab singkat dalam bahasa Indonesia, maks 4 kalimat. Gunakan data konteks jika ada.',
+      user: `${opts.message}\n\nKonteks: ${JSON.stringify(context)}\nInsight: ${insights.map(i => i.summary).join(' ')}`,
+      maxTokens: 300,
+      model: cfg.chatModel,
+      history: (opts.history || []).slice(-4).map(h => ({ role: h.role as 'user' | 'assistant', content: h.content })),
+    });
+    if (llm) {
+      return { reply: llm, module, insights, source: 'hybrid' };
+    }
   }
 
   return { reply, module, insights, source: aiResult.source };

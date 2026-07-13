@@ -213,6 +213,18 @@ fi
 echo "=== [3b/6] Ensure webhook secrets ==="
 ssh_cmd "ENV_FILE=$APP_DIR/.env bash -s" < "$SRC/scripts/ensure-humanify-webhook-secrets.sh"
 
+echo "=== [3c/6] Ensure SumoPod AI (if key available) ==="
+_LOCAL_HERMES="${HERMES_ENV:-$HOME/.hermes/.env}"
+if [ -z "${SUMOPOD_AI_API_KEY:-}" ] && [ -f "$_LOCAL_HERMES" ]; then
+  SUMOPOD_AI_API_KEY="$(grep '^SUMOPOD_AI_API_KEY=' "$_LOCAL_HERMES" 2>/dev/null | cut -d= -f2- || true)"
+  SUMOPOD_AI_BASE_URL="$(grep '^SUMOPOD_AI_BASE_URL=' "$_LOCAL_HERMES" 2>/dev/null | cut -d= -f2- || true)"
+fi
+if [ -n "${SUMOPOD_AI_API_KEY:-}" ]; then
+  ssh_cmd "ENV_FILE=$APP_DIR/.env SUMOPOD_AI_API_KEY='$SUMOPOD_AI_API_KEY' SUMOPOD_AI_BASE_URL='${SUMOPOD_AI_BASE_URL:-https://ai.sumopod.com/v1}' bash -s" < "$SRC/scripts/ensure-humanify-sumopod-ai.sh" || true
+else
+  echo "  (skip — set SUMOPOD_AI_API_KEY or ~/.hermes/.env)"
+fi
+
 echo "=== [4/6] npm install + migrations ==="
 if [ "${DEPLOY_SKIP_MIGRATE:-false}" = true ]; then
   echo "  (skip migrations — DEPLOY_SKIP_MIGRATE=true)"

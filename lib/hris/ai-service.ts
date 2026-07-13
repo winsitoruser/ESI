@@ -2,6 +2,7 @@
  * Humanify AI Service — unified AI layer for HR modules.
  * Uses rule-based intelligence by default; optional LLM via SumoPod when configured.
  */
+import { getSumopodConfig, sumopodChat } from './sumopod-config';
 
 export type HRModule =
   | 'recruitment' | 'attendance' | 'kpi' | 'performance' | 'payroll'
@@ -134,49 +135,32 @@ export async function generateAIInsights(req: AIInsightRequest): Promise<{
   source: 'rules' | 'llm' | 'hybrid';
 }> {
   const ruleInsights = generateRuleBasedInsights(req);
+  const cfg = getSumopodConfig();
 
-  const apiKey = process.env.SUMOPOD_API_KEY || process.env.OPENAI_API_KEY;
-  const baseUrl = process.env.SUMOPOD_BASE_URL || process.env.OPENAI_BASE_URL || 'https://ai.sumopod.com/v1';
-
-  if (!apiKey || process.env.HRIS_AI_LLM !== 'true') {
+  if (!cfg.llmEnabled) {
     return { insights: ruleInsights, source: 'rules' };
   }
 
-  try {
-    const res = await fetch(`${baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: process.env.HRIS_AI_MODEL || 'deepseek-v4-flash',
-        messages: [
-          { role: 'system', content: `Anda adalah AI HR advisor untuk platform Humanify HRIS. ${MODULE_PROMPTS[req.module]}. Berikan 1 insight singkat dalam bahasa Indonesia, maksimal 2 kalimat.` },
-          { role: 'user', content: JSON.stringify(req.context) },
-        ],
-        max_tokens: 200,
-        temperature: 0.3,
-      }),
-      signal: AbortSignal.timeout(8000),
-    });
+  const llmText = await sumopodChat({
+    system: `Anda adalah AI HR advisor untuk platform Humanify HRIS. ${MODULE_PROMPTS[req.module]}. Berikan 1 insight singkat dalam bahasa Indonesia, maksimal 2 kalimat.`,
+    user: JSON.stringify(req.context),
+    maxTokens: 200,
+    model: cfg.chatModel,
+    timeoutMs: 8000,
+  });
 
-    if (!res.ok) return { insights: ruleInsights, source: 'rules' };
+  if (!llmText) return { insights: ruleInsights, source: 'rules' };
 
-    const json = await res.json();
-    const llmText = json.choices?.[0]?.message?.content?.trim();
-    if (!llmText) return { insights: ruleInsights, source: 'rules' };
+  const llmInsight: AIInsight = {
+    module: req.module,
+    title: 'AI Advisor (SumoPod)',
+    summary: llmText,
+    confidence: 75,
+    priority: 'medium',
+    actions: ['Review rekomendasi AI dengan tim HR'],
+  };
 
-    const llmInsight: AIInsight = {
-      module: req.module,
-      title: 'AI Advisor',
-      summary: llmText,
-      confidence: 75,
-      priority: 'medium',
-      actions: ['Review rekomendasi AI dengan tim HR'],
-    };
-
-    return { insights: [llmInsight, ...ruleInsights], source: 'hybrid' };
-  } catch {
-    return { insights: ruleInsights, source: 'rules' };
-  }
+  return { insights: [llmInsight, ...ruleInsights], source: 'hybrid' };
 }
 
 export function generateModuleInsightsBatch(
@@ -190,46 +174,31 @@ export async function generateModuleInsightsBatchAsync(
   modules: { module: HRModule; context: Record<string, unknown> }[],
 ): Promise<{ insights: AIInsight[]; source: 'rules' | 'llm' | 'hybrid' }> {
   const ruleInsights = generateModuleInsightsBatch(modules);
+  const cfg = getSumopodConfig();
 
-  const apiKey = process.env.SUMOPOD_API_KEY || process.env.OPENAI_API_KEY;
-  if (!apiKey || process.env.HRIS_AI_LLM !== 'true') {
+  if (!cfg.llmEnabled) {
     return { insights: ruleInsights, source: 'rules' };
   }
 
-  try {
-    const summaryContext = modules.map(m => ({ module: m.module, ...m.context }));
-    const baseUrl = process.env.SUMOPOD_BASE_URL || 'https://ai.sumopod.com/v1';
-    const res = await fetch(`${baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: process.env.HRIS_AI_MODEL || 'deepseek-v4-flash',
-        messages: [
-          { role: 'system', content: 'Anda AI HR advisor Humanify. Berikan 2 insight singkat bahasa Indonesia dari data HR berikut. Format: [MODUL] judul: ringkasan' },
-          { role: 'user', content: JSON.stringify(summaryContext) },
-        ],
-        max_tokens: 400,
-        temperature: 0.3,
-      }),
-      signal: AbortSignal.timeout(10000),
-    });
+  const summaryContext = modules.map(m => ({ module: m.module, ...m.context }));
+  const text = await sumopodChat({
+    system: 'Anda AI HR advisor Humanify (SumoPod). Berikan 2 insight singkat bahasa Indonesia dari data HR berikut. Format: [MODUL] judul: ringkasan',
+    user: JSON.stringify(summaryContext),
+    maxTokens: 400,
+    model: cfg.chatModel,
+    timeoutMs: 10000,
+  });
 
-    if (!res.ok) return { insights: ruleInsights, source: 'rules' };
-    const json = await res.json();
-    const text = json.choices?.[0]?.message?.content?.trim();
-    if (!text) return { insights: ruleInsights, source: 'rules' };
+  if (!text) return { insights: ruleInsights, source: 'rules' };
 
-    const llmInsight: AIInsight = {
-      module: 'general',
-      title: 'AI Executive Summary',
-      summary: text.split('\n').slice(0, 3).join(' '),
-      confidence: 78,
-      priority: 'medium',
-      actions: ['Review insight dengan tim HR', 'Jalankan automation scan'],
-    };
+  const llmInsight: AIInsight = {
+    module: 'general',
+    title: 'AI Executive Summary (SumoPod)',
+    summary: text.split('\n').slice(0, 3).join(' '),
+    confidence: 78,
+    priority: 'medium',
+    actions: ['Review insight dengan tim HR', 'Jalankan automation scan'],
+  };
 
-    return { insights: [llmInsight, ...ruleInsights], source: 'hybrid' };
-  } catch {
-    return { insights: ruleInsights, source: 'rules' };
-  }
+  return { insights: [llmInsight, ...ruleInsights], source: 'hybrid' };
 }

@@ -2,6 +2,7 @@
  * Receipt OCR — extract amount, date, merchant from receipt images.
  * Rule-based extraction with optional LLM vision hook.
  */
+import { getSumopodConfig } from './sumopod-config';
 
 export interface ReceiptOCRResult {
   amount: number | null;
@@ -115,16 +116,15 @@ export function extractReceiptFromText(text: string, filename?: string): Receipt
 
 /** Optional LLM vision OCR via SumoPod */
 export async function extractReceiptWithLLM(imageBase64: string, mimeType = 'image/jpeg'): Promise<ReceiptOCRResult | null> {
-  const apiKey = process.env.SUMOPOD_API_KEY || process.env.OPENAI_API_KEY;
-  const baseUrl = process.env.SUMOPOD_BASE_URL || process.env.OPENAI_BASE_URL || 'https://ai.sumopod.com/v1';
-  if (!apiKey || process.env.HRIS_AI_LLM !== 'true') return null;
+  const cfg = getSumopodConfig();
+  if (!cfg.llmEnabled) return null;
 
   try {
-    const res = await fetch(`${baseUrl}/chat/completions`, {
+    const res = await fetch(`${cfg.baseUrl}/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.apiKey}` },
       body: JSON.stringify({
-        model: process.env.HRIS_AI_VISION_MODEL || 'deepseek-v4-flash',
+        model: cfg.visionModel,
         messages: [{
           role: 'user',
           content: [

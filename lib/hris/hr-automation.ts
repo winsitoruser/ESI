@@ -2,6 +2,7 @@
  * Humanify HR Automation — rule engine for recruitment, claims, contracts, KPI, attendance
  */
 import { batchScreen, DEFAULT_SCREENING_CRITERIA } from './ai-screening';
+import { getSumopodConfig } from './sumopod-config';
 
 let sequelize: any;
 try { sequelize = require('../../lib/sequelize'); } catch {}
@@ -322,6 +323,7 @@ export async function getAutomationDashboard(tenantId: string | null) {
     activeRules: active,
     totalTriggers,
     recentLogs: logs,
-    llmEnabled: process.env.HRIS_AI_LLM === 'true',
+    llmEnabled: getSumopodConfig().llmEnabled,
+    llmModel: getSumopodConfig().chatModel,
   };
 }
