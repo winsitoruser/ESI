@@ -22,7 +22,7 @@ async function main() {
   if (!tenantId) { console.error('No tenant'); process.exit(1); }
 
   const [users] = await sequelize.query(`SELECT id FROM users WHERE email LIKE '%humanify%' OR email LIKE '%superadmin%' LIMIT 1`);
-  const userId = users[0]?.id;
+  const userId = users[0]?.id || null;
 
   const sections = JSON.stringify([
     { category: 'numerical', count: 3, difficulty: 'medium' },
@@ -32,10 +32,10 @@ async function main() {
 
   const [bp] = await sequelize.query(`
     INSERT INTO hris_lms_exam_blueprints (id, tenant_id, title, psychometric_type, sections, total_questions, created_by)
-    VALUES (gen_random_uuid(), :tid, 'Demo Blueprint Kognitif+Integritas', 'cognitive', :sections::jsonb, 10, :uid)
+    VALUES (gen_random_uuid(), :tid, 'Demo Blueprint Kognitif+Integritas', 'cognitive', :sections::jsonb, 10, NULL)
     ON CONFLICT DO NOTHING
     RETURNING id
-  `, { replacements: { tid: tenantId, sections, uid: userId } }).catch(() => [[]]);
+  `, { replacements: { tid: tenantId, sections } }).catch(() => [[]]);
 
   const blueprintId = bp[0]?.id;
   if (blueprintId) console.log('Blueprint:', blueprintId);
@@ -45,9 +45,9 @@ async function main() {
       passing_score, duration_minutes, max_attempts, shuffle_questions, anti_cheat_enabled, proctor_enabled,
       psychometric_type, status, created_by)
   VALUES (:tid, 'Psikotes Demo Phase B', 'Ujian demo blueprint adaptif + proctoring', 'online', 'psychometric', 0, 100,
-      70, 45, 2, true, true, true, 'cognitive', 'open', :uid)
+      70, 45, 2, true, true, true, 'cognitive', 'open', NULL)
     RETURNING id
-  `, { replacements: { tid: tenantId, uid: userId } });
+  `, { replacements: { tid: tenantId } });
 
   const examId = exam[0]?.id;
   if (!examId) { console.log('Exam creation skipped'); return; }
