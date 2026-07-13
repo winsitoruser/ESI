@@ -155,7 +155,7 @@ export const humanifySidebarConfig: SidebarConfig = {
       title: 'AI & Otomasi',
       items: [
         { id: 'humanify-ai-hub', name: 'AI Center', href: '/humanify/ai', icon: Sparkles, modules: ['humanify', 'hris'] },
-        { id: 'humanify-ai-copilot', name: 'HR Copilot', href: '/humanify/ai?tab=copilot', icon: Brain, modules: ['humanify', 'hris'] },
+        { id: 'humanify-ai-copilot', name: 'AIMAN', href: '/humanify/ai?tab=copilot', icon: Brain, modules: ['humanify', 'hris'] },
         { id: 'humanify-ai-automation', name: 'Otomasi HR', href: '/humanify/ai?tab=automation', icon: Zap, modules: ['humanify', 'hris'] },
       ],
     },

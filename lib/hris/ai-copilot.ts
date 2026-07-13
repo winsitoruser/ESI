@@ -1,8 +1,9 @@
 /**
- * Humanify HR AI Copilot — conversational assistant over HR context
+ * Humanify HR AI Copilot — AIMAN persona (AI Guide HR)
  */
 import { generateAIInsights, generateRuleBasedInsights, type HRModule } from './ai-service';
 import { getSumopodConfig, sumopodChat } from './sumopod-config';
+import { AIMAN, AIMAN_SYSTEM_PROMPT } from './ai-persona';
 
 let sequelize: any;
 try { sequelize = require('../../lib/sequelize'); } catch {}
@@ -14,13 +15,13 @@ export interface CopilotMessage {
 }
 
 const INTENT_MAP: { pattern: RegExp; module: HRModule; reply: string }[] = [
-  { pattern: /rekrut|kandidat|hiring|recruit/i, module: 'recruitment', reply: 'Saya analisis pipeline rekrutmen Anda.' },
-  { pattern: /absen|kehadiran|telat|attendance/i, module: 'attendance', reply: 'Saya cek pola kehadiran tim.' },
-  { pattern: /kpi|kinerja|target|performance/i, module: 'kpi', reply: 'Saya evaluasi pencapaian KPI.' },
-  { pattern: /gaji|payroll|lembur/i, module: 'payroll', reply: 'Saya review data payroll.' },
-  { pattern: /klaim|reimburse|pengeluaran/i, module: 'reimbursement', reply: 'Saya analisis klaim reimbursement.' },
-  { pattern: /turnover|resign|keluar|workforce/i, module: 'workforce', reply: 'Saya analisis stabilitas workforce.' },
-  { pattern: /cuti|leave/i, module: 'leave', reply: 'Saya cek pola dan backlog cuti.' },
+  { pattern: /rekrut|kandidat|hiring|recruit/i, module: 'recruitment', reply: 'Saya AIMAN. Berikut tinjauan pipeline rekrutmen berdasarkan data terkini:' },
+  { pattern: /absen|kehadiran|telat|attendance/i, module: 'attendance', reply: 'Saya AIMAN. Berikut analisis pola kehadiran tim:' },
+  { pattern: /kpi|kinerja|target|performance/i, module: 'kpi', reply: 'Saya AIMAN. Berikut evaluasi pencapaian KPI:' },
+  { pattern: /gaji|payroll|lembur/i, module: 'payroll', reply: 'Saya AIMAN. Berikut ringkasan terkait payroll:' },
+  { pattern: /klaim|reimburse|pengeluaran/i, module: 'reimbursement', reply: 'Saya AIMAN. Berikut analisis klaim reimbursement:' },
+  { pattern: /turnover|resign|keluar|workforce/i, module: 'workforce', reply: 'Saya AIMAN. Berikut analisis stabilitas workforce:' },
+  { pattern: /cuti|leave/i, module: 'leave', reply: 'Saya AIMAN. Berikut tinjauan pola dan backlog cuti:' },
 ];
 
 function detectModule(message: string): HRModule {
@@ -28,6 +29,10 @@ function detectModule(message: string): HRModule {
     if (item.pattern.test(message)) return item.module;
   }
   return 'general';
+}
+
+function isFirstTurn(history?: CopilotMessage[]): boolean {
+  return !history?.some(h => h.role === 'assistant');
 }
 
 async function gatherQuickContext(module: HRModule, tenantId: string | null): Promise<Record<string, unknown>> {
@@ -63,46 +68,55 @@ async function gatherQuickContext(module: HRModule, tenantId: string | null): Pr
   return { tenantId };
 }
 
+function buildRuleReply(module: HRModule, context: Record<string, unknown>, insights: ReturnType<typeof generateRuleBasedInsights>, intentReply?: string): string {
+  let reply = intentReply || 'Saya AIMAN. Berikut panduan HR berdasarkan data yang tersedia:';
+  const items = insights.length ? insights : generateRuleBasedInsights({ module, context });
+  if (items.length) {
+    reply += '\n\n' + items.map(i => `• ${i.title}: ${i.summary}`).join('\n');
+    if (items[0]?.actions?.length) {
+      reply += '\n\nLangkah yang disarankan:\n' + items[0].actions.slice(0, 3).map(a => `— ${a}`).join('\n');
+    }
+  }
+  return reply;
+}
+
 export async function chatWithCopilot(opts: {
   message: string;
   tenantId: string | null;
   userId?: string | null;
   history?: CopilotMessage[];
-}): Promise<{ reply: string; module: HRModule; insights: unknown[]; source: string }> {
+}): Promise<{ reply: string; module: HRModule; insights: unknown[]; source: string; persona: string }> {
   const module = detectModule(opts.message);
   const context = await gatherQuickContext(module, opts.tenantId);
   const intent = INTENT_MAP.find(i => i.module === module);
 
   const aiResult = await generateAIInsights({ module, context });
   const insights = aiResult.insights;
+  const ruleReply = buildRuleReply(module, context, insights, intent?.reply);
 
-  let reply = intent?.reply || 'Berikut insight HR untuk pertanyaan Anda:';
-  if (insights.length) {
-    reply += '\n\n' + insights.map(i => `• **${i.title}**: ${i.summary}`).join('\n');
-    if (insights[0]?.actions?.length) {
-      reply += '\n\nRekomendasi: ' + insights[0].actions.slice(0, 3).join('; ') + '.';
-    }
-  } else {
-    const fallback = generateRuleBasedInsights({ module, context });
-    reply += '\n\n' + fallback.map(i => `• ${i.summary}`).join('\n');
-  }
-
-  // LLM conversational layer (SumoPod)
   const cfg = getSumopodConfig();
   if (cfg.llmEnabled) {
+    const firstTurn = isFirstTurn(opts.history);
     const llm = await sumopodChat({
-      system: 'Anda adalah HR Copilot Humanify (powered by SumoPod). Jawab singkat dalam bahasa Indonesia, maks 4 kalimat. Gunakan data konteks jika ada.',
-      user: `${opts.message}\n\nKonteks: ${JSON.stringify(context)}\nInsight: ${insights.map(i => i.summary).join(' ')}`,
-      maxTokens: 300,
+      system: AIMAN_SYSTEM_PROMPT,
+      user: [
+        `Pertanyaan pengguna: ${opts.message}`,
+        `Modul terdeteksi: ${module}`,
+        `Konteks data: ${JSON.stringify(context)}`,
+        `Insight sistem: ${insights.map(i => `${i.title}: ${i.summary}`).join(' | ')}`,
+        firstTurn ? 'Ini pesan pertama dalam sesi — sapa secara profesional sebagai AIMAN.' : 'Lanjutkan percakapan tanpa mengulang perkenalan panjang.',
+      ].join('\n'),
+      maxTokens: 450,
+      temperature: 0.35,
       model: cfg.chatModel,
-      history: (opts.history || []).slice(-4).map(h => ({ role: h.role as 'user' | 'assistant', content: h.content })),
+      history: (opts.history || []).slice(-6).map(h => ({ role: h.role as 'user' | 'assistant', content: h.content })),
     });
     if (llm) {
-      return { reply: llm, module, insights, source: 'hybrid' };
+      return { reply: llm, module, insights, source: 'hybrid', persona: AIMAN.name };
     }
   }
 
-  return { reply, module, insights, source: aiResult.source };
+  return { reply: ruleReply, module, insights, source: aiResult.source, persona: AIMAN.name };
 }
 
 export async function saveConversation(opts: {
@@ -117,8 +131,10 @@ export async function saveConversation(opts: {
     `, {
       replacements: {
         tid: opts.tenantId, uid: opts.userId, role: opts.role,
-        msg: opts.message, mod: opts.module || null, src: opts.source || 'rules',
+        msg: opts.message, mod: opts.module || null, src: opts.source || 'aiman',
       },
     });
   } catch { /* table may not exist */ }
 }
+
+export { AIMAN, AIMAN_GREETING, AIMAN_SUGGESTIONS, AIMAN_THINKING_LABEL } from './ai-persona';

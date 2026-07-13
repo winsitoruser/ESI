@@ -7,8 +7,10 @@ import { PageGuard } from '@/components/permissions';
 import { useTranslation } from '@/lib/i18n';
 import {
   Sparkles, Brain, Zap, Bot, Play, RefreshCw, ToggleLeft, ToggleRight,
-  MessageSquare, ChevronRight, AlertTriangle, CheckCircle2, Clock, Settings,
+  ChevronRight, AlertTriangle, CheckCircle2, Clock, Settings,
+  UserCircle2,
 } from 'lucide-react';
+import { AIMAN_GREETING, AIMAN_SUGGESTIONS, AIMAN_THINKING_LABEL } from '@/lib/hris/ai-persona';
 
 const API = '/api/humanify/ai-hub';
 
@@ -110,7 +112,7 @@ export default function AiHubPage() {
 
   const tabs: { key: Tab; label: string; icon: any }[] = [
     { key: 'overview', label: 'Ringkasan', icon: Sparkles },
-    { key: 'copilot', label: 'HR Copilot', icon: Bot },
+    { key: 'copilot', label: t('hris.aimanTab'), icon: Bot },
     { key: 'automation', label: 'Otomasi', icon: Zap },
     { key: 'insights', label: 'AI Insights', icon: Brain },
   ];
@@ -217,43 +219,74 @@ export default function AiHubPage() {
         )}
 
         {tab === 'copilot' && (
-          <div className="mt-6 bg-white border rounded-xl flex flex-col h-[560px]">
-            <div className="p-4 border-b flex items-center gap-2">
-              <Bot className="h-5 w-5 text-indigo-600" />
-              <div>
-                <p className="font-semibold">HR Copilot</p>
-                <p className="text-xs text-slate-500">Tanya tentang rekrutmen, kehadiran, KPI, payroll, klaim, atau workforce</p>
+          <div className="mt-6 bg-white border rounded-xl flex flex-col h-[600px] shadow-sm">
+            <div className="p-4 border-b flex items-center gap-3 bg-gradient-to-r from-indigo-50/80 to-white">
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-indigo-600 text-white font-bold text-sm shadow-md">
+                AI
               </div>
+              <div className="flex-1">
+                <p className="font-semibold text-slate-800">{t('hris.aimanName')} <span className="text-indigo-600">· {t('hris.aimanTitle')}</span></p>
+                <p className="text-xs text-slate-500">{t('hris.aimanTagline')}</p>
+              </div>
+              <span className="hidden sm:inline text-xs px-2 py-1 rounded-full bg-indigo-100 text-indigo-700 font-medium">AI Guide HR</span>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {!chatHistory.length && (
-                <div className="text-center text-slate-400 text-sm py-12">
-                  <MessageSquare className="h-10 w-10 mx-auto mb-2 opacity-40" />
-                  <p>Contoh: &quot;Bagaimana kondisi KPI tim bulan ini?&quot;</p>
-                  <p className="mt-1">&quot;Ada kandidat yang perlu di-review?&quot;</p>
+                <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-5 text-sm text-slate-700">
+                  <div className="flex items-start gap-3">
+                    <UserCircle2 className="h-8 w-8 text-indigo-500 shrink-0 mt-0.5" />
+                    <div className="space-y-3">
+                      <p className="whitespace-pre-wrap leading-relaxed">{AIMAN_GREETING.replace(/\*\*(.*?)\*\*/g, '$1')}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {AIMAN_SUGGESTIONS.map((s) => (
+                          <button
+                            key={s}
+                            type="button"
+                            onClick={() => { setChatInput(s); }}
+                            className="text-xs px-3 py-1.5 rounded-full border border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50 transition-colors"
+                          >
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
               {chatHistory.map((m, i) => (
-                <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[80%] rounded-xl px-4 py-2 text-sm whitespace-pre-wrap ${
-                    m.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-800'
+                <div key={i} className={`flex gap-2 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  {m.role === 'assistant' && (
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white mt-0.5">AI</div>
+                  )}
+                  <div className={`max-w-[78%] rounded-xl px-4 py-2.5 text-sm whitespace-pre-wrap leading-relaxed ${
+                    m.role === 'user'
+                      ? 'bg-indigo-600 text-white rounded-br-sm'
+                      : 'bg-slate-100 text-slate-800 border border-slate-200/80 rounded-bl-sm'
                   }`}>
+                    {m.role === 'assistant' && (
+                      <p className="text-[10px] font-semibold text-indigo-600 mb-1 uppercase tracking-wide">AIMAN</p>
+                    )}
                     {m.content.replace(/\*\*(.*?)\*\*/g, '$1')}
                   </div>
                 </div>
               ))}
-              {chatLoading && <p className="text-sm text-slate-400 animate-pulse">Copilot berpikir...</p>}
+              {chatLoading && (
+                <div className="flex items-center gap-2 text-sm text-slate-500">
+                  <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-[10px] font-bold text-indigo-600 animate-pulse">AI</div>
+                  <span className="animate-pulse">{AIMAN_THINKING_LABEL}</span>
+                </div>
+              )}
               <div ref={chatEndRef} />
             </div>
-            <div className="p-4 border-t flex gap-2">
+            <div className="p-4 border-t bg-slate-50/50 flex gap-2">
               <input
-                className="flex-1 border rounded-lg px-3 py-2 text-sm"
-                placeholder="Ketik pertanyaan HR..."
+                className="flex-1 border rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                placeholder={t('hris.aimanPlaceholder')}
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && sendChat()}
+                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendChat()}
               />
-              <button type="button" onClick={sendChat} disabled={chatLoading} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm disabled:opacity-50">
+              <button type="button" onClick={sendChat} disabled={chatLoading || !chatInput.trim()} className="px-4 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium disabled:opacity-50 hover:bg-indigo-700 transition-colors">
                 Kirim
               </button>
             </div>
