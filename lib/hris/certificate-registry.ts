@@ -103,6 +103,29 @@ function mapEmployeeCert(row: any): CertificateRecord {
   };
 }
 
+async function fetchLegacyProgramCerts(): Promise<CertificateRecord[]> {
+  if (!sequelize) return [];
+  try {
+    const { fetchLegacyTrainingCerts } = await import('./lms/training-bridge');
+    const rows = await fetchLegacyTrainingCerts();
+    return rows.map((row: any) => {
+      const expiry = row.expiry_date ? String(row.expiry_date).split('T')[0] : undefined;
+      return {
+        id: `legacy-${row.id}`,
+        employeeId: String(row.employee_id),
+        employeeName: row.employee_name,
+        title: row.title,
+        issuer: row.issuer || 'Program Training',
+        source: 'training' as CertSource,
+        certificateNumber: row.certificate_number,
+        issuedDate: row.issued_date ? String(row.issued_date).split('T')[0] : undefined,
+        expiryDate: expiry,
+        status: deriveStatus(expiry),
+      };
+    });
+  } catch { return []; }
+}
+
 async function fetchRegistryCerts(): Promise<CertificateRecord[]> {
   if (!sequelize) return [];
   await ensureCertificateTables();
@@ -164,7 +187,10 @@ export async function listCertificates(filters?: { status?: CertStatus; source?:
     };
   }
 
-  const merged = mergeCerts(await fetchRegistryCerts(), await fetchEmployeeCerts());
+  const merged = mergeCerts(
+    mergeCerts(await fetchRegistryCerts(), await fetchEmployeeCerts()),
+    await fetchLegacyProgramCerts(),
+  );
   if (merged.length) {
     return { records: applyFilters(merged, filters), dataSource: 'live' };
   }

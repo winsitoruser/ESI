@@ -378,6 +378,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             await triggerLmsWebhook('lms.exam_passed', empId, empName, {
               exam_id: examId, result_id, percentage: graded.pct,
             });
+            const { syncExamResultToScoring } = await import('../../../lib/hris/lms/training-bridge');
+            await syncExamResultToScoring({
+              tenantId, resultId: result_id, employeeId: empId, examId,
+              percentage: graded.pct, isPassed: true,
+            });
           }
         } catch { /* ignore */ }
 
@@ -508,6 +513,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               sourceId: curriculum_id,
             });
           }
+          const { syncCourseCompletionToGraduation } = await import('../../../lib/hris/lms/training-bridge');
+          await syncCourseCompletionToGraduation({
+            tenantId, employeeId: empId, employeeName: empName, curriculumId: curriculum_id,
+          });
         } catch { /* ignore */ }
 
         return res.json({

@@ -8,6 +8,7 @@ import {
   CheckCircle2, Trash2, Eye, Calculator, RefreshCw, PenTool, Layers, UserPlus,
   Mail, Lock, Search, TrendingUp, AlertCircle, BookOpen
 } from 'lucide-react';
+import TrainingLmsBridge from '@/components/humanify/TrainingLmsBridge';
 
 const API = '/api/humanify/training-scoring';
 const API_TD = '/api/humanify/training-development';
@@ -195,6 +196,7 @@ export default function TrainingScoringPage() {
     <HQLayout title={t('hris.trainingScoringTitle')} subtitle={t('hris.trainingScoringSubtitle')}>
       <div className="space-y-6">
         {toast && <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white ${toast.type === 'error' ? 'bg-red-500' : 'bg-green-500'}`}>{toast.msg}</div>}
+        <TrainingLmsBridge currentModule="training-scoring" />
 
         <div className="flex justify-end">
           <DataSourceBadge source={dataSource} />

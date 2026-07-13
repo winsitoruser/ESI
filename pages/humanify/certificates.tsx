@@ -5,6 +5,7 @@ import type { HrisDataSource } from '@/lib/hris/data-source';
 import { PageGuard } from '@/components/permissions';
 import Link from 'next/link';
 import { Award, AlertTriangle, CheckCircle2, XCircle, Search, ArrowLeft, BarChart3 } from 'lucide-react';
+import TrainingLmsBridge from '@/components/humanify/TrainingLmsBridge';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
   valid: { label: 'Valid', color: 'bg-green-100 text-green-700', icon: CheckCircle2 },
@@ -46,6 +47,7 @@ export default function CertificatesPage() {
     <PageGuard anyPermission={['training.view', 'training.*', 'employees.*']} title="Sertifikat" description="Registry sertifikat karyawan">
       <HQLayout title="Certificate Registry" subtitle="Tracker sertifikat, lisensi, compliance — alert expiry otomatis">
         <div className="space-y-6">
+          <TrainingLmsBridge currentModule="certificates" />
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 flex-1">
               <Link href="/humanify/training" className="p-2 border rounded-lg hover:bg-gray-50"><ArrowLeft className="w-4 h-4" /></Link>
@@ -55,6 +57,7 @@ export default function CertificatesPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <Link href="/humanify/lms/competency" className="px-3 py-2 text-sm border rounded-lg flex items-center gap-1 text-indigo-600"><Award className="w-4 h-4" /> LMS Kompetensi</Link>
               <Link href="/humanify/workforce-analytics" className="px-3 py-2 text-sm border rounded-lg flex items-center gap-1"><BarChart3 className="w-4 h-4" /> Analytics</Link>
               <DataSourceBadge source={dataSource} />
             </div>

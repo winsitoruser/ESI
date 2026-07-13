@@ -77,6 +77,23 @@ export default function LmsIntegrationsPage() {
           ))}
           {!rules.length && <p className="text-gray-400 text-sm">Aturan akan dibuat otomatis saat halaman dimuat</p>}
         </div>
+
+        <div className="bg-white border rounded-xl p-5 mt-6">
+          <h3 className="font-semibold mb-3">Sinkronisasi Modul Training Legacy</h3>
+          <p className="text-sm text-gray-500 mb-3">
+            Menghubungkan Program Training, Pelatihan & Pengembangan, Skor Training, dan Certificate Registry dengan LMS.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { href: '/humanify/training', label: 'Program Training' },
+              { href: '/humanify/training-development', label: 'Pelatihan & Pengembangan' },
+              { href: '/humanify/training-scoring', label: 'Skor Training' },
+              { href: '/humanify/certificates', label: 'Certificate Registry' },
+            ].map((l) => (
+              <a key={l.href} href={l.href} className="px-3 py-1.5 border rounded-lg text-sm hover:border-indigo-300">{l.label}</a>
+            ))}
+          </div>
+        </div>
       </HumanifyLayout>
     </PageGuard>
   );

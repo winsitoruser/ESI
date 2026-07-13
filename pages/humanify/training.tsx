@@ -4,6 +4,7 @@ import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import { GraduationCap, Search, Plus, Eye, Edit, X, Calendar, Clock, Users, MapPin, Star, Award, BookOpen, CheckCircle2, BarChart3, TrendingUp, FileText, Download, Filter, ChevronRight, Target, Bookmark, Video, Monitor, Loader2, Trash2 } from 'lucide-react';
+import TrainingLmsBridge from '@/components/humanify/TrainingLmsBridge';
 
 type TabKey = 'programs' | 'schedule' | 'certifications' | 'reports';
 
@@ -174,6 +175,7 @@ export default function TrainingPage() {
     <HQLayout title={t('hris.trainingTitle')} subtitle={t('hris.trainingSubtitle')}>
       <div className="space-y-6">
         {toast && <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white ${toast.type === 'error' ? 'bg-red-500' : 'bg-green-500'}`}>{toast.msg}</div>}
+        <TrainingLmsBridge currentModule="training" />
 
         <div className="flex justify-end">
           <DataSourceBadge source={dataSource} />

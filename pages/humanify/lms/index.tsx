@@ -10,6 +10,7 @@ import {
   GraduationCap, BookOpen, ClipboardList, Brain, Calendar, PenTool,
   BarChart3, Award, Users, ChevronRight,
 } from 'lucide-react';
+import TrainingLmsBridge from '@/components/humanify/TrainingLmsBridge';
 
 const MODULES = [
   { id: 'courses', href: '/humanify/lms/courses', icon: BookOpen, color: 'text-emerald-600 bg-emerald-50', label: 'Kursus & Learning Path', desc: 'Kurikulum, modul, materi video/PDF, progress belajar' },
@@ -56,6 +57,8 @@ export default function LmsHubPage() {
             <LmsPageNav active="hub" />
             <DataSourceBadge source={dataSource} />
           </div>
+
+          <TrainingLmsBridge currentModule="lms" />
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[

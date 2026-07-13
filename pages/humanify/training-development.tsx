@@ -12,6 +12,7 @@ import {
   Layers, Send, RefreshCw, Shield, PenTool, Layout, Network, UserPlus, Hash,
   HelpCircle, ListOrdered, CircleDot
 } from 'lucide-react';
+import TrainingLmsBridge from '@/components/humanify/TrainingLmsBridge';
 
 // ═══════════════════════════════════════════
 // Types & Constants
@@ -350,6 +351,8 @@ export default function TrainingDevelopmentPage() {
             {toast.msg}
           </div>
         )}
+
+        <TrainingLmsBridge currentModule="training-development" />
 
         {/* Hero Header */}
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-700 text-white shadow-lg">
