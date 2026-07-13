@@ -8,6 +8,7 @@ import {
   calculateTrend 
 } from '@/lib/hq/kpi-calculator';
 import { successResponse, errorResponse, ErrorCodes, HttpStatus } from '../../../lib/api/response';
+import { allowHrMockFallback } from '@/lib/hris/data-source';
 
 let QueryTypes: any;
 try { QueryTypes = require('sequelize').QueryTypes; } catch (e) {}
@@ -247,9 +248,11 @@ async function getRealtimeData(
 
   } catch (error: any) {
     console.warn('Error fetching HRIS realtime data: (table may not exist):', (error as any)?.message || error);
+    const empty = getEmptyRealtimeData();
     return res.status(200).json({
       success: true,
-      data: getMockRealtimeData()
+      data: allowHrMockFallback() ? getMockRealtimeData() : empty,
+      dataSource: allowHrMockFallback() ? 'demo' : 'empty',
     });
   }
 }
@@ -289,6 +292,25 @@ async function broadcastHRISUpdate(
     success: true,
     message: 'HRIS update broadcasted'
   });
+}
+
+function getEmptyRealtimeData() {
+  return {
+    summary: {
+      totalEmployees: 0,
+      avgAttendance: 0,
+      avgKPIScore: 0,
+      avgKPIAchievement: 0,
+      statusCounts: { exceeded: 0, achieved: 0, partial: 0, notAchieved: 0 },
+      perfectAttendance: 0,
+    },
+    employees: [],
+    topPerformers: [],
+    lowPerformers: [],
+    attendanceAlerts: [],
+    period: new Date().toISOString().substring(0, 7),
+    timestamp: new Date().toISOString(),
+  };
 }
 
 function getMockRealtimeData() {

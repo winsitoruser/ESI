@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import {
   Activity, RefreshCw, Filter, UserPlus, Target, DollarSign, Calendar,
   Award, Clock, ChevronRight, Search, Bell, Loader2, FileText, Users,
@@ -100,8 +102,11 @@ function groupByDate(items: ActivityItem[]) {
   return groups.sort((a, b) => b.sortKey - a.sortKey);
 }
 
+const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
+
 export default function HRISActivitiesPage() {
   const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [dataSource, setDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
   const [summary, setSummary] = useState<{ total: number; byType: Record<string, number>; showing: number }>({ total: 0, byType: {}, showing: 0 });
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState('all');
@@ -117,6 +122,9 @@ export default function HRISActivitiesPage() {
       if (json.success) {
         setActivities(json.data || []);
         if (json.summary) setSummary(json.summary);
+        if (json.meta?.isMock && USE_MOCK_UI) setDataSource('demo');
+        else if (json.data?.length) setDataSource('live');
+        else setDataSource('empty');
       }
     } catch { /* */ }
     finally { setLoading(false); }
@@ -160,6 +168,7 @@ export default function HRISActivitiesPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <DataSourceBadge source={dataSource} />
             <span className="text-xs text-gray-400 hidden sm:inline">
               Menampilkan {filtered.length} dari {summary.total || activities.length} log
             </span>

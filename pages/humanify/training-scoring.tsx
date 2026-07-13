@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import {
@@ -45,6 +46,7 @@ export default function TrainingScoringPage() {
   // Data
   const [configs, setConfigs] = useState<any[]>([]);
   const [competencies, setCompetencies] = useState<any[]>([]);
+  const [dataSource, setDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
   const [scores, setScores] = useState<any[]>([]);
   const [scoreSummary, setScoreSummary] = useState<any>(null);
   const [candidateAccounts, setCandidateAccounts] = useState<any[]>([]);
@@ -65,18 +67,28 @@ export default function TrainingScoringPage() {
     try {
       const res = await fetch(`${API}?action=configs`);
       const data = await res.json();
-      if (data.data?.length) setConfigs(data.data);
-      else setConfigs(USE_MOCK_UI ? MOCK_TS_CONFIGS : []);
-    } catch (e) { console.warn(e); setConfigs(USE_MOCK_UI ? MOCK_TS_CONFIGS : []); }
+      if (data.data?.length) {
+        setConfigs(data.data);
+        setDataSource('live');
+      } else {
+        setConfigs(USE_MOCK_UI ? MOCK_TS_CONFIGS : []);
+        if (USE_MOCK_UI) setDataSource('demo');
+      }
+    } catch (e) { console.warn(e); setConfigs(USE_MOCK_UI ? MOCK_TS_CONFIGS : []); if (USE_MOCK_UI) setDataSource('demo'); }
   }, []);
 
   const fetchCompetencies = useCallback(async () => {
     try {
       const res = await fetch(`${API}?action=competencies`);
       const data = await res.json();
-      if (data.data?.length) setCompetencies(data.data);
-      else setCompetencies(USE_MOCK_UI ? MOCK_TS_COMPETENCIES : []);
-    } catch (e) { console.warn(e); setCompetencies(USE_MOCK_UI ? MOCK_TS_COMPETENCIES : []); }
+      if (data.data?.length) {
+        setCompetencies(data.data);
+        setDataSource('live');
+      } else {
+        setCompetencies(USE_MOCK_UI ? MOCK_TS_COMPETENCIES : []);
+        if (USE_MOCK_UI) setDataSource('demo');
+      }
+    } catch (e) { console.warn(e); setCompetencies(USE_MOCK_UI ? MOCK_TS_COMPETENCIES : []); if (USE_MOCK_UI) setDataSource('demo'); }
   }, []);
 
   const fetchScores = useCallback(async (batchId?: string) => {
@@ -183,6 +195,10 @@ export default function TrainingScoringPage() {
     <HQLayout title={t('hris.trainingScoringTitle')} subtitle={t('hris.trainingScoringSubtitle')}>
       <div className="space-y-6">
         {toast && <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white ${toast.type === 'error' ? 'bg-red-500' : 'bg-green-500'}`}>{toast.msg}</div>}
+
+        <div className="flex justify-end">
+          <DataSourceBadge source={dataSource} />
+        </div>
 
         {/* Tabs */}
         <div className="flex gap-1 overflow-x-auto border-b pb-px">

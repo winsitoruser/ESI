@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withHQAuth } from '@/lib/middleware/withHQAuth';
 import { isUuid } from '@/lib/hris/serialize-rows';
+import { allowHrMockFallback } from '@/lib/hris/data-source';
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   const tenantId = (req as any).session?.user?.tenantId as string | undefined;
@@ -83,7 +84,13 @@ async function getActivities(req: NextApiRequest, res: NextApiResponse, tenantId
       pagination: { total, page: pageNum, limit: limitNum, hasMore: pageNum * limitNum < total },
     });
   } catch (e: any) {
-    return res.status(200).json({ success: true, data: getMockActivities(), meta: { isMock: true } });
+    const mock = allowHrMockFallback() ? getMockActivities() : [];
+    return res.status(200).json({
+      success: true,
+      data: mock,
+      summary: { total: mock.length, byType: {}, showing: mock.length },
+      meta: { isMock: allowHrMockFallback(), dataSource: allowHrMockFallback() ? 'demo' : 'empty' },
+    });
   }
 }
 

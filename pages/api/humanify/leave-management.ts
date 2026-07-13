@@ -249,8 +249,8 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
     if (requests.length > 0) {
       return res.status(200).json({
         success: true,
-        leaveTypes: getMockLeaveTypes(),
-        approvalConfigs: getMockApprovalConfigs(),
+        leaveTypes: allowHrMockFallback() ? getMockLeaveTypes() : [],
+        approvalConfigs: allowHrMockFallback() ? getMockApprovalConfigs() : [],
         requests,
         balances: [],
         summary: {

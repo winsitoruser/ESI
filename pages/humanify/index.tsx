@@ -304,7 +304,8 @@ export default function HRISDashboard() {
       // Process activities from API
       if (actRes.status === 'fulfilled' && actRes.value?.success) {
         const acts = actRes.value.data;
-        if (Array.isArray(acts) && acts.length > 0) {
+        const isMock = actRes.value.meta?.isMock;
+        if (Array.isArray(acts) && acts.length > 0 && (!isMock || USE_MOCK_UI)) {
           const iconMap: Record<string, any> = {
             employee_joined: UserPlus, kpi_update: Award, kpi_assigned: Award,
             payroll: DollarSign, leave_request: Calendar,

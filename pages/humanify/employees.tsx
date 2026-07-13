@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import { useHrisMasterData } from '@/hooks/useHrisMasterData';
 import { useTranslation } from '@/lib/i18n';
 import { CanAccess, PageGuard, useFilteredColumns, type PermissionAwareColumn } from '@/components/permissions';
@@ -30,23 +32,7 @@ type DetailTab =
   | 'experience' | 'documents' | 'contracts' | 'genealogy'
   | 'skills' | 'payroll' | 'leave' | 'attendance' | 'overtime' | 'kpi' | 'mutations';
 
-const MOCK_EMPLOYEES = [
-  { id: 1, employee_id: 'EMP-001', name: 'Ahmad Wijaya', email: 'ahmad@bedagang.com', department: 'MANAGEMENT', position: 'General Manager', branch_name: 'Kantor Pusat Jakarta', contract_type: 'PKWTT', contract_end: null, status: 'ACTIVE', phone_number: '081234567890' },
-  { id: 2, employee_id: 'EMP-002', name: 'Siti Rahayu', email: 'siti@bedagang.com', department: 'OPERATIONS', position: 'Branch Manager', branch_name: 'Cabang Bandung', contract_type: 'PKWTT', contract_end: null, status: 'ACTIVE', phone_number: '081234567891' },
-  { id: 3, employee_id: 'EMP-003', name: 'Budi Santoso', email: 'budi@bedagang.com', department: 'OPERATIONS', position: 'Branch Manager', branch_name: 'Cabang Surabaya', contract_type: 'PKWTT', contract_end: null, status: 'ACTIVE', phone_number: '081234567892' },
-  { id: 4, employee_id: 'EMP-004', name: 'Dewi Lestari', email: 'dewi@bedagang.com', department: 'OPERATIONS', position: 'Branch Manager', branch_name: 'Cabang Medan', contract_type: 'PKWTT', contract_end: null, status: 'ACTIVE', phone_number: '081234567893' },
-  { id: 5, employee_id: 'EMP-005', name: 'Eko Prasetyo', email: 'eko@bedagang.com', department: 'WAREHOUSE', position: 'Warehouse Supervisor', branch_name: 'Gudang Pusat Bekasi', contract_type: 'PKWTT', contract_end: null, status: 'ACTIVE', phone_number: '081234567894' },
-  { id: 6, employee_id: 'EMP-006', name: 'Lisa Permata', email: 'lisa@bedagang.com', department: 'FINANCE', position: 'Finance Manager', branch_name: 'Kantor Pusat Jakarta', contract_type: 'PKWTT', contract_end: null, status: 'ACTIVE', phone_number: '081234567895' },
-  { id: 7, employee_id: 'EMP-007', name: 'Made Wirawan', email: 'made@bedagang.com', department: 'OPERATIONS', position: 'Branch Manager', branch_name: 'Cabang Bali', contract_type: 'PKWT', contract_end: '2026-12-31', status: 'ACTIVE', phone_number: '081234567896' },
-  { id: 8, employee_id: 'EMP-008', name: 'Rizki Firmansyah', email: 'rizki@bedagang.com', department: 'IT', position: 'IT Support', branch_name: 'Kantor Pusat Jakarta', contract_type: 'PKWT', contract_end: '2026-09-30', status: 'ACTIVE', phone_number: '081234567897' },
-  { id: 9, employee_id: 'EMP-009', name: 'Nurul Hidayah', email: 'nurul@bedagang.com', department: 'HR', position: 'HR Officer', branch_name: 'Kantor Pusat Jakarta', contract_type: 'PKWTT', contract_end: null, status: 'ACTIVE', phone_number: '081234567898' },
-  { id: 10, employee_id: 'EMP-010', name: 'Fajar Setiawan', email: 'fajar@bedagang.com', department: 'SALES', position: 'Sales Supervisor', branch_name: 'Cabang Bandung', contract_type: 'PKWTT', contract_end: null, status: 'ACTIVE', phone_number: '081234567899' },
-  { id: 11, employee_id: 'EMP-011', name: 'Rina Anggraini', email: 'rina@bedagang.com', department: 'PRODUCTION', position: 'Head Chef', branch_name: 'Cabang Bali', contract_type: 'PKWTT', contract_end: null, status: 'ON_LEAVE', phone_number: '081234567800' },
-  { id: 12, employee_id: 'EMP-012', name: 'Hendra Gunawan', email: 'hendra@bedagang.com', department: 'WAREHOUSE', position: 'Warehouse Staff', branch_name: 'Gudang Pusat Bekasi', contract_type: 'PKWT', contract_end: '2026-06-30', status: 'ACTIVE', phone_number: '081234567801' },
-  { id: 13, employee_id: 'EMP-013', name: 'Yuni Kartika', email: 'yuni@bedagang.com', department: 'CUSTOMER_SERVICE', position: 'CS Lead', branch_name: 'Cabang Surabaya', contract_type: 'PKWTT', contract_end: null, status: 'ACTIVE', phone_number: '081234567802' },
-  { id: 14, employee_id: 'EMP-014', name: 'Doni Pratama', email: 'doni@bedagang.com', department: 'SALES', position: 'Sales Staff', branch_name: 'Cabang Medan', contract_type: 'PKWT', contract_end: '2025-12-31', status: 'INACTIVE', phone_number: '081234567803' },
-  { id: 15, employee_id: 'EMP-015', name: 'Putri Maharani', email: 'putri@bedagang.com', department: 'ADMINISTRATION', position: 'Admin Staff', branch_name: 'Cabang Semarang', contract_type: 'PKWTT', contract_end: null, status: 'ACTIVE', phone_number: '081234567804' },
-];
+const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
 
 export default function EmployeeManagementPage() {
   const { t } = useTranslation();
@@ -61,6 +47,7 @@ export default function EmployeeManagementPage() {
 
   // List state
   const [employees, setEmployees] = useState<any[]>([]);
+  const [dataSource, setDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
   const [filterDept, setFilterDept] = useState('');
@@ -233,10 +220,12 @@ export default function EmployeeManagementPage() {
       const data = json.data || [];
       setEmployees(data);
       setTotal(json.total ?? data.length);
+      setDataSource(data.length ? 'live' : 'empty');
     } catch (e) {
       console.error(e);
       setEmployees([]);
       setTotal(0);
+      setDataSource('empty');
     }
     setLoading(false);
   };
@@ -448,6 +437,7 @@ export default function EmployeeManagementPage() {
             <p className="text-sm text-gray-500 mt-0.5">{t('hris.employeeDbSubtitle')}</p>
           </div>
           <div className="flex items-center gap-2">
+            <DataSourceBadge source={dataSource} />
             {activeTab === 'list' && (
               <CanAccess permission="employees.create">
                 <button
