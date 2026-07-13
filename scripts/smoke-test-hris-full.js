@@ -258,7 +258,7 @@ async function testCrudFlows() {
 
   // MF mobile activity (integration) — skip on Humanify HRIS (non-multifinance agents)
   const mfProfile = await api('GET', '/api/employee/multifinance?action=profile');
-  const isMfAgent = mfProfile.res.status === 200 && mfProfile.body.success && !mfProfile.body.error;
+  const isMfAgent = mfProfile.body.data?.isMfAgent === true;
   if (!isMfAgent) {
     ok('integration mf activity skipped (Humanify HRIS — bukan agent pembiayaan)');
   } else {
