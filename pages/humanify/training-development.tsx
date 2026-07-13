@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import DepartmentSelect from '@/components/humanify/DepartmentSelect';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import {
   GraduationCap, Search, Plus, Eye, Edit, X, Calendar, Clock, Users, MapPin,
@@ -63,6 +65,40 @@ const DELIVERY_METHODS: Record<string, string> = {
 
 const API = '/api/humanify/training-development';
 
+const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
+
+const EMPTY_DASHBOARD = {
+  totalCurricula: 0, totalModules: 0, totalBatches: 0, activeBatches: 0,
+  totalParticipants: 0, avgScore: 0, passRate: 0, totalPlacements: 0,
+};
+
+const MOCK_DASHBOARD = {
+  totalCurricula: 6, totalModules: 24, totalBatches: 12, activeBatches: 4,
+  totalParticipants: 185, avgScore: 78.5, passRate: 82, totalPlacements: 45,
+};
+
+const MOCK_CURRICULA = [
+  { id: 'cur1', name: 'Barista Profesional', code: 'CUR-BAR-001', description: 'Kurikulum pelatihan barista', status: 'active', total_modules: 8, duration_weeks: 12, created_at: '2025-06-01' },
+];
+
+const MOCK_MODULES = [
+  { id: 'mod1', curriculum_id: 'cur1', name: 'Dasar Espresso', code: 'MOD-001', module_type: 'lesson', delivery_method: 'classroom', duration_hours: 16, sort_order: 1, status: 'active' },
+];
+
+const MOCK_BATCHES = [
+  { id: 'bat1', curriculum_id: 'cur1', name: 'Batch 12 - Maret 2026', batch_type: 'regular', status: 'in_progress', start_date: '2026-03-01', end_date: '2026-05-31', max_participants: 25, enrolled: 22 },
+];
+
+const MOCK_PIPELINE = {
+  stages: [
+    { name: 'Registrasi', count: 15 }, { name: 'Pelatihan', count: 22 },
+    { name: 'Ujian', count: 8 }, { name: 'Penempatan', count: 5 },
+  ],
+  totalCandidates: 50,
+};
+
+const EMPTY_PIPELINE = { stages: [], totalCandidates: 0 };
+
 const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
 const fmtCur = (n: number) => !n ? '-' : `Rp ${n.toLocaleString('id-ID')}`;
 const statusBadge = (s: string) => (
@@ -87,17 +123,19 @@ export default function TrainingDevelopmentPage() {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterType, setFilterType] = useState('');
 
+  const [dataSource, setDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
+
   // Data states
-  const [dashboard, setDashboard] = useState<any>({ totalCurricula: 6, totalModules: 24, totalBatches: 12, activeBatches: 4, totalParticipants: 185, avgScore: 78.5, passRate: 82, totalPlacements: 45 });
-  const [curricula, setCurricula] = useState<any[]>([{ id: 'cur1', name: 'Barista Profesional', code: 'CUR-BAR-001', description: 'Kurikulum pelatihan barista', status: 'active', total_modules: 8, duration_weeks: 12, created_at: '2025-06-01' }]);
-  const [modules, setModules] = useState<any[]>([{ id: 'mod1', curriculum_id: 'cur1', name: 'Dasar Espresso', code: 'MOD-001', module_type: 'lesson', delivery_method: 'classroom', duration_hours: 16, sort_order: 1, status: 'active' }]);
-  const [batches, setBatches] = useState<any[]>([{ id: 'bat1', curriculum_id: 'cur1', name: 'Batch 12 - Maret 2026', batch_type: 'regular', status: 'in_progress', start_date: '2026-03-01', end_date: '2026-05-31', max_participants: 25, enrolled: 22 }]);
+  const [dashboard, setDashboard] = useState<any>(USE_MOCK_UI ? MOCK_DASHBOARD : EMPTY_DASHBOARD);
+  const [curricula, setCurricula] = useState<any[]>(USE_MOCK_UI ? MOCK_CURRICULA : []);
+  const [modules, setModules] = useState<any[]>(USE_MOCK_UI ? MOCK_MODULES : []);
+  const [batches, setBatches] = useState<any[]>(USE_MOCK_UI ? MOCK_BATCHES : []);
   const [schedules, setSchedules] = useState<any[]>([]);
   const [exams, setExams] = useState<any[]>([]);
   const [examResults, setExamResults] = useState<any[]>([]);
   const [graduations, setGraduations] = useState<any[]>([]);
   const [placements, setPlacements] = useState<any[]>([]);
-  const [pipeline, setPipeline] = useState<any>({ stages: [{ name: 'Registrasi', count: 15 }, { name: 'Pelatihan', count: 22 }, { name: 'Ujian', count: 8 }, { name: 'Penempatan', count: 5 }], totalCandidates: 50 });
+  const [pipeline, setPipeline] = useState<any>(USE_MOCK_UI ? MOCK_PIPELINE : EMPTY_PIPELINE);
   const [questions, setQuestions] = useState<any[]>([]);
   const [questionForm, setQuestionForm] = useState<any>({ options: [{ label: 'A', text: '', isCorrect: false }, { label: 'B', text: '', isCorrect: false }, { label: 'C', text: '', isCorrect: false }, { label: 'D', text: '', isCorrect: false }] });
   const [enrollForm, setEnrollForm] = useState<any>({});
@@ -118,18 +156,33 @@ export default function TrainingDevelopmentPage() {
       if (filterType) params.set('batch_type', filterType);
       const res = await fetch(`${API}?${params}`);
       const data = await res.json();
-      if (data.data) setter(Array.isArray(data.data) ? data.data : [data.data]);
-    } catch (e) { console.warn(`Failed to fetch ${action}:`, e); }
+      if (data.data) {
+        const rows = Array.isArray(data.data) ? data.data : [data.data];
+        setter(rows);
+        if (rows.length) setDataSource('live');
+      } else {
+        setter([]);
+      }
+    } catch (e) {
+      console.warn(`Failed to fetch ${action}:`, e);
+      setter([]);
+    }
   }, [search, filterStatus, filterType]);
 
   const fetchDashboard = useCallback(async () => {
     try {
       const res = await fetch(`${API}?action=dashboard`);
       const data = await res.json();
-      if (data.data) setDashboard(data.data);
+      if (data.data) {
+        setDashboard(data.data);
+        if ((data.data.totalCurricula || 0) > 0) setDataSource('live');
+      } else {
+        setDashboard(USE_MOCK_UI ? MOCK_DASHBOARD : EMPTY_DASHBOARD);
+      }
     } catch (e) {
       console.warn('Failed to fetch dashboard:', e);
-      setDashboard({ totalCurricula: 6, totalModules: 24, totalBatches: 12, activeBatches: 4, totalParticipants: 185, avgScore: 78.5, passRate: 82, totalPlacements: 45 });
+      setDashboard(USE_MOCK_UI ? MOCK_DASHBOARD : EMPTY_DASHBOARD);
+      if (USE_MOCK_UI) setDataSource('demo');
     }
   }, []);
 
@@ -137,10 +190,16 @@ export default function TrainingDevelopmentPage() {
     try {
       const res = await fetch(`${API}?action=outsourcing-pipeline`);
       const data = await res.json();
-      if (data.data) setPipeline(data.data);
+      if (data.data) {
+        setPipeline(data.data);
+        if ((data.data.totalCandidates || 0) > 0) setDataSource('live');
+      } else {
+        setPipeline(USE_MOCK_UI ? MOCK_PIPELINE : EMPTY_PIPELINE);
+      }
     } catch (e) {
       console.warn('Failed to fetch pipeline:', e);
-      setPipeline({ stages: [{ name: 'Registrasi', count: 15 }, { name: 'Pelatihan', count: 22 }, { name: 'Ujian', count: 8 }, { name: 'Penempatan', count: 5 }], totalCandidates: 50 });
+      setPipeline(USE_MOCK_UI ? MOCK_PIPELINE : EMPTY_PIPELINE);
+      if (USE_MOCK_UI) setDataSource('demo');
     }
   }, []);
 
@@ -307,15 +366,18 @@ export default function TrainingDevelopmentPage() {
                   Kelola kurikulum, batch pelatihan, ujian, kelulusan, dan penempatan karyawan — termasuk pipeline outsourcing.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={handleRefresh}
-                disabled={loading}
-                className="self-start flex items-center gap-2 px-4 py-2 rounded-xl bg-white/15 hover:bg-white/25 backdrop-blur-sm text-sm font-medium transition-colors disabled:opacity-60"
-              >
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
-              </button>
+              <div className="self-start flex flex-col items-end gap-2">
+                <DataSourceBadge source={dataSource} />
+                <button
+                  type="button"
+                  onClick={handleRefresh}
+                  disabled={loading}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/15 hover:bg-white/25 backdrop-blur-sm text-sm font-medium transition-colors disabled:opacity-60"
+                >
+                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </button>
+              </div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
               {heroStats.map(s => (

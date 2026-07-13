@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
-import { allowHrMockFallback } from '@/lib/hris/data-source';
+import { allowHrMockFallback, resolveDataSource } from '@/lib/hris/data-source';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch (e) {}
@@ -133,12 +133,16 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
 
     // Payroll components
     let components: any[] = [];
+    let usedMock = false;
     if (PayrollComponent) {
       const where: any = { isActive: true };
       if (tenantId) where.tenantId = tenantId;
       components = await PayrollComponent.findAll({ where, order: [['sort_order', 'ASC']] });
     }
-    if (components.length === 0 && allowHrMockFallback()) components = getMockComponents();
+    if (components.length === 0 && allowHrMockFallback()) {
+      components = getMockComponents();
+      usedMock = true;
+    }
 
     // Recent payroll runs
     let runs: any[] = [];
@@ -182,18 +186,23 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
       } catch (e) {}
     }
 
+    const hasLiveRows = stats.totalEmployees > 0 || runs.length > 0 || salaryCount > 0 || (components.length > 0 && !usedMock);
+
     return res.json({
       success: true,
       components: components.map((c: any) => toSnakeComponent(c)),
       runs: runs.map((r: any) => toSnakeRun(r)),
-      stats
+      stats,
+      dataSource: resolveDataSource(hasLiveRows, usedMock),
     });
   } catch (e: any) {
+    const usedMock = allowHrMockFallback();
     return res.json({
       success: true,
-      components: allowHrMockFallback() ? getMockComponents() : [],
+      components: usedMock ? getMockComponents() : [],
       runs: [],
-      stats: { totalEmployees: 0, configuredSalaries: 0, totalComponents: 0, lastPayrollRun: null, monthlyPayroll: 0 }
+      stats: { totalEmployees: 0, configuredSalaries: 0, totalComponents: 0, lastPayrollRun: null, monthlyPayroll: 0 },
+      dataSource: resolveDataSource(false, usedMock),
     });
   }
 }

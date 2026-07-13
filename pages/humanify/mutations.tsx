@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import DocumentExportButton from '@/components/documents/DocumentExportButton';
 import {
@@ -42,6 +44,7 @@ export default function MutationsPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('list');
   const [mutations, setMutations] = useState<any[]>([]);
+  const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [employees, setEmployees] = useState<any[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
   const [selected, setSelected] = useState<any>(null);
@@ -86,8 +89,11 @@ export default function MutationsPage() {
       if (filterType) params.set('mutation_type', filterType);
       const res = await fetch(`/api/humanify/workflow?${params}`);
       const json = await res.json();
-      if (json.success) setMutations(json.data || []);
-      else showToast('error', json.error || 'Gagal memuat data');
+      if (json.success) {
+        const rows = json.data || [];
+        setMutations(rows);
+        setDataSource(rows.length ? 'live' : 'empty');
+      } else showToast('error', json.error || 'Gagal memuat data');
     } catch {
       showToast('error', 'Gagal memuat data mutasi');
     } finally {
@@ -231,7 +237,8 @@ export default function MutationsPage() {
               Pengajuan perpindahan antar departemen, bagian, wilayah — dengan approval & E-Letter
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <DataSourceBadge source={dataSource} />
             {activeTab !== 'list' && (
               <button onClick={() => { setActiveTab('list'); setSelected(null); }}
                 className="px-3 py-2 text-sm border rounded-lg hover:bg-gray-50">← Daftar</button>

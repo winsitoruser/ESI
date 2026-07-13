@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import { CanAccess, PageGuard } from '@/components/permissions';
 import DocumentExportButton from '@/components/documents/DocumentExportButton';
@@ -102,6 +104,7 @@ export default function PayrollPage() {
   const [salaries, setSalaries] = useState<EmployeeSalaryConfig[]>([]);
   const [runs, setRuns] = useState<PayrollRun[]>([]);
   const [stats, setStats] = useState<any>({});
+  const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
 
   // Modals
   const [showSalaryModal, setShowSalaryModal] = useState(false);
@@ -202,11 +205,15 @@ export default function PayrollPage() {
         setComponents((json.components || []).map(normalizeComponent));
         setRuns((json.runs || []).map(normalizeRun));
         setStats(json.stats || {});
+        const hasLive = (json.stats?.totalEmployees || 0) > 0 || (json.components?.length || 0) > 0;
+        setDataSource(json.dataSource || (hasLive ? 'live' : 'empty'));
       } else {
         setComponents([]); setRuns([]); setStats({});
+        setDataSource('empty');
       }
     } catch {
       setComponents([]); setRuns([]); setStats({});
+      setDataSource('empty');
     } finally { setLoading(false); }
   };
 
@@ -643,6 +650,9 @@ export default function PayrollPage() {
     >
     <HQLayout title={t('hris.payrollTitle')} subtitle={t('hris.payrollSubtitle')}>
       <div className="space-y-6">
+        <div className="flex justify-end">
+          <DataSourceBadge source={dataSource} />
+        </div>
         {preflight && !preflight.ready && preflight.issues.length > 0 && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
             <div className="flex items-start gap-3">

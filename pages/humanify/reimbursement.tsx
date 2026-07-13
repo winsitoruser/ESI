@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import EmployeePicker, { type PickedEmployee } from '@/components/humanify/EmployeePicker';
 import { PageGuard } from '@/components/permissions';
 import Link from 'next/link';
@@ -44,6 +46,7 @@ interface ClaimRow {
 
 export default function ReimbursementPage() {
   const [claims, setClaims] = useState<ClaimRow[]>([]);
+  const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [filter, setFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [search, setSearch] = useState('');
@@ -66,7 +69,7 @@ export default function ReimbursementPage() {
       const res = await fetch(`/api/humanify/workflow?action=claims${q}`);
       const json = await res.json();
       if (json.success) {
-        setClaims((json.data || []).map((c: any) => ({
+        const rows = (json.data || []).map((c: any) => ({
           id: c.id,
           claim_number: c.claim_number,
           employee_name: c.employee_name || `Karyawan`,
@@ -79,7 +82,9 @@ export default function ReimbursementPage() {
           claim_date: c.claim_date,
           receipt_url: c.receipt_url,
           department: c.department,
-        })));
+        }));
+        setClaims(rows);
+        setDataSource(rows.length ? 'live' : 'empty');
       }
     } catch {
       showToast('Gagal memuat klaim', 'error');
@@ -206,6 +211,7 @@ export default function ReimbursementPage() {
             <button onClick={() => setShowModal(true)} className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">
               <Plus className="h-4 w-4" /> Ajukan Klaim
             </button>
+            <DataSourceBadge source={dataSource} />
           </div>
 
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

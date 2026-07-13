@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import {
   Shield, Users, Clock, CheckCircle, XCircle, DollarSign,
@@ -25,6 +27,7 @@ export default function MSSPortalPage() {
 
   // Data
   const [workflowSummary, setWorkflowSummary] = useState<any>(EMPTY_WORKFLOW);
+  const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [reminderSummary, setReminderSummary] = useState<any>(EMPTY_REMINDER_SUMMARY);
   const [claims, setClaims] = useState<any[]>([]);
   const [mutations, setMutations] = useState<any[]>([]);
@@ -60,8 +63,13 @@ export default function MSSPortalPage() {
     try {
       const res = await fetch('/api/humanify/workflow?action=summary');
       const json = await res.json();
-      setWorkflowSummary(json.data || EMPTY_WORKFLOW);
-    } catch (e) { console.error(e); setWorkflowSummary(EMPTY_WORKFLOW); }
+      const summary = json.data || EMPTY_WORKFLOW;
+      setWorkflowSummary(summary);
+      const activity = (summary.claims?.pending || 0) + (summary.claims?.approved || 0)
+        + (summary.mutations?.pending || 0) + (summary.mutations?.approved || 0)
+        + (summary.overtime?.pending || 0) + (summary.overtime?.approved || 0);
+      setDataSource(activity > 0 ? 'live' : 'empty');
+    } catch (e) { console.error(e); setWorkflowSummary(EMPTY_WORKFLOW); setDataSource('empty'); }
   };
 
   const fetchReminderSummary = async () => {
@@ -183,11 +191,14 @@ export default function MSSPortalPage() {
 
       <div className="p-4 md:p-6 space-y-4">
         {/* Header */}
-        <div>
-          <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-            <Shield className="w-6 h-6 text-violet-600" /> Manager Self Service (MSS)
-          </h1>
-          <p className="text-sm text-gray-500 mt-0.5">Portal persetujuan dan pengelolaan tim</p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+              <Shield className="w-6 h-6 text-violet-600" /> Manager Self Service (MSS)
+            </h1>
+            <p className="text-sm text-gray-500 mt-0.5">Portal persetujuan dan pengelolaan tim</p>
+          </div>
+          <DataSourceBadge source={dataSource} />
         </div>
 
         {/* Summary Cards */}
