@@ -54,9 +54,8 @@ async function run() {
 
   const [[{ id: tid }]] = await sequelize.query('SELECT id FROM tenants LIMIT 1');
   const [employees] = await sequelize.query(
-    `SELECT id, COALESCE(full_name, name) AS name FROM employees
-     ORDER BY created_at LIMIT 5`,
-  ).catch(() => [[]]);
+    `SELECT id, name FROM employees ORDER BY created_at LIMIT 5`,
+  );
 
   let curriculumId;
   const [existing] = await sequelize.query(
@@ -121,8 +120,8 @@ async function run() {
     let enrolled = 0;
     for (const emp of employees) {
       const [r] = await sequelize.query(`
-        INSERT INTO hris_lms_enrollments (tenant_id, curriculum_id, employee_id, employee_name, mandatory, status)
-        SELECT :tid, :cid, :eid, :ename, true, 'enrolled'
+        INSERT INTO hris_lms_enrollments (id, tenant_id, curriculum_id, employee_id, employee_name, mandatory, status)
+        SELECT gen_random_uuid(), :tid, :cid, :eid, :ename, true, 'enrolled'
         WHERE NOT EXISTS (
           SELECT 1 FROM hris_lms_enrollments WHERE curriculum_id = :cid AND employee_id = :eid
         ) RETURNING id

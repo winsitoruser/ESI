@@ -14,12 +14,12 @@ async function resolveEmployee(session: any) {
   const userId = session.user?.id;
   const tenantId = session.user?.tenantId || null;
   const [rows] = await sequelize.query(
-    `SELECT id, full_name, email, department_id FROM employees WHERE user_id = :uid LIMIT 1`,
+    `SELECT id, name AS full_name, email, department_id FROM employees WHERE user_id = :uid LIMIT 1`,
     { replacements: { uid: userId } },
   );
   if (rows.length) return { ...rows[0], tenantId };
   const [byEmail] = await sequelize.query(
-    `SELECT id, full_name, email, department_id FROM employees WHERE email = :email LIMIT 1`,
+    `SELECT id, name AS full_name, email, department_id FROM employees WHERE email = :email LIMIT 1`,
     { replacements: { email: session.user?.email } },
   );
   return byEmail[0] ? { ...byEmail[0], tenantId } : null;

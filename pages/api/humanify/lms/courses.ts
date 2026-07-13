@@ -141,29 +141,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
         let count = 0;
         for (const eid of employee_ids) {
-          const [emp] = await sequelize.query('SELECT full_name FROM employees WHERE id = :id LIMIT 1', { replacements: { id: eid } });
-          await sequelize.query(`
-            INSERT INTO hris_lms_enrollments (tenant_id, curriculum_id, employee_id, employee_name, mandatory, due_date, status)
-            VALUES (:tid, :cid, :eid, :name, :mand, :due, 'enrolled')
-            ON CONFLICT DO NOTHING
+          const [emp] = await sequelize.query(
+            'SELECT name FROM employees WHERE id = :id LIMIT 1',
+            { replacements: { id: eid } },
+          );
+          const [r] = await sequelize.query(`
+            INSERT INTO hris_lms_enrollments (id, tenant_id, curriculum_id, employee_id, employee_name, mandatory, due_date, status)
+            SELECT gen_random_uuid(), :tid, :cid, :eid, :name, :mand, :due, 'enrolled'
+            WHERE NOT EXISTS (SELECT 1 FROM hris_lms_enrollments WHERE curriculum_id = :cid AND employee_id = :eid)
+            RETURNING id
           `, {
             replacements: {
               tid: tenantId, cid: curriculum_id, eid,
-              name: emp[0]?.full_name || null, mand: mandatory || false, due: due_date || null,
+              name: emp[0]?.name || null, mand: mandatory || false, due: due_date || null,
             },
-          }).catch(async () => {
-            await sequelize.query(`
-              INSERT INTO hris_lms_enrollments (tenant_id, curriculum_id, employee_id, employee_name, mandatory, due_date, status)
-              SELECT :tid, :cid, :eid, :name, :mand, :due, 'enrolled'
-              WHERE NOT EXISTS (SELECT 1 FROM hris_lms_enrollments WHERE curriculum_id = :cid AND employee_id = :eid)
-            `, {
-              replacements: {
-                tid: tenantId, cid: curriculum_id, eid,
-                name: emp[0]?.full_name || null, mand: mandatory || false, due: due_date || null,
-              },
-            });
           });
-          count++;
+          if (r.length) count++;
         }
         return res.json({ success: true, data: { enrolled: count } });
       }
