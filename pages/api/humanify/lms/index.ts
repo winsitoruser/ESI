@@ -49,13 +49,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
         const [ex] = await sequelize.query(`SELECT COUNT(*)::int as c FROM hris_training_exams WHERE tenant_id = :tid`, { replacements: { tid: tenantId } });
         stats.exams = ex[0]?.c || 0;
-        const [res] = await sequelize.query(`
+        const [resultStats] = await sequelize.query(`
           SELECT COUNT(*)::int as total,
             COALESCE(AVG(CASE WHEN is_passed=true THEN 1 ELSE 0 END)*100,0)::decimal(5,2) as pass_rate
           FROM hris_training_exam_results WHERE tenant_id = :tid
         `, { replacements: { tid: tenantId } });
-        stats.results = res[0]?.total || 0;
-        stats.passRate = Number(res[0]?.pass_rate) || 0;
+        stats.results = resultStats[0]?.total || 0;
+        stats.passRate = Number(resultStats[0]?.pass_rate) || 0;
 
         const [psycho] = await sequelize.query(`
           SELECT psychometric_type, COUNT(*)::int as count FROM hris_training_exams

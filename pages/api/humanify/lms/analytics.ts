@@ -28,7 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const [exams] = await sequelize.query(`
         SELECT COUNT(*)::int AS attempts,
           COUNT(*) FILTER (WHERE is_passed = true)::int AS passed,
-          COALESCE(AVG(percentage),0)::decimal(5,2) AS avg_score
+          COALESCE(AVG(score),0)::decimal(5,2) AS avg_score
         FROM hris_training_exam_results WHERE tenant_id = :tid
       `, { replacements: { tid: tenantId } });
 
@@ -54,7 +54,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           COUNT(DISTINCT en.employee_id) FILTER (WHERE en.status = 'completed')::int AS completed,
           COALESCE(AVG(en.progress_pct),0)::decimal(5,2) AS avg_progress,
           COUNT(DISTINCT r.employee_id)::int AS exam_takers,
-          COALESCE(AVG(r.percentage),0)::decimal(5,2) AS avg_exam_score
+          COALESCE(AVG(r.score),0)::decimal(5,2) AS avg_exam_score
         FROM hris_lms_enrollments en
         LEFT JOIN employees e ON e.id = en.employee_id
         LEFT JOIN hris_training_exam_results r ON r.employee_id = en.employee_id AND r.tenant_id = en.tenant_id

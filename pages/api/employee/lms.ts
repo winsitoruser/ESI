@@ -16,12 +16,12 @@ async function resolveEmployee(session: any) {
   const userId = session.user?.id;
   const tenantId = session.user?.tenantId || null;
   const [rows] = await sequelize.query(
-    `SELECT id, name AS full_name, email, department_id FROM employees WHERE user_id = :uid LIMIT 1`,
+    `SELECT id, name AS full_name, email, department FROM employees WHERE user_id = :uid LIMIT 1`,
     { replacements: { uid: userId } },
   );
   if (rows.length) return { ...rows[0], tenantId };
   const [byEmail] = await sequelize.query(
-    `SELECT id, name AS full_name, email, department_id FROM employees WHERE email = :email LIMIT 1`,
+    `SELECT id, name AS full_name, email, department FROM employees WHERE email = :email LIMIT 1`,
     { replacements: { email: session.user?.email } },
   );
   return byEmail[0] ? { ...byEmail[0], tenantId } : null;
@@ -306,17 +306,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         } catch { /* ignore */ }
 
         await sequelize.query(`
-          UPDATE hris_training_exam_results SET score = :score, max_score = :max, percentage = :pct,
-            correct_count = :correct, answered_count = :answered, answers = :ans::jsonb,
+          UPDATE hris_training_exam_results SET score = :score,
+            total_correct = :correct, total_answered = :answered, answers = :ans::jsonb,
             is_passed = :pass, status = :st, submitted_at = NOW(),
             metadata = :meta::jsonb
           WHERE id = :rid
         `, {
           replacements: {
-            score: graded.totalScore, max: graded.maxScore, pct: graded.pct,
+            score: graded.pct,
             correct: graded.totalCorrect, answered: graded.totalAnswered,
             ans: JSON.stringify(graded.gradedAnswers), pass: isPassed, st: status, rid: result_id,
-            meta: JSON.stringify({ needs_manual: graded.needsManual, integrity_score: integrityScore }),
+            meta: JSON.stringify({
+              needs_manual: graded.needsManual,
+              integrity_score: integrityScore,
+              max_score: graded.maxScore,
+              percentage: graded.pct,
+            }),
           },
         });
 

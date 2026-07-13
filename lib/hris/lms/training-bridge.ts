@@ -227,7 +227,7 @@ export async function migrateLegacyCertifications(tenantId: string | null) {
 export async function batchSyncExamResults(tenantId: string | null) {
   if (!sequelize) return { synced: 0 };
   const [results] = await sequelize.query(`
-    SELECT r.id, r.employee_id, r.exam_id, r.percentage, r.is_passed
+    SELECT r.id, r.employee_id, r.exam_id, r.score, r.is_passed
     FROM hris_training_exam_results r
     WHERE (r.tenant_id = :tid OR :tid IS NULL) AND r.is_passed = true AND r.status = 'graded'
     ORDER BY r.submitted_at DESC LIMIT 200
@@ -237,7 +237,7 @@ export async function batchSyncExamResults(tenantId: string | null) {
   for (const r of results) {
     const out = await syncExamResultToScoring({
       tenantId, resultId: r.id, employeeId: String(r.employee_id),
-      examId: r.exam_id, percentage: Number(r.percentage), isPassed: !!r.is_passed,
+      examId: r.exam_id, percentage: Number(r.score), isPassed: !!r.is_passed,
     });
     if (out.synced) synced++;
   }
