@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
+import { allowHrMockFallback } from '@/lib/hris/data-source';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch (e) {}
@@ -137,7 +138,7 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
       if (tenantId) where.tenantId = tenantId;
       components = await PayrollComponent.findAll({ where, order: [['sort_order', 'ASC']] });
     }
-    if (components.length === 0) components = getMockComponents();
+    if (components.length === 0 && allowHrMockFallback()) components = getMockComponents();
 
     // Recent payroll runs
     let runs: any[] = [];
@@ -190,9 +191,9 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
   } catch (e: any) {
     return res.json({
       success: true,
-      components: getMockComponents(),
+      components: allowHrMockFallback() ? getMockComponents() : [],
       runs: [],
-      stats: { totalEmployees: 8, configuredSalaries: 0, totalComponents: 15, lastPayrollRun: null, monthlyPayroll: 0 }
+      stats: { totalEmployees: 0, configuredSalaries: 0, totalComponents: 0, lastPayrollRun: null, monthlyPayroll: 0 }
     });
   }
 }
@@ -200,12 +201,12 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
 // ===== GET: Components =====
 async function getComponents(req: NextApiRequest, res: NextApiResponse, session: any) {
   try {
-    if (!PayrollComponent) return res.json({ success: true, data: getMockComponents() });
+    if (!PayrollComponent) return res.json({ success: true, data: allowHrMockFallback() ? getMockComponents() : [] });
     const components = await PayrollComponent.findAll({ order: [['sort_order', 'ASC']] });
-    const data = components.length > 0 ? components.map(toSnakeComponent) : getMockComponents();
+    const data = components.length > 0 ? components.map(toSnakeComponent) : (allowHrMockFallback() ? getMockComponents() : []);
     return res.json({ success: true, data });
   } catch (e) {
-    return res.json({ success: true, data: getMockComponents() });
+    return res.json({ success: true, data: allowHrMockFallback() ? getMockComponents() : [] });
   }
 }
 

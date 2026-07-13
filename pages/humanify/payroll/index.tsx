@@ -36,20 +36,27 @@ const PAYROLL_MODULES = [
   { key: 'disbursement', label: 'Transfer Bank', desc: 'Generate file disbursement BCA, Mandiri, CSV', href: '/humanify/payroll/disbursement', icon: Banknote, color: 'bg-teal-500', badge: 'New' },
 ];
 
+const EMPTY_STATS = {
+  totalEmployees: 0, configuredSalaries: 0, monthlyPayroll: 0,
+  pendingOT: 0, nextPayDate: '-', lastRunCode: '-',
+};
+
 const MOCK_STATS = {
   totalEmployees: 148, configuredSalaries: 142, monthlyPayroll: 1860000000,
   pendingOT: 3, nextPayDate: '2026-03-31', lastRunCode: 'PAY-2026-03',
 };
 
+const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
+
 export default function PayrollIndexPage() {
   const { t } = useTranslation();
   const [mounted, setMounted] = useState(false);
-  const [stats, setStats] = useState(MOCK_STATS);
+  const [stats, setStats] = useState(USE_MOCK_UI ? MOCK_STATS : EMPTY_STATS);
 
   useEffect(() => {
     setMounted(true);
     fetch('/api/humanify/payroll').then(r => r.json()).then(json => {
-      if (json.success && json.stats) setStats({ ...MOCK_STATS, ...json.stats });
+      if (json.success && json.stats) setStats({ ...(USE_MOCK_UI ? MOCK_STATS : EMPTY_STATS), ...json.stats });
     }).catch(() => {});
   }, []);
 
