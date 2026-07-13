@@ -7,7 +7,7 @@
  *
  * Env opsional:
  *   DATABASE_URL / POSTGRES_URL
- *   TENANT_SUPERADMIN_EMAIL (default: superadmin@bedagang.com)
+ *   TENANT_SUPERADMIN_EMAIL (default: superadmin@humanify.id)
  *   SUPERADMIN_PASSWORD     (default: superadmin123)
  */
 require('dotenv').config();
@@ -22,7 +22,8 @@ if (!DATABASE_URL) {
   process.exit(1);
 }
 
-const EMAIL = process.env.TENANT_SUPERADMIN_EMAIL || 'superadmin@bedagang.com';
+const LEGACY_EMAIL = 'superadmin@bedagang.com';
+const EMAIL = process.env.TENANT_SUPERADMIN_EMAIL || 'superadmin@humanify.id';
 const PASSWORD = process.env.SUPERADMIN_PASSWORD || 'superadmin123';
 const LOCAL_TENANT_ID = '11111111-1111-1111-1111-111111111111';
 const SUPER_ROLE_CODE = 'SUPER_ADMIN';
@@ -69,7 +70,21 @@ async function getUserByEmail(email) {
   return rows?.[0] || null;
 }
 
+async function migrateLegacyEmail() {
+  if (EMAIL.toLowerCase() === LEGACY_EMAIL.toLowerCase()) return;
+  const legacy = await getUserByEmail(LEGACY_EMAIL);
+  const current = await getUserByEmail(EMAIL);
+  if (legacy && !current) {
+    await sequelize.query(
+      `UPDATE users SET email = :email, "updatedAt" = NOW() WHERE id = :id`,
+      { replacements: { email: EMAIL, id: legacy.id } }
+    );
+    console.log(`✓ Email dimigrasi ${LEGACY_EMAIL} → ${EMAIL}`);
+  }
+}
+
 async function ensureUser() {
+  await migrateLegacyEmail();
   const hash = await bcrypt.hash(PASSWORD, 10);
   const hasTenantsTable = await tableExists('tenants');
   const hasLocalTenant = hasTenantsTable ? await tenantExists(LOCAL_TENANT_ID) : false;

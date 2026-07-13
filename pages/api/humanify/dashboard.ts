@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withHQAuth } from '@/lib/middleware/withHQAuth';
+import { resolveDataSource } from '@/lib/hris/data-source';
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -76,9 +77,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       color: colors[i % colors.length],
     }));
 
-    // Pending approvals
+    // Pending approvals — unified inbox
+    const pendingApprovals: any[] = [];
+
     const [pendingLeave] = await sequelize.query(`
-      SELECT lr.id, lr.leave_type, lr.start_date, lr.end_date, lr.total_days, lr.status,
+      SELECT lr.id, lr.leave_type, lr.start_date, lr.end_date, lr.total_days, lr.status, lr.created_at,
              e.name AS employee_name
       FROM leave_requests lr
       LEFT JOIN employees e ON lr.employee_id = e.id
@@ -86,15 +89,87 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       ORDER BY lr.created_at DESC LIMIT 8
     `, { replacements: r });
 
-    const pendingApprovals = pendingLeave.map((l: any) => ({
+    pendingApprovals.push(...pendingLeave.map((l: any) => ({
       id: l.id,
       type: 'leave',
       title: `Cuti ${l.leave_type === 'annual' ? 'Tahunan' : l.leave_type === 'sick' ? 'Sakit' : 'Personal'} - ${l.employee_name || 'Karyawan'}`,
       subtitle: `${l.start_date} s/d ${l.end_date} (${l.total_days || '-'} hari)`,
       status: 'pending',
       date: l.start_date,
+      createdAt: l.created_at,
+      href: '/humanify/leave',
       color: l.leave_type === 'sick' ? 'red' : 'yellow',
-    }));
+    })));
+
+    try {
+      const [pendingOt] = await sequelize.query(`
+        SELECT o.id, o.date, o.duration_hours, o.status, o.created_at, e.name AS employee_name
+        FROM overtime_requests o
+        LEFT JOIN employees e ON o.employee_id = e.id
+        WHERE o.status = 'pending' ${tenantId ? 'AND o.tenant_id = :tenantId' : ''}
+        ORDER BY o.created_at DESC LIMIT 5
+      `, { replacements: r });
+      pendingApprovals.push(...(pendingOt as any[]).map((o) => ({
+        id: o.id,
+        type: 'overtime',
+        title: `Lembur - ${o.employee_name || 'Karyawan'}`,
+        subtitle: `${o.date} (${o.duration_hours || '-'} jam)`,
+        status: 'pending',
+        date: o.date,
+        createdAt: o.created_at,
+        href: '/humanify/payroll/lembur',
+        color: 'blue',
+      })));
+    } catch { /* overtime_requests may not exist */ }
+
+    try {
+      const [pendingClaims] = await sequelize.query(`
+        SELECT c.id, c.claim_type, c.amount, c.claim_date, c.status, c.created_at, e.name AS employee_name
+        FROM employee_claims c
+        LEFT JOIN employees e ON c.employee_id::text = e.id::text
+        WHERE c.status = 'pending'
+        ORDER BY c.created_at DESC LIMIT 5
+      `, { replacements: r });
+      pendingApprovals.push(...(pendingClaims as any[]).map((c) => ({
+        id: c.id,
+        type: 'claim',
+        title: `Klaim ${c.claim_type || 'Biaya'} - ${c.employee_name || 'Karyawan'}`,
+        subtitle: `${c.claim_date} · Rp ${Number(c.amount || 0).toLocaleString('id-ID')}`,
+        status: 'pending',
+        date: c.claim_date,
+        createdAt: c.created_at,
+        href: '/humanify/reimbursement',
+        color: 'green',
+      })));
+    } catch { /* claims table may not exist */ }
+
+    try {
+      const [pendingMutations] = await sequelize.query(`
+        SELECT m.id, m.mutation_type, m.effective_date, m.status, m.created_at, e.name AS employee_name
+        FROM employee_mutations m
+        LEFT JOIN employees e ON m.employee_id::text = e.id::text
+        WHERE m.status = 'pending'
+        ORDER BY m.created_at DESC LIMIT 5
+      `, { replacements: r });
+      pendingApprovals.push(...(pendingMutations as any[]).map((m) => ({
+        id: m.id,
+        type: 'mutation',
+        title: `Mutasi ${m.mutation_type || ''} - ${m.employee_name || 'Karyawan'}`,
+        subtitle: `Efektif ${m.effective_date || '-'}`,
+        status: 'pending',
+        date: m.effective_date,
+        createdAt: m.created_at,
+        href: '/humanify/mutations',
+        color: 'purple',
+      })));
+    } catch { /* mutations table may not exist */ }
+
+    pendingApprovals.sort((a, b) => new Date(b.createdAt || b.date).getTime() - new Date(a.createdAt || a.date).getTime());
+
+    const overdueCount = pendingApprovals.filter((p) => {
+      const d = new Date(p.createdAt || p.date);
+      return Date.now() - d.getTime() > 48 * 60 * 60 * 1000;
+    }).length;
 
     // Recent activities
     const [activities] = await sequelize.query(`
@@ -133,6 +208,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     return res.status(200).json({
       success: true,
+      dataSource: resolveDataSource(stats.total > 0, false),
       stats: {
         total: stats.total,
         active: stats.active,
@@ -144,7 +220,17 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         attendanceToday,
       },
       deptStats,
-      pendingApprovals,
+      pendingApprovals: pendingApprovals.slice(0, 12),
+      pendingSummary: {
+        total: pendingApprovals.length,
+        overdue: overdueCount,
+        byType: {
+          leave: pendingApprovals.filter((p) => p.type === 'leave').length,
+          overtime: pendingApprovals.filter((p) => p.type === 'overtime').length,
+          claim: pendingApprovals.filter((p) => p.type === 'claim').length,
+          mutation: pendingApprovals.filter((p) => p.type === 'mutation').length,
+        },
+      },
       recentActivities: activities,
       upcoming,
       period,

@@ -403,14 +403,22 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
             status: aStatus as string,
             category: category as string,
           });
-          if (data.length) return res.json({ success: true, data });
+          return res.json({
+            success: true,
+            data,
+            dataSource: data.length ? 'live' : 'empty',
+          });
         } catch { /* fall through */ }
       }
       const where: any = {};
       if (aStatus) where.status = aStatus;
       if (category) where.category = category;
       const data = Announcement ? await Announcement.findAll({ where, order: [['is_pinned', 'DESC'], ['publish_date', 'DESC']] }) : [];
-      return res.json({ success: true, data });
+      return res.json({
+        success: true,
+        data,
+        dataSource: data.length ? 'live' : 'empty',
+      });
     }
     default:
       return res.status(400).json({ error: 'Invalid action' });

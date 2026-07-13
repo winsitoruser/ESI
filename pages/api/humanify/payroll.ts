@@ -97,6 +97,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (action === 'attendance-summary') return getAttendanceSummary(req, res, session);
         if (action === 'export') return exportPayrollData(req, res, session);
         if (action === 'frequency') return getFrequencyOptions(req, res);
+        if (action === 'preflight') return getPayrollPreflight(req, res, session);
         if (action === 'disbursement-preview') return res.json({ success: true, redirect: '/api/humanify/disbursement?action=preview' });
         return getOverview(req, res, session);
       case 'POST':
@@ -106,6 +107,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (action === 'approve') return approvePayroll(req, res, session);
         if (action === 'component') return createComponent(req, res, session);
         if (action === 'generate-from-attendance') return generatePayrollFromAttendance(req, res, session);
+        if (action === 'sync-overtime') return syncOvertimeToAttendance(req, res, session);
         return res.status(400).json({ error: 'Unknown action' });
       case 'PUT':
         if (action === 'component') return updateComponent(req, res, session);
@@ -1185,6 +1187,67 @@ async function generatePayrollFromAttendance(req: NextApiRequest, res: NextApiRe
     });
   } catch (e: any) {
     console.warn('generatePayrollFromAttendance error: (table may not exist):', (e as any)?.message || e);
+    return res.status(500).json({ success: false, error: e.message });
+  }
+}
+
+// ===== GET: Payroll preflight validation =====
+async function getPayrollPreflight(req: NextApiRequest, res: NextApiResponse, session: any) {
+  if (!sequelize) {
+    return res.json({ success: true, ready: false, totalActive: 0, issues: [], message: 'Database tidak tersedia' });
+  }
+  try {
+    const { runPayrollPreflight } = await import('@/lib/hris/compliance-data');
+    const result = await runPayrollPreflight(sequelize, session.user.tenantId);
+    return res.json({ success: true, ...result });
+  } catch (e: any) {
+    return res.status(500).json({ success: false, error: e.message });
+  }
+}
+
+// ===== POST: Sync approved overtime → attendance for payroll =====
+async function syncOvertimeToAttendance(req: NextApiRequest, res: NextApiResponse, session: any) {
+  const period = String(req.body?.period || new Date().toISOString().slice(0, 7));
+  const [yr, mo] = period.split('-').map((x: string) => parseInt(x, 10));
+  if (!sequelize) return res.status(503).json({ success: false, error: 'Database tidak tersedia' });
+
+  const tenantId = session.user.tenantId;
+  try {
+    const [approved] = await sequelize.query(`
+      SELECT o.employee_id, o.date,
+             COALESCE(o.duration_hours, EXTRACT(EPOCH FROM (o.end_time::time - o.start_time::time)) / 3600, 0) AS hours
+      FROM overtime_requests o
+      WHERE o.status = 'approved'
+        AND EXTRACT(YEAR FROM o.date) = :yr AND EXTRACT(MONTH FROM o.date) = :mo
+        ${tenantId ? 'AND o.tenant_id = :tenantId' : ''}
+    `, { replacements: { yr, mo, tenantId } });
+
+    let synced = 0;
+    for (const row of (approved as any[]) || []) {
+      const minutes = Math.round(Number(row.hours || 0) * 60);
+      if (minutes <= 0) continue;
+      await sequelize.query(`
+        INSERT INTO employee_attendance (id, employee_id, date, status, overtime_minutes, created_at, updated_at)
+        VALUES (uuid_generate_v4(), :empId, :date, 'present', :minutes, NOW(), NOW())
+        ON CONFLICT (employee_id, date) DO UPDATE SET
+          overtime_minutes = GREATEST(COALESCE(employee_attendance.overtime_minutes, 0), :minutes),
+          updated_at = NOW()
+      `, { replacements: { empId: row.employee_id, date: row.date, minutes } }).catch(async () => {
+        await sequelize.query(`
+          UPDATE employee_attendance SET overtime_minutes = GREATEST(COALESCE(overtime_minutes, 0), :minutes), updated_at = NOW()
+          WHERE employee_id = :empId AND date = :date
+        `, { replacements: { empId: row.employee_id, date: row.date, minutes } });
+      });
+      synced++;
+    }
+
+    return res.json({
+      success: true,
+      message: `${synced} record lembur disinkronkan ke absensi untuk periode ${period}`,
+      synced,
+      period,
+    });
+  } catch (e: any) {
     return res.status(500).json({ success: false, error: e.message });
   }
 }

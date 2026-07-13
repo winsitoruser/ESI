@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]';
 import {
-  listESignDocuments, createESignDocument, simulateSignDocument, type ESignStatus,
+  listESignDocuments, createESignDocument, signDocument, getESignIntegrationInfo, type ESignStatus,
 } from '@/lib/hris/esign-service';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -15,7 +15,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (req.method === 'GET') {
       const status = req.query.status as ESignStatus | undefined;
       const docs = await listESignDocuments(status);
-      return res.json({ success: true, data: docs });
+      return res.json({ success: true, data: docs, integration: getESignIntegrationInfo() });
     }
 
     if (req.method === 'POST' && action === 'create') {
@@ -25,8 +25,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (req.method === 'POST' && action === 'sign' && id) {
       const { signerEmail } = req.body;
-      const doc = await simulateSignDocument(id as string, signerEmail);
-      return res.json({ success: true, data: doc });
+      const doc = await signDocument(id as string, signerEmail);
+      return res.json({ success: true, data: doc, integration: getESignIntegrationInfo() });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });

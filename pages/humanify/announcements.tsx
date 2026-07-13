@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DepartmentSelect from '@/components/humanify/DepartmentSelect';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import {
   Megaphone, Plus, Search, Filter, Pin, Eye, Edit, Trash2, X, CheckCircle,
   AlertCircle, Users, Calendar, Send, Clock, ArrowUp, ArrowDown, Bell
@@ -33,6 +35,8 @@ const CATEGORY_CONF: Record<string, { label: string; color: string }> = {
   training: { label: 'Training', color: 'bg-indigo-100 text-indigo-700' },
 };
 
+const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
+
 const MOCK_ANNOUNCEMENTS: Announcement[] = [
   { id: 'a1', title: 'Kebijakan Cuti Lebaran 2026', content: 'Diinformasikan kepada seluruh karyawan bahwa cuti bersama Idul Fitri 2026 adalah tanggal 29 Maret - 2 April 2026. Batas pengajuan cuti tambahan paling lambat 15 Maret 2026.', category: 'hr_policy', priority: 'high', targetAudience: 'all', isPinned: true, status: 'published', publishDate: '2026-03-01', viewCount: 142, createdBy: 'HR Admin', createdAt: '2026-03-01' },
   { id: 'a2', title: 'Pelatihan Food Safety Wajib - Batch 3', content: 'Seluruh karyawan operasional wajib mengikuti pelatihan Food Safety & Hygiene Batch 3 yang akan diselenggarakan tanggal 18-19 Maret 2026.', category: 'training', priority: 'high', targetAudience: 'department', targetDepartment: 'Operations', isPinned: true, status: 'published', publishDate: '2026-03-05', viewCount: 89, createdBy: 'Training Team', createdAt: '2026-03-05' },
@@ -51,6 +55,7 @@ export default function HRISAnnouncementsPage() {
   const [editing, setEditing] = useState<Announcement | null>(null);
   const [viewing, setViewing] = useState<Announcement | null>(null);
   const [toast, setToast] = useState<{ type: string; message: string } | null>(null);
+  const [dataSource, setDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
   const [form, setForm] = useState<Partial<Announcement>>({
     title: '', content: '', category: 'general', priority: 'normal',
     targetAudience: 'all', isPinned: false, status: 'draft'
@@ -73,6 +78,7 @@ export default function HRISAnnouncementsPage() {
       const json = await res.json().catch(() => null);
       const list = json?.data || json?.announcements || [];
       if (Array.isArray(list)) {
+        setDataSource(json?.dataSource || (list.length ? 'live' : 'empty'));
         setItems(list.map((a: any) => ({
           id: a.id,
           title: a.title,
@@ -92,9 +98,16 @@ export default function HRISAnnouncementsPage() {
         })));
       } else {
         setItems([]);
+        setDataSource('empty');
       }
     } catch {
-      setItems(MOCK_ANNOUNCEMENTS);
+      if (USE_MOCK_UI) {
+        setItems(MOCK_ANNOUNCEMENTS);
+        setDataSource('demo');
+      } else {
+        setItems([]);
+        setDataSource('empty');
+      }
     } finally {
       setLoading(false);
     }
@@ -190,6 +203,9 @@ export default function HRISAnnouncementsPage() {
   return (
     <HQLayout title="Pengumuman" subtitle="Broadcast pengumuman & kebijakan HR ke seluruh karyawan">
       <div className="space-y-6">
+        <div className="flex items-center justify-end">
+          <DataSourceBadge source={dataSource} />
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             { label: 'Total Aktif', value: items.filter(i => i.status === 'published').length, icon: Megaphone, color: 'text-blue-600', bg: 'bg-blue-100' },

@@ -57,7 +57,7 @@ export default function DashboardModuleGrid({ categories, title, subtitle }: Pro
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Cari modul HRIS..."
-            className="w-full rounded-xl border border-slate-200 py-2.5 pl-10 pr-3 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+            className="w-full rounded-xl border border-slate-200 py-2.5 pl-10 pr-3 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
           />
         </div>
       </div>
@@ -83,16 +83,16 @@ export default function DashboardModuleGrid({ categories, title, subtitle }: Pro
                     <Link
                       key={m.key}
                       href={m.href}
-                      className="group flex items-center gap-3 rounded-xl p-2.5 transition-colors hover:bg-indigo-50/60"
+                      className="group flex items-center gap-3 rounded-xl p-2.5 transition-colors hover:bg-blue-50/50"
                     >
                       <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${m.color} text-white shadow-sm transition-transform group-hover:scale-105`}>
                         <m.icon className="h-4 w-4" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-slate-900 group-hover:text-indigo-700">{m.label}</p>
+                        <p className="truncate text-sm font-medium text-slate-900 group-hover:text-blue-700">{m.label}</p>
                         <p className="truncate text-[11px] text-slate-500">{m.desc}</p>
                       </div>
-                      <ChevronRight className="h-4 w-4 shrink-0 text-slate-300 group-hover:text-indigo-400" />
+                      <ChevronRight className="h-4 w-4 shrink-0 text-slate-300 group-hover:text-blue-400" />
                     </Link>
                   ))}
                 </div>

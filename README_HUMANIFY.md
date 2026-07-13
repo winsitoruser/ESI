@@ -87,7 +87,7 @@ npm run dev
 | Dashboard | http://localhost:3010/humanify |
 | Portal karyawan | http://localhost:3010/employee |
 
-**Kredensial dev:** `superadmin@bedagang.com` / `superadmin123`
+**Kredensial dev:** `superadmin@humanify.id` / `superadmin123`
 
 ---
 

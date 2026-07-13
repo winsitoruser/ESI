@@ -5,7 +5,9 @@ import HQLayout from '@/components/humanify/HumanifyLayout';
 import HRStatCard from '@/components/humanify/HRStatCard';
 import EnterprisePageHeader from '@/components/humanify/EnterprisePageHeader';
 import DashboardModuleGrid from '@/components/humanify/DashboardModuleGrid';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import { useTranslation } from '@/lib/i18n';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
@@ -122,7 +124,9 @@ function getQuickActions(t: (key: string) => string) {
   ];
 }
 
+const EMPTY_HRIS_STATS = { total: 0, active: 0, onLeave: 0, inactive: 0, avgPerf: 0, avgKpi: 0, topPerformers: 0, attendanceToday: 0 };
 const MOCK_HRIS_STATS = { total: 162, active: 148, onLeave: 8, inactive: 6, avgPerf: 82, avgKpi: 78, topPerformers: 35, attendanceToday: 94 };
+const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
 
 const MOCK_PENDING_APPROVALS = [
   { id: 'lv1', type: 'leave', title: 'Cuti Tahunan - Siti Rahayu', subtitle: '15 Mar 2026 s/d 18 Mar 2026 (3 hari)', status: 'pending', date: '2026-03-15', color: 'yellow' },
@@ -161,11 +165,13 @@ export default function HRISDashboard() {
   const router = useRouter();
   const { t } = useTranslation();
   const [mounted, setMounted] = useState(false);
-  const [stats, setStats] = useState(MOCK_HRIS_STATS);
-  const [pendingApprovals, setPendingApprovals] = useState<any[]>(MOCK_PENDING_APPROVALS);
-  const [recentActivities, setRecentActivities] = useState<any[]>(MOCK_RECENT_ACTIVITIES);
-  const [deptStats, setDeptStats] = useState<any[]>(MOCK_DEPT_STATS);
-  const [upcoming, setUpcoming] = useState<any[]>(MOCK_UPCOMING);
+  const [stats, setStats] = useState(USE_MOCK_UI ? MOCK_HRIS_STATS : EMPTY_HRIS_STATS);
+  const [pendingApprovals, setPendingApprovals] = useState<any[]>(USE_MOCK_UI ? MOCK_PENDING_APPROVALS : []);
+  const [recentActivities, setRecentActivities] = useState<any[]>(USE_MOCK_UI ? MOCK_RECENT_ACTIVITIES : []);
+  const [deptStats, setDeptStats] = useState<any[]>(USE_MOCK_UI ? MOCK_DEPT_STATS : []);
+  const [upcoming, setUpcoming] = useState<any[]>(USE_MOCK_UI ? MOCK_UPCOMING : []);
+  const [dataSource, setDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
+  const [pendingSummary, setPendingSummary] = useState<{ total: number; overdue: number }>({ total: 0, overdue: 0 });
   const [expandedCat, setExpandedCat] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<string>('');
@@ -183,9 +189,11 @@ export default function HRISDashboard() {
       if (dashRes.ok) {
         const dash = await dashRes.json();
         if (dash.success) {
+          if (dash.dataSource) setDataSource(dash.dataSource);
+          if (dash.pendingSummary) setPendingSummary({ total: dash.pendingSummary.total, overdue: dash.pendingSummary.overdue || 0 });
           if (dash.stats) setStats(dash.stats);
           if (dash.deptStats?.length) setDeptStats(dash.deptStats);
-          if (dash.pendingApprovals?.length) setPendingApprovals(dash.pendingApprovals);
+          if (dash.pendingApprovals) setPendingApprovals(dash.pendingApprovals);
           if (dash.upcoming?.length) setUpcoming(dash.upcoming);
           if (dash.recentActivities?.length) {
             const iconMap: Record<string, any> = {
@@ -317,27 +325,54 @@ export default function HRISDashboard() {
       }
     } catch (err) {
       console.warn('Dashboard data fetch error:', err);
-      setStats(MOCK_HRIS_STATS);
-      setPendingApprovals(MOCK_PENDING_APPROVALS);
-      setDeptStats(MOCK_DEPT_STATS);
-      setRecentActivities(MOCK_RECENT_ACTIVITIES);
-      setUpcoming(MOCK_UPCOMING);
+      if (USE_MOCK_UI) {
+        setDataSource('demo');
+        setStats(MOCK_HRIS_STATS);
+        setPendingApprovals(MOCK_PENDING_APPROVALS);
+        setDeptStats(MOCK_DEPT_STATS);
+        setRecentActivities(MOCK_RECENT_ACTIVITIES);
+        setUpcoming(MOCK_UPCOMING);
+      } else {
+        setDataSource('empty');
+      }
     } finally {
       setLoading(false);
       setLastUpdated(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
     }
   }
 
-  async function handleApproval(id: string, status: 'approved' | 'rejected') {
+  async function handleApproval(item: { id: string; type?: string }, status: 'approved' | 'rejected') {
+    const { id, type = 'leave' } = item;
     try {
-      const res = await fetch('/api/humanify/leave', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status })
-      });
+      let res: Response;
+      if (type === 'leave') {
+        res = await fetch(`/api/humanify/leave-management?action=${status === 'approved' ? 'approve' : 'reject'}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(status === 'approved'
+            ? { leaveRequestId: id, comments: 'Disetujui dari dashboard' }
+            : { leaveRequestId: id, reason: 'Ditolak dari dashboard' }),
+        });
+      } else if (type === 'overtime') {
+        res = await fetch(`/api/humanify/overtime?action=${status === 'approved' ? 'approve' : 'reject'}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(status === 'approved' ? { id } : { id, rejection_reason: 'Ditolak dari dashboard' }),
+        });
+      } else if (type === 'claim') {
+        res = await fetch(`/api/humanify/workflow?action=${status === 'approved' ? 'approve-claim' : 'reject-claim'}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, ...(status === 'rejected' ? { rejection_reason: 'Ditolak dari dashboard' } : {}) }),
+        });
+      } else {
+        router.push('/humanify/mss');
+        return;
+      }
       const data = await res.json();
       if (data.success || res.ok) {
-        setPendingApprovals(prev => prev.filter(p => p.id !== id));
+        setPendingApprovals((prev) => prev.filter((p) => p.id !== id));
+        fetchDashboardData();
       }
     } catch (err) {
       console.warn('Approval action failed:', err);
@@ -359,14 +394,14 @@ export default function HRISDashboard() {
   const QUICK_ACTIONS = getQuickActions(t);
 
   const statCards = [
-    { label: t('hris.totalEmployees'), value: stats.total, icon: Users, gradient: 'from-blue-500 to-indigo-600', trend: { value: '+3', positive: true }, href: '/humanify/employees' },
-    { label: t('hris.activeEmployees'), value: stats.active, icon: UserCheck, gradient: 'from-emerald-500 to-teal-600', trend: stats.total ? { value: `${Math.round(stats.active / stats.total * 100)}%`, positive: true } : undefined, href: '/humanify/employees' },
-    { label: t('hris.onLeave'), value: stats.onLeave, icon: Calendar, gradient: 'from-amber-500 to-orange-600', href: '/humanify/leave' },
-    { label: t('hris.avgPerformance'), value: `${stats.avgPerf}%`, icon: BarChart3, gradient: 'from-violet-500 to-purple-600', trend: { value: '+2.3%', positive: true }, href: '/humanify/performance' },
-    { label: t('hris.avgKpiAchievement'), value: `${stats.avgKpi}%`, icon: Target, gradient: 'from-indigo-500 to-blue-600', trend: { value: '+5.1%', positive: true }, href: '/humanify/kpi' },
-    { label: t('hris.attendanceToday'), value: `${stats.attendanceToday}%`, icon: Clock, gradient: 'from-cyan-500 to-sky-600', href: '/humanify/attendance' },
-    { label: t('hris.topPerformers'), value: stats.topPerformers, icon: Award, gradient: 'from-orange-500 to-rose-600', trend: { value: '+5', positive: true }, href: '/humanify/kpi' },
-    { label: t('hris.pendingApproval'), value: pendingApprovals.length, icon: AlertCircle, gradient: 'from-rose-500 to-red-600', href: '/humanify/leave' },
+    { label: t('hris.totalEmployees'), value: stats.total, icon: Users, accent: 'blue' as const, trend: { value: '+3', positive: true }, href: '/humanify/employees' },
+    { label: t('hris.activeEmployees'), value: stats.active, icon: UserCheck, accent: 'emerald' as const, trend: stats.total ? { value: `${Math.round(stats.active / stats.total * 100)}%`, positive: true } : undefined, href: '/humanify/employees' },
+    { label: t('hris.onLeave'), value: stats.onLeave, icon: Calendar, accent: 'amber' as const, href: '/humanify/leave' },
+    { label: t('hris.avgPerformance'), value: `${stats.avgPerf}%`, icon: BarChart3, accent: 'violet' as const, trend: { value: '+2.3%', positive: true }, href: '/humanify/performance' },
+    { label: t('hris.avgKpiAchievement'), value: `${stats.avgKpi}%`, icon: Target, accent: 'indigo' as const, trend: { value: '+5.1%', positive: true }, href: '/humanify/kpi' },
+    { label: t('hris.attendanceToday'), value: `${stats.attendanceToday}%`, icon: Clock, accent: 'cyan' as const, href: '/humanify/attendance' },
+    { label: t('hris.topPerformers'), value: stats.topPerformers, icon: Award, accent: 'orange' as const, trend: { value: '+5', positive: true }, href: '/humanify/kpi' },
+    { label: t('hris.pendingApproval'), value: pendingApprovals.length, icon: AlertCircle, accent: 'rose' as const, href: '/humanify/leave' },
   ];
 
   const deptChartData = deptStats.map((d) => ({
@@ -383,22 +418,23 @@ export default function HRISDashboard() {
           subtitle="Ringkasan workforce real-time — karyawan, kehadiran, KPI, approval, dan modul HRIS terintegrasi"
           badge="HRIS Dashboard"
           icon={LayoutDashboard}
-          gradient="indigo"
+          variant="corporate"
           actions={
             <>
-              {lastUpdated && <span className="rounded-xl bg-white/15 px-3 py-2 text-xs text-white/80 backdrop-blur-sm">Update {lastUpdated}</span>}
-              <button type="button" onClick={fetchDashboardData} disabled={loading} className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50 disabled:opacity-60">
+              <DataSourceBadge source={dataSource} />
+              {lastUpdated && <span className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500">Update {lastUpdated}</span>}
+              <button type="button" onClick={fetchDashboardData} disabled={loading} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60">
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
               </button>
-              <Link href="/humanify/workforce-analytics" className="rounded-xl bg-white/15 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm hover:bg-white/25">Analytics</Link>
+              <Link href="/humanify/workforce-analytics" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Analytics</Link>
             </>
           }
         />
 
-        <div className="flex gap-2 rounded-2xl border border-slate-200/80 bg-white p-1.5 shadow-sm w-fit">
+        <div className="flex gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-1 w-fit">
           {(['overview', 'modules'] as const).map((tab) => (
             <button key={tab} type="button" onClick={() => setViewTab(tab)}
-              className={`rounded-xl px-4 py-2 text-sm font-medium transition-all ${viewTab === tab ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}>
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${viewTab === tab ? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-200/80' : 'text-slate-600 hover:text-slate-800'}`}>
               {tab === 'overview' ? 'Ringkasan' : 'Semua Modul'}
             </button>
           ))}
@@ -408,45 +444,49 @@ export default function HRISDashboard() {
         <>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-8">
           {statCards.map((s, i) => (
-            <HRStatCard key={i} label={s.label} value={s.value} trend={s.trend} icon={s.icon} gradient={s.gradient} onClick={() => router.push(s.href)} />
+            <HRStatCard key={i} label={s.label} value={s.value} trend={s.trend} icon={s.icon} accent={s.accent} variant="soft" onClick={() => router.push(s.href)} />
           ))}
         </div>
 
         {/* ── QUICK ACTIONS ── */}
-        <div className="rounded-2xl bg-gradient-to-br from-slate-900 via-indigo-950 to-violet-900 p-6 text-white shadow-xl">
-          <div className="flex items-center justify-between mb-4">
+        <div className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
             <div>
-              <h3 className="font-semibold text-lg">{t('hris.quickActions')}</h3>
-              <p className="text-white/70 text-sm">{t('hris.quickActionsDesc')}</p>
+              <h3 className="text-lg font-semibold text-slate-800">{t('hris.quickActions')}</h3>
+              <p className="text-sm text-slate-500">{t('hris.quickActionsDesc')}</p>
             </div>
-            <Zap className="w-6 h-6 text-yellow-300" />
+            <div className="rounded-xl bg-blue-50 p-2.5">
+              <Zap className="h-5 w-5 text-blue-600" />
+            </div>
           </div>
-          <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
+          <div className="grid grid-cols-4 gap-3 md:grid-cols-8">
             {QUICK_ACTIONS.map((a, i) => (
               <button key={i} onClick={() => router.push(a.href)}
-                className="flex flex-col items-center gap-2 p-3 rounded-xl bg-white/10 hover:bg-white/20 transition-all text-center group">
-                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <a.icon className="w-5 h-5" />
+                className="group flex flex-col items-center gap-2 rounded-xl border border-slate-100 bg-slate-50/50 p-3 text-center transition hover:border-blue-200 hover:bg-blue-50/50">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${a.color} text-white shadow-sm transition group-hover:scale-105`}>
+                  <a.icon className="h-5 w-5" />
                 </div>
-                <span className="text-xs font-medium">{a.label}</span>
+                <span className="text-[11px] font-medium text-slate-600 group-hover:text-slate-800">{a.label}</span>
               </button>
             ))}
           </div>
         </div>
 
         {/* ── MODULE NAVIGATION — overview shortcuts ── */}
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
           {[
-            { label: 'Karyawan', href: '/humanify/employees', icon: Users, c: 'from-blue-500 to-indigo-600' },
-            { label: 'Absensi', href: '/humanify/attendance', icon: Clock, c: 'from-emerald-500 to-teal-600' },
-            { label: 'Payroll', href: '/humanify/payroll', icon: DollarSign, c: 'from-violet-500 to-purple-600' },
-            { label: 'KPI', href: '/humanify/kpi', icon: Target, c: 'from-amber-500 to-orange-600' },
-            { label: 'Rekrutmen', href: '/humanify/recruitment', icon: UserPlus, c: 'from-rose-500 to-pink-600' },
-            { label: 'Laporan', href: '/humanify/reports', icon: BarChart3, c: 'from-cyan-500 to-sky-600' },
+            { label: 'Karyawan', href: '/humanify/employees', icon: Users, iconBg: 'bg-blue-50 text-blue-600' },
+            { label: 'Absensi', href: '/humanify/attendance', icon: Clock, iconBg: 'bg-emerald-50 text-emerald-600' },
+            { label: 'Payroll', href: '/humanify/payroll', icon: DollarSign, iconBg: 'bg-violet-50 text-violet-600' },
+            { label: 'KPI', href: '/humanify/kpi', icon: Target, iconBg: 'bg-amber-50 text-amber-600' },
+            { label: 'Rekrutmen', href: '/humanify/recruitment', icon: UserPlus, iconBg: 'bg-rose-50 text-rose-600' },
+            { label: 'Laporan', href: '/humanify/reports', icon: BarChart3, iconBg: 'bg-cyan-50 text-cyan-600' },
           ].map((item) => (
-            <Link key={item.href} href={item.href} className={`flex items-center gap-3 rounded-2xl bg-gradient-to-br ${item.c} p-4 text-white shadow-md transition hover:scale-[1.02] hover:shadow-lg`}>
-              <item.icon className="h-5 w-5 opacity-90" />
-              <span className="text-sm font-semibold">{item.label}</span>
+            <Link key={item.href} href={item.href} className="flex items-center gap-3 rounded-xl border border-slate-200/90 bg-white p-4 shadow-sm transition hover:border-blue-200 hover:shadow-md">
+              <div className={`rounded-xl p-2.5 ${item.iconBg}`}>
+                <item.icon className="h-5 w-5" />
+              </div>
+              <span className="text-sm font-medium text-slate-700">{item.label}</span>
             </Link>
           ))}
         </div>
@@ -454,28 +494,42 @@ export default function HRISDashboard() {
         {/* ── TWO COLUMN: PENDING APPROVALS + RECENT ACTIVITIES ── */}
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Pending Approvals */}
-          <div className="bg-white rounded-xl border shadow-sm">
-            <div className="flex items-center justify-between px-5 py-4 border-b">
+          <div className="rounded-2xl border border-slate-200/90 bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                <h3 className="font-semibold text-gray-900">{t('hris.pendingApproval')}</h3>
+                <h3 className="font-semibold text-gray-900">Pusat Persetujuan</h3>
                 <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">{pendingApprovals.length}</span>
+                {pendingSummary.overdue > 0 && (
+                  <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-medium">{pendingSummary.overdue} overdue</span>
+                )}
               </div>
-              <a href="/humanify/leave" className="text-xs text-indigo-600 hover:underline flex items-center gap-1">{t('hris.viewAll')} <ArrowRight className="w-3 h-3" /></a>
+              <Link href="/humanify/mss" className="text-xs text-blue-600 hover:underline flex items-center gap-1">{t('hris.viewAll')} <ArrowRight className="w-3 h-3" /></Link>
             </div>
             <div className="divide-y max-h-80 overflow-y-auto">
+              {pendingApprovals.length === 0 && (
+                <p className="px-5 py-8 text-center text-sm text-slate-400">Tidak ada persetujuan tertunda</p>
+              )}
               {pendingApprovals.map((item) => (
                 <div key={item.id} className="px-5 py-3 hover:bg-gray-50 transition-colors">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{item.type || 'leave'}</span>
+                      </div>
                       <p className="text-sm font-medium text-gray-900 truncate">{item.title}</p>
                       <p className="text-xs text-gray-500 mt-0.5">{item.subtitle}</p>
                     </div>
                     <div className="flex gap-1.5 flex-shrink-0">
-                      <button onClick={() => handleApproval(item.id, 'approved')} className="p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors" title={t('hris.approve')}>
+                      {item.href && (
+                        <Link href={item.href} className="p-1.5 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-100" title="Detail">
+                          <Eye className="w-4 h-4" />
+                        </Link>
+                      )}
+                      <button onClick={() => handleApproval(item, 'approved')} className="p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors" title={t('hris.approve')}>
                         <CheckCircle2 className="w-4 h-4" />
                       </button>
-                      <button onClick={() => handleApproval(item.id, 'rejected')} className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title={t('hris.reject')}>
+                      <button onClick={() => handleApproval(item, 'rejected')} className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title={t('hris.reject')}>
                         <XCircle className="w-4 h-4" />
                       </button>
                     </div>
@@ -487,8 +541,8 @@ export default function HRISDashboard() {
           </div>
 
           {/* Recent Activities */}
-          <div className="bg-white rounded-xl border shadow-sm">
-            <div className="flex items-center justify-between px-5 py-4 border-b">
+          <div className="rounded-2xl border border-slate-200/90 bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="flex items-center gap-2">
                 <Activity className="w-4 h-4 text-indigo-600" />
                 <h3 className="font-semibold text-gray-900">{t('hris.recentActivities')}</h3>
@@ -529,7 +583,7 @@ export default function HRISDashboard() {
                     <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={50} />
                     <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
                     <Tooltip />
-                    <Bar dataKey="active" fill="#6366f1" name="Aktif" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="active" fill="#93c5fd" name="Aktif" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -555,8 +609,8 @@ export default function HRISDashboard() {
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl border shadow-sm">
-            <div className="flex items-center justify-between px-5 py-4 border-b">
+          <div className="rounded-2xl border border-slate-200/90 bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-indigo-600" />
                 <h3 className="font-semibold text-gray-900">{t('hris.upcomingAgenda')}</h3>
@@ -590,17 +644,17 @@ export default function HRISDashboard() {
         </div>
 
         {/* ── ANNOUNCEMENTS / INFO BANNER ── */}
-        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-5">
+        <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-5">
           <div className="flex items-start gap-4">
-            <div className="p-2 bg-amber-100 rounded-xl flex-shrink-0">
-              <Bell className="w-5 h-5 text-amber-600" />
+            <div className="flex-shrink-0 rounded-xl bg-blue-100 p-2.5">
+              <Bell className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <h4 className="font-semibold text-amber-900">{t('hris.hrAnnouncement')}</h4>
-              <p className="text-sm text-amber-700 mt-1">Batas pengumpulan data lembur Februari 2026 adalah <strong>5 Maret 2026</strong>. Pastikan semua manajer cabang sudah menginput data timesheet dan lembur karyawan masing-masing melalui modul Timesheet atau Manager Self Service.</p>
-              <div className="flex gap-2 mt-3">
-                <a href="/humanify/attendance-management" className="text-xs px-3 py-1.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700">{t('hris.manageAttendance')}</a>
-                <a href="/humanify/payroll" className="text-xs px-3 py-1.5 border border-amber-300 text-amber-800 rounded-lg hover:bg-amber-100">{t('hris.processPayroll')}</a>
+              <h4 className="font-semibold text-slate-800">{t('hris.hrAnnouncement')}</h4>
+              <p className="mt-1 text-sm text-slate-600">Batas pengumpulan data lembur Februari 2026 adalah <strong>5 Maret 2026</strong>. Pastikan semua manajer cabang sudah menginput data timesheet dan lembur karyawan masing-masing melalui modul Timesheet atau Manager Self Service.</p>
+              <div className="mt-3 flex gap-2">
+                <a href="/humanify/attendance-management" className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700">{t('hris.manageAttendance')}</a>
+                <a href="/humanify/payroll" className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">{t('hris.processPayroll')}</a>
               </div>
             </div>
           </div>

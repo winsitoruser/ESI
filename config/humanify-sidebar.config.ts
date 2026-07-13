@@ -138,6 +138,7 @@ export const humanifySidebarConfig: SidebarConfig = {
       title: 'Platform',
       items: [
         { id: 'humanify-employee-portal', name: 'Portal Karyawan', href: '/employee', icon: UserCheck, modules: ['humanify', 'hris'] },
+        { id: 'humanify-users-roles', name: 'Role & Akses', href: '/humanify/users/roles', icon: Shield, modules: ['humanify', 'hris'] },
         { id: 'humanify-about-naincode', name: 'Tentang Naincode', href: '/humanify/welcome', icon: Layers, modules: ['humanify', 'hris'] },
       ],
     },

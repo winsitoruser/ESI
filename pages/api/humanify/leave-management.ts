@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withHQAuth } from '../../../lib/middleware/withHQAuth';
+import { allowHrMockFallback } from '../../../lib/hris/data-source';
 
 let sequelize: any, Op: any;
 try {
@@ -185,7 +186,7 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
         leaveTypes = rows || [];
       } catch { /* */ }
     }
-    if (leaveTypes.length === 0) leaveTypes = getMockLeaveTypes();
+    if (leaveTypes.length === 0 && allowHrMockFallback()) leaveTypes = getMockLeaveTypes();
 
     // Fetch approval configs
     let approvalConfigs: any[] = [];
@@ -194,11 +195,11 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
       if (tenantId) where[Op.or] = [{ tenantId }, { tenantId: null }];
       approvalConfigs = await LeaveApprovalConfig.findAll({ where, order: [['priority', 'DESC']] });
     }
-    if (approvalConfigs.length === 0) approvalConfigs = getMockApprovalConfigs();
+    if (approvalConfigs.length === 0 && allowHrMockFallback()) approvalConfigs = getMockApprovalConfigs();
 
     // Fetch leave requests — never mix mock IDs with real approve flow
     let requests: any[] = await fetchDbLeaveRequests(tenantId, 50);
-    if (requests.length === 0 && !sequelize) requests = getMockRequests();
+    if (requests.length === 0 && !sequelize && allowHrMockFallback()) requests = getMockRequests();
 
     const summary = {
       total: requests.length,
@@ -235,6 +236,7 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
 
     return res.status(200).json({
       success: true,
+      dataSource: requests.some((r: any) => UUID_RE.test(String(r.id))) ? 'live' : (allowHrMockFallback() && requests.length ? 'demo' : 'empty'),
       leaveTypes: leaveTypes.map((lt: any) => lt.toJSON ? lt.toJSON() : lt),
       approvalConfigs: approvalConfigs.map((ac: any) => ac.toJSON ? ac.toJSON() : ac),
       requests: requests.map((r: any) => r.toJSON ? r.toJSON() : r),
@@ -263,11 +265,12 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
     }
     return res.status(200).json({
       success: true,
-      leaveTypes: getMockLeaveTypes(),
-      approvalConfigs: getMockApprovalConfigs(),
-      requests: getMockRequests(),
+      dataSource: requests.length ? 'live' : 'empty',
+      leaveTypes: allowHrMockFallback() ? getMockLeaveTypes() : [],
+      approvalConfigs: allowHrMockFallback() ? getMockApprovalConfigs() : [],
+      requests: allowHrMockFallback() ? getMockRequests() : [],
       balances: [],
-      summary: { total: 4, pending: 2, approved: 2, rejected: 0, totalDaysUsed: 7 }
+      summary: { total: 0, pending: 0, approved: 0, rejected: 0, totalDaysUsed: 0 },
     });
   }
 }

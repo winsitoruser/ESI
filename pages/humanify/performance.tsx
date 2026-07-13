@@ -10,7 +10,11 @@ import {
   ChevronRight, FileText, Clock, Grid3X3
 } from 'lucide-react';
 import NineBoxMatrix from '@/components/humanify/NineBoxMatrix';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import { HRIS_DEPARTMENTS, getDepartmentLabel } from '@/lib/hris/master-data';
+
+const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
 
 interface ReviewCategory {
   name: string;
@@ -54,19 +58,6 @@ const DEFAULT_CATEGORIES: ReviewCategory[] = [
   { name: 'Kedisiplinan', rating: 0, weight: 15, comments: '' },
 ];
 
-const MOCK_REVIEWS: PerformanceReview[] = [
-  { id: 'pr1', employeeId: 'EMP-001', employeeName: 'Ahmad Wijaya', position: 'General Manager', branchName: 'Kantor Pusat Jakarta', department: 'MANAGEMENT', reviewPeriod: 'Q1 2026', reviewDate: '2026-03-10', reviewer: 'Board of Directors', overallRating: 4.5, categories: [{ name: 'Kualitas Kerja', rating: 5, weight: 25, comments: 'Excellent strategic leadership' }, { name: 'Produktivitas', rating: 4, weight: 25, comments: 'Consistently meets targets' }, { name: 'Inisiatif & Kreativitas', rating: 5, weight: 20, comments: 'Innovative approach' }, { name: 'Kerjasama Tim', rating: 4, weight: 15, comments: 'Good team builder' }, { name: 'Kedisiplinan', rating: 4, weight: 15, comments: 'Very disciplined' }], strengths: ['Strategic vision', 'Leadership'], areasForImprovement: ['Delegation'], goals: ['Expand to 5 new cities'], status: 'reviewed' },
-  { id: 'pr2', employeeId: 'EMP-002', employeeName: 'Siti Rahayu', position: 'Branch Manager', branchName: 'Cabang Bandung', department: 'OPERATIONS', reviewPeriod: 'Q1 2026', reviewDate: '2026-03-08', reviewer: 'Ahmad Wijaya', overallRating: 4.2, categories: DEFAULT_CATEGORIES.map(c => ({ ...c, rating: 4 })), strengths: ['Team management', 'Customer relations'], areasForImprovement: ['Time management'], goals: ['Increase branch revenue by 15%'], status: 'submitted' },
-  { id: 'pr3', employeeId: 'EMP-007', employeeName: 'Made Wirawan', position: 'Branch Manager', branchName: 'Cabang Bali', department: 'OPERATIONS', reviewPeriod: 'Q1 2026', reviewDate: '2026-03-09', reviewer: 'Ahmad Wijaya', overallRating: 4.8, categories: DEFAULT_CATEGORIES.map(c => ({ ...c, rating: 5 })), strengths: ['Innovation', 'Revenue growth', 'Staff development'], areasForImprovement: ['Documentation'], goals: ['Launch new product line'], status: 'acknowledged' },
-  { id: 'pr4', employeeId: 'EMP-006', employeeName: 'Lisa Permata', position: 'Finance Manager', branchName: 'Kantor Pusat Jakarta', department: 'FINANCE', reviewPeriod: 'Q1 2026', reviewDate: '2026-03-11', reviewer: 'Ahmad Wijaya', overallRating: 4.3, categories: DEFAULT_CATEGORIES.map(c => ({ ...c, rating: 4 })), strengths: ['Accuracy', 'Financial analysis'], areasForImprovement: ['Cross-dept communication'], goals: ['Implement automated reporting'], status: 'draft' },
-  { id: 'pr5', employeeId: 'EMP-010', employeeName: 'Fajar Setiawan', position: 'Sales Supervisor', branchName: 'Cabang Bandung', department: 'SALES', reviewPeriod: 'Q1 2026', reviewDate: '2026-03-07', reviewer: 'Siti Rahayu', overallRating: 3.2, categories: DEFAULT_CATEGORIES.map(c => ({ ...c, rating: 3 })), strengths: ['Product knowledge'], areasForImprovement: ['Sales targets', 'Punctuality'], goals: ['Achieve 100% of sales quota'], status: 'submitted' },
-];
-
-const MOCK_PERF_TEMPLATES: PerformanceTemplate[] = [
-  { id: 'tmpl1', name: 'Standard Review', categories: [{ name: 'Kualitas Kerja', weight: 25 }, { name: 'Produktivitas', weight: 25 }, { name: 'Inisiatif & Kreativitas', weight: 20 }, { name: 'Kerjasama Tim', weight: 15 }, { name: 'Kedisiplinan', weight: 15 }] },
-  { id: 'tmpl2', name: 'Manager Review', categories: [{ name: 'Leadership', weight: 30 }, { name: 'Strategic Thinking', weight: 25 }, { name: 'Team Development', weight: 20 }, { name: 'Results', weight: 25 }] },
-];
-
 export default function PerformancePage() {
   const { t } = useTranslation();
   const [mounted, setMounted] = useState(false);
@@ -85,6 +76,7 @@ export default function PerformancePage() {
   const [feedback360, setFeedback360] = useState<any[]>([]);
   const [feedbackSummary, setFeedbackSummary] = useState<any>(null);
   const [nineBoxData, setNineBoxData] = useState<any>(null);
+  const [nineBoxDataSource, setNineBoxDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
   const [selectedNineBox, setSelectedNineBox] = useState<any>(null);
   const [show360Modal, setShow360Modal] = useState(false);
   const [saving360, setSaving360] = useState(false);
@@ -157,7 +149,11 @@ export default function PerformancePage() {
       const res = await fetch('/api/humanify/nine-box');
       const json = await res.json();
       setNineBoxData(json.data || null);
-    } catch { setNineBoxData(null); }
+      setNineBoxDataSource(json.dataSource || (json.data?.employees?.length ? 'live' : 'empty'));
+    } catch {
+      setNineBoxData(null);
+      setNineBoxDataSource(USE_MOCK_UI ? 'demo' : 'empty');
+    }
   }, []);
 
   useEffect(() => { if (pageTab === 'ninebox') fetchNineBox(); }, [pageTab, fetchNineBox]);
@@ -666,8 +662,13 @@ export default function PerformancePage() {
         )}
 
         {/* 9-Box Matrix Tab */}
-        {pageTab === 'ninebox' && nineBoxData && (
+        {pageTab === 'ninebox' && (
           <div className="space-y-4">
+            <div className="flex justify-end">
+              <DataSourceBadge source={nineBoxDataSource} />
+            </div>
+            {nineBoxData ? (
+            <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
                 { label: 'Total Talent', value: nineBoxData.summary?.total || 0 },
@@ -691,6 +692,13 @@ export default function PerformancePage() {
               <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 text-sm">
                 <strong>{selectedNineBox.employeeName}</strong> — {selectedNineBox.quadrantLabel}
                 <span className="text-gray-500 ml-2">| Kinerja: {selectedNineBox.performanceScore} | Potensial: {selectedNineBox.potentialScore}</span>
+              </div>
+            )}
+            </>
+            ) : (
+              <div className="bg-white rounded-xl border p-12 text-center text-gray-500">
+                <Grid3X3 className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                <p>Belum ada data nine-box. Lengkapi evaluasi kinerja terlebih dahulu.</p>
               </div>
             )}
           </div>

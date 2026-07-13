@@ -6,9 +6,22 @@ interface HRStatCardProps {
   sub?: string;
   icon: LucideIcon;
   gradient?: string;
+  accent?: 'blue' | 'emerald' | 'amber' | 'violet' | 'cyan' | 'rose' | 'orange' | 'indigo';
+  variant?: 'bold' | 'soft';
   trend?: { value: string; positive?: boolean };
   onClick?: () => void;
 }
+
+const ACCENT = {
+  blue: { icon: 'bg-blue-50 text-blue-600', border: 'hover:border-blue-200' },
+  emerald: { icon: 'bg-emerald-50 text-emerald-600', border: 'hover:border-emerald-200' },
+  amber: { icon: 'bg-amber-50 text-amber-600', border: 'hover:border-amber-200' },
+  violet: { icon: 'bg-violet-50 text-violet-600', border: 'hover:border-violet-200' },
+  cyan: { icon: 'bg-cyan-50 text-cyan-600', border: 'hover:border-cyan-200' },
+  rose: { icon: 'bg-rose-50 text-rose-600', border: 'hover:border-rose-200' },
+  orange: { icon: 'bg-orange-50 text-orange-600', border: 'hover:border-orange-200' },
+  indigo: { icon: 'bg-indigo-50 text-indigo-600', border: 'hover:border-indigo-200' },
+};
 
 export default function HRStatCard({
   label,
@@ -16,10 +29,38 @@ export default function HRStatCard({
   sub,
   icon: Icon,
   gradient = 'from-indigo-500 to-indigo-700',
+  accent = 'blue',
+  variant = 'bold',
   trend,
   onClick,
 }: HRStatCardProps) {
   const Wrapper = onClick ? 'button' : 'div';
+  const a = ACCENT[accent];
+
+  if (variant === 'soft') {
+    return (
+      <Wrapper
+        type={onClick ? 'button' : undefined}
+        onClick={onClick}
+        className={`rounded-2xl border border-slate-200/90 bg-white p-4 text-left shadow-sm transition hover:shadow-md ${a.border} ${onClick ? 'cursor-pointer' : ''}`}
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div className={`rounded-xl p-2.5 ${a.icon}`}>
+            <Icon className="h-5 w-5" />
+          </div>
+          {trend && (
+            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${trend.positive ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+              {trend.value}
+            </span>
+          )}
+        </div>
+        <p className="mt-3 text-2xl font-semibold tracking-tight text-slate-800">{value}</p>
+        <p className="mt-0.5 text-xs font-medium text-slate-500">{label}</p>
+        {sub && <p className="mt-0.5 text-[11px] text-slate-400">{sub}</p>}
+      </Wrapper>
+    );
+  }
+
   return (
     <Wrapper
       type={onClick ? 'button' : undefined}

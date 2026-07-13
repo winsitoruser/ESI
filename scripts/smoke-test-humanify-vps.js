@@ -6,7 +6,7 @@
 require('dotenv').config({ path: require('path').join(__dirname, '../humanify-repo/.env') });
 
 const BASE = process.env.SMOKE_BASE_URL || 'http://43.157.243.54';
-const EMAIL = process.env.SMOKE_EMAIL || 'superadmin@bedagang.com';
+const EMAIL = process.env.SMOKE_EMAIL || 'superadmin@humanify.id';
 const PASSWORDS = [process.env.SMOKE_PASSWORD, 'superadmin123', 'MasterAdmin2026!'].filter(Boolean);
 const UNIQUE = [...new Set(PASSWORDS)];
 

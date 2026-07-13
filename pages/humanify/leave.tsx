@@ -9,6 +9,10 @@ import {
   Copy, FileText, Info, Database, Palette, ToggleLeft, ToggleRight
 } from 'lucide-react';
 import { HRIS_DEPARTMENTS } from '@/lib/hris/master-data';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
+
+const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
 
 interface LeaveRequest {
   id: string;
@@ -131,6 +135,7 @@ export default function LeaveManagementPage() {
   const [approvalConfigs, setApprovalConfigs] = useState<ApprovalConfig[]>([]);
   const [balances, setBalances] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>({});
+  const [dataSource, setDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
 
   // Filters
   const [statusFilter, setStatusFilter] = useState('all');
@@ -172,6 +177,7 @@ export default function LeaveManagementPage() {
       if (!res.ok) { console.error('Fetch leave data failed:', res.status); setLoading(false); return; }
       const json = await res.json();
       if (json.success) {
+        setDataSource(json.dataSource || (json.requests?.length ? 'live' : 'empty'));
         setRequests(json.requests || []);
         setLeaveTypes(json.leaveTypes || []);
         setApprovalConfigs(json.approvalConfigs || []);
@@ -179,10 +185,19 @@ export default function LeaveManagementPage() {
         setSummary(json.summary || {});
       }
     } catch {
-      setRequests(MOCK_LEAVE_REQUESTS);
-      setLeaveTypes(MOCK_LEAVE_TYPES);
-      setSummary(MOCK_LEAVE_SUMMARY);
-      setBalances(MOCK_LEAVE_BALANCES);
+      if (USE_MOCK_UI) {
+        setDataSource('demo');
+        setRequests(MOCK_LEAVE_REQUESTS);
+        setLeaveTypes(MOCK_LEAVE_TYPES);
+        setSummary(MOCK_LEAVE_SUMMARY);
+        setBalances(MOCK_LEAVE_BALANCES);
+      } else {
+        setDataSource('empty');
+        setRequests([]);
+        setLeaveTypes([]);
+        setSummary({});
+        setBalances([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -201,7 +216,10 @@ export default function LeaveManagementPage() {
       });
     }
     if (statusFilter !== 'all') list = list.filter(l => l.status === statusFilter);
-    if (typeFilter !== 'all') list = list.filter(l => (l.leave_type || l.leaveType) === typeFilter);
+    if (typeFilter !== 'all') list = list.filter(l => {
+      const code = (l.leave_type || l.leaveType || '').toLowerCase();
+      return code === typeFilter.toLowerCase() || code === typeFilter;
+    });
     return list;
   }, [requests, searchQuery, statusFilter, typeFilter]);
 
@@ -416,6 +434,12 @@ export default function LeaveManagementPage() {
   return (
     <HQLayout title={t('hris.leaveTitle')} subtitle={t('hris.leaveSubtitle')}>
       <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <DataSourceBadge source={dataSource} />
+          <button type="button" onClick={fetchData} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50">
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
+          </button>
+        </div>
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {[

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import Link from 'next/link';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import { useTranslation } from '@/lib/i18n';
 import { CanAccess, PageGuard } from '@/components/permissions';
@@ -186,6 +187,7 @@ export default function PayrollPage() {
 
   // Toast
   const [toast, setToast] = useState<{ type: string; message: string } | null>(null);
+  const [preflight, setPreflight] = useState<{ ready: boolean; totalActive: number; issues: Array<{ employeeName: string; missing: string[] }> } | null>(null);
   const showToast = (type: string, message: string) => {
     setToast({ type, message });
     setTimeout(() => setToast(null), 3000);
@@ -235,7 +237,15 @@ export default function PayrollPage() {
     } catch { setComponents([]); }
   };
 
-  useEffect(() => { setMounted(true); fetchOverview(); fetchPayrollEmployees(); }, []);
+  useEffect(() => { setMounted(true); fetchOverview(); fetchPayrollEmployees(); fetchPreflight(); }, []);
+
+  const fetchPreflight = async () => {
+    try {
+      const res = await fetch('/api/humanify/payroll?action=preflight');
+      const json = await res.json();
+      if (json.success) setPreflight({ ready: json.ready, totalActive: json.totalActive, issues: json.issues || [] });
+    } catch { setPreflight(null); }
+  };
   useEffect(() => {
     if (activeTab === 'salaries') fetchSalaries();
     if (activeTab === 'runs') fetchRuns();
@@ -567,6 +577,10 @@ export default function PayrollPage() {
     if (!runForm.periodStart || !runForm.periodEnd) {
       showToast('error', 'Periode wajib diisi'); return;
     }
+    if (preflight && !preflight.ready && preflight.issues.length > 0) {
+      const proceed = confirm(`${preflight.issues.length} karyawan belum lengkap data payroll (NIK/NPWP/rekening/BPJS). Lanjutkan tetap buat run?`);
+      if (!proceed) return;
+    }
     try {
       const res = await fetch('/api/humanify/payroll?action=run', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -629,6 +643,28 @@ export default function PayrollPage() {
     >
     <HQLayout title={t('hris.payrollTitle')} subtitle={t('hris.payrollSubtitle')}>
       <div className="space-y-6">
+        {preflight && !preflight.ready && preflight.issues.length > 0 && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-amber-900">Preflight Payroll — {preflight.issues.length} karyawan data belum lengkap</p>
+                <p className="text-sm text-amber-800 mt-1">Lengkapi NIK, NPWP, rekening bank, status PTKP, dan nomor BPJS sebelum tutup periode.</p>
+                <ul className="mt-2 text-xs text-amber-900 space-y-1 max-h-24 overflow-y-auto">
+                  {preflight.issues.slice(0, 5).map((issue) => (
+                    <li key={issue.employeeName}><strong>{issue.employeeName}</strong>: {issue.missing.join(', ')}</li>
+                  ))}
+                </ul>
+              </div>
+              <Link href="/humanify/employees" className="text-xs font-medium text-amber-900 underline shrink-0">Perbaiki data</Link>
+            </div>
+          </div>
+        )}
+        {preflight?.ready && (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 flex items-center gap-2">
+            <CheckCircle className="h-4 w-4" /> Preflight OK — {preflight.totalActive} karyawan aktif siap payroll
+          </div>
+        )}
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[

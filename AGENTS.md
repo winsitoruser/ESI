@@ -73,7 +73,7 @@ npm run db:migrate   # migrasi DB
 
 | Email | Password | Role |
 |---|---|---|
-| superadmin@bedagang.com | superadmin123 | super_admin |
+| superadmin@humanify.id | superadmin123 | super_admin |
 
 Login: `http://localhost:3010/auth/login`  
 Root `/` → redirect login (tanpa landing marketing). Register dinonaktifkan.

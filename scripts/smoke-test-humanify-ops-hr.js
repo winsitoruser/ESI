@@ -6,7 +6,7 @@
 require('dotenv').config();
 
 const BASE = process.env.SMOKE_BASE_URL || 'http://localhost:3010';
-const EMAIL = process.env.SMOKE_EMAIL || 'superadmin@bedagang.com';
+const EMAIL = process.env.SMOKE_EMAIL || 'superadmin@humanify.id';
 const PASSWORDS = [process.env.SMOKE_PASSWORD, 'superadmin123', 'MasterAdmin2026!'].filter(Boolean);
 const UNIQUE = [...new Set(PASSWORDS)];
 const STRESS_CONCURRENCY = parseInt(process.env.STRESS_CONCURRENCY || '20', 10);

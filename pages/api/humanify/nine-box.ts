@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]';
 import { buildNineBoxFromReviews, getNineBoxSummary, getMockNineBox } from '@/lib/hris/nine-box-matrix';
+import { allowHrMockFallback } from '@/lib/hris/data-source';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch {}
@@ -16,8 +17,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     if (!sequelize) {
-      const mock = getMockNineBox();
-      return res.json({ success: true, data: { employees: mock, summary: getNineBoxSummary(mock) }, dataSource: 'demo' });
+      if (allowHrMockFallback()) {
+        const mock = getMockNineBox();
+        return res.json({ success: true, data: { employees: mock, summary: getNineBoxSummary(mock) }, dataSource: 'demo' });
+      }
+      return res.json({ success: true, data: { employees: [], summary: getNineBoxSummary([]) }, dataSource: 'empty' });
     }
 
     const [reviews] = await sequelize.query(`
@@ -61,8 +65,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.json({ success: true, data: { employees, summary: getNineBoxSummary(employees) }, dataSource: 'live' });
       }
 
-      const mock = getMockNineBox();
-      return res.json({ success: true, data: { employees: mock, summary: getNineBoxSummary(mock) }, dataSource: 'demo' });
+      if (allowHrMockFallback()) {
+        const mock = getMockNineBox();
+        return res.json({ success: true, data: { employees: mock, summary: getNineBoxSummary(mock) }, dataSource: 'demo' });
+      }
+      return res.json({ success: true, data: { employees: [], summary: getNineBoxSummary([]) }, dataSource: 'empty' });
     }
 
     const employeeIds = reviews.map((r: any) => r.employeeId);
@@ -78,7 +85,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.json({ success: true, data: { employees, summary }, dataSource });
   } catch (error: any) {
-    const mock = getMockNineBox();
-    return res.json({ success: true, data: { employees: mock, summary: getNineBoxSummary(mock) }, dataSource: 'demo', warning: error?.message });
+    if (allowHrMockFallback()) {
+      const mock = getMockNineBox();
+      return res.json({ success: true, data: { employees: mock, summary: getNineBoxSummary(mock) }, dataSource: 'demo', warning: error?.message });
+    }
+    return res.json({ success: true, data: { employees: [], summary: getNineBoxSummary([]) }, dataSource: 'empty', warning: error?.message });
   }
 }

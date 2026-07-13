@@ -24,6 +24,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function ESignPage() {
   const [docs, setDocs] = useState<any[]>([]);
+  const [integration, setIntegration] = useState<{ mode: string; configured: boolean } | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ docType: 'pkwt', title: '', employeeName: '', signers: [{ name: '', email: '', role: 'Karyawan' }, { name: '', email: '', role: 'HR' }] });
 
@@ -32,6 +33,7 @@ export default function ESignPage() {
       const r = await fetch('/api/humanify/esign');
       const j = await r.json();
       setDocs(j.data || []);
+      if (j.integration) setIntegration(j.integration);
     } catch { setDocs([]); }
   }, []);
 
@@ -63,7 +65,18 @@ export default function ESignPage() {
             <Link href="/humanify/contracts" className="p-2 border rounded-lg hover:bg-gray-50"><ArrowLeft className="w-4 h-4" /></Link>
             <div className="flex-1">
               <h2 className="text-xl font-bold flex items-center gap-2"><PenTool className="w-5 h-5 text-violet-600" /> E-Sign with Privy</h2>
-              <p className="text-sm text-gray-500">Kontrak kerja, offer letter, mutasi — audit trail PSrE</p>
+              <p className="text-sm text-gray-500">
+                Kontrak kerja, offer letter, mutasi — audit trail PSrE
+                {integration && (
+                  <span className={`ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                    integration.configured
+                      ? integration.mode === 'live' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                      : 'bg-gray-100 text-gray-600'
+                  }`}>
+                    {integration.configured ? `Privy ${integration.mode}` : 'Simulasi lokal'}
+                  </span>
+                )}
+              </p>
             </div>
             <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700">
               <Plus className="w-4 h-4" /> Buat Dokumen

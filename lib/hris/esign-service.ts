@@ -1,6 +1,8 @@
 /**
  * Privy ID e-sign service — document workflow (sandbox-ready)
  */
+import { allowHrMockFallback } from '@/lib/hris/data-source';
+import { createPrivySigningRequest, getPrivyMode, isPrivyConfigured, notifyPrivySigner } from '@/lib/hris/privy-client';
 let sequelize: any;
 try { sequelize = require('../sequelize'); } catch (_) {}
 
@@ -61,13 +63,13 @@ function mapDoc(row: any): ESignDocument {
 }
 
 export async function listESignDocuments(status?: ESignStatus): Promise<ESignDocument[]> {
-  if (!sequelize) return getMockDocuments();
+  if (!sequelize) return allowHrMockFallback() ? getMockDocuments() : [];
   await ensureESignTables();
   let sql = 'SELECT * FROM hris_esign_documents ORDER BY created_at DESC LIMIT 100';
   const params: any[] = [];
   if (status) { sql = 'SELECT * FROM hris_esign_documents WHERE status = $1 ORDER BY created_at DESC LIMIT 100'; params.push(status); }
   const [rows] = await sequelize.query(sql, { bind: params });
-  if (!rows?.length) return getMockDocuments();
+  if (!rows?.length) return allowHrMockFallback() ? getMockDocuments() : [];
   return rows.map(mapDoc);
 }
 
@@ -85,7 +87,17 @@ export async function createESignDocument(data: {
   }
   await ensureESignTables();
   const signers = data.signers.map(s => ({ ...s, signed: false }));
-  const token = `PRIVY-${Date.now().toString(36).toUpperCase()}`;
+  let token = `PRIVY-${Date.now().toString(36).toUpperCase()}`;
+
+  if (isPrivyConfigured()) {
+    const privy = await createPrivySigningRequest({
+      title: data.title,
+      docType: data.docType,
+      signers: data.signers,
+    });
+    if (privy?.token) token = privy.token;
+  }
+
   const [rows] = await sequelize.query(`
     INSERT INTO hris_esign_documents (doc_type, title, employee_id, employee_name, status, signers, privy_doc_token)
     VALUES ($1,$2,$3,$4,'pending',$5,$6) RETURNING *
@@ -93,9 +105,37 @@ export async function createESignDocument(data: {
   return rows?.[0] ? mapDoc(rows[0]) : null;
 }
 
+export async function signDocument(id: string, signerEmail: string): Promise<ESignDocument | null> {
+  if (!sequelize) return simulateSignDocument(id, signerEmail);
+
+  await ensureESignTables();
+  const [existing] = await sequelize.query('SELECT * FROM hris_esign_documents WHERE id = $1 LIMIT 1', { bind: [id] });
+  const row = existing?.[0];
+  if (!row) return null;
+
+  if (isPrivyConfigured() && row.privy_doc_token) {
+    await notifyPrivySigner(row.privy_doc_token, signerEmail);
+  }
+
+  return simulateSignDocument(id, signerEmail);
+}
+
+export function getESignIntegrationInfo() {
+  return {
+    mode: getPrivyMode(),
+    configured: isPrivyConfigured(),
+  };
+}
+
 export async function simulateSignDocument(id: string, signerEmail: string): Promise<ESignDocument | null> {
-  const docs = await listESignDocuments();
-  const doc = docs.find(d => d.id === id);
+  let doc: ESignDocument | null = null;
+  if (sequelize) {
+    await ensureESignTables();
+    const [rows] = await sequelize.query('SELECT * FROM hris_esign_documents WHERE id = $1 LIMIT 1', { bind: [id] });
+    doc = rows?.[0] ? mapDoc(rows[0]) : null;
+  } else {
+    doc = getMockDocuments().find((d) => d.id === id) || null;
+  }
   if (!doc) return null;
 
   const signers = doc.signers.map(s =>

@@ -11,6 +11,18 @@ import { HumanifyLogo } from '@/components/humanify/HumanifyLogo';
 import { NaincodeFooter } from '@/components/humanify/NaincodeFooter';
 
 const ICONS = [Users, Clock, DollarSign, Target, GraduationCap, Smartphone];
+const MODULE_ICON_BG = [
+  'bg-blue-50 text-blue-600',
+  'bg-slate-100 text-slate-600',
+  'bg-emerald-50 text-emerald-600',
+  'bg-indigo-50 text-indigo-600',
+  'bg-cyan-50 text-cyan-600',
+  'bg-violet-50 text-violet-600',
+  'bg-amber-50 text-amber-600',
+  'bg-rose-50 text-rose-600',
+  'bg-orange-50 text-orange-600',
+  'bg-sky-50 text-sky-600',
+];
 
 const STATS = [
   { value: 10000, suffix: '+', label: 'Karyawan Terkelola' },
@@ -134,9 +146,9 @@ function FadeIn({
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0, y: 32 }}
+      initial={{ opacity: 0, y: 24 }}
       animate={isInView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.55, delay, ease: [0.22, 1, 0.36, 1] }}
       className={className}
     >
       {children}
@@ -144,44 +156,21 @@ function FadeIn({
   );
 }
 
-function CodeHero() {
-  const lines = [
-    { text: 'const workforce = await ', color: 'text-violet-300' },
-    { text: 'humanify', color: 'text-fuchsia-400' },
-    { text: '.manage();', color: 'text-violet-300' },
-  ];
-
+function CorporateHeroBadge() {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.8, delay: 0.2 }}
-      className="inline-flex flex-col items-start gap-1 px-5 py-3.5 rounded-2xl border border-white/[0.1] bg-[#050508]/55 backdrop-blur-md font-mono text-sm mb-8 shadow-lg shadow-violet-950/30"
+      transition={{ duration: 0.6, delay: 0.15 }}
+      className="mb-8 inline-flex items-center gap-3 rounded-2xl border border-slate-200/90 bg-white px-5 py-3 shadow-sm"
     >
-      <div className="flex items-center gap-1.5 mb-2">
-        <span className="w-2.5 h-2.5 rounded-full bg-red-400/70" />
-        <span className="w-2.5 h-2.5 rounded-full bg-amber-400/70" />
-        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/70" />
-        <span className="ml-2 text-[10px] text-violet-400/50 uppercase tracking-wider">humanify.config</span>
+      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50">
+        <Building2 className="h-4 w-4 text-blue-600" />
       </div>
-      <div>
-        {lines.map((l, i) => (
-          <span key={i} className={l.color}>{l.text}</span>
-        ))}
+      <div className="text-left">
+        <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Enterprise HRIS</p>
+        <p className="text-sm text-slate-500">People-first platform untuk institusi & korporasi</p>
       </div>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.2 }}
-        className="text-violet-400/60 text-xs mt-1"
-      >
-        // People-First HR Platform
-        <motion.span
-          className="inline-block w-[7px] h-[14px] bg-violet-400 ml-0.5 align-middle"
-          animate={{ opacity: [1, 0, 1] }}
-          transition={{ duration: 1, repeat: Infinity }}
-        />
-      </motion.div>
     </motion.div>
   );
 }
@@ -196,7 +185,7 @@ export default function HumanifyWelcomePage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#050508] text-white overflow-x-hidden">
+    <div className="min-h-screen overflow-x-hidden bg-slate-50 text-slate-800">
       <style>{`
         @keyframes marquee {
           0% { transform: translateX(0); }
@@ -208,57 +197,36 @@ export default function HumanifyWelcomePage() {
         .hf-marquee:hover {
           animation-play-state: paused;
         }
-        @keyframes grid-fade {
-          0%, 100% { opacity: 0.03; }
-          50% { opacity: 0.06; }
-        }
-        .hf-grid-bg {
-          background-image:
-            linear-gradient(rgba(139,92,246,0.15) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(139,92,246,0.15) 1px, transparent 1px);
-          background-size: 64px 64px;
-          animation: grid-fade 8s ease-in-out infinite;
-        }
       `}</style>
 
-      {/* Ambient */}
+      {/* Soft ambient */}
       <div className="pointer-events-none fixed inset-0">
-        <div className="absolute inset-0 hf-grid-bg" />
-        <motion.div
-          className="absolute top-[-15%] left-[30%] w-[700px] h-[700px] bg-violet-600/15 rounded-full blur-[140px]"
-          animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.5, 0.3] }}
-          transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <motion.div
-          className="absolute bottom-[-10%] right-[5%] w-[500px] h-[500px] bg-fuchsia-600/10 rounded-full blur-[120px]"
-          animate={{ scale: [1.05, 1, 1.05], opacity: [0.2, 0.35, 0.2] }}
-          transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(139,92,246,0.08),_transparent_60%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_bottom,_#f8fafc_0%,_#ffffff_40%,_#f1f5f9_100%)]" />
+        <div className="absolute top-0 right-0 h-[420px] w-[420px] rounded-full bg-blue-100/40 blur-3xl" />
+        <div className="absolute bottom-0 left-0 h-[320px] w-[320px] rounded-full bg-slate-200/50 blur-3xl" />
       </div>
 
       {/* Header */}
       <header
-        className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${
+        className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
           scrolled
-            ? 'bg-[#050508]/80 backdrop-blur-xl border-b border-white/[0.06] shadow-lg shadow-black/20'
+            ? 'border-b border-slate-200/90 bg-white/95 shadow-sm backdrop-blur-md'
             : 'bg-transparent'
         }`}
       >
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
           <HumanifyLogo
             href={HUMANIFY_BRAND.welcomePath}
             size="lg"
-            variant="full"
-            src={HUMANIFY_BRAND.welcomeLogoPath}
-            aspect={HUMANIFY_BRAND.welcomeLogoAspect}
-            className="rounded-lg"
+            variant="withText"
             priority
+            textClassName="font-semibold text-slate-800 tracking-tight"
+            subtitleClassName="text-xs text-slate-500 font-medium"
           />
           <nav className="flex items-center gap-2 sm:gap-5">
             <Link
               href={HUMANIFY_BRAND.roiCalculatorPath}
-              className="hidden md:inline text-sm text-violet-300/60 hover:text-violet-200 transition"
+              className="hidden text-sm text-slate-500 transition hover:text-slate-800 md:inline"
             >
               Kalkulator ROI
             </Link>
@@ -266,19 +234,19 @@ export default function HumanifyWelcomePage() {
               href={NAINCODE.website}
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden md:inline text-sm text-violet-300/60 hover:text-violet-200 transition"
+              className="hidden text-sm text-slate-500 transition hover:text-slate-800 md:inline"
             >
               {NAINCODE.name}
             </a>
             <Link
               href={HUMANIFY_BRAND.employeeLoginPath}
-              className="hidden sm:inline text-sm text-violet-200/80 hover:text-white transition"
+              className="hidden text-sm text-slate-600 transition hover:text-slate-900 sm:inline"
             >
               Portal Karyawan
             </Link>
             <Link
               href={HUMANIFY_BRAND.loginPath}
-              className="px-4 py-2 rounded-xl bg-white text-violet-900 text-sm font-semibold hover:bg-violet-50 shadow-md shadow-violet-500/10 transition"
+              className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
             >
               Masuk
             </Link>
@@ -288,104 +256,101 @@ export default function HumanifyWelcomePage() {
 
       <main className="relative z-10">
         {/* Hero */}
-        <section className="relative overflow-hidden">
+        <section className="relative overflow-hidden border-b border-slate-200/80">
           <div className="pointer-events-none absolute inset-0" aria-hidden>
             <div
-              className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-40"
+              className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-[0.07]"
               style={{ backgroundImage: "url('/images/humanify-hero-bg.png')" }}
             />
-            <div className="absolute inset-0 bg-gradient-to-b from-[#050508]/92 via-[#050508]/78 to-[#050508]" />
-            <div className="absolute inset-0 bg-gradient-to-r from-violet-950/50 via-[#050508]/20 to-fuchsia-950/40" />
+            <div className="absolute inset-0 bg-gradient-to-b from-white/90 via-slate-50/95 to-slate-50" />
           </div>
 
-          <div className="relative max-w-7xl mx-auto px-6 pt-32 sm:pt-40 pb-20 sm:pb-28">
-          <div className="max-w-4xl mx-auto text-center">
-            <CodeHero />
+          <div className="relative mx-auto max-w-7xl px-6 pb-20 pt-32 sm:pb-28 sm:pt-40">
+            <div className="mx-auto max-w-4xl text-center">
+              <CorporateHeroBadge />
 
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4 }}
-              className="text-sm text-violet-300/60 mb-4 tracking-wide"
-            >
-              {NAINCODE.legalName}
-            </motion.p>
-
-            <motion.h1
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.3 }}
-              className="text-4xl sm:text-5xl lg:text-7xl font-bold tracking-tight leading-[1.08] mb-6"
-            >
-              HRIS yang
-              <span className="block mt-2 text-transparent bg-clip-text bg-gradient-to-r from-violet-300 via-fuchsia-300 to-violet-200">
-                mengutamakan manusia
-              </span>
-            </motion.h1>
-
-            <motion.p
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.5 }}
-              className="text-lg sm:text-xl text-violet-200/70 max-w-2xl mx-auto mb-10 leading-relaxed"
-            >
-              {HUMANIFY_BRAND.description}
-            </motion.p>
-
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.65 }}
-              className="flex flex-col sm:flex-row gap-3 justify-center items-center"
-            >
-              <Link
-                href={HUMANIFY_BRAND.loginPath}
-                className="group inline-flex items-center justify-center gap-2 min-w-[240px] px-8 py-3.5 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white font-semibold hover:shadow-lg hover:shadow-violet-500/25 transition-all duration-300"
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                className="mb-4 text-sm tracking-wide text-slate-500"
               >
-                Masuk ke Humanify
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
-              </Link>
-              <Link
-                href={HUMANIFY_BRAND.employeeLoginPath}
-                className="inline-flex items-center justify-center gap-2 min-w-[240px] px-8 py-3.5 rounded-xl border border-white/10 text-violet-100 font-medium hover:bg-white/[0.05] hover:border-white/20 transition-all duration-300"
+                {NAINCODE.legalName}
+              </motion.p>
+
+              <motion.h1
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.65, delay: 0.25 }}
+                className="mb-6 text-4xl font-semibold leading-[1.12] tracking-tight text-slate-900 sm:text-5xl lg:text-6xl"
               >
-                <Smartphone className="w-4 h-4" />
-                Portal Karyawan
-              </Link>
-            </motion.div>
-          </div>
+                HRIS yang
+                <span className="mt-2 block text-blue-700">mengutamakan manusia</span>
+              </motion.h1>
+
+              <motion.p
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.55, delay: 0.45 }}
+                className="mx-auto mb-10 max-w-2xl text-lg leading-relaxed text-slate-600 sm:text-xl"
+              >
+                {HUMANIFY_BRAND.description}
+              </motion.p>
+
+              <motion.div
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.55, delay: 0.6 }}
+                className="flex flex-col items-center justify-center gap-3 sm:flex-row"
+              >
+                <Link
+                  href={HUMANIFY_BRAND.loginPath}
+                  className="group inline-flex min-w-[240px] items-center justify-center gap-2 rounded-xl bg-blue-600 px-8 py-3.5 font-semibold text-white shadow-sm transition hover:bg-blue-700"
+                >
+                  Masuk ke Humanify
+                  <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
+                </Link>
+                <Link
+                  href={HUMANIFY_BRAND.employeeLoginPath}
+                  className="inline-flex min-w-[240px] items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-8 py-3.5 font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                >
+                  <Smartphone className="h-4 w-4" />
+                  Portal Karyawan
+                </Link>
+              </motion.div>
+            </div>
           </div>
         </section>
 
         {/* Stats */}
-        <section className="border-y border-white/[0.06] bg-white/[0.02]">
-          <div className="max-w-7xl mx-auto px-6 py-14 grid grid-cols-2 lg:grid-cols-4 gap-8">
+        <section className="border-b border-slate-200/80 bg-white">
+          <div className="mx-auto grid max-w-7xl grid-cols-2 gap-8 px-6 py-14 lg:grid-cols-4">
             {STATS.map((stat, i) => (
-              <FadeIn key={stat.label} delay={i * 0.1} className="text-center">
-                <p className="text-3xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-violet-300 to-fuchsia-300">
+              <FadeIn key={stat.label} delay={i * 0.08} className="text-center">
+                <p className="text-3xl font-semibold text-blue-700 sm:text-4xl">
                   <AnimatedCounter value={stat.value} suffix={stat.suffix} decimals={stat.decimals} />
                 </p>
-                <p className="text-sm text-violet-300/50 mt-2">{stat.label}</p>
+                <p className="mt-2 text-sm text-slate-500">{stat.label}</p>
               </FadeIn>
             ))}
           </div>
         </section>
 
         {/* Marquee */}
-        <section className="py-10 overflow-hidden border-b border-white/[0.04]">
-          <p className="text-center text-xs uppercase tracking-[0.25em] text-violet-400/40 mb-6">
+        <section className="overflow-hidden border-b border-slate-200/80 bg-slate-100/60 py-10">
+          <p className="mb-6 text-center text-xs uppercase tracking-[0.25em] text-slate-400">
             Modul terintegrasi dalam satu platform
           </p>
           <div className="relative">
-            <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-[#050508] to-transparent z-10" />
-            <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-[#050508] to-transparent z-10" />
+            <div className="absolute bottom-0 left-0 top-0 z-10 w-24 bg-gradient-to-r from-slate-100 to-transparent" />
+            <div className="absolute bottom-0 right-0 top-0 z-10 w-24 bg-gradient-to-l from-slate-100 to-transparent" />
             <div className="hf-marquee flex whitespace-nowrap">
               {[...MARQUEE_ITEMS, ...MARQUEE_ITEMS].map((item, i) => (
                 <span
                   key={`${item}-${i}`}
-                  className="inline-flex items-center mx-6 text-sm text-violet-300/40 font-medium"
+                  className="mx-6 inline-flex items-center text-sm font-medium text-slate-500"
                 >
-                  <Sparkles className="w-3.5 h-3.5 mr-2 text-violet-500/40" />
+                  <Sparkles className="mr-2 h-3.5 w-3.5 text-blue-400/70" />
                   {item}
                 </span>
               ))}
@@ -394,35 +359,37 @@ export default function HumanifyWelcomePage() {
         </section>
 
         {/* Modules */}
-        <section className="max-w-7xl mx-auto px-6 py-24 sm:py-32">
-          <FadeIn className="text-center mb-16">
-            <p className="text-sm uppercase tracking-[0.2em] text-violet-400/60 font-medium mb-3">Our Modules</p>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">
-              Solusi HRIS
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-300 to-fuchsia-300"> End-to-End</span>
+        <section className="mx-auto max-w-7xl px-6 py-24 sm:py-32">
+          <FadeIn className="mb-16 text-center">
+            <p className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-blue-600">Our Modules</p>
+            <h2 className="mb-4 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+              Solusi HRIS <span className="text-blue-700">End-to-End</span>
             </h2>
-            <p className="text-violet-200/60 max-w-xl mx-auto">
+            <p className="mx-auto max-w-xl text-slate-600">
               Dari konsep hingga operasional harian — modul lengkap untuk setiap tahap siklus hidup karyawan.
             </p>
           </FadeIn>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {HUMANIFY_FEATURES.map((f, i) => {
               const Icon = ICONS[i] || UserCheck;
+              const iconBg = MODULE_ICON_BG[i % MODULE_ICON_BG.length];
               return (
-                <FadeIn key={f.title} delay={i * 0.08}>
+                <FadeIn key={f.title} delay={i * 0.06}>
                   <motion.div
-                    whileHover={{ y: -4 }}
-                    className="group h-full rounded-2xl border border-white/[0.08] bg-white/[0.03] p-7 hover:bg-white/[0.06] hover:border-violet-400/20 transition-all duration-300"
+                    whileHover={{ y: -3 }}
+                    className="group h-full rounded-2xl border border-slate-200/90 bg-white p-7 shadow-sm transition hover:border-blue-200 hover:shadow-md"
                   >
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500/30 to-fuchsia-500/20 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300">
-                      <Icon className="w-5 h-5 text-violet-200" />
+                    <div className={`mb-5 flex h-12 w-12 items-center justify-center rounded-xl ${iconBg}`}>
+                      <Icon className="h-5 w-5" />
                     </div>
-                    <h3 className="font-semibold text-lg mb-2 group-hover:text-violet-100 transition-colors">{f.title}</h3>
-                    <p className="text-sm text-violet-200/60 leading-relaxed mb-4">{f.desc}</p>
-                    <span className="inline-flex items-center gap-1 text-xs text-violet-400/70 group-hover:text-violet-300 transition-colors">
+                    <h3 className="mb-2 text-lg font-semibold text-slate-800 transition-colors group-hover:text-blue-800">
+                      {f.title}
+                    </h3>
+                    <p className="mb-4 text-sm leading-relaxed text-slate-500">{f.desc}</p>
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 transition-colors group-hover:text-blue-700">
                       Pelajari lebih lanjut
-                      <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                      <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
                     </span>
                   </motion.div>
                 </FadeIn>
@@ -432,37 +399,35 @@ export default function HumanifyWelcomePage() {
         </section>
 
         {/* Why Humanify */}
-        <section className="border-y border-white/[0.06] bg-white/[0.015]">
-          <div className="max-w-7xl mx-auto px-6 py-24 sm:py-32">
-            <div className="grid lg:grid-cols-2 gap-16 items-start">
+        <section className="border-y border-slate-200/80 bg-white">
+          <div className="mx-auto max-w-7xl px-6 py-24 sm:py-32">
+            <div className="grid items-start gap-16 lg:grid-cols-2">
               <FadeIn>
-                <p className="text-sm uppercase tracking-[0.2em] text-violet-400/60 font-medium mb-3">Why Humanify</p>
-                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-5 leading-tight">
+                <p className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-blue-600">Why Humanify</p>
+                <h2 className="mb-5 text-3xl font-semibold leading-tight tracking-tight text-slate-900 sm:text-4xl">
                   Bukan sekadar software,
-                  <span className="block text-transparent bg-clip-text bg-gradient-to-r from-violet-300 to-fuchsia-300">
-                    partner SDM Anda
-                  </span>
+                  <span className="mt-1 block text-blue-700">partner SDM Anda</span>
                 </h2>
-                <p className="text-violet-200/60 leading-relaxed mb-8">
+                <p className="mb-8 leading-relaxed text-slate-600">
                   Kami tidak hanya membangun sistem HR — kami membangun fondasi untuk pertumbuhan tim Anda.
                   Setiap fitur dirancang dengan standar enterprise dan visi jangka panjang.
                 </p>
                 <Link
                   href={HUMANIFY_BRAND.loginPath}
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-violet-300 hover:text-white transition group"
+                  className="group inline-flex items-center gap-2 text-sm font-semibold text-blue-700 transition hover:text-blue-800"
                 >
                   Mulai sekarang
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </Link>
               </FadeIn>
 
-              <div className="grid sm:grid-cols-2 gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
                 {WHY_ITEMS.map((item, i) => (
-                  <FadeIn key={item.title} delay={i * 0.08}>
-                    <div className="p-5 rounded-2xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-violet-400/15 transition-all duration-300 h-full">
-                      <item.icon className="w-5 h-5 text-violet-400 mb-3" />
-                      <h4 className="font-semibold text-sm mb-1.5">{item.title}</h4>
-                      <p className="text-xs text-violet-300/50 leading-relaxed">{item.desc}</p>
+                  <FadeIn key={item.title} delay={i * 0.06}>
+                    <div className="h-full rounded-2xl border border-slate-200/90 bg-slate-50/50 p-5 transition hover:border-blue-200 hover:bg-white">
+                      <item.icon className="mb-3 h-5 w-5 text-blue-600" />
+                      <h4 className="mb-1.5 text-sm font-semibold text-slate-800">{item.title}</h4>
+                      <p className="text-xs leading-relaxed text-slate-500">{item.desc}</p>
                     </div>
                   </FadeIn>
                 ))}
@@ -472,30 +437,29 @@ export default function HumanifyWelcomePage() {
         </section>
 
         {/* Process */}
-        <section className="max-w-7xl mx-auto px-6 py-24 sm:py-32">
-          <FadeIn className="text-center mb-16">
-            <p className="text-sm uppercase tracking-[0.2em] text-violet-400/60 font-medium mb-3">Our Process</p>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">
-              Dari rekrutmen hingga
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-300 to-fuchsia-300"> payroll</span>
+        <section className="mx-auto max-w-7xl px-6 py-24 sm:py-32">
+          <FadeIn className="mb-16 text-center">
+            <p className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-blue-600">Our Process</p>
+            <h2 className="mb-4 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+              Dari rekrutmen hingga <span className="text-blue-700">payroll</span>
             </h2>
-            <p className="text-violet-200/60 max-w-lg mx-auto">
+            <p className="mx-auto max-w-lg text-slate-600">
               Metodologi terstruktur yang memastikan setiap tahap SDM berjalan efisien dan terukur.
             </p>
           </FadeIn>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {PROCESS_STEPS.map((step, i) => (
-              <FadeIn key={step.step} delay={i * 0.12}>
-                <div className="relative p-6 rounded-2xl border border-white/[0.08] bg-white/[0.03] hover:border-violet-400/20 transition-all duration-300 h-full group">
-                  <span className="text-5xl font-black text-white/[0.04] absolute top-4 right-5 group-hover:text-violet-500/10 transition-colors">
+              <FadeIn key={step.step} delay={i * 0.1}>
+                <div className="group relative h-full rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm transition hover:border-blue-200 hover:shadow-md">
+                  <span className="absolute right-5 top-4 text-5xl font-black text-slate-100 transition-colors group-hover:text-blue-50">
                     {step.step}
                   </span>
-                  <p className="text-xs font-bold text-violet-400 mb-3 tracking-wider">{step.step}</p>
-                  <h3 className="font-semibold text-base mb-2">{step.title}</h3>
-                  <p className="text-sm text-violet-200/55 leading-relaxed mb-4">{step.desc}</p>
-                  <span className="inline-flex items-center gap-1.5 text-xs text-violet-400/60 bg-violet-500/10 px-2.5 py-1 rounded-full">
-                    <Clock className="w-3 h-3" />
+                  <p className="mb-3 text-xs font-bold tracking-wider text-blue-600">{step.step}</p>
+                  <h3 className="mb-2 text-base font-semibold text-slate-800">{step.title}</h3>
+                  <p className="mb-4 text-sm leading-relaxed text-slate-500">{step.desc}</p>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs text-blue-700">
+                    <Clock className="h-3 w-3" />
                     {step.duration}
                   </span>
                 </div>
@@ -505,20 +469,20 @@ export default function HumanifyWelcomePage() {
         </section>
 
         {/* Trust badges */}
-        <section className="border-y border-white/[0.06]">
-          <div className="max-w-7xl mx-auto px-6 py-14 grid sm:grid-cols-3 gap-8">
+        <section className="border-y border-slate-200/80 bg-slate-50">
+          <div className="mx-auto grid max-w-7xl gap-8 px-6 py-14 sm:grid-cols-3">
             {[
               { icon: Shield, title: 'Enterprise-ready', desc: 'Multi-tenant, RBAC, audit trail' },
               { icon: Zap, title: 'Real-time Data', desc: 'Dashboard & laporan instan' },
               { icon: Building2, title: 'Ekosistem Naincode', desc: 'Produk teknologi terintegrasi' },
             ].map((item, i) => (
-              <FadeIn key={item.title} delay={i * 0.1} className="flex items-start gap-4">
-                <div className="w-11 h-11 rounded-xl bg-violet-500/10 flex items-center justify-center flex-shrink-0">
-                  <item.icon className="w-5 h-5 text-violet-400" />
+              <FadeIn key={item.title} delay={i * 0.08} className="flex items-start gap-4">
+                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-blue-50">
+                  <item.icon className="h-5 w-5 text-blue-600" />
                 </div>
                 <div>
-                  <p className="font-semibold mb-1">{item.title}</p>
-                  <p className="text-sm text-violet-300/50">{item.desc}</p>
+                  <p className="mb-1 font-semibold text-slate-800">{item.title}</p>
+                  <p className="text-sm text-slate-500">{item.desc}</p>
                 </div>
               </FadeIn>
             ))}
@@ -526,42 +490,41 @@ export default function HumanifyWelcomePage() {
         </section>
 
         {/* CTA */}
-        <section className="max-w-7xl mx-auto px-6 py-24 sm:py-32">
+        <section className="mx-auto max-w-7xl px-6 py-24 sm:py-32">
           <FadeIn>
-            <div className="relative rounded-3xl border border-white/[0.1] bg-gradient-to-br from-violet-600/20 via-fuchsia-600/10 to-violet-900/20 p-10 sm:p-16 text-center overflow-hidden">
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(139,92,246,0.15),_transparent_70%)]" />
+            <div className="relative overflow-hidden rounded-3xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-slate-50 p-10 text-center shadow-sm sm:p-16">
+              <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-blue-100/50" />
+              <div className="absolute -bottom-12 -left-12 h-36 w-36 rounded-full bg-slate-100/80" />
               <div className="relative">
-                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">
+                <h2 className="mb-4 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
                   Siap transformasi
-                  <span className="block text-transparent bg-clip-text bg-gradient-to-r from-violet-200 to-fuchsia-200">
-                    manajemen SDM Anda?
-                  </span>
+                  <span className="mt-1 block text-blue-700">manajemen SDM Anda?</span>
                 </h2>
-                <p className="text-violet-200/60 max-w-lg mx-auto mb-8">
+                <p className="mx-auto mb-8 max-w-lg text-slate-600">
                   Mulai kelola karyawan, kehadiran, dan payroll dalam satu platform — didukung teknologi Naincode.
                 </p>
-                <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+                <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
                   <Link
                     href={HUMANIFY_BRAND.loginPath}
-                    className="group inline-flex items-center justify-center gap-2 min-w-[220px] px-8 py-3.5 rounded-xl bg-white text-violet-900 font-semibold hover:bg-violet-50 shadow-lg transition"
+                    className="group inline-flex min-w-[220px] items-center justify-center gap-2 rounded-xl bg-blue-600 px-8 py-3.5 font-semibold text-white shadow-sm transition hover:bg-blue-700"
                   >
                     Masuk ke Humanify
-                    <ArrowRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
+                    <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
                   </Link>
                   <a
                     href={NAINCODE.website}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-2 min-w-[220px] px-8 py-3.5 rounded-xl border border-white/15 text-violet-100 font-medium hover:bg-white/5 transition"
+                    className="inline-flex min-w-[220px] items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-8 py-3.5 font-medium text-slate-700 transition hover:bg-slate-50"
                   >
-                    <HeadphonesIcon className="w-4 h-4" />
+                    <HeadphonesIcon className="h-4 w-4" />
                     Kunjungi {NAINCODE.name}
                   </a>
                 </div>
-                <div className="flex flex-wrap justify-center gap-6 mt-8 text-xs text-violet-300/40">
+                <div className="mt-8 flex flex-wrap justify-center gap-6 text-xs text-slate-500">
                   {['Gratis untuk tim internal', 'Tanpa komitmen', 'Dukungan penuh'].map((t) => (
                     <span key={t} className="inline-flex items-center gap-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-violet-500/50" />
+                      <CheckCircle2 className="h-3.5 w-3.5 text-blue-500" />
                       {t}
                     </span>
                   ))}
@@ -572,7 +535,7 @@ export default function HumanifyWelcomePage() {
         </section>
       </main>
 
-      <NaincodeFooter />
+      <NaincodeFooter variant="light" />
     </div>
   );
 }

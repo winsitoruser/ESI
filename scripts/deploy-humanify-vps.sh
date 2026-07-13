@@ -189,7 +189,7 @@ DB_USER=humanify
 DB_PASSWORD=$DB_PASS
 DATABASE_URL=postgresql://humanify:$DB_PASS@127.0.0.1:5432/humanify
 TENANT_ISOLATION_ENABLED=true
-TENANT_SUPERADMIN_EMAIL=superadmin@bedagang.com
+TENANT_SUPERADMIN_EMAIL=superadmin@humanify.id
 DEFAULT_TIMEZONE=Asia/Jakarta
 DEFAULT_LANGUAGE=id
 EOF
@@ -427,7 +427,7 @@ echo "✅ Deploy selesai!"
 echo "   URL: ${PUBLIC_SCHEME}://$DOMAIN/humanify/welcome"
 echo "   Login: ${PUBLIC_SCHEME}://$DOMAIN/humanify/login"
 echo "   Role & Akses: ${PUBLIC_SCHEME}://$DOMAIN/humanify/users/roles"
-echo "   Email: superadmin@bedagang.com"
+echo "   Email: superadmin@humanify.id"
 echo "   Password: superadmin123"
 if [ "$USE_DOMAIN" = true ] && [ -z "${RESOLVED:-}" ]; then
   echo ""

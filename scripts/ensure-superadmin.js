@@ -11,7 +11,7 @@ if (!DATABASE_URL) {
 }
 
 const PASSWORD = process.env.SUPERADMIN_PASSWORD || 'superadmin123';
-const EMAIL = process.env.TENANT_SUPERADMIN_EMAIL || 'superadmin@bedagang.com';
+const EMAIL = process.env.TENANT_SUPERADMIN_EMAIL || 'superadmin@humanify.id';
 
 const sequelize = new Sequelize(DATABASE_URL, {
   dialect: 'postgres',

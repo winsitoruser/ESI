@@ -93,11 +93,14 @@ export default function LemburPage() {
             status: (r.status || 'approved') as OvertimeRecord['status'],
           }));
           setRecords(mapped);
-        } else {
+        } else if (process.env.NODE_ENV !== 'production') {
           setRecords(MOCK_OT);
+        } else {
+          setRecords([]);
         }
       } catch {
-        setRecords(MOCK_OT);
+        if (process.env.NODE_ENV !== 'production') setRecords(MOCK_OT);
+        else setRecords([]);
       }
     })();
   }, []);
@@ -147,6 +150,22 @@ export default function LemburPage() {
     setForm({ employee_name: '', department: '', date: '', start_time: '', end_time: '', hours: '', type: 'workday', reason: '', base_salary: '' });
   };
 
+  const handleSyncToAttendance = async () => {
+    const period = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+    try {
+      const res = await fetch('/api/humanify/payroll?action=sync-overtime', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ period }),
+      });
+      const json = await res.json();
+      if (json.success) showToast('success', json.message || 'Sinkronisasi berhasil');
+      else showToast('error', json.error || 'Gagal sinkronisasi');
+    } catch {
+      showToast('error', 'Gagal sinkronisasi lembur ke absensi');
+    }
+  };
+
   if (!mounted) return null;
 
   return (
@@ -155,6 +174,9 @@ export default function LemburPage() {
         <div className="flex items-center gap-3">
           <Link href="/humanify/payroll" className="p-2 border rounded-lg hover:bg-gray-50"><ArrowLeft className="w-4 h-4" /></Link>
           <div className="flex-1"><h2 className="text-lg font-bold">Manajemen Lembur</h2><p className="text-sm text-gray-500">Sesuai PP No. 35/2021 tentang PKWT & Lembur</p></div>
+          <button type="button" onClick={handleSyncToAttendance} className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50">
+            <TrendingUp className="w-4 h-4" /> Sync ke Absensi
+          </button>
           <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"><Plus className="w-4 h-4" /> Ajukan Lembur</button>
         </div>
 
