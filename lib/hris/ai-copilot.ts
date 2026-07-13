@@ -126,8 +126,8 @@ export async function saveConversation(opts: {
   if (!sequelize) return;
   try {
     await sequelize.query(`
-      INSERT INTO hris_ai_conversations (tenant_id, user_id, role, message, context_module, source)
-      VALUES (:tid, :uid, :role, :msg, :mod, :src)
+      INSERT INTO hris_ai_conversations (id, tenant_id, user_id, role, message, context_module, source)
+      VALUES (gen_random_uuid(), :tid, :uid, :role, :msg, :mod, :src)
     `, {
       replacements: {
         tid: opts.tenantId, uid: opts.userId, role: opts.role,

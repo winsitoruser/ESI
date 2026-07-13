@@ -111,8 +111,8 @@ export async function ensureDefaultRules(tenantId: string | null) {
 
   for (const rule of DEFAULT_AUTOMATION_RULES) {
     await sequelize.query(`
-      INSERT INTO hris_automation_rules (tenant_id, name, description, rule_type, trigger_type, trigger_config, action_config, priority, is_active)
-      VALUES (:tid, :name, :desc, :rt, :tt, :tc::jsonb, :ac::jsonb, :pri, :active)
+      INSERT INTO hris_automation_rules (id, tenant_id, name, description, rule_type, trigger_type, trigger_config, action_config, priority, is_active)
+      VALUES (gen_random_uuid(), :tid, :name, :desc, :rt, :tt, :tc::jsonb, :ac::jsonb, :pri, :active)
     `, {
       replacements: {
         tid: tenantId, name: rule.name, desc: rule.description,
@@ -154,8 +154,8 @@ async function logExecution(opts: {
 }) {
   if (!sequelize || !(await tableExists('hris_automation_logs'))) return;
   await sequelize.query(`
-    INSERT INTO hris_automation_logs (rule_id, tenant_id, status, trigger_data, action_result, execution_time_ms)
-    VALUES (:rid, :tid, :st, :td::jsonb, :ar::jsonb, :ms)
+    INSERT INTO hris_automation_logs (id, rule_id, tenant_id, status, trigger_data, action_result, execution_time_ms)
+    VALUES (gen_random_uuid(), :rid, :tid, :st, :td::jsonb, :ar::jsonb, :ms)
   `, {
     replacements: {
       rid: opts.ruleId, tid: opts.tenantId, st: opts.status,
