@@ -5,6 +5,8 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 import { gradeExam, computeIntegrityScore } from '../../../lib/hris/lms/grading';
+import { calcCurriculumProgress, parseMaterials } from '../../../lib/hris/lms/course-service';
+import { issueCourseCertificate } from '../../../lib/hris/lms/certificate-issue';
 
 const sequelize = require('../../../lib/sequelize');
 
@@ -68,6 +70,63 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         `, { replacements: { empid: empId } });
 
         return res.json({ success: true, data: { exams, progress, competencies, results, employee: { id: empId, name: empName } } });
+      }
+
+      if (action === 'my-courses') {
+        const [courses] = await sequelize.query(`
+          SELECT en.*, c.title, c.description, c.code, c.category, c.total_modules, c.certificate_enabled,
+            (SELECT COUNT(*)::int FROM hris_training_modules m WHERE m.curriculum_id = c.id) as module_count
+          FROM hris_lms_enrollments en
+          JOIN hris_training_curricula c ON c.id = en.curriculum_id
+          WHERE en.employee_id = :empid AND c.status = 'active'
+          ORDER BY en.mandatory DESC, en.due_date ASC NULLS LAST
+        `, { replacements: { empid: empId } }).catch(() => [[]]);
+        return res.json({ success: true, data: courses });
+      }
+
+      if (action === 'course-detail') {
+        const { curriculum_id } = req.query;
+        const [curricula] = await sequelize.query(
+          'SELECT * FROM hris_training_curricula WHERE id = :id AND status = :st',
+          { replacements: { id: curriculum_id, st: 'active' } },
+        );
+        if (!curricula.length) return res.status(404).json({ error: 'Kursus tidak ditemukan' });
+        const [modules] = await sequelize.query(
+          'SELECT * FROM hris_training_modules WHERE curriculum_id = :id ORDER BY order_index',
+          { replacements: { id: curriculum_id } },
+        );
+        const [progRows] = await sequelize.query(
+          'SELECT * FROM hris_lms_course_progress WHERE employee_id = :empid AND curriculum_id = :cid',
+          { replacements: { empid: empId, cid: curriculum_id } },
+        ).catch(() => [[]]);
+        const completedLessons = new Set<string>();
+        for (const p of progRows) {
+          const meta = typeof p.metadata === 'object' ? p.metadata : {};
+          (meta.completed_lessons || []).forEach((id: string) => completedLessons.add(id));
+          if (p.status === 'completed' && p.module_id) completedLessons.add(`module:${p.module_id}`);
+          if (p.lesson_id) completedLessons.add(p.lesson_id);
+        }
+        const progressPct = calcCurriculumProgress(modules, completedLessons);
+        const modulesWithProgress = modules.map((m: any) => {
+          const lessons = parseMaterials(m.materials);
+          const done = lessons.filter((l) => completedLessons.has(l.id)).length;
+          return {
+            ...m,
+            materials: lessons,
+            lessons_total: lessons.length,
+            lessons_done: done,
+            progress_pct: lessons.length ? Math.round((done / lessons.length) * 100) : (completedLessons.has(`module:${m.id}`) ? 100 : 0),
+          };
+        });
+        return res.json({
+          success: true,
+          data: {
+            curriculum: curricula[0],
+            modules: modulesWithProgress,
+            progress_pct: progressPct,
+            completed_lessons: Array.from(completedLessons),
+          },
+        });
       }
 
       if (action === 'exam-detail') {
@@ -235,6 +294,105 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           data: {
             score: graded.totalScore, percentage: graded.pct, is_passed: isPassed,
             needs_manual: graded.needsManual, integrity_score: integrityScore,
+          },
+        });
+      }
+
+      if (action === 'complete-lesson') {
+        const { curriculum_id, module_id, lesson_id, time_spent_seconds } = req.body;
+        const [existing] = await sequelize.query(`
+          SELECT * FROM hris_lms_course_progress
+          WHERE employee_id = :empid AND curriculum_id = :cid AND module_id = :mid LIMIT 1
+        `, { replacements: { empid: empId, cid: curriculum_id, mid: module_id } }).catch(() => [[]]);
+
+        const meta = existing[0]?.metadata || {};
+        const completed: string[] = Array.isArray(meta.completed_lessons) ? [...meta.completed_lessons] : [];
+        if (lesson_id && !completed.includes(lesson_id)) completed.push(lesson_id);
+
+        const [modules] = await sequelize.query(
+          'SELECT * FROM hris_training_modules WHERE curriculum_id = :cid ORDER BY order_index',
+          { replacements: { cid: curriculum_id } },
+        );
+        const mod = modules.find((m: any) => m.id === module_id);
+        const lessons = parseMaterials(mod?.materials);
+        const allDone = lessons.length > 0 && lessons.every((l) => completed.includes(l.id));
+        const modulePct = lessons.length ? (lessons.filter((l) => completed.includes(l.id)).length / lessons.length) * 100 : 100;
+        const overallPct = calcCurriculumProgress(modules, new Set(completed));
+
+        if (existing.length) {
+          await sequelize.query(`
+            UPDATE hris_lms_course_progress SET
+              lesson_id = :lid, progress_pct = :pct, status = :st,
+              time_spent_seconds = time_spent_seconds + :ts,
+              metadata = :meta::jsonb, last_accessed_at = NOW(), updated_at = NOW()
+            WHERE id = :id
+          `, {
+            replacements: {
+              id: existing[0].id, lid: lesson_id, pct: modulePct,
+              st: allDone ? 'completed' : 'in_progress', ts: time_spent_seconds || 0,
+              meta: JSON.stringify({ ...meta, completed_lessons: completed }),
+            },
+          });
+        } else {
+          await sequelize.query(`
+            INSERT INTO hris_lms_course_progress (
+              tenant_id, employee_id, curriculum_id, module_id, lesson_id,
+              progress_pct, status, time_spent_seconds, metadata, last_accessed_at
+            ) VALUES (:tid, :empid, :cid, :mid, :lid, :pct, :st, :ts, :meta::jsonb, NOW())
+          `, {
+            replacements: {
+              tid: tenantId, empid: empId, cid: curriculum_id, mid: module_id, lid: lesson_id,
+              pct: modulePct, st: allDone ? 'completed' : 'in_progress', ts: time_spent_seconds || 0,
+              meta: JSON.stringify({ completed_lessons: completed }),
+            },
+          });
+        }
+
+        await sequelize.query(`
+          UPDATE hris_lms_enrollments SET progress_pct = :pct, status = :st, updated_at = NOW()
+          WHERE employee_id = :empid AND curriculum_id = :cid
+        `, {
+          replacements: {
+            pct: overallPct, empid: empId, cid: curriculum_id,
+            st: overallPct >= 100 ? 'completed' : 'in_progress',
+          },
+        }).catch(() => {});
+
+        return res.json({ success: true, data: { progress_pct: overallPct, module_complete: allDone } });
+      }
+
+      if (action === 'complete-course') {
+        const { curriculum_id } = req.body;
+        const [curricula] = await sequelize.query(
+          'SELECT * FROM hris_training_curricula WHERE id = :id',
+          { replacements: { id: curriculum_id } },
+        );
+        if (!curricula.length) return res.status(404).json({ error: 'Kursus tidak ditemukan' });
+        const c = curricula[0];
+
+        await sequelize.query(`
+          UPDATE hris_lms_enrollments SET status = 'completed', progress_pct = 100, completed_at = NOW()
+          WHERE employee_id = :empid AND curriculum_id = :cid
+        `, { replacements: { empid: empId, cid: curriculum_id } }).catch(() => {});
+
+        let certificate = null;
+        if (c.certificate_enabled !== false) {
+          certificate = await issueCourseCertificate({
+            tenantId,
+            employeeId: empId,
+            employeeName: empName,
+            curriculumId: curriculum_id,
+            curriculumTitle: c.title,
+            curriculumCode: c.code,
+            validityMonths: c.certificate_validity_months,
+          });
+        }
+
+        return res.json({
+          success: true,
+          data: {
+            certificate,
+            verify_url: certificate ? `/verify/cert/${certificate.verifyToken}` : null,
           },
         });
       }

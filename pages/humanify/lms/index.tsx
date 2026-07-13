@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 
 const MODULES = [
+  { id: 'courses', href: '/humanify/lms/courses', icon: BookOpen, color: 'text-emerald-600 bg-emerald-50', label: 'Kursus & Learning Path', desc: 'Kurikulum, modul, materi video/PDF, progress belajar' },
   { id: 'question-bank', href: '/humanify/lms/question-bank', icon: BookOpen, color: 'text-blue-600 bg-blue-50', label: 'Bank Soal', desc: 'Bank soal terpusat — MC, essay, likert, situational' },
   { id: 'tests', href: '/humanify/lms/tests', icon: ClipboardList, color: 'text-indigo-600 bg-indigo-50', label: 'Tes & Ujian', desc: 'Buat & kelola tes/ujian online' },
   { id: 'psychometric', href: '/humanify/lms/psychometric', icon: Brain, color: 'text-purple-600 bg-purple-50', label: 'Psikotes', desc: 'Psikotes kognitif, kepribadian, integritas' },

@@ -12,6 +12,7 @@ export function LmsStatusBadge({ status }: { status: string }) {
 export function LmsPageNav({ active }: { active: string }) {
   const links = [
     { id: 'hub', href: '/humanify/lms', label: 'Dashboard' },
+    { id: 'courses', href: '/humanify/lms/courses', label: 'Kursus & Learning Path' },
     { id: 'question-bank', href: '/humanify/lms/question-bank', label: 'Bank Soal' },
     { id: 'tests', href: '/humanify/lms/tests', label: 'Tes & Ujian' },
     { id: 'psychometric', href: '/humanify/lms/psychometric', label: 'Psikotes' },

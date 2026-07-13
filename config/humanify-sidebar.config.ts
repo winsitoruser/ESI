@@ -112,6 +112,7 @@ export const humanifySidebarConfig: SidebarConfig = {
           modules: ['humanify', 'hris'],
           children: [
             { id: 'humanify-lms-hub', name: 'LMS Dashboard', href: '/humanify/lms', icon: LayoutDashboard, modules: ['humanify', 'hris'] },
+            { id: 'humanify-lms-courses', name: 'Kursus & Learning Path', href: '/humanify/lms/courses', icon: BookOpen, modules: ['humanify', 'hris'] },
             { id: 'humanify-lms-question-bank', name: 'Bank Soal', href: '/humanify/lms/question-bank', icon: BookOpen, modules: ['humanify', 'hris'] },
             { id: 'humanify-lms-tests', name: 'Tes & Ujian', href: '/humanify/lms/tests', icon: ClipboardList, modules: ['humanify', 'hris'] },
             { id: 'humanify-lms-psychometric', name: 'Psikotes', href: '/humanify/lms/psychometric', icon: Brain, modules: ['humanify', 'hris'] },

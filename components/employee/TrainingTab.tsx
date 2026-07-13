@@ -9,13 +9,18 @@ export default function TrainingTab() {
   const [loading, setLoading] = useState(true);
   const [exams, setExams] = useState<any[]>([]);
   const [results, setResults] = useState<any[]>([]);
+  const [courses, setCourses] = useState<any[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const d = await fetch(`${API}?action=dashboard`).then((r) => r.json());
+      const [d, c] = await Promise.all([
+        fetch(`${API}?action=dashboard`).then((r) => r.json()),
+        fetch(`${API}?action=my-courses`).then((r) => r.json()),
+      ]);
       setExams(d.data?.exams || []);
       setResults(d.data?.results || []);
+      setCourses(c.data || []);
     } finally {
       setLoading(false);
     }
@@ -29,9 +34,22 @@ export default function TrainingTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <SectionHeader title="Training & LMS" />
-        <Link href="/employee/training" className="text-sm text-indigo-600 flex items-center gap-1">Lihat semua <ChevronRight className="w-4 h-4" /></Link>
+      <Link href="/employee/training" className="text-sm text-indigo-600 flex items-center gap-1">Lihat semua <ChevronRight className="w-4 h-4" /></Link>
       </div>
 
+      {courses.slice(0, 2).map((c) => (
+        <Card key={c.id} className="p-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="font-semibold text-sm">{c.title}</p>
+              <p className="text-xs text-gray-500">{c.progress_pct || 0}% selesai</p>
+            </div>
+            <Link href={`/employee/training/course/${c.curriculum_id}`} className="px-3 py-1 bg-indigo-600 text-white rounded-lg text-xs">Belajar</Link>
+          </div>
+        </Card>
+      ))}
+
+      <SectionHeader title="Ujian Aktif" />
       {exams.filter((e) => e.status === 'open').slice(0, 3).map((ex) => (
         <Card key={ex.id} className="p-4">
           <div className="flex justify-between items-center">

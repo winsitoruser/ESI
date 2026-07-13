@@ -10,15 +10,20 @@ const API = '/api/employee/lms';
 
 export default function EmployeeTrainingPage() {
   const router = useRouter();
+  const [courses, setCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>({});
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const d = await fetch(`${API}?action=dashboard`).then((r) => r.json());
+      const [d, c] = await Promise.all([
+        fetch(`${API}?action=dashboard`).then((r) => r.json()),
+        fetch(`${API}?action=my-courses`).then((r) => r.json()),
+      ]);
       if (d.error === 'Unauthorized') { router.push('/employee/login'); return; }
       setData(d.data || {});
+      setCourses(c.data || []);
     } finally {
       setLoading(false);
     }
@@ -34,7 +39,7 @@ export default function EmployeeTrainingPage() {
     );
   }
 
-  const { exams = [], results = [], competencies = [], progress = [], employee } = data;
+  const { exams = [], results = [], competencies = [], employee } = data;
 
   return (
     <>
@@ -50,6 +55,25 @@ export default function EmployeeTrainingPage() {
         </header>
 
         <main className="max-w-lg mx-auto p-4 space-y-4">
+          <SectionHeader title="Kursus Saya" />
+          {courses.map((c: any) => (
+            <Card key={c.id} className="p-4">
+              <div className="flex justify-between items-start gap-2">
+                <div className="flex-1">
+                  <h3 className="font-semibold">{c.title}</h3>
+                  <div className="h-1.5 bg-gray-200 rounded-full mt-2 mb-1">
+                    <div className="h-full bg-indigo-600 rounded-full" style={{ width: `${c.progress_pct || 0}%` }} />
+                  </div>
+                  <p className="text-xs text-gray-500">{c.progress_pct || 0}% · {c.mandatory ? 'Wajib' : 'Opsional'}</p>
+                </div>
+                <Link href={`/employee/training/course/${c.curriculum_id}`} className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-sm shrink-0">
+                  {c.status === 'completed' ? 'Review' : 'Lanjut'}
+                </Link>
+              </div>
+            </Card>
+          ))}
+          {!courses.length && <p className="text-sm text-gray-400 text-center py-4">Belum ada kursus — hubungi HR untuk enrollment</p>}
+
           <SectionHeader title="Ujian Tersedia" />
           {exams.map((ex: any) => (
             <Card key={ex.id} className="p-4">
