@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 import { getDepartmentLabel } from '../../../lib/hris/master-data';
 import { syncOrgDepartments } from '../../../lib/hris/sync-org-departments';
+import { runCompensationAudit } from '@/lib/hris/compensation-bands';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch (e) {}
@@ -68,6 +69,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (action === 'org-tree') return getOrgTree(req, res);
       if (action === 'org-list') return getOrgList(req, res);
       if (action === 'job-grades') return getJobGrades(req, res);
+      if (action === 'compensation-audit') return getCompensationAudit(req, res, session);
       if (action === 'summary') return getOrgSummary(req, res);
       return res.status(400).json({ success: false, error: 'Unknown action' });
     }
@@ -158,6 +160,12 @@ async function getOrgList(req: NextApiRequest, res: NextApiResponse) {
 }
 
 // ===== GET: Job Grades =====
+async function getCompensationAudit(req: NextApiRequest, res: NextApiResponse, session: any) {
+  const tenantId = (session.user as any)?.tenantId || null;
+  const audit = await runCompensationAudit(tenantId);
+  return res.json({ success: true, data: audit, dataSource: audit.dataSource });
+}
+
 async function getJobGrades(req: NextApiRequest, res: NextApiResponse) {
   if (!sequelize) return res.json({ success: true, data: [] });
   try {

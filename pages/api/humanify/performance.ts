@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 import { successResponse, errorResponse, ErrorCodes, HttpStatus } from '../../../lib/api/response';
+import { launchReviewCycle, listReviewCycles } from '@/lib/hris/review-cycle';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch (e) {}
@@ -25,8 +26,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     switch (req.method) {
       case 'GET':
+        if (req.query.action === 'cycles') {
+          const cycles = await listReviewCycles(20);
+          return res.status(HttpStatus.OK).json(successResponse({ cycles }));
+        }
         return await getPerformanceReviews(req, res);
       case 'POST':
+        if (req.body?.action === 'launch-cycle') {
+          return await handleLaunchReviewCycle(req, res, session);
+        }
         return await createPerformanceReview(req, res, session);
       case 'PUT':
         return await updatePerformanceReview(req, res);
@@ -148,6 +156,32 @@ async function resolveEmployeeId(employeeId: string | null | undefined, employee
     return (rows as any[])[0]?.id || null;
   } catch {
     return null;
+  }
+}
+
+async function handleLaunchReviewCycle(req: NextApiRequest, res: NextApiResponse, session: any) {
+  const { period, reviewType, department } = req.body || {};
+  const tenantId = (session?.user as any)?.tenantId || null;
+  const launchedBy = (session?.user as any)?.name || (session?.user as any)?.email || null;
+
+  try {
+    const cycle = await launchReviewCycle({
+      tenantId,
+      period,
+      reviewType,
+      department,
+      launchedBy,
+    });
+    return res.status(HttpStatus.OK).json(
+      successResponse({
+        cycle,
+        message: `Siklus ${cycle.period}: ${cycle.draftsCreated} evaluasi draf dibuat untuk ${cycle.totalEmployees} karyawan aktif`,
+      })
+    );
+  } catch (error: any) {
+    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(
+      errorResponse(ErrorCodes.INTERNAL_SERVER_ERROR, error.message || 'Gagal meluncurkan siklus evaluasi')
+    );
   }
 }
 

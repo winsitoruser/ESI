@@ -2,6 +2,10 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { v4 as uuidv4 } from 'uuid';
 import { withHQAuth } from '../../../../lib/middleware/withHQAuth';
 import { allowHrMockFallback } from '@/lib/hris/data-source';
+import { pullZktecoAttendance } from '@/lib/hris/device-adapters/zkteco';
+
+let sequelize: any;
+try { sequelize = require('../../../../lib/sequelize'); } catch (_) {}
 
 let AttendanceDevice: any, AttendanceDeviceLog: any, EmployeeAttendance: any, Employee: any, AttendanceSettings: any;
 try {
@@ -32,10 +36,30 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       return res.status(400).json({ success: false, error: 'deviceId is required' });
     }
 
+    const isZktecoPull = mode === 'zkteco-pull';
     const isManual = mode === 'manual' || mode === 'heartbeat';
-    const recordList = Array.isArray(records) ? records : [];
+    let recordList = Array.isArray(records) ? records : [];
 
-    if (!isManual && recordList.length === 0) {
+    if (isZktecoPull && AttendanceDevice) {
+      const deviceForPull = await AttendanceDevice.findOne({ where: { id: deviceId, status: 'active' } });
+      if (deviceForPull) {
+        const pull = await pullZktecoAttendance({
+          id: deviceForPull.id,
+          ipAddress: deviceForPull.ipAddress,
+          port: deviceForPull.port,
+          serialNumber: deviceForPull.serialNumber,
+          communicationKey: deviceForPull.communicationKey,
+          tenantId: deviceForPull.tenantId,
+        }, sequelize);
+        if (pull.records.length) {
+          recordList = pull.records;
+        } else if (!allowHrMockFallback()) {
+          return res.status(502).json({ success: false, error: pull.message });
+        }
+      }
+    }
+
+    if (!isManual && !isZktecoPull && recordList.length === 0) {
       return res.status(400).json({
         success: false,
         error: 'records[] is required unless mode is manual'
@@ -83,7 +107,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       return res.status(404).json({ success: false, error: 'Device not found or inactive' });
     }
 
-    if (isManual) {
+    if (isManual && !isZktecoPull) {
       await device.update({
         lastSyncAt: new Date(),
         lastSyncStatus: 'success',

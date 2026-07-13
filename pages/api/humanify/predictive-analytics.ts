@@ -13,6 +13,7 @@ import {
   buildPredictiveInsights,
   type PredictiveOverview,
 } from '@/lib/hris/predictive-analytics';
+import { allowHrMockFallback } from '@/lib/hris/data-source';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch {}
@@ -64,22 +65,52 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       FROM employee_kpis WHERE period = :period GROUP BY employee_id
     `, r);
 
+    const disciplinarySignals = await safeQuery(`
+      SELECT employee_id, COUNT(*)::int AS cnt
+      FROM disciplinary_letters
+      WHERE status IN ('issued', 'active') AND created_at >= CURRENT_DATE - INTERVAL '12 months'
+      GROUP BY employee_id
+    `, r);
+
+    const perfSignals = await safeQuery(`
+      SELECT employee_id, ROUND(AVG(overall_rating)::numeric, 1) AS avg_rating
+      FROM performance_reviews
+      WHERE status IN ('submitted', 'reviewed', 'acknowledged')
+      GROUP BY employee_id
+    `, r);
+
+    const [engRow] = await safeQuery(`
+      SELECT ROUND(AVG((elem->>'answer')::numeric), 1) AS score
+      FROM survey_responses sr
+      CROSS JOIN LATERAL jsonb_array_elements(
+        CASE WHEN jsonb_typeof(sr.answers) = 'array' THEN sr.answers ELSE '[]'::jsonb END
+      ) AS elem
+      WHERE (elem->>'answer') ~ '^[0-9]+\\.?[0-9]*$'
+        AND sr.submitted_at >= CURRENT_DATE - INTERVAL '6 months'
+    `, r);
+
     const attMap = new Map(attSignals.map((a: any) => [String(a.employee_id), a]));
     const kpiMap = new Map(kpiSignals.map((k: any) => [String(k.employee_id), parseFloat(k.achievement)]));
+    const discMap = new Map(disciplinarySignals.map((d: any) => [String(d.employee_id), d.cnt > 0]));
+    const perfMap = new Map(perfSignals.map((p: any) => [String(p.employee_id), parseFloat(p.avg_rating)]));
 
     const risks = employees.map((e: any) => {
       const att = attMap.get(String(e.id)) || {};
+      const perfRating = perfMap.get(String(e.id));
+      const kpiAchievement = kpiMap.get(String(e.id)) ?? (perfRating ? perfRating * 20 : 85);
       return computeAttritionRisk(e, {
         lateCount: att.late || 0,
         absentCount: att.absent || 0,
         attendanceTotal: att.total || 0,
-        kpiAchievement: kpiMap.get(String(e.id)) ?? 85,
-        hasDisciplinary: false,
+        kpiAchievement,
+        hasDisciplinary: discMap.get(String(e.id)) || false,
         monthsSincePromotion: 18,
       });
     }).sort((a: any, b: any) => b.riskScore - a.riskScore);
 
-    if (employees.length === 0) dataSource = 'demo';
+    if (employees.length === 0) {
+      dataSource = allowHrMockFallback() ? 'demo' : 'partial';
+    }
 
     if (action === 'attrition') {
       return res.json({ success: true, data: risks, dataSource });
@@ -139,11 +170,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       headcount,
       leaveForecast,
       insights: buildPredictiveInsights(risks, absenteeism, headcount),
+      engagementScore: engRow?.score ? parseFloat(engRow.score) : null,
       generatedAt: new Date().toISOString(),
-      dataSource: employees.length > 0 ? dataSource : 'partial',
+      dataSource: employees.length > 0 ? dataSource : (allowHrMockFallback() ? 'demo' : 'partial'),
     };
 
-    return res.json({ success: true, data: overview });
+    return res.json({ success: true, data: overview, dataSource: overview.dataSource });
   }
 
   if (action === 'absenteeism') {

@@ -33,6 +33,25 @@ async function safeCount(table: string, where = ''): Promise<number> {
   }
 }
 
+async function computeAvgEngagementScore(): Promise<number | null> {
+  if (!sequelize) return null;
+  try {
+    const [rows] = await sequelize.query(`
+      SELECT AVG((elem->>'answer')::numeric) AS avg_score
+      FROM survey_responses sr
+      CROSS JOIN LATERAL jsonb_array_elements(
+        CASE WHEN jsonb_typeof(sr.answers) = 'array' THEN sr.answers ELSE '[]'::jsonb END
+      ) AS elem
+      WHERE (elem->>'answer') ~ '^[0-9]+\\.?[0-9]*$'
+    `);
+    const avg = (rows as any[])[0]?.avg_score;
+    if (avg == null || Number.isNaN(Number(avg))) return null;
+    return Math.round(Number(avg) * 10) / 10;
+  } catch {
+    return null;
+  }
+}
+
 function mapSurveyRow(r: any) {
   if (!r) return null;
   return {
@@ -312,9 +331,17 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
         safeCount('recognitions'),
       ]);
       const activeSurveys = await safeCount('surveys', `WHERE status = 'active'`);
+      const avgEngagementScore = await computeAvgEngagementScore();
       return res.json({
         success: true,
-        data: { totalSurveys: surveys, activeSurveys, totalResponses: responses, totalRecognitions: recognitions, publishedAnnouncements }
+        data: {
+          totalSurveys: surveys,
+          activeSurveys,
+          totalResponses: responses,
+          totalRecognitions: recognitions,
+          publishedAnnouncements,
+          avgEngagementScore,
+        },
       });
     }
     case 'surveys': {
@@ -457,11 +484,39 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
       return res.json({ success: true, data: mapSurveyRow(survey?.toJSON?.() || survey) });
     }
     case 'survey-response': {
+      const surveyId = body.surveyId || body.survey_id;
+      const employeeId = body.employeeId || body.employee_id || null;
+      const answers = body.answers || [];
+      if (!surveyId) return res.status(400).json({ error: 'surveyId required' });
+
+      if (sequelize) {
+        try {
+          const [rows] = await sequelize.query(`
+            INSERT INTO survey_responses (survey_id, employee_id, respondent_id, answers, is_anonymous, submitted_at)
+            VALUES (:surveyId, :employeeId, :employeeId, :answers::jsonb, :isAnonymous, NOW())
+            RETURNING *
+          `, {
+            replacements: {
+              surveyId,
+              employeeId,
+              answers: JSON.stringify(answers),
+              isAnonymous: body.isAnonymous ?? body.is_anonymous ?? true,
+            },
+          });
+          await sequelize.query(
+            `UPDATE surveys SET total_responses = COALESCE(total_responses, 0) + 1, updated_at = NOW() WHERE id = :surveyId`,
+            { replacements: { surveyId } }
+          );
+          return res.json({ success: true, data: rows?.[0] });
+        } catch (e: any) {
+          if (!isMissingTableError(e)) throw e;
+        }
+      }
+
       if (!SurveyResponse) return res.json({ success: true });
       const resp = await SurveyResponse.create(body);
-      // Update response count
       if (Survey) {
-        await Survey.increment('totalResponses', { where: { id: body.surveyId } });
+        await Survey.increment('totalResponses', { where: { id: surveyId } });
       }
       return res.json({ success: true, data: resp });
     }

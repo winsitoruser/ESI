@@ -85,6 +85,7 @@ export default function PerformancePage() {
     competency: 'Komunikasi', rating: 4, comments: '', isAnonymous: false,
   });
   const [saving, setSaving] = useState(false);
+  const [launchingCycle, setLaunchingCycle] = useState(false);
   const [employees, setEmployees] = useState<any[]>([]);
 
   const [form, setForm] = useState({
@@ -157,6 +158,30 @@ export default function PerformancePage() {
   }, []);
 
   useEffect(() => { if (pageTab === 'ninebox') fetchNineBox(); }, [pageTab, fetchNineBox]);
+
+  const handleLaunchCycle = async () => {
+    const period = form.reviewPeriod || 'Q1 2026';
+    if (!confirm(`Luncurkan siklus evaluasi untuk periode ${period}?\n\nSistem akan membuat draf evaluasi untuk semua karyawan aktif yang belum punya evaluasi di periode ini.`)) {
+      return;
+    }
+    setLaunchingCycle(true);
+    try {
+      const res = await fetch('/api/humanify/performance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'launch-cycle', period, reviewType: form.reviewType || 'quarterly' }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error?.message || json.message || 'Gagal meluncurkan siklus');
+      const msg = json.data?.message || `Siklus ${period} diluncurkan`;
+      alert(msg);
+      fetchData();
+    } catch (e: any) {
+      alert(e.message || 'Gagal meluncurkan siklus evaluasi');
+    } finally {
+      setLaunchingCycle(false);
+    }
+  };
 
   if (!mounted) {
     return (
@@ -570,6 +595,11 @@ export default function PerformancePage() {
               <button onClick={openCreate}
                 className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
                 <Plus className="w-4 h-4" /> Buat Evaluasi Baru
+              </button>
+              <button onClick={handleLaunchCycle} disabled={launchingCycle}
+                className="flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-50">
+                {launchingCycle ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calendar className="w-4 h-4" />}
+                {launchingCycle ? 'Meluncurkan...' : 'Luncurkan Siklus'}
               </button>
             </div>
             <div className="flex gap-2 flex-wrap">

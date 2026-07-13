@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import OrgChartTree from '@/components/humanify/OrgChartTree';
 import { useTranslation } from '@/lib/i18n';
 import {
@@ -9,7 +10,7 @@ import {
   BarChart3, Layers, Shield, DollarSign, LayoutGrid, List as ListIcon,
 } from 'lucide-react';
 
-type MainTab = 'org-structure' | 'job-grades' | 'summary';
+type MainTab = 'org-structure' | 'job-grades' | 'compensation' | 'summary';
 type OrgView = 'chart' | 'list';
 
 const EMPTY_SUMMARY = {
@@ -30,6 +31,7 @@ export default function OrganizationPage() {
   const [orgTree, setOrgTree] = useState<any[]>([]);
   const [orgFlat, setOrgFlat] = useState<any[]>([]);
   const [jobGrades, setJobGrades] = useState<any[]>([]);
+  const [compAudit, setCompAudit] = useState<any>(null);
   const [summary, setSummary] = useState<any>(EMPTY_SUMMARY);
 
   // Modals
@@ -60,7 +62,7 @@ export default function OrganizationPage() {
 
   const loadAll = async () => {
     setLoading(true);
-    await Promise.all([fetchOrgTree(), fetchJobGrades(), fetchSummary()]);
+    await Promise.all([fetchOrgTree(), fetchJobGrades(), fetchSummary(), fetchCompensation()]);
     setLoading(false);
   };
 
@@ -113,6 +115,16 @@ export default function OrganizationPage() {
       setSummary(json.data && Object.keys(json.data).length ? json.data : EMPTY_SUMMARY);
     } catch (e) { console.error(e); setSummary(EMPTY_SUMMARY); }
   };
+
+  const fetchCompensation = async () => {
+    try {
+      const res = await fetch('/api/humanify/organization?action=compensation-audit');
+      const json = await res.json();
+      setCompAudit(json.data || null);
+    } catch { setCompAudit(null); }
+  };
+
+  const fmtRp = (n: number) => `Rp ${(n || 0).toLocaleString('id-ID')}`;
 
   const saveOrg = async () => {
     if (!orgForm.name?.trim()) {
@@ -311,6 +323,7 @@ export default function OrganizationPage() {
               {([
                 { key: 'org-structure', label: 'Struktur Organisasi', icon: Network },
                 { key: 'job-grades', label: 'Golongan Jabatan', icon: Layers },
+                { key: 'compensation', label: 'Compensation Bands', icon: DollarSign },
                 { key: 'summary', label: 'Ringkasan', icon: BarChart3 },
               ] as { key: MainTab; label: string; icon: any }[]).map(tab => (
                 <button key={tab.key} onClick={() => setActiveTab(tab.key)}
@@ -484,6 +497,79 @@ export default function OrganizationPage() {
                       );
                     })}
                   </div>
+                )}
+              </div>
+            )}
+
+            {/* ===== COMPENSATION BANDS TAB ===== */}
+            {activeTab === 'compensation' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div>
+                    <h3 className="font-semibold text-gray-800">Compensation Band Audit</h3>
+                    <p className="text-xs text-gray-500 mt-0.5">Bandingkan gaji aktual karyawan vs range golongan jabatan (min–max)</p>
+                  </div>
+                  {compAudit?.dataSource && <DataSourceBadge source={compAudit.dataSource} />}
+                </div>
+
+                {compAudit ? (
+                  <>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                      {[
+                        { label: 'In Band', value: compAudit.inBand, color: 'text-emerald-700 bg-emerald-50' },
+                        { label: 'Di Bawah Min', value: compAudit.belowMin, color: 'text-amber-700 bg-amber-50' },
+                        { label: 'Di Atas Max', value: compAudit.aboveMax, color: 'text-rose-700 bg-rose-50' },
+                        { label: 'Tanpa Grade', value: compAudit.noGrade, color: 'text-gray-700 bg-gray-50' },
+                        { label: 'Avg Compa-Ratio', value: compAudit.avgCompaRatio ?? '—', color: 'text-indigo-700 bg-indigo-50' },
+                      ].map((s) => (
+                        <div key={s.label} className={`rounded-xl p-3 ${s.color}`}>
+                          <p className="text-[10px] font-medium uppercase opacity-70">{s.label}</p>
+                          <p className="text-xl font-bold">{s.value}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="overflow-x-auto border rounded-xl">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50 text-left text-xs text-gray-500">
+                          <tr>
+                            <th className="px-3 py-2">Karyawan</th>
+                            <th className="px-3 py-2">Grade</th>
+                            <th className="px-3 py-2">Gaji</th>
+                            <th className="px-3 py-2">Range</th>
+                            <th className="px-3 py-2">Compa</th>
+                            <th className="px-3 py-2">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(compAudit.rows || []).map((r: any) => (
+                            <tr key={r.employeeId} className="border-t hover:bg-gray-50/80">
+                              <td className="px-3 py-2">
+                                <p className="font-medium text-gray-900">{r.employeeName}</p>
+                                <p className="text-[10px] text-gray-400">{r.position}</p>
+                              </td>
+                              <td className="px-3 py-2 text-xs">{r.jobGradeCode || '—'} {r.jobGradeName || ''}</td>
+                              <td className="px-3 py-2 font-mono text-xs">{fmtRp(r.currentSalary)}</td>
+                              <td className="px-3 py-2 text-xs text-gray-500">{fmtRp(r.minSalary)} – {fmtRp(r.maxSalary)}</td>
+                              <td className="px-3 py-2">{r.compaRatio ?? '—'}</td>
+                              <td className="px-3 py-2">
+                                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                                  r.status === 'in_band' ? 'bg-emerald-100 text-emerald-700'
+                                  : r.status === 'below_min' ? 'bg-amber-100 text-amber-700'
+                                  : r.status === 'above_max' ? 'bg-rose-100 text-rose-700'
+                                  : 'bg-gray-100 text-gray-600'
+                                }`}>
+                                  {r.status.replace(/_/g, ' ')}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-400 py-8 text-center">Memuat audit compensation...</p>
                 )}
               </div>
             )}

@@ -108,9 +108,16 @@ export async function logRoleAudit(opts: LogOptions): Promise<RoleAuditEntry> {
   const db = await getModels();
   if (db?.AuditLog) {
     try {
-      // Hanya set userId bila UUID (tipe kolom UUID di audit_logs).
       const userIdUuid = isUuid(entry.actorId) ? entry.actorId : null;
       const resourceUuid = isUuid(entry.targetId) ? entry.targetId : null;
+      const detailsPayload = {
+        ...opts.details,
+        targetId: entry.targetId,
+        targetLabel: entry.targetLabel,
+        actorId: entry.actorId,
+        actorName: entry.actorName,
+        module: 'role_privilege',
+      };
 
       await db.AuditLog.create({
         userId: userIdUuid,
@@ -120,23 +127,21 @@ export async function logRoleAudit(opts: LogOptions): Promise<RoleAuditEntry> {
         userRole: entry.actorRole,
         oldValues: opts.oldValues,
         newValues: opts.newValues,
-        details: {
-          ...opts.details,
-          targetLabel: entry.targetLabel,
-          actorId: entry.actorId,
-          actorName: entry.actorName,
-          module: 'role_privilege'
-        },
+        details: detailsPayload,
         ipAddress: entry.ipAddress,
         userAgent: entry.userAgent,
         isHqIntervention: false,
         affectedRecords: 1
       });
       entry.id = `db_${entry.timestamp}`;
-      // Mirror juga ke memory supaya halaman audit lokal bisa combine.
       pushMemory(entry);
       return entry;
     } catch (err: any) {
+      if (await sequelizeRawInsert(opts, entry)) {
+        entry.id = `db_${entry.timestamp}`;
+        pushMemory(entry);
+        return entry;
+      }
       if (process.env.NODE_ENV !== 'production') {
         console.warn('[audit] DB write failed, fallback memory:', err?.message);
       }
@@ -150,6 +155,59 @@ export async function logRoleAudit(opts: LogOptions): Promise<RoleAuditEntry> {
 function isUuid(v: any): boolean {
   return typeof v === 'string'
     && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+}
+
+async function sequelizeRawInsert(opts: LogOptions, entry: RoleAuditEntry): Promise<boolean> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const seq = require('../../lib/sequelize');
+    if (!seq) return false;
+    await seq.query(`
+      INSERT INTO audit_logs (
+        id, user_id, action, resource, resource_id, details, ip_address, user_agent,
+        is_hq_intervention, affected_records, old_values, new_values, user_role, created_at, updated_at
+      ) VALUES (
+        uuid_generate_v4(),
+        :userId,
+        :action,
+        :resource,
+        :resourceId,
+        :details::jsonb,
+        :ip,
+        :ua,
+        false,
+        1,
+        :oldValues::jsonb,
+        :newValues::jsonb,
+        :userRole,
+        NOW(),
+        NOW()
+      )
+    `, {
+      replacements: {
+        userId: isUuid(entry.actorId) ? entry.actorId : null,
+        action: opts.action,
+        resource: opts.targetType,
+        resourceId: isUuid(entry.targetId) ? entry.targetId : null,
+        details: JSON.stringify({
+          ...opts.details,
+          targetId: entry.targetId,
+          targetLabel: entry.targetLabel,
+          actorId: entry.actorId,
+          actorName: entry.actorName,
+          module: 'role_privilege',
+        }),
+        ip: entry.ipAddress,
+        ua: entry.userAgent,
+        oldValues: JSON.stringify(opts.oldValues ?? null),
+        newValues: JSON.stringify(opts.newValues ?? null),
+        userRole: entry.actorRole,
+      },
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Load audit logs (DB + memory merged). */
@@ -177,7 +235,7 @@ export async function listRoleAudit(opts?: { limit?: number; action?: RoleAuditA
           actorName: r.details?.actorName || null,
           actorRole: r.userRole || null,
           targetType: (r.resource || 'role') as RoleAuditEntry['targetType'],
-          targetId: r.resourceId || null,
+          targetId: r.resourceId || r.details?.targetId || null,
           targetLabel: r.details?.targetLabel || null,
           oldValues: r.oldValues,
           newValues: r.newValues,

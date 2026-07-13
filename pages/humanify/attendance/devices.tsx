@@ -145,10 +145,16 @@ export default function DeviceManagementPage() {
   const handleSync = async (deviceId: string) => {
     setSyncing(deviceId);
     try {
+      const device = devices.find((d) => d.id === deviceId);
+      const isZk = (device?.deviceBrand || '').toLowerCase().includes('zk');
       const res = await fetch('/api/humanify/attendance/device-sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deviceId, mode: 'manual', records: [] })
+        body: JSON.stringify({
+          deviceId,
+          mode: isZk ? 'zkteco-pull' : 'manual',
+          records: [],
+        }),
       });
       const json = await res.json().catch(() => ({}));
       if (res.ok || (json && (json.success || json.data))) {

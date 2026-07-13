@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import HRStatCard from '@/components/humanify/HRStatCard';
 import EnterprisePageHeader from '@/components/humanify/EnterprisePageHeader';
 import {
@@ -36,6 +38,7 @@ export default function HRAnalyticsPage() {
   const [tab, setTab] = useState<TabKey>('overview');
   const [mounted, setMounted] = useState(false);
   const [predictive, setPredictive] = useState<any>(null);
+  const [predictiveSource, setPredictiveSource] = useState<HrisDataSource>('empty');
   const [aiInsights, setAiInsights] = useState<any[]>([]);
 
   const fmtCur = (n: number) => `Rp ${(n || 0).toLocaleString('id-ID')}`;
@@ -51,7 +54,10 @@ export default function HRAnalyticsPage() {
       const json = await hrRes.json();
       if (json.success && json.data) setData({ ...EMPTY, ...json.data });
       const predJson = await predRes.json();
-      if (predJson.success) setPredictive(predJson.data);
+      if (predJson.success) {
+        setPredictive(predJson.data);
+        setPredictiveSource(predJson.dataSource || predJson.data?.dataSource || 'live');
+      }
       const aiJson = await aiRes.json();
       if (aiJson.success) setAiInsights(aiJson.data || []);
     } catch { /* keep empty */ }
@@ -326,11 +332,16 @@ export default function HRAnalyticsPage() {
 
         {!loading && tab === 'predictive' && predictive && (
           <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-500">Analitik prediktif dari data historis HRIS (absensi, KPI, disiplin, engagement)</p>
+              <DataSourceBadge source={predictiveSource} />
+            </div>
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
               <HRStatCard label="Risiko Kritis" value={predictive.attritionRisk?.criticalCount ?? 0} sub="Perlu intervensi segera" icon={AlertTriangle} gradient="from-rose-500 to-red-700" />
               <HRStatCard label="Risiko Tinggi" value={predictive.attritionRisk?.highRiskCount ?? 0} sub={`Avg score ${predictive.attritionRisk?.avgRiskScore ?? 0}`} icon={TrendingDown} gradient="from-orange-500 to-amber-600" />
               <HRStatCard label="Prediksi Absen" value={`${predictive.absenteeism?.predictedRate ?? 0}%`} sub={predictive.absenteeism?.trend ?? 'stable'} icon={Clock} gradient="from-blue-500 to-indigo-600" />
               <HRStatCard label="Prediksi Cuti" value={predictive.leaveForecast?.predictedRequests ?? 0} sub={`Risiko ops: ${predictive.leaveForecast?.operationalRisk ?? 'low'}`} icon={CalendarDays} gradient="from-teal-500 to-emerald-600" />
+              <HRStatCard label="Engagement" value={predictive.engagementScore ?? '—'} sub="skor survei 6 bln" icon={Sparkles} gradient="from-violet-500 to-purple-600" />
             </div>
 
             {predictive.leaveForecast && (

@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import { PageGuard } from '@/components/permissions';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import Link from 'next/link';
 import {
   Target, ChevronRight, Plus, TrendingUp, AlertTriangle, CheckCircle2,
@@ -21,8 +23,19 @@ const CONFIDENCE_COLORS: Record<string, string> = {
 
 export default function OkrPage() {
   const [okrs, setOkrs] = useState<any[]>([]);
+  const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [filterLevel, setFilterLevel] = useState<OkrLevel | ''>('');
   const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    title: '',
+    level: 'department' as OkrLevel,
+    period: 'Q1-2026',
+    keyResultTitle: '',
+    targetValue: 100,
+    unit: '%',
+  });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -31,13 +44,50 @@ export default function OkrPage() {
       const r = await fetch(`/api/humanify/okr${q}`);
       const j = await r.json();
       setOkrs(j.data || []);
-    } catch { setOkrs([]); }
+      setDataSource(j.dataSource || (j.data?.length ? 'live' : 'empty'));
+    } catch { setOkrs([]); setDataSource('empty'); }
     setLoading(false);
   }, [filterLevel]);
 
   useEffect(() => { load(); }, [load]);
 
   const avgProgress = okrs.length ? Math.round(okrs.reduce((s, o) => s + o.progress, 0) / okrs.length) : 0;
+
+  const handleCreate = async () => {
+    if (!form.title.trim()) return;
+    setSaving(true);
+    try {
+      const res = await fetch('/api/humanify/okr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: form.title,
+          level: form.level,
+          period: form.period,
+          cycle: 'quarterly',
+          status: 'active',
+          keyResults: [{
+            id: `kr-${Date.now()}`,
+            title: form.keyResultTitle || 'Key Result 1',
+            targetValue: form.targetValue,
+            currentValue: 0,
+            unit: form.unit,
+            weight: 1,
+            confidence: 'on_track',
+          }],
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Gagal membuat OKR');
+      setShowCreate(false);
+      setForm({ title: '', level: 'department', period: 'Q1-2026', keyResultTitle: '', targetValue: 100, unit: '%' });
+      load();
+    } catch (e: any) {
+      alert(e.message || 'Gagal membuat OKR');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <PageGuard anyPermission={['kpi.view', 'kpi.*', 'employees.*']} title="OKR" description="Objectives & Key Results">
@@ -50,6 +100,10 @@ export default function OkrPage() {
               <p className="text-sm text-gray-500">Setup unlimited cascading, monitoring progress, check-in & reminder</p>
             </div>
             <Link href="/humanify/kpi" className="px-3 py-2 text-sm border rounded-lg hover:bg-gray-50">KPI Dashboard →</Link>
+            <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+              <Plus className="w-4 h-4" /> Tambah OKR
+            </button>
+            <DataSourceBadge source={dataSource} />
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -124,6 +178,39 @@ export default function OkrPage() {
             </div>
           )}
         </div>
+
+        {showCreate && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+              <h3 className="text-lg font-bold">Tambah Objective</h3>
+              <input
+                className="w-full border rounded-lg px-3 py-2 text-sm"
+                placeholder="Judul objective"
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <select className="border rounded-lg px-3 py-2 text-sm" value={form.level}
+                  onChange={(e) => setForm({ ...form, level: e.target.value as OkrLevel })}>
+                  {(['company', 'department', 'individual'] as OkrLevel[]).map((l) => (
+                    <option key={l} value={l}>{LEVEL_LABELS[l]}</option>
+                  ))}
+                </select>
+                <input className="border rounded-lg px-3 py-2 text-sm" placeholder="Periode (Q1-2026)"
+                  value={form.period} onChange={(e) => setForm({ ...form, period: e.target.value })} />
+              </div>
+              <input className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Key Result utama"
+                value={form.keyResultTitle} onChange={(e) => setForm({ ...form, keyResultTitle: e.target.value })} />
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm border rounded-lg">Batal</button>
+                <button onClick={handleCreate} disabled={saving || !form.title.trim()}
+                  className="px-4 py-2 text-sm bg-purple-600 text-white rounded-lg disabled:opacity-50">
+                  {saving ? 'Menyimpan...' : 'Simpan'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </HQLayout>
     </PageGuard>
   );

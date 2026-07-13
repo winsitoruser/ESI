@@ -14,8 +14,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         period: req.query.period as string | undefined,
         department: req.query.department as string | undefined,
       };
-      const data = await listOkrs(filters);
-      return res.json({ success: true, data });
+      const { okrs, dataSource } = await listOkrs(filters);
+      return res.json({ success: true, data: okrs, dataSource });
     }
 
     if (req.method === 'POST') {

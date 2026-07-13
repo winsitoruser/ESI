@@ -1,6 +1,8 @@
 /**
  * OKR (Objectives & Key Results) — cascading alignment company → team → individual
  */
+import { allowHrMockFallback, type HrisDataSource } from './data-source';
+
 let sequelize: any;
 try { sequelize = require('../sequelize'); } catch (_) {}
 
@@ -85,8 +87,18 @@ function mapOkr(row: any): OkrObjective {
   };
 }
 
-export async function listOkrs(filters?: { level?: OkrLevel; period?: string; department?: string }): Promise<OkrObjective[]> {
-  if (!sequelize) return getMockOkrs(filters);
+export interface OkrListResult {
+  okrs: OkrObjective[];
+  dataSource: HrisDataSource;
+}
+
+export async function listOkrs(filters?: { level?: OkrLevel; period?: string; department?: string }): Promise<OkrListResult> {
+  if (!sequelize) {
+    return {
+      okrs: allowHrMockFallback() ? getMockOkrs(filters) : [],
+      dataSource: allowHrMockFallback() ? 'demo' : 'empty',
+    };
+  }
   await ensureOkrTables();
   let sql = 'SELECT * FROM hris_okr_objectives WHERE 1=1';
   const params: any[] = [];
@@ -95,8 +107,13 @@ export async function listOkrs(filters?: { level?: OkrLevel; period?: string; de
   if (filters?.department) { params.push(filters.department); sql += ` AND department = $${params.length}`; }
   sql += ' ORDER BY level ASC, created_at DESC';
   const [rows] = await sequelize.query(sql, { bind: params });
-  if (!rows?.length) return getMockOkrs(filters);
-  return rows.map(mapOkr);
+  if (!rows?.length) {
+    if (allowHrMockFallback()) {
+      return { okrs: getMockOkrs(filters), dataSource: 'demo' };
+    }
+    return { okrs: [], dataSource: 'empty' };
+  }
+  return { okrs: rows.map(mapOkr), dataSource: 'live' };
 }
 
 export async function createOkr(data: Partial<OkrObjective>): Promise<OkrObjective | null> {
