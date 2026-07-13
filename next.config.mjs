@@ -126,7 +126,10 @@ const nextConfig = {
            * Set security headers to all routes.
            */
           source: "/(.*)",
-          headers: createSecureHeaders(),
+          headers: [
+            ...createSecureHeaders(),
+            { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          ],
         },
       ];
     }
