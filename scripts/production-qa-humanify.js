@@ -3,9 +3,10 @@
  * Humanify Production QA — orchestrates smoke, stress, business flow, security, pentest
  * Usage:
  *   SMOKE_BASE_URL=https://humanify.id SMOKE_EMAIL=superadmin@humanify.id SMOKE_PASSWORD=superadmin123 \
- *   node scripts/production-qa-humanify.js
+ *   DEALLS_WEBHOOK_SECRET=<from VPS .env> node scripts/production-qa-humanify.js
  */
 const { spawnSync } = require('child_process');
+const crypto = require('crypto');
 const path = require('path');
 
 const BASE = process.env.SMOKE_BASE_URL || 'https://humanify.id';
@@ -63,18 +64,26 @@ function runPentest() {
     if (!ok) failed++;
   }
 
-  // Webhook should accept when no secret (or with signature)
+  // Recruitment webhook — HMAC when DEALLS_WEBHOOK_SECRET is configured
+  const whBody = JSON.stringify({
+    provider: 'dealls',
+    event: 'candidate.applied',
+    payload: { candidate: { full_name: 'QA Pentest', email: `qa.${Date.now()}@test.local` } },
+  });
+  const whSecret = process.env.DEALLS_WEBHOOK_SECRET;
+  const whHeaders = { 'Content-Type': 'application/json' };
+  if (whSecret) {
+    whHeaders['x-webhook-signature'] = crypto.createHmac('sha256', whSecret).update(whBody).digest('hex');
+  } else {
+    whHeaders['x-webhook-signature'] = 'qa-smoke-unsigned';
+  }
   const wh = fetchSync(`${BASE}/api/humanify/webhooks/recruitment`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-webhook-signature': 'qa-smoke' },
-    body: JSON.stringify({
-      provider: 'dealls',
-      event: 'candidate.applied',
-      payload: { candidate: { full_name: 'QA Pentest', email: `qa.${Date.now()}@test.local` } },
-    }),
+    headers: whHeaders,
+    body: whBody,
   });
   const whOk = wh.status === 200 && wh.json?.success;
-  checks.push(['Recruitment webhook (signed)', whOk]);
+  checks.push([whSecret ? 'Recruitment webhook (HMAC)' : 'Recruitment webhook (no secret)', whOk]);
   if (!whOk) failed++;
 
   for (const [name, ok] of checks) {

@@ -192,6 +192,7 @@ TENANT_ISOLATION_ENABLED=true
 TENANT_SUPERADMIN_EMAIL=superadmin@humanify.id
 DEFAULT_TIMEZONE=Asia/Jakarta
 DEFAULT_LANGUAGE=id
+DEALLS_WEBHOOK_SECRET=$(openssl rand -hex 32)
 EOF
 chmod 600 $APP_DIR/.env
 
@@ -208,6 +209,9 @@ PY
 REMOTE_ENV
 fi
 fi
+
+echo "=== [3b/6] Ensure webhook secrets ==="
+ssh_cmd "ENV_FILE=$APP_DIR/.env bash -s" < "$SRC/scripts/ensure-humanify-webhook-secrets.sh"
 
 echo "=== [4/6] npm install + migrations ==="
 if [ "${DEPLOY_SKIP_MIGRATE:-false}" = true ]; then

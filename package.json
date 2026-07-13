@@ -89,7 +89,8 @@
     "smoke:dashboard": "node scripts/smoke-test-humanify-dashboard.js",
     "smoke:vps": "node scripts/smoke-test-humanify-vps.js",
     "qa:humanify": "node scripts/production-qa-humanify.js",
-    "qa:humanify:prod": "SMOKE_BASE_URL=https://humanify.id node scripts/production-qa-humanify.js"
+    "qa:humanify:prod": "SMOKE_BASE_URL=https://humanify.id node scripts/production-qa-humanify.js",
+    "humanify:webhook-secrets": "bash scripts/ensure-humanify-webhook-secrets.sh"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

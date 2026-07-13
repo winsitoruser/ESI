@@ -1,0 +1,36 @@
+name: Humanify Production QA
+
+on:
+  schedule:
+    # Senin & Kamis 06:00 UTC (13:00 WIB)
+    - cron: '0 6 * * 1,4'
+  workflow_dispatch:
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run production QA suite
+        env:
+          SMOKE_BASE_URL: ${{ secrets.HUMANIFY_QA_URL || 'https://humanify.id' }}
+          SMOKE_EMAIL: ${{ secrets.HUMANIFY_QA_EMAIL }}
+          SMOKE_PASSWORD: ${{ secrets.HUMANIFY_QA_PASSWORD }}
+          DEALLS_WEBHOOK_SECRET: ${{ secrets.DEALLS_WEBHOOK_SECRET }}
+        run: |
+          if [ -z "$SMOKE_EMAIL" ] || [ -z "$SMOKE_PASSWORD" ]; then
+            echo "::warning::HUMANIFY_QA_EMAIL / HUMANIFY_QA_PASSWORD secrets not set — skipping QA"
+            exit 0
+          fi
+          node scripts/production-qa-humanify.js
