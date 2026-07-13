@@ -14,8 +14,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { provider, event, payload } = req.body || {};
     const signature = (req.headers['x-webhook-signature'] as string) || req.body?.signature;
     const secretKey = process.env[`${(provider || '').toUpperCase()}_WEBHOOK_SECRET`];
+    const rawBody = JSON.stringify(req.body || {});
 
-    if (!validateWebhookSignature(provider, signature, secretKey)) {
+    if (!validateWebhookSignature(signature, secretKey, rawBody)) {
       return res.status(401).json({ success: false, error: 'Invalid webhook signature' });
     }
 

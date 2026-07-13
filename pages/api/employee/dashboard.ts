@@ -148,7 +148,7 @@ async function getAttendance(res: NextApiResponse, userId: string, tenantId: str
           ...todayRow,
           check_in: formatCheckInTime(todayRow.check_in || todayRow.check_in_at),
           check_out: formatCheckInTime(todayRow.check_out || todayRow.check_out_at),
-        } : null,
+        } : { check_in: null, check_out: null, status: 'not_recorded' },
         thisMonth: {
           present: monthSummary['present'] || 0,
           late: monthSummary['late'] || 0,

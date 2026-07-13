@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import HumanifyLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import Modal, { ConfirmDialog } from '../../../components/hq/ui/Modal';
 import { StatusBadge } from '../../../components/hq/ui/Badge';
 import {
@@ -138,6 +140,7 @@ const emptyForm = {
 export default function UserRoles() {
   const [tab, setTab] = useState<TabKey>('list');
   const [roles, setRoles] = useState<Role[]>([]);
+  const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -267,7 +270,9 @@ export default function UserRoles() {
       const r = await fetch('/api/humanify/roles');
       if (r.ok) {
         const json = await r.json();
-        setRoles(json.roles || []);
+        const rows = json.roles || [];
+        setRoles(rows);
+        setDataSource(rows.length ? 'live' : 'empty');
       }
     } catch (e) {
       console.error(e);
@@ -460,6 +465,9 @@ export default function UserRoles() {
   return (
     <HumanifyLayout title="Manajemen Role & Privilege" subtitle="Kelola hak akses modul, aksi, dan cakupan data pengguna">
       <div className="space-y-6">
+        <div className="flex justify-end">
+          <DataSourceBadge source={dataSource} />
+        </div>
         {/* STATS */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <StatCard icon={Shield} color="blue" value={stats.total} label="Total Role" />

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import HumanifyLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import { toast } from 'react-hot-toast';
 import {
   ArrowLeft, Save, User, Mail, Phone, Calendar,
@@ -76,6 +78,7 @@ export default function TeamMemberDetailPage() {
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [member, setMember] = useState<any>(null);
+  const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -103,6 +106,7 @@ export default function TeamMemberDetailPage() {
       if (json.success && json.data) {
         const found = json.data;
         setMember(found);
+        setDataSource('live');
         if (isNew || edit === 'true') {
           setForm({
             employeeId: found.employeeId || '',
@@ -120,6 +124,7 @@ export default function TeamMemberDetailPage() {
         }
       } else {
         setError(json.error || 'Anggota tidak ditemukan');
+        setDataSource('empty');
         toast.error(json.error || 'Anggota tidak ditemukan');
       }
     } catch {
@@ -236,10 +241,13 @@ export default function TeamMemberDetailPage() {
             <Link href="/humanify/team-members" className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900">
               <ArrowLeft className="w-4 h-4" /> Back to Team Members
             </Link>
-            <Link href={`/humanify/team-members/${member.id}?edit=true`}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
-              Edit Member
-            </Link>
+            <div className="flex items-center gap-2">
+              <DataSourceBadge source={dataSource} />
+              <Link href={`/humanify/team-members/${member.id}?edit=true`}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+                Edit Member
+              </Link>
+            </div>
           </div>
 
           <div className="bg-white rounded-xl border border-gray-200 p-6">

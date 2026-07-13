@@ -1,6 +1,7 @@
 /**
  * Webhook candidate sync — upsert applicants from external job boards
  */
+import crypto from 'crypto';
 import type { RecruitmentChannel } from './recruitment-integrations';
 
 let sequelize: any;
@@ -122,14 +123,26 @@ export async function upsertCandidateFromWebhook(
   return { id: newId, action: 'created', candidateName: name, provider };
 }
 
+export function computeWebhookSignature(secret: string, payload: string): string {
+  return crypto.createHmac('sha256', secret).update(payload).digest('hex');
+}
+
 export function validateWebhookSignature(
-  provider: string,
   signature: string | undefined,
   secret: string | undefined,
+  payload: string,
 ): boolean {
   // No provider secret configured — accept inbound webhooks (configure *_WEBHOOK_SECRET in production)
   if (!secret) return true;
-  if (!signature || signature.length === 0) return false;
-  // HMAC validation placeholder — implement per provider when secrets are set
-  return signature.length > 0;
+  if (!signature) return false;
+  const expected = computeWebhookSignature(secret, payload);
+  const provided = signature.replace(/^sha256=/i, '').trim();
+  try {
+    const a = Buffer.from(provided, 'hex');
+    const b = Buffer.from(expected, 'hex');
+    if (a.length !== b.length) return false;
+    return crypto.timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
 }

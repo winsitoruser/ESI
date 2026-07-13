@@ -83,7 +83,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const { upsertCandidateFromWebhook, validateWebhookSignature } = await import('@/lib/hris/webhook-candidate-sync');
       const secretKey = process.env[`${(provider || '').toUpperCase()}_WEBHOOK_SECRET`];
 
-      if (!validateWebhookSignature(provider, signature, secretKey)) {
+      if (!validateWebhookSignature(signature, secretKey, JSON.stringify(req.body || {}))) {
         return res.status(401).json({ success: false, error: 'Invalid webhook signature' });
       }
 

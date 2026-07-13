@@ -86,7 +86,10 @@
     "smoke:ir-disciplinary": "node scripts/smoke-test-ir-disciplinary-integration.js",
     "smoke:enterprise": "node scripts/smoke-test-humanify-enterprise.js",
     "smoke:kpi-performance": "node scripts/smoke-test-humanify-kpi-performance-engagement.js",
-    "smoke:dashboard": "node scripts/smoke-test-humanify-dashboard.js"
+    "smoke:dashboard": "node scripts/smoke-test-humanify-dashboard.js",
+    "smoke:vps": "node scripts/smoke-test-humanify-vps.js",
+    "qa:humanify": "node scripts/production-qa-humanify.js",
+    "qa:humanify:prod": "SMOKE_BASE_URL=https://humanify.id node scripts/production-qa-humanify.js"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

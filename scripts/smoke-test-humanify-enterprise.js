@@ -6,6 +6,8 @@
  */
 require('dotenv').config();
 
+const crypto = require('crypto');
+
 const BASE = process.env.SMOKE_BASE_URL || 'http://localhost:3010';
 const EMAIL = process.env.SMOKE_EMAIL || 'superadmin@humanify.id';
 const PASSWORDS = [process.env.SMOKE_PASSWORD, 'superadmin123', 'MasterAdmin2026!'].filter(Boolean);
@@ -120,17 +122,22 @@ async function testBusinessFlows() {
   if (ocr.body.success && ocr.body.data?.amount) ok(`flow: receipt OCR (Rp ${ocr.body.data.amount})`);
   else fail('flow: receipt OCR', ocr.body.error);
 
+  const whBody = JSON.stringify({
+      provider: 'dealls',
+      event: 'candidate.applied',
+      payload: { candidate: { full_name: 'Smoke Test Candidate', email: `smoke.${Date.now()}@test.local` } },
+    });
+  const whSecret = process.env.DEALLS_WEBHOOK_SECRET;
+  const whSig = whSecret
+    ? crypto.createHmac('sha256', whSecret).update(whBody).digest('hex')
+    : (process.env.RECRUITMENT_WEBHOOK_SMOKE_SIG || 'smoke-test-signature');
   const wh = await fetch(`${BASE}/api/humanify/webhooks/recruitment`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-webhook-signature': process.env.RECRUITMENT_WEBHOOK_SMOKE_SIG || 'smoke-test-signature',
+      'x-webhook-signature': whSig,
     },
-    body: JSON.stringify({
-      provider: 'dealls',
-      event: 'candidate.applied',
-      payload: { candidate: { full_name: 'Smoke Test Candidate', email: `smoke.${Date.now()}@test.local` } },
-    }),
+    body: whBody,
   });
   const whJson = await wh.json();
   if (whJson.success) ok('flow: recruitment webhook sync');

@@ -36,9 +36,11 @@ function runPentest() {
   const hsts = headerText.includes('strict-transport-security');
   const xfo = headerText.includes('x-frame-options');
   const xcto = headerText.includes('x-content-type-options');
+  const referrer = headerText.includes('referrer-policy');
   if (hsts) checks.push(['HSTS', true]); else { checks.push(['HSTS', false]); failed++; }
   if (xfo) checks.push(['X-Frame-Options', true]); else { checks.push(['X-Frame-Options', false]); failed++; }
   if (xcto) checks.push(['X-Content-Type-Options', true]); else { checks.push(['X-Content-Type-Options', false]); failed++; }
+  if (referrer) checks.push(['Referrer-Policy', true]); else { checks.push(['Referrer-Policy', false]); failed++; }
 
   const unauthEndpoints = [
     '/api/humanify/dashboard',
