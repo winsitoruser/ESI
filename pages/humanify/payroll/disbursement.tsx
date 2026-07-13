@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import { PageGuard } from '@/components/permissions';
 import Link from 'next/link';
 import {
@@ -15,6 +17,7 @@ const BANKS = [
 export default function DisbursementPage() {
   const [rows, setRows] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
+  const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [loading, setLoading] = useState(true);
   const fmt = (n: number) => `Rp ${(n || 0).toLocaleString('id-ID')}`;
 
@@ -25,7 +28,8 @@ export default function DisbursementPage() {
       const j = await r.json();
       setRows(j.data?.rows || []);
       setTotal(j.data?.total || 0);
-    } catch { setRows([]); }
+      setDataSource(j.dataSource || (j.data?.rows?.length ? 'live' : 'empty'));
+    } catch { setRows([]); setDataSource('empty'); }
     setLoading(false);
   }, []);
 
@@ -45,6 +49,7 @@ export default function DisbursementPage() {
               <h2 className="text-xl font-bold flex items-center gap-2"><Banknote className="w-5 h-5 text-emerald-600" /> Instant Disbursement</h2>
               <p className="text-sm text-gray-500">Export file transfer bank setelah payroll approved</p>
             </div>
+            <DataSourceBadge source={dataSource} />
           </div>
 
           <div className="grid grid-cols-3 gap-4">

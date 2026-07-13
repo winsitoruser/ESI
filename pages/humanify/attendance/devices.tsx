@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import { useHrisMasterData } from '@/hooks/useHrisMasterData';
 import {
@@ -47,7 +49,7 @@ export default function DeviceManagementPage() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [usingMock, setUsingMock] = useState(false);
+  const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -68,16 +70,16 @@ export default function DeviceManagementPage() {
       if (!res.ok || !json.success) {
         setFetchError(json.error || `Gagal memuat device (HTTP ${res.status})`);
         setDevices([]);
-        setUsingMock(false);
+        setDataSource('empty');
         return;
       }
       setDevices(json.data || []);
-      setUsingMock(!!json._mock);
+      setDataSource(json.dataSource || (json._mock ? 'demo' : (json.data?.length ? 'live' : 'empty')));
     } catch (error) {
       console.error('Error fetching devices:', error);
       setFetchError('Gagal memuat daftar perangkat');
       setDevices([]);
-      setUsingMock(false);
+      setDataSource('empty');
     } finally {
       setLoading(false);
     }
@@ -227,7 +229,10 @@ export default function DeviceManagementPage() {
   return (
     <HQLayout title={t('hris.devicesTitle')} subtitle={t('hris.devicesSubtitle')}>
       <div className="space-y-6">
-        {usingMock && (
+        <div className="flex justify-end">
+          <DataSourceBadge source={dataSource} />
+        </div>
+        {dataSource === 'demo' && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
             Menampilkan data demo — tabel <code className="text-xs">attendance_devices</code> belum tersedia di database.
             Jalankan <code className="text-xs">node scripts/migrate-humanify-vps-deps.js</code> untuk aktivasi penuh.

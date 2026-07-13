@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import AttendanceBulkImportModal from '@/components/humanify/AttendanceBulkImportModal';
 import { exportToCSV, exportToExcel, exportToPDF } from '@/utils/export-utils';
@@ -45,6 +47,7 @@ export default function AttendancePage() {
   // === Live today data ===
   const [todayStats, setTodayStats] = useState<any>({});
   const [todayRecords, setTodayRecords] = useState<any[]>([]);
+  const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
 
   // === Daily data ===
   const [dailyRecords, setDailyRecords] = useState<DailyRecord[]>([]);
@@ -72,6 +75,8 @@ export default function AttendancePage() {
       if (res.ok && json.success) {
         setTodayStats(json.todayStats || {});
         setTodayRecords(json.todayRecords || []);
+        if (json.dataSource) setDataSource(json.dataSource);
+        else setDataSource((json.todayRecords?.length || json.todayStats?.total) ? 'live' : 'empty');
       }
     } catch {
       showToast('error', 'Gagal memuat data live');
@@ -216,6 +221,10 @@ export default function AttendancePage() {
   return (
     <HQLayout title={t('hris.attendanceTitle')} subtitle={t('hris.attendanceSubtitle')}>
       <div className="space-y-6">
+        <div className="flex justify-end">
+          <DataSourceBadge source={dataSource} />
+        </div>
+
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
           {[

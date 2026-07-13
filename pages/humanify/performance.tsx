@@ -77,6 +77,7 @@ export default function PerformancePage() {
   const [feedbackSummary, setFeedbackSummary] = useState<any>(null);
   const [nineBoxData, setNineBoxData] = useState<any>(null);
   const [nineBoxDataSource, setNineBoxDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
+  const [performanceDataSource, setPerformanceDataSource] = useState<HrisDataSource>('empty');
   const [selectedNineBox, setSelectedNineBox] = useState<any>(null);
   const [show360Modal, setShow360Modal] = useState(false);
   const [saving360, setSaving360] = useState(false);
@@ -111,12 +112,15 @@ export default function PerformancePage() {
         const apiReviews = payload.reviews || [];
         setReviews(apiReviews.length > 0 ? apiReviews : []);
         if (payload.templates?.length) setTemplates(payload.templates);
+        setPerformanceDataSource(json.dataSource || payload.dataSource || (apiReviews.length ? 'live' : 'empty'));
       } else {
         setReviews([]);
+        setPerformanceDataSource('empty');
       }
     } catch (error) {
       console.error('Failed to fetch performance reviews:', error);
       setReviews([]);
+      setPerformanceDataSource('empty');
     } finally {
       setLoading(false);
     }
@@ -565,9 +569,12 @@ export default function PerformancePage() {
           icon={Award}
           gradient="indigo"
           actions={
-            <button onClick={openCreate} className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50">
-              <Plus className="h-4 w-4" /> Buat Evaluasi
-            </button>
+            <>
+              <DataSourceBadge source={pageTab === 'ninebox' ? nineBoxDataSource : performanceDataSource} className="!bg-white/90" />
+              <button onClick={openCreate} className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50">
+                <Plus className="h-4 w-4" /> Buat Evaluasi
+              </button>
+            </>
           }
         />
 

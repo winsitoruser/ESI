@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 import { successResponse, errorResponse, ErrorCodes, HttpStatus } from '../../../lib/api/response';
 import { launchReviewCycle, listReviewCycles } from '@/lib/hris/review-cycle';
+import { resolveDataSource } from '@/lib/hris/data-source';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch (e) {}
@@ -139,6 +140,7 @@ async function getPerformanceReviews(req: NextApiRequest, res: NextApiResponse) 
     successResponse({
       reviews,
       templates,
+      dataSource: resolveDataSource(total > 0, false),
       summary: { total, avgRating: Math.round(avgRating * 10) / 10, excellent, good, needsImprovement }
     })
   );

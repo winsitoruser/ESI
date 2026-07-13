@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import HRStatCard from '@/components/humanify/HRStatCard';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import PerformanceModuleChrome, { EnterpriseTabBar } from '@/components/humanify/PerformanceModuleChrome';
 import { useTranslation } from '@/lib/i18n';
 import { 
@@ -104,6 +106,7 @@ export default function KPIDashboard() {
   const [templates, setTemplates] = useState<KPITemplate[]>([]);
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'templates' | 'assign'>('dashboard');
   const [viewMode, setViewMode] = useState<'employee' | 'branch'>('branch');
@@ -223,15 +226,18 @@ export default function KPIDashboard() {
         setBranchKPIs(data.branchKPIs || []);
         setTemplates(data.templates || []);
         setEmployees(data.employees || []);
+        setDataSource(data.dataSource || ((data.employeeKPIs?.length) ? 'live' : 'empty'));
       } else {
         setEmployeeKPIs([]);
         setBranchKPIs([]);
+        setDataSource('empty');
         showToast('error', 'Gagal memuat data KPI');
       }
     } catch (error) {
       console.error('Failed to fetch KPI data:', error);
       setEmployeeKPIs([]);
       setBranchKPIs([]);
+      setDataSource('empty');
       showToast('error', t('hris.serverError'));
     } finally {
       setLoading(false);
@@ -356,6 +362,7 @@ export default function KPIDashboard() {
           gradient="violet"
           actions={
             <>
+              <DataSourceBadge source={dataSource} className="!bg-white/90" />
               <select value={periodFilter} onChange={(e) => setPeriodFilter(e.target.value)} className="rounded-xl border-0 bg-white/15 px-3 py-2 text-sm text-white backdrop-blur-sm">
                 <option value="current" className="text-slate-900">{t('hris.thisMonth')}</option>
                 <option value="last" className="text-slate-900">{t('hris.lastMonth')}</option>

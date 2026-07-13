@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
+import { resolveDataSource } from '@/lib/hris/data-source';
 
 let sequelize: any, Op: any;
 try {
@@ -191,6 +192,7 @@ async function getKPIData(req: NextApiRequest, res: NextApiResponse) {
     templates,
     employees,
     period: currentPeriod,
+    dataSource: resolveDataSource(total > 0, false),
     summary: { totalEmployees: total, exceeded, achieved, partial, notAchieved, avgAchievement }
   });
 }
