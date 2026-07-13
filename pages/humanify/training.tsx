@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import { GraduationCap, Search, Plus, Eye, Edit, X, Calendar, Clock, Users, MapPin, Star, Award, BookOpen, CheckCircle2, BarChart3, TrendingUp, FileText, Download, Filter, ChevronRight, Target, Bookmark, Video, Monitor, Loader2, Trash2 } from 'lucide-react';
 
@@ -11,6 +13,8 @@ const CERT_STATUS_COLORS: Record<string, string> = { active: 'bg-green-100 text-
 const LEVEL_COLORS: Record<string, string> = { beginner: 'text-green-600', intermediate: 'text-blue-600', advanced: 'text-purple-600' };
 
 const emptyProgramForm = { title: '', category: 'technical', type: 'training', trainer: '', location: '', status: 'upcoming', start_date: '', end_date: '', max_participants: '30', cost_per_person: '0', description: '' };
+
+const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
 
 const MOCK_PROGRAMS = [
   { id: 'tp1', title: 'Food Safety & Hygiene', category: 'compliance', type: 'workshop', trainer: 'Dr. Andi Firmansyah', location: 'HQ Jakarta', status: 'active', start_date: '2026-03-01', end_date: '2026-03-15', max_participants: 30, enrolled: 24, completed: 12, rating: 4.5, cost_per_person: 500000 },
@@ -36,9 +40,10 @@ const MOCK_TRAINING_ANALYTICS = {
 export default function TrainingPage() {
   const { t } = useTranslation();
   const [tab, setTab] = useState<TabKey>('programs');
-  const [programs, setPrograms] = useState<any[]>(MOCK_PROGRAMS);
-  const [certs, setCerts] = useState<any[]>(MOCK_CERTS);
-  const [analytics, setAnalytics] = useState<any>(MOCK_TRAINING_ANALYTICS);
+  const [programs, setPrograms] = useState<any[]>([]);
+  const [certs, setCerts] = useState<any[]>([]);
+  const [analytics, setAnalytics] = useState<any>({});
+  const [dataSource, setDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
   const [search, setSearch] = useState('');
   const [filterCat, setFilterCat] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -57,18 +62,29 @@ export default function TrainingPage() {
     try {
       const res = await fetch('/api/humanify/training?action=programs');
       const data = await res.json();
-      if (data.data?.length) setPrograms(Array.isArray(data.data) ? data.data : MOCK_PROGRAMS);
-      else setPrograms(MOCK_PROGRAMS);
-    } catch (e) { console.warn('Failed to fetch programs:', e); setPrograms(MOCK_PROGRAMS); }
+      if (data.success && Array.isArray(data.data)) {
+        setPrograms(data.data);
+        if (data.data.length) setDataSource('live');
+      } else {
+        setPrograms(USE_MOCK_UI ? MOCK_PROGRAMS : []);
+      }
+    } catch (e) {
+      console.warn('Failed to fetch programs:', e);
+      setPrograms(USE_MOCK_UI ? MOCK_PROGRAMS : []);
+      if (USE_MOCK_UI) setDataSource('demo');
+    }
   }, []);
 
   const fetchCerts = useCallback(async () => {
     try {
       const res = await fetch('/api/humanify/training?action=certifications');
       const data = await res.json();
-      if (data.data?.length) setCerts(Array.isArray(data.data) ? data.data : MOCK_CERTS);
-      else setCerts(MOCK_CERTS);
-    } catch (e) { console.warn('Failed to fetch certifications:', e); setCerts(MOCK_CERTS); }
+      if (data.success && Array.isArray(data.data)) setCerts(data.data);
+      else setCerts(USE_MOCK_UI ? MOCK_CERTS : []);
+    } catch (e) {
+      console.warn('Failed to fetch certifications:', e);
+      setCerts(USE_MOCK_UI ? MOCK_CERTS : []);
+    }
   }, []);
 
   const fetchAnalytics = useCallback(async () => {
@@ -76,8 +92,11 @@ export default function TrainingPage() {
       const res = await fetch('/api/humanify/training?action=analytics');
       const data = await res.json();
       if (data.data) setAnalytics(data.data);
-      else setAnalytics(MOCK_TRAINING_ANALYTICS);
-    } catch (e) { console.warn('Failed to fetch analytics:', e); setAnalytics(MOCK_TRAINING_ANALYTICS); }
+      else setAnalytics(USE_MOCK_UI ? MOCK_TRAINING_ANALYTICS : {});
+    } catch (e) {
+      console.warn('Failed to fetch analytics:', e);
+      setAnalytics(USE_MOCK_UI ? MOCK_TRAINING_ANALYTICS : {});
+    }
   }, []);
 
   useEffect(() => {
@@ -155,6 +174,10 @@ export default function TrainingPage() {
     <HQLayout title={t('hris.trainingTitle')} subtitle={t('hris.trainingSubtitle')}>
       <div className="space-y-6">
         {toast && <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white ${toast.type === 'error' ? 'bg-red-500' : 'bg-green-500'}`}>{toast.msg}</div>}
+
+        <div className="flex justify-end">
+          <DataSourceBadge source={dataSource} />
+        </div>
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">

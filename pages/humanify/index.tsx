@@ -365,6 +365,12 @@ export default function HRISDashboard() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id, ...(status === 'rejected' ? { rejection_reason: 'Ditolak dari dashboard' } : {}) }),
         });
+      } else if (type === 'travel') {
+        res = await fetch(`/api/humanify/travel-expense?action=${status === 'approved' ? 'approve-request' : 'reject-request'}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(status === 'approved' ? { id } : { id, reason: 'Ditolak dari dashboard' }),
+        });
       } else {
         router.push('/humanify/mss');
         return;

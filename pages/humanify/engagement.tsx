@@ -4,6 +4,10 @@ import HRStatCard from '@/components/humanify/HRStatCard';
 import PerformanceModuleChrome, { EnterpriseTabBar } from '@/components/humanify/PerformanceModuleChrome';
 import { useTranslation } from '@/lib/i18n';
 import { MessageCircle, Award, Bell, Plus, Edit, Trash2, X, Heart, Star, Send, Eye, BarChart3, Users, RefreshCw } from 'lucide-react';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
+
+const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
 
 interface SurveyItem { id: string; title: string; description: string; survey_type: string; status: string; start_date: string; end_date: string; is_anonymous: boolean; questions: any[]; total_responses: number; }
 interface RecognitionItem { id: string; from_employee_id: number; to_employee_id: number; recognition_type: string; title: string; message: string; points: number; badge: string; category: string; likes_count: number; created_at: string; }
@@ -16,7 +20,8 @@ const MOCK_ENG_OVERVIEW = { totalSurveys: 0, activeSurveys: 0, totalRecognitions
 export default function EngagementPage() {
   const { t } = useTranslation();
   const [tab, setTab] = useState<TabKey>('surveys');
-  const [overview, setOverview] = useState<any>(MOCK_ENG_OVERVIEW);
+  const [overview, setOverview] = useState<any>({});
+  const [dataSource, setDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
   const [surveys, setSurveys] = useState<SurveyItem[]>([]);
   const [recognitions, setRecognitions] = useState<RecognitionItem[]>([]);
   const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
@@ -64,17 +69,21 @@ export default function EngagementPage() {
       const [ov, sv, rc, an] = await Promise.all([
         api('overview'), api('surveys'), api('recognitions'), api('announcements')
       ]);
-      setOverview(ov.data || MOCK_ENG_OVERVIEW);
+      setOverview(ov.data || {});
       setSurveys(sv.data || []);
       setRecognitions(rc.data || []);
       setAnnouncements(an.data || []);
+      const ds = (sv.dataSource || an.dataSource) as HrisDataSource | undefined;
+      const hasLive = (sv.data?.length || 0) + (an.data?.length || 0) + (rc.data?.length || 0) > 0;
+      setDataSource(ds || (hasLive ? 'live' : 'empty'));
     } catch (e: any) {
       console.error(e);
       setLoadError(e?.message || 'Gagal memuat data engagement');
-      setOverview(MOCK_ENG_OVERVIEW);
+      setOverview(USE_MOCK_UI ? MOCK_ENG_OVERVIEW : {});
       setSurveys([]);
       setRecognitions([]);
       setAnnouncements([]);
+      if (USE_MOCK_UI) setDataSource('demo');
     }
     setLoading(false);
   }, [api]);
@@ -150,9 +159,12 @@ export default function EngagementPage() {
         icon={Heart}
         gradient="emerald"
         actions={
-          <button onClick={loadData} disabled={loading} className="flex items-center gap-2 rounded-xl bg-white/15 px-4 py-2 text-sm text-white backdrop-blur-sm hover:bg-white/25 disabled:opacity-60">
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <DataSourceBadge source={dataSource} />
+            <button onClick={loadData} disabled={loading} className="flex items-center gap-2 rounded-xl bg-white/15 px-4 py-2 text-sm text-white backdrop-blur-sm hover:bg-white/25 disabled:opacity-60">
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+            </button>
+          </div>
         }
       />
 

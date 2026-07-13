@@ -144,6 +144,28 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     } catch { /* claims table may not exist */ }
 
     try {
+      const [pendingTravel] = await sequelize.query(`
+        SELECT tr.id, tr.destination, tr.departure_date, tr.return_date, tr.estimated_budget, tr.status, tr.created_at,
+               e.name AS employee_name
+        FROM travel_requests tr
+        LEFT JOIN employees e ON tr.employee_id::text = e.id::text
+        WHERE tr.status = 'pending'
+        ORDER BY tr.created_at DESC LIMIT 5
+      `, { replacements: r });
+      pendingApprovals.push(...(pendingTravel as any[]).map((t) => ({
+        id: t.id,
+        type: 'travel',
+        title: `Perjalanan Dinas - ${t.employee_name || 'Karyawan'}`,
+        subtitle: `${t.destination || '-'} · ${t.departure_date || '-'} s/d ${t.return_date || '-'}`,
+        status: 'pending',
+        date: t.departure_date,
+        createdAt: t.created_at,
+        href: '/humanify/travel-expense',
+        color: 'cyan',
+      })));
+    } catch { /* travel_requests may not exist */ }
+
+    try {
       const [pendingMutations] = await sequelize.query(`
         SELECT m.id, m.mutation_type, m.effective_date, m.status, m.created_at, e.name AS employee_name
         FROM employee_mutations m
@@ -228,6 +250,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           leave: pendingApprovals.filter((p) => p.type === 'leave').length,
           overtime: pendingApprovals.filter((p) => p.type === 'overtime').length,
           claim: pendingApprovals.filter((p) => p.type === 'claim').length,
+          travel: pendingApprovals.filter((p) => p.type === 'travel').length,
           mutation: pendingApprovals.filter((p) => p.type === 'mutation').length,
         },
       },

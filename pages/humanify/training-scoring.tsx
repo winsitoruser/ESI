@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import {
   Settings, Plus, Loader2, X, Target, BarChart3, Users, GraduationCap, Award,
@@ -23,6 +24,8 @@ const GRADE_COLORS: Record<string, string> = {
 
 type TabKey = 'configs' | 'scores' | 'competencies' | 'candidates';
 
+const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
+
 const MOCK_TS_CONFIGS = [{ id: 'sc1', name: 'Scoring Barista Standard', curriculum_id: 'cur1', passing_score: 70, max_score: 100, weight_theory: 30, weight_practical: 50, weight_attitude: 20, grading_scale: 'A-E', status: 'active' }];
 const MOCK_TS_COMPETENCIES = [
   { id: 'comp1', name: 'Pengetahuan Kopi', category: 'knowledge', description: 'Pemahaman tentang jenis dan proses kopi', max_score: 100, weight: 15 },
@@ -40,8 +43,8 @@ export default function TrainingScoringPage() {
   const [search, setSearch] = useState('');
 
   // Data
-  const [configs, setConfigs] = useState<any[]>(MOCK_TS_CONFIGS);
-  const [competencies, setCompetencies] = useState<any[]>(MOCK_TS_COMPETENCIES);
+  const [configs, setConfigs] = useState<any[]>([]);
+  const [competencies, setCompetencies] = useState<any[]>([]);
   const [scores, setScores] = useState<any[]>([]);
   const [scoreSummary, setScoreSummary] = useState<any>(null);
   const [candidateAccounts, setCandidateAccounts] = useState<any[]>([]);
@@ -62,16 +65,18 @@ export default function TrainingScoringPage() {
     try {
       const res = await fetch(`${API}?action=configs`);
       const data = await res.json();
-      if (data.data) setConfigs(data.data);
-    } catch (e) { console.warn(e); setConfigs(MOCK_TS_CONFIGS); }
+      if (data.data?.length) setConfigs(data.data);
+      else setConfigs(USE_MOCK_UI ? MOCK_TS_CONFIGS : []);
+    } catch (e) { console.warn(e); setConfigs(USE_MOCK_UI ? MOCK_TS_CONFIGS : []); }
   }, []);
 
   const fetchCompetencies = useCallback(async () => {
     try {
       const res = await fetch(`${API}?action=competencies`);
       const data = await res.json();
-      if (data.data) setCompetencies(data.data);
-    } catch (e) { console.warn(e); setCompetencies(MOCK_TS_COMPETENCIES); }
+      if (data.data?.length) setCompetencies(data.data);
+      else setCompetencies(USE_MOCK_UI ? MOCK_TS_COMPETENCIES : []);
+    } catch (e) { console.warn(e); setCompetencies(USE_MOCK_UI ? MOCK_TS_COMPETENCIES : []); }
   }, []);
 
   const fetchScores = useCallback(async (batchId?: string) => {
