@@ -254,6 +254,11 @@ export default function RecruitmentPage() {
       <div className="space-y-6">
         {toast && <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white ${toast.type === 'error' ? 'bg-red-500' : 'bg-green-500'}`}>{toast.msg}</div>}
 
+        <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm flex items-center justify-between gap-3">
+          <span>Portal karir publik untuk kandidat apply langsung tanpa login.</span>
+          <a href="/careers" target="_blank" rel="noopener noreferrer" className="text-blue-700 font-medium hover:underline shrink-0">Buka /careers →</a>
+        </div>
+
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-white rounded-xl p-4 border shadow-sm">

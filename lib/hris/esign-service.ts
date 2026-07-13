@@ -152,10 +152,24 @@ export async function simulateSignDocument(id: string, signerEmail: string): Pro
         updated_at = NOW()
       WHERE id = $1 RETURNING *
     `, { bind: [id, JSON.stringify(signers), status] });
-    return rows?.[0] ? mapDoc(rows[0]) : null;
+    const result = rows?.[0] ? mapDoc(rows[0]) : null;
+    if (status === 'completed' && result?.employeeId) {
+      try {
+        const { markOnboardingDocKontrakComplete } = await import('@/lib/hris/lifecycle-automation');
+        await markOnboardingDocKontrakComplete(result.employeeId);
+      } catch { /* noop */ }
+    }
+    return result;
   }
 
-  return { ...doc, signers, status, completedAt: allSigned ? new Date().toISOString() : undefined };
+  const updated = { ...doc, signers, status, completedAt: allSigned ? new Date().toISOString() : undefined };
+  if (allSigned && doc.employeeId) {
+    try {
+      const { markOnboardingDocKontrakComplete } = await import('@/lib/hris/lifecycle-automation');
+      await markOnboardingDocKontrakComplete(doc.employeeId);
+    } catch { /* noop */ }
+  }
+  return updated;
 }
 
 function getMockDocuments(): ESignDocument[] {

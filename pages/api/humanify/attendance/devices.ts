@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../auth/[...nextauth]';
+import { allowHrMockFallback } from '@/lib/hris/data-source';
 
 let AttendanceDevice: any, Branch: any;
 try {
@@ -45,12 +46,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   } catch (error: any) {
     if (isMissingTableError(error)) {
-      console.warn('Attendance Devices API: table missing, using mock fallback');
+      console.warn('Attendance Devices API: table missing');
+      if (allowHrMockFallback()) {
+        return res.status(200).json({
+          success: true,
+          data: getMockDevices(),
+          pagination: { total: getMockDevices().length, page: 1, limit: 20, totalPages: 1 },
+          dataSource: 'demo',
+          _mock: true,
+        });
+      }
       return res.status(200).json({
         success: true,
-        data: getMockDevices(),
-        pagination: { total: getMockDevices().length, page: 1, limit: 20, totalPages: 1 },
-        _mock: true,
+        data: [],
+        pagination: { total: 0, page: 1, limit: 20, totalPages: 0 },
+        dataSource: 'empty',
       });
     }
     console.warn('Attendance Devices API Error:', error?.message || error);
@@ -66,11 +76,20 @@ async function getDevices(req: NextApiRequest, res: NextApiResponse, session: an
   const limitNum = parseInt(limit as string, 10) || 20;
 
   if (!AttendanceDevice) {
+    if (allowHrMockFallback()) {
+      return res.status(200).json({
+        success: true,
+        data: mock,
+        pagination: { total: mock.length, page: pageNum, limit: limitNum, totalPages: 1 },
+        dataSource: 'demo',
+        _mock: true,
+      });
+    }
     return res.status(200).json({
       success: true,
-      data: mock,
-      pagination: { total: mock.length, page: pageNum, limit: limitNum, totalPages: 1 },
-      _mock: true,
+      data: [],
+      pagination: { total: 0, page: pageNum, limit: limitNum, totalPages: 0 },
+      dataSource: 'empty',
     });
   }
 

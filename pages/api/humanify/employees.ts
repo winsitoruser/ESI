@@ -320,6 +320,25 @@ async function createEmployee(req: NextApiRequest, res: NextApiResponse) {
       }
     }
 
+    // P4: auto-start onboarding checklist
+    try {
+      const { startOnboardingForEmployee } = await import('@/lib/hris/lifecycle-automation');
+      await startOnboardingForEmployee({
+        id: employee.id,
+        employeeId: employee.employeeId,
+        employeeUid: employee.employeeId,
+        name: employee.name,
+        email: employee.email,
+        position: employee.position,
+        department: employee.department,
+        branchName: branchName || '',
+        workLocation: workLocation || '',
+        joinDate: employee.joinDate,
+      }, tenantId);
+    } catch (autoErr) {
+      console.warn('Onboarding automation failed:', (autoErr as Error).message);
+    }
+
     return res.status(HttpStatus.CREATED).json(
       successResponse(employee, undefined, 'Employee created successfully')
     );
@@ -420,6 +439,26 @@ async function deleteEmployee(req: NextApiRequest, res: NextApiResponse) {
       await record.update({ status: 'INACTIVE', endDate: new Date() });
     } else {
       await record.update({ isActive: false });
+    }
+
+    // P4: auto-start offboarding checklist
+    try {
+      const tenantId = getTenantId(req);
+      const { startOffboardingForEmployee } = await import('@/lib/hris/lifecycle-automation');
+      const row = record.toJSON ? record.toJSON() : record;
+      await startOffboardingForEmployee({
+        id: row.id,
+        employeeId: row.employeeId,
+        employeeUid: row.employeeId,
+        name: row.name,
+        email: row.email,
+        position: row.position,
+        department: row.department,
+        branchName: row.branchName || '',
+        workLocation: row.workLocation || '',
+      }, tenantId, { reason: 'Karyawan dinonaktifkan', reasonCategory: 'resignation' });
+    } catch (autoErr) {
+      console.warn('Offboarding automation failed:', (autoErr as Error).message);
     }
 
     return res.status(HttpStatus.OK).json(

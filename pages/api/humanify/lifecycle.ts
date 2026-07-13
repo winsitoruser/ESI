@@ -247,6 +247,19 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
       return res.json({ success: true, data: entry });
     }
 
+    case 'contract-send-esign': {
+      if (!body.contractId && !body.id) return res.status(400).json({ error: 'contractId is required' });
+      const contractId = body.contractId || body.id;
+      let contract: any = body;
+      if (EmployeeContract) {
+        const row = await EmployeeContract.findByPk(contractId);
+        if (row) contract = row.toJSON ? row.toJSON() : row;
+      }
+      const { sendContractToESign } = await import('@/lib/hris/lifecycle-automation');
+      const esign = await sendContractToESign(contract, body.signers);
+      return res.json({ success: true, data: esign });
+    }
+
     case 'offboarding': {
       const entry = await createOffboarding({
         tenantId,

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, type MouseEvent } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import {
   FileText, Plus, Search, Filter, Calendar, AlertTriangle, CheckCircle,
-  X, Edit, Trash2, RefreshCw, XCircle, Clock, DollarSign, User, Building2, Download, Bell
+  X, Edit, Trash2, RefreshCw, XCircle, Clock, DollarSign, User, Building2, Download, Bell, PenLine
 } from 'lucide-react';
 import EmployeePicker, { type PickedEmployee } from '@/components/humanify/EmployeePicker';
 import { HRIS_DEPARTMENTS, getDepartmentLabel } from '@/lib/hris/master-data';
@@ -77,9 +77,10 @@ export default function ContractsPage() {
   async function fetchAll() {
     setLoading(true);
     try {
-      const [cRes, oRes] = await Promise.all([
+      const [cRes, oRes, rRes] = await Promise.all([
         fetch('/api/humanify/lifecycle?action=contracts'),
         fetch('/api/humanify/lifecycle?action=contracts-overview'),
+        fetch('/api/humanify/reminders?action=upcoming'),
       ]);
       const cJson = await cRes.json();
       const oJson = await oRes.json();
@@ -101,6 +102,10 @@ export default function ContractsPage() {
       }));
       setContracts(list);
       if (oJson?.data) setOverview(oJson.data);
+      const rJson = await rRes.json().catch(() => ({}));
+      if (!(rJson?.data?.length)) {
+        await fetch('/api/humanify/reminders?action=generate', { method: 'POST' }).catch(() => null);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -146,6 +151,21 @@ export default function ContractsPage() {
       await fetchAll();
     } catch (err: any) {
       showToast('error', err?.message || 'Gagal menyimpan kontrak');
+    }
+  }
+
+  async function handleSendESign(contract: Contract) {
+    try {
+      const res = await fetch('/api/humanify/lifecycle?action=contract-send-esign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contractId: contract.id }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || 'Gagal membuat e-sign');
+      showToast('success', 'Dokumen e-sign dibuat — buka modul E-Sign untuk tindak lanjut');
+    } catch (err: any) {
+      showToast('error', err?.message || 'Gagal membuat e-sign');
     }
   }
 
@@ -239,14 +259,23 @@ export default function ContractsPage() {
             <h3 className="font-semibold text-orange-800 mb-3 flex items-center gap-2"><AlertTriangle className="w-5 h-5" /> Kontrak Segera Berakhir (&lt; 60 hari)</h3>
             <div className="grid md:grid-cols-2 gap-2">
               {expiring.slice(0, 6).map((c) => (
-                <div key={c.id} className="bg-white rounded-lg px-3 py-2 text-sm border border-orange-100 flex items-center justify-between">
+                <div key={c.id} className="bg-white rounded-lg px-3 py-2 text-sm border border-orange-100 flex items-center justify-between gap-2">
                   <div className="min-w-0">
                     <div className="font-medium truncate">{c.contractNumber || 'Tanpa No.'} • {c.employeeName || `EMP-${c.employeeId}`}</div>
                     <div className="text-xs text-gray-500">{TYPE_LABELS[c.contractType]?.label} • Berakhir {c.endDate}</div>
                   </div>
-                  <span className={`text-xs font-bold shrink-0 ${(c.daysLeft as number) <= 7 ? 'text-red-600' : 'text-orange-600'}`}>
-                    {c.daysLeft} hari
-                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`text-xs font-bold ${(c.daysLeft as number) <= 7 ? 'text-red-600' : 'text-orange-600'}`}>
+                      {c.daysLeft} hari
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleSendESign(c)}
+                      className="text-xs px-2 py-1 border border-violet-200 text-violet-700 rounded hover:bg-violet-50 flex items-center gap-1"
+                    >
+                      <PenLine className="w-3 h-3" /> E-Sign
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

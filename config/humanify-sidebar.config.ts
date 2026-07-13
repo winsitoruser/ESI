@@ -8,7 +8,7 @@ import {
   CalendarDays, Settings, Megaphone, FileText, KeyRound, Heart, Shield,
   Briefcase, Plane, BookOpen, PenTool, AlertTriangle, Calculator, Banknote,
   Percent, Gift, Clock, Network, Fingerprint, Sparkles, Layers, Ban,
-  Wallet, Package, CreditCard, Crosshair, PenLine, Scale,
+  Wallet, Package, CreditCard, Crosshair, PenLine, Scale, Globe,
   type LucideIcon,
 } from 'lucide-react';
 import type { SidebarConfig, MenuGroup } from './sidebar.config';
@@ -104,6 +104,7 @@ export const humanifySidebarConfig: SidebarConfig = {
       title: 'Rekrutmen & Pengembangan',
       items: [
         { id: 'humanify-recruitment', name: 'Rekrutmen', href: '/humanify/recruitment', icon: UserPlus, modules: ['humanify', 'hris'] },
+        { id: 'humanify-careers', name: 'Portal Karir Publik', href: '/careers', icon: Globe, modules: ['humanify', 'hris'] },
         { id: 'humanify-training', name: 'Program Training', href: '/humanify/training', icon: GraduationCap, modules: ['humanify', 'hris'] },
         { id: 'humanify-training-dev', name: 'Pelatihan & Pengembangan', href: '/humanify/training-development', icon: BookOpen, modules: ['humanify', 'hris'] },
         { id: 'humanify-training-scoring', name: 'Skor Training', href: '/humanify/training-scoring', icon: PenTool, modules: ['humanify', 'hris'] },

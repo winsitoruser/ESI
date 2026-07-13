@@ -249,7 +249,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }
         });
         if (rows.length === 0) return res.status(404).json({ error: 'Candidate not found' });
-        return res.json({ success: true, data: rows[0] });
+        const updated = rows[0];
+        if (body.stage === 'hired' || updated.current_stage === 'hired') {
+          try {
+            const { handleCandidateHired } = await import('@/lib/hris/lifecycle-automation');
+            const automation = await handleCandidateHired(updated, tenantId);
+            return res.json({ success: true, data: updated, automation });
+          } catch (autoErr) {
+            console.warn('[recruitment] hire automation:', (autoErr as Error).message);
+          }
+        }
+        return res.json({ success: true, data: updated });
       }
       return res.status(400).json({ error: 'Unknown PUT action' });
     }

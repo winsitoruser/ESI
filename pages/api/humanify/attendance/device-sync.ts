@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { v4 as uuidv4 } from 'uuid';
 import { withHQAuth } from '../../../../lib/middleware/withHQAuth';
+import { allowHrMockFallback } from '@/lib/hris/data-source';
 
 let AttendanceDevice: any, AttendanceDeviceLog: any, EmployeeAttendance: any, Employee: any, AttendanceSettings: any;
 try {
@@ -42,12 +43,20 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 
     if (!AttendanceDevice) {
-      return res.status(200).json({
-        success: true,
-        message: isManual ? 'Manual sync requested (mock)' : `Mock: processed ${recordList.length} records`,
-        processed: isManual ? 0 : recordList.length,
-        failed: 0,
-        _mock: true,
+      if (allowHrMockFallback()) {
+        return res.status(200).json({
+          success: true,
+          message: isManual ? 'Manual sync requested (mock)' : `Mock: processed ${recordList.length} records`,
+          processed: isManual ? 0 : recordList.length,
+          failed: 0,
+          dataSource: 'demo',
+          _mock: true,
+        });
+      }
+      return res.status(503).json({
+        success: false,
+        error: 'Attendance device module belum dikonfigurasi. Jalankan migrasi attendance.',
+        dataSource: 'empty',
       });
     }
 
