@@ -3,13 +3,16 @@
  * Humanify Production QA — orchestrates smoke, stress, business flow, security, pentest
  * Usage:
  *   SMOKE_BASE_URL=https://humanify.id SMOKE_EMAIL=superadmin@humanify.id SMOKE_PASSWORD=superadmin123 \
- *   DEALLS_WEBHOOK_SECRET=<from VPS .env> node scripts/production-qa-humanify.js
+ *   VPS_PASS='...' node scripts/production-qa-humanify.js
+ *   (auto-loads DEALLS_WEBHOOK_SECRET from VPS when VPS_PASS is set)
  */
 const { spawnSync } = require('child_process');
 const crypto = require('crypto');
 const path = require('path');
+const { loadWebhookSecrets } = require('./lib/humanify-qa-secrets');
 
 const BASE = process.env.SMOKE_BASE_URL || 'https://humanify.id';
+loadWebhookSecrets(BASE);
 const env = { ...process.env, SMOKE_BASE_URL: BASE };
 
 const suites = [
@@ -128,7 +131,10 @@ async function main() {
     const scriptPath = path.join(__dirname, suite.script);
     const r = spawnSync('node', [scriptPath], { env, encoding: 'utf8', stdio: 'pipe' });
     const out = (r.stdout || '') + (r.stderr || '');
-    const passMatch = out.match(/(\d+)\s+passed,\s*(\d+)\s+failed/i) || out.match(/PASSED:\s*(\d+)\s+FAILED:\s*(\d+)/i) || out.match(/Result:\s*(\d+)\s+passed,\s*(\d+)\s+failed/i);
+    const passMatch = out.match(/(\d+)\s+passed,\s*(\d+)\s+failed(?:,\s*\d+\s+warnings)?/i)
+      || out.match(/PASSED:\s*(\d+)\s+FAILED:\s*(\d+)/i)
+      || out.match(/RESULT:\s*(\d+)\s+passed,\s*(\d+)\s+failed/i)
+      || out.match(/Result:\s*(\d+)\s+passed,\s*(\d+)\s+failed/i);
     const passed = passMatch ? parseInt(passMatch[1], 10) : (r.status === 0 ? 1 : 0);
     const failed = passMatch ? parseInt(passMatch[2], 10) : (r.status === 0 ? 0 : 1);
     results.push({ name: suite.name, passed, failed, exit: r.status });
