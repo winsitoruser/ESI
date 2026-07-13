@@ -8,7 +8,7 @@ import {
   CalendarDays, Settings, Megaphone, FileText, KeyRound, Heart, Shield,
   Briefcase, Plane, BookOpen, PenTool, AlertTriangle, Calculator, Banknote,
   Percent, Gift, Clock, Network, Fingerprint, Sparkles, Layers, Ban,
-  Wallet, Package, CreditCard, Crosshair, PenLine, Scale, Globe, Brain,
+  Wallet, Package, CreditCard, Crosshair, PenLine, Scale, Globe, Brain, Zap,
   type LucideIcon,
 } from 'lucide-react';
 import type { SidebarConfig, MenuGroup } from './sidebar.config';
@@ -148,6 +148,15 @@ export const humanifySidebarConfig: SidebarConfig = {
         { id: 'humanify-project', name: 'Manajemen Proyek HR', href: '/humanify/project-management', icon: Briefcase, modules: ['humanify', 'hris'] },
         { id: 'humanify-ir', name: 'Hubungan Industrial & Kepatuhan', href: '/humanify/industrial-relations', icon: Scale, modules: ['humanify', 'hris'] },
         { id: 'humanify-disciplinary', name: 'Surat Disiplin (SP & SOP)', href: '/humanify/disciplinary-letters', icon: Ban, modules: ['humanify', 'hris'] },
+      ],
+    },
+    {
+      id: 'ai',
+      title: 'AI & Otomasi',
+      items: [
+        { id: 'humanify-ai-hub', name: 'AI Center', href: '/humanify/ai', icon: Sparkles, modules: ['humanify', 'hris'] },
+        { id: 'humanify-ai-copilot', name: 'HR Copilot', href: '/humanify/ai?tab=copilot', icon: Brain, modules: ['humanify', 'hris'] },
+        { id: 'humanify-ai-automation', name: 'Otomasi HR', href: '/humanify/ai?tab=automation', icon: Zap, modules: ['humanify', 'hris'] },
       ],
     },
     {

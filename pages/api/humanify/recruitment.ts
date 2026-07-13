@@ -202,6 +202,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
         return res.status(201).json({ success: true, data: rows[0] });
       }
+
+      if (action === 'screening-auto-advance') {
+        const { listRules, executeRule } = await import('@/lib/hris/hr-automation');
+        const rules = await listRules(tenantId);
+        const rule = rules.find((r: any) => r.rule_type === 'recruitment_screening' && r.is_active);
+        if (!rule) return res.json({ success: true, data: { advanced: 0, message: 'No active screening rule' } });
+        const result = await executeRule(rule.id, tenantId);
+        return res.json({ success: true, data: result });
+      }
+
       return res.status(400).json({ error: 'Unknown POST action' });
     }
 

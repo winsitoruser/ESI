@@ -184,3 +184,52 @@ export function generateModuleInsightsBatch(
 ): AIInsight[] {
   return modules.flatMap(m => generateRuleBasedInsights({ module: m.module, context: m.context }));
 }
+
+/** Batch insights with optional LLM enhancement for top-priority modules */
+export async function generateModuleInsightsBatchAsync(
+  modules: { module: HRModule; context: Record<string, unknown> }[],
+): Promise<{ insights: AIInsight[]; source: 'rules' | 'llm' | 'hybrid' }> {
+  const ruleInsights = generateModuleInsightsBatch(modules);
+
+  const apiKey = process.env.SUMOPOD_API_KEY || process.env.OPENAI_API_KEY;
+  if (!apiKey || process.env.HRIS_AI_LLM !== 'true') {
+    return { insights: ruleInsights, source: 'rules' };
+  }
+
+  try {
+    const summaryContext = modules.map(m => ({ module: m.module, ...m.context }));
+    const baseUrl = process.env.SUMOPOD_BASE_URL || 'https://ai.sumopod.com/v1';
+    const res = await fetch(`${baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: process.env.HRIS_AI_MODEL || 'deepseek-v4-flash',
+        messages: [
+          { role: 'system', content: 'Anda AI HR advisor Humanify. Berikan 2 insight singkat bahasa Indonesia dari data HR berikut. Format: [MODUL] judul: ringkasan' },
+          { role: 'user', content: JSON.stringify(summaryContext) },
+        ],
+        max_tokens: 400,
+        temperature: 0.3,
+      }),
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!res.ok) return { insights: ruleInsights, source: 'rules' };
+    const json = await res.json();
+    const text = json.choices?.[0]?.message?.content?.trim();
+    if (!text) return { insights: ruleInsights, source: 'rules' };
+
+    const llmInsight: AIInsight = {
+      module: 'general',
+      title: 'AI Executive Summary',
+      summary: text.split('\n').slice(0, 3).join(' '),
+      confidence: 78,
+      priority: 'medium',
+      actions: ['Review insight dengan tim HR', 'Jalankan automation scan'],
+    };
+
+    return { insights: [llmInsight, ...ruleInsights], source: 'hybrid' };
+  } catch {
+    return { insights: ruleInsights, source: 'rules' };
+  }
+}

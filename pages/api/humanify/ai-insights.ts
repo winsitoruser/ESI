@@ -6,7 +6,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]';
-import { generateAIInsights, generateModuleInsightsBatch, type HRModule } from '@/lib/hris/ai-service';
+import { generateAIInsights, generateModuleInsightsBatch, generateModuleInsightsBatchAsync, type HRModule } from '@/lib/hris/ai-service';
 
 const VALID_MODULES: HRModule[] = [
   'recruitment', 'attendance', 'kpi', 'performance', 'payroll',
@@ -85,8 +85,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (batch) {
       const modules: HRModule[] = ['recruitment', 'attendance', 'kpi', 'reimbursement', 'workforce'];
       const contexts = await Promise.all(modules.map(async m => ({ module: m, context: await gatherContext(m, period) })));
-      const insights = generateModuleInsightsBatch(contexts);
-      return res.json({ success: true, data: insights, source: 'rules', count: insights.length });
+      const result = await generateModuleInsightsBatchAsync(contexts);
+      return res.json({ success: true, data: result.insights, source: result.source, count: result.insights.length });
     }
 
     if (!module || !VALID_MODULES.includes(module)) {
