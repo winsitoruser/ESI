@@ -357,8 +357,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 score: graded.pct, sid: result_id,
               },
             });
+            const { syncCompetencyToKpi } = await import('../../../lib/hris/lms/integrations');
+            await syncCompetencyToKpi({
+              tenantId, employeeId: empId, employeeName: empName,
+              competencyCode: `PSYCHO_${exam[0].psychometric_type}`.toUpperCase(),
+              competencyName: `Psikotes ${exam[0].psychometric_type}`,
+              score: graded.pct,
+            });
           } catch { /* ignore */ }
         }
+
+        try {
+          const { notifyLmsExamResult } = await import('../../../lib/hris/lms/notifications');
+          const { triggerLmsWebhook } = await import('../../../lib/hris/lms/integrations');
+          await notifyLmsExamResult({
+            tenantId, employeeId: empId, examTitle: exam[0]?.title || 'Ujian',
+            examId, passed: isPassed, percentage: graded.pct,
+          });
+          if (isPassed) {
+            await triggerLmsWebhook('lms.exam_passed', empId, empName, {
+              exam_id: examId, result_id, percentage: graded.pct,
+            });
+          }
+        } catch { /* ignore */ }
 
         return res.json({
           success: true,
@@ -458,6 +479,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             validityMonths: c.certificate_validity_months,
           });
         }
+
+        try {
+          const { notifyLmsCertificate } = await import('../../../lib/hris/lms/notifications');
+          const { triggerLmsWebhook, createTrainingAllowance, syncCompetencyToKpi } = await import('../../../lib/hris/lms/integrations');
+          if (certificate) {
+            await notifyLmsCertificate({
+              tenantId, employeeId: empId, curriculumTitle: c.title,
+              certificateId: certificate.id,
+              verifyUrl: `/verify/cert/${certificate.verifyToken}`,
+            });
+            await triggerLmsWebhook('lms.certificate_issued', empId, empName, {
+              curriculum_id, certificate_id: certificate.id,
+            });
+          }
+          await triggerLmsWebhook('lms.course_completed', empId, empName, { curriculum_id });
+          await syncCompetencyToKpi({
+            tenantId, employeeId: empId, employeeName: empName,
+            competencyCode: `COURSE_${(c.code || 'CRS').toUpperCase()}`,
+            competencyName: c.title,
+            score: 100,
+          });
+          if (c.training_allowance_amount && Number(c.training_allowance_amount) > 0) {
+            await createTrainingAllowance({
+              tenantId, employeeId: empId, employeeName: empName,
+              amount: Number(c.training_allowance_amount),
+              reason: `Tunjangan pelatihan: ${c.title}`,
+              sourceId: curriculum_id,
+            });
+          }
+        } catch { /* ignore */ }
 
         return res.json({
           success: true,

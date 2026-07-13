@@ -156,7 +156,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               name: emp[0]?.name || null, mand: mandatory || false, due: due_date || null,
             },
           });
-          if (r.length) count++;
+          if (r.length) {
+            count++;
+            try {
+              const [cur] = await sequelize.query(
+                'SELECT title FROM hris_training_curricula WHERE id = :id LIMIT 1',
+                { replacements: { id: curriculum_id } },
+              );
+              const { notifyLmsEnrolled } = await import('../../../../lib/hris/lms/notifications');
+              const { triggerLmsWebhook } = await import('../../../../lib/hris/lms/integrations');
+              await notifyLmsEnrolled({
+                tenantId,
+                employeeId: eid,
+                curriculumTitle: cur[0]?.title || 'Kursus',
+                curriculumId: curriculum_id,
+                dueDate: due_date || null,
+              });
+              await triggerLmsWebhook('lms.enrolled', eid, emp[0]?.name || '', {
+                curriculum_id, mandatory: mandatory || false,
+              });
+            } catch { /* ignore */ }
+          }
         }
         return res.json({ success: true, data: { enrolled: count } });
       }

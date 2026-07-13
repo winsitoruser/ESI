@@ -1,6 +1,6 @@
 /* Humanify Employee Portal — minimal service worker */
-const CACHE = 'humanify-employee-v1';
-const PRECACHE = ['/employee', '/employee/login', '/manifest-employee.json'];
+const CACHE = 'humanify-employee-v2';
+const PRECACHE = ['/employee', '/employee/login', '/employee/training', '/manifest-employee.json'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(

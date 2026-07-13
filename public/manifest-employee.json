@@ -27,6 +27,7 @@
   "shortcuts": [
     { "name": "Absensi", "url": "/employee?tab=attendance", "description": "Check-in / Check-out" },
     { "name": "Klaim", "url": "/employee?tab=claims", "description": "Ajukan reimbursement" },
-    { "name": "Cuti", "url": "/employee?tab=leave", "description": "Pengajuan cuti" }
+    { "name": "Cuti", "url": "/employee?tab=leave", "description": "Pengajuan cuti" },
+    { "name": "Training", "url": "/employee/training", "description": "Kursus & ujian online" }
   ]
 }

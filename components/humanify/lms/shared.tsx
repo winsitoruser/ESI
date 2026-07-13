@@ -23,6 +23,9 @@ export function LmsPageNav({ active }: { active: string }) {
     { id: 'reports', href: '/humanify/lms/reports', label: 'Laporan' },
     { id: 'analytics', href: '/humanify/lms/analytics', label: 'Analytics L&D' },
     { id: 'proctoring', href: '/humanify/lms/proctoring', label: 'Proctoring' },
+    { id: 'integrations', href: '/humanify/lms/integrations', label: 'Integrasi' },
+    { id: 'academy', href: '/humanify/lms/academy', label: 'Academy' },
+    { id: 'ai-assistant', href: '/humanify/lms/ai-assistant', label: 'AI Assistant' },
     { id: 'competency', href: '/humanify/lms/competency', label: 'Kompetensi' },
     { id: 'access', href: '/humanify/lms/access', label: 'Akses & Role' },
   ];

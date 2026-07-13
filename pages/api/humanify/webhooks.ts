@@ -8,7 +8,8 @@ export type HRISEventType =
   | 'attendance.clock_in' | 'attendance.clock_out' | 'attendance.late' | 'attendance.absent'
   | 'kpi.target_set' | 'kpi.updated' | 'kpi.achieved' | 'kpi.not_achieved'
   | 'performance.review_created' | 'performance.review_submitted' | 'performance.review_acknowledged'
-  | 'leave.requested' | 'leave.approved' | 'leave.rejected';
+  | 'leave.requested' | 'leave.approved' | 'leave.rejected'
+  | 'lms.enrolled' | 'lms.exam_passed' | 'lms.certificate_issued' | 'lms.course_completed';
 
 interface HRISWebhookPayload {
   eventType: HRISEventType;
@@ -34,7 +35,8 @@ const EVENT_TYPES = [
   'attendance.clock_in', 'attendance.clock_out', 'attendance.late', 'attendance.absent',
   'kpi.target_set', 'kpi.updated', 'kpi.achieved', 'kpi.not_achieved',
   'performance.review_created', 'performance.review_submitted', 'performance.review_acknowledged',
-  'leave.requested', 'leave.approved', 'leave.rejected'
+  'leave.requested', 'leave.approved', 'leave.rejected',
+  'lms.enrolled', 'lms.exam_passed', 'lms.certificate_issued', 'lms.course_completed',
 ];
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {

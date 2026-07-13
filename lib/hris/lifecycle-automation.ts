@@ -171,6 +171,17 @@ export async function handleCandidateHired(
   if (employee) {
     const mapped = mapEmployeeRow(employee);
     const result = await startOnboardingForEmployee(mapped, tenantId);
+    try {
+      const { enrollEmployeeOnHire } = await import('./lms/integrations');
+      const lms = await enrollEmployeeOnHire({
+        tenantId,
+        employeeId: String(mapped.id || employee.id),
+        employeeName: name,
+      });
+      return { ...result, employee: mapped, lms_enrollment: lms };
+    } catch (e) {
+      console.warn('[lifecycle-automation] LMS hire enroll:', (e as Error).message);
+    }
     return { ...result, employee: mapped };
   }
 

@@ -23,6 +23,9 @@ const MODULES = [
   { id: 'reports', href: '/humanify/lms/reports', icon: BarChart3, color: 'text-rose-600 bg-rose-50', label: 'Laporan', desc: 'Laporan hasil ujian' },
   { id: 'analytics', href: '/humanify/lms/analytics', icon: BarChart3, color: 'text-sky-600 bg-sky-50', label: 'Analytics L&D', desc: 'Heatmap departemen & skill gap' },
   { id: 'proctoring', href: '/humanify/lms/proctoring', icon: Users, color: 'text-orange-600 bg-orange-50', label: 'Proctoring', desc: 'Review sesi anti-cheat & snapshot kamera' },
+  { id: 'integrations', href: '/humanify/lms/integrations', icon: Users, color: 'text-cyan-600 bg-cyan-50', label: 'Integrasi', desc: 'Rekrutmen, payroll, KPI, webhook' },
+  { id: 'academy', href: '/humanify/lms/academy', icon: GraduationCap, color: 'text-indigo-600 bg-indigo-50', label: 'Academy', desc: 'Branding & peserta eksternal' },
+  { id: 'ai-assistant', href: '/humanify/lms/ai-assistant', icon: GraduationCap, color: 'text-amber-600 bg-amber-50', label: 'AI Assistant', desc: 'Generate soal SOP & rekomendasi path' },
   { id: 'competency', href: '/humanify/lms/competency', icon: Award, color: 'text-green-600 bg-green-50', label: 'Kompetensi', desc: 'Sertifikat & riwayat kompetensi' },
   { id: 'access', href: '/humanify/lms/access', icon: Users, color: 'text-gray-600 bg-gray-50', label: 'Akses & Role', desc: 'Manajemen pengguna & role LMS' },
 ];
