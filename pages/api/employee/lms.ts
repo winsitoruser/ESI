@@ -7,6 +7,8 @@ import { authOptions } from '../auth/[...nextauth]';
 import { gradeExam, computeIntegrityScore } from '../../../lib/hris/lms/grading';
 import { calcCurriculumProgress, parseMaterials } from '../../../lib/hris/lms/course-service';
 import { issueCourseCertificate } from '../../../lib/hris/lms/certificate-issue';
+import { buildPsychometricReport } from '../../../lib/hris/lms/psychometric-report';
+import { shouldFlagSession } from '../../../lib/hris/lms/proctoring';
 
 const sequelize = require('../../../lib/sequelize');
 
@@ -157,6 +159,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             questions: safeQuestions,
             can_attempt: (attempts[0]?.count || 0) < exam.max_attempts,
             attempts_used: attempts[0]?.count || 0,
+            proctor_enabled: !!exam.proctor_enabled,
           },
         });
       }
@@ -166,7 +169,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (req.method === 'POST') {
       if (action === 'start-exam') {
-        const { exam_id } = req.body;
+        const { exam_id, device_fingerprint } = req.body;
         const [attempts] = await sequelize.query(
           'SELECT COUNT(*)::int as count FROM hris_training_exam_results WHERE exam_id = :eid AND employee_id = :empid',
           { replacements: { eid: exam_id, empid: empId } },
@@ -186,19 +189,53 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           },
         });
         const resultId = rows[0].id;
+        const proctorOn = !!exam[0].proctor_enabled;
         try {
           await sequelize.query(`
-            INSERT INTO hris_lms_exam_sessions (tenant_id, result_id, exam_id, employee_id, started_at, ip_address, user_agent, status)
-            VALUES (:tid, :rid, :eid, :empid, NOW(), :ip, :ua, 'active')
+            INSERT INTO hris_lms_exam_sessions (id, tenant_id, result_id, exam_id, employee_id, started_at, ip_address, user_agent, device_fingerprint, proctor_enabled, status)
+            VALUES (gen_random_uuid(), :tid, :rid, :eid, :empid, NOW(), :ip, :ua, :fp, :proctor, 'active')
           `, {
             replacements: {
               tid: tenantId, rid: resultId, eid: exam_id, empid: empId,
               ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress,
               ua: req.headers['user-agent'] || null,
+              fp: device_fingerprint || null,
+              proctor: proctorOn,
             },
           });
-        } catch { /* table may not exist yet */ }
-        return res.json({ success: true, data: rows[0] });
+        } catch {
+          try {
+            await sequelize.query(`
+              INSERT INTO hris_lms_exam_sessions (tenant_id, result_id, exam_id, employee_id, started_at, ip_address, user_agent, status)
+              VALUES (:tid, :rid, :eid, :empid, NOW(), :ip, :ua, 'active')
+            `, {
+              replacements: {
+                tid: tenantId, rid: resultId, eid: exam_id, empid: empId,
+                ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress,
+                ua: req.headers['user-agent'] || null,
+              },
+            });
+          } catch { /* ignore */ }
+        }
+        return res.json({ success: true, data: { ...rows[0], proctor_enabled: proctorOn } });
+      }
+
+      if (action === 'proctor-snapshot') {
+        const { result_id, exam_id, image_data, snapshot_type } = req.body;
+        if (!result_id || !image_data) return res.status(400).json({ error: 'result_id dan image_data diperlukan' });
+        try {
+          await sequelize.query(`
+            INSERT INTO hris_lms_proctor_snapshots (id, tenant_id, result_id, exam_id, employee_id, snapshot_type, image_data, captured_at)
+            VALUES (gen_random_uuid(), :tid, :rid, :eid, :empid, :st, :img, NOW())
+          `, {
+            replacements: {
+              tid: tenantId, rid: result_id, eid: exam_id, empid: empId,
+              st: snapshot_type || 'periodic',
+              img: String(image_data).slice(0, 500000),
+            },
+          });
+        } catch { /* table may not exist */ }
+        return res.json({ success: true });
       }
 
       if (action === 'exam-event') {
@@ -242,14 +279,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const status = graded.needsManual ? 'submitted' : 'graded';
 
         let integrityScore = 100;
+        let snapshotCount = 0;
         try {
           const [sess] = await sequelize.query(
             'SELECT * FROM hris_lms_exam_sessions WHERE result_id = :rid',
             { replacements: { rid: result_id } },
           );
+          const [snapC] = await sequelize.query(
+            'SELECT COUNT(*)::int AS c FROM hris_lms_proctor_snapshots WHERE result_id = :rid',
+            { replacements: { rid: result_id } },
+          ).catch(() => [[{ c: 0 }]]);
+          snapshotCount = snapC[0]?.c || 0;
           if (sess.length) {
             integrityScore = computeIntegrityScore(sess[0]);
-            const flagged = integrityScore < 70 || sess[0].tab_switch_count > 5;
+            const flagged = shouldFlagSession({
+              ...sess[0],
+              integrity_score: integrityScore,
+              snapshot_count: snapshotCount,
+              proctor_enabled: sess[0].proctor_enabled,
+            });
             await sequelize.query(`
               UPDATE hris_lms_exam_sessions SET ended_at = NOW(), integrity_score = :score,
                 status = :st, updated_at = NOW() WHERE result_id = :rid
@@ -271,6 +319,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             meta: JSON.stringify({ needs_manual: graded.needsManual, integrity_score: integrityScore }),
           },
         });
+
+        if (exam[0]?.psychometric_type) {
+          try {
+            const report = buildPsychometricReport(
+              exam[0].psychometric_type,
+              graded.pct,
+              graded.gradedAnswers,
+              questions,
+              passing,
+            );
+            await sequelize.query(`
+              INSERT INTO hris_lms_psychometric_reports (id, tenant_id, result_id, exam_id, employee_id, employee_name, psychometric_type, overall_score, dimensions, interpretation, recommendations, risk_level)
+              VALUES (gen_random_uuid(), :tid, :rid, :eid, :empid, :name, :pt, :score, :dim::jsonb, :interp, :rec::jsonb, :risk)
+            `, {
+              replacements: {
+                tid: tenantId, rid: result_id, eid: examId, empid: empId, name: empName,
+                pt: exam[0].psychometric_type, score: graded.pct,
+                dim: JSON.stringify(report.dimensions), interp: report.interpretation,
+                rec: JSON.stringify(report.recommendations), risk: report.risk_level,
+              },
+            });
+          } catch { /* ignore */ }
+        }
 
         if (isPassed && exam[0]?.psychometric_type) {
           try {

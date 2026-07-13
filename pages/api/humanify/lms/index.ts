@@ -260,9 +260,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const [rows] = await sequelize.query(`
           INSERT INTO hris_training_exams (tenant_id, curriculum_id, module_id, batch_id, title, description, exam_type, exam_scope,
             total_questions, total_score, passing_score, duration_minutes, max_attempts, shuffle_questions, shuffle_options,
-            anti_cheat_enabled, fullscreen_required, manual_grading_required, psychometric_type, status, created_by)
+            anti_cheat_enabled, fullscreen_required, manual_grading_required, psychometric_type, proctor_enabled, status, created_by)
           VALUES (:tid, :cid, :mid, :bid, :title, :desc, :etype, :escope, 0, :tscore, :pscore, :dur, :maxa, :shuffle, :shuffleo,
-            :anticheat, :fullscreen, :manual, :psycho, :st, :uid)
+            :anticheat, :fullscreen, :manual, :psycho, :proctor, :st, :uid)
           RETURNING *
         `, {
           replacements: {
@@ -272,6 +272,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             maxa: b.max_attempts || 1, shuffle: b.shuffle_questions ?? true, shuffleo: b.shuffle_options ?? false,
             anticheat: b.anti_cheat_enabled ?? true, fullscreen: b.fullscreen_required ?? false,
             manual: b.manual_grading_required ?? false, psycho: b.psychometric_type || null,
+            proctor: b.proctor_enabled ?? false,
             st: b.status || 'draft', uid: userId,
           },
         });

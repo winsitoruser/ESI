@@ -4,10 +4,22 @@ import Head from 'next/head';
 import Link from 'next/link';
 import {
   Clock, ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, Loader2,
-  Send, Flag, ArrowLeft, Eye, Shield,
+  Send, Flag, ArrowLeft, Eye, Shield, Camera,
 } from 'lucide-react';
 
 const API = '/api/employee/lms';
+const PROCTOR_INTERVAL_MS = 120_000;
+
+async function getDeviceFingerprint(): Promise<string> {
+  const raw = [
+    navigator.userAgent,
+    `${screen.width}x${screen.height}`,
+    Intl.DateTimeFormat().resolvedOptions().timeZone,
+    navigator.language,
+  ].join('|');
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw));
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
+}
 
 export default function EmployeeExamPage() {
   const router = useRouter();
@@ -26,8 +38,12 @@ export default function EmployeeExamPage() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [submitted, setSubmitted] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [proctorEnabled, setProctorEnabled] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const visibilityWarned = useRef(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const proctorTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const reportEvent = useCallback(async (event_type: string) => {
     if (!resultId) return;
@@ -38,6 +54,31 @@ export default function EmployeeExamPage() {
       });
     } catch { /* ignore */ }
   }, [resultId]);
+
+  const sendProctorSnapshot = useCallback(async (snapshot_type = 'periodic') => {
+    if (!resultId || !examId || !videoRef.current) return;
+    const video = videoRef.current;
+    if (!video.videoWidth) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = 320;
+    canvas.height = 240;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const image_data = canvas.toDataURL('image/jpeg', 0.6);
+    try {
+      await fetch(`${API}?action=proctor-snapshot`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ result_id: resultId, exam_id: examId, image_data, snapshot_type }),
+      });
+    } catch { /* ignore */ }
+  }, [resultId, examId]);
+
+  const stopProctoring = useCallback(() => {
+    if (proctorTimerRef.current) clearInterval(proctorTimerRef.current);
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+  }, []);
 
   // Anti-cheat: tab visibility
   useEffect(() => {
@@ -65,6 +106,8 @@ export default function EmployeeExamPage() {
     };
   }, [started, submitted, exam, reportEvent]);
 
+  useEffect(() => () => stopProctoring(), [stopProctoring]);
+
   useEffect(() => {
     if (!examId) return;
     setLoading(true);
@@ -75,6 +118,7 @@ export default function EmployeeExamPage() {
           setExam(data.data.exam);
           setQuestions(data.data.questions);
           setCanAttempt(data.data.can_attempt);
+          setProctorEnabled(!!data.data.proctor_enabled);
           setTimeLeft((data.data.exam.duration_minutes || 60) * 60);
         } else {
           alert(data.error || 'Gagal memuat ujian');
@@ -104,18 +148,36 @@ export default function EmployeeExamPage() {
 
   const handleStart = async () => {
     if (!canAttempt) return;
+    if (proctorEnabled) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 320 }, audio: false });
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
+        }
+      } catch {
+        alert('Proctoring memerlukan akses kamera. Izinkan kamera untuk melanjutkan.');
+        return;
+      }
+    }
     if (exam?.fullscreen_required && document.documentElement.requestFullscreen) {
       try { await document.documentElement.requestFullscreen(); } catch { /* ignore */ }
     }
+    const device_fingerprint = await getDeviceFingerprint().catch(() => null);
     const res = await fetch(`${API}?action=start-exam`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ exam_id: examId }),
+      body: JSON.stringify({ exam_id: examId, device_fingerprint }),
     });
     const data = await res.json();
     if (data.success) {
       setResultId(data.data.id);
       setStarted(true);
       setTimeLeft((exam?.duration_minutes || 60) * 60);
+      if (proctorEnabled) {
+        setTimeout(() => sendProctorSnapshot('start'), 3000);
+        proctorTimerRef.current = setInterval(() => sendProctorSnapshot('periodic'), PROCTOR_INTERVAL_MS);
+      }
     } else alert(data.error);
   };
 
@@ -133,6 +195,8 @@ export default function EmployeeExamPage() {
     if (data.success) {
       setSubmitted(true);
       setResult(data.data);
+      stopProctoring();
+      if (proctorEnabled) sendProctorSnapshot('end');
       if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     } else alert(data.error);
   };
@@ -153,6 +217,7 @@ export default function EmployeeExamPage() {
             <p>⏱ {exam?.duration_minutes} menit · {questions.length} soal</p>
             <p>Nilai lulus: {exam?.passing_score}%</p>
             {exam?.anti_cheat_enabled && <p className="flex items-center gap-1 text-orange-600"><Shield className="w-4 h-4" /> Mode anti-cheating aktif</p>}
+            {proctorEnabled && <p className="flex items-center gap-1 text-purple-600"><Camera className="w-4 h-4" /> Proctoring kamera aktif — izinkan akses kamera</p>}
           </div>
           <button type="button" disabled={!canAttempt} onClick={handleStart} className="mt-6 w-full py-3 bg-indigo-600 text-white rounded-xl font-medium disabled:opacity-50">
             {canAttempt ? 'Mulai Ujian' : 'Batas percobaan habis'}
@@ -180,6 +245,9 @@ export default function EmployeeExamPage() {
   return (
     <>
       <Head><title>Ujian — Soal {currentQ + 1}/{questions.length}</title></Head>
+      {proctorEnabled && (
+        <video ref={videoRef} className="fixed bottom-4 right-4 w-24 h-18 rounded-lg border-2 border-purple-400 object-cover z-20" muted playsInline />
+      )}
       <div className="min-h-screen bg-white flex flex-col">
         <div className="sticky top-0 bg-indigo-600 text-white px-4 py-3 flex justify-between items-center z-10">
           <span className="text-sm font-medium">{currentQ + 1}/{questions.length}</span>

@@ -13,7 +13,7 @@ export default function LmsTestsPage() {
   const [tests, setTests] = useState<any[]>([]);
   const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState<any>({ exam_type: 'online', passing_score: 70, duration_minutes: 60, max_attempts: 1, shuffle_questions: true, anti_cheat_enabled: true });
+  const [form, setForm] = useState<any>({ exam_type: 'online', passing_score: 70, duration_minutes: 60, max_attempts: 1, shuffle_questions: true, anti_cheat_enabled: true, proctor_enabled: false });
 
   const load = useCallback(async () => {
     const d = await fetch('/api/humanify/lms?action=tests').then((r) => r.json());
@@ -54,6 +54,7 @@ export default function LmsTestsPage() {
                 <div className="flex gap-2 mt-1">
                   <LmsStatusBadge status={ex.status} />
                   {ex.anti_cheat_enabled && <span className="text-xs bg-orange-50 text-orange-700 px-2 py-0.5 rounded">Anti-cheat</span>}
+                  {ex.proctor_enabled && <span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded">Proctoring</span>}
                   {ex.shuffle_questions && <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">Random soal</span>}
                 </div>
               </div>
@@ -81,6 +82,7 @@ export default function LmsTestsPage() {
             </div>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.shuffle_questions} onChange={(e) => setForm({ ...form, shuffle_questions: e.target.checked })} /> Acak urutan soal</label>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.anti_cheat_enabled} onChange={(e) => setForm({ ...form, anti_cheat_enabled: e.target.checked })} /> Aktifkan anti-cheating</label>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.proctor_enabled} onChange={(e) => setForm({ ...form, proctor_enabled: e.target.checked })} /> Aktifkan proctoring kamera</label>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.fullscreen_required} onChange={(e) => setForm({ ...form, fullscreen_required: e.target.checked })} /> Wajib fullscreen</label>
             <button type="button" onClick={create} className="w-full py-2 bg-indigo-600 text-white rounded-lg">Buat Tes</button>
           </div>
