@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import HumanifyLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import { toast } from 'react-hot-toast';
 import {
   Users, Search, Plus, Filter, ChevronDown,
@@ -56,6 +58,7 @@ function formatDate(dateStr: string) {
 
 export default function TeamMembersPage() {
   const [members, setMembers] = useState<TeamMember[]>([]);
+  const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('');
@@ -80,6 +83,7 @@ export default function TeamMembersPage() {
 
       if (json.success) {
         setMembers(json.data);
+        setDataSource((json.data?.length || json.pagination?.total) ? 'live' : 'empty');
         if (json.summary) setSummary(json.summary);
         if (json.pagination) {
           setTotalPages(json.pagination.totalPages);
@@ -143,6 +147,7 @@ export default function TeamMembersPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <DataSourceBadge source={dataSource} />
             <button
               onClick={() => fetchMembers()}
               className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"

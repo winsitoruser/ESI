@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import {
   UserPlus, Plus, Search, X, CheckCircle, AlertCircle, Clock,
   User, Briefcase, Calendar, Users as UsersIcon, FileText,
@@ -54,6 +56,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 export default function OnboardingPage() {
   const [mounted, setMounted] = useState(false);
   const [items, setItems] = useState<OnboardingEntry[]>([]);
+  const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [template, setTemplate] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -75,7 +78,9 @@ export default function OnboardingPage() {
     try {
       const res = await fetch('/api/humanify/lifecycle?action=onboarding');
       const json = await res.json();
-      setItems(json?.data || []);
+      const rows = json?.data || [];
+      setItems(rows);
+      setDataSource(rows.length ? 'live' : 'empty');
       setTemplate(json?.template || []);
     } catch {
       setItems([]);
@@ -158,6 +163,9 @@ export default function OnboardingPage() {
   return (
     <HQLayout title="Onboarding Karyawan" subtitle="Kelola proses onboarding karyawan baru dengan checklist terstruktur">
       <div className="space-y-6">
+        <div className="flex justify-end">
+          <DataSourceBadge source={dataSource} />
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard icon={UserPlus} label="Total Proses" value={stats.total} color="text-blue-600" bg="bg-blue-100" />
           <StatCard icon={Clock} label="Sedang Berjalan" value={stats.inProgress} color="text-orange-600" bg="bg-orange-100" />

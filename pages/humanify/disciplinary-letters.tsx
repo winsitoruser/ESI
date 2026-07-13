@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import DocumentExportButton from '@/components/documents/DocumentExportButton';
 import EmployeePicker, { type PickedEmployee } from '@/components/humanify/EmployeePicker';
 import {
@@ -41,6 +43,7 @@ export default function DisciplinaryLettersPage() {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<View>('board');
   const [letters, setLetters] = useState<any[]>([]);
+  const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [selected, setSelected] = useState<any>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [sopTemplates, setSopTemplates] = useState<any[]>([]);
@@ -111,7 +114,10 @@ export default function DisciplinaryLettersPage() {
       if (qf?.statuses?.length && !filterStatus) {
         data = data.filter((l: any) => qf.statuses!.includes(l.status));
       }
-      if (listRes.success) setLetters(data);
+      if (listRes.success) {
+        setLetters(data);
+        setDataSource(data.length ? 'live' : 'empty');
+      }
       if (sumRes.success) setSummary(sumRes.data || {});
     } catch {
       showToast('error', 'Gagal memuat data surat');
@@ -398,7 +404,8 @@ export default function DisciplinaryLettersPage() {
                   ))}
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <DataSourceBadge source={dataSource} className="!bg-white/90" />
                 <button
                   onClick={() => setView(view === 'sop' ? 'board' : 'sop')}
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${

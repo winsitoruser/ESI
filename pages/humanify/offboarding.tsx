@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import {
   KeyRound, Plus, Search, X, CheckCircle, AlertCircle, Clock,
   User, Briefcase, Calendar, FileText, Laptop, DollarSign,
@@ -64,6 +66,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 export default function OffboardingPage() {
   const [mounted, setMounted] = useState(false);
   const [items, setItems] = useState<OffEntry[]>([]);
+  const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [template, setTemplate] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -89,7 +92,9 @@ export default function OffboardingPage() {
     try {
       const res = await fetch('/api/humanify/lifecycle?action=offboarding');
       const json = await res.json();
-      setItems(json?.data || []);
+      const rows = json?.data || [];
+      setItems(rows);
+      setDataSource(rows.length ? 'live' : 'empty');
       setTemplate(json?.template || []);
     } catch {
       setItems([]);
@@ -233,6 +238,9 @@ export default function OffboardingPage() {
   return (
     <HQLayout title="Offboarding / Exit" subtitle="Proses pengunduran diri, exit clearance, dan retensi data karyawan">
       <div className="space-y-6">
+        <div className="flex justify-end">
+          <DataSourceBadge source={dataSource} />
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard icon={KeyRound} label="Total Proses" value={stats.total} color="text-red-600" bg="bg-red-100" />
           <StatCard icon={Clock} label="Sedang Proses" value={stats.inProgress} color="text-orange-600" bg="bg-orange-100" />

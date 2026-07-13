@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import {
   Calendar, Clock, UserCheck, UserX, Users, Building2, Search,
@@ -32,6 +34,7 @@ export default function DailyAttendancePage() {
   const { t } = useTranslation();
   const [mounted, setMounted] = useState(false);
   const [records, setRecords] = useState<DailyRecord[]>([]);
+  const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -46,12 +49,16 @@ export default function DailyAttendancePage() {
       if (res.ok) {
         const json = await res.json();
         const payload = json.data || json;
-        setRecords(payload.dailyRecords || payload.attendance || []);
+        const rows = payload.dailyRecords || payload.attendance || [];
+        setRecords(rows);
+        setDataSource(rows.length ? 'live' : (json.dataSource || 'empty'));
       } else {
         setRecords([]);
+        setDataSource('empty');
       }
     } catch {
       setRecords([]);
+      setDataSource('empty');
     } finally {
       setLoading(false);
     }
@@ -143,6 +150,9 @@ export default function DailyAttendancePage() {
   return (
     <HQLayout title={t('hris.dailyAttendanceTitle')} subtitle={t('hris.dailyAttendanceSubtitle')}>
       <div className="space-y-6">
+        <div className="flex justify-end">
+          <DataSourceBadge source={dataSource} />
+        </div>
         {/* Date Navigator + Stats */}
         <div className="bg-white rounded-xl shadow-sm border p-4">
           <div className="flex flex-wrap items-center justify-between gap-4">

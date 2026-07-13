@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import { PageGuard } from '@/components/permissions';
 import {
@@ -23,6 +25,7 @@ export default function CasualWorkforcePage() {
   const [tab, setTab] = useState<Tab>('overview');
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<any>({});
+  const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [workers, setWorkers] = useState<any[]>([]);
   const [piecework, setPiecework] = useState<any[]>([]);
   const [assignments, setAssignments] = useState<any[]>([]);
@@ -67,6 +70,10 @@ export default function CasualWorkforcePage() {
       if (sup.success) setSupervisors(sup.data || []);
       if (reports.success) setSupReports(reports.data || []);
       setAllEmployees(empList?.data?.flat || []);
+      const hasLive = (w.data?.length || 0) > 0 || (pw.data?.length || 0) > 0
+        || (asg.data?.length || 0) > 0 || (sup.data?.length || 0) > 0
+        || (reports.data?.length || 0) > 0 || (ov.data?.totalWorkers || 0) > 0;
+      setDataSource(hasLive ? 'live' : 'empty');
     } catch (e) {
       showToast('Gagal memuat data', 'error');
     } finally {
@@ -175,9 +182,12 @@ export default function CasualWorkforcePage() {
                 Kelola karyawan harian lepas, buruh, penggajian per jam/hari/proyek, dan sistem borongan
               </p>
             </div>
-            <button onClick={loadData} className="flex items-center gap-2 px-3 py-2 border rounded-lg text-sm hover:bg-gray-50">
+            <div className="flex items-center gap-2">
+              <DataSourceBadge source={dataSource} />
+              <button onClick={loadData} className="flex items-center gap-2 px-3 py-2 border rounded-lg text-sm hover:bg-gray-50">
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
             </button>
+            </div>
           </div>
 
           <div className="mb-4 p-3 bg-indigo-50 border border-indigo-100 rounded-lg flex flex-wrap items-center justify-between gap-2">

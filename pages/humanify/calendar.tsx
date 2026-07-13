@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import Link from 'next/link';
 import {
   Calendar, ChevronLeft, ChevronRight, Heart, Clock,
@@ -54,6 +56,7 @@ function buildIndonesiaHolidayEvents(year: number): CalEvent[] {
 export default function HRISCalendarPage() {
   const [current, setCurrent] = useState(new Date());
   const [events, setEvents] = useState<CalEvent[]>([]);
+  const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [holidaySummary, setHolidaySummary] = useState({ national: 0, jointLeave: 0, total: 0 });
   const [activeFilters, setActiveFilters] = useState<Record<CalEventType, boolean>>({
     leave: true, shift: true, payday: true, training: true, birthday: true,
@@ -153,6 +156,9 @@ export default function HRISCalendarPage() {
         href: '/humanify/payroll/main',
         color: TYPE_CONF.payday.color, icon: TYPE_CONF.payday.icon,
       });
+
+      const hasHrData = all.some((ev) => !['national_holiday', 'joint_leave', 'payday'].includes(ev.type));
+      setDataSource(hasHrData ? 'live' : 'empty');
     } catch (e) {
       console.warn('Calendar fetch error', e);
     }
@@ -201,6 +207,9 @@ export default function HRISCalendarPage() {
   return (
     <HQLayout title="Kalender HR" subtitle="Libur nasional Indonesia, cuti bersama, cuti karyawan & event HR">
       <div className="space-y-6">
+        <div className="flex justify-end">
+          <DataSourceBadge source={dataSource} />
+        </div>
         {/* Info libur nasional */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">

@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import {
   Settings, Clock, MapPin, Fingerprint, Smartphone, Bell, Save,
@@ -54,6 +56,7 @@ export default function AttendanceSettingsPage() {
   const { t } = useTranslation();
   const [mounted, setMounted] = useState(false);
   const [settings, setSettings] = useState<AttSettings>(defaultSettings);
+  const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<string>('');
@@ -67,9 +70,13 @@ export default function AttendanceSettingsPage() {
       const json = await res.json();
       if (json.success && json.data) {
         setSettings({ ...defaultSettings, ...json.data });
+        setDataSource('live');
+      } else {
+        setDataSource('empty');
       }
     } catch {
       setSettings(defaultSettings);
+      setDataSource('empty');
     } finally {
       setLoading(false);
     }
@@ -124,6 +131,9 @@ export default function AttendanceSettingsPage() {
   return (
     <HQLayout title={t('hris.attendanceSettingsTitle')} subtitle={t('hris.attendanceSettingsSubtitle')}>
       <div className="space-y-6 max-w-4xl">
+        <div className="flex justify-end">
+          <DataSourceBadge source={dataSource} />
+        </div>
         {/* Branch selector */}
         <div className="bg-white rounded-xl shadow-sm border p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">

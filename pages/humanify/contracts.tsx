@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo, type MouseEvent } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import {
   FileText, Plus, Search, Filter, Calendar, AlertTriangle, CheckCircle,
   X, Edit, Trash2, RefreshCw, XCircle, Clock, DollarSign, User, Building2, Download, Bell, PenLine
@@ -53,6 +55,7 @@ function daysUntil(dateStr?: string | null): number | null {
 export default function ContractsPage() {
   const [mounted, setMounted] = useState(false);
   const [contracts, setContracts] = useState<Contract[]>([]);
+  const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [overview, setOverview] = useState<any>({ total: 0, active: 0, expiring: 0, expired: 0, byType: {} });
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -101,6 +104,7 @@ export default function ContractsPage() {
         notes: c.notes,
       }));
       setContracts(list);
+      setDataSource(list.length ? 'live' : 'empty');
       if (oJson?.data) setOverview(oJson.data);
       const rJson = await rRes.json().catch(() => ({}));
       if (!(rJson?.data?.length)) {
@@ -246,6 +250,9 @@ export default function ContractsPage() {
   return (
     <HQLayout title="Kontrak Karyawan" subtitle="Kelola kontrak kerja, perpanjangan, dan reminder kedaluwarsa">
       <div className="space-y-6">
+        <div className="flex justify-end">
+          <DataSourceBadge source={dataSource} />
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <StatCard icon={FileText} label="Total Kontrak" value={overview.total || contracts.length} color="text-blue-600" bg="bg-blue-100" />
           <StatCard icon={CheckCircle} label="Aktif" value={overview.active || contracts.filter(c => c.status === 'active').length} color="text-green-600" bg="bg-green-100" />

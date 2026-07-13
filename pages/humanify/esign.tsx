@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import { PageGuard } from '@/components/permissions';
 import Link from 'next/link';
 import {
@@ -24,6 +26,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function ESignPage() {
   const [docs, setDocs] = useState<any[]>([]);
+  const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [integration, setIntegration] = useState<{ mode: string; configured: boolean } | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ docType: 'pkwt', title: '', employeeName: '', signers: [{ name: '', email: '', role: 'Karyawan' }, { name: '', email: '', role: 'HR' }] });
@@ -32,9 +35,11 @@ export default function ESignPage() {
     try {
       const r = await fetch('/api/humanify/esign');
       const j = await r.json();
-      setDocs(j.data || []);
+      const rows = j.data || [];
+      setDocs(rows);
+      setDataSource(rows.length ? 'live' : 'empty');
       if (j.integration) setIntegration(j.integration);
-    } catch { setDocs([]); }
+    } catch { setDocs([]); setDataSource('empty'); }
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -81,6 +86,7 @@ export default function ESignPage() {
             <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700">
               <Plus className="w-4 h-4" /> Buat Dokumen
             </button>
+            <DataSourceBadge source={dataSource} />
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

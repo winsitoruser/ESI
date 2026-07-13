@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import { PageGuard } from '@/components/permissions';
 import Link from 'next/link';
 import { Package, Laptop, Smartphone, CreditCard, Key, ArrowLeftRight, Search, ArrowLeft } from 'lucide-react';
@@ -14,6 +16,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function AssetsPage() {
   const [assets, setAssets] = useState<any[]>([]);
+  const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [summary, setSummary] = useState<any>({});
   const [filter, setFilter] = useState('');
   const [loading, setLoading] = useState(true);
@@ -25,9 +28,11 @@ export default function AssetsPage() {
         fetch('/api/humanify/assets').then(r => r.json()),
         fetch('/api/humanify/assets?action=summary').then(r => r.json()),
       ]);
-      setAssets(a.data || []);
+      const rows = a.data || [];
+      setAssets(rows);
       setSummary(s.data || {});
-    } catch { setAssets([]); }
+      setDataSource(rows.length ? 'live' : 'empty');
+    } catch { setAssets([]); setDataSource('empty'); }
     setLoading(false);
   }, []);
 
@@ -47,6 +52,7 @@ export default function AssetsPage() {
               <p className="text-sm text-gray-500">Laptop, HP, ID card, access card — issue saat onboarding, return saat offboarding</p>
             </div>
             <Link href="/humanify/offboarding" className="px-3 py-2 text-sm border rounded-lg">Offboarding →</Link>
+            <DataSourceBadge source={dataSource} />
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

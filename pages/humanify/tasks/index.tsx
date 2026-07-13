@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import HumanifyLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import { toast } from 'react-hot-toast';
 import {
   Plus, RefreshCw, CheckCircle, Clock, AlertCircle,
@@ -57,6 +59,7 @@ function formatDate(dateStr: string) {
 
 export default function TeamTasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNew, setShowNew] = useState(false);
@@ -86,7 +89,11 @@ export default function TeamTasksPage() {
       if (filterPriority) params.set('priority', filterPriority);
       const res = await fetch(`/api/humanify/team-tasks?${params}`);
       const json = await res.json();
-      if (json.success) setTasks(json.data || []);
+      if (json.success) {
+        const rows = json.data || [];
+        setTasks(rows);
+        setDataSource(rows.length ? 'live' : 'empty');
+      }
     } catch {
       toast.error('Gagal memuat tugas');
     } finally {
@@ -197,6 +204,7 @@ export default function TeamTasksPage() {
             <p className="text-sm text-gray-500 mt-1">Manajemen tugas untuk tim internal</p>
           </div>
           <div className="flex items-center gap-3">
+            <DataSourceBadge source={dataSource} />
             <button onClick={() => fetchTasks()} className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg" title="Refresh">
               <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
             </button>
