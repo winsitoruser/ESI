@@ -5,6 +5,10 @@ import { useHrisMasterData } from '@/hooks/useHrisMasterData';
 import { getDepartmentLabel } from '@/lib/hris/master-data';
 import { useTranslation } from '@/lib/i18n';
 import { UserPlus, Search, Filter, Plus, Eye, Edit, Trash2, X, Check, ChevronRight, Briefcase, MapPin, Clock, Users, Star, FileText, Download, Upload, Calendar, DollarSign, BarChart3, TrendingUp, CheckCircle2, XCircle, AlertCircle, Loader2, Link2, MessageCircle, Globe } from 'lucide-react';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
+
+const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
 
 type TabKey = 'openings' | 'candidates' | 'pipeline' | 'analytics' | 'integrations' | 'screening';
 
@@ -42,9 +46,10 @@ export default function RecruitmentPage() {
   const { t } = useTranslation();
   const { departments: masterDepts } = useHrisMasterData();
   const [tab, setTab] = useState<TabKey>('openings');
-  const [openings, setOpenings] = useState<any[]>(MOCK_OPENINGS);
-  const [candidates, setCandidates] = useState<any[]>(MOCK_CANDIDATES);
-  const [analytics, setAnalytics] = useState<any>(MOCK_RECRUITMENT_ANALYTICS);
+  const [openings, setOpenings] = useState<any[]>([]);
+  const [candidates, setCandidates] = useState<any[]>([]);
+  const [analytics, setAnalytics] = useState<any>({});
+  const [dataSource, setDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
   const [search, setSearch] = useState('');
   const [filterDept, setFilterDept] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -68,9 +73,16 @@ export default function RecruitmentPage() {
     try {
       const res = await fetch('/api/humanify/recruitment?action=openings');
       const data = await res.json();
-      if (data.success && Array.isArray(data.data)) setOpenings(data.data);
-      else if (!res.ok) setOpenings(MOCK_OPENINGS);
-    } catch (e) { console.warn('Failed to fetch openings:', e); setOpenings(MOCK_OPENINGS); }
+      if (data.success && Array.isArray(data.data)) {
+        setOpenings(data.data);
+        setDataSource(data.data.length ? 'live' : 'empty');
+      } else if (USE_MOCK_UI) setOpenings(MOCK_OPENINGS);
+      else setOpenings([]);
+    } catch (e) {
+      console.warn('Failed to fetch openings:', e);
+      setOpenings(USE_MOCK_UI ? MOCK_OPENINGS : []);
+      if (USE_MOCK_UI) setDataSource('demo');
+    }
   }, []);
 
   const fetchCandidates = useCallback(async () => {
@@ -78,8 +90,11 @@ export default function RecruitmentPage() {
       const res = await fetch('/api/humanify/recruitment?action=candidates');
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) setCandidates(data.data);
-      else if (!res.ok) setCandidates(MOCK_CANDIDATES);
-    } catch (e) { console.warn('Failed to fetch candidates:', e); setCandidates(MOCK_CANDIDATES); }
+      else setCandidates(USE_MOCK_UI ? MOCK_CANDIDATES : []);
+    } catch (e) {
+      console.warn('Failed to fetch candidates:', e);
+      setCandidates(USE_MOCK_UI ? MOCK_CANDIDATES : []);
+    }
   }, []);
 
   const fetchAnalytics = useCallback(async () => {
@@ -87,8 +102,11 @@ export default function RecruitmentPage() {
       const res = await fetch('/api/humanify/recruitment?action=analytics');
       const data = await res.json();
       if (data.success && data.data) setAnalytics(data.data);
-      else if (!res.ok) setAnalytics(MOCK_RECRUITMENT_ANALYTICS);
-    } catch (e) { console.warn('Failed to fetch analytics:', e); setAnalytics(MOCK_RECRUITMENT_ANALYTICS); }
+      else setAnalytics(USE_MOCK_UI ? MOCK_RECRUITMENT_ANALYTICS : {});
+    } catch (e) {
+      console.warn('Failed to fetch analytics:', e);
+      setAnalytics(USE_MOCK_UI ? MOCK_RECRUITMENT_ANALYTICS : {});
+    }
   }, []);
 
   const fetchIntegrations = useCallback(async () => {
@@ -254,9 +272,12 @@ export default function RecruitmentPage() {
       <div className="space-y-6">
         {toast && <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white ${toast.type === 'error' ? 'bg-red-500' : 'bg-green-500'}`}>{toast.msg}</div>}
 
-        <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm flex items-center justify-between gap-3">
-          <span>Portal karir publik untuk kandidat apply langsung tanpa login.</span>
-          <a href="/careers" target="_blank" rel="noopener noreferrer" className="text-blue-700 font-medium hover:underline shrink-0">Buka /careers →</a>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm flex-1 min-w-0">
+            Portal karir publik untuk kandidat apply langsung tanpa login.{' '}
+            <a href="/careers" target="_blank" rel="noopener noreferrer" className="text-blue-700 font-medium hover:underline">Buka /careers →</a>
+          </div>
+          <DataSourceBadge source={dataSource} />
         </div>
 
         {/* Stats */}

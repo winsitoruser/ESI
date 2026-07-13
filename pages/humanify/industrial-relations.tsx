@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import EmployeePicker, { type PickedEmployee } from '@/components/humanify/EmployeePicker';
 import {
@@ -47,6 +49,8 @@ const INCIDENT_STATUS_LABELS: Record<string, string> = {
   investigating: 'Investigasi', mitigating: 'Mitigasi', resolved: 'Selesai', closed: 'Ditutup',
 };
 
+const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
+
 export default function IndustrialRelationsPage() {
   const { t } = useTranslation();
   const router = useRouter();
@@ -54,7 +58,8 @@ export default function IndustrialRelationsPage() {
   const [regulations, setRegulations] = useState<Regulation[]>([]);
   const [incidents, setIncidents] = useState<IrIncident[]>([]);
   const [checklists, setChecklists] = useState<Checklist[]>([]);
-  const [overview, setOverview] = useState(MOCK_OVERVIEW);
+  const [overview, setOverview] = useState<any>({});
+  const [dataSource, setDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState<'regulation' | 'incident'>('regulation');
@@ -92,12 +97,15 @@ export default function IndustrialRelationsPage() {
       const [ov, regs, cs, cls] = await Promise.all([
         api('overview'), api('regulations'), api('cases'), api('checklists'),
       ]);
-      setOverview(ov.data || MOCK_OVERVIEW);
+      setOverview(ov.data || {});
       setRegulations(regs.data || []);
       setIncidents(cs.data || []);
       setChecklists(cls.data || []);
+      const hasLive = (regs.data?.length || 0) + (cs.data?.length || 0) > 0;
+      setDataSource(hasLive ? 'live' : 'empty');
     } catch {
-      setOverview(MOCK_OVERVIEW);
+      setOverview(USE_MOCK_UI ? MOCK_OVERVIEW : {});
+      if (USE_MOCK_UI) setDataSource('demo');
     }
     setLoading(false);
   }, [api]);
@@ -237,7 +245,8 @@ export default function IndustrialRelationsPage() {
                   investigasi event, dan rencana mitigasi risiko ketenagakerjaan.
                 </p>
               </div>
-              <div className="flex flex-col gap-2 w-full sm:w-auto">
+              <div className="flex flex-col gap-2 w-full sm:w-auto items-end">
+                <DataSourceBadge source={dataSource} />
                 <button
                   type="button"
                   onClick={() => router.push('/humanify/disciplinary-letters')}
@@ -251,6 +260,7 @@ export default function IndustrialRelationsPage() {
                   SP, teguran, kasus disiplin karyawan & PHK dikelola di modul terpisah
                 </p>
               </div>
+              <DataSourceBadge source={dataSource} />
             </div>
           </div>
 

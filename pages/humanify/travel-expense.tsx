@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
+import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import type { HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import { Plane, Receipt, Wallet, Plus, Edit, Trash2, X, Check, Eye, Search, MapPin, Calendar, DollarSign } from 'lucide-react';
 
@@ -8,6 +10,8 @@ interface TravelExp { id: string; travel_request_id: string; employee_id: number
 interface Budget { id: string; category: string; fiscal_year: number; monthly_limit: number; annual_limit: number; used_amount: number; remaining_amount: number; is_active: boolean; }
 
 type TabKey = 'requests' | 'expenses' | 'budgets';
+
+const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
 
 const MOCK_TE_OVERVIEW = { totalRequests: 24, pendingRequests: 3, totalExpenses: 185000000, budgetUtilization: 62, avgTripCost: 7700000 };
 const MOCK_TE_REQUESTS: TravelReq[] = [
@@ -26,10 +30,11 @@ const MOCK_TE_BUDGETS: Budget[] = [
 export default function TravelExpensePage() {
   const { t } = useTranslation();
   const [tab, setTab] = useState<TabKey>('requests');
-  const [overview, setOverview] = useState<any>(MOCK_TE_OVERVIEW);
-  const [requests, setRequests] = useState<TravelReq[]>(MOCK_TE_REQUESTS);
-  const [expenses, setExpenses] = useState<TravelExp[]>(MOCK_TE_EXPENSES);
-  const [budgets, setBudgets] = useState<Budget[]>(MOCK_TE_BUDGETS);
+  const [overview, setOverview] = useState<any>({});
+  const [requests, setRequests] = useState<TravelReq[]>([]);
+  const [expenses, setExpenses] = useState<TravelExp[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [dataSource, setDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState('');
@@ -61,12 +66,23 @@ export default function TravelExpensePage() {
       setRequests(rq.data || []);
       setExpenses(ex.data || []);
       setBudgets(bg.data || []);
+      const hasLive = (rq.data?.length || 0) + (ex.data?.length || 0) > 0;
+      setDataSource(hasLive ? 'live' : 'empty');
     } catch (e) {
       console.error(e);
-      setOverview(MOCK_TE_OVERVIEW);
-      setRequests(MOCK_TE_REQUESTS);
-      setExpenses(MOCK_TE_EXPENSES);
-      setBudgets(MOCK_TE_BUDGETS);
+      if (USE_MOCK_UI) {
+        setOverview(MOCK_TE_OVERVIEW);
+        setRequests(MOCK_TE_REQUESTS);
+        setExpenses(MOCK_TE_EXPENSES);
+        setBudgets(MOCK_TE_BUDGETS);
+        setDataSource('demo');
+      } else {
+        setOverview({});
+        setRequests([]);
+        setExpenses([]);
+        setBudgets([]);
+        setDataSource('empty');
+      }
     }
     setLoading(false);
   }, [api]);
@@ -118,9 +134,12 @@ export default function TravelExpensePage() {
     <div className="p-6 max-w-7xl mx-auto">
       {toast && <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white ${toast.type === 'error' ? 'bg-red-500' : 'bg-green-500'}`}>{toast.msg}</div>}
 
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Manajemen Perjalanan & Pengeluaran</h1>
-        <p className="text-gray-500 mt-1">Pengajuan perjalanan dinas, klaim biaya, dan kontrol anggaran</p>
+      <div className="mb-6 flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Manajemen Perjalanan & Pengeluaran</h1>
+          <p className="text-gray-500 mt-1">Pengajuan perjalanan dinas, klaim biaya, dan kontrol anggaran</p>
+        </div>
+        <DataSourceBadge source={dataSource} />
       </div>
 
       {/* Overview Cards */}

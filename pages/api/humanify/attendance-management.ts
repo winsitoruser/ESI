@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]';
+import { allowHrMockFallback } from '@/lib/hris/data-source';
 
 let sequelize: any, Op: any;
 try { sequelize = require('../../../lib/sequelize'); Op = require('sequelize').Op; } catch (e) {}
@@ -118,13 +119,16 @@ async function fetchTodayAttendanceLive() {
 
 // ================= GET: Overview =================
 async function getOverview(req: NextApiRequest, res: NextApiResponse, session: any) {
-  const mockSettings = getMockSettings();
+  const mockSettings = allowHrMockFallback() ? getMockSettings() : [];
   const { records: todayRecords, stats: todayStats } = await fetchTodayAttendanceLive();
+  const mockShifts = allowHrMockFallback() ? getMockShifts() : [];
+  const mockRotations = allowHrMockFallback() ? getMockRotations() : [];
+  const mockGeofences = allowHrMockFallback() ? getMockGeofences() : [];
 
   const shifts = await safeModelFindAll(
     WorkShift,
     { where: { isActive: true }, order: [['sort_order', 'ASC']] },
-    getMockShifts()
+    mockShifts
   );
   const schedules = await safeModelFindAll(
     ShiftSchedule,
@@ -134,12 +138,12 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
   const rotations = await safeModelFindAll(
     ShiftRotation,
     { order: [['created_at', 'DESC']] },
-    getMockRotations()
+    mockRotations
   );
   const geofences = await safeModelFindAll(
     GeofenceLocation,
     { order: [['name', 'ASC']] },
-    getMockGeofences()
+    mockGeofences
   );
   const settingsRaw = await safeModelFindAll(AttendanceSetting, {}, mockSettings);
 
@@ -158,13 +162,14 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
 
 // ================= GET: Work Shifts =================
 async function getWorkShifts(req: NextApiRequest, res: NextApiResponse, session: any) {
-  if (!WorkShift) return res.json({ success: true, data: getMockShifts() });
+  const mock = allowHrMockFallback() ? getMockShifts() : [];
+  if (!WorkShift) return res.json({ success: true, data: mock, dataSource: mock.length ? 'demo' : 'empty' });
   try {
     const data = await WorkShift.findAll({ order: [['sort_order', 'ASC']] });
     return res.json({ success: true, data });
   } catch (e: any) {
     console.warn('[attendance-management shifts]', e?.message);
-    return res.json({ success: true, data: getMockShifts(), meta: { fallback: true } });
+    return res.json({ success: true, data: mock, meta: { fallback: true }, dataSource: mock.length ? 'demo' : 'empty' });
   }
 }
 
@@ -181,21 +186,30 @@ async function getSchedules(req: NextApiRequest, res: NextApiResponse, session: 
 
 // ================= GET: Rotations =================
 async function getRotations(req: NextApiRequest, res: NextApiResponse, session: any) {
-  if (!ShiftRotation) return res.json({ success: true, data: getMockRotations() });
+  if (!ShiftRotation) {
+    const mock = allowHrMockFallback() ? getMockRotations() : [];
+    return res.json({ success: true, data: mock, dataSource: mock.length ? 'demo' : 'empty' });
+  }
   const data = await ShiftRotation.findAll({ order: [['created_at', 'DESC']] });
   return res.json({ success: true, data });
 }
 
 // ================= GET: Geofences =================
 async function getGeofences(req: NextApiRequest, res: NextApiResponse, session: any) {
-  if (!GeofenceLocation) return res.json({ success: true, data: getMockGeofences() });
+  if (!GeofenceLocation) {
+    const mock = allowHrMockFallback() ? getMockGeofences() : [];
+    return res.json({ success: true, data: mock, dataSource: mock.length ? 'demo' : 'empty' });
+  }
   const data = await GeofenceLocation.findAll({ order: [['name', 'ASC']] });
   return res.json({ success: true, data });
 }
 
 // ================= GET: Settings =================
 async function getSettings(req: NextApiRequest, res: NextApiResponse, session: any) {
-  if (!AttendanceSetting) return res.json({ success: true, data: getMockSettings() });
+  if (!AttendanceSetting) {
+    const mock = allowHrMockFallback() ? getMockSettings() : [];
+    return res.json({ success: true, data: mock, dataSource: mock.length ? 'demo' : 'empty' });
+  }
   const data = await AttendanceSetting.findAll();
   return res.json({ success: true, data });
 }

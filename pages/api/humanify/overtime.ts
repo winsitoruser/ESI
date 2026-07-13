@@ -15,6 +15,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
+import { allowHrMockFallback } from '@/lib/hris/data-source';
 
 let sequelize: any;
 try { ({ sequelize } = require('../../../lib/sequelize')); } catch {}
@@ -57,7 +58,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 async function getList(req: NextApiRequest, res: NextApiResponse, tenantId: string) {
   const { status, dept, month, page = '1', limit = '20' } = req.query;
   const offset = (parseInt(String(page)) - 1) * parseInt(String(limit));
-  if (!sequelize) return res.json({ success: true, data: { records: MOCK_OVERTIME, total: MOCK_OVERTIME.length } });
+  if (!sequelize) {
+    const records = allowHrMockFallback() ? MOCK_OVERTIME : [];
+    return res.json({ success: true, data: { records, total: records.length }, dataSource: records.length ? 'demo' : 'empty' });
+  }
 
   const conds = ['o.tenant_id = :tenantId'];
   const params: any = { tenantId, limit: parseInt(String(limit)), offset };
@@ -85,7 +89,10 @@ async function getList(req: NextApiRequest, res: NextApiResponse, tenantId: stri
 async function getStats(req: NextApiRequest, res: NextApiResponse, tenantId: string) {
   const { month } = req.query;
   const thisMonth = String(month || new Date().toISOString().slice(0, 7));
-  if (!sequelize) return res.json({ success: true, data: MOCK_STATS });
+  if (!sequelize) {
+    const data = allowHrMockFallback() ? MOCK_STATS : { pending: 0, approved: 0, rejected: 0, total: 0, total_hours_approved: 0, total_hours_pending: 0, by_dept: [] };
+    return res.json({ success: true, data, dataSource: allowHrMockFallback() ? 'demo' : 'empty' });
+  }
 
   const [stats] = await q(`
     SELECT
@@ -106,14 +113,18 @@ async function getStats(req: NextApiRequest, res: NextApiResponse, tenantId: str
     GROUP BY e.department ORDER BY hours DESC LIMIT 8
   `, { tenantId, month: thisMonth });
 
-  return res.json({ success: true, data: { ...(stats || MOCK_STATS), by_dept: byDept, month: thisMonth } });
+  const emptyStats = { pending: 0, approved: 0, rejected: 0, total: 0, total_hours_approved: 0, total_hours_pending: 0, by_dept: [] as any[] };
+  return res.json({ success: true, data: { ...(stats || (allowHrMockFallback() ? MOCK_STATS : emptyStats)), by_dept: byDept, month: thisMonth } });
 }
 
 // ── GET: Monthly recap per employee ──────────────────────────────────────────
 async function getRecap(req: NextApiRequest, res: NextApiResponse, tenantId: string) {
   const { month, dept } = req.query;
   const targetMonth = String(month || new Date().toISOString().slice(0, 7));
-  if (!sequelize) return res.json({ success: true, data: { recap: MOCK_RECAP, month: targetMonth } });
+  if (!sequelize) {
+    const recap = allowHrMockFallback() ? MOCK_RECAP : [];
+    return res.json({ success: true, data: { recap, month: targetMonth }, dataSource: recap.length ? 'demo' : 'empty' });
+  }
 
   const conds = ["o.tenant_id=:tenantId AND o.status='approved' AND TO_CHAR(o.date,'YYYY-MM')=:month"];
   const params: any = { tenantId, month: targetMonth };
@@ -141,7 +152,10 @@ async function getRecap(req: NextApiRequest, res: NextApiResponse, tenantId: str
 async function getDetail(req: NextApiRequest, res: NextApiResponse, tenantId: string) {
   const { id } = req.query;
   if (!id) return res.status(400).json({ success: false, error: 'id required' });
-  if (!sequelize) return res.json({ success: true, data: MOCK_OVERTIME[0] });
+  if (!sequelize) {
+    const data = allowHrMockFallback() ? MOCK_OVERTIME[0] : null;
+    return res.json({ success: true, data, dataSource: data ? 'demo' : 'empty' });
+  }
 
   const [rows] = await q(`
     SELECT o.*, e.name AS employee_name, e.employee_no, e.department, e.position,

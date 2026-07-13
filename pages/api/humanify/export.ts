@@ -7,6 +7,7 @@ import {
   STANDARD_SCORING_LEVELS
 } from '@/lib/hq/kpi-calculator';
 import { successResponse, errorResponse, ErrorCodes, HttpStatus } from '../../../lib/api/response';
+import { allowHrMockFallback } from '@/lib/hris/data-source';
 
 let QueryTypes: any;
 let sequelize: any;
@@ -123,10 +124,11 @@ async function exportEmployees(
       meta: { type: 'employees', count: (employees as any[]).length, exportedAt: new Date().toISOString(), source: 'database' }
     });
   } catch (error) {
+    const data = allowHrMockFallback() ? getMockEmployeesExport() : [];
     return res.status(200).json({
       success: true,
-      data: getMockEmployeesExport(),
-      meta: { type: 'employees', count: 10, exportedAt: new Date().toISOString(), fallback: true }
+      data,
+      meta: { type: 'employees', count: data.length, exportedAt: new Date().toISOString(), fallback: allowHrMockFallback(), dataSource: data.length ? (allowHrMockFallback() ? 'demo' : 'live') : 'empty' }
     });
   }
 }
@@ -180,10 +182,11 @@ async function exportAttendance(
       meta: { type: 'attendance', count: (attendance as any[]).length, period: currentPeriod, exportedAt: new Date().toISOString(), source: 'database' }
     });
   } catch (error) {
+    const data = allowHrMockFallback() ? getMockAttendanceExport() : [];
     return res.status(200).json({
       success: true,
-      data: getMockAttendanceExport(),
-      meta: { type: 'attendance', count: 8, period: currentPeriod, exportedAt: new Date().toISOString(), fallback: true }
+      data,
+      meta: { type: 'attendance', count: data.length, period: currentPeriod, exportedAt: new Date().toISOString(), fallback: allowHrMockFallback(), dataSource: data.length ? 'demo' : 'empty' }
     });
   }
 }
@@ -239,10 +242,11 @@ async function exportKPI(
       meta: { type: 'kpi', count: (kpiData as any[]).length, period: currentPeriod, exportedAt: new Date().toISOString() }
     });
   } catch (error) {
+    const data = allowHrMockFallback() ? getMockKPIExport() : [];
     return res.status(200).json({
       success: true,
-      data: getMockKPIExport(),
-      meta: { type: 'kpi', count: 20, period: currentPeriod, exportedAt: new Date().toISOString() }
+      data,
+      meta: { type: 'kpi', count: data.length, period: currentPeriod, exportedAt: new Date().toISOString(), dataSource: data.length ? 'demo' : 'empty' }
     });
   }
 }
@@ -303,10 +307,11 @@ async function exportPerformance(
       meta: { type: 'performance', count: (performance as any[]).length, period: { start, end }, exportedAt: new Date().toISOString() }
     });
   } catch (error) {
+    const data = allowHrMockFallback() ? getMockPerformanceExport() : [];
     return res.status(200).json({
       success: true,
-      data: getMockPerformanceExport(),
-      meta: { type: 'performance', count: 10, period: { start, end }, exportedAt: new Date().toISOString() }
+      data,
+      meta: { type: 'performance', count: data.length, period: { start, end }, exportedAt: new Date().toISOString(), dataSource: data.length ? 'demo' : 'empty' }
     });
   }
 }
@@ -319,11 +324,11 @@ async function exportPayroll(
 ) {
   const currentPeriod = period || new Date().toISOString().substring(0, 7);
 
-  // Payroll calculation based on attendance and KPI
+  const data = allowHrMockFallback() ? getMockPayrollExport(currentPeriod) : [];
   return res.status(200).json({
     success: true,
-    data: getMockPayrollExport(currentPeriod),
-    meta: { type: 'payroll', count: 10, period: currentPeriod, exportedAt: new Date().toISOString() }
+    data,
+    meta: { type: 'payroll', count: data.length, period: currentPeriod, exportedAt: new Date().toISOString(), dataSource: data.length ? 'demo' : 'empty' }
   });
 }
 
