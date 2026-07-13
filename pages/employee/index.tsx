@@ -14,7 +14,7 @@ import {
   Coffee, Heart, Sun, Moon, Sunrise, Building2, MapPin,
   Eye, Send, RefreshCw, Menu, X, Loader2, Fingerprint,
   Navigation, Camera, Image, ClipboardCheck, Package, Store,
-  CheckSquare, AlertCircle, Map, ScanLine, Timer, Banknote, LayoutGrid, Megaphone, ExternalLink, Users, ClipboardList
+  CheckSquare, AlertCircle, Map, ScanLine, Timer, Banknote, LayoutGrid, Megaphone, ExternalLink, Users, ClipboardList, GraduationCap
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import PhotoCaptureField from '@/components/employee/PhotoCaptureField';
@@ -38,9 +38,10 @@ const MyFilesTab = dynamic(() => import('@/components/employee/MyFilesTab'), { l
 const PayslipTab = dynamic(() => import('@/components/employee/PayslipTab'), { loading: () => <TabSkeleton />, ssr: false });
 const DisciplinaryTab = dynamic(() => import('@/components/employee/DisciplinaryTab'), { loading: () => <TabSkeleton />, ssr: false });
 const SurveysTab = dynamic(() => import('@/components/employee/SurveysTab'), { loading: () => <TabSkeleton />, ssr: false });
+const TrainingTab = dynamic(() => import('@/components/employee/TrainingTab'), { loading: () => <TabSkeleton />, ssr: false });
 const VisitDetailModal = dynamic(() => import('@/components/employee/VisitDetailModal'), { ssr: false });
 
-type TabKey = 'home' | 'attendance' | 'overtime' | 'kpi' | 'leave' | 'claims' | 'travel' | 'visit' | 'mf' | 'profile' | 'files' | 'manager' | 'payslip' | 'disciplinary' | 'surveys';
+type TabKey = 'home' | 'attendance' | 'overtime' | 'kpi' | 'leave' | 'claims' | 'travel' | 'visit' | 'mf' | 'profile' | 'files' | 'manager' | 'payslip' | 'disciplinary' | 'surveys' | 'training';
 
 // ─── Field Visit Types ────────────────────────────────────────────────────────
 type VisitStatus = 'planned' | 'checked_in' | 'completed' | 'cancelled' | 'no_contact';
@@ -313,7 +314,7 @@ export default function EmployeeDashboard() {
       navigator.serviceWorker.register('/sw-employee.js').catch(() => {});
     }
     const tab = router.query.tab as string;
-    if (tab && ['home','attendance','overtime','kpi','leave','claims','travel','visit','mf','profile','files','manager','payslip','disciplinary'].includes(tab)) {
+    if (tab && ['home','attendance','overtime','kpi','leave','claims','travel','visit','mf','profile','files','manager','payslip','disciplinary','training'].includes(tab)) {
       setActiveTab(tab as TabKey);
     }
   }, [mounted, router.query.tab]);
@@ -2438,6 +2439,7 @@ export default function EmployeeDashboard() {
     { key: 'payslip',  icon: Wallet,     label: 'Slip Gaji',   desc: 'Akses payslip bulanan Anda',       color: 'bg-sky-100 text-sky-600' },
     { key: 'disciplinary', icon: AlertTriangle, label: 'Surat SP', desc: 'Surat peringatan & disiplin', color: 'bg-red-100 text-red-600' },
     { key: 'surveys', icon: ClipboardList, label: 'Survei', desc: 'Survei engagement & feedback HR', color: 'bg-violet-100 text-violet-600' },
+    { key: 'training', icon: GraduationCap, label: 'Training & LMS', desc: 'Pelatihan, ujian & kompetensi', color: 'bg-indigo-100 text-indigo-600' },
     ...(isMfAgent ? [{ key: 'mf' as TabKey, icon: Building2, label: 'Pembiayaan Lapangan', desc: 'Koleksi, portofolio & komisi', color: 'bg-indigo-100 text-indigo-600' }] : []),
     { key: 'claims',   icon: Receipt,    label: 'Klaim',       desc: 'Klaim biaya & reimbursement', color: 'bg-green-100 text-green-600' },
     { key: 'overtime', icon: Timer,      label: 'Lembur',      desc: 'Pengajuan & rekap lembur',    color: 'bg-orange-100 text-orange-600' },
@@ -2447,7 +2449,7 @@ export default function EmployeeDashboard() {
     { key: 'profile',  icon: User,       label: 'Profil',      desc: 'Data & pengaturan akun',      color: 'bg-gray-100 text-gray-600' },
   ];
 
-  const secondaryTabs = new Set<TabKey>(['files', 'payslip', 'disciplinary', 'surveys', 'claims', 'overtime', 'travel', 'visit', 'mf', 'profile', 'kpi']);
+  const secondaryTabs = new Set<TabKey>(['files', 'payslip', 'disciplinary', 'surveys', 'training', 'claims', 'overtime', 'travel', 'visit', 'mf', 'profile', 'kpi']);
   const headerTitle = activeTab === 'home'
     ? 'Portal Karyawan'
     : secondaryTabs.has(activeTab)
@@ -2487,6 +2489,7 @@ export default function EmployeeDashboard() {
       case 'payslip':    return <PayslipTab />;
       case 'disciplinary': return <DisciplinaryTab />;
       case 'surveys':      return <SurveysTab />;
+      case 'training':     return <TrainingTab />;
       default: return null;
     }
     })();

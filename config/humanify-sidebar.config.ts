@@ -8,7 +8,7 @@ import {
   CalendarDays, Settings, Megaphone, FileText, KeyRound, Heart, Shield,
   Briefcase, Plane, BookOpen, PenTool, AlertTriangle, Calculator, Banknote,
   Percent, Gift, Clock, Network, Fingerprint, Sparkles, Layers, Ban,
-  Wallet, Package, CreditCard, Crosshair, PenLine, Scale, Globe,
+  Wallet, Package, CreditCard, Crosshair, PenLine, Scale, Globe, Brain,
   type LucideIcon,
 } from 'lucide-react';
 import type { SidebarConfig, MenuGroup } from './sidebar.config';
@@ -105,6 +105,23 @@ export const humanifySidebarConfig: SidebarConfig = {
       items: [
         { id: 'humanify-recruitment', name: 'Rekrutmen', href: '/humanify/recruitment', icon: UserPlus, modules: ['humanify', 'hris'] },
         { id: 'humanify-careers', name: 'Portal Karir Publik', href: '/careers', icon: Globe, modules: ['humanify', 'hris'] },
+        {
+          id: 'humanify-lms',
+          name: 'Learning Management',
+          icon: GraduationCap,
+          modules: ['humanify', 'hris'],
+          children: [
+            { id: 'humanify-lms-hub', name: 'LMS Dashboard', href: '/humanify/lms', icon: LayoutDashboard, modules: ['humanify', 'hris'] },
+            { id: 'humanify-lms-question-bank', name: 'Bank Soal', href: '/humanify/lms/question-bank', icon: BookOpen, modules: ['humanify', 'hris'] },
+            { id: 'humanify-lms-tests', name: 'Tes & Ujian', href: '/humanify/lms/tests', icon: ClipboardList, modules: ['humanify', 'hris'] },
+            { id: 'humanify-lms-psychometric', name: 'Psikotes', href: '/humanify/lms/psychometric', icon: Brain, modules: ['humanify', 'hris'] },
+            { id: 'humanify-lms-schedules', name: 'Penjadwalan Tes', href: '/humanify/lms/schedules', icon: Calendar, modules: ['humanify', 'hris'] },
+            { id: 'humanify-lms-grading', name: 'Penilaian', href: '/humanify/lms/grading', icon: PenTool, modules: ['humanify', 'hris'] },
+            { id: 'humanify-lms-reports', name: 'Laporan & Analitik', href: '/humanify/lms/reports', icon: BarChart3, modules: ['humanify', 'hris'] },
+            { id: 'humanify-lms-competency', name: 'Kompetensi & Sertifikat', href: '/humanify/lms/competency', icon: Award, modules: ['humanify', 'hris'] },
+            { id: 'humanify-lms-access', name: 'Akses & Role LMS', href: '/humanify/lms/access', icon: Users, modules: ['humanify', 'hris'] },
+          ],
+        },
         { id: 'humanify-training', name: 'Program Training', href: '/humanify/training', icon: GraduationCap, modules: ['humanify', 'hris'] },
         { id: 'humanify-training-dev', name: 'Pelatihan & Pengembangan', href: '/humanify/training-development', icon: BookOpen, modules: ['humanify', 'hris'] },
         { id: 'humanify-training-scoring', name: 'Skor Training', href: '/humanify/training-scoring', icon: PenTool, modules: ['humanify', 'hris'] },

@@ -454,6 +454,19 @@ export const PERMISSION_CATALOG: PermissionCategory[] = [
         ]
       },
       {
+        code: 'lms',
+        name: 'Learning Management System',
+        route: '/humanify/lms',
+        operations: [
+          ...crud('lms', 'LMS'),
+          op('lms.publish', 'Publish Tes/Kursus', 'approve'),
+          op('lms.grade', 'Penilaian Manual', 'update'),
+          op('lms.enroll', 'Enroll Peserta', 'create'),
+          op('lms.psychometric', 'Kelola Psikotes', 'manage'),
+          op('lms.schedule', 'Penjadwalan Tes', 'manage'),
+        ]
+      },
+      {
         code: 'travel_expense',
         name: 'Perjalanan Dinas',
         route: '/humanify/travel-expense',
@@ -779,7 +792,7 @@ export const ROLE_PRESETS: RolePreset[] = [
       'finance.*', 'finance_accounts.*', 'finance_transactions.*', 'finance_expenses.*',
       'finance_invoices.*', 'finance_tax.*', 'billing.*',
       'employees.*', 'organization.*', 'attendance.*', 'leave.*', 'overtime.*',
-      'payroll.*', 'recruitment.*', 'performance.*', 'training.*', 'travel_expense.*',
+      'payroll.*', 'recruitment.*', 'performance.*', 'training.*', 'lms.*', 'travel_expense.*',
       'industrial_relations.*', 'crm.*', 'sfa.*', 'marketing.*',
       'fms.*', 'tms.*', 'fleet.*', 'branches.*', 'manufacturing.*',
       'asset_management.*', 'project_management.*',
