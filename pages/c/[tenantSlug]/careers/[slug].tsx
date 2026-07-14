@@ -50,8 +50,8 @@ export default function TenantCareerDetailPage() {
     }
   }
 
-  const companyName = company?.name || tenantSlug;
-  const careersHref = `/c/${tenantSlug}/careers`;
+  const companyName = company?.name || tenantSlug || 'Perusahaan';
+  const careersHref = tenantSlug ? `/c/${tenantSlug}/careers` : '/careers';
 
   return (
     <>
