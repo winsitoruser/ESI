@@ -756,8 +756,11 @@ export async function resolveAimanDataContext(
   const identifiers = extractIdentifiers(message);
   const intents = detectIntents(message);
   const hasEmployeeRef = !!(identifiers.employee_code || identifiers.nik || identifiers.name_hint);
-  const wantsOverview = intents.includes('overview');
-  const wantsDossier = intents.includes('employee_dossier') || (hasEmployeeRef && intents.length <= 1);
+  const moduleIntents = intents.filter(i => i !== 'employee_dossier' && i !== 'overview');
+  const wantsOverview = intents.includes('overview') && !moduleIntents.length;
+  const wantsDossier =
+    intents.includes('employee_dossier') && !moduleIntents.length ||
+    (hasEmployeeRef && !moduleIntents.length);
 
   const ctx: AimanDataContext = { period, year, intents, identifiers };
 
