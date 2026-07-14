@@ -9,6 +9,7 @@ import {
   Briefcase, Plane, BookOpen, PenTool, AlertTriangle, Calculator, Banknote,
   Percent, Gift, Clock, Network, Fingerprint, Sparkles, Layers, Ban,
   Wallet, Package, CreditCard, Crosshair, PenLine, Scale, Globe, Brain, Zap,
+  CheckCircle2,
   type LucideIcon,
 } from 'lucide-react';
 import type { SidebarConfig, MenuGroup } from './sidebar.config';
@@ -174,6 +175,7 @@ export const humanifySidebarConfig: SidebarConfig = {
       items: [
         { id: 'humanify-employee-portal', name: 'Portal Karyawan', href: '/employee', icon: UserCheck, modules: ['humanify', 'hris'] },
         { id: 'humanify-billing', name: 'Billing & Upgrade', href: '/humanify/billing', icon: CreditCard, modules: ['humanify', 'hris'] },
+        { id: 'humanify-go-live', name: 'Go-live Checklist', href: '/humanify/go-live', icon: CheckCircle2, modules: ['humanify', 'hris'] },
         { id: 'humanify-enterprise', name: 'Enterprise (API & Brand)', href: '/humanify/enterprise', icon: KeyRound, modules: ['humanify', 'hris'] },
         { id: 'humanify-users-roles', name: 'Role & Akses', href: '/humanify/users/roles', icon: Shield, modules: ['humanify', 'hris'] },
         { id: 'humanify-about-naincode', name: 'Tentang Naincode', href: '/humanify/welcome', icon: Layers, modules: ['humanify', 'hris'] },

@@ -13,6 +13,8 @@ import {
 import { buildEntitlementSnapshot } from '@/lib/saas/plan-entitlements';
 import { getSeatUsage } from '@/lib/saas/seat-metering';
 import { getTenantColumns } from '@/lib/saas/tenant-schema';
+import { isTenantEmailVerified } from '@/lib/saas/email-verify';
+import { getGoLiveStatus } from '@/lib/saas/go-live';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch {}
@@ -60,6 +62,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const plan = isPlatform ? 'enterprise' : (tenant?.subscriptionPlan || 'trial');
     const entitlements = buildEntitlementSnapshot(plan);
     const seats = isPlatform ? null : await getSeatUsage(tenantId, plan);
+    const emailVerified = isPlatform ? true : await isTenantEmailVerified(tenantId);
+    let goLivePct: number | null = null;
+    if (!isPlatform) {
+      try {
+        goLivePct = (await getGoLiveStatus(tenantId)).pct;
+      } catch { /* */ }
+    }
 
     let trialEndsAt: string | null = null;
     let daysLeftInTrial: number | null = null;
@@ -90,6 +99,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         careersUrl: tenant?.slug ? `/c/${tenant.slug}/careers` : null,
         entitlements,
         seats,
+        emailVerified,
+        goLivePct,
         trialEndsAt,
         daysLeftInTrial,
         subdomainHint: tenant?.slug ? `https://${tenant.slug}.humanify.id` : null,

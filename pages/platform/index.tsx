@@ -400,8 +400,8 @@ export default function PlatformDashboardPage() {
         </div>
 
         <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-sm text-indigo-900">
-          <strong>Phase 6:</strong> Seat metering · trial expiry queue · dunning scan.
-          Subdomain: <code className="bg-white/70 px-1 rounded">{'{slug}'}.humanify.id</code>
+          <strong>Phase 7 GA:</strong> Email verify · go-live checklist · seats · support.
+          <code className="bg-white/70 px-1 rounded">/humanify/go-live</code>
         </div>
       </div>
     </HQLayout>

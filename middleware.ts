@@ -37,6 +37,7 @@ export async function middleware(request: NextRequest) {
   const isHumanifyPublic =
     pathname === '/humanify/login' ||
     pathname === '/humanify/signup' ||
+    pathname === '/humanify/verify-email' ||
     pathname === '/humanify/welcome' ||
     pathname.startsWith('/humanify/welcome/') ||
     pathname.startsWith('/c/') ||

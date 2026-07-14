@@ -86,7 +86,11 @@ export default function HumanifySignupForm() {
         throw new Error(json.error || 'Registrasi gagal');
       }
 
-      toast.success('Akun dibuat! Membuka wizard setup...');
+      toast.success(
+        json.data?.verification?.emailed
+          ? 'Akun dibuat! Cek email untuk verifikasi.'
+          : 'Akun dibuat! Membuka wizard setup...',
+      );
 
       const login = await signIn('credentials', {
         redirect: false,

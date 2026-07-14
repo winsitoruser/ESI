@@ -3,6 +3,7 @@
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { provisionHumanifyTenant } from '@/lib/saas/humanify-provision';
+import { createEmailVerification } from '@/lib/saas/email-verify';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -47,6 +48,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       employeeRange: employeeRange ? String(employeeRange) : undefined,
     });
 
+    const origin = (req.headers.origin as string) || process.env.NEXTAUTH_URL || 'https://humanify.id';
+    let verification: { verifyUrl?: string; emailed?: boolean } = {};
+    try {
+      const v = await createEmailVerification({
+        userId: result.userId,
+        tenantId: result.tenantId,
+        email: result.email,
+        baseUrl: origin,
+      });
+      const expose =
+        process.env.NODE_ENV !== 'production'
+        || process.env.HUMANIFY_EMAIL_VERIFY_RETURN_TOKEN === 'true'
+        || !v.emailed;
+      verification = {
+        emailed: v.emailed,
+        verifyUrl: expose ? v.verifyUrl : undefined,
+      };
+    } catch (e: any) {
+      console.warn('[signup] email verify create:', e?.message);
+    }
+
     return res.status(201).json({
       success: true,
       message: 'Akun Humanify berhasil dibuat',
@@ -58,6 +80,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         redirectTo: '/humanify/setup',
         careersUrl: `/c/${result.slug}/careers`,
         trialDays: 14,
+        verification,
       },
     });
   } catch (e: any) {
