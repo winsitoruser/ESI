@@ -1,8 +1,7 @@
 /**
  * Humanify SaaS Phase 5 — tenant data export (portability)
  */
-let sequelize: any;
-try { sequelize = require('../sequelize'); } catch {}
+import { listTenantEmployeesLean } from './humanify-employees';
 
 function csvEscape(v: unknown): string {
   const s = v == null ? '' : String(v);
@@ -18,49 +17,15 @@ function toCsv(headers: string[], rows: any[][]): string {
   return lines.join('\n');
 }
 
-async function tableExists(name: string): Promise<boolean> {
-  if (!sequelize) return false;
-  const [rows] = await sequelize.query(`
-    SELECT 1 FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_name = :name
-    LIMIT 1
-  `, { replacements: { name } });
-  return Boolean(rows?.length);
-}
-
 export async function exportTenantEmployeesCsv(tenantId: string): Promise<{
   filename: string;
   csv: string;
   count: number;
 }> {
-  if (!sequelize) throw new Error('Database unavailable');
-
-  let rows: any[] = [];
-  if (await tableExists('employees')) {
-    const [r] = await sequelize.query(`
-      SELECT id, employee_number, name, email, phone, department, position,
-             employment_type, status, join_date, created_at
-      FROM employees
-      WHERE tenant_id = :tid
-      ORDER BY created_at DESC NULLS LAST
-      LIMIT 5000
-    `, { replacements: { tid: tenantId } });
-    rows = r || [];
-  } else if (await tableExists('hris_employees')) {
-    const [r] = await sequelize.query(`
-      SELECT id, employee_number, name, email, phone, department, position,
-             employment_type, status, join_date, created_at
-      FROM hris_employees
-      WHERE tenant_id = :tid
-      ORDER BY created_at DESC NULLS LAST
-      LIMIT 5000
-    `, { replacements: { tid: tenantId } });
-    rows = r || [];
-  }
-
+  const rows = await listTenantEmployeesLean(tenantId, 5000);
   const headers = [
-    'id', 'employee_number', 'name', 'email', 'phone', 'department', 'position',
-    'employment_type', 'status', 'join_date', 'created_at',
+    'id', 'employeeNumber', 'name', 'email', 'phone', 'department', 'position',
+    'employmentType', 'status', 'joinDate',
   ];
   const data = rows.map((row) => headers.map((h) => row[h]));
   const stamp = new Date().toISOString().slice(0, 10);
