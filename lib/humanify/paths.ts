@@ -3,6 +3,8 @@
 export const HUMANIFY_BASE = '/humanify';
 export const HUMANIFY_API = '/api/humanify';
 export const HUMANIFY_LOGIN = '/humanify/login';
+export const HUMANIFY_SIGNUP = '/humanify/signup';
+export const HUMANIFY_SETUP = '/humanify/setup';
 export const HUMANIFY_WELCOME = '/humanify/welcome';
 
 export function humanifyPath(...segments: string[]): string {

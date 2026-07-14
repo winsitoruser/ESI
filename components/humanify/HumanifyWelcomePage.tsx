@@ -239,6 +239,12 @@ export default function HumanifyWelcomePage() {
               {NAINCODE.name}
             </a>
             <Link
+              href={HUMANIFY_BRAND.signupPath}
+              className="hidden text-sm text-slate-600 transition hover:text-slate-900 sm:inline"
+            >
+              Daftar
+            </Link>
+            <Link
               href={HUMANIFY_BRAND.employeeLoginPath}
               className="hidden text-sm text-slate-600 transition hover:text-slate-900 sm:inline"
             >
@@ -304,18 +310,17 @@ export default function HumanifyWelcomePage() {
                 className="flex flex-col items-center justify-center gap-3 sm:flex-row"
               >
                 <Link
-                  href={HUMANIFY_BRAND.loginPath}
+                  href={HUMANIFY_BRAND.signupPath}
                   className="group inline-flex min-w-[240px] items-center justify-center gap-2 rounded-xl bg-blue-600 px-8 py-3.5 font-semibold text-white shadow-sm transition hover:bg-blue-700"
                 >
-                  Masuk ke Humanify
+                  Mulai trial gratis
                   <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
                 </Link>
                 <Link
-                  href={HUMANIFY_BRAND.employeeLoginPath}
+                  href={HUMANIFY_BRAND.loginPath}
                   className="inline-flex min-w-[240px] items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-8 py-3.5 font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
                 >
-                  <Smartphone className="h-4 w-4" />
-                  Portal Karyawan
+                  Masuk ke Humanify
                 </Link>
               </motion.div>
             </div>
@@ -505,11 +510,17 @@ export default function HumanifyWelcomePage() {
                 </p>
                 <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
                   <Link
-                    href={HUMANIFY_BRAND.loginPath}
+                    href={HUMANIFY_BRAND.signupPath}
                     className="group inline-flex min-w-[220px] items-center justify-center gap-2 rounded-xl bg-blue-600 px-8 py-3.5 font-semibold text-white shadow-sm transition hover:bg-blue-700"
                   >
-                    Masuk ke Humanify
+                    Daftar trial gratis
                     <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
+                  </Link>
+                  <Link
+                    href={HUMANIFY_BRAND.loginPath}
+                    className="inline-flex min-w-[220px] items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-8 py-3.5 font-medium text-slate-700 transition hover:bg-slate-50"
+                  >
+                    Masuk ke Humanify
                   </Link>
                   <a
                     href={NAINCODE.website}

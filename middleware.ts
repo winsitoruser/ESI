@@ -29,6 +29,7 @@ export async function middleware(request: NextRequest) {
 
   const isHumanifyPublic =
     pathname === '/humanify/login' ||
+    pathname === '/humanify/signup' ||
     pathname === '/humanify/welcome' ||
     pathname.startsWith('/humanify/welcome/') ||
     pathname.startsWith('/c/') ||
@@ -73,6 +74,19 @@ export async function middleware(request: NextRequest) {
       const loginUrl = new URL('/humanify/login', request.url);
       loginUrl.searchParams.set('callbackUrl', pathname);
       return NextResponse.redirect(loginUrl);
+    }
+
+    // Owner belum selesai setup wizard → arahkan ke /humanify/setup
+    const userRole = (token.role as string)?.toLowerCase() || '';
+    const bypassSetup = ['super_admin', 'superadmin', 'platform_admin'].includes(userRole);
+    const setupDone = token.setupCompleted !== false;
+    if (
+      !bypassSetup &&
+      userRole === 'owner' &&
+      !setupDone &&
+      !pathname.startsWith('/humanify/setup')
+    ) {
+      return NextResponse.redirect(new URL('/humanify/setup', request.url));
     }
   }
 

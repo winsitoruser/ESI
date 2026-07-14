@@ -223,7 +223,7 @@ export default function PlatformDashboardPage() {
         </div>
 
         <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-sm text-indigo-900">
-          <strong>Next:</strong> Phase 1 self-serve signup · Phase 2 plan entitlement · Phase 3 MRR analytics · Phase 4 billing live.
+          <strong>Next:</strong> Phase 2 plan entitlement · Phase 3 MRR analytics · Phase 4 billing live.
           Careers multi-tenant: <code className="bg-white/70 px-1 rounded">/c/{'{slug}'}/careers</code>
         </div>
       </div>

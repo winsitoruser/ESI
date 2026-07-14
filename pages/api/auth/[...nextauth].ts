@@ -183,6 +183,23 @@ export const authOptions: NextAuthOptions = {
           // Normalize role to canonical form
           const normalizedRole = normalizeRole(user.role);
 
+          let setupCompleted = true;
+          if (user.tenantId && !['super_admin', 'superadmin', 'platform_admin'].includes(normalizedRole)) {
+            try {
+              const { isSaasOnboardingComplete } = await import('../../../lib/saas/humanify-onboarding');
+              setupCompleted = await isSaasOnboardingComplete(user.tenantId);
+            } catch {
+              setupCompleted = true;
+            }
+          }
+
+          let redirectUrl = getRedirectUrlForRole(normalizedRole);
+          if (normalizedRole === 'owner') {
+            redirectUrl = setupCompleted ? '/humanify' : '/humanify/setup';
+          } else if (['hr_staff', 'hris_staff'].includes(normalizedRole)) {
+            redirectUrl = '/humanify';
+          }
+
           // Return user object (without password)
           return {
             id: user.id.toString(),
@@ -201,8 +218,8 @@ export const authOptions: NextAuthOptions = {
             dataScope: user.dataScope || 'own_branch',
             businessCode: null,
             businessStructure: null,
-            setupCompleted: true,
-            redirectUrl: getRedirectUrlForRole(normalizedRole),
+            setupCompleted,
+            redirectUrl,
           };
         } catch (error) {
           console.error('Auth error:', error);
@@ -260,13 +277,19 @@ export const authOptions: NextAuthOptions = {
         // Refresh from DB if tenantId exists
         if (token.tenantId) {
           try {
+            const { isSaasOnboardingComplete } = await import('../../../lib/saas/humanify-onboarding');
+            token.setupCompleted = await isSaasOnboardingComplete(token.tenantId as string);
+          } catch {
+            /* keep token */
+          }
+          try {
             const db = require('../../../models');
             const tenant = await db.Tenant.findByPk(token.tenantId, {
               attributes: ['kybStatus', 'setupCompleted', 'businessCode', 'businessStructure'],
             });
             if (tenant) {
               token.kybStatus = tenant.kybStatus;
-              token.setupCompleted = tenant.setupCompleted ?? false;
+              if (tenant.setupCompleted === true) token.setupCompleted = true;
               token.businessCode = tenant.businessCode;
               token.businessStructure = tenant.businessStructure;
             }
@@ -294,13 +317,19 @@ export const authOptions: NextAuthOptions = {
         // Also refresh tenant data from DB on auto-refresh
         if (token.tenantId) {
           try {
+            const { isSaasOnboardingComplete } = await import('../../../lib/saas/humanify-onboarding');
+            token.setupCompleted = await isSaasOnboardingComplete(token.tenantId as string);
+          } catch {
+            /* keep token */
+          }
+          try {
             const db = require('../../../models');
             const tenant = await db.Tenant.findByPk(token.tenantId, {
               attributes: ['kybStatus', 'setupCompleted', 'businessCode', 'businessStructure'],
             });
             if (tenant) {
               token.kybStatus = tenant.kybStatus;
-              token.setupCompleted = tenant.setupCompleted ?? false;
+              if (tenant.setupCompleted === true) token.setupCompleted = true;
               token.businessCode = tenant.businessCode;
               token.businessStructure = tenant.businessStructure;
             }

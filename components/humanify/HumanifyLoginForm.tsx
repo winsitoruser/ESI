@@ -274,6 +274,17 @@ export default function HumanifyLoginForm({
 
               <div className="mt-8 pt-6 border-t border-white/[0.08] space-y-3">
                 <Link
+                  href={HUMANIFY_BRAND.signupPath}
+                  className="flex items-center justify-between p-3.5 rounded-xl border border-violet-400/20 bg-violet-500/10 hover:bg-violet-500/15 transition-all group"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-white/90">Belum punya akun?</p>
+                    <p className="text-xs text-violet-300/60 mt-0.5">Daftar trial 14 hari gratis</p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-violet-300 group-hover:translate-x-0.5 transition-all" />
+                </Link>
+
+                <Link
                   href={HUMANIFY_BRAND.employeeLoginPath}
                   className="flex items-center justify-between p-3.5 rounded-xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.06] hover:border-violet-400/20 transition-all group"
                 >

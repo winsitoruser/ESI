@@ -58,6 +58,8 @@ export const HUMANIFY_BRAND = {
   company: NAINCODE.legalName,
   parent: NAINCODE.name,
   loginPath: '/humanify/login',
+  signupPath: '/humanify/signup',
+  setupPath: '/humanify/setup',
   welcomePath: '/humanify/welcome',
   roiCalculatorPath: '/humanify/pricing/roi-calculator',
   appPath: '/humanify',
