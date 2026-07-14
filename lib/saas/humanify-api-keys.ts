@@ -57,6 +57,10 @@ export async function createApiKey(opts: {
   const scopes = (opts.scopes?.length ? opts.scopes : ['employees:read']).map(String);
   const { raw, prefix } = generateRawKey();
   const id = crypto.randomUUID();
+  const createdBy =
+    opts.createdBy && /^[0-9a-f-]{36}$/i.test(String(opts.createdBy))
+      ? String(opts.createdBy)
+      : null;
   await sequelize.query(`
     INSERT INTO saas_api_keys (id, tenant_id, name, key_prefix, key_hash, scopes, created_by)
     VALUES (:id, :tid, :name, :prefix, :hash, CAST(:scopes AS text[]), :uid)
@@ -68,7 +72,7 @@ export async function createApiKey(opts: {
       prefix,
       hash: hashKey(raw),
       scopes: `{${scopes.map((s) => `"${s.replace(/"/g, '')}"`).join(',')}}`,
-      uid: opts.createdBy || null,
+      uid: createdBy,
     },
   });
   return {
