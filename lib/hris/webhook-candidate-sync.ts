@@ -36,6 +36,10 @@ const PROVIDER_SOURCE: Record<string, string> = {
   google_jobs: 'google_jobs',
   whatsapp: 'whatsapp',
   jobstreet: 'jobstreet',
+  kalibrr: 'kalibrr',
+  glints: 'glints',
+  careers: 'careers_portal',
+  careers_portal: 'careers_portal',
 };
 
 export async function upsertCandidateFromWebhook(

@@ -27,6 +27,10 @@ echo "Ensure Humanify webhook secrets — $ENV_FILE"
 ensure_key "DEALLS_WEBHOOK_SECRET"
 ensure_key "LINKEDIN_WEBHOOK_SECRET"
 ensure_key "INDEED_WEBHOOK_SECRET"
+ensure_key "JOBSTREET_WEBHOOK_SECRET"
+ensure_key "KALIBRR_WEBHOOK_SECRET"
+ensure_key "GLINTS_WEBHOOK_SECRET"
+ensure_key "GOOGLE_JOBS_WEBHOOK_SECRET"
 
 if [ "$GENERATED" = 1 ]; then
   echo "  → Restart PM2 humanify to load new env vars"

@@ -5,17 +5,28 @@ import { authOptions } from '../auth/[...nextauth]';
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch {}
 import { getRecruitmentIntegrationSummary, ESIGN_PROVIDERS } from '@/lib/hris/recruitment-integrations';
+import {
+  publishJobToPortals,
+  listPortalPosts,
+  type PortalProvider,
+} from '@/lib/hris/job-portal-publish';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
   if (!session) return res.status(401).json({ error: 'Unauthorized' });
 
   const { action } = req.query;
+  const tenantId = (session.user as any)?.tenantId || null;
 
   try {
     if (req.method === 'GET') {
       if (action === 'recruitment') {
-        return res.json({ success: true, data: getRecruitmentIntegrationSummary() });
+        return res.json({ success: true, data: await getRecruitmentIntegrationSummary(tenantId) });
+      }
+      if (action === 'portal-posts') {
+        const openingId = (req.query.opening_id || req.query.job_id) as string | undefined;
+        const posts = await listPortalPosts(openingId, tenantId);
+        return res.json({ success: true, data: posts });
       }
       if (action === 'esign') {
         return res.json({ success: true, data: { providers: ESIGN_PROVIDERS } });
@@ -76,10 +87,54 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Unknown action' });
     }
 
+    if (req.method === 'POST' && action === 'publish-job') {
+      const { job_opening_id, providers } = req.body || {};
+      if (!job_opening_id) return res.status(400).json({ success: false, error: 'job_opening_id required' });
+      if (!sequelize) return res.status(500).json({ success: false, error: 'Database unavailable' });
+
+      const [rows] = await sequelize.query(
+        `SELECT * FROM hris_job_openings WHERE id = :id LIMIT 1`,
+        { replacements: { id: job_opening_id } },
+      );
+      const job = rows?.[0];
+      if (!job) return res.status(404).json({ success: false, error: 'Lowongan tidak ditemukan' });
+      if (job.status && job.status !== 'open') {
+        return res.status(400).json({ success: false, error: 'Hanya lowongan berstatus open yang bisa dipublish' });
+      }
+
+      const defaultProviders: PortalProvider[] = [
+        'linkedin', 'indeed', 'dealls', 'google_jobs', 'jobstreet', 'kalibrr', 'glints', 'careers', 'whatsapp',
+      ];
+      const list = (Array.isArray(providers) && providers.length ? providers : defaultProviders) as PortalProvider[];
+
+      const results = await publishJobToPortals({
+        job: {
+          id: job.id,
+          title: job.title,
+          department: job.department,
+          location: job.location,
+          type: job.employment_type || job.type,
+          employment_type: job.employment_type || job.type,
+          description: job.description,
+          requirements: job.requirements,
+          salary_min: job.salary_min != null ? Number(job.salary_min) : undefined,
+          salary_max: job.salary_max != null ? Number(job.salary_max) : undefined,
+          deadline: job.deadline,
+          status: job.status,
+        },
+        providers: list,
+        tenantId,
+      });
+
+      return res.json({
+        success: true,
+        data: results,
+        message: `Publish selesai: ${results.filter(r => r.status !== 'failed').length}/${results.length} portal`,
+      });
+    }
+
     if (req.method === 'POST' && action === 'webhook') {
       const { provider, event, payload, signature } = req.body;
-      const tenantId = (session.user as any)?.tenantId || null;
-
       const { upsertCandidateFromWebhook, validateWebhookSignature } = await import('@/lib/hris/webhook-candidate-sync');
       const secretKey = process.env[`${(provider || '').toUpperCase()}_WEBHOOK_SECRET`];
 
@@ -95,19 +150,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       }
 
-      const log = {
-        id: `wh-${Date.now()}`,
-        provider: provider || 'unknown',
-        event: event || 'sync',
-        receivedAt: new Date().toISOString(),
-        payloadSummary: payload ? Object.keys(payload).join(', ') : 'empty',
-        status: syncResult ? 'synced' : 'processed',
-        syncResult,
-      };
-
       return res.json({
         success: true,
-        data: log,
+        data: {
+          id: `wh-${Date.now()}`,
+          provider: provider || 'unknown',
+          event: event || 'sync',
+          receivedAt: new Date().toISOString(),
+          syncResult,
+        },
         message: syncResult
           ? `Kandidat ${syncResult.candidateName} ${syncResult.action === 'created' ? 'ditambahkan' : 'diperbarui'} dari ${provider}`
           : `Webhook ${provider} diterima`,

@@ -49,6 +49,47 @@ export default function CareerDetailPage() {
     <>
       <Head>
         <title>{job?.title ? `${job.title} — Karir` : 'Karir'} — {HUMANIFY_BRAND.name}</title>
+        {job && (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                '@context': 'https://schema.org/',
+                '@type': 'JobPosting',
+                title: job.title,
+                description: [job.description, job.requirements].filter(Boolean).join('\n\n') || job.title,
+                datePosted: (job.created_at || new Date().toISOString()).toString().slice(0, 10),
+                validThrough: job.deadline || undefined,
+                employmentType: String(job.employment_type || job.type || 'FULL_TIME').toUpperCase().replace('-', '_'),
+                hiringOrganization: {
+                  '@type': 'Organization',
+                  name: HUMANIFY_BRAND.company || HUMANIFY_BRAND.name,
+                  sameAs: 'https://humanify.id',
+                },
+                jobLocation: {
+                  '@type': 'Place',
+                  address: {
+                    '@type': 'PostalAddress',
+                    addressLocality: job.location || 'Indonesia',
+                    addressCountry: 'ID',
+                  },
+                },
+                baseSalary: job.salary_min || job.salary_max ? {
+                  '@type': 'MonetaryAmount',
+                  currency: 'IDR',
+                  value: {
+                    '@type': 'QuantitativeValue',
+                    minValue: job.salary_min || undefined,
+                    maxValue: job.salary_max || undefined,
+                    unitText: 'MONTH',
+                  },
+                } : undefined,
+                directApply: true,
+                url: `https://humanify.id/careers/${slug}`,
+              }),
+            }}
+          />
+        )}
       </Head>
       <div className="min-h-screen bg-slate-50">
         <header className="border-b bg-white">

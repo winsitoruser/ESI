@@ -64,6 +64,13 @@ export default function RecruitmentPage() {
   const [screeningResults, setScreeningResults] = useState<any[]>([]);
   const [webhookTesting, setWebhookTesting] = useState(false);
   const [webhookResult, setWebhookResult] = useState<any>(null);
+  const [publishing, setPublishing] = useState(false);
+  const [publishResult, setPublishResult] = useState<any[] | null>(null);
+  const [selectedPortals, setSelectedPortals] = useState<string[]>([
+    'linkedin', 'indeed', 'dealls', 'google_jobs', 'jobstreet', 'kalibrr', 'glints', 'careers',
+  ]);
+  const [publishOpeningId, setPublishOpeningId] = useState('');
+
 
   const showToast = (msg: string, type = 'success') => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
   const fmtCur = (n: number) => `Rp ${(n || 0).toLocaleString('id-ID')}`;
@@ -149,6 +156,63 @@ export default function RecruitmentPage() {
       showToast('Gagal menguji webhook', 'error');
     } finally { setWebhookTesting(false); }
   };
+
+  const publishToPortals = async (jobOpeningId: string, providers?: string[]) => {
+    if (!jobOpeningId) { showToast('Pilih lowongan terlebih dahulu', 'error'); return; }
+    setPublishing(true);
+    setPublishResult(null);
+    try {
+      const res = await fetch('/api/humanify/integrations?action=publish-job', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          job_opening_id: jobOpeningId,
+          providers: providers || selectedPortals,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setPublishResult(json.data || []);
+        showToast(json.message || 'Berhasil dipublish ke portal');
+        fetchIntegrations();
+      } else {
+        showToast(json.error || 'Gagal publish', 'error');
+      }
+    } catch {
+      showToast('Gagal publish ke portal', 'error');
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  const togglePortal = (provider: string) => {
+    setSelectedPortals(prev =>
+      prev.includes(provider) ? prev.filter(p => p !== provider) : [...prev, provider],
+    );
+  };
+
+  const statusBadge = (status: string) => {
+    const map: Record<string, string> = {
+      connected: 'bg-green-100 text-green-700',
+      webhook_only: 'bg-blue-100 text-blue-700',
+      configured: 'bg-indigo-100 text-indigo-700',
+      pending: 'bg-amber-100 text-amber-700',
+      coming_soon: 'bg-gray-100 text-gray-600',
+    };
+    const label: Record<string, string> = {
+      connected: 'Connected',
+      webhook_only: 'Webhook',
+      configured: 'Configured',
+      pending: 'Setup diperlukan',
+      coming_soon: 'Coming soon',
+    };
+    return (
+      <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${map[status] || map.pending}`}>
+        {label[status] || status}
+      </span>
+    );
+  };
+
 
   const fetchScreening = useCallback(async () => {
     try {
@@ -485,9 +549,74 @@ export default function RecruitmentPage() {
         {/* INTEGRATIONS TAB */}
         {!loading && tab === 'integrations' && (
           <div className="space-y-6">
-            <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 text-sm text-indigo-800">
-              <strong>Recruit through Dealls</strong> — Posting lowongan ke LinkedIn, Indeed, Google for Jobs, dan WhatsApp 1-click contact.
+            <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 text-sm text-indigo-900">
+              <strong>Multi-portal recruitment</strong> — Publikasikan lowongan ke LinkedIn, Indeed, Dealls, Google for Jobs, Jobstreet, Kalibrr, Glints, WhatsApp, dan portal karir Humanify.
+              Status koneksi dibaca dari credential lingkungan + webhook secret (bukan stub).
+              {integrations && (
+                <span className="block mt-1 text-indigo-700">
+                  {integrations.connected || 0} connected · {integrations.configured || 0} siap · {integrations.totalApplicantsSynced || 0} pelamar dari semua sumber
+                </span>
+              )}
             </div>
+
+            {/* Publish panel */}
+            <div className="bg-white border rounded-xl p-5 space-y-4">
+              <h3 className="font-semibold flex items-center gap-2">
+                <Upload className="w-4 h-4 text-indigo-600" /> Publikasikan Lowongan ke Portal
+              </h3>
+              <div className="grid md:grid-cols-2 gap-3">
+                <select
+                  value={publishOpeningId}
+                  onChange={e => setPublishOpeningId(e.target.value)}
+                  className="px-3 py-2 border rounded-lg text-sm"
+                >
+                  <option value="">Pilih lowongan terbuka…</option>
+                  {openings.filter(o => o.status === 'open').map(o => (
+                    <option key={o.id} value={o.id}>{o.title}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => publishToPortals(publishOpeningId)}
+                  disabled={publishing || !publishOpeningId || !selectedPortals.length}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {publishing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
+                  {publishing ? 'Mempublikasikan…' : `Publish ke ${selectedPortals.length} portal`}
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(integrations?.channels || []).filter((ch: any) => ch.publishSupported !== false).map((ch: any) => (
+                  <button
+                    key={ch.id}
+                    type="button"
+                    onClick={() => togglePortal(ch.provider)}
+                    className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
+                      selectedPortals.includes(ch.provider)
+                        ? 'bg-indigo-600 text-white border-indigo-600'
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300'
+                    }`}
+                  >
+                    {ch.name}
+                  </button>
+                ))}
+              </div>
+              {publishResult && (
+                <div className="space-y-2 max-h-56 overflow-y-auto">
+                  {publishResult.map((r: any) => (
+                    <div key={r.provider} className="flex items-start justify-between gap-3 text-xs bg-gray-50 rounded-lg px-3 py-2">
+                      <div>
+                        <p className="font-semibold capitalize text-gray-800">{r.provider} · {r.status}</p>
+                        <p className="text-gray-600 mt-0.5">{r.message}</p>
+                      </div>
+                      {r.external_url && (
+                        <a href={r.external_url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline shrink-0">Buka</a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {(integrations?.channels || []).map((ch: any) => (
                 <div key={ch.id} className="bg-white border rounded-xl p-5 shadow-sm">
@@ -499,10 +628,7 @@ export default function RecruitmentPage() {
                       {!['linkedin', 'whatsapp', 'dealls'].includes(ch.provider) && <Globe className="w-5 h-5 text-gray-600" />}
                       <h3 className="font-semibold">{ch.name}</h3>
                     </div>
-                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
-                      ch.status === 'connected' ? 'bg-green-100 text-green-700' :
-                      ch.status === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'
-                    }`}>{ch.status === 'connected' ? 'Connected' : ch.status}</span>
+                    {statusBadge(ch.status)}
                   </div>
                   <p className="text-xs text-gray-500 mb-3">{ch.description}</p>
                   <div className="flex flex-wrap gap-1 mb-3">
@@ -510,19 +636,30 @@ export default function RecruitmentPage() {
                       <span key={f} className="px-1.5 py-0.5 bg-gray-100 text-gray-600 text-[10px] rounded">{f}</span>
                     ))}
                   </div>
-                  {ch.applicantsSynced != null && (
-                    <p className="text-xs text-indigo-600 font-medium">{ch.applicantsSynced} pelamar tersinkron</p>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-indigo-600 font-medium">{ch.applicantsSynced || 0} pelamar</span>
+                    <span className="text-gray-400 capitalize">{ch.mode || 'manual'}</span>
+                  </div>
+                  {ch.docsUrl && (
+                    <a href={ch.docsUrl} target="_blank" rel="noopener noreferrer" className="inline-block mt-2 text-[11px] text-indigo-600 hover:underline">Dokumentasi portal →</a>
+                  )}
+                  {ch.configKeys?.length > 0 && ch.status === 'pending' && (
+                    <p className="mt-2 text-[10px] text-amber-700 bg-amber-50 rounded px-2 py-1">
+                      Env: {ch.configKeys.slice(0, 3).join(', ')}
+                    </p>
                   )}
                 </div>
               ))}
             </div>
+
             <div className="bg-white border rounded-xl p-5">
-              <h3 className="font-semibold mb-3 flex items-center gap-2"><Link2 className="w-4 h-4 text-indigo-600" /> Webhook Endpoint</h3>
+              <h3 className="font-semibold mb-3 flex items-center gap-2"><Link2 className="w-4 h-4 text-indigo-600" /> Webhook Inbound (pelamar dari portal)</h3>
               <p className="text-xs text-gray-500 mb-3 font-mono bg-gray-50 p-2 rounded-lg break-all">
-                POST {typeof window !== 'undefined' ? window.location.origin : ''}/api/humanify/webhooks/recruitment
+                POST {typeof window !== 'undefined' ? window.location.origin : 'https://humanify.id'}/api/humanify/webhooks/recruitment
               </p>
+              <p className="text-xs text-gray-500 mb-3">Header opsional: <code className="bg-gray-100 px-1 rounded">X-Signature</code> HMAC-SHA256 memakai secret provider (<code>*_WEBHOOK_SECRET</code>).</p>
               <div className="flex flex-wrap gap-2">
-                {['dealls', 'linkedin', 'indeed'].map(p => (
+                {['dealls', 'linkedin', 'indeed', 'jobstreet', 'kalibrr', 'glints'].map(p => (
                   <button key={p} onClick={() => testWebhook(p)} disabled={webhookTesting}
                     className="px-3 py-1.5 text-xs font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">
                     {webhookTesting ? 'Menguji...' : `Test ${p}`}
@@ -535,16 +672,29 @@ export default function RecruitmentPage() {
                 </pre>
               )}
             </div>
-            <div className="bg-white border rounded-xl p-5">
-              <h3 className="font-semibold mb-3 flex items-center gap-2"><MessageCircle className="w-4 h-4 text-green-600" /> Fitur Rekrutmen Advanced</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                {['Multi-filter Screening', 'Advanced Search (AI)', '1-Click WhatsApp', 'Automatic Email Update', 'LinkedIn Integration', 'Indeed Syndication', 'Google for Jobs', 'Dealls Multi-posting'].map(f => (
-                  <div key={f} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
-                    <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
-                    <span className="text-xs">{f}</span>
-                  </div>
-                ))}
+
+            {(integrations?.portalPosts?.length > 0) && (
+              <div className="bg-white border rounded-xl p-5">
+                <h3 className="font-semibold mb-3">Riwayat publikasi portal</h3>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {integrations.portalPosts.map((p: any) => (
+                    <div key={p.id} className="flex justify-between text-xs border-b border-gray-50 py-2">
+                      <div>
+                        <span className="font-medium capitalize">{p.provider}</span>
+                        <span className="text-gray-500"> · {p.job_title || p.job_opening_id}</span>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded ${p.status === 'published' || p.status === 'syndicated' ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'}`}>{p.status}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
+            )}
+
+            <div className="bg-white border rounded-xl p-5">
+              <h3 className="font-semibold mb-3 flex items-center gap-2"><MessageCircle className="w-4 h-4 text-green-600" /> Setup credentials (opsional)</h3>
+              <ul className="text-xs text-gray-600 space-y-1 list-disc pl-4">
+                {(integrations?.setupHints || []).map((h: string) => <li key={h}>{h}</li>)}
+              </ul>
             </div>
           </div>
         )}
@@ -713,11 +863,28 @@ export default function RecruitmentPage() {
                 )}
                 <div className="flex items-center justify-between p-3 bg-indigo-50 rounded-lg">
                   <div><p className="text-sm font-medium text-indigo-900">{selectedOpening.applicants || 0} Pelamar</p></div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap justify-end">
+                    {selectedOpening.status === 'open' && (
+                      <button
+                        onClick={() => publishToPortals(selectedOpening.id)}
+                        disabled={publishing}
+                        className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"
+                      >
+                        {publishing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Globe className="w-3 h-3" />}
+                        Publish ke portal
+                      </button>
+                    )}
                     <button onClick={() => { setSelectedOpening(null); setTab('candidates'); }} className="text-xs px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Lihat Kandidat</button>
                     <button onClick={() => handleDeleteOpening(selectedOpening.id)} className="text-xs px-3 py-1.5 border border-red-300 text-red-600 rounded-lg hover:bg-red-50">Hapus</button>
                   </div>
                 </div>
+                {publishResult && selectedOpening && (
+                  <div className="text-xs bg-gray-50 rounded-lg p-3 space-y-1 max-h-40 overflow-y-auto">
+                    {publishResult.map((r: any) => (
+                      <p key={r.provider}><span className="font-medium capitalize">{r.provider}</span>: {r.status} — {r.message}</p>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
