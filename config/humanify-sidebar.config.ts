@@ -174,6 +174,7 @@ export const humanifySidebarConfig: SidebarConfig = {
       items: [
         { id: 'humanify-employee-portal', name: 'Portal Karyawan', href: '/employee', icon: UserCheck, modules: ['humanify', 'hris'] },
         { id: 'humanify-billing', name: 'Billing & Upgrade', href: '/humanify/billing', icon: CreditCard, modules: ['humanify', 'hris'] },
+        { id: 'humanify-enterprise', name: 'Enterprise (API & Brand)', href: '/humanify/enterprise', icon: KeyRound, modules: ['humanify', 'hris'] },
         { id: 'humanify-users-roles', name: 'Role & Akses', href: '/humanify/users/roles', icon: Shield, modules: ['humanify', 'hris'] },
         { id: 'humanify-about-naincode', name: 'Tentang Naincode', href: '/humanify/welcome', icon: Layers, modules: ['humanify', 'hris'] },
       ],

@@ -9,6 +9,7 @@ import { authOptions } from '../auth/[...nextauth]';
 import { isPlatformOperator } from '@/lib/middleware/tenantIsolation';
 import { backfillTenantSlugs, ensureTenantSlugColumn } from '@/lib/saas/tenant-slug';
 import {
+  computePaidOrdersMrr,
   computeTenantHealth,
   estimateMrrFromTenants,
   formatIdr,
@@ -111,6 +112,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       `);
 
       const revenue = estimateMrrFromTenants(metricRows || []);
+      const paid = await computePaidOrdersMrr();
       const healthDist = { healthy: 0, watch: 0, at_risk: 0 };
       for (const row of metricRows || []) {
         healthDist[computeTenantHealth(row).label] += 1;
@@ -135,6 +137,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         signups30 = sig[0]?.d30 || 0;
       } catch { /* */ }
 
+      const displayMrr = paid.available && paid.paidTenantCount > 0 ? paid.paidMrrIdr : revenue.mrrIdr;
+      const displayArr = displayMrr * 12;
+
       return res.json({
         success: true,
         data: {
@@ -147,10 +152,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           plans,
           recentTenants: recent,
           metrics: {
-            mrrIdr: revenue.mrrIdr,
-            arrIdr: revenue.arrIdr,
-            mrrFormatted: formatIdr(revenue.mrrIdr),
-            arrFormatted: formatIdr(revenue.arrIdr),
+            mrrIdr: displayMrr,
+            arrIdr: displayArr,
+            mrrFormatted: formatIdr(displayMrr),
+            arrFormatted: formatIdr(displayArr),
+            listPriceMrrIdr: revenue.mrrIdr,
+            paidMrrIdr: paid.paidMrrIdr,
+            paidTenantCount: paid.paidTenantCount,
+            paidOrdersCount: paid.paidOrdersCount,
+            mrrSource: paid.available && paid.paidTenantCount > 0 ? 'paid_orders' : 'list_price',
             payingTenants: revenue.payingTenants,
             trialTenants: revenue.trialTenants,
             trialToPaidPct,
@@ -161,7 +171,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               mrrFormatted: formatIdr(p.mrrIdr),
             })),
             health: healthDist,
-            pricingNote: 'Estimated from list prices × paying tenants (billing live di Phase 4)',
+            pricingNote: paid.available && paid.paidTenantCount > 0
+              ? 'MRR dari order berbayar (saas_billing_orders)'
+              : 'Estimated from list prices × paying tenants',
           },
         },
       });

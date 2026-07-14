@@ -1,11 +1,14 @@
 /**
- * Humanify SaaS Phase 3 — estimated MRR / health (list-price based until billing live)
+ * Humanify SaaS Phase 3+ — estimated MRR / health (+ paid orders when available)
  */
 import {
   HUMANIFY_PLANS,
   normalizeHumanifyPlan,
   type HumanifyPlanId,
 } from './plan-entitlements';
+
+let sequelize: any;
+try { sequelize = require('../sequelize'); } catch {}
 
 export interface TenantMetricRow {
   id: string;
@@ -77,6 +80,54 @@ export function estimateMrrFromTenants(rows: TenantMetricRow[]): {
     trialTenants,
     byPlan,
   };
+}
+
+/**
+ * Live MRR from saas_billing_orders: newest paid order per tenant,
+ * yearly amounts normalized to monthly (/12).
+ */
+export async function computePaidOrdersMrr(): Promise<{
+  paidMrrIdr: number;
+  paidTenantCount: number;
+  paidOrdersCount: number;
+  available: boolean;
+}> {
+  if (!sequelize) {
+    return { paidMrrIdr: 0, paidTenantCount: 0, paidOrdersCount: 0, available: false };
+  }
+  try {
+    const [exists] = await sequelize.query(`
+      SELECT 1 FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name = 'saas_billing_orders' LIMIT 1
+    `);
+    if (!exists?.length) {
+      return { paidMrrIdr: 0, paidTenantCount: 0, paidOrdersCount: 0, available: false };
+    }
+
+    const [rows] = await sequelize.query(`
+      SELECT DISTINCT ON (tenant_id)
+        tenant_id, amount_idr, "interval", plan
+      FROM saas_billing_orders
+      WHERE status = 'paid'
+      ORDER BY tenant_id, paid_at DESC NULLS LAST, created_at DESC
+    `);
+    let paidMrrIdr = 0;
+    for (const row of rows || []) {
+      const amount = Number(row.amount_idr) || 0;
+      paidMrrIdr += String(row.interval) === 'yearly' ? Math.round(amount / 12) : amount;
+    }
+    const [cnt] = await sequelize.query(`
+      SELECT COUNT(*)::int AS c FROM saas_billing_orders WHERE status = 'paid'
+    `);
+    return {
+      paidMrrIdr,
+      paidTenantCount: (rows || []).length,
+      paidOrdersCount: cnt?.[0]?.c || 0,
+      available: true,
+    };
+  } catch {
+    return { paidMrrIdr: 0, paidTenantCount: 0, paidOrdersCount: 0, available: false };
+  }
 }
 
 /**

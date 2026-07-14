@@ -6,6 +6,7 @@
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { resolveTenantById, resolveTenantBySlug } from '@/lib/saas/tenant-slug';
+import { getTenantBranding } from '@/lib/saas/humanify-branding';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch {}
@@ -98,10 +99,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           row = (rows || []).find((r: any) => jobSlugify(r.title, r.id) === slug);
         }
         if (!row) return res.status(404).json({ success: false, error: 'Lowongan tidak ditemukan' });
+        const branding = await getTenantBranding(tenant.id);
         return res.json({
           success: true,
           data: mapJob(row, tenant.slug),
-          tenant: { id: tenant.id, slug: tenant.slug, name: tenant.name },
+          tenant: { id: tenant.id, slug: tenant.slug, name: tenant.name, branding },
         });
       }
 
@@ -114,10 +116,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         LIMIT 50
       `, { bind: [tenant.id] });
 
+      const branding = await getTenantBranding(tenant.id);
       return res.json({
         success: true,
         data: (rows || []).map((r: any) => mapJob(r, tenant.slug)),
-        tenant: { id: tenant.id, slug: tenant.slug, name: tenant.name },
+        tenant: { id: tenant.id, slug: tenant.slug, name: tenant.name, branding },
       });
     }
 

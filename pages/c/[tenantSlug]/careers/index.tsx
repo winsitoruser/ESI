@@ -30,7 +30,16 @@ export default function TenantCareersPage() {
   const router = useRouter();
   const tenantSlug = typeof router.query.tenantSlug === 'string' ? router.query.tenantSlug : '';
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [company, setCompany] = useState<{ name?: string; slug?: string } | null>(null);
+  const [company, setCompany] = useState<{
+    name?: string;
+    slug?: string;
+    branding?: {
+      logoUrl?: string;
+      primaryColor?: string;
+      hidePoweredBy?: boolean;
+      careersHeadline?: string;
+    };
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -58,30 +67,40 @@ export default function TenantCareersPage() {
   }, [tenantSlug]);
 
   const companyName = company?.name || tenantSlug;
+  const brand = company?.branding;
+  const primary = brand?.primaryColor || '#1d4ed8';
+  const headline = brand?.careersHeadline || `Karir di ${companyName}`;
 
   return (
     <>
       <Head>
-        <title>Karir — {companyName} · {HUMANIFY_BRAND.name}</title>
+        <title>Karir — {companyName}{brand?.hidePoweredBy ? '' : ` · ${HUMANIFY_BRAND.name}`}</title>
         <meta name="description" content={`Lowongan kerja di ${companyName}`} />
       </Head>
-      <div className="min-h-screen bg-slate-50 flex flex-col">
+      <div className="min-h-screen bg-slate-50 flex flex-col" style={{ ['--tenant-primary' as any]: primary }}>
         <header className="border-b bg-white">
           <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <HumanifyLogo className="h-8 w-auto" />
+              {brand?.logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={brand.logoUrl} alt={companyName} className="h-8 w-auto max-w-[160px] object-contain" />
+              ) : (
+                <HumanifyLogo className="h-8 w-auto" />
+              )}
               <span className="text-sm text-slate-400">|</span>
               <span className="text-sm font-medium text-slate-700">{companyName}</span>
             </div>
-            <Link href="/humanify/login" className="text-sm text-blue-600 hover:underline">Masuk HR</Link>
+            <Link href="/humanify/login" className="text-sm hover:underline" style={{ color: primary }}>Masuk HR</Link>
           </div>
         </header>
 
         <main className="max-w-5xl mx-auto px-4 py-10 space-y-8 flex-1 w-full">
           <div>
             <p className="text-xs uppercase tracking-wide text-slate-400 mb-1">Portal karir</p>
-            <h1 className="text-3xl font-bold text-slate-900">Karir di {companyName}</h1>
-            <p className="text-slate-600 mt-2">Lamar langsung tanpa perlu akun. Didukung {HUMANIFY_BRAND.name}.</p>
+            <h1 className="text-3xl font-bold text-slate-900">{headline}</h1>
+            {!brand?.hidePoweredBy && (
+              <p className="text-slate-600 mt-2">Lamar langsung tanpa perlu akun. Didukung {HUMANIFY_BRAND.name}.</p>
+            )}
           </div>
 
           {loading && <p className="text-slate-500">Memuat lowongan...</p>}
@@ -101,24 +120,29 @@ export default function TenantCareersPage() {
               <Link
                 key={job.id}
                 href={`/c/${tenantSlug}/careers/${job.slug}`}
-                className="bg-white rounded-xl border p-5 hover:border-blue-300 hover:shadow-sm transition group"
+                className="bg-white rounded-xl border p-5 hover:shadow-sm transition group"
+                style={{ borderColor: undefined }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = primary; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = ''; }}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h2 className="text-lg font-semibold text-slate-900 group-hover:text-blue-700">{job.title}</h2>
+                    <h2 className="text-lg font-semibold text-slate-900 group-hover:opacity-90" style={{ color: undefined }}>
+                      {job.title}
+                    </h2>
                     <div className="flex flex-wrap gap-3 mt-2 text-sm text-slate-500">
                       {job.department && <span className="flex items-center gap-1"><Building2 className="w-3.5 h-3.5" />{job.department}</span>}
                       {job.location && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{job.location}</span>}
                     </div>
                     <p className="text-sm text-slate-600 mt-2">{fmtSalary(job.salaryMin, job.salaryMax)}</p>
                   </div>
-                  <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-blue-600 shrink-0 mt-1" />
+                  <ArrowRight className="w-5 h-5 text-slate-300 shrink-0 mt-1" style={{ color: primary }} />
                 </div>
               </Link>
             ))}
           </div>
         </main>
-        <NaincodeFooter />
+        {!brand?.hidePoweredBy ? <NaincodeFooter /> : <div className="h-8" />}
       </div>
     </>
   );

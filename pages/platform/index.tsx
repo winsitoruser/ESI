@@ -326,8 +326,9 @@ export default function PlatformDashboardPage() {
         </div>
 
         <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-sm text-indigo-900">
-          <strong>Next:</strong> Midtrans keys di VPS untuk Snap live · dunning otomatis via billing API.
-          Billing tenant: <code className="bg-white/70 px-1 rounded">/humanify/billing</code>
+          <strong>Phase 5:</strong> Enterprise tools — branding, API keys, export.
+          <code className="bg-white/70 px-1 rounded">/humanify/enterprise</code>
+          · Midtrans keys opsional untuk Snap live
         </div>
       </div>
     </HQLayout>
