@@ -1,13 +1,19 @@
 /**
  * Platform Control Plane API — Humanify SaaS ops
- * GET ?action=overview|tenants|tenant
- * PATCH ?action=tenant-status  { id, status }
+ * GET ?action=overview|tenants|tenant|metrics
+ * PATCH ?action=tenant-status|tenant-plan
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 import { isPlatformOperator } from '@/lib/middleware/tenantIsolation';
 import { backfillTenantSlugs, ensureTenantSlugColumn } from '@/lib/saas/tenant-slug';
+import {
+  computeTenantHealth,
+  estimateMrrFromTenants,
+  formatIdr,
+} from '@/lib/saas/platform-metrics';
+import { HUMANIFY_PLANS } from '@/lib/saas/plan-entitlements';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch {}
@@ -93,12 +99,70 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         LIMIT 8
       `);
 
+      // MRR / health — list-price estimate until billing live
+      const [metricRows] = await sequelize.query(`
+        SELECT t.id, t.slug, t.status,
+          ${cols.has('subscription_plan') ? 't.subscription_plan' : 'NULL AS subscription_plan'},
+          ${cols.has('setup_completed') ? 't.setup_completed' : 'NULL AS setup_completed'},
+          t.created_at,
+          (SELECT COUNT(*)::int FROM users u WHERE u.tenant_id = t.id) AS user_count,
+          (SELECT COUNT(*)::int FROM employees e WHERE e.tenant_id = t.id AND COALESCE(e.is_active, true)) AS employee_count
+        FROM tenants t
+      `);
+
+      const revenue = estimateMrrFromTenants(metricRows || []);
+      const healthDist = { healthy: 0, watch: 0, at_risk: 0 };
+      for (const row of metricRows || []) {
+        healthDist[computeTenantHealth(row).label] += 1;
+      }
+
+      const totalForConv = revenue.payingTenants + revenue.trialTenants;
+      const trialToPaidPct = totalForConv > 0
+        ? Math.round((revenue.payingTenants / totalForConv) * 1000) / 10
+        : 0;
+
+      // Signups last 7 / 30 days
+      let signups7 = 0;
+      let signups30 = 0;
+      try {
+        const [sig] = await sequelize.query(`
+          SELECT
+            COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days')::int AS d7,
+            COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')::int AS d30
+          FROM tenants
+        `);
+        signups7 = sig[0]?.d7 || 0;
+        signups30 = sig[0]?.d30 || 0;
+      } catch { /* */ }
+
       return res.json({
         success: true,
         data: {
-          summary: { ...summary[0], activeEmployees },
+          summary: {
+            ...summary[0],
+            activeEmployees,
+            signups7,
+            signups30,
+          },
           plans,
           recentTenants: recent,
+          metrics: {
+            mrrIdr: revenue.mrrIdr,
+            arrIdr: revenue.arrIdr,
+            mrrFormatted: formatIdr(revenue.mrrIdr),
+            arrFormatted: formatIdr(revenue.arrIdr),
+            payingTenants: revenue.payingTenants,
+            trialTenants: revenue.trialTenants,
+            trialToPaidPct,
+            byPlan: revenue.byPlan.map((p) => ({
+              ...p,
+              name: HUMANIFY_PLANS[p.plan].name,
+              listPriceIdr: HUMANIFY_PLANS[p.plan].priceMonthlyIdr,
+              mrrFormatted: formatIdr(p.mrrIdr),
+            })),
+            health: healthDist,
+            pricingNote: 'Estimated from list prices × paying tenants (billing live di Phase 4)',
+          },
         },
       });
     }
@@ -152,10 +216,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         LIMIT :lim OFFSET :offset
       `, { replacements: repl });
 
+      const tenantsWithHealth = (rows || []).map((row: any) => {
+        const health = computeTenantHealth(row);
+        return { ...row, health };
+      });
+
       return res.json({
         success: true,
         data: {
-          tenants: rows,
+          tenants: tenantsWithHealth,
           pagination: {
             total: countRows[0]?.c || 0,
             page: p,

@@ -5,11 +5,11 @@ import Link from 'next/link';
 import HQLayout from '@/components/hq/HQLayout';
 import {
   Building2, Users, Briefcase, Search, ExternalLink,
-  CheckCircle2, PauseCircle, Clock, Loader2, RefreshCw,
+  CheckCircle2, PauseCircle, Clock, Loader2, RefreshCw, TrendingUp, HeartPulse,
 } from 'lucide-react';
 
 /**
- * Humanify Platform Control Plane — monitor SaaS tenants (Phase 0 skeleton)
+ * Humanify Platform Control Plane — MRR + tenant ops (Phase 3)
  */
 export default function PlatformDashboardPage() {
   const { data: session, status } = useSession();
@@ -93,6 +93,8 @@ export default function PlatformDashboardPage() {
   }
 
   const s = overview?.summary || {};
+  const m = overview?.metrics || {};
+  const maxPlanCount = Math.max(1, ...(m.byPlan || []).map((p: any) => p.count || 0));
 
   if (status === 'loading' || (status === 'authenticated' && !allowed)) {
     return (
@@ -111,12 +113,45 @@ export default function PlatformDashboardPage() {
 
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <p className="text-xs uppercase tracking-wide text-indigo-600 font-semibold">Phase 2 · Entitlement</p>
-            <h2 className="text-lg font-semibold text-slate-900">Monitoring perusahaan pelanggan</h2>
+            <p className="text-xs uppercase tracking-wide text-indigo-600 font-semibold">Phase 3 · Control Plane</p>
+            <h2 className="text-lg font-semibold text-slate-900">MRR, kesehatan tenant & operasi</h2>
           </div>
           <button onClick={load} className="flex items-center gap-2 text-sm px-3 py-2 border rounded-lg hover:bg-slate-50">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
           </button>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="bg-white border rounded-xl p-4">
+            <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
+              <TrendingUp className="w-3.5 h-3.5 text-emerald-600" /> Estimated MRR
+            </div>
+            <p className="text-xl font-bold text-emerald-700">{m.mrrFormatted || 'Rp0'}</p>
+            <p className="text-[11px] text-slate-400 mt-1">ARR {m.arrFormatted || '—'}</p>
+          </div>
+          <div className="bg-white border rounded-xl p-4">
+            <p className="text-2xl font-bold">{m.payingTenants ?? 0}</p>
+            <p className="text-xs text-slate-500">Paying tenants</p>
+            <p className="text-[11px] text-slate-400 mt-1">Trial → paid {m.trialToPaidPct ?? 0}%</p>
+          </div>
+          <div className="bg-white border rounded-xl p-4">
+            <p className="text-2xl font-bold">{s.signups7 ?? 0}</p>
+            <p className="text-xs text-slate-500">Signup 7 hari</p>
+            <p className="text-[11px] text-slate-400 mt-1">30 hari: {s.signups30 ?? 0}</p>
+          </div>
+          <div className="bg-white border rounded-xl p-4">
+            <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
+              <HeartPulse className="w-3.5 h-3.5 text-indigo-600" /> Health mix
+            </div>
+            <p className="text-sm font-medium text-slate-800">
+              <span className="text-emerald-600">{m.health?.healthy ?? 0} healthy</span>
+              {' · '}
+              <span className="text-amber-600">{m.health?.watch ?? 0} watch</span>
+              {' · '}
+              <span className="text-red-600">{m.health?.at_risk ?? 0} risk</span>
+            </p>
+            <p className="text-[11px] text-slate-400 mt-1">{s.total_tenants ?? 0} tenant total</p>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -141,6 +176,30 @@ export default function PlatformDashboardPage() {
             <p className="text-xs text-slate-500">Karyawan aktif (all)</p>
           </div>
         </div>
+
+        {(m.byPlan || []).length > 0 && (
+          <div className="bg-white border rounded-xl p-4">
+            <p className="text-sm font-semibold text-slate-800 mb-3">Distribusi plan & kontribusi MRR</p>
+            <div className="space-y-2">
+              {m.byPlan.map((p: any) => (
+                <div key={p.plan} className="flex items-center gap-3 text-sm">
+                  <span className="w-24 text-slate-600 capitalize">{p.name || p.plan}</span>
+                  <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-indigo-500 rounded-full"
+                      style={{ width: `${Math.round((p.count / maxPlanCount) * 100)}%` }}
+                    />
+                  </div>
+                  <span className="w-16 text-right text-slate-500">{p.count}</span>
+                  <span className="w-28 text-right text-xs text-slate-600">{p.mrrFormatted}</span>
+                </div>
+              ))}
+            </div>
+            {m.pricingNote && (
+              <p className="text-[11px] text-slate-400 mt-3">{m.pricingNote}</p>
+            )}
+          </div>
+        )}
 
         <div className="flex gap-2 flex-wrap">
           <div className="relative flex-1 min-w-[200px]">
@@ -171,6 +230,7 @@ export default function PlatformDashboardPage() {
                 <th className="px-4 py-3">Plan</th>
                 <th className="px-4 py-3 text-center">Users</th>
                 <th className="px-4 py-3 text-center">Employees</th>
+                <th className="px-4 py-3">Health</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Careers</th>
                 <th className="px-4 py-3 text-right">Aksi</th>
@@ -178,10 +238,10 @@ export default function PlatformDashboardPage() {
             </thead>
             <tbody className="divide-y">
               {loading && (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400">Memuat tenant...</td></tr>
+                <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-400">Memuat tenant...</td></tr>
               )}
               {!loading && tenants.length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400">Belum ada tenant</td></tr>
+                <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-400">Belum ada tenant</td></tr>
               )}
               {tenants.map((t) => (
                 <tr key={t.id} className="hover:bg-slate-50">
@@ -209,6 +269,18 @@ export default function PlatformDashboardPage() {
                   </td>
                   <td className="px-4 py-3 text-center"><Users className="w-3.5 h-3.5 inline mr-1 text-slate-400" />{t.user_count ?? 0}</td>
                   <td className="px-4 py-3 text-center"><Briefcase className="w-3.5 h-3.5 inline mr-1 text-slate-400" />{t.employee_count ?? 0}</td>
+                  <td className="px-4 py-3">
+                    <span
+                      title={(t.health?.factors || []).join(', ')}
+                      className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
+                        t.health?.label === 'healthy' ? 'bg-emerald-100 text-emerald-700' :
+                        t.health?.label === 'watch' ? 'bg-amber-100 text-amber-700' :
+                        'bg-red-100 text-red-700'
+                      }`}
+                    >
+                      {t.health?.score ?? '—'} {t.health?.label || ''}
+                    </span>
+                  </td>
                   <td className="px-4 py-3">
                     <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
                       t.status === 'active' ? 'bg-emerald-100 text-emerald-700' :
@@ -254,8 +326,8 @@ export default function PlatformDashboardPage() {
         </div>
 
         <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-sm text-indigo-900">
-          <strong>Next:</strong> Phase 3 MRR analytics · Phase 4 billing live.
-          Careers multi-tenant: <code className="bg-white/70 px-1 rounded">/c/{'{slug}'}/careers</code>
+          <strong>Next:</strong> Phase 4 billing live (Midtrans) · sync invoice → MRR aktual.
+          Careers: <code className="bg-white/70 px-1 rounded">/c/{'{slug}'}/careers</code>
         </div>
       </div>
     </HQLayout>

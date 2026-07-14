@@ -22,6 +22,8 @@ export interface HumanifyPlanDefinition {
   maxUsers: number;
   maxEmployees: number;
   trialDays?: number;
+  /** List price IDR / month (estimated MRR until billing live) */
+  priceMonthlyIdr: number;
 }
 
 export const HUMANIFY_PLANS: Record<HumanifyPlanId, HumanifyPlanDefinition> = {
@@ -33,6 +35,7 @@ export const HUMANIFY_PLANS: Record<HumanifyPlanId, HumanifyPlanDefinition> = {
     maxUsers: 25,
     maxEmployees: 100,
     trialDays: 14,
+    priceMonthlyIdr: 0,
   },
   starter: {
     id: 'starter',
@@ -41,6 +44,7 @@ export const HUMANIFY_PLANS: Record<HumanifyPlanId, HumanifyPlanDefinition> = {
     features: ['core', 'attendance', 'recruitment'],
     maxUsers: 10,
     maxEmployees: 50,
+    priceMonthlyIdr: 499_000,
   },
   growth: {
     id: 'growth',
@@ -49,6 +53,7 @@ export const HUMANIFY_PLANS: Record<HumanifyPlanId, HumanifyPlanDefinition> = {
     features: ['core', 'attendance', 'recruitment', 'payroll', 'analytics'],
     maxUsers: 50,
     maxEmployees: 500,
+    priceMonthlyIdr: 1_499_000,
   },
   enterprise: {
     id: 'enterprise',
@@ -57,6 +62,7 @@ export const HUMANIFY_PLANS: Record<HumanifyPlanId, HumanifyPlanDefinition> = {
     features: ['core', 'attendance', 'payroll', 'recruitment', 'lms', 'analytics', 'ai'],
     maxUsers: 500,
     maxEmployees: 10000,
+    priceMonthlyIdr: 4_999_000,
   },
 };
 
