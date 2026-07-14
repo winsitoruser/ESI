@@ -73,6 +73,25 @@ export default function PlatformDashboardPage() {
     }
   }
 
+  async function setTenantPlan(id: string, plan: string) {
+    setActing(id);
+    try {
+      const res = await fetch('/api/platform?action=tenant-plan', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, plan }),
+      });
+      const j = await res.json();
+      if (j.success) {
+        setToast(j.message);
+        load();
+      } else setToast(j.error || 'Gagal update plan');
+    } finally {
+      setActing(null);
+      setTimeout(() => setToast(''), 2500);
+    }
+  }
+
   const s = overview?.summary || {};
 
   if (status === 'loading' || (status === 'authenticated' && !allowed)) {
@@ -92,7 +111,7 @@ export default function PlatformDashboardPage() {
 
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <p className="text-xs uppercase tracking-wide text-indigo-600 font-semibold">Phase 0 · SaaS Foundation</p>
+            <p className="text-xs uppercase tracking-wide text-indigo-600 font-semibold">Phase 2 · Entitlement</p>
             <h2 className="text-lg font-semibold text-slate-900">Monitoring perusahaan pelanggan</h2>
           </div>
           <button onClick={load} className="flex items-center gap-2 text-sm px-3 py-2 border rounded-lg hover:bg-slate-50">
@@ -175,7 +194,19 @@ export default function PlatformDashboardPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{t.subscription_plan || '—'}</td>
+                  <td className="px-4 py-3 text-slate-600">
+                    <select
+                      disabled={acting === t.id}
+                      value={(t.subscription_plan || 'trial').toLowerCase()}
+                      onChange={(e) => setTenantPlan(t.id, e.target.value)}
+                      className="text-xs border rounded-lg px-2 py-1 bg-white"
+                    >
+                      <option value="trial">trial</option>
+                      <option value="starter">starter</option>
+                      <option value="growth">growth</option>
+                      <option value="enterprise">enterprise</option>
+                    </select>
+                  </td>
                   <td className="px-4 py-3 text-center"><Users className="w-3.5 h-3.5 inline mr-1 text-slate-400" />{t.user_count ?? 0}</td>
                   <td className="px-4 py-3 text-center"><Briefcase className="w-3.5 h-3.5 inline mr-1 text-slate-400" />{t.employee_count ?? 0}</td>
                   <td className="px-4 py-3">
@@ -223,7 +254,7 @@ export default function PlatformDashboardPage() {
         </div>
 
         <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-sm text-indigo-900">
-          <strong>Next:</strong> Phase 2 plan entitlement · Phase 3 MRR analytics · Phase 4 billing live.
+          <strong>Next:</strong> Phase 3 MRR analytics · Phase 4 billing live.
           Careers multi-tenant: <code className="bg-white/70 px-1 rounded">/c/{'{slug}'}/careers</code>
         </div>
       </div>

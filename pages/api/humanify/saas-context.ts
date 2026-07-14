@@ -10,6 +10,7 @@ import {
   ensureUniqueTenantSlug,
   resolveTenantById,
 } from '@/lib/saas/tenant-slug';
+import { buildEntitlementSnapshot } from '@/lib/saas/plan-entitlements';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch {}
@@ -21,10 +22,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!session?.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
   const tenantId = (session.user as any).tenantId || null;
+  const role = String((session.user as any).role || '').toLowerCase();
+  const isPlatform = ['super_admin', 'superadmin', 'platform_admin'].includes(role);
+
   if (!tenantId || !sequelize) {
     return res.json({
       success: true,
-      data: { tenantId: null, slug: null, careersUrl: null, name: null },
+      data: {
+        tenantId: null,
+        slug: null,
+        careersUrl: null,
+        name: null,
+        entitlements: isPlatform
+          ? buildEntitlementSnapshot('enterprise')
+          : buildEntitlementSnapshot('trial'),
+      },
     });
   }
 
@@ -43,6 +55,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       tenant = { ...tenant, slug };
     }
 
+    const plan = isPlatform ? 'enterprise' : (tenant?.subscriptionPlan || 'trial');
+    const entitlements = buildEntitlementSnapshot(plan);
+
     return res.json({
       success: true,
       data: {
@@ -50,8 +65,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         slug: tenant?.slug || null,
         name: tenant?.name || null,
         status: tenant?.status || null,
-        subscriptionPlan: tenant?.subscriptionPlan || null,
+        subscriptionPlan: plan,
         careersUrl: tenant?.slug ? `/c/${tenant.slug}/careers` : null,
+        entitlements,
       },
     });
   } catch (e: any) {

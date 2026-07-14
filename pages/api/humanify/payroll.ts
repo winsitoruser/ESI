@@ -81,6 +81,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const session = await getServerSession(req, res, authOptions);
     if (!session?.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
+    const { assertHumanifyFeature } = await import('@/lib/saas/assert-feature');
+    if (!(await assertHumanifyFeature(req, res, {
+      tenantId: (session.user as any).tenantId,
+      role: (session.user as any).role,
+      feature: 'payroll',
+      path: '/api/humanify/payroll',
+    }))) return;
+
     const { action } = req.query;
 
     switch (req.method) {

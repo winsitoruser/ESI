@@ -55,6 +55,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!session?.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     const tenantId = (session.user as any).tenantId || null;
+    const { assertHumanifyFeature } = await import('@/lib/saas/assert-feature');
+    if (!(await assertHumanifyFeature(req, res, {
+      tenantId,
+      role: (session.user as any).role,
+      feature: 'ai',
+      path: '/api/humanify/ai-hub',
+    }))) return;
+
     const userId = asUuid((session.user as any).id);
     const { action } = req.query;
     const period = (req.query.period as string) || new Date().toISOString().substring(0, 7);

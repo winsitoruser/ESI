@@ -34,6 +34,7 @@ import { esiHqSidebarConfig as hqSidebarConfig } from '@/config/esi-sidebar.conf
 import { humanifySidebarConfig } from '@/config/humanify-sidebar.config';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
 import { useTranslation, Language, Currency, languageNames, languageFlags, currencySymbols, currencyNames, currencyFlags } from '@/lib/i18n';
+import { filterSidebarGroupsByPlan } from '@/lib/saas/plan-entitlements';
 
 export type HQPlatform = 'simesi' | 'humanify';
 
@@ -62,14 +63,42 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [planId, setPlanId] = useState<string | null>(null);
 
   // Get user role from session
   const userRole = (session?.user as any)?.role as UserRole | undefined;
+  const isPlatformOp = ['super_admin', 'superadmin', 'platform_admin'].includes(
+    String(userRole || '').toLowerCase(),
+  );
 
-  // Filter sidebar config based on role (modules can be added later)
+  // Filter sidebar: role first, then Humanify plan features (Phase 2)
   const filteredConfig = useMemo(() => {
-    return filterSidebarConfig(baseSidebarConfig, userRole);
-  }, [userRole, baseSidebarConfig]);
+    const byRole = filterSidebarConfig(baseSidebarConfig, userRole);
+    if (!isHumanify) return byRole;
+    return {
+      ...byRole,
+      groups: filterSidebarGroupsByPlan(byRole.groups, planId || 'enterprise', {
+        bypass: isPlatformOp,
+      }),
+    };
+  }, [userRole, baseSidebarConfig, isHumanify, planId, isPlatformOp]);
+
+  useEffect(() => {
+    if (!isHumanify || !session?.user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/humanify/saas-context');
+        const json = await res.json();
+        if (!cancelled && json.success) {
+          setPlanId(json.data?.entitlements?.planId || json.data?.subscriptionPlan || 'trial');
+        }
+      } catch {
+        /* keep default enterprise until loaded — avoid flashing empty menu */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isHumanify, session?.user]);
 
   // Load sidebar collapsed state from localStorage ONCE on mount
   useEffect(() => {

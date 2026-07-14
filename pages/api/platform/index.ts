@@ -201,6 +201,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.json({ success: true, message: `Tenant status → ${status}` });
     }
 
+    if (req.method === 'PATCH' && action === 'tenant-plan') {
+      const { id, plan } = req.body || {};
+      const allowed = ['trial', 'starter', 'growth', 'enterprise'];
+      if (!id || !allowed.includes(String(plan || '').toLowerCase())) {
+        return res.status(400).json({
+          success: false,
+          error: 'id and plan (trial|starter|growth|enterprise) required',
+        });
+      }
+      if (!cols.has('subscription_plan')) {
+        return res.status(400).json({ success: false, error: 'subscription_plan column missing' });
+      }
+      const planNorm = String(plan).toLowerCase();
+      await sequelize.query(`
+        UPDATE tenants SET subscription_plan = :plan, updated_at = NOW() WHERE id = :id
+      `, { replacements: { id, plan: planNorm } });
+      return res.json({ success: true, message: `Tenant plan → ${planNorm}` });
+    }
+
     return res.status(400).json({ success: false, error: 'Unknown action' });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: e.message });
