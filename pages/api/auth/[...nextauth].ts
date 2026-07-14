@@ -339,6 +339,21 @@ export const authOptions: NextAuthOptions = {
         }
       }
 
+      // Wizard may complete while JWT still has setupCompleted=false — refresh once so middleware doesn't loop /humanify ↔ /setup
+      if (token.tenantId && token.setupCompleted === false) {
+        try {
+          const { isSaasOnboardingComplete } = await import('../../../lib/saas/humanify-onboarding');
+          const done = await isSaasOnboardingComplete(token.tenantId as string);
+          if (done) {
+            token.setupCompleted = true;
+            const role = String(token.role || '').toLowerCase();
+            if (role === 'owner') token.redirectUrl = '/humanify';
+          }
+        } catch {
+          /* keep token */
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {
