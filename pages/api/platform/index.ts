@@ -59,9 +59,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const [summary] = await sequelize.query(`
         SELECT
           COUNT(*)::int AS total_tenants,
-          COUNT(*) FILTER (WHERE COALESCE(status, 'trial') = 'active')::int AS active,
-          COUNT(*) FILTER (WHERE COALESCE(status, 'trial') = 'trial')::int AS trial,
-          COUNT(*) FILTER (WHERE COALESCE(status, '') = 'suspended')::int AS suspended,
+          COUNT(*) FILTER (WHERE COALESCE(status::text, 'trial') = 'active')::int AS active,
+          COUNT(*) FILTER (WHERE COALESCE(status::text, 'trial') = 'trial')::int AS trial,
+          COUNT(*) FILTER (WHERE status::text = 'suspended')::int AS suspended,
           ${setupExpr}
         FROM tenants
       `);
@@ -114,7 +114,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const repl: Record<string, unknown> = { lim, offset };
 
       if (status && status !== 'all') {
-        conditions.push(`COALESCE(t.status, 'trial') = :status`);
+        conditions.push(`COALESCE(t.status::text, 'trial') = :status`);
         repl.status = status;
       }
       if (search) {
