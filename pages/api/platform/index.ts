@@ -16,6 +16,11 @@ import {
 } from '@/lib/saas/platform-metrics';
 import { HUMANIFY_PLANS } from '@/lib/saas/plan-entitlements';
 import { listExpiringTrials, runDunningScan } from '@/lib/saas/humanify-billing';
+import {
+  cleanupQaTenants,
+  createPartner,
+  listPartners,
+} from '@/lib/saas/partners';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch {}
@@ -311,6 +316,35 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const days = Math.min(30, Math.max(1, Number(req.query.days) || 7));
       const data = await listExpiringTrials(days);
       return res.json({ success: true, data });
+    }
+
+    if (req.method === 'GET' && action === 'partners') {
+      const data = await listPartners();
+      return res.json({ success: true, data });
+    }
+
+    if (req.method === 'POST' && action === 'partner-create') {
+      const created = await createPartner({
+        code: req.body?.code,
+        name: req.body?.name,
+        contactEmail: req.body?.contactEmail,
+        commissionPct: req.body?.commissionPct,
+        notes: req.body?.notes,
+      });
+      return res.status(201).json({ success: true, data: created });
+    }
+
+    if (req.method === 'POST' && action === 'cleanup-qa') {
+      const dryRun = req.body?.dryRun !== false;
+      const olderThanHours = Number(req.body?.olderThanHours) || 1;
+      const result = await cleanupQaTenants({ dryRun, olderThanHours });
+      return res.json({
+        success: true,
+        data: result,
+        message: dryRun
+          ? `Dry-run: ${result.matched} QA tenants`
+          : `Suspended ${result.suspended} QA tenants`,
+      });
     }
 
     if (req.method === 'POST' && action === 'impersonate') {

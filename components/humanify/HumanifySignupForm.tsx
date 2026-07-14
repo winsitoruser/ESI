@@ -41,7 +41,14 @@ export default function HumanifySignupForm() {
     industry: 'professional_services',
     employeeRange: '1-50',
     acceptTerms: false,
+    partnerCode: '',
   });
+
+  React.useEffect(() => {
+    if (!router.isReady) return;
+    const ref = String(router.query.ref || router.query.partner || '');
+    if (ref) setForm((f) => ({ ...f, partnerCode: ref.toUpperCase() }));
+  }, [router.isReady, router.query.ref, router.query.partner]);
 
   const update = (key: string, value: string | boolean) => {
     setForm((f) => ({ ...f, [key]: value }));
@@ -79,6 +86,7 @@ export default function HumanifySignupForm() {
           password: form.password,
           industry: form.industry,
           employeeRange: form.employeeRange,
+          partnerCode: form.partnerCode || undefined,
         }),
       });
       const json = await res.json();
@@ -191,6 +199,16 @@ export default function HumanifySignupForm() {
                   ))}
                 </select>
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-violet-200/80 mb-2">Kode partner (opsional)</label>
+              <input
+                className={`${inputCls} pl-4 uppercase`}
+                value={form.partnerCode}
+                onChange={(e) => update('partnerCode', e.target.value.toUpperCase())}
+                placeholder="REF-XXXX"
+              />
             </div>
 
             <div>

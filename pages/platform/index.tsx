@@ -26,19 +26,24 @@ export default function PlatformDashboardPage() {
   const [toast, setToast] = useState('');
   const [expiring, setExpiring] = useState<any[]>([]);
   const [dunningBusy, setDunningBusy] = useState(false);
+  const [partners, setPartners] = useState<any[]>([]);
+  const [partnerForm, setPartnerForm] = useState({ code: '', name: '', contactEmail: '' });
+  const [cleanupBusy, setCleanupBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const q = new URLSearchParams({ action: 'tenants', status: filterStatus, search });
-      const [ov, tn, ex] = await Promise.all([
+      const [ov, tn, ex, pn] = await Promise.all([
         fetch('/api/platform?action=overview').then((r) => r.json()),
         fetch(`/api/platform?${q}`).then((r) => r.json()),
         fetch('/api/platform?action=expiring-trials&days=7').then((r) => r.json()),
+        fetch('/api/platform?action=partners').then((r) => r.json()),
       ]);
       if (ov.success) setOverview(ov.data);
       if (tn.success) setTenants(tn.data?.tenants || []);
       if (ex.success) setExpiring(ex.data || []);
+      if (pn.success) setPartners(pn.data || []);
     } catch {
       setToast('Gagal memuat data platform');
     } finally {
@@ -135,6 +140,44 @@ export default function PlatformDashboardPage() {
     }
   }
 
+  async function createPartnerCode() {
+    if (!partnerForm.code || !partnerForm.name) {
+      setToast('Kode & nama partner wajib');
+      return;
+    }
+    const res = await fetch('/api/platform?action=partner-create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(partnerForm),
+    });
+    const j = await res.json();
+    if (j.success) {
+      setToast(`Partner ${j.data.code} dibuat`);
+      setPartnerForm({ code: '', name: '', contactEmail: '' });
+      load();
+    } else setToast(j.error || 'Gagal buat partner');
+    setTimeout(() => setToast(''), 3000);
+  }
+
+  async function runCleanupQa(apply: boolean) {
+    setCleanupBusy(true);
+    try {
+      const res = await fetch('/api/platform?action=cleanup-qa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dryRun: !apply, olderThanHours: 1 }),
+      });
+      const j = await res.json();
+      if (j.success) {
+        setToast(j.message + (j.data?.slugs?.length ? `: ${j.data.slugs.slice(0, 5).join(', ')}` : ''));
+        if (apply) load();
+      } else setToast(j.error || 'Cleanup gagal');
+    } finally {
+      setCleanupBusy(false);
+      setTimeout(() => setToast(''), 4000);
+    }
+  }
+
   const s = overview?.summary || {};
   const m = overview?.metrics || {};
   const maxPlanCount = Math.max(1, ...(m.byPlan || []).map((p: any) => p.count || 0));
@@ -159,7 +202,23 @@ export default function PlatformDashboardPage() {
             <p className="text-xs uppercase tracking-wide text-indigo-600 font-semibold">Phase 3 · Control Plane</p>
             <h2 className="text-lg font-semibold text-slate-900">MRR, kesehatan tenant & operasi</h2>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => runCleanupQa(false)}
+              disabled={cleanupBusy}
+              className="text-sm px-3 py-2 border rounded-lg hover:bg-slate-50 disabled:opacity-50"
+            >
+              Preview QA cleanup
+            </button>
+            <button
+              onClick={() => {
+                if (confirm('Suspend semua QA/smoke tenants (>1 jam)?')) runCleanupQa(true);
+              }}
+              disabled={cleanupBusy}
+              className="text-sm px-3 py-2 border border-red-200 text-red-700 rounded-lg hover:bg-red-50 disabled:opacity-50"
+            >
+              Apply QA cleanup
+            </button>
             <button
               onClick={runDunning}
               disabled={dunningBusy}
@@ -172,6 +231,44 @@ export default function PlatformDashboardPage() {
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
             </button>
           </div>
+        </div>
+
+        <div className="bg-white border rounded-xl p-4 space-y-3">
+          <p className="text-sm font-semibold text-slate-900">Partner / referral codes</p>
+          <div className="flex flex-wrap gap-2">
+            <input
+              className="border rounded-lg px-3 py-2 text-sm uppercase"
+              placeholder="CODE"
+              value={partnerForm.code}
+              onChange={(e) => setPartnerForm({ ...partnerForm, code: e.target.value.toUpperCase() })}
+            />
+            <input
+              className="border rounded-lg px-3 py-2 text-sm flex-1 min-w-[140px]"
+              placeholder="Nama partner"
+              value={partnerForm.name}
+              onChange={(e) => setPartnerForm({ ...partnerForm, name: e.target.value })}
+            />
+            <input
+              className="border rounded-lg px-3 py-2 text-sm"
+              placeholder="Email"
+              value={partnerForm.contactEmail}
+              onChange={(e) => setPartnerForm({ ...partnerForm, contactEmail: e.target.value })}
+            />
+            <button onClick={createPartnerCode} className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm">
+              Tambah
+            </button>
+          </div>
+          <ul className="text-xs text-slate-600 divide-y max-h-28 overflow-y-auto">
+            {partners.map((p) => (
+              <li key={p.id} className="py-1.5 flex justify-between gap-2">
+                <span>
+                  <code className="bg-slate-100 px-1 rounded">{p.code}</code> · {p.name}
+                </span>
+                <span className="text-slate-400">{p.tenant_count || 0} tenants · signup ?ref={p.code}</span>
+              </li>
+            ))}
+            {!partners.length && <li className="py-1 text-slate-400">Belum ada partner.</li>}
+          </ul>
         </div>
 
         {expiring.length > 0 && (
@@ -400,8 +497,8 @@ export default function PlatformDashboardPage() {
         </div>
 
         <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-sm text-indigo-900">
-          <strong>Phase 7 GA:</strong> Email verify · go-live checklist · seats · support.
-          <code className="bg-white/70 px-1 rounded">/humanify/go-live</code>
+          <strong>Phase 8:</strong> Partner referral (?ref=CODE) · QA cleanup · go-live.
+          Signup: <code className="bg-white/70 px-1 rounded">/humanify/signup?ref=CODE</code>
         </div>
       </div>
     </HQLayout>

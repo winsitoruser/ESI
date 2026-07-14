@@ -4,6 +4,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { provisionHumanifyTenant } from '@/lib/saas/humanify-provision';
 import { createEmailVerification } from '@/lib/saas/email-verify';
+import { attachPartnerToTenant } from '@/lib/saas/partners';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -21,6 +22,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       phone,
       industry,
       employeeRange,
+      partnerCode,
+      referralCode,
+      ref,
     } = req.body || {};
 
     if (!name?.trim() || !email?.trim() || !password || !companyName?.trim()) {
@@ -47,6 +51,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       industry: industry ? String(industry) : undefined,
       employeeRange: employeeRange ? String(employeeRange) : undefined,
     });
+
+    const refCode = String(partnerCode || referralCode || ref || '').trim();
+    let partner: { attached: boolean; code?: string } = { attached: false };
+    if (refCode) {
+      partner = await attachPartnerToTenant(result.tenantId, refCode);
+    }
 
     const origin = (req.headers.origin as string) || process.env.NEXTAUTH_URL || 'https://humanify.id';
     let verification: { verifyUrl?: string; emailed?: boolean } = {};
@@ -81,6 +91,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         careersUrl: `/c/${result.slug}/careers`,
         trialDays: 14,
         verification,
+        partner,
       },
     });
   } catch (e: any) {
