@@ -52,8 +52,22 @@ export async function ensureUniqueTenantSlug(baseName: string, excludeId?: strin
 export async function backfillTenantSlugs(): Promise<number> {
   if (!sequelize) return 0;
   await ensureTenantSlugColumn();
+
+  const [cols] = await sequelize.query(`
+    SELECT column_name FROM information_schema.columns
+    WHERE table_name = 'tenants' AND table_schema = 'public'
+  `);
+  const names = new Set((cols || []).map((c: any) => c.column_name));
+  const labelExpr = [
+    names.has('business_name') ? 'business_name' : null,
+    names.has('name') ? 'name' : null,
+    names.has('code') ? 'code' : null,
+    names.has('business_code') ? 'business_code' : null,
+    'CAST(id AS TEXT)',
+  ].filter(Boolean).join(', ');
+
   const [rows] = await sequelize.query(`
-    SELECT id, COALESCE(business_name, name, code, business_code, 'tenant') AS label
+    SELECT id, COALESCE(${labelExpr}) AS label
     FROM tenants
     WHERE slug IS NULL OR TRIM(slug) = ''
   `);
@@ -81,10 +95,24 @@ export async function resolveTenantBySlug(slug: string): Promise<ResolvedTenant 
   if (!sequelize || !slug) return null;
   await ensureTenantSlugColumn();
   const cleaned = slugifyTenantName(slug);
+  const [cols] = await sequelize.query(`
+    SELECT column_name FROM information_schema.columns
+    WHERE table_name = 'tenants' AND table_schema = 'public'
+  `);
+  const names = new Set((cols || []).map((c: any) => c.column_name));
+  const nameExpr = [
+    names.has('business_name') ? 'business_name' : null,
+    names.has('name') ? 'name' : null,
+    names.has('code') ? 'code' : null,
+    `'tenant'`,
+  ].filter(Boolean).join(', ');
+
   const [rows] = await sequelize.query(`
     SELECT id, slug,
-      COALESCE(business_name, name, code) AS name,
-      status, subscription_plan AS "subscriptionPlan", is_active AS "isActive"
+      COALESCE(${nameExpr}) AS name,
+      status,
+      ${names.has('subscription_plan') ? 'subscription_plan' : 'NULL'} AS "subscriptionPlan",
+      ${names.has('is_active') ? 'is_active' : 'true'} AS "isActive"
     FROM tenants
     WHERE slug = :slug
     LIMIT 1
@@ -95,10 +123,24 @@ export async function resolveTenantBySlug(slug: string): Promise<ResolvedTenant 
 export async function resolveTenantById(id: string): Promise<ResolvedTenant | null> {
   if (!sequelize || !id) return null;
   await ensureTenantSlugColumn();
+  const [cols] = await sequelize.query(`
+    SELECT column_name FROM information_schema.columns
+    WHERE table_name = 'tenants' AND table_schema = 'public'
+  `);
+  const names = new Set((cols || []).map((c: any) => c.column_name));
+  const nameExpr = [
+    names.has('business_name') ? 'business_name' : null,
+    names.has('name') ? 'name' : null,
+    names.has('code') ? 'code' : null,
+    `'tenant'`,
+  ].filter(Boolean).join(', ');
+
   const [rows] = await sequelize.query(`
     SELECT id, slug,
-      COALESCE(business_name, name, code) AS name,
-      status, subscription_plan AS "subscriptionPlan", is_active AS "isActive"
+      COALESCE(${nameExpr}) AS name,
+      status,
+      ${names.has('subscription_plan') ? 'subscription_plan' : 'NULL'} AS "subscriptionPlan",
+      ${names.has('is_active') ? 'is_active' : 'true'} AS "isActive"
     FROM tenants WHERE id = :id LIMIT 1
   `, { replacements: { id } });
   return rows?.[0] || null;

@@ -12,9 +12,22 @@ module.exports = {
       ON tenants (slug) WHERE slug IS NOT NULL
     `);
 
-    // Backfill from business_name / name / code
+    // Detect available name columns (schemas differ across envs)
+    const [cols] = await sequelize.query(`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'tenants' AND table_schema = 'public'
+    `);
+    const names = new Set((cols || []).map((c) => c.column_name));
+    const labelExpr = [
+      names.has('business_name') ? 'business_name' : null,
+      names.has('name') ? 'name' : null,
+      names.has('code') ? 'code' : null,
+      names.has('business_code') ? 'business_code' : null,
+      'CAST(id AS TEXT)',
+    ].filter(Boolean).join(', ');
+
     const [rows] = await sequelize.query(`
-      SELECT id, COALESCE(business_name, name, code, business_code, CAST(id AS TEXT)) AS label
+      SELECT id, COALESCE(${labelExpr}) AS label
       FROM tenants
       WHERE slug IS NULL OR TRIM(slug) = ''
     `);
