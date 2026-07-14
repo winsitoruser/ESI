@@ -271,35 +271,98 @@ export const authOptions: NextAuthOptions = {
 
       // Manual session update (triggered by client)
       if (trigger === 'update' && session) {
-        // Merge session updates into token
-        token = { ...token, ...session };
-        
-        // Refresh from DB if tenantId exists
-        if (token.tenantId) {
+        const roleNow = String(token.role || token.originalRole || '').toLowerCase();
+        const canImpersonate =
+          ['super_admin', 'superadmin', 'platform_admin'].includes(roleNow) ||
+          Boolean(token.impersonating);
+
+        // Secure support impersonation — only platform ops may switch tenantId this way
+        if (session.impersonateTenantId && canImpersonate && !token.impersonating) {
           try {
-            const { isSaasOnboardingComplete } = await import('../../../lib/saas/humanify-onboarding');
-            token.setupCompleted = await isSaasOnboardingComplete(token.tenantId as string);
-          } catch {
-            /* keep token */
-          }
-          try {
-            const db = require('../../../models');
-            const tenant = await db.Tenant.findByPk(token.tenantId, {
-              attributes: ['kybStatus', 'setupCompleted', 'businessCode', 'businessStructure'],
-            });
-            if (tenant) {
-              token.kybStatus = tenant.kybStatus;
-              if (tenant.setupCompleted === true) token.setupCompleted = true;
-              token.businessCode = tenant.businessCode;
-              token.businessStructure = tenant.businessStructure;
+            const { resolveTenantById } = await import('../../../lib/saas/tenant-slug');
+            const t = await resolveTenantById(String(session.impersonateTenantId));
+            if (t) {
+              token.operatorTenantId = token.tenantId;
+              token.operatorRole = token.role;
+              token.operatorTenantName = token.tenantName;
+              token.impersonating = true;
+              token.tenantId = t.id;
+              token.tenantName = t.name;
+              token.impersonatedTenantSlug = t.slug;
+              token.setupCompleted = true;
+              try {
+                const { logSupportAction } = await import('../../../lib/saas/support-audit');
+                await logSupportAction({
+                  operatorUserId: String(token.id),
+                  operatorEmail: (token.email as string) || null,
+                  action: 'impersonate_start',
+                  tenantId: t.id,
+                  tenantSlug: t.slug,
+                });
+              } catch { /* */ }
             }
           } catch (e: any) {
-            console.error('[JWT update] Tenant refresh error:', e.message);
+            console.error('[JWT impersonate]', e.message);
           }
+          token.exp = now + ACCESS_TOKEN_EXPIRY;
+        } else if (session.endImpersonation && token.impersonating) {
+          try {
+            const { logSupportAction } = await import('../../../lib/saas/support-audit');
+            await logSupportAction({
+              operatorUserId: String(token.id),
+              operatorEmail: (token.email as string) || null,
+              action: 'impersonate_end',
+              tenantId: token.tenantId as string,
+              tenantSlug: (token.impersonatedTenantSlug as string) || null,
+            });
+          } catch { /* */ }
+          token.tenantId = token.operatorTenantId;
+          token.role = token.operatorRole || token.role;
+          token.tenantName = token.operatorTenantName;
+          delete token.impersonating;
+          delete token.operatorTenantId;
+          delete token.operatorRole;
+          delete token.operatorTenantName;
+          delete token.impersonatedTenantSlug;
+          token.exp = now + ACCESS_TOKEN_EXPIRY;
+        } else {
+          // Merge session updates into token (ignore privileged keys)
+          const {
+            impersonateTenantId: _i,
+            endImpersonation: _e,
+            tenantId: _t,
+            role: _r,
+            ...safe
+          } = session;
+          token = { ...token, ...safe };
+
+          // Refresh from DB if tenantId exists
+          if (token.tenantId) {
+            try {
+              const { isSaasOnboardingComplete } = await import('../../../lib/saas/humanify-onboarding');
+              token.setupCompleted = await isSaasOnboardingComplete(token.tenantId as string);
+            } catch {
+              /* keep token */
+            }
+            try {
+              const db = require('../../../models');
+              const tenant = await db.Tenant.findByPk(token.tenantId, {
+                attributes: ['kybStatus', 'setupCompleted', 'businessCode', 'businessStructure'],
+              });
+              if (tenant) {
+                token.kybStatus = tenant.kybStatus;
+                if (tenant.setupCompleted === true) token.setupCompleted = true;
+                token.businessCode = tenant.businessCode;
+                token.businessStructure = tenant.businessStructure;
+              }
+            } catch (e: any) {
+              console.error('[JWT update] Tenant refresh error:', e.message);
+            }
+          }
+
+          // Extend access token on manual update
+          token.exp = now + ACCESS_TOKEN_EXPIRY;
         }
-        
-        // Extend access token on manual update
-        token.exp = now + ACCESS_TOKEN_EXPIRY;
       }
 
       // ============================================
@@ -374,6 +437,8 @@ export const authOptions: NextAuthOptions = {
         session.user.businessStructure = token.businessStructure as string;
         session.user.setupCompleted = token.setupCompleted as boolean;
         session.user.redirectUrl = token.redirectUrl as string;
+        (session.user as any).impersonating = Boolean(token.impersonating);
+        (session.user as any).impersonatedTenantSlug = token.impersonatedTenantSlug as string | undefined;
       }
       
       // Add token expiry info to session for client-side awareness

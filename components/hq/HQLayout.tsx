@@ -48,8 +48,10 @@ interface HQLayoutProps {
 
 function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'simesi' }: HQLayoutProps) {
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, update: updateSession } = useSession();
   const isHumanify = platform === 'humanify' || router.pathname.startsWith('/humanify');
+  const impersonating = Boolean((session?.user as any)?.impersonating);
+  const impersonatedSlug = (session?.user as any)?.impersonatedTenantSlug as string | undefined;
   const sidebarStorageKey = isHumanify ? 'humanify-sidebar-collapsed' : 'hq-sidebar-collapsed';
   const baseSidebarConfig = isHumanify ? humanifySidebarConfig : hqSidebarConfig;
   // Use safe localStorage hook for sidebar collapsed state
@@ -672,6 +674,25 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
 
         {/* Page Content */}
         <main className={noPadding ? 'w-full h-[calc(100vh-4rem)] overflow-hidden' : 'p-6'}>
+          {impersonating && (
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-950">
+              <span>
+                <strong>Support mode</strong>
+                {impersonatedSlug ? ` · tenant /${impersonatedSlug}` : ''}
+                {(session?.user as any)?.tenantName ? ` (${(session?.user as any).tenantName})` : ''}
+              </span>
+              <button
+                type="button"
+                className="rounded-md bg-amber-900 px-3 py-1 text-xs font-medium text-white hover:bg-amber-800"
+                onClick={async () => {
+                  await updateSession({ endImpersonation: true });
+                  router.push('/platform');
+                }}
+              >
+                Keluar support mode
+              </button>
+            </div>
+          )}
           {(title || subtitle) && (
             <div className="mb-6">
               {title && <h1 className="text-2xl font-bold text-gray-900">{title}</h1>}

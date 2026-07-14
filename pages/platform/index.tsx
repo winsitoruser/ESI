@@ -5,14 +5,14 @@ import Link from 'next/link';
 import HQLayout from '@/components/hq/HQLayout';
 import {
   Building2, Users, Briefcase, Search, ExternalLink,
-  CheckCircle2, PauseCircle, Clock, Loader2, RefreshCw, TrendingUp, HeartPulse,
+  CheckCircle2, PauseCircle, Clock, Loader2, RefreshCw, TrendingUp, HeartPulse, Eye,
 } from 'lucide-react';
 
 /**
  * Humanify Platform Control Plane — MRR + tenant ops (Phase 3)
  */
 export default function PlatformDashboardPage() {
-  const { data: session, status } = useSession();
+  const { data: session, status, update: updateSession } = useSession();
   const router = useRouter();
   const role = ((session?.user as any)?.role || '').toLowerCase();
   const allowed = role === 'super_admin' || role === 'superadmin' || role === 'platform_admin';
@@ -86,6 +86,30 @@ export default function PlatformDashboardPage() {
         setToast(j.message);
         load();
       } else setToast(j.error || 'Gagal update plan');
+    } finally {
+      setActing(null);
+      setTimeout(() => setToast(''), 2500);
+    }
+  }
+
+  async function impersonateTenant(id: string) {
+    setActing(id);
+    try {
+      const res = await fetch('/api/platform?action=impersonate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenantId: id }),
+      });
+      const j = await res.json();
+      if (!j.success) {
+        setToast(j.error || 'Impersonate gagal');
+        return;
+      }
+      await updateSession(j.data.sessionPatch);
+      setToast(j.message || 'Support mode aktif');
+      router.push(j.data.redirectTo || '/humanify');
+    } catch {
+      setToast('Impersonate gagal');
     } finally {
       setActing(null);
       setTimeout(() => setToast(''), 2500);
@@ -297,6 +321,12 @@ export default function PlatformDashboardPage() {
                     ) : '—'}
                   </td>
                   <td className="px-4 py-3 text-right space-x-1">
+                    <button
+                      disabled={acting === t.id || t.status === 'suspended'}
+                      onClick={() => impersonateTenant(t.id)}
+                      title="Buka sebagai support (tenant context)"
+                      className="text-[11px] px-2 py-1 rounded border border-indigo-200 text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
+                    ><Eye className="w-3 h-3 inline" /> Support</button>
                     {t.status !== 'active' && (
                       <button
                         disabled={acting === t.id}
@@ -326,9 +356,9 @@ export default function PlatformDashboardPage() {
         </div>
 
         <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-sm text-indigo-900">
-          <strong>Phase 5:</strong> Enterprise tools — branding, API keys, export.
+          <strong>Phase 5b:</strong> Subdomain <code className="bg-white/70 px-1 rounded">{'{slug}'}.humanify.id</code>
+          → careers · Support impersonate (audit) · Enterprise di{' '}
           <code className="bg-white/70 px-1 rounded">/humanify/enterprise</code>
-          · Midtrans keys opsional untuk Snap live
         </div>
       </div>
     </HQLayout>

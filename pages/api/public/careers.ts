@@ -7,6 +7,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { resolveTenantById, resolveTenantBySlug } from '@/lib/saas/tenant-slug';
 import { getTenantBranding } from '@/lib/saas/humanify-branding';
+import { extractTenantSlugFromHost } from '@/lib/saas/tenant-host';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch {}
@@ -43,9 +44,11 @@ async function resolveTenant(req: NextApiRequest) {
   const body = req.body || {};
   const slug = String(q.tenant || q.tenantSlug || body.tenant || body.tenantSlug || '').trim();
   const tenantId = String(q.tenantId || body.tenantId || '').trim();
+  const hostSlug = extractTenantSlugFromHost(req.headers.host);
 
   if (slug) return resolveTenantBySlug(slug);
   if (tenantId) return resolveTenantById(tenantId);
+  if (hostSlug) return resolveTenantBySlug(hostSlug);
 
   // Legacy single-tenant fallback (transition only)
   const fallback = process.env.TENANT_DEFAULT_ID || process.env.DEFAULT_TENANT_ID || null;

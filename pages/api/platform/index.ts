@@ -301,6 +301,43 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.json({ success: true, message: `Tenant plan → ${planNorm}` });
     }
 
+    if (req.method === 'POST' && action === 'impersonate') {
+      const { tenantId } = req.body || {};
+      if (!tenantId) return res.status(400).json({ success: false, error: 'tenantId required' });
+      const [rows] = await sequelize.query(`
+        SELECT id, slug, ${nsql} AS name, status
+        FROM tenants t WHERE t.id = :id LIMIT 1
+      `, { replacements: { id: tenantId } });
+      const t = rows?.[0];
+      if (!t) return res.status(404).json({ success: false, error: 'Tenant not found' });
+      if (String(t.status) === 'suspended') {
+        return res.status(400).json({ success: false, error: 'Tenant suspended — aktifkan dulu' });
+      }
+      return res.json({
+        success: true,
+        data: {
+          tenantId: t.id,
+          slug: t.slug,
+          name: t.name,
+          /** Client: session.update({ impersonateTenantId }) */
+          sessionPatch: { impersonateTenantId: t.id },
+          redirectTo: '/humanify',
+        },
+        message: `Support mode → ${t.name}`,
+      });
+    }
+
+    if (req.method === 'POST' && action === 'end-impersonate') {
+      return res.json({
+        success: true,
+        data: {
+          sessionPatch: { endImpersonation: true },
+          redirectTo: '/platform',
+        },
+        message: 'Support mode ended',
+      });
+    }
+
     return res.status(400).json({ success: false, error: 'Unknown action' });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: e.message });

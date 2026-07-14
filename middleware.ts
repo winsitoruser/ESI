@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { isHumanifyHost } from '@/lib/humanify/host';
 import { HUMANIFY_WELCOME } from '@/lib/humanify/paths';
+import { extractTenantSlugFromHost } from '@/lib/saas/tenant-host';
 
 const authSecret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET;
 
@@ -21,6 +22,12 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
   const host = request.headers.get('host');
+
+  // Subdomain tenant: acme.humanify.id → /c/acme/careers (apex stays welcome)
+  const hostSlug = extractTenantSlugFromHost(host);
+  if (hostSlug && (pathname === '/' || pathname === '/careers' || pathname === '/careers/')) {
+    return NextResponse.redirect(new URL(`/c/${hostSlug}/careers`, request.url));
+  }
 
   // humanify.id root → public landing (bukan ESI login)
   if (pathname === '/' && isHumanifyHost(host)) {
