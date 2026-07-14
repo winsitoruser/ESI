@@ -1,10 +1,15 @@
 /**
- * Humanify HR AI Copilot — AIMAN persona (AI Guide HR) with live data resolver
+ * Humanify HR AI Copilot — AIMAN persona with flexible live-data exploration
  */
 import { generateAIInsights, generateRuleBasedInsights, type HRModule } from './ai-service';
 import { getSumopodConfig, sumopodChat } from './sumopod-config';
 import { AIMAN, AIMAN_SYSTEM_PROMPT } from './ai-persona';
-import { resolveAimanDataContext, formatAimanDataReply, type AimanDataContext } from './ai-data-resolver';
+import {
+  resolveAimanDataContext,
+  formatAimanDataReply,
+  hasAimanLiveData,
+  type AimanDataContext,
+} from './ai-data-resolver';
 
 let sequelize: any;
 try { sequelize = require('../../lib/sequelize'); } catch {}
@@ -12,19 +17,17 @@ try { sequelize = require('../../lib/sequelize'); } catch {}
 export interface CopilotMessage {
   role: 'user' | 'assistant';
   content: string;
-  source?: 'rules' | 'llm' | 'hybrid';
+  source?: 'rules' | 'llm' | 'hybrid' | 'live-data';
 }
 
-const INTENT_MAP: { pattern: RegExp; module: HRModule; reply: string }[] = [
-  { pattern: /rekrut|kandidat|hiring|recruit/i, module: 'recruitment', reply: 'Berikut tinjauan pipeline rekrutmen:' },
-  { pattern: /absen|kehadiran|telat|attendance/i, module: 'attendance', reply: 'Berikut analisis kehadiran:' },
-  { pattern: /kpi|kinerja|target|performance|penilaian/i, module: 'kpi', reply: 'Berikut evaluasi KPI & kinerja:' },
-  { pattern: /onboard|orientasi|karyawan baru/i, module: 'general', reply: 'Berikut status onboarding:' },
-  { pattern: /jumlah (pegawai|karyawan)|berapa (pegawai|karyawan)|headcount/i, module: 'workforce', reply: 'Berikut ringkasan workforce:' },
-  { pattern: /gaji|payroll|lembur/i, module: 'payroll', reply: 'Berikut ringkasan payroll:' },
-  { pattern: /klaim|reimburse|pengeluaran/i, module: 'reimbursement', reply: 'Berikut analisis klaim:' },
-  { pattern: /turnover|resign|keluar|workforce/i, module: 'workforce', reply: 'Berikut analisis workforce:' },
-  { pattern: /cuti|leave/i, module: 'leave', reply: 'Berikut tinjauan cuti:' },
+const INTENT_MAP: { pattern: RegExp; module: HRModule }[] = [
+  { pattern: /rekrut|kandidat|hiring|recruit|lowongan|pelamar/i, module: 'recruitment' },
+  { pattern: /absen|kehadiran|telat|attendance/i, module: 'attendance' },
+  { pattern: /kpi|kinerja|target|performance|penilaian/i, module: 'kpi' },
+  { pattern: /gaji|payroll|lembur|payslip/i, module: 'payroll' },
+  { pattern: /klaim|reimburse|pengeluaran/i, module: 'reimbursement' },
+  { pattern: /turnover|resign|keluar|workforce|jumlah (pegawai|karyawan)|headcount|onboard|offboard/i, module: 'workforce' },
+  { pattern: /cuti|leave/i, module: 'leave' },
 ];
 
 function detectModule(message: string): HRModule {
@@ -38,31 +41,52 @@ function isFirstTurn(history?: CopilotMessage[]): boolean {
   return !history?.some(h => h.role === 'assistant');
 }
 
-function hasLiveData(data: AimanDataContext): boolean {
-  return !!(
-    data.workforce || data.onboarding?.in_progress_count ||
-    data.employee || data.kpis?.length || data.performance?.length ||
-    data.kpi_search?.length || data.attendance?.period_rate != null ||
-    data.recruitment || data.leave
-  );
-}
-
 function buildInsightContext(data: AimanDataContext, module: HRModule): Record<string, unknown> {
   return {
     period: data.period,
+    intents: data.intents,
     workforce: data.workforce,
     onboarding_count: data.onboarding?.in_progress_count,
+    offboarding_count: data.offboarding?.in_progress_count,
     employee: data.employee,
     kpi_count: data.kpis?.length || 0,
     avg_kpi: data.kpis?.length
       ? Math.round(data.kpis.reduce((s, k) => s + Number(k.achievement_pct || 0), 0) / data.kpis.length)
-      : undefined,
-    performance_reviews: data.performance?.length,
-    attendance: data.attendance,
+      : data.kpi_team?.avg_achievement,
+    kpi_team: data.kpi_team,
+    performance_reviews: data.performance?.length || data.performance_team?.review_count,
+    attendance: data.attendance || data.attendance_team,
     recruitment: data.recruitment,
     leave_pending: data.leave?.pending_count,
+    claims_pending: data.claims?.pending_count,
+    overtime_pending: data.overtime?.pending_count,
+    contracts_expiring: data.contracts?.expiring_soon,
+    training_active: data.training?.active_enrollments,
+    disciplinary_active: data.disciplinary?.active_warnings,
+    payroll: data.payroll?.latest_run,
     module,
   };
+}
+
+function compactDataForLlm(data: AimanDataContext): Record<string, unknown> {
+  const out: Record<string, unknown> = {
+    period: data.period,
+    intents: data.intents,
+    identifiers: data.identifiers,
+  };
+  const keys: (keyof AimanDataContext)[] = [
+    'workforce', 'onboarding', 'offboarding', 'employee', 'employee_matches',
+    'kpis', 'kpi_team', 'kpi_search', 'performance', 'performance_team',
+    'attendance', 'attendance_team', 'leave', 'recruitment', 'claims',
+    'overtime', 'payroll', 'contracts', 'training', 'disciplinary', 'errors',
+  ];
+  for (const k of keys) {
+    const v = data[k];
+    if (v == null) continue;
+    if (Array.isArray(v) && !v.length) continue;
+    out[k] = v;
+  }
+  return out;
 }
 
 export async function chatWithCopilot(opts: {
@@ -78,7 +102,8 @@ export async function chatWithCopilot(opts: {
   const aiResult = await generateAIInsights({ module, context: insightCtx });
   const insights = aiResult.insights;
 
-  const dataReply = hasLiveData(dataContext) ? formatAimanDataReply(dataContext) : '';
+  const live = hasAimanLiveData(dataContext);
+  const dataReply = live ? formatAimanDataReply(dataContext) : '';
   const ruleReply = dataReply || buildFallbackReply(module, insightCtx, insights);
 
   const cfg = getSumopodConfig();
@@ -87,29 +112,38 @@ export async function chatWithCopilot(opts: {
     const llm = await sumopodChat({
       system: `${AIMAN_SYSTEM_PROMPT}
 
-AKSES DATA LIVE:
-Anda memiliki akses ke data Humanify HRIS real-time di blok DATA LIVE di bawah.
-WAJIB gunakan angka/nama dari data tersebut. Jangan mengarang.
-Jika karyawan tidak ditemukan, arahkan user memeriksa kode/NIK/nama.`,
+INSTRUKSI EKSEKUSI:
+- Jawablah pertanyaan user secara langsung menggunakan DATA LIVE.
+- Boleh menggabungkan beberapa modul jika relevan (mis. ringkasan = workforce + backlog + risiko).
+- Jika user eksplorasi bebas, prioritaskan insight actionable.
+- Jangan ulangi JSON mentah; sampaikan dalam bahasa yang mengalir.`,
       user: [
         `Pertanyaan: ${opts.message}`,
-        `Modul: ${module}`,
-        `DATA LIVE (Humanify DB):\n${JSON.stringify(dataContext, null, 2)}`,
-        insights.length ? `Insight rules: ${insights.map(i => i.summary).join(' | ')}` : '',
-        firstTurn ? 'Sapa profesional sebagai AIMAN (singkat).' : 'Lanjutkan tanpa perkenalan panjang.',
-        'Format: ringkas, bullet jika perlu, sebut nama/kode karyawan jika relevan.',
+        `Modul terdeteksi: ${module}`,
+        `Intent: ${dataContext.intents.join(', ')}`,
+        `DATA LIVE (Humanify):\n${JSON.stringify(compactDataForLlm(dataContext), null, 2)}`,
+        insights.length ? `Insight rules: ${insights.map((i: any) => i.summary).join(' | ')}` : '',
+        firstTurn ? 'Sapa singkat sebagai AIMAN.' : 'Lanjutkan tanpa perkenalan ulang.',
+        'Jika data cocok parsial, jawab apa yang ada lalu tawarkan pertanyaan lanjutan yang relevan.',
       ].filter(Boolean).join('\n\n'),
-      maxTokens: 700,
-      temperature: 0.3,
+      maxTokens: 900,
+      temperature: 0.35,
       model: cfg.chatModel,
-      history: (opts.history || []).slice(-6).map(h => ({ role: h.role as 'user' | 'assistant', content: h.content })),
+      history: (opts.history || []).slice(-8).map(h => ({ role: h.role as 'user' | 'assistant', content: h.content })),
     });
     if (llm) {
       return { reply: llm, module, insights, source: 'hybrid', persona: AIMAN.name, dataContext };
     }
   }
 
-  return { reply: ruleReply, module, insights, source: hasLiveData(dataContext) ? 'live-data' : aiResult.source, persona: AIMAN.name, dataContext };
+  return {
+    reply: ruleReply,
+    module,
+    insights,
+    source: live ? 'live-data' : aiResult.source,
+    persona: AIMAN.name,
+    dataContext,
+  };
 }
 
 function buildFallbackReply(module: HRModule, context: Record<string, unknown>, insights: ReturnType<typeof generateRuleBasedInsights>): string {
