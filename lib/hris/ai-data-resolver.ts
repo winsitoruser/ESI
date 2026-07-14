@@ -181,29 +181,39 @@ function extractPeriod(message: string): string {
   return currentPeriod();
 }
 
+function looksLikePersonName(s: string): boolean {
+  const words = s.trim().split(/\s+/);
+  if (words.length < 2 || words.length > 4) return false;
+  return words.every(w => /^[A-Za-z][a-z.'-]+$/.test(w) && !STOP_NAME.has(w.toLowerCase()));
+}
+
 function extractIdentifiers(message: string) {
   const employee_code = message.match(/\b(EMP[-_]?\d+)\b/i)?.[1]?.toUpperCase().replace('_', '-');
   const nik = message.match(/\b(\d{16})\b/)?.[1];
 
-  const metricMatch =
-    message.match(/(?:kpi|metric|indikator)\s+(?:bernama\s+)?["']([^"']+)["']/i) ||
-    message.match(/(?:kpi|metric)\s+([A-Za-z][A-Za-z0-9\s.%/-]{2,40}?)(?:\s+(?:bulan|periode|tahun|untuk|dari)|[,?]|$)/i);
-  let metric_name = metricMatch?.[1]?.trim();
-  if (metric_name && /^(karyawan|pegawai|emp|bulan)/i.test(metric_name)) metric_name = undefined;
+  // Metric only when quoted, or explicitly "metric/indikator …" — never bare "KPI <Person Name>"
+  const metricQuoted = message.match(/(?:kpi|metric|indikator)\s+(?:bernama\s+)?["']([^"']+)["']/i);
+  const metricExplicit = message.match(/\b(?:metric|indikator(?:\s+kinerja)?)\s+([A-Za-z][A-Za-z0-9\s.%/-]{2,50}?)(?:\s+(?:bulan|periode|tahun|untuk|dari|di)|[,?]|$)/i);
+  let metric_name = (metricQuoted?.[1] || metricExplicit?.[1])?.trim();
+  if (metric_name && /^(karyawan|pegawai|emp|bulan|dari|untuk)/i.test(metric_name)) {
+    metric_name = undefined;
+  }
 
   const deptMatch = message.match(/(?:departemen|department|divisi|bagian)\s+["']?([A-Za-z][A-Za-z\s&/-]{1,40})["']?/i);
   const department = deptMatch?.[1]?.trim();
 
   let name_hint: string | undefined;
   const namePatterns = [
-    /(?:karyawan|pegawai|nama|profil|data)\s+(?:bernama\s+)?["']?([A-Za-z][A-Za-z\s.'-]{2,40})["']?/i,
-    /(?:kpi|kinerja|performance|cuti|kehadiran|absen|gaji|klaim|lembur|kontrak|training)\s+(?:dari|untuk|atas nama)\s+["']?([A-Za-z][A-Za-z\s.'-]{2,40})["']?/i,
-    /(?:kpi|kinerja|performance)\s+([A-Za-z][A-Za-z\s.'-]{2,40}?)(?:\s+bulan|\s+periode|\s+tahun|,|\?|$)/i,
+    /(?:karyawan|pegawai|nama|profil|data)\s+(?:dan\s+)?(?:kpi|performance|cuti|kehadiran)?\s*(?:dari|untuk|atas nama|bernama)?\s*["']?([A-Za-z][A-Za-z\s.'-]{2,40})["']?/i,
+    /(?:kpi|kinerja|performance|cuti|kehadiran|absen|gaji|klaim|lembur|kontrak|training|profil)\s+(?:dari|untuk|atas nama)\s+["']?([A-Za-z][A-Za-z\s.'-]{2,40})["']?/i,
+    /(?:kpi|kinerja|performance|profil|cuti|kehadiran)\s+([A-Za-z][A-Za-z\s.'-]{2,40}?)(?:\s+bulan|\s+periode|\s+tahun|,|\?|$)/i,
   ];
   for (const p of namePatterns) {
     const m = message.match(p);
     if (!m?.[1]) continue;
-    const candidate = m[1].trim().replace(/\s+/g, ' ');
+    let candidate = m[1].trim().replace(/\s+/g, ' ');
+    // Strip trailing topic words: "Ahmad Wijaya bulan"
+    candidate = candidate.replace(/\s+(bulan|periode|tahun|ini|saat)$/i, '').trim();
     const first = candidate.split(/\s+/)[0]?.toLowerCase() || '';
     if (STOP_NAME.has(first) || /^\d+$/.test(candidate)) continue;
     if (employee_code && candidate.toUpperCase().includes(employee_code)) continue;
@@ -211,7 +221,7 @@ function extractIdentifiers(message: string) {
     break;
   }
 
-  // Free-form proper name: "Ahmad Wijaya KPI" / "cek Siti Nurhaliza"
+  // Free-form proper name: "Ahmad Wijaya" anywhere
   if (!name_hint && !employee_code && !nik) {
     const free = message.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\b/);
     if (free) {
@@ -225,13 +235,10 @@ function extractIdentifiers(message: string) {
 
 function detectIntents(message: string): string[] {
   const intents = INTENT_PATTERNS.filter(p => p.re.test(message)).map(p => p.intent);
-  if (!intents.length) {
-    if (/\b(EMP[-_]?\d+|\d{16})\b/i.test(message) || /profil|info|detail|data (karyawan|pegawai)/i.test(message)) {
-      intents.push('employee_dossier');
-    } else {
-      intents.push('overview');
-    }
+  if (/\b(EMP[-_]?\d+|\d{16})\b/i.test(message) || /profil|info|detail|data (karyawan|pegawai)/i.test(message)) {
+    intents.push('employee_dossier');
   }
+  if (!intents.length) intents.push('overview');
   return [...new Set(intents)];
 }
 
