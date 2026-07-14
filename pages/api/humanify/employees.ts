@@ -269,6 +269,15 @@ async function createEmployee(req: NextApiRequest, res: NextApiResponse) {
 
   // 🔒 SECURITY: tenantId MUST come from session, NEVER from request body!
   const tenantId = getTenantId(req);
+  const role = (req as any).session?.user?.role;
+
+  try {
+    const { assertEmployeeSeatAvailable } = await import('@/lib/saas/seat-metering');
+    const seat = await assertEmployeeSeatAvailable(tenantId, role);
+    if (!seat.ok) return res.status(seat.status).json(seat.body);
+  } catch (e) {
+    console.warn('[employees] seat check skipped:', (e as Error).message);
+  }
 
   // Remove tenantId from body if present - user cannot override this
   const { name, email, phone, position, department, workLocation, branchId, branchName,

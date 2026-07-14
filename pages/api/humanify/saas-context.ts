@@ -11,6 +11,8 @@ import {
   resolveTenantById,
 } from '@/lib/saas/tenant-slug';
 import { buildEntitlementSnapshot } from '@/lib/saas/plan-entitlements';
+import { getSeatUsage } from '@/lib/saas/seat-metering';
+import { getTenantColumns } from '@/lib/saas/tenant-schema';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch {}
@@ -57,6 +59,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const plan = isPlatform ? 'enterprise' : (tenant?.subscriptionPlan || 'trial');
     const entitlements = buildEntitlementSnapshot(plan);
+    const seats = isPlatform ? null : await getSeatUsage(tenantId, plan);
+
+    let trialEndsAt: string | null = null;
+    let daysLeftInTrial: number | null = null;
+    try {
+      const cols = await getTenantColumns();
+      if (cols.has('trial_ends_at')) {
+        const [rows] = await sequelize.query(
+          `SELECT trial_ends_at,
+             EXTRACT(DAY FROM (trial_ends_at - NOW()))::int AS days_left
+           FROM tenants WHERE id = :id LIMIT 1`,
+          { replacements: { id: tenantId } },
+        );
+        if (rows?.[0]?.trial_ends_at) {
+          trialEndsAt = rows[0].trial_ends_at;
+          daysLeftInTrial = rows[0].days_left;
+        }
+      }
+    } catch { /* */ }
 
     return res.json({
       success: true,
@@ -68,6 +89,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         subscriptionPlan: plan,
         careersUrl: tenant?.slug ? `/c/${tenant.slug}/careers` : null,
         entitlements,
+        seats,
+        trialEndsAt,
+        daysLeftInTrial,
+        subdomainHint: tenant?.slug ? `https://${tenant.slug}.humanify.id` : null,
       },
     });
   } catch (e: any) {

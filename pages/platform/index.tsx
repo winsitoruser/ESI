@@ -24,17 +24,21 @@ export default function PlatformDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState<string | null>(null);
   const [toast, setToast] = useState('');
+  const [expiring, setExpiring] = useState<any[]>([]);
+  const [dunningBusy, setDunningBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const q = new URLSearchParams({ action: 'tenants', status: filterStatus, search });
-      const [ov, tn] = await Promise.all([
+      const [ov, tn, ex] = await Promise.all([
         fetch('/api/platform?action=overview').then((r) => r.json()),
         fetch(`/api/platform?${q}`).then((r) => r.json()),
+        fetch('/api/platform?action=expiring-trials&days=7').then((r) => r.json()),
       ]);
       if (ov.success) setOverview(ov.data);
       if (tn.success) setTenants(tn.data?.tenants || []);
+      if (ex.success) setExpiring(ex.data || []);
     } catch {
       setToast('Gagal memuat data platform');
     } finally {
@@ -116,6 +120,21 @@ export default function PlatformDashboardPage() {
     }
   }
 
+  async function runDunning() {
+    setDunningBusy(true);
+    try {
+      const res = await fetch('/api/platform?action=dunning-scan', { method: 'POST' });
+      const j = await res.json();
+      if (j.success) {
+        setToast(j.message || `Dunning: suspended ${j.data?.suspended || 0}`);
+        load();
+      } else setToast(j.error || 'Dunning gagal');
+    } finally {
+      setDunningBusy(false);
+      setTimeout(() => setToast(''), 3500);
+    }
+  }
+
   const s = overview?.summary || {};
   const m = overview?.metrics || {};
   const maxPlanCount = Math.max(1, ...(m.byPlan || []).map((p: any) => p.count || 0));
@@ -140,10 +159,35 @@ export default function PlatformDashboardPage() {
             <p className="text-xs uppercase tracking-wide text-indigo-600 font-semibold">Phase 3 · Control Plane</p>
             <h2 className="text-lg font-semibold text-slate-900">MRR, kesehatan tenant & operasi</h2>
           </div>
-          <button onClick={load} className="flex items-center gap-2 text-sm px-3 py-2 border rounded-lg hover:bg-slate-50">
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={runDunning}
+              disabled={dunningBusy}
+              className="flex items-center gap-2 text-sm px-3 py-2 border border-amber-300 text-amber-900 rounded-lg hover:bg-amber-50 disabled:opacity-50"
+            >
+              {dunningBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <PauseCircle className="w-4 h-4" />}
+              Run dunning
+            </button>
+            <button onClick={load} className="flex items-center gap-2 text-sm px-3 py-2 border rounded-lg hover:bg-slate-50">
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+            </button>
+          </div>
         </div>
+
+        {expiring.length > 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+            <p className="text-sm font-semibold text-amber-900 mb-2">Trial berakhir ≤ 7 hari ({expiring.length})</p>
+            <ul className="text-xs text-amber-900 space-y-1 max-h-28 overflow-y-auto">
+              {expiring.map((t) => (
+                <li key={t.id}>
+                  <span className="font-medium">{t.name}</span>
+                  {' · '}/{t.slug || '—'}
+                  {' · '}{t.days_left != null ? `${t.days_left}h` : '—'}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="bg-white border rounded-xl p-4">
@@ -356,9 +400,8 @@ export default function PlatformDashboardPage() {
         </div>
 
         <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-sm text-indigo-900">
-          <strong>Phase 5b:</strong> Subdomain <code className="bg-white/70 px-1 rounded">{'{slug}'}.humanify.id</code>
-          → careers · Support impersonate (audit) · Enterprise di{' '}
-          <code className="bg-white/70 px-1 rounded">/humanify/enterprise</code>
+          <strong>Phase 6:</strong> Seat metering · trial expiry queue · dunning scan.
+          Subdomain: <code className="bg-white/70 px-1 rounded">{'{slug}'}.humanify.id</code>
         </div>
       </div>
     </HQLayout>

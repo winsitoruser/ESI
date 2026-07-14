@@ -66,6 +66,10 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [planId, setPlanId] = useState<string | null>(null);
+  const [seatBanner, setSeatBanner] = useState<{
+    text: string;
+    over: boolean;
+  } | null>(null);
 
   // Get user role from session
   const userRole = (session?.user as any)?.role as UserRole | undefined;
@@ -94,6 +98,17 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
         const json = await res.json();
         if (!cancelled && json.success) {
           setPlanId(json.data?.entitlements?.planId || json.data?.subscriptionPlan || 'trial');
+          const seats = json.data?.seats;
+          if (seats?.overLimit || seats?.nearLimit) {
+            setSeatBanner({
+              over: Boolean(seats.overLimit),
+              text: seats.overLimit
+                ? `Kuota penuh: ${seats.employees}/${seats.maxEmployees} karyawan · ${seats.users}/${seats.maxUsers} user`
+                : `Kuota hampir penuh: ${seats.employees}/${seats.maxEmployees} karyawan`,
+            });
+          } else {
+            setSeatBanner(null);
+          }
         }
       } catch {
         /* keep default enterprise until loaded — avoid flashing empty menu */
@@ -691,6 +706,20 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
               >
                 Keluar support mode
               </button>
+            </div>
+          )}
+          {seatBanner && !impersonating && (
+            <div
+              className={`mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border px-4 py-2.5 text-sm ${
+                seatBanner.over
+                  ? 'border-red-300 bg-red-50 text-red-950'
+                  : 'border-amber-200 bg-amber-50 text-amber-950'
+              }`}
+            >
+              <span>{seatBanner.text}</span>
+              <Link href="/humanify/billing" className="underline font-medium text-xs">
+                Upgrade paket
+              </Link>
             </div>
           )}
           {(title || subtitle) && (

@@ -15,6 +15,7 @@ import {
   formatIdr,
 } from '@/lib/saas/platform-metrics';
 import { HUMANIFY_PLANS } from '@/lib/saas/plan-entitlements';
+import { listExpiringTrials, runDunningScan } from '@/lib/saas/humanify-billing';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch {}
@@ -299,6 +300,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         UPDATE tenants SET subscription_plan = :plan, updated_at = NOW() WHERE id = :id
       `, { replacements: { id, plan: planNorm } });
       return res.json({ success: true, message: `Tenant plan → ${planNorm}` });
+    }
+
+    if (req.method === 'POST' && action === 'dunning-scan') {
+      const result = await runDunningScan();
+      return res.json({ success: true, data: result, message: `Suspended ${result.suspended}, trials expired ${result.trialsExpired}` });
+    }
+
+    if (req.method === 'GET' && action === 'expiring-trials') {
+      const days = Math.min(30, Math.max(1, Number(req.query.days) || 7));
+      const data = await listExpiringTrials(days);
+      return res.json({ success: true, data });
     }
 
     if (req.method === 'POST' && action === 'impersonate') {

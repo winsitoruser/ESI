@@ -11,6 +11,7 @@ import {
   createHumanifyCheckout,
   getTenantBillingStatus,
   listBillablePlans,
+  listExpiringTrials,
   runDunningScan,
 } from '@/lib/saas/humanify-billing';
 import { isPlatformOperator } from '@/lib/middleware/tenantIsolation';
@@ -37,6 +38,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (req.method === 'GET' && action === 'current') {
       if (!tenantId) return res.status(400).json({ success: false, error: 'No tenant' });
       const data = await getTenantBillingStatus(tenantId);
+      return res.json({ success: true, data });
+    }
+
+    if (req.method === 'GET' && action === 'expiring-trials') {
+      if (!isPlatformOperator(role)) return res.status(403).json({ success: false, error: 'Platform only' });
+      const days = Math.min(30, Math.max(1, Number(req.query.days) || 7));
+      const data = await listExpiringTrials(days);
       return res.json({ success: true, data });
     }
 
@@ -87,6 +95,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === 'POST' && action === 'dunning-scan') {
+      if (!isPlatformOperator(role)) return res.status(403).json({ success: false, error: 'Platform only' });
+      const result = await runDunningScan();
+      return res.json({ success: true, data: result });
+    }
+
+    // Alias on platform billing path for ops
+    if (req.method === 'POST' && action === 'run-dunning') {
       if (!isPlatformOperator(role)) return res.status(403).json({ success: false, error: 'Platform only' });
       const result = await runDunningScan();
       return res.json({ success: true, data: result });

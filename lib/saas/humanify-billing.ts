@@ -287,22 +287,71 @@ export async function getTenantBillingStatus(tenantId: string) {
   };
 }
 
-/** Suspend tenants whose paid period ended (simple dunning). */
-export async function runDunningScan(): Promise<{ suspended: number }> {
-  if (!sequelize) return { suspended: 0 };
+/** Suspend expired paid subs + expire overdue trials (simple dunning). */
+export async function runDunningScan(): Promise<{
+  suspended: number;
+  trialsExpired: number;
+}> {
+  if (!sequelize) return { suspended: 0, trialsExpired: 0 };
   const cols = await getTenantColumns();
-  if (!cols.has('subscription_end') || !cols.has('status')) return { suspended: 0 };
+  let suspended = 0;
+  let trialsExpired = 0;
+
+  if (cols.has('subscription_end') && cols.has('status')) {
+    const [rows] = await sequelize.query(`
+      UPDATE tenants
+      SET status = 'suspended',
+          ${cols.has('is_active') ? 'is_active = false,' : ''}
+          updated_at = NOW()
+      WHERE COALESCE(status::text, '') IN ('active')
+        AND subscription_end IS NOT NULL
+        AND subscription_end < NOW()
+        AND COALESCE(subscription_plan, 'trial') NOT IN ('trial', 'free')
+      RETURNING id
+    `);
+    suspended = rows?.length || 0;
+  }
+
+  if (cols.has('trial_ends_at') && cols.has('status')) {
+    const [rows] = await sequelize.query(`
+      UPDATE tenants
+      SET status = 'suspended',
+          ${cols.has('is_active') ? 'is_active = false,' : ''}
+          updated_at = NOW()
+      WHERE COALESCE(status::text, '') IN ('trial')
+        AND trial_ends_at IS NOT NULL
+        AND trial_ends_at < NOW()
+        AND COALESCE(subscription_plan, 'trial') IN ('trial', 'free')
+      RETURNING id
+    `);
+    trialsExpired = rows?.length || 0;
+  }
+
+  return { suspended, trialsExpired };
+}
+
+/** Tenants whose trial ends within N days (for platform ops). */
+export async function listExpiringTrials(withinDays = 7): Promise<any[]> {
+  if (!sequelize) return [];
+  const cols = await getTenantColumns();
+  if (!cols.has('trial_ends_at')) return [];
+
+  const nameExpr = [
+    cols.has('business_name') ? 'business_name' : null,
+    cols.has('name') ? 'name' : null,
+    cols.has('code') ? 'code' : null,
+    `'tenant'`,
+  ].filter(Boolean).join(', ');
 
   const [rows] = await sequelize.query(`
-    UPDATE tenants
-    SET status = 'suspended',
-        ${cols.has('is_active') ? 'is_active = false,' : ''}
-        updated_at = NOW()
-    WHERE COALESCE(status::text, '') IN ('active')
-      AND subscription_end IS NOT NULL
-      AND subscription_end < NOW()
-      AND COALESCE(subscription_plan, 'trial') NOT IN ('trial', 'free')
-    RETURNING id
-  `);
-  return { suspended: rows?.length || 0 };
+    SELECT id, slug, COALESCE(${nameExpr}) AS name, status, trial_ends_at,
+      EXTRACT(DAY FROM (trial_ends_at - NOW()))::int AS days_left
+    FROM tenants
+    WHERE COALESCE(status::text, '') = 'trial'
+      AND trial_ends_at IS NOT NULL
+      AND trial_ends_at <= NOW() + (:days)::int * INTERVAL '1 day'
+    ORDER BY trial_ends_at ASC
+    LIMIT 50
+  `, { replacements: { days: withinDays } });
+  return rows || [];
 }
