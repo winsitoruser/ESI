@@ -59,6 +59,7 @@ export default function SaasSetupWizard() {
       if (!json.success) throw new Error(json.error);
       const d = json.data;
       if (d.completed) {
+        try { await update({ setupCompleted: true }); } catch { /* */ }
         router.replace(HUMANIFY_BRAND.appPath);
         return;
       }
