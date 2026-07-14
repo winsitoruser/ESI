@@ -49,10 +49,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // status must be one of: 'active','inactive','suspended','trial' (DB ENUM)
     // onboardingStep must be INTEGER (DB column is int4)
     // code is NOT NULL in DB
+    const { ensureUniqueTenantSlug } = require('../../../lib/saas/tenant-slug');
+    const tenantSlug = await ensureUniqueTenantSlug(bName);
+
     const tenant = await db.Tenant.create({
       businessName: bName,
       name: bName,
       code: tenantCode,
+      slug: tenantSlug,
       businessTypeId,
       status: 'trial',
       kybStatus: 'pending_kyb',

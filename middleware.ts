@@ -30,7 +30,25 @@ export async function middleware(request: NextRequest) {
   const isHumanifyPublic =
     pathname === '/humanify/login' ||
     pathname === '/humanify/welcome' ||
-    pathname.startsWith('/humanify/welcome/');
+    pathname.startsWith('/humanify/welcome/') ||
+    pathname.startsWith('/c/') ||
+    pathname === '/careers' ||
+    pathname.startsWith('/careers/');
+
+  // Platform Control Plane — super_admin only (auth checked in page/API)
+  if (pathname.startsWith('/platform')) {
+    if (!token) {
+      const loginUrl = new URL('/humanify/login', request.url);
+      loginUrl.searchParams.set('callbackUrl', pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+    return NextResponse.next();
+  }
+
+  // Public multi-tenant careers portals (no auth)
+  if (pathname.startsWith('/c/') || pathname === '/careers' || pathname.startsWith('/careers/')) {
+    return NextResponse.next();
+  }
 
   // humanify.id — arahkan legacy ESI login ke portal karyawan jika target /employee
   if (pathname === '/auth/login' && isHumanifyHost(host)) {

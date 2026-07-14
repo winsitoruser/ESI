@@ -61,6 +61,7 @@ export default function RecruitmentPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [integrations, setIntegrations] = useState<any>(null);
+  const [saasCtx, setSaasCtx] = useState<any>(null);
   const [screeningResults, setScreeningResults] = useState<any[]>([]);
   const [webhookTesting, setWebhookTesting] = useState(false);
   const [webhookResult, setWebhookResult] = useState<any>(null);
@@ -122,6 +123,10 @@ export default function RecruitmentPage() {
       const data = await res.json();
       if (data.data) setIntegrations(data.data);
     } catch (e) { console.warn('Failed to fetch integrations:', e); }
+    try {
+      const ctx = await fetch('/api/humanify/saas-context').then((r) => r.json());
+      if (ctx.data) setSaasCtx(ctx.data);
+    } catch { /* optional */ }
   }, []);
 
   const testWebhook = async (provider = 'dealls') => {
@@ -338,8 +343,14 @@ export default function RecruitmentPage() {
 
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm flex-1 min-w-0">
-            Portal karir publik untuk kandidat apply langsung tanpa login.{' '}
-            <a href="/careers" target="_blank" rel="noopener noreferrer" className="text-blue-700 font-medium hover:underline">Buka /careers →</a>
+            Portal karir publik per perusahaan (SaaS multi-tenant).{' '}
+            {saasCtx?.careersUrl ? (
+              <a href={saasCtx.careersUrl} target="_blank" rel="noopener noreferrer" className="text-blue-700 font-medium hover:underline">
+                Buka {saasCtx.careersUrl} →
+              </a>
+            ) : (
+              <span className="text-blue-800">URL: /c/&#123;slug-perusahaan&#125;/careers</span>
+            )}
           </div>
           <DataSourceBadge source={dataSource} />
         </div>

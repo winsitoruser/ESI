@@ -1,0 +1,232 @@
+import { useCallback, useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/router';
+import Link from 'next/link';
+import HQLayout from '@/components/hq/HQLayout';
+import {
+  Building2, Users, Briefcase, Search, ExternalLink,
+  CheckCircle2, PauseCircle, Clock, Loader2, RefreshCw,
+} from 'lucide-react';
+
+/**
+ * Humanify Platform Control Plane — monitor SaaS tenants (Phase 0 skeleton)
+ */
+export default function PlatformDashboardPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const role = ((session?.user as any)?.role || '').toLowerCase();
+  const allowed = role === 'super_admin' || role === 'superadmin' || role === 'platform_admin';
+
+  const [overview, setOverview] = useState<any>(null);
+  const [tenants, setTenants] = useState<any[]>([]);
+  const [search, setSearch] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [loading, setLoading] = useState(true);
+  const [acting, setActing] = useState<string | null>(null);
+  const [toast, setToast] = useState('');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const q = new URLSearchParams({ action: 'tenants', status: filterStatus, search });
+      const [ov, tn] = await Promise.all([
+        fetch('/api/platform?action=overview').then((r) => r.json()),
+        fetch(`/api/platform?${q}`).then((r) => r.json()),
+      ]);
+      if (ov.success) setOverview(ov.data);
+      if (tn.success) setTenants(tn.data?.tenants || []);
+    } catch {
+      setToast('Gagal memuat data platform');
+    } finally {
+      setLoading(false);
+    }
+  }, [filterStatus, search]);
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.replace('/humanify/login?callbackUrl=/platform');
+      return;
+    }
+    if (status === 'authenticated' && !allowed) {
+      router.replace('/humanify');
+      return;
+    }
+    if (status === 'authenticated' && allowed) load();
+  }, [status, allowed, load, router]);
+
+  async function setTenantStatus(id: string, next: string) {
+    setActing(id);
+    try {
+      const res = await fetch('/api/platform?action=tenant-status', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: next }),
+      });
+      const j = await res.json();
+      if (j.success) {
+        setToast(j.message);
+        load();
+      } else setToast(j.error || 'Gagal update');
+    } finally {
+      setActing(null);
+      setTimeout(() => setToast(''), 2500);
+    }
+  }
+
+  const s = overview?.summary || {};
+
+  if (status === 'loading' || (status === 'authenticated' && !allowed)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-slate-500">
+        <Loader2 className="w-6 h-6 animate-spin mr-2" /> Memuat...
+      </div>
+    );
+  }
+
+  return (
+    <HQLayout title="Platform Control Plane" subtitle="Humanify SaaS — monitor tenant & bisnis" platform="humanify">
+      <div className="space-y-6">
+        {toast && (
+          <div className="fixed top-4 right-4 z-50 bg-slate-900 text-white text-sm px-4 py-2 rounded-lg shadow">{toast}</div>
+        )}
+
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-indigo-600 font-semibold">Phase 0 · SaaS Foundation</p>
+            <h2 className="text-lg font-semibold text-slate-900">Monitoring perusahaan pelanggan</h2>
+          </div>
+          <button onClick={load} className="flex items-center gap-2 text-sm px-3 py-2 border rounded-lg hover:bg-slate-50">
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="bg-white border rounded-xl p-4">
+            <p className="text-2xl font-bold">{s.total_tenants ?? '—'}</p>
+            <p className="text-xs text-slate-500">Total tenant</p>
+          </div>
+          <div className="bg-white border rounded-xl p-4">
+            <p className="text-2xl font-bold text-emerald-600">{s.active ?? '—'}</p>
+            <p className="text-xs text-slate-500">Active</p>
+          </div>
+          <div className="bg-white border rounded-xl p-4">
+            <p className="text-2xl font-bold text-amber-600">{s.trial ?? '—'}</p>
+            <p className="text-xs text-slate-500">Trial</p>
+          </div>
+          <div className="bg-white border rounded-xl p-4">
+            <p className="text-2xl font-bold text-red-600">{s.suspended ?? '—'}</p>
+            <p className="text-xs text-slate-500">Suspended</p>
+          </div>
+          <div className="bg-white border rounded-xl p-4">
+            <p className="text-2xl font-bold">{s.activeEmployees ?? '—'}</p>
+            <p className="text-xs text-slate-500">Karyawan aktif (all)</p>
+          </div>
+        </div>
+
+        <div className="flex gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && load()}
+              placeholder="Cari nama / slug / email..."
+              className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm"
+            />
+          </div>
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
+            <option value="all">Semua status</option>
+            <option value="active">Active</option>
+            <option value="trial">Trial</option>
+            <option value="suspended">Suspended</option>
+            <option value="inactive">Inactive</option>
+          </select>
+          <button onClick={load} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm">Filter</button>
+        </div>
+
+        <div className="bg-white border rounded-xl overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-left">
+              <tr>
+                <th className="px-4 py-3">Perusahaan</th>
+                <th className="px-4 py-3">Plan</th>
+                <th className="px-4 py-3 text-center">Users</th>
+                <th className="px-4 py-3 text-center">Employees</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Careers</th>
+                <th className="px-4 py-3 text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {loading && (
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400">Memuat tenant...</td></tr>
+              )}
+              {!loading && tenants.length === 0 && (
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400">Belum ada tenant</td></tr>
+              )}
+              {tenants.map((t) => (
+                <tr key={t.id} className="hover:bg-slate-50">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-indigo-500" />
+                      <div>
+                        <p className="font-medium text-slate-900">{t.name}</p>
+                        <p className="text-xs text-slate-500">/{t.slug || '—'} · {t.business_email || '—'}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-slate-600">{t.subscription_plan || '—'}</td>
+                  <td className="px-4 py-3 text-center"><Users className="w-3.5 h-3.5 inline mr-1 text-slate-400" />{t.user_count ?? 0}</td>
+                  <td className="px-4 py-3 text-center"><Briefcase className="w-3.5 h-3.5 inline mr-1 text-slate-400" />{t.employee_count ?? 0}</td>
+                  <td className="px-4 py-3">
+                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
+                      t.status === 'active' ? 'bg-emerald-100 text-emerald-700' :
+                      t.status === 'trial' ? 'bg-amber-100 text-amber-700' :
+                      t.status === 'suspended' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'
+                    }`}>{t.status || 'trial'}</span>
+                    {t.setup_completed && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 inline ml-1" />}
+                  </td>
+                  <td className="px-4 py-3">
+                    {t.slug ? (
+                      <Link href={`/c/${t.slug}/careers`} target="_blank" className="text-xs text-indigo-600 hover:underline inline-flex items-center gap-1">
+                        Buka <ExternalLink className="w-3 h-3" />
+                      </Link>
+                    ) : '—'}
+                  </td>
+                  <td className="px-4 py-3 text-right space-x-1">
+                    {t.status !== 'active' && (
+                      <button
+                        disabled={acting === t.id}
+                        onClick={() => setTenantStatus(t.id, 'active')}
+                        className="text-[11px] px-2 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                      >Activate</button>
+                    )}
+                    {t.status !== 'suspended' && (
+                      <button
+                        disabled={acting === t.id}
+                        onClick={() => setTenantStatus(t.id, 'suspended')}
+                        className="text-[11px] px-2 py-1 rounded border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50"
+                      ><PauseCircle className="w-3 h-3 inline" /> Suspend</button>
+                    )}
+                    {t.status === 'suspended' && (
+                      <button
+                        disabled={acting === t.id}
+                        onClick={() => setTenantStatus(t.id, 'trial')}
+                        className="text-[11px] px-2 py-1 rounded border text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                      ><Clock className="w-3 h-3 inline" /> Trial</button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-sm text-indigo-900">
+          <strong>Next:</strong> Phase 1 self-serve signup · Phase 2 plan entitlement · Phase 3 MRR analytics · Phase 4 billing live.
+          Careers multi-tenant: <code className="bg-white/70 px-1 rounded">/c/{'{slug}'}/careers</code>
+        </div>
+      </div>
+    </HQLayout>
+  );
+}

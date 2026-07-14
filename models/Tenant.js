@@ -79,6 +79,13 @@ module.exports = (sequelize) => {
       allowNull: true,
       field: 'business_code'
     },
+    slug: {
+      type: DataTypes.STRING(64),
+      unique: true,
+      allowNull: true,
+      field: 'slug',
+      comment: 'Public URL slug for careers/portal (SaaS multi-tenant)',
+    },
     // Subscription & admin fields (from main branch)
     name: {
       type: DataTypes.STRING(255),

@@ -144,7 +144,7 @@ export function requireTenantAccess(
   const ctx = getTenantContext(req);
 
   // Super admins can access all data
-  if (ctx.userRole === 'super_admin') {
+  if (ctx.userRole === 'super_admin' || ctx.userRole === 'superadmin') {
     return ctx;
   }
 
@@ -158,4 +158,22 @@ export function requireTenantAccess(
   }
 
   return ctx;
+}
+
+/**
+ * Assert a resource row belongs to the session tenant (unless super_admin).
+ */
+export function assertSameTenant(
+  ctx: TenantContext,
+  resourceTenantId: string | null | undefined,
+): boolean {
+  if (ctx.userRole === 'super_admin' || ctx.userRole === 'superadmin') return true;
+  if (!ctx.tenantId || !resourceTenantId) return false;
+  return String(ctx.tenantId) === String(resourceTenantId);
+}
+
+/** Roles that may access Humanify Platform Control Plane */
+export function isPlatformOperator(role?: string | null): boolean {
+  const r = (role || '').toLowerCase();
+  return r === 'super_admin' || r === 'superadmin' || r === 'platform_admin';
 }
