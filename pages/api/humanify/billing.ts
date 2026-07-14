@@ -1,0 +1,100 @@
+/**
+ * Humanify billing API
+ * GET  ?action=plans|current
+ * POST ?action=checkout|confirm-manual|dunning-scan
+ */
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '../auth/[...nextauth]';
+import {
+  activatePaidOrder,
+  createHumanifyCheckout,
+  getTenantBillingStatus,
+  listBillablePlans,
+  runDunningScan,
+} from '@/lib/saas/humanify-billing';
+import { isPlatformOperator } from '@/lib/middleware/tenantIsolation';
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const session = await getServerSession(req, res, authOptions);
+  if (!session?.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+  const role = (session.user as any).role;
+  const tenantId = (session.user as any).tenantId as string | null;
+  const action = String(req.query.action || (req.method === 'GET' ? 'current' : 'checkout'));
+
+  try {
+    if (req.method === 'GET' && action === 'plans') {
+      return res.json({
+        success: true,
+        data: {
+          plans: listBillablePlans(),
+          midtransConfigured: Boolean(process.env.MIDTRANS_SERVER_KEY),
+        },
+      });
+    }
+
+    if (req.method === 'GET' && action === 'current') {
+      if (!tenantId) return res.status(400).json({ success: false, error: 'No tenant' });
+      const data = await getTenantBillingStatus(tenantId);
+      return res.json({ success: true, data });
+    }
+
+    if (req.method === 'POST' && action === 'checkout') {
+      if (!tenantId) return res.status(400).json({ success: false, error: 'No tenant' });
+      const { plan, interval, forceManual } = req.body || {};
+      const origin = (req.headers.origin as string) || process.env.NEXTAUTH_URL || 'https://humanify.id';
+      const checkout = await createHumanifyCheckout({
+        tenantId,
+        plan,
+        interval,
+        customerName: (session.user as any).name || (session.user as any).businessName,
+        customerEmail: session.user.email || undefined,
+        successUrl: `${origin}/humanify/billing?paid=1`,
+        forceManual: Boolean(forceManual) && (
+          isPlatformOperator(role)
+          || process.env.HUMANIFY_BILLING_ALLOW_MANUAL === 'true'
+          || !process.env.MIDTRANS_SERVER_KEY
+        ),
+      });
+      return res.status(201).json({ success: true, data: checkout });
+    }
+
+    if (req.method === 'POST' && action === 'confirm-manual') {
+      const { orderCode, orderId } = req.body || {};
+      const code = orderCode || orderId;
+      if (!code) return res.status(400).json({ success: false, error: 'orderCode required' });
+
+      const allow =
+        isPlatformOperator(role)
+        || process.env.HUMANIFY_BILLING_ALLOW_MANUAL === 'true'
+        || !process.env.MIDTRANS_SERVER_KEY;
+      if (!allow) {
+        return res.status(403).json({ success: false, error: 'Manual confirm disabled — set Midtrans or HUMANIFY_BILLING_ALLOW_MANUAL' });
+      }
+
+      // Owners may only confirm their own pending order when manual allowed
+      if (!isPlatformOperator(role) && tenantId) {
+        const status = await getTenantBillingStatus(tenantId);
+        const owned = (status?.orders || []).some(
+          (o: any) => (o.order_code === code || o.id === code) && o.status === 'pending',
+        );
+        if (!owned) return res.status(403).json({ success: false, error: 'Order bukan milik tenant Anda' });
+      }
+
+      const result = await activatePaidOrder(code, { raw: { via: 'manual', by: session.user.email } });
+      return res.json({ success: true, message: result.alreadyPaid ? 'Sudah terbayar' : 'Paket diaktifkan', data: result });
+    }
+
+    if (req.method === 'POST' && action === 'dunning-scan') {
+      if (!isPlatformOperator(role)) return res.status(403).json({ success: false, error: 'Platform only' });
+      const result = await runDunningScan();
+      return res.json({ success: true, data: result });
+    }
+
+    return res.status(400).json({ success: false, error: 'Unknown action' });
+  } catch (e: any) {
+    console.error('[humanify/billing]', e);
+    return res.status(500).json({ success: false, error: e.message || 'Billing error' });
+  }
+}

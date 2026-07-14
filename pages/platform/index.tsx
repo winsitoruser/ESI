@@ -326,8 +326,8 @@ export default function PlatformDashboardPage() {
         </div>
 
         <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-sm text-indigo-900">
-          <strong>Next:</strong> Phase 4 billing live (Midtrans) · sync invoice → MRR aktual.
-          Careers: <code className="bg-white/70 px-1 rounded">/c/{'{slug}'}/careers</code>
+          <strong>Next:</strong> Midtrans keys di VPS untuk Snap live · dunning otomatis via billing API.
+          Billing tenant: <code className="bg-white/70 px-1 rounded">/humanify/billing</code>
         </div>
       </div>
     </HQLayout>
