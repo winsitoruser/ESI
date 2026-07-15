@@ -26,8 +26,10 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     });
 
     // Send email
+    const fromName = process.env.SMTP_FROM_NAME || 'Humanify';
+    const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@humanify.id';
     const info = await transporter.sendMail({
-      from: `"Bedagang ERP" <${process.env.SMTP_FROM || 'noreply@bedagang.com'}>`,
+      from: `"${fromName}" <${fromAddress}>`,
       to: options.to,
       subject: options.subject,
       text: options.text,
