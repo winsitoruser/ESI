@@ -294,24 +294,76 @@ async function createEmployee(req: NextApiRequest, res: NextApiResponse) {
   }
 
   try {
-    // Generate employee ID - count within THIS tenant only
-    const count = await Employee.count({ where: tenantId ? { tenantId } : {} });
-    const employeeIdCode = `EMP${String(count + 1).padStart(3, '0')}`;
+    // Raw, schema-safe INSERT. The Sequelize Employee model declares more
+    // attributes (e.g. dateOfBirth → date_of_birth) than the provisioned
+    // `employees` table actually has, so `Employee.create()` would reference
+    // non-existent columns. We only ever write columns that exist (mirrors the
+    // mass-import path which is already proven in prod).
+    const sequelize = Employee.sequelize;
+    const crypto = require('crypto');
 
-    const employee = await Employee.create({
+    const cols = new Set<string>();
+    try {
+      const [rows] = await sequelize.query(
+        `SELECT column_name FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = 'employees'`,
+      );
+      (rows || []).forEach((r: any) => cols.add(r.column_name));
+    } catch { /* fall back to writing all fields */ }
+
+    // employee_code is GLOBALLY unique in DB — namespace per-tenant so a
+    // per-tenant sequence never collides across tenants.
+    const count = await Employee.count({ where: tenantId ? { tenantId } : {} });
+    const tenantToken = tenantId
+      ? String(tenantId).replace(/-/g, '').slice(0, 6).toUpperCase()
+      : 'GBL';
+    const employeeIdCode = `EMP-${tenantToken}-${String(count + 1).padStart(3, '0')}`;
+
+    const now = new Date();
+    const newId = crypto.randomUUID();
+    const fieldsArr: Array<[string, any]> = [];
+    const add = (col: string, val: any) => { if (cols.size === 0 || cols.has(col)) fieldsArr.push([col, val]); };
+    add('id', newId);
+    add('employee_code', employeeIdCode);
+    add('name', name);
+    add('email', email);
+    add('phone', phone || null);
+    add('position', position);
+    add('department', department || 'ADMINISTRATION');
+    add('work_location', workLocation || 'ADMIN_OFFICE');
+    add('work_role', 'staff');
+    add('status', 'ACTIVE');
+    add('is_active', true);
+    add('hire_date', now);
+    add('employment_category', employmentCategory || 'permanent');
+    add('tenant_id', tenantId || null);
+    add('created_at', now);
+    add('updated_at', now);
+
+    const colNames = fieldsArr.map((f) => `"${f[0]}"`).join(', ');
+    const placeholders = fieldsArr.map((_, i) => `:v${i}`).join(', ');
+    const repl: Record<string, any> = {};
+    fieldsArr.forEach((f, i) => { repl[`v${i}`] = f[1]; });
+
+    await sequelize.query(
+      `INSERT INTO employees (${colNames}) VALUES (${placeholders})`,
+      { replacements: repl },
+    );
+
+    const employee: any = {
+      id: newId,
       employeeId: employeeIdCode,
       name,
       email,
-      phoneNumber: phone,
+      phoneNumber: phone || null,
       position,
       department: department || 'ADMINISTRATION',
       workLocation: workLocation || 'ADMIN_OFFICE',
-      role: 'CASHIER',
       status: 'ACTIVE',
-      joinDate: new Date(),
+      joinDate: now,
       employmentCategory: employmentCategory || 'permanent',
-      tenantId
-    });
+      tenantId: tenantId || null,
+    };
 
     // Trigger webhook for new employee
     if (triggerHRISWebhook) {
@@ -353,7 +405,8 @@ async function createEmployee(req: NextApiRequest, res: NextApiResponse) {
     );
   } catch (error: any) {
     console.warn('Error creating employee: (table may not exist):', (error as any)?.message || error);
-    if (error.name === 'SequelizeUniqueConstraintError') {
+    const pgCode = error?.parent?.code || error?.original?.code;
+    if (error.name === 'SequelizeUniqueConstraintError' || pgCode === '23505') {
       return res.status(HttpStatus.CONFLICT).json(
         errorResponse(ErrorCodes.DUPLICATE_ENTRY, 'Employee ID or email already exists')
       );
@@ -379,6 +432,7 @@ async function updateEmployee(req: NextApiRequest, res: NextApiResponse) {
 
   const { id } = req.query;
   const updateData = req.body;
+  const tenantId = getTenantId(req);
 
   if (!id) {
     return res.status(HttpStatus.BAD_REQUEST).json(
@@ -387,18 +441,23 @@ async function updateEmployee(req: NextApiRequest, res: NextApiResponse) {
   }
 
   try {
-    const record = await model.findByPk(id);
-    
+    // 🔒 TENANT ISOLATION: scope by tenantId so a tenant cannot edit another
+    // tenant's employee by guessing its id (platform ops = no tenant → any).
+    const where: any = { id };
+    if (tenantId) where.tenantId = tenantId;
+    const record = await model.findOne({ where });
+
     if (!record) {
       return res.status(HttpStatus.NOT_FOUND).json(
         errorResponse(ErrorCodes.NOT_FOUND, 'Employee not found')
       );
     }
 
-    // Don't allow updating sensitive fields
+    // Don't allow updating sensitive / ownership fields
     delete updateData.password;
     delete updateData.id;
     delete updateData.employeeId;
+    delete updateData.tenantId;
 
     await record.update(updateData);
 
@@ -427,6 +486,7 @@ async function deleteEmployee(req: NextApiRequest, res: NextApiResponse) {
   }
 
   const { id } = req.query;
+  const tenantId = getTenantId(req);
 
   if (!id) {
     return res.status(HttpStatus.BAD_REQUEST).json(
@@ -435,17 +495,53 @@ async function deleteEmployee(req: NextApiRequest, res: NextApiResponse) {
   }
 
   try {
-    const record = await model.findByPk(id);
-    
+    // 🔒 TENANT ISOLATION: scope by tenantId (platform ops = no tenant → any).
+    const where: any = { id };
+    if (tenantId) where.tenantId = tenantId;
+    const record = await model.findOne({ where });
+
     if (!record) {
       return res.status(HttpStatus.NOT_FOUND).json(
         errorResponse(ErrorCodes.NOT_FOUND, 'Employee not found')
       );
     }
 
-    // Soft delete
+    // Soft delete via a schema-safe raw UPDATE. `status` drives seat metering;
+    // we also flip `is_active` to keep both signals in sync. We only write
+    // columns that exist (some deployments lack `end_date`), so the update
+    // never references a non-existent column.
     if (Employee) {
-      await record.update({ status: 'INACTIVE', endDate: new Date() });
+      const sequelize = Employee.sequelize;
+      const cols = new Set<string>();
+      try {
+        const [rows] = await sequelize.query(
+          `SELECT column_name FROM information_schema.columns
+           WHERE table_schema = 'public' AND table_name = 'employees'`,
+        );
+        (rows || []).forEach((r: any) => cols.add(r.column_name));
+      } catch { /* fall back below */ }
+
+      const sets: string[] = [];
+      const repl: Record<string, any> = { id: record.id };
+      const set = (col: string, expr: string, val?: any) => {
+        if (cols.size === 0 || cols.has(col)) {
+          sets.push(`"${col}" = ${expr}`);
+          if (val !== undefined) repl[col] = val;
+        }
+      };
+      set('status', ':status', 'INACTIVE');
+      set('is_active', 'false');
+      set('end_date', 'NOW()');
+      set('updated_at', 'NOW()');
+
+      if (sets.length) {
+        await sequelize.query(
+          `UPDATE employees SET ${sets.join(', ')} WHERE id = :id`,
+          { replacements: repl },
+        );
+      } else {
+        await record.update({ status: 'INACTIVE' });
+      }
     } else {
       await record.update({ isActive: false });
     }

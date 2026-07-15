@@ -10,7 +10,7 @@ SCRIPTS=(
   phase12-digest phase13-sso phase14-ratelimit phase15-password-reset
   phase16-health phase17-login-lockout phase18-observability phase19-mfa
   phase20-employee-import phase21-notifications phase22-search
-  phase23-invitations tenant-isolation
+  phase23-invitations employee-hardening tenant-isolation
 )
 
 total_pass=0

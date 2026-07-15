@@ -48,9 +48,15 @@ export async function countTenantSeats(tenantId: string): Promise<{ users: numbe
 
   try {
     if (await tableExists('employees')) {
+      // Count only ACTIVE headcount. The app manages `status` (create=ACTIVE,
+      // deactivate=INACTIVE); `is_active` is an extra guard. Excluding
+      // inactive/terminated keeps seat usage honest after offboarding.
       const [e] = await sequelize.query(
         `SELECT COUNT(*)::int AS c FROM employees
-         WHERE tenant_id = :tid AND COALESCE(is_active, true) = true`,
+         WHERE tenant_id = :tid
+           AND COALESCE(is_active, true) = true
+           AND LOWER(COALESCE(status, 'active'))
+               NOT IN ('inactive', 'terminated', 'resigned', 'exited', 'offboarded')`,
         { replacements: { tid: tenantId } },
       );
       employees = e?.[0]?.c || 0;
