@@ -5,6 +5,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { provisionHumanifyTenant } from '@/lib/saas/humanify-provision';
 import { createEmailVerification } from '@/lib/saas/email-verify';
 import { attachPartnerToTenant } from '@/lib/saas/partners';
+import { checkLimit } from '@/lib/middleware/rateLimit';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -12,6 +13,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== 'POST') {
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   }
+
+  // Throttle tenant-creation abuse (per IP). Generous enough for legitimate
+  // bursts (incl. QA), protective against automated signup floods.
+  if (!checkLimit(req, res, {
+    windowMs: 60 * 1000,
+    maxRequests: 30,
+    message: 'Terlalu banyak percobaan pendaftaran. Coba lagi sebentar.',
+  })) return;
 
   try {
     const {

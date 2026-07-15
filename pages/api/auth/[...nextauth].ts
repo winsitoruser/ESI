@@ -1,6 +1,13 @@
 import NextAuth, { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
+import {
+  evaluateLogin,
+  normalizeIp,
+  recordLoginFailure,
+  recordLoginSuccess,
+} from '../../../lib/saas/login-guard';
+import { isMfaEnabled, verifyMfaCode } from '../../../lib/saas/mfa';
 
 // Use dynamic import for CommonJS module
 const getDb = () => require('../../../models');
@@ -145,11 +152,21 @@ export const authOptions: NextAuthOptions = {
       name: 'Credentials',
       credentials: {
         email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" }
+        password: { label: "Password", type: "password" },
+        totp: { label: "Kode 2FA", type: "text" }
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) {
           throw new Error('Email dan password harus diisi');
+        }
+
+        // Phase 17 — brute-force / credential-stuffing guard (fail-open)
+        const ip = normalizeIp((req as any)?.headers?.['x-forwarded-for'] || (req as any)?.headers?.['x-real-ip']);
+        const emailKey = String(credentials.email).toLowerCase();
+        const verdict = evaluateLogin(emailKey, ip);
+        if (!verdict.allowed) {
+          const mins = Math.max(1, Math.ceil(verdict.retryAfterSec / 60));
+          throw new Error(`Terlalu banyak percobaan login. Coba lagi dalam ${mins} menit.`);
         }
 
         try {
@@ -160,6 +177,7 @@ export const authOptions: NextAuthOptions = {
           });
 
           if (!user) {
+            recordLoginFailure(emailKey, ip);
             throw new Error('Email atau password salah');
           }
 
@@ -174,8 +192,24 @@ export const authOptions: NextAuthOptions = {
             user.password
           );
           if (!isPasswordValid) {
+            recordLoginFailure(emailKey, ip);
             throw new Error('Email atau password salah');
           }
+
+          // Phase 19 — MFA/2FA enforcement (opt-in; fail-open on infra errors)
+          if (await isMfaEnabled(user.id)) {
+            const totp = String((credentials as any).totp || '').trim();
+            if (!totp) {
+              throw new Error('MFA_REQUIRED');
+            }
+            const totpOk = await verifyMfaCode(user.id, totp);
+            if (!totpOk) {
+              throw new Error('Kode 2FA salah atau kedaluwarsa');
+            }
+          }
+
+          // Successful credential check — clear brute-force counter
+          recordLoginSuccess(emailKey, ip);
 
           // Update last login
           await user.update({ lastLogin: new Date() });

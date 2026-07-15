@@ -38,6 +38,9 @@ export async function middleware(request: NextRequest) {
     pathname === '/humanify/login' ||
     pathname === '/humanify/signup' ||
     pathname === '/humanify/verify-email' ||
+    pathname === '/humanify/forgot-password' ||
+    pathname === '/humanify/reset-password' ||
+    pathname === '/humanify/join' ||
     pathname === '/humanify/welcome' ||
     pathname.startsWith('/humanify/welcome/') ||
     pathname.startsWith('/c/') ||

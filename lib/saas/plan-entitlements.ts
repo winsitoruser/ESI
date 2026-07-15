@@ -14,7 +14,8 @@ export type HumanifyFeature =
   | 'analytics'
   | 'ai'
   | 'api'
-  | 'white_label';
+  | 'white_label'
+  | 'sso';
 
 export interface HumanifyPlanDefinition {
   id: HumanifyPlanId;
@@ -33,7 +34,7 @@ export const HUMANIFY_PLANS: Record<HumanifyPlanId, HumanifyPlanDefinition> = {
     id: 'trial',
     name: 'Trial',
     description: '14 hari full access untuk evaluasi',
-    features: ['core', 'attendance', 'payroll', 'recruitment', 'lms', 'analytics', 'ai', 'api', 'white_label'],
+    features: ['core', 'attendance', 'payroll', 'recruitment', 'lms', 'analytics', 'ai', 'api', 'white_label', 'sso'],
     maxUsers: 25,
     maxEmployees: 100,
     trialDays: 14,
@@ -60,8 +61,8 @@ export const HUMANIFY_PLANS: Record<HumanifyPlanId, HumanifyPlanDefinition> = {
   enterprise: {
     id: 'enterprise',
     name: 'Enterprise',
-    description: 'Semua modul + API keys & white-label',
-    features: ['core', 'attendance', 'payroll', 'recruitment', 'lms', 'analytics', 'ai', 'api', 'white_label'],
+    description: 'Semua modul + API keys, white-label & SSO',
+    features: ['core', 'attendance', 'payroll', 'recruitment', 'lms', 'analytics', 'ai', 'api', 'white_label', 'sso'],
     maxUsers: 500,
     maxEmployees: 10000,
     priceMonthlyIdr: 4_999_000,
@@ -93,6 +94,7 @@ const ROUTE_FEATURE_RULES: Array<{ test: RegExp; feature: HumanifyFeature }> = [
   { test: /^\/c\/[^/]+\/careers/, feature: 'recruitment' },
   { test: /^\/humanify\/ai/, feature: 'ai' },
   { test: /^\/humanify\/enterprise/, feature: 'api' },
+  { test: /^\/humanify\/sso/, feature: 'sso' },
   { test: /^\/humanify\/hr-analytics/, feature: 'analytics' },
   { test: /^\/humanify\/workforce-analytics/, feature: 'analytics' },
   { test: /^\/humanify\/reports/, feature: 'analytics' },
@@ -108,6 +110,7 @@ const API_FEATURE_RULES: Array<{ test: RegExp; feature: HumanifyFeature }> = [
   { test: /\/api\/humanify\/ai/, feature: 'ai' },
   { test: /\/api\/humanify\/ai-hub/, feature: 'ai' },
   { test: /\/api\/humanify\/enterprise/, feature: 'api' },
+  { test: /\/api\/humanify\/sso/, feature: 'sso' },
   { test: /\/api\/v1\//, feature: 'api' },
 ];
 
@@ -161,7 +164,7 @@ export function buildEntitlementSnapshot(plan: string | null | undefined): Entit
     def.id === 'starter'
       ? 'Upgrade ke Growth untuk Payroll & Analytics'
       : def.id === 'growth'
-        ? 'Upgrade ke Enterprise untuk LMS, AIMAN, API & white-label'
+        ? 'Upgrade ke Enterprise untuk LMS, AIMAN, API, white-label & SSO'
         : def.id === 'trial'
           ? 'Pilih paket Starter/Growth/Enterprise setelah trial'
           : undefined;

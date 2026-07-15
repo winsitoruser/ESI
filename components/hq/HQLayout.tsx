@@ -38,6 +38,15 @@ import { filterSidebarGroupsByPlan } from '@/lib/saas/plan-entitlements';
 
 export type HQPlatform = 'simesi' | 'humanify';
 
+type AccountAlertUi = {
+  id: string;
+  severity: 'critical' | 'warning' | 'info';
+  title: string;
+  message: string;
+  actionLabel?: string;
+  actionHref?: string;
+};
+
 interface HQLayoutProps {
   children: React.ReactNode;
   title?: string;
@@ -65,11 +74,13 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchPages, setSearchPages] = useState<{ name: string; href: string }[]>([]);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [planId, setPlanId] = useState<string | null>(null);
-  const [seatBanner, setSeatBanner] = useState<{
-    text: string;
-    over: boolean;
-  } | null>(null);
+  const [accountAlerts, setAccountAlerts] = useState<AccountAlertUi[]>([]);
+  const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([]);
 
   // Get user role from session
   const userRole = (session?.user as any)?.role as UserRole | undefined;
@@ -98,17 +109,7 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
         const json = await res.json();
         if (!cancelled && json.success) {
           setPlanId(json.data?.entitlements?.planId || json.data?.subscriptionPlan || 'trial');
-          const seats = json.data?.seats;
-          if (seats?.overLimit || seats?.nearLimit) {
-            setSeatBanner({
-              over: Boolean(seats.overLimit),
-              text: seats.overLimit
-                ? `Kuota penuh: ${seats.employees}/${seats.maxEmployees} karyawan · ${seats.users}/${seats.maxUsers} user`
-                : `Kuota hampir penuh: ${seats.employees}/${seats.maxEmployees} karyawan`,
-            });
-          } else {
-            setSeatBanner(null);
-          }
+          setAccountAlerts(Array.isArray(json.data?.alerts) ? json.data.alerts : []);
         }
       } catch {
         /* keep default enterprise until loaded — avoid flashing empty menu */
@@ -148,7 +149,29 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
   const [unreadCount, setUnreadCount] = useState(0);
 
   const fetchNotifications = async () => {
-    if (isHumanify) return;
+    if (isHumanify) {
+      try {
+        const res = await fetch('/api/humanify/notifications?action=list&limit=15');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success) {
+            setNotifications((json.data || []).map((n: any) => ({
+              id: n.id,
+              type: n.type,
+              title: n.title,
+              message: n.message,
+              time: n.createdAt ? formatTimeAgo(n.createdAt) : '',
+              isRead: n.isRead,
+              actionHref: n.actionHref,
+            })));
+            setUnreadCount(json.unreadCount || 0);
+          }
+        }
+      } catch {
+        // Fallback — keep empty
+      }
+      return;
+    }
     try {
       const res = await fetch('/api/hq/sfa/notifications?action=my-notifications&limit=10&unreadOnly=false');
       if (res.ok) {
@@ -172,14 +195,26 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
     }
   };
 
-  // Poll notifications every 60 seconds
+  // Initial load + poll notifications every 60 seconds
   useEffect(() => {
+    fetchNotifications();
     const interval = setInterval(fetchNotifications, 60000);
     return () => clearInterval(interval);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isHumanify, session?.user]);
 
-  const handleMarkRead = async (notifId?: number) => {
-    if (isHumanify) return;
+  const handleMarkRead = async (notifId?: number | string) => {
+    if (isHumanify) {
+      try {
+        await fetch('/api/humanify/notifications?action=mark-read', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(notifId ? { notificationIds: [notifId] } : {}),
+        });
+        fetchNotifications();
+      } catch {}
+      return;
+    }
     try {
       await fetch('/api/hq/sfa/notifications?action=mark-read', {
         method: 'POST',
@@ -189,6 +224,37 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
       fetchNotifications();
     } catch {}
   };
+
+  // Global search (Humanify) — debounced employee lookup + page matches
+  useEffect(() => {
+    if (!isHumanify) return;
+    const q = searchQuery.trim();
+    if (q.length < 2) { setSearchResults([]); setSearchPages([]); setSearchLoading(false); return; }
+
+    const ql = q.toLowerCase();
+    const pages: { name: string; href: string }[] = [];
+    const collect = (item: any) => {
+      if (item?.href && item?.name && String(item.name).toLowerCase().includes(ql)) {
+        pages.push({ name: item.name, href: item.href });
+      }
+      (item?.children || []).forEach(collect);
+    };
+    filteredConfig.groups.forEach((g: any) => (g.items || []).forEach(collect));
+    setSearchPages(pages.slice(0, 6));
+
+    setSearchLoading(true);
+    const ctrl = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/humanify/search?q=${encodeURIComponent(q)}&limit=8`, { signal: ctrl.signal });
+        const json = await res.json();
+        if (json.success) setSearchResults(json.data?.employees || []);
+      } catch { /* aborted/failed */ }
+      finally { setSearchLoading(false); }
+    }, 250);
+    return () => { clearTimeout(timer); ctrl.abort(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, isHumanify, filteredConfig]);
 
   const { t, language, setLanguage, currency, setCurrency } = useTranslation();
 
@@ -480,8 +546,70 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
                   placeholder={t('layout.searchPlaceholder')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setShowSearch(true)}
+                  onBlur={() => setTimeout(() => setShowSearch(false), 150)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') { setShowSearch(false); (e.target as HTMLInputElement).blur(); }
+                    if (e.key === 'Enter' && isHumanify && searchQuery.trim().length >= 2) {
+                      setShowSearch(false);
+                      router.push(`/humanify/employees?search=${encodeURIComponent(searchQuery.trim())}`);
+                    }
+                  }}
                   className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50"
                 />
+
+                {isHumanify && showSearch && searchQuery.trim().length >= 2 && (
+                  <div className="absolute left-0 right-0 top-full mt-2 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden z-50">
+                    <div className="max-h-96 overflow-y-auto">
+                      {searchPages.length > 0 && (
+                        <div className="py-1">
+                          <p className="px-4 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Halaman</p>
+                          {searchPages.map((p) => (
+                            <button
+                              key={p.href}
+                              onMouseDown={(e) => { e.preventDefault(); setShowSearch(false); setSearchQuery(''); router.push(p.href); }}
+                              className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left"
+                            >
+                              <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
+                              <span className="truncate">{p.name}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="py-1 border-t border-gray-100">
+                        <p className="px-4 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Karyawan</p>
+                        {searchLoading && searchResults.length === 0 && (
+                          <div className="px-4 py-3 text-sm text-gray-400">Mencari…</div>
+                        )}
+                        {!searchLoading && searchResults.length === 0 && (
+                          <div className="px-4 py-3 text-sm text-gray-400">Tidak ada karyawan cocok</div>
+                        )}
+                        {searchResults.map((emp) => (
+                          <button
+                            key={emp.id}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              setShowSearch(false); setSearchQuery('');
+                              router.push(`/humanify/employees?search=${encodeURIComponent(emp.email || emp.name)}`);
+                            }}
+                            className="w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-gray-50"
+                          >
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
+                              <User className="w-4 h-4 text-white" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">{emp.name}</p>
+                              <p className="text-xs text-gray-500 truncate">
+                                {[emp.position, emp.department].filter(Boolean).join(' · ') || emp.email}
+                              </p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -579,7 +707,10 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
                       {notifications.map((notif) => (
                         <div
                           key={notif.id}
-                          onClick={() => { if (!notif.isRead) handleMarkRead(notif.id); }}
+                          onClick={() => {
+                            if (!notif.isRead) handleMarkRead(notif.id);
+                            if (notif.actionHref) { setShowNotifications(false); router.push(notif.actionHref); }
+                          }}
                           className={`p-4 hover:bg-gray-50 border-b border-gray-100 cursor-pointer ${!notif.isRead ? 'bg-blue-50/50' : ''}`}
                         >
                           <div className="flex items-start gap-3">
@@ -708,20 +839,49 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
               </button>
             </div>
           )}
-          {seatBanner && !impersonating && (
-            <div
-              className={`mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border px-4 py-2.5 text-sm ${
-                seatBanner.over
-                  ? 'border-red-300 bg-red-50 text-red-950'
-                  : 'border-amber-200 bg-amber-50 text-amber-950'
-              }`}
-            >
-              <span>{seatBanner.text}</span>
-              <Link href="/humanify/billing" className="underline font-medium text-xs">
-                Upgrade paket
-              </Link>
-            </div>
-          )}
+          {!impersonating && accountAlerts.filter((a) => !dismissedAlerts.includes(a.id)).slice(0, 3).map((alert) => {
+            const tone = alert.severity === 'critical'
+              ? 'border-red-300 bg-red-50 text-red-950'
+              : alert.severity === 'warning'
+                ? 'border-amber-200 bg-amber-50 text-amber-950'
+                : 'border-blue-200 bg-blue-50 text-blue-950';
+            const AlertIcon = alert.severity === 'critical'
+              ? AlertCircle
+              : alert.severity === 'warning'
+                ? Clock
+                : CheckCircle;
+            return (
+              <div
+                key={alert.id}
+                className={`mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border px-4 py-2.5 text-sm ${tone}`}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <AlertIcon className="w-4 h-4 flex-shrink-0" />
+                  <span className="min-w-0">
+                    <strong className="font-semibold">{alert.title}</strong>
+                    <span className="hidden sm:inline"> — {alert.message}</span>
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  {alert.actionHref && (
+                    <Link href={alert.actionHref} className="underline font-medium text-xs whitespace-nowrap">
+                      {alert.actionLabel || 'Lihat'}
+                    </Link>
+                  )}
+                  {alert.severity !== 'critical' && (
+                    <button
+                      type="button"
+                      aria-label="Tutup notifikasi"
+                      className="opacity-60 hover:opacity-100 transition-opacity"
+                      onClick={() => setDismissedAlerts((prev) => [...prev, alert.id])}
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
           {(title || subtitle) && (
             <div className="mb-6">
               {title && <h1 className="text-2xl font-bold text-gray-900">{title}</h1>}

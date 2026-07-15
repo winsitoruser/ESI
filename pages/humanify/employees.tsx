@@ -199,6 +199,10 @@ export default function EmployeeManagementPage() {
   useEffect(() => {
     if (mounted && router.query.add === '1') setShowCreateModal(true);
   }, [mounted, router.query.add]);
+  useEffect(() => {
+    const q = router.query.search;
+    if (mounted && typeof q === 'string' && q) { setSearch(q); setPage(1); }
+  }, [mounted, router.query.search]);
   useEffect(() => { if (mounted) fetchEmployees(); }, [mounted, search, filterDept, filterStatus, page]);
 
   useEffect(() => {

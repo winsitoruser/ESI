@@ -15,6 +15,7 @@ import { getSeatUsage } from '@/lib/saas/seat-metering';
 import { getTenantColumns } from '@/lib/saas/tenant-schema';
 import { isTenantEmailVerified } from '@/lib/saas/email-verify';
 import { getGoLiveStatus } from '@/lib/saas/go-live';
+import { buildAccountAlerts, summarizeAlerts } from '@/lib/saas/account-alerts';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch {}
@@ -72,21 +73,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     let trialEndsAt: string | null = null;
     let daysLeftInTrial: number | null = null;
+    let subscriptionEnd: string | null = null;
     try {
       const cols = await getTenantColumns();
+      const select: string[] = [];
       if (cols.has('trial_ends_at')) {
+        select.push('trial_ends_at');
+        select.push('EXTRACT(DAY FROM (trial_ends_at - NOW()))::int AS days_left');
+      }
+      if (cols.has('subscription_end')) select.push('subscription_end');
+      if (select.length) {
         const [rows] = await sequelize.query(
-          `SELECT trial_ends_at,
-             EXTRACT(DAY FROM (trial_ends_at - NOW()))::int AS days_left
-           FROM tenants WHERE id = :id LIMIT 1`,
+          `SELECT ${select.join(', ')} FROM tenants WHERE id = :id LIMIT 1`,
           { replacements: { id: tenantId } },
         );
-        if (rows?.[0]?.trial_ends_at) {
-          trialEndsAt = rows[0].trial_ends_at;
-          daysLeftInTrial = rows[0].days_left;
+        const r = rows?.[0];
+        if (r?.trial_ends_at) {
+          trialEndsAt = r.trial_ends_at;
+          daysLeftInTrial = r.days_left;
         }
+        if (r?.subscription_end) subscriptionEnd = r.subscription_end;
       }
     } catch { /* */ }
+
+    const alerts = isPlatform
+      ? []
+      : buildAccountAlerts({
+          planId: entitlements.planId,
+          status: tenant?.status || null,
+          subscriptionEnd,
+          trialEndsAt,
+          daysLeftInTrial,
+          seats,
+          emailVerified,
+          goLivePct,
+        });
 
     return res.json({
       success: true,
@@ -103,6 +124,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         goLivePct,
         trialEndsAt,
         daysLeftInTrial,
+        subscriptionEnd,
+        alerts,
+        alertCounts: summarizeAlerts(alerts),
         subdomainHint: tenant?.slug ? `https://${tenant.slug}.humanify.id` : null,
       },
     });

@@ -14,7 +14,12 @@ import {
   listExpiringTrials,
   runDunningScan,
 } from '@/lib/saas/humanify-billing';
+import { applyPlanChange, previewPlanChange } from '@/lib/saas/plan-change';
 import { isPlatformOperator } from '@/lib/middleware/tenantIsolation';
+
+const PLAN_CHANGE_ROLES = new Set([
+  'owner', 'hq_admin', 'super_admin', 'superadmin', 'platform_admin', 'hr_admin',
+]);
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
@@ -46,6 +51,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const days = Math.min(30, Math.max(1, Number(req.query.days) || 7));
       const data = await listExpiringTrials(days);
       return res.json({ success: true, data });
+    }
+
+    if (req.method === 'GET' && action === 'plan-change-preview') {
+      if (!tenantId) return res.status(400).json({ success: false, error: 'No tenant' });
+      const plan = String(req.query.plan || '');
+      if (!plan) return res.status(400).json({ success: false, error: 'plan required' });
+      const preview = await previewPlanChange(tenantId, plan);
+      return res.json({ success: true, data: preview });
+    }
+
+    if (req.method === 'POST' && action === 'change-plan') {
+      if (!tenantId) return res.status(400).json({ success: false, error: 'No tenant' });
+      if (!PLAN_CHANGE_ROLES.has(String(role || '').toLowerCase()) && !isPlatformOperator(role)) {
+        return res.status(403).json({ success: false, error: 'Hanya owner/HR admin dapat mengubah paket' });
+      }
+      const plan = String(req.body?.plan || '');
+      if (!plan) return res.status(400).json({ success: false, error: 'plan required' });
+      const result = await applyPlanChange(tenantId, plan);
+      const status = result.applied ? 200 : (result.requiresCheckout ? 409 : 422);
+      return res.status(status).json({ success: result.applied, data: result, message: result.message });
     }
 
     if (req.method === 'POST' && action === 'checkout') {

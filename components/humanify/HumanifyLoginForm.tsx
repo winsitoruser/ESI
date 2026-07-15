@@ -36,12 +36,17 @@ export default function HumanifyLoginForm({
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [formData, setFormData] = useState({ email: '', password: '', totp: '' });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.email || !formData.password) {
       toast.error('Email dan password wajib diisi');
+      return;
+    }
+    if (mfaRequired && !formData.totp) {
+      toast.error('Masukkan kode 2FA Anda');
       return;
     }
     setIsLoading(true);
@@ -50,9 +55,23 @@ export default function HumanifyLoginForm({
         redirect: false,
         email: formData.email,
         password: formData.password,
+        totp: formData.totp || undefined,
       });
       if (result?.error) {
-        toast.error('Email atau password salah');
+        const err = String(result.error);
+        if (err.includes('MFA_REQUIRED')) {
+          setMfaRequired(true);
+          toast('Akun ini memakai 2FA — masukkan kode 6 digit', { icon: '🔒' });
+        } else if (err.includes('2FA')) {
+          setMfaRequired(true);
+          toast.error('Kode 2FA salah atau kedaluwarsa');
+        } else if (err.toLowerCase().includes('terlalu banyak')) {
+          toast.error(err);
+        } else if (err.toLowerCase().includes('tidak aktif')) {
+          toast.error('Akun Anda tidak aktif. Hubungi administrator.');
+        } else {
+          toast.error('Email atau password salah');
+        }
       } else if (result?.ok) {
         toast.success('Selamat datang di Humanify');
         const session = await getSession();
@@ -241,7 +260,35 @@ export default function HumanifyLoginForm({
                       {showPassword ? <EyeOff className="w-[18px] h-[18px]" /> : <Eye className="w-[18px] h-[18px]" />}
                     </button>
                   </div>
+                  <div className="mt-2 text-right">
+                    <Link
+                      href="/humanify/forgot-password"
+                      className="text-xs text-violet-300/70 hover:text-violet-200 transition-colors"
+                    >
+                      Lupa password?
+                    </Link>
+                  </div>
                 </div>
+
+                {mfaRequired && (
+                  <div>
+                    <label className="block text-sm font-medium text-violet-200/80 mb-2">Kode 2FA</label>
+                    <div className="relative group">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-violet-400/50 group-focus-within:text-violet-300 transition-colors" />
+                      <input
+                        type="text"
+                        name="totp"
+                        inputMode="numeric"
+                        maxLength={6}
+                        autoFocus
+                        value={formData.totp}
+                        onChange={(e) => setFormData({ ...formData, totp: e.target.value.replace(/\D/g, '') })}
+                        className="w-full pl-11 pr-4 py-3.5 bg-white/[0.05] border border-white/[0.1] rounded-xl text-white tracking-[0.4em] font-mono placeholder:text-white/25 placeholder:tracking-normal placeholder:font-sans outline-none focus:bg-white/[0.08] focus:border-violet-400/40 focus:ring-2 focus:ring-violet-500/20 transition-all duration-200"
+                        placeholder="Kode 6 digit dari authenticator"
+                      />
+                    </div>
+                  </div>
+                )}
 
                 <motion.button
                   type="submit"

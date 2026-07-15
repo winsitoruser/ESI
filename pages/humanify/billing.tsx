@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useSession } from 'next-auth/react';
-import { Check, CreditCard, Loader2, Sparkles } from 'lucide-react';
+import { Check, CreditCard, Loader2, Sparkles, Download, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import HumanifyLayout from '@/components/humanify/HumanifyLayout';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
@@ -10,6 +10,8 @@ import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
 function formatIdr(n: number) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n || 0);
 }
+
+const PLAN_RANK: Record<string, number> = { trial: 0, starter: 1, growth: 2, enterprise: 3 };
 
 export default function HumanifyBillingPage() {
   const { data: session, status } = useSession();
@@ -20,19 +22,22 @@ export default function HumanifyBillingPage() {
   const [current, setCurrent] = useState<any>(null);
   const [interval, setInterval] = useState<'monthly' | 'yearly'>('monthly');
   const [midtransConfigured, setMidtransConfigured] = useState(false);
+  const [offboarding, setOffboarding] = useState<any>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [p, c] = await Promise.all([
+      const [p, c, ob] = await Promise.all([
         fetch('/api/humanify/billing?action=plans').then((r) => r.json()),
         fetch('/api/humanify/billing?action=current').then((r) => r.json()),
+        fetch('/api/humanify/account?action=offboarding-status').then((r) => r.json()).catch(() => null),
       ]);
       if (p.success) {
         setPlans(p.data.plans || []);
         setMidtransConfigured(Boolean(p.data.midtransConfigured));
       }
       if (c.success) setCurrent(c.data);
+      if (ob?.success) setOffboarding(ob.data);
     } catch {
       toast.error('Gagal memuat billing');
     } finally {
@@ -85,6 +90,83 @@ export default function HumanifyBillingPage() {
       load();
     } catch (e: any) {
       toast.error(e.message || 'Checkout gagal');
+    } finally {
+      setActing(null);
+    }
+  }
+
+  async function changePlan(planId: string) {
+    if (!window.confirm(`Turunkan paket ke ${planId}? Perubahan berlaku segera.`)) return;
+    setActing(planId);
+    try {
+      const res = await fetch('/api/humanify/billing?action=change-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: planId }),
+      });
+      const j = await res.json();
+      if (!j.success) throw new Error(j.data?.message || j.error || 'Ubah paket gagal');
+      toast.success(j.message || `Paket diubah ke ${planId}`);
+      load();
+    } catch (e: any) {
+      toast.error(e.message || 'Ubah paket gagal');
+    } finally {
+      setActing(null);
+    }
+  }
+
+  async function exportAccountData() {
+    setActing('export');
+    try {
+      const res = await fetch('/api/humanify/account?action=export');
+      const j = await res.json();
+      if (!j.success) throw new Error(j.error || 'Ekspor gagal');
+      const blob = new Blob([JSON.stringify(j.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `humanify-account-export-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`Data diekspor (${j.data?.employees?.count ?? 0} karyawan)`);
+    } catch (e: any) {
+      toast.error(e.message || 'Ekspor gagal');
+    } finally {
+      setActing(null);
+    }
+  }
+
+  async function requestClose() {
+    const reason = window.prompt('Alasan menutup akun (opsional):') ?? '';
+    if (!window.confirm('Jadwalkan penutupan akun? Anda punya masa tenggang 14 hari untuk membatalkan.')) return;
+    setActing('offboard');
+    try {
+      const res = await fetch('/api/humanify/account?action=request-offboarding', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+      });
+      const j = await res.json();
+      if (!j.success) throw new Error(j.error || 'Gagal');
+      setOffboarding(j.data);
+      toast.success(j.message || 'Penutupan akun dijadwalkan');
+    } catch (e: any) {
+      toast.error(e.message || 'Gagal');
+    } finally {
+      setActing(null);
+    }
+  }
+
+  async function cancelClose() {
+    setActing('offboard');
+    try {
+      const res = await fetch('/api/humanify/account?action=cancel-offboarding', { method: 'POST' });
+      const j = await res.json();
+      if (!j.success) throw new Error(j.error || 'Gagal');
+      setOffboarding(j.data);
+      toast.success(j.message || 'Penutupan dibatalkan');
+    } catch (e: any) {
+      toast.error(e.message || 'Gagal');
     } finally {
       setActing(null);
     }
@@ -146,6 +228,8 @@ export default function HumanifyBillingPage() {
             {plans.map((plan) => {
               const price = interval === 'yearly' ? plan.priceYearlyIdr : plan.priceMonthlyIdr;
               const isCurrent = current?.plan === plan.id;
+              const currentRank = PLAN_RANK[current?.plan] ?? 0;
+              const isDowngrade = (PLAN_RANK[plan.id] ?? 0) < currentRank;
               return (
                 <div
                   key={plan.id}
@@ -176,11 +260,15 @@ export default function HumanifyBillingPage() {
                   <button
                     type="button"
                     disabled={isCurrent || acting === plan.id}
-                    onClick={() => checkout(plan.id)}
-                    className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
+                    onClick={() => (isDowngrade ? changePlan(plan.id) : checkout(plan.id))}
+                    className={`w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 ${
+                      isDowngrade
+                        ? 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }`}
                   >
                     {acting === plan.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
-                    {isCurrent ? 'Paket aktif' : 'Upgrade'}
+                    {isCurrent ? 'Paket aktif' : isDowngrade ? 'Turunkan' : 'Upgrade'}
                   </button>
                 </div>
               );
@@ -216,6 +304,54 @@ export default function HumanifyBillingPage() {
               </div>
             </div>
           )}
+
+          <div className="bg-white border border-red-200 rounded-2xl p-6">
+            <div className="flex items-center gap-2 mb-1">
+              <AlertTriangle className="w-4 h-4 text-red-600" />
+              <h3 className="font-semibold text-slate-900">Zona berbahaya — Data & penutupan akun</h3>
+            </div>
+            <p className="text-sm text-slate-500 mb-4">
+              Ekspor seluruh data karyawan Anda kapan saja, atau jadwalkan penutupan akun (masa tenggang 14 hari, bisa dibatalkan).
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                disabled={acting === 'export'}
+                onClick={exportAccountData}
+                className="inline-flex items-center gap-2 py-2 px-4 rounded-xl bg-white border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
+              >
+                {acting === 'export' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                Ekspor data (JSON)
+              </button>
+              {offboarding?.status === 'requested' ? (
+                <>
+                  <span className="text-sm text-red-700">
+                    Penutupan dijadwalkan
+                    {offboarding.graceUntil ? ` · s/d ${new Date(offboarding.graceUntil).toLocaleDateString('id-ID')}` : ''}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={acting === 'offboard'}
+                    onClick={cancelClose}
+                    className="inline-flex items-center gap-2 py-2 px-4 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50"
+                  >
+                    {acting === 'offboard' ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                    Batalkan penutupan
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  disabled={acting === 'offboard'}
+                  onClick={requestClose}
+                  className="inline-flex items-center gap-2 py-2 px-4 rounded-xl bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+                >
+                  {acting === 'offboard' ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlertTriangle className="w-4 h-4" />}
+                  Tutup akun
+                </button>
+              )}
+            </div>
+          </div>
 
           <p className="text-xs text-slate-400 text-center">
             Login sebagai {session?.user?.email}. Setelah Midtrans dikonfigurasi, webhook:

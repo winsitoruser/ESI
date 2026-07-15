@@ -7,11 +7,17 @@ import { authenticateBearer } from '@/lib/saas/humanify-api-keys';
 import { resolveTenantPlan } from '@/lib/saas/assert-feature';
 import { planHasFeature } from '@/lib/saas/plan-entitlements';
 import { listTenantEmployeesLean } from '@/lib/saas/humanify-employees';
+import { checkLimit, RateLimitTier } from '@/lib/middleware/rateLimit';
+import { withObservability } from '@/lib/observability';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   }
+
+  // Rate limit public API (per IP) — applied before auth so headers are present
+  // even on 401/403 and abusive unauthenticated traffic is throttled.
+  if (!checkLimit(req, res, RateLimitTier.STANDARD)) return;
 
   const auth = await authenticateBearer(
     req.headers.authorization,
@@ -46,3 +52,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ success: false, error: e.message || 'Error' });
   }
 }
+
+export default withObservability(handler, 'api/v1/employees');

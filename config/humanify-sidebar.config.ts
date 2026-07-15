@@ -9,7 +9,7 @@ import {
   Briefcase, Plane, BookOpen, PenTool, AlertTriangle, Calculator, Banknote,
   Percent, Gift, Clock, Network, Fingerprint, Sparkles, Layers, Ban,
   Wallet, Package, CreditCard, Crosshair, PenLine, Scale, Globe, Brain, Zap,
-  CheckCircle2,
+  CheckCircle2, Lock, Upload,
   type LucideIcon,
 } from 'lucide-react';
 import type { SidebarConfig, MenuGroup } from './sidebar.config';
@@ -38,6 +38,7 @@ export const humanifySidebarConfig: SidebarConfig = {
       title: 'Karyawan',
       items: [
         { id: 'humanify-employees', name: 'Database Karyawan', href: '/humanify/employees', icon: Users, modules: ['humanify', 'hris'] },
+        { id: 'humanify-employees-import', name: 'Impor Karyawan', href: '/humanify/employees-import', icon: Upload, modules: ['humanify', 'hris'] },
         { id: 'humanify-organization', name: 'Struktur Organisasi', href: '/humanify/organization', icon: Network, modules: ['humanify', 'hris'] },
         { id: 'humanify-onboarding', name: 'Onboarding', href: '/humanify/onboarding', icon: UserPlus, modules: ['humanify', 'hris'] },
         { id: 'humanify-offboarding', name: 'Offboarding / Exit', href: '/humanify/offboarding', icon: KeyRound, modules: ['humanify', 'hris'] },
@@ -177,6 +178,9 @@ export const humanifySidebarConfig: SidebarConfig = {
         { id: 'humanify-billing', name: 'Billing & Upgrade', href: '/humanify/billing', icon: CreditCard, modules: ['humanify', 'hris'] },
         { id: 'humanify-go-live', name: 'Go-live Checklist', href: '/humanify/go-live', icon: CheckCircle2, modules: ['humanify', 'hris'] },
         { id: 'humanify-enterprise', name: 'Enterprise (API & Brand)', href: '/humanify/enterprise', icon: KeyRound, modules: ['humanify', 'hris'] },
+        { id: 'humanify-sso', name: 'SSO (SAML)', href: '/humanify/sso', icon: Fingerprint, modules: ['humanify', 'hris'] },
+        { id: 'humanify-security', name: 'Keamanan (2FA)', href: '/humanify/security', icon: Lock, modules: ['humanify', 'hris'] },
+        { id: 'humanify-users-team', name: 'Tim & Undangan', href: '/humanify/users', icon: UserPlus, modules: ['humanify', 'hris'] },
         { id: 'humanify-users-roles', name: 'Role & Akses', href: '/humanify/users/roles', icon: Shield, modules: ['humanify', 'hris'] },
         { id: 'humanify-about-naincode', name: 'Tentang Naincode', href: '/humanify/welcome', icon: Layers, modules: ['humanify', 'hris'] },
       ],

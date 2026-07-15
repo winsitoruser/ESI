@@ -1,49 +1,47 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-
-const db = require('@/models');
-
 /**
- * Health Check Endpoint
- * Verifies system status, database connectivity, and critical services
+ * Health / liveness + readiness probe.
+ * Public, unauthenticated — safe for uptime monitors & load balancers.
+ *
+ *   GET /api/health        → shallow liveness (no DB)
+ *   GET /api/health?deep=1 → readiness (pings DB)
  */
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+import type { NextApiRequest, NextApiResponse } from 'next';
 
-  const health: any = {
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    services: {
-      api: 'operational',
-      database: 'unknown',
-      models: 'unknown'
-    },
-    version: process.env.npm_package_version || '1.0.0',
-    environment: process.env.NODE_ENV || 'development'
+let sequelize: any;
+try { sequelize = require('../../lib/sequelize'); } catch {}
+
+const startedAt = Date.now();
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  res.setHeader('Cache-Control', 'no-store, max-age=0');
+
+  const deep = req.query.deep === '1' || req.query.deep === 'true';
+  const base = {
+    status: 'ok' as 'ok' | 'degraded',
+    service: 'humanify',
+    time: new Date().toISOString(),
+    uptimeSec: Math.round((Date.now() - startedAt) / 1000),
+    env: process.env.NODE_ENV || 'development',
   };
 
-  try {
-    // Test database connection
-    await db.sequelize.authenticate();
-    health.services.database = 'operational';
-
-    // Test models loaded
-    const moduleCount = await db.Module.count();
-    const businessTypeCount = await db.BusinessType.count();
-    
-    health.services.models = 'operational';
-    health.stats = {
-      modules: moduleCount,
-      businessTypes: businessTypeCount
-    };
-
-    return res.status(200).json(health);
-  } catch (error: any) {
-    health.status = 'degraded';
-    health.services.database = 'error';
-    health.error = error.message;
-
-    return res.status(503).json(health);
+  if (!deep) {
+    return res.status(200).json(base);
   }
+
+  let db = false;
+  let dbLatencyMs: number | null = null;
+  if (sequelize) {
+    const t0 = Date.now();
+    try {
+      await sequelize.query('SELECT 1');
+      db = true;
+      dbLatencyMs = Date.now() - t0;
+    } catch (e: any) {
+      db = false;
+      console.error('[health] db ping failed:', e?.message);
+    }
+  }
+
+  const status: 'ok' | 'degraded' = db ? 'ok' : 'degraded';
+  return res.status(db ? 200 : 503).json({ ...base, status, db, dbLatencyMs });
 }
