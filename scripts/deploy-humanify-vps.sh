@@ -45,8 +45,15 @@ if ! is_ip "$DOMAIN"; then
 fi
 
 SSH_OPTS=(-o StrictHostKeyChecking=no -o PreferredAuthentications=password -o PubkeyAuthentication=no -o ServerAliveInterval=60 -o ServerAliveCountMax=120)
-ssh_cmd() { sshpass -p "$VPS_PASS" ssh "${SSH_OPTS[@]}" "$VPS_USER@$VPS_HOST" "$@"; }
-scp_cmd() { sshpass -p "$VPS_PASS" scp "${SSH_OPTS[@]}" "$@"; }
+SSHPASS_PATH="$(command -v sshpass || true)"
+if [ -n "$SSHPASS_PATH" ]; then
+  ssh_cmd() { sshpass -p "$VPS_PASS" ssh "${SSH_OPTS[@]}" "$VPS_USER@$VPS_HOST" "$@"; }
+  scp_cmd() { sshpass -p "$VPS_PASS" scp "${SSH_OPTS[@]}" "$@"; }
+else
+  echo "⚠️ sshpass tidak ditemukan. Deploy akan menggunakan password SSH interaktif."
+  ssh_cmd() { ssh "${SSH_OPTS[@]}" "$VPS_USER@$VPS_HOST" "$@"; }
+  scp_cmd() { scp "${SSH_OPTS[@]}" "$@"; }
+fi
 
 if [ "$USE_DOMAIN" = true ]; then
   echo "=== DNS pre-check: $DOMAIN → $VPS_HOST ==="
