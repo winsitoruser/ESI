@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]';
 import { rowsToSnake, rowToSnake } from '@/lib/hris/serialize-rows';
+import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
 
 let Project: any, ProjectWorker: any, ProjectTimesheet: any, ProjectPayroll: any;
 try { Project = require('../../../models/Project'); } catch(e) {}
@@ -18,7 +19,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     switch (method) {
-      case 'GET': return handleGet(req, res, action as string);
+      case 'GET': return handleGet(req, res, action as string, session);
       case 'POST': return handlePost(req, res, action as string, session);
       case 'PUT': return handlePut(req, res, action as string);
       case 'DELETE': return handleDelete(req, res, action as string);
@@ -30,29 +31,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 }
 
-async function handleGet(req: NextApiRequest, res: NextApiResponse, action: string) {
+async function handleGet(req: NextApiRequest, res: NextApiResponse, action: string, session: any) {
+  const tenantId = tenantIdFromSession(session);
+
   switch (action) {
     case 'overview': {
+      if (!tenantId) {
+        return res.json({
+          success: true,
+          data: { totalProjects: 0, activeProjects: 0, activeWorkers: 0, totalTimesheets: 0, totalBudget: 0, totalActual: 0 },
+          dataSource: 'empty',
+        });
+      }
       const { Op } = require('sequelize');
-      const activeWhere = { status: { [Op.in]: ['active', 'in_progress'] } };
+      const tenantWhere = { tenantId };
+      const activeWhere = { tenantId, status: { [Op.in]: ['active', 'in_progress'] } };
       const [total, active] = await Promise.all([
-        Project?.count() || 0,
+        Project?.count({ where: tenantWhere }) || 0,
         Project?.count({ where: activeWhere }) || 0,
       ]);
       let workers = 0;
       let timesheets = 0;
       try {
-        workers = ProjectWorker ? await ProjectWorker.count({ where: { status: 'active' } }) : 0;
+        workers = ProjectWorker ? await ProjectWorker.count({ where: { status: 'active', tenantId } }) : 0;
       } catch {
-        workers = ProjectWorker ? await ProjectWorker.count() : 0;
+        workers = ProjectWorker ? await ProjectWorker.count({ where: tenantWhere }) : 0;
       }
       try {
-        timesheets = ProjectTimesheet ? await ProjectTimesheet.count() : 0;
+        timesheets = ProjectTimesheet ? await ProjectTimesheet.count({ where: tenantWhere }) : 0;
       } catch {
         timesheets = 0;
       }
-      const totalBudget = Project ? (await Project.sum('budgetAmount')) || 0 : 0;
-      const totalActual = Project ? (await Project.sum('actualCost')) || 0 : 0;
+      const totalBudget = Project ? (await Project.sum('budgetAmount', { where: tenantWhere })) || 0 : 0;
+      const totalActual = Project ? (await Project.sum('actualCost', { where: tenantWhere })) || 0 : 0;
       const dataSource = total > 0 ? 'live' : 'empty';
       return res.json({
         success: true,
@@ -61,8 +72,9 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
       });
     }
     case 'projects': {
+      if (!tenantId) return res.json({ success: true, data: [] });
       const { status, department, industry } = req.query;
-      const where: any = {};
+      const where: any = { tenantId };
       if (status) where.status = status;
       if (department) where.department = department;
       if (industry) where.industry = industry;
@@ -71,12 +83,13 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
     }
     case 'project-detail': {
       const { id } = req.query;
-      if (!id || !Project) return res.status(404).json({ error: 'Not found' });
-      const project = await Project.findByPk(id);
-      const workers = ProjectWorker ? await ProjectWorker.findAll({ where: { projectId: id }, order: [['createdAt', 'DESC']] }) : [];
-      const timesheetCount = ProjectTimesheet ? await ProjectTimesheet.count({ where: { projectId: id } }) : 0;
-      const totalHours = ProjectTimesheet ? (await ProjectTimesheet.sum('hoursWorked', { where: { projectId: id } })) || 0 : 0;
-      const payrollItems = ProjectPayroll ? await ProjectPayroll.findAll({ where: { projectId: id }, order: [['period_start', 'DESC']] }) : [];
+      if (!id || !Project || !tenantId) return res.status(404).json({ error: 'Not found' });
+      const project = await Project.findOne({ where: { id, tenantId } });
+      if (!project) return res.status(404).json({ error: 'Not found' });
+      const workers = ProjectWorker ? await ProjectWorker.findAll({ where: { projectId: id, tenantId }, order: [['createdAt', 'DESC']] }) : [];
+      const timesheetCount = ProjectTimesheet ? await ProjectTimesheet.count({ where: { projectId: id, tenantId } }) : 0;
+      const totalHours = ProjectTimesheet ? (await ProjectTimesheet.sum('hoursWorked', { where: { projectId: id, tenantId } })) || 0 : 0;
+      const payrollItems = ProjectPayroll ? await ProjectPayroll.findAll({ where: { projectId: id, tenantId }, order: [['period_start', 'DESC']] }) : [];
       return res.json({
         success: true,
         data: {
@@ -89,8 +102,9 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
       });
     }
     case 'workers': {
+      if (!tenantId) return res.json({ success: true, data: [] });
       const { project_id, status: wStatus, worker_type } = req.query;
-      const where: any = {};
+      const where: any = { tenantId };
       if (project_id) where.projectId = project_id;
       if (wStatus) where.status = wStatus;
       if (worker_type) where.resourceType = worker_type;
@@ -98,8 +112,9 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
       return res.json({ success: true, data: rows.map(serializeWorker) });
     }
     case 'timesheets': {
+      if (!tenantId) return res.json({ success: true, data: [] });
       const { project_id: pId, employee_id, status: tStatus, date_from, date_to } = req.query;
-      const where: any = {};
+      const where: any = { tenantId };
       if (pId) where.projectId = pId;
       if (employee_id) where.employeeId = employee_id;
       if (tStatus) where.status = tStatus;
@@ -111,8 +126,9 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
       return res.json({ success: true, data: rows.map(serializeTimesheet) });
     }
     case 'payroll': {
+      if (!tenantId) return res.json({ success: true, data: [] });
       const { project_id: prId, employee_id: eId, status: pStatus } = req.query;
-      const where: any = {};
+      const where: any = { tenantId };
       if (prId) where.projectId = prId;
       if (eId) where.employeeId = eId;
       if (pStatus) where.status = pStatus;

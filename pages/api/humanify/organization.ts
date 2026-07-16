@@ -66,11 +66,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { action } = req.query;
 
     if (req.method === 'GET') {
-      if (action === 'org-tree') return getOrgTree(req, res);
-      if (action === 'org-list') return getOrgList(req, res);
-      if (action === 'job-grades') return getJobGrades(req, res);
+      if (action === 'org-tree') return getOrgTree(req, res, session);
+      if (action === 'org-list') return getOrgList(req, res, session);
+      if (action === 'job-grades') return getJobGrades(req, res, session);
       if (action === 'compensation-audit') return getCompensationAudit(req, res, session);
-      if (action === 'summary') return getOrgSummary(req, res);
+      if (action === 'summary') return getOrgSummary(req, res, session);
       return res.status(400).json({ success: false, error: 'Unknown action' });
     }
 
@@ -94,23 +94,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 }
 
 // ===== GET: Org Tree (hierarchical) =====
-async function getOrgTree(req: NextApiRequest, res: NextApiResponse) {
-  if (!sequelize) return res.json({ success: true, data: [], flat: [] });
+async function getOrgTree(req: NextApiRequest, res: NextApiResponse, session: any) {
+  if (!sequelize) return res.json({ success: true, data: [], flat: [], dataSource: 'empty' });
+  const tenantId = (session.user as any)?.tenantId || null;
+  if (!tenantId) return res.json({ success: true, data: [], flat: [], dataSource: 'empty' });
 
   try {
     await ensureOrgTables();
-    await syncOrgDepartments(sequelize);
+    // Do NOT seed Naincode master tree for SaaS tenants
+    await syncOrgDepartments(sequelize, tenantId, { seedDefaults: false });
     const [rows] = await sequelize.query(`
       SELECT os.*,
         he.name AS head_name, he.employee_code AS head_code, he.position AS head_position,
         (SELECT COUNT(*)::int FROM employees e
-          WHERE e.is_active = true AND (e.department = os.code OR e.department = os.name)
+          WHERE e.tenant_id = :tenantId
+            AND COALESCE(e.is_active, true) = true
+            AND (e.department = os.code OR e.department = os.name)
         ) AS employee_count
       FROM org_structures os
-      LEFT JOIN employees he ON os.head_employee_id = he.id
-      WHERE os.is_active = true
+      LEFT JOIN employees he ON os.head_employee_id = he.id AND he.tenant_id = :tenantId
+      WHERE os.is_active = true AND os.tenant_id = :tenantId
       ORDER BY os.level ASC, os.sort_order ASC, os.name ASC
-    `);
+    `, { replacements: { tenantId } });
 
     const map: Record<string, any> = {};
     const tree: any[] = [];
@@ -124,7 +129,6 @@ async function getOrgTree(req: NextApiRequest, res: NextApiResponse) {
       } else if (!r.parent_id) {
         tree.push(r);
       } else {
-        // Parent tidak aktif / hilang — tampilkan sebagai root agar tidak lenyap dari UI
         tree.push(r);
       }
     });
@@ -134,28 +138,35 @@ async function getOrgTree(req: NextApiRequest, res: NextApiResponse) {
       if (r.children?.length) sortOrgNodes(r.children);
     });
 
-    return res.json({ success: true, data: tree, flat: rows });
+    return res.json({
+      success: true,
+      data: tree,
+      flat: rows,
+      dataSource: (rows || []).length > 0 ? 'live' : 'empty',
+    });
   } catch (e: any) {
     console.warn('getOrgTree error:', e.message);
-    return res.json({ success: true, data: [], flat: [] });
+    return res.json({ success: true, data: [], flat: [], dataSource: 'empty' });
   }
 }
 
 // ===== GET: Org List (flat) =====
-async function getOrgList(req: NextApiRequest, res: NextApiResponse) {
-  if (!sequelize) return res.json({ success: true, data: [] });
+async function getOrgList(req: NextApiRequest, res: NextApiResponse, session: any) {
+  if (!sequelize) return res.json({ success: true, data: [], dataSource: 'empty' });
+  const tenantId = (session.user as any)?.tenantId || null;
+  if (!tenantId) return res.json({ success: true, data: [], dataSource: 'empty' });
   try {
     await ensureOrgTables();
     const [rows] = await sequelize.query(`
       SELECT os.*, p.name AS parent_name
       FROM org_structures os
       LEFT JOIN org_structures p ON os.parent_id = p.id
-      WHERE os.is_active = true
+      WHERE os.is_active = true AND os.tenant_id = :tenantId
       ORDER BY os.level ASC, os.sort_order ASC
-    `);
-    return res.json({ success: true, data: rows || [] });
+    `, { replacements: { tenantId } });
+    return res.json({ success: true, data: rows || [], dataSource: (rows || []).length > 0 ? 'live' : 'empty' });
   } catch {
-    return res.json({ success: true, data: [] });
+    return res.json({ success: true, data: [], dataSource: 'empty' });
   }
 }
 
@@ -166,37 +177,51 @@ async function getCompensationAudit(req: NextApiRequest, res: NextApiResponse, s
   return res.json({ success: true, data: audit, dataSource: audit.dataSource });
 }
 
-async function getJobGrades(req: NextApiRequest, res: NextApiResponse) {
-  if (!sequelize) return res.json({ success: true, data: [] });
+async function getJobGrades(req: NextApiRequest, res: NextApiResponse, session: any) {
+  if (!sequelize) return res.json({ success: true, data: [], dataSource: 'empty' });
+  const tenantId = (session.user as any)?.tenantId || null;
+  if (!tenantId) return res.json({ success: true, data: [], dataSource: 'empty' });
   try {
     await ensureOrgTables();
     const [rows] = await sequelize.query(`
       SELECT jg.*,
-        (SELECT COUNT(*)::int FROM employees e WHERE e.job_grade_id::text = jg.id::text) AS employee_count
+        (SELECT COUNT(*)::int FROM employees e
+          WHERE e.tenant_id = :tenantId AND e.job_grade_id::text = jg.id::text) AS employee_count
       FROM job_grades jg
-      WHERE jg.is_active = true
+      WHERE jg.is_active = true AND jg.tenant_id = :tenantId
       ORDER BY jg.level ASC
-    `);
-    return res.json({ success: true, data: rows || [] });
+    `, { replacements: { tenantId } });
+    return res.json({ success: true, data: rows || [], dataSource: (rows || []).length > 0 ? 'live' : 'empty' });
   } catch {
-    return res.json({ success: true, data: [] });
+    return res.json({ success: true, data: [], dataSource: 'empty' });
   }
 }
 
 // ===== GET: Summary =====
-async function getOrgSummary(req: NextApiRequest, res: NextApiResponse) {
-  if (!sequelize) return res.json({ success: true, data: {} });
+async function getOrgSummary(req: NextApiRequest, res: NextApiResponse, session: any) {
+  if (!sequelize) return res.json({ success: true, data: {}, dataSource: 'empty' });
+  const tenantId = (session.user as any)?.tenantId || null;
+  if (!tenantId) return res.json({ success: true, data: {}, dataSource: 'empty' });
   try {
     await ensureOrgTables();
-    await syncOrgDepartments(sequelize);
-    const [orgCount] = await sequelize.query(`SELECT COUNT(*)::int AS cnt FROM org_structures WHERE is_active = true`);
-    const [gradeCount] = await sequelize.query(`SELECT COUNT(*)::int AS cnt FROM job_grades WHERE is_active = true`);
-    const [empCount] = await sequelize.query(`SELECT COUNT(*)::int AS cnt FROM employees WHERE is_active = true`);
+    await syncOrgDepartments(sequelize, tenantId, { seedDefaults: false });
+    const [orgCount] = await sequelize.query(
+      `SELECT COUNT(*)::int AS cnt FROM org_structures WHERE is_active = true AND tenant_id = :tenantId`,
+      { replacements: { tenantId } },
+    );
+    const [gradeCount] = await sequelize.query(
+      `SELECT COUNT(*)::int AS cnt FROM job_grades WHERE is_active = true AND tenant_id = :tenantId`,
+      { replacements: { tenantId } },
+    );
+    const [empCount] = await sequelize.query(
+      `SELECT COUNT(*)::int AS cnt FROM employees WHERE COALESCE(is_active, true) = true AND tenant_id = :tenantId`,
+      { replacements: { tenantId } },
+    );
     const [deptCounts] = await sequelize.query(`
       SELECT COALESCE(department, 'Other') AS department, COUNT(*)::int AS cnt
-      FROM employees WHERE is_active = true
+      FROM employees WHERE COALESCE(is_active, true) = true AND tenant_id = :tenantId
       GROUP BY department ORDER BY cnt DESC
-    `);
+    `, { replacements: { tenantId } });
 
     const departmentBreakdown = (deptCounts || []).map((d: any) => ({
       department: d.department,
@@ -207,14 +232,16 @@ async function getOrgSummary(req: NextApiRequest, res: NextApiResponse) {
     return res.json({
       success: true,
       data: {
-        totalUnits: orgCount[0]?.cnt || 0,
-        totalGrades: gradeCount[0]?.cnt || 0,
-        totalEmployees: empCount[0]?.cnt || 0,
+        orgUnits: orgCount?.[0]?.cnt || 0,
+        jobGrades: gradeCount?.[0]?.cnt || 0,
+        employees: empCount?.[0]?.cnt || 0,
         departmentBreakdown,
       },
+      dataSource: (empCount?.[0]?.cnt || 0) > 0 || (orgCount?.[0]?.cnt || 0) > 0 ? 'live' : 'empty',
     });
-  } catch {
-    return res.json({ success: true, data: { totalUnits: 0, totalGrades: 0, totalEmployees: 0, departmentBreakdown: [] } });
+  } catch (e: any) {
+    console.warn('getOrgSummary error:', e.message);
+    return res.json({ success: true, data: {}, dataSource: 'empty' });
   }
 }
 

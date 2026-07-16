@@ -103,11 +103,11 @@ function mapEmployeeCert(row: any): CertificateRecord {
   };
 }
 
-async function fetchLegacyProgramCerts(): Promise<CertificateRecord[]> {
-  if (!sequelize) return [];
+async function fetchLegacyProgramCerts(tenantId: string | null): Promise<CertificateRecord[]> {
+  if (!sequelize || !tenantId) return [];
   try {
     const { fetchLegacyTrainingCerts } = await import('./lms/training-bridge');
-    const rows = await fetchLegacyTrainingCerts();
+    const rows = await fetchLegacyTrainingCerts(tenantId);
     return rows.map((row: any) => {
       const expiry = row.expiry_date ? String(row.expiry_date).split('T')[0] : undefined;
       return {
@@ -126,21 +126,23 @@ async function fetchLegacyProgramCerts(): Promise<CertificateRecord[]> {
   } catch { return []; }
 }
 
-async function fetchRegistryCerts(): Promise<CertificateRecord[]> {
-  if (!sequelize) return [];
+async function fetchRegistryCerts(tenantId: string | null): Promise<CertificateRecord[]> {
+  if (!sequelize || !tenantId) return [];
   await ensureCertificateTables();
   try {
     const [rows] = await sequelize.query(`
-      SELECT * FROM hris_certificates ORDER BY expiry_date ASC NULLS LAST
-    `);
+      SELECT * FROM hris_certificates
+      WHERE tenant_id = :tid
+      ORDER BY expiry_date ASC NULLS LAST
+    `, { replacements: { tid: tenantId } });
     return (rows || []).map(mapCert);
   } catch {
     return [];
   }
 }
 
-async function fetchEmployeeCerts(): Promise<CertificateRecord[]> {
-  if (!sequelize) return [];
+async function fetchEmployeeCerts(tenantId: string | null): Promise<CertificateRecord[]> {
+  if (!sequelize || !tenantId) return [];
   try {
     const [rows] = await sequelize.query(`
       SELECT ec.id, ec.employee_id, e.name AS employee_name, ec.name AS title,
@@ -149,8 +151,9 @@ async function fetchEmployeeCerts(): Promise<CertificateRecord[]> {
       FROM employee_certifications ec
       JOIN employees e ON ec.employee_id = e.id
       WHERE ec.is_active IS DISTINCT FROM false
+        AND e.tenant_id = :tid
       ORDER BY ec.expiry_date ASC NULLS LAST
-    `);
+    `, { replacements: { tid: tenantId } });
     return (rows || []).map(mapEmployeeCert);
   } catch {
     return [];
@@ -178,7 +181,10 @@ function applyFilters(records: CertificateRecord[], filters?: { status?: CertSta
   });
 }
 
-export async function listCertificates(filters?: { status?: CertStatus; source?: CertSource; employeeId?: string }): Promise<CertificateListResult> {
+export async function listCertificates(
+  filters?: { status?: CertStatus; source?: CertSource; employeeId?: string },
+  tenantId?: string | null,
+): Promise<CertificateListResult> {
   if (!sequelize) {
     const mock = getMockCertificates(filters);
     return {
@@ -187,9 +193,13 @@ export async function listCertificates(filters?: { status?: CertStatus; source?:
     };
   }
 
+  if (!tenantId) {
+    return { records: [], dataSource: 'empty' };
+  }
+
   const merged = mergeCerts(
-    mergeCerts(await fetchRegistryCerts(), await fetchEmployeeCerts()),
-    await fetchLegacyProgramCerts(),
+    mergeCerts(await fetchRegistryCerts(tenantId), await fetchEmployeeCerts(tenantId)),
+    await fetchLegacyProgramCerts(tenantId),
   );
   if (merged.length) {
     return { records: applyFilters(merged, filters), dataSource: 'live' };
@@ -201,8 +211,8 @@ export async function listCertificates(filters?: { status?: CertStatus; source?:
   return { records: [], dataSource: 'empty' };
 }
 
-export async function getCertificateAnalytics() {
-  const { records, dataSource } = await listCertificates();
+export async function getCertificateAnalytics(tenantId?: string | null) {
+  const { records, dataSource } = await listCertificates(undefined, tenantId);
   return {
     dataSource,
     total: records.length,

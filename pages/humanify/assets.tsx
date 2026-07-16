@@ -31,7 +31,7 @@ export default function AssetsPage() {
       const rows = a.data || [];
       setAssets(rows);
       setSummary(s.data || {});
-      setDataSource(rows.length ? 'live' : 'empty');
+      setDataSource((a.dataSource || (rows.length ? 'live' : 'empty')) as HrisDataSource);
     } catch { setAssets([]); setDataSource('empty'); }
     setLoading(false);
   }, []);

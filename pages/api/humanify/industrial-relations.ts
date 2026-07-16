@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]';
 import { rowsToSnake, rowToSnake } from '@/lib/hris/serialize-rows';
+import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
 
 let CompanyRegulation: any, WarningLetter: any, IrCase: any, TerminationRequest: any, ComplianceChecklist: any, AuditLog: any;
 try { CompanyRegulation = require('../../../models/CompanyRegulation'); } catch(e) {}
@@ -20,12 +21,13 @@ async function listDisciplinaryWarnings(filters: {
   status?: string | string[];
   warning_type?: string | string[];
   scope?: string | string[];
+  tenantId?: string | null;
 }) {
-  if (!sequelize) return null;
+  if (!sequelize || !filters.tenantId) return filters.tenantId === undefined ? null : [];
   try {
-    const { employee_id, status, warning_type, scope } = filters;
-    let where = `WHERE dl.letter_type IN ('SP1','SP2','SP3')`;
-    const rep: Record<string, unknown> = {};
+    const { employee_id, status, warning_type, scope, tenantId } = filters;
+    let where = `WHERE dl.letter_type IN ('SP1','SP2','SP3') AND dl.tenant_id = :tid`;
+    const rep: Record<string, unknown> = { tid: tenantId };
 
     if (employee_id) {
       where += ' AND dl.employee_id::text = :employee_id';
@@ -69,7 +71,7 @@ async function listDisciplinaryWarnings(filters: {
         dl.updated_at,
         'disciplinary' AS source
       FROM hr_disciplinary_letters dl
-      LEFT JOIN employees e ON dl.employee_id::text = e.id::text
+      LEFT JOIN employees e ON dl.employee_id::text = e.id::text AND e.tenant_id = :tid
       ${where}
       ORDER BY COALESCE(dl.effective_date, dl.created_at) DESC
       LIMIT 200
@@ -81,15 +83,16 @@ async function listDisciplinaryWarnings(filters: {
   }
 }
 
-async function countActiveDisciplinaryWarnings(): Promise<number | null> {
-  if (!sequelize) return null;
+async function countActiveDisciplinaryWarnings(tenantId: string | null): Promise<number | null> {
+  if (!sequelize || !tenantId) return tenantId ? 0 : null;
   try {
     const [rows] = await sequelize.query(`
       SELECT COUNT(*)::int AS cnt
       FROM hr_disciplinary_letters
       WHERE letter_type IN ('SP1','SP2','SP3')
         AND status IN ('issued','acknowledged')
-    `);
+        AND tenant_id = :tid
+    `, { replacements: { tid: tenantId } });
     return rows?.[0]?.cnt ?? 0;
   } catch {
     return null;
@@ -101,12 +104,13 @@ async function listDisciplinaryTerminations(filters: {
   employee_id?: string | string[];
   status?: string | string[];
   scope?: string | string[];
+  tenantId?: string | null;
 }) {
-  if (!sequelize) return null;
+  if (!sequelize || !filters.tenantId) return filters.tenantId === undefined ? null : [];
   try {
-    const { employee_id, status, scope } = filters;
-    let where = `WHERE dl.letter_type = 'TERMINATION'`;
-    const rep: Record<string, unknown> = {};
+    const { employee_id, status, scope, tenantId } = filters;
+    let where = `WHERE dl.letter_type = 'TERMINATION' AND dl.tenant_id = :tid`;
+    const rep: Record<string, unknown> = { tid: tenantId };
 
     if (employee_id) {
       where += ' AND dl.employee_id::text = :employee_id';
@@ -144,7 +148,7 @@ async function listDisciplinaryTerminations(filters: {
         dl.updated_at,
         'disciplinary' AS source
       FROM hr_disciplinary_letters dl
-      LEFT JOIN employees e ON dl.employee_id::text = e.id::text
+      LEFT JOIN employees e ON dl.employee_id::text = e.id::text AND e.tenant_id = :tid
       ${where}
       ORDER BY COALESCE(dl.effective_date, dl.created_at) DESC
       LIMIT 200
@@ -156,15 +160,16 @@ async function listDisciplinaryTerminations(filters: {
   }
 }
 
-async function countPendingDisciplinaryTerminations(): Promise<number | null> {
-  if (!sequelize) return null;
+async function countPendingDisciplinaryTerminations(tenantId: string | null): Promise<number | null> {
+  if (!sequelize || !tenantId) return tenantId ? 0 : null;
   try {
     const [rows] = await sequelize.query(`
       SELECT COUNT(*)::int AS cnt
       FROM hr_disciplinary_letters
       WHERE letter_type = 'TERMINATION'
         AND status IN ('draft','drafting','investigating','review','pending_approval','approved','submitted')
-    `);
+        AND tenant_id = :tid
+    `, { replacements: { tid: tenantId } });
     return rows?.[0]?.cnt ?? 0;
   } catch {
     return null;
@@ -180,7 +185,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     switch (method) {
-      case 'GET': return handleGet(req, res, action as string);
+      case 'GET': return handleGet(req, res, action as string, session);
       case 'POST': return handlePost(req, res, action as string, session);
       case 'PUT': return handlePut(req, res, action as string, session);
       case 'DELETE': return handleDelete(req, res, action as string);
@@ -192,15 +197,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 }
 
-async function handleGet(req: NextApiRequest, res: NextApiResponse, action: string) {
+async function handleGet(req: NextApiRequest, res: NextApiResponse, action: string, session: any) {
+  const tenantId = tenantIdFromSession(session);
+
   switch (action) {
     case 'overview': {
+      if (!tenantId) {
+        return res.json({
+          success: true,
+          data: {
+            activeRegulations: 0, openIncidents: 0, investigatingIncidents: 0,
+            pendingChecklists: 0, complianceScore: 0,
+          },
+        });
+      }
       const [regs, openCases, investigatingCases, pendingChecklists, allChecklists] = await Promise.all([
-        CompanyRegulation?.count({ where: { status: 'active' } }) || 0,
-        IrCase?.count({ where: { status: ['open', 'reported', 'triage', 'investigating', 'mitigating'] } }).catch(() => 0) || 0,
-        IrCase?.count({ where: { status: ['investigating', 'mitigating'] } }).catch(() => 0) || 0,
-        ComplianceChecklist?.count({ where: { status: ['pending', 'in_progress'] } }).catch(() => 0) || 0,
-        ComplianceChecklist?.findAll({ attributes: ['completionPercent'], limit: 50 }).catch(() => []) || [],
+        CompanyRegulation?.count({ where: { status: 'active', tenantId } }) || 0,
+        IrCase?.count({ where: { status: ['open', 'reported', 'triage', 'investigating', 'mitigating'], tenantId } }).catch(() => 0) || 0,
+        IrCase?.count({ where: { status: ['investigating', 'mitigating'], tenantId } }).catch(() => 0) || 0,
+        ComplianceChecklist?.count({ where: { status: ['pending', 'in_progress'], tenantId } }).catch(() => 0) || 0,
+        ComplianceChecklist?.findAll({ attributes: ['completionPercent'], where: { tenantId }, limit: 50 }).catch(() => []) || [],
       ]);
       const percents = (allChecklists as any[]).map((c) => Number(c.completionPercent ?? c.completion_percent ?? 0));
       const complianceScore = percents.length
@@ -218,16 +234,18 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
       });
     }
     case 'regulations': {
+      if (!tenantId) return res.json({ success: true, data: [] });
       const { status, category } = req.query;
-      const where: any = {};
+      const where: any = { tenantId };
       if (status) where.status = status;
       if (category) where.category = category;
       const rows = CompanyRegulation ? await CompanyRegulation.findAll({ where, order: [['createdAt', 'DESC']] }) : [];
       return res.json({ success: true, data: rowsToSnake(rows) });
     }
     case 'warnings': {
+      if (!tenantId) return res.json({ success: true, data: [], meta: { source: 'empty' } });
       const { employee_id, status, warning_type, scope } = req.query;
-      const disc = await listDisciplinaryWarnings({ employee_id, status, warning_type, scope });
+      const disc = await listDisciplinaryWarnings({ employee_id, status, warning_type, scope, tenantId });
       if (disc !== null) {
         return res.json({
           success: true,
@@ -240,7 +258,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
         });
       }
       // Fallback legacy table jika modul disiplin belum tersedia
-      const where: any = {};
+      const where: any = { tenantId };
       if (employee_id) where.employeeId = employee_id;
       if (status) where.status = status;
       if (warning_type) where.warningType = warning_type;
@@ -252,8 +270,9 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
       });
     }
     case 'cases': {
+      if (!tenantId) return res.json({ success: true, data: [] });
       const { status: cStatus, category: cCat, priority } = req.query;
-      const where: any = {};
+      const where: any = { tenantId };
       if (cStatus) where.status = cStatus;
       if (cCat) where.caseType = cCat;
       if (priority) where.priority = priority;
@@ -261,8 +280,9 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
       return res.json({ success: true, data: rows.map(serializeIrCase) });
     }
     case 'terminations': {
+      if (!tenantId) return res.json({ success: true, data: [], meta: { source: 'empty' } });
       const { employee_id, status, scope } = req.query;
-      const disc = await listDisciplinaryTerminations({ employee_id, status, scope });
+      const disc = await listDisciplinaryTerminations({ employee_id, status, scope, tenantId });
       if (disc !== null) {
         return res.json({
           success: true,
@@ -275,27 +295,36 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
         });
       }
       const { status: tStatus, termination_type } = req.query;
-      const where: any = {};
+      const where: any = { tenantId };
       if (tStatus) where.status = tStatus;
       if (termination_type) where.terminationType = termination_type;
       const rows = TerminationRequest ? await TerminationRequest.findAll({ where, order: [['createdAt', 'DESC']] }) : [];
       return res.json({ success: true, data: rowsToSnake(rows), meta: { source: 'legacy' } });
     }
     case 'checklists': {
+      if (!tenantId) return res.json({ success: true, data: [] });
       const { status: clStatus, category: clCat } = req.query;
-      const where: any = {};
+      const where: any = { tenantId };
       if (clStatus) where.status = clStatus;
       if (clCat) where.category = clCat;
       const rows = ComplianceChecklist ? await ComplianceChecklist.findAll({ where, order: [['dueDate', 'ASC']] }) : [];
       return res.json({ success: true, data: rowsToSnake(rows) });
     }
     case 'audit-trail': {
+      if (!tenantId || !AuditLog) return res.json({ success: true, data: [] });
       const { resource, limit: lim } = req.query;
-      if (!AuditLog) return res.json({ success: true, data: [] });
       const where: any = {};
       if (resource) where.resource = resource;
-      const data = await AuditLog.findAll({ where, order: [['createdAt', 'DESC']], limit: parseInt(lim as string) || 50 });
-      return res.json({ success: true, data });
+      // AuditLog may not have tenantId — filter by resource only when column absent
+      try {
+        where.tenantId = tenantId;
+        const data = await AuditLog.findAll({ where, order: [['createdAt', 'DESC']], limit: parseInt(lim as string) || 50 });
+        return res.json({ success: true, data });
+      } catch {
+        const { tenantId: _t, ...rest } = where;
+        const data = await AuditLog.findAll({ where: rest, order: [['createdAt', 'DESC']], limit: parseInt(lim as string) || 50 });
+        return res.json({ success: true, data: [] }); // prefer empty over cross-tenant leak
+      }
     }
     default:
       return res.status(400).json({ error: 'Invalid action' });

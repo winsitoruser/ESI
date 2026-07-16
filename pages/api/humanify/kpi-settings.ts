@@ -33,9 +33,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // ── GET ──
     if (method === 'GET') {
+      if (!tenantId) {
+        return res.status(HttpStatus.OK).json(successResponse({
+          templates: [],
+          scoringSchemes: [],
+          summary: { total_templates: 0, active_templates: 0, total_weight: 0 },
+        }));
+      }
       if (type === 'templates') {
         const { category } = req.query;
-        let where = 'WHERE (tenant_id = :tid OR tenant_id IS NULL)';
+        let where = 'WHERE tenant_id = :tid';
         const repl: any = { tid: tenantId };
         if (category && category !== 'all') { where += ' AND category = :cat'; repl.cat = category; }
         const [rows] = await sequelize.query(`SELECT * FROM kpi_templates ${where} ORDER BY category, name`, { replacements: repl });
@@ -46,7 +53,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const [schemes] = await sequelize.query(`
           SELECT s.*, (SELECT COUNT(*)::int FROM kpi_scoring_levels WHERE scheme_id = s.id) as level_count
           FROM kpi_scoring_schemes s
-          WHERE (s.tenant_id = :tid OR s.tenant_id IS NULL)
+          WHERE s.tenant_id = :tid
           ORDER BY s.is_default DESC, s.name
         `, { replacements: { tid: tenantId } });
         // Attach levels to each scheme
@@ -63,17 +70,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (type === 'scheme') {
         const { id } = req.query;
         if (!id) return res.status(400).json(errorResponse(ErrorCodes.MISSING_REQUIRED_FIELDS, 'id is required'));
-        const [schemes] = await sequelize.query('SELECT * FROM kpi_scoring_schemes WHERE id = :id', { replacements: { id } });
+        const [schemes] = await sequelize.query(
+          'SELECT * FROM kpi_scoring_schemes WHERE id = :id AND tenant_id = :tid',
+          { replacements: { id, tid: tenantId } }
+        );
         if (schemes.length === 0) return res.status(404).json(errorResponse(ErrorCodes.NOT_FOUND, 'Scheme not found'));
         const [levels] = await sequelize.query('SELECT * FROM kpi_scoring_levels WHERE scheme_id = :sid ORDER BY sort_order, min_percent', { replacements: { sid: id } });
         return res.status(HttpStatus.OK).json(successResponse({ ...schemes[0], levels }));
       }
 
       // Default: full overview
-      const [templates] = await sequelize.query('SELECT * FROM kpi_templates WHERE (tenant_id = :tid OR tenant_id IS NULL) ORDER BY category, name', { replacements: { tid: tenantId } });
+      const [templates] = await sequelize.query('SELECT * FROM kpi_templates WHERE tenant_id = :tid ORDER BY category, name', { replacements: { tid: tenantId } });
       const [schemes] = await sequelize.query(`
         SELECT s.* FROM kpi_scoring_schemes s
-        WHERE (s.tenant_id = :tid OR s.tenant_id IS NULL) ORDER BY s.is_default DESC, s.name
+        WHERE s.tenant_id = :tid ORDER BY s.is_default DESC, s.name
       `, { replacements: { tid: tenantId } });
       for (const scheme of schemes) {
         const [levels] = await sequelize.query('SELECT * FROM kpi_scoring_levels WHERE scheme_id = :sid ORDER BY sort_order', { replacements: { sid: scheme.id } });
@@ -84,7 +94,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           COUNT(*)::int as total_templates,
           COUNT(*) FILTER (WHERE is_active = true)::int as active_templates,
           COALESCE(SUM(default_weight), 0)::int as total_weight
-        FROM kpi_templates WHERE (tenant_id = :tid OR tenant_id IS NULL)
+        FROM kpi_templates WHERE tenant_id = :tid
       `, { replacements: { tid: tenantId } });
       return res.status(HttpStatus.OK).json(successResponse({
         templates,

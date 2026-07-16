@@ -245,8 +245,8 @@ export async function batchSyncExamResults(tenantId: string | null) {
 }
 
 /** Fetch legacy certifications for registry merge */
-export async function fetchLegacyTrainingCerts(): Promise<any[]> {
-  if (!sequelize) return [];
+export async function fetchLegacyTrainingCerts(tenantId?: string | null): Promise<any[]> {
+  if (!sequelize || !tenantId) return [];
   try {
     const [rows] = await sequelize.query(`
       SELECT c.id, c.employee_id, COALESCE(e.name, 'Karyawan') AS employee_name,
@@ -256,8 +256,9 @@ export async function fetchLegacyTrainingCerts(): Promise<any[]> {
         'training' AS source
       FROM hris_certifications c
       LEFT JOIN employees e ON e.id::text = c.employee_id::text
+      WHERE c.tenant_id = :tid
       ORDER BY c.expiry_date ASC NULLS LAST
-    `);
+    `, { replacements: { tid: tenantId } });
     return rows || [];
   } catch { return []; }
 }

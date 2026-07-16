@@ -1,5 +1,9 @@
 /**
  * Sinkronisasi org_structures ↔ HRIS_DEPARTMENTS (SSOT departemen).
+ *
+ * SaaS rule: do NOT auto-insert the Naincode master tree for customer tenants.
+ * Fresh tenants must start with an empty org chart until they configure it.
+ * Pass `{ seedDefaults: true }` only for explicit platform/demo bootstrap.
  */
 import { HRIS_DEPARTMENTS, getDepartmentLabel } from './master-data';
 
@@ -37,27 +41,44 @@ export async function ensureOrgTables(sequelize: any) {
   `);
 }
 
-export async function syncOrgDepartments(sequelize: any, tenantId?: string | null) {
+export async function syncOrgDepartments(
+  sequelize: any,
+  tenantId?: string | null,
+  opts?: { seedDefaults?: boolean },
+) {
   await ensureOrgTables(sequelize);
 
-  // Normalisasi karyawan dengan kode legacy
+  // Normalize legacy department codes on employees — scoped when tenant known
   for (const [legacy, canonical] of Object.entries(DEPARTMENT_ALIASES)) {
     await sequelize.query(
       `UPDATE employees SET department = :canonical
-       WHERE UPPER(TRIM(department)) = UPPER(TRIM(:legacy)) AND department IS DISTINCT FROM :canonical`,
-      { replacements: { legacy, canonical } }
+       WHERE UPPER(TRIM(department)) = UPPER(TRIM(:legacy))
+         AND department IS DISTINCT FROM :canonical
+         ${tenantId ? 'AND tenant_id = :tenantId' : ''}`,
+      { replacements: { legacy, canonical, tenantId: tenantId || null } }
     );
   }
 
-  // Root group
+  // Default for SaaS: never invent org tree for a customer tenant
+  if (!opts?.seedDefaults) {
+    return;
+  }
+
+  const tenantRootClause = tenantId
+    ? 'AND tenant_id = :tenantId'
+    : 'AND tenant_id IS NULL';
   let [[root]] = await sequelize.query(
-    `SELECT id FROM org_structures WHERE code = :code LIMIT 1`,
-    { replacements: { code: ROOT_ORG_CODE } }
+    `SELECT id FROM org_structures WHERE code = :code ${tenantRootClause} LIMIT 1`,
+    { replacements: { code: ROOT_ORG_CODE, tenantId: tenantId || null } }
   );
 
   if (!root?.id) {
     const [[legacyRoot]] = await sequelize.query(
-      `SELECT id FROM org_structures WHERE code IN ('ESI-GROUP', 'HQ', 'Humanify') AND parent_id IS NULL ORDER BY created_at ASC LIMIT 1`
+      `SELECT id FROM org_structures
+       WHERE code IN ('ESI-GROUP', 'HQ', 'Humanify') AND parent_id IS NULL
+         ${tenantRootClause}
+       ORDER BY created_at ASC LIMIT 1`,
+      { replacements: { tenantId: tenantId || null } }
     );
     if (legacyRoot?.id) {
       await sequelize.query(
@@ -80,8 +101,8 @@ export async function syncOrgDepartments(sequelize: any, tenantId?: string | nul
   for (const dept of HRIS_DEPARTMENTS) {
     order += 1;
     const [[existing]] = await sequelize.query(
-      `SELECT id FROM org_structures WHERE code = :code LIMIT 1`,
-      { replacements: { code: dept.code } }
+      `SELECT id FROM org_structures WHERE code = :code ${tenantRootClause} LIMIT 1`,
+      { replacements: { code: dept.code, tenantId: tenantId || null } }
     );
     if (existing?.id) {
       const [[rowMeta]] = await sequelize.query(
@@ -91,7 +112,6 @@ export async function syncOrgDepartments(sequelize: any, tenantId?: string | nul
       const isUserCustomized = rowMeta?.source === 'user';
 
       if (isUserCustomized) {
-        // Jangan timpa hierarki/tata letak yang sudah diatur user — hanya pastikan aktif
         await sequelize.query(
           `UPDATE org_structures SET is_active = true, updated_at = NOW() WHERE id = :id`,
           { replacements: { id: existing.id } }
@@ -124,34 +144,34 @@ export async function syncOrgDepartments(sequelize: any, tenantId?: string | nul
 
   const masterCodes = HRIS_DEPARTMENTS.map((d) => d.code);
 
-  // Nonaktifkan hanya baris master yang sudah tidak ada di daftar resmi
   await sequelize.query(
     `UPDATE org_structures SET is_active = false, updated_at = NOW()
      WHERE is_active = true
        AND metadata->>'source' = 'master'
        AND code IS NOT NULL
        AND code NOT IN (:rootCode, :codes)
-       AND parent_id = :rootId`,
-    { replacements: { rootCode: ROOT_ORG_CODE, codes: masterCodes, rootId } }
+       AND parent_id = :rootId
+       ${tenantId ? 'AND tenant_id = :tenantId' : ''}`,
+    { replacements: { rootCode: ROOT_ORG_CODE, codes: masterCodes, rootId, tenantId: tenantId || null } }
   );
 }
 
 export async function fetchDepartmentsFromOrg(sequelize: any, tenantId?: string | null) {
   const tenantClause = tenantId
-    ? 'AND (os.tenant_id = :tenantId OR os.tenant_id IS NULL)'
+    ? 'AND os.tenant_id = :tenantId'
     : '';
   const [rows] = await sequelize.query(
     `SELECT os.code, os.name
      FROM org_structures os
-     INNER JOIN org_structures root ON root.code = :rootCode
      WHERE os.is_active = true
-       AND os.parent_id = root.id
+       AND os.parent_id IS NOT NULL
        AND os.code IS NOT NULL
        ${tenantClause}
      ORDER BY os.sort_order ASC, os.name ASC`,
-    { replacements: { rootCode: ROOT_ORG_CODE, tenantId } }
+    { replacements: { tenantId } }
   );
 
+  // Catalog for forms only — do NOT invent org_structures rows
   if (!rows?.length) return HRIS_DEPARTMENTS;
 
   return (rows as { code: string; name: string }[]).map((r) => ({

@@ -1,6 +1,6 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 15 Juli 2026 — **Humanify SaaS multi-tenant Phase 0–24 GA (P0 hardening + P1/P2 produktivitas + multi-user + employee hardening keamanan/korektnes) + regression QA hijau**
+> Diperbarui: 16 Juli 2026 — **Humanify SaaS Phase 0–24 + tenant empty-state (no dummy for new tenants)**
 
 ## Humanify SaaS (multi-tenant HRIS) — Phase 0–24 ✅ GA
 
@@ -34,6 +34,7 @@ Platform multi-tenant (shared DB, isolasi `tenant_id`). Control Plane (`/platfor
 | 22 | **P2** — global search (karyawan tenant-scoped + halaman) di header | ✅ live |
 | 23 | **P1** — undangan tim & multi-user (invite→email→accept, role non-privileged, guardrail seat) | ✅ live |
 | 24 | **P0 hardening karyawan** — cegah IDOR update/hapus lintas-tenant, seat metering by `status`, `employee_code` global-unique, INSERT/UPDATE schema-safe | ✅ live |
+| 25 | **P0 tenant empty-state** — tenant baru tanpa dummy/cross-tenant leak (org/assets/engagement/payroll/analytics/…) | ✅ live |
 
 **Regression QA prod (15 Jul 2026)** — `SMOKE_BASE_URL=https://humanify.id`, 26 script, **199 passed / 0 failed** (fungsional; `phase15-password-reset` di-skip di prod, lihat catatan SMTP):
 
@@ -48,7 +49,14 @@ phase23-invitations 21/0 · employee-hardening 12/0 · phase18-observability 5/0
 
 > ℹ️ **`phase15-password-reset` di prod**: endpoint dengan sengaja **tidak** mengembalikan reset token (aman) — token dikirim via email. Smoke butuh token untuk lanjut → "gagal" hanya keterbatasan harness terhadap prod yang di-hardening, **bukan** regresi. Untuk verifikasi flow reset: jalankan smoke di non-prod atau set `HUMANIFY_PASSWORD_RESET_RETURN_TOKEN=true` sementara.
 
-> ✅ **SMTP produksi AKTIF (15 Jul 2026)** — provider **SumoPod** (`smtp.sumopod.com:465` SSL) di `.env` VPS (`SMTP_HOST/PORT/SECURE/USER/PASSWORD/FROM/FROM_NAME`). Verified via `nodemailer.verify()` + test send (messageId diterima relay), dan end-to-end lewat app: signup → `verification.emailed=true`, password-reset request → `emailed=true`. Email SaaS (verifikasi P7, reset P15, undangan P23, digest P12) kini terkirim. `SMTP_FROM=noreply@humanify.id`, `SMTP_FROM_NAME=Humanify`. ⚠️ Delivery ke inbox nyata sebaiknya diuji dg alamat yang bisa diakses (uji di atas kirim ke `noreply@humanify.id`).
+> ✅ **SMTP produksi AKTIF (15 Jul 2026)** — provider **SumoPod** (`smtp.sumopod.com:465` SSL) di `.env` VPS (`SMTP_HOST/PORT/SECURE/USER/PASSWORD/FROM/FROM_NAME`). Verified via `nodemailer.verify()` + test send (messageId diterima relay), dan end-to-end lewat app: signup → `verification.emailed=true`, password-reset request → `emailed=true`. Email SaaS (verifikasi P7, reset P15, undangan P23, digest P12) kini terkirim. `SMTP_FROM=noreply@humanify.id`, `SMTP_FROM_NAME=Humanify`.
+>
+> ⚠️ **Deliverability DNS (SPF/DKIM/DMARC)** — record resmi SumoPod (dashboard) siap di `scripts/setup-humanify-email-dns.sh`:
+> - TXT `@` → `v=spf1 mx include:spf.kirim.email ~all` (`spf.kirim.email` → IP 103.171.18/19)
+> - TXT `@` → `sumo-verification=85a7087f-f1ea-4af7-bad4-c3e275009960`
+> - TXT `trx_ke._domainkey` → DKIM RSA public key SumoPod
+> - TXT `_dmarc` → `v=DMARC1; p=none; fo=1` (monitor)
+> Status SumoPod masih **Not Verified** sampai record hidup di Cloudflare. Butuh `CF_API_TOKEN` (Zone:DNS:Edit) atau tempel manual di Cloudflare, lalu Verify di dashboard SumoPod.
 
 > ⚠️ Urutan penting: `phase17-login-lockout` mengunci email throwaway + menambah counter gagal per-IP (ambang 100), lalu `phase14-ratelimit` **harus terakhir** (sengaja habiskan budget reset 5/mnt untuk buktikan 429). Beri jeda ~60 dtk sebelum loop agar window rate-limit (signup 30/mnt, reset 5/mnt) mereset. Bila menjalankan seluruh suite beruntun, `phase15-password-reset` bisa kena `RATE_LIMIT_EXCEEDED` (reset 5/mnt) — jalankan ulang standalone setelah jeda untuk konfirmasi 11/0.
 

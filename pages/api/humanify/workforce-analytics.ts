@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]';
+import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
 
 let HeadcountPlan: any, ManpowerBudget: any, sequelize: any;
 try { HeadcountPlan = require('../../../models/HeadcountPlan'); } catch {}
@@ -59,8 +60,8 @@ function budgetToSnake(row: any) {
   };
 }
 
-async function attendanceStats() {
-  if (!sequelize) return { total: 0, present: 0, late: 0, absent: 0, avgHours: 0 };
+async function attendanceStats(tenantId: string | null) {
+  if (!sequelize || !tenantId) return { total: 0, present: 0, late: 0, absent: 0, avgHours: 0 };
   const stats = { total: 0, present: 0, late: 0, absent: 0, avgHours: 0, hoursSum: 0, hoursCount: 0 };
 
   const queries = [
@@ -73,12 +74,17 @@ async function attendanceStats() {
               AVG(EXTRACT(EPOCH FROM (clock_out - clock_in))/3600)
                 FILTER (WHERE clock_out IS NOT NULL AND clock_in IS NOT NULL)
             ) as avg_hours
-     FROM employee_attendance WHERE date >= CURRENT_DATE - 30`,
+     FROM employee_attendance ea
+     WHERE ea.date >= CURRENT_DATE - 30
+       AND (
+         ea.tenant_id = :tid
+         OR ea.employee_id IN (SELECT id FROM employees WHERE tenant_id = :tid)
+       )`,
   ];
 
   for (const sql of queries) {
     try {
-      const [rows] = await sequelize.query(sql);
+      const [rows] = await sequelize.query(sql, { replacements: { tid: tenantId } });
       const r = rows[0] || {};
       stats.total += parseInt(r.total || '0', 10);
       stats.present += parseInt(r.present || '0', 10);
@@ -105,7 +111,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     switch (method) {
-      case 'GET': return handleGet(req, res, action as string);
+      case 'GET': return handleGet(req, res, action as string, session);
       case 'POST': return handlePost(req, res, action as string);
       case 'PUT': return handlePut(req, res, action as string);
       case 'DELETE': return handleDelete(req, res, action as string);
@@ -117,7 +123,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 }
 
-async function handleGet(req: NextApiRequest, res: NextApiResponse, action: string) {
+async function handleGet(req: NextApiRequest, res: NextApiResponse, action: string, session: any) {
+  const tenantId = tenantIdFromSession(session);
+
   switch (action) {
     case 'overview': {
       const analytics: any = {
@@ -126,26 +134,33 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
         departmentBreakdown: [], monthlyTrend: [],
       };
 
+      if (!tenantId) {
+        return res.json({ success: true, data: analytics, dataSource: 'empty' });
+      }
+
       if (sequelize) {
         try {
           const [empCount] = await sequelize.query(`
             SELECT COUNT(*)::int as total,
                    COUNT(*) FILTER (WHERE status = 'active' OR status IS NULL OR is_active = true) as active
             FROM employees
-          `);
+            WHERE tenant_id = :tid
+          `, { replacements: { tid: tenantId } });
           analytics.totalEmployees = parseInt(empCount[0]?.total || '0', 10);
           analytics.activeEmployees = parseInt(empCount[0]?.active || '0', 10);
 
           const [newHires] = await sequelize.query(`
-            SELECT COUNT(*)::int as c FROM employees WHERE created_at >= NOW() - INTERVAL '30 days'
-          `);
+            SELECT COUNT(*)::int as c FROM employees
+            WHERE tenant_id = :tid AND created_at >= NOW() - INTERVAL '30 days'
+          `, { replacements: { tid: tenantId } });
           analytics.newHires = parseInt(newHires[0]?.c || '0', 10);
 
           try {
             const [terms] = await sequelize.query(`
               SELECT COUNT(*)::int as c FROM termination_requests
               WHERE status IN ('approved','completed') AND created_at >= NOW() - INTERVAL '30 days'
-            `);
+                AND tenant_id = :tid
+            `, { replacements: { tid: tenantId } });
             analytics.terminations = parseInt(terms[0]?.c || '0', 10);
           } catch { analytics.terminations = 0; }
 
@@ -155,19 +170,20 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
 
           const [depts] = await sequelize.query(`
             SELECT department, COUNT(*)::int as count FROM employees
-            WHERE department IS NOT NULL AND department <> ''
+            WHERE tenant_id = :tid AND department IS NOT NULL AND department <> ''
             GROUP BY department ORDER BY count DESC LIMIT 10
-          `);
+          `, { replacements: { tid: tenantId } });
           analytics.departmentBreakdown = depts;
 
           const [trend] = await sequelize.query(`
             SELECT DATE_TRUNC('month', created_at) as month, COUNT(*)::int as hires
-            FROM employees WHERE created_at >= NOW() - INTERVAL '12 months'
+            FROM employees
+            WHERE tenant_id = :tid AND created_at >= NOW() - INTERVAL '12 months'
             GROUP BY DATE_TRUNC('month', created_at) ORDER BY month
-          `);
+          `, { replacements: { tid: tenantId } });
           analytics.monthlyTrend = trend;
 
-          const att = await attendanceStats();
+          const att = await attendanceStats(tenantId);
           if (att.total > 0) {
             analytics.absenteeismRate = Number(((att.absent / att.total) * 100).toFixed(1));
           }
@@ -180,25 +196,26 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
     }
     case 'headcount-plans': {
       const { status, department } = req.query;
-      const where: any = {};
+      if (!tenantId || !HeadcountPlan) return res.json({ success: true, data: [] });
+      const where: any = { tenantId };
       if (status) where.status = status;
       if (department) where.department = department;
-      if (!HeadcountPlan) return res.json({ success: true, data: [] });
       const rows = await HeadcountPlan.findAll({ where, order: [['created_at', 'DESC']] });
       return res.json({ success: true, data: rows.map(toSnakeRow) });
     }
     case 'budgets': {
       const { fiscal_year, department: dept, category } = req.query;
-      const where: any = {};
+      if (!tenantId || !ManpowerBudget) return res.json({ success: true, data: [] });
+      const where: any = { tenantId };
       if (fiscal_year) where.fiscalYear = fiscal_year;
       if (dept) where.department = dept;
       if (category) where.budgetCategory = category;
-      if (!ManpowerBudget) return res.json({ success: true, data: [] });
       const rows = await ManpowerBudget.findAll({ where, order: [['fiscal_year', 'DESC']] });
       return res.json({ success: true, data: rows.map(budgetToSnake) });
     }
     case 'turnover-analysis': {
       const result: any = { byMonth: [], byDepartment: [], byType: [], avgTenure: 0 };
+      if (!tenantId) return res.json({ success: true, data: result });
       if (sequelize) {
         try {
           const [byMonth] = await sequelize.query(`
@@ -206,16 +223,18 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
             FROM termination_requests
             WHERE status IN ('approved','completed')
               AND created_at >= NOW() - INTERVAL '12 months'
+              AND tenant_id = :tid
             GROUP BY DATE_TRUNC('month', created_at)
             ORDER BY month
-          `);
+          `, { replacements: { tid: tenantId } });
           result.byMonth = byMonth;
 
           const [byType] = await sequelize.query(`
             SELECT termination_type, COUNT(*)::int as count
-            FROM termination_requests WHERE status IN ('approved','completed')
+            FROM termination_requests
+            WHERE status IN ('approved','completed') AND tenant_id = :tid
             GROUP BY termination_type ORDER BY count DESC
-          `);
+          `, { replacements: { tid: tenantId } });
           result.byType = byType;
         } catch (e) {
           console.warn('turnover query error:', (e as Error).message);
@@ -225,7 +244,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
     }
     case 'productivity': {
       const result: any = { attendanceRate: 0, avgWorkHours: 0, overtimeRate: 0, lateRate: 0 };
-      const att = await attendanceStats();
+      const att = await attendanceStats(tenantId);
       if (att.total > 0) {
         result.attendanceRate = Number(((att.present / att.total) * 100).toFixed(1));
         result.lateRate = Number(((att.late / att.total) * 100).toFixed(1));

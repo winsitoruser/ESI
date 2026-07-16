@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]';
 import { formatRelativeTime } from '../../../lib/employee-portal';
 import { ensureEngagementTables } from '../../../lib/hris/ensure-engagement-tables';
+import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
 
 let Survey: any, SurveyResponse: any, Recognition: any, Announcement: any;
 let sequelize: any;
@@ -23,27 +24,29 @@ function asUuidOrNull(value: unknown): string | null {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s) ? s : null;
 }
 
-async function safeCount(table: string, where = ''): Promise<number> {
+async function safeCount(table: string, where = '', replacements: any = {}): Promise<number> {
   if (!sequelize) return 0;
   try {
-    const [rows] = await sequelize.query(`SELECT COUNT(*)::int AS c FROM ${table} ${where}`);
+    const [rows] = await sequelize.query(`SELECT COUNT(*)::int AS c FROM ${table} ${where}`, { replacements });
     return (rows as any[])[0]?.c || 0;
   } catch {
     return 0;
   }
 }
 
-async function computeAvgEngagementScore(): Promise<number | null> {
-  if (!sequelize) return null;
+async function computeAvgEngagementScore(tenantId: string | null): Promise<number | null> {
+  if (!sequelize || !tenantId) return null;
   try {
     const [rows] = await sequelize.query(`
       SELECT AVG((elem->>'answer')::numeric) AS avg_score
       FROM survey_responses sr
+      JOIN surveys s ON s.id = sr.survey_id
       CROSS JOIN LATERAL jsonb_array_elements(
         CASE WHEN jsonb_typeof(sr.answers) = 'array' THEN sr.answers ELSE '[]'::jsonb END
       ) AS elem
-      WHERE (elem->>'answer') ~ '^[0-9]+\\.?[0-9]*$'
-    `);
+      WHERE s.tenant_id = :tid
+        AND (elem->>'answer') ~ '^[0-9]+\\.?[0-9]*$'
+    `, { replacements: { tid: tenantId } });
     const avg = (rows as any[])[0]?.avg_score;
     if (avg == null || Number.isNaN(Number(avg))) return null;
     return Math.round(Number(avg) * 10) / 10;
@@ -88,10 +91,10 @@ function mapRecognitionRow(r: any) {
   };
 }
 
-async function listSurveysRaw(filters: { status?: string; survey_type?: string } = {}) {
-  if (!sequelize) return [];
-  const where: string[] = ['1=1'];
-  const replacements: any = {};
+async function listSurveysRaw(filters: { status?: string; survey_type?: string; tenantId?: string | null } = {}) {
+  if (!sequelize || !filters.tenantId) return [];
+  const where: string[] = ['tenant_id = :tid'];
+  const replacements: any = { tid: filters.tenantId };
   if (filters.status) { where.push('status = :status'); replacements.status = filters.status; }
   if (filters.survey_type) { where.push('survey_type = :surveyType'); replacements.surveyType = filters.survey_type; }
   try {
@@ -109,10 +112,10 @@ async function listSurveysRaw(filters: { status?: string; survey_type?: string }
   }
 }
 
-async function listRecognitionsRaw(filters: { recognition_type?: string } = {}) {
-  if (!sequelize) return [];
-  const where: string[] = ['1=1'];
-  const replacements: any = {};
+async function listRecognitionsRaw(filters: { recognition_type?: string; tenantId?: string | null } = {}) {
+  if (!sequelize || !filters.tenantId) return [];
+  const where: string[] = ['tenant_id = :tid'];
+  const replacements: any = { tid: filters.tenantId };
   if (filters.recognition_type) { where.push('recognition_type = :rt'); replacements.rt = filters.recognition_type; }
   try {
     const [rows] = await sequelize.query(`
@@ -190,7 +193,7 @@ async function fanOutAnnouncementNotifications(ann: any, tenantId: string | null
       SELECT DISTINCT COALESCE(e.tenant_id, :tid), e.user_id, e.id, :title, :message, 'info', 'announcement', :annId, NOW()
       FROM employees e
       WHERE e.is_active = true AND e.user_id IS NOT NULL
-        AND (:tid IS NULL OR e.tenant_id IS NULL OR e.tenant_id = :tid)
+        AND e.tenant_id = :tid
         AND (
           :audience = 'all' OR :audience IS NULL
           OR (:audience = 'department' AND e.department = :dept)
@@ -267,10 +270,10 @@ async function getSurveyDetailRaw(id: string) {
   };
 }
 
-async function listHrisAnnouncements(filters: { status?: string; category?: string } = {}) {
-  if (!sequelize) return [];
-  const where: string[] = ['1=1'];
-  const replacements: any = {};
+async function listHrisAnnouncements(filters: { status?: string; category?: string; tenantId?: string | null } = {}) {
+  if (!sequelize || !filters.tenantId) return [];
+  const where: string[] = ['tenant_id = :tid'];
+  const replacements: any = { tid: filters.tenantId };
   if (filters.status && filters.status !== 'all') {
     where.push('status = :status');
     replacements.status = filters.status;
@@ -298,7 +301,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     if (sequelize) await ensureEngagementTables(sequelize);
     switch (method) {
-      case 'GET': return handleGet(req, res, action as string);
+      case 'GET': return handleGet(req, res, action as string, session);
       case 'POST': return handlePost(req, res, action as string, session);
       case 'PUT': return handlePut(req, res, action as string);
       case 'DELETE': return handleDelete(req, res, action as string);
@@ -310,28 +313,42 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 }
 
-async function handleGet(req: NextApiRequest, res: NextApiResponse, action: string) {
+async function handleGet(req: NextApiRequest, res: NextApiResponse, action: string, session: any) {
+  const tenantId = tenantIdFromSession(session);
+
   switch (action) {
     case 'overview': {
+      if (!tenantId) {
+        return res.json({
+          success: true,
+          data: {
+            totalSurveys: 0, activeSurveys: 0, totalResponses: 0,
+            totalRecognitions: 0, publishedAnnouncements: 0, avgEngagementScore: null,
+          },
+        });
+      }
       let publishedAnnouncements = 0;
       if (sequelize) {
         try {
           const [rows] = await sequelize.query(
-            `SELECT COUNT(*)::int AS c FROM hris_announcements WHERE is_active = true AND status = 'published'`
+            `SELECT COUNT(*)::int AS c FROM hris_announcements
+             WHERE is_active = true AND status = 'published' AND tenant_id = :tid`,
+            { replacements: { tid: tenantId } }
           );
           publishedAnnouncements = rows[0]?.c || 0;
         } catch { /* ignore */ }
       }
       if (!publishedAnnouncements && Announcement) {
-        publishedAnnouncements = await safeModelCount(Announcement, { where: { status: 'published' } });
+        publishedAnnouncements = await safeModelCount(Announcement, { where: { status: 'published', tenantId } });
       }
+      const tidWhere = `WHERE tenant_id = :tid`;
       const [surveys, responses, recognitions] = await Promise.all([
-        safeCount('surveys'),
-        safeCount('survey_responses'),
-        safeCount('recognitions'),
+        safeCount('surveys', tidWhere, { tid: tenantId }),
+        safeCount('survey_responses', `WHERE survey_id IN (SELECT id FROM surveys WHERE tenant_id = :tid)`, { tid: tenantId }),
+        safeCount('recognitions', tidWhere, { tid: tenantId }),
       ]);
-      const activeSurveys = await safeCount('surveys', `WHERE status = 'active'`);
-      const avgEngagementScore = await computeAvgEngagementScore();
+      const activeSurveys = await safeCount('surveys', `WHERE status = 'active' AND tenant_id = :tid`, { tid: tenantId });
+      const avgEngagementScore = await computeAvgEngagementScore(tenantId);
       return res.json({
         success: true,
         data: {
@@ -349,9 +366,10 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
       let data = await listSurveysRaw({
         status: status as string,
         survey_type: survey_type as string,
+        tenantId,
       });
-      if (!data.length && Survey) {
-        const where: any = {};
+      if (!data.length && Survey && tenantId) {
+        const where: any = { tenantId };
         if (status) where.status = status;
         if (survey_type) where.surveyType = survey_type;
         const rows = await safeModelFindAll(Survey, { where, order: [['created_at', 'DESC']] });
@@ -399,9 +417,9 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
     }
     case 'recognitions': {
       const { recognition_type } = req.query;
-      let data = await listRecognitionsRaw({ recognition_type: recognition_type as string });
-      if (!data.length && Recognition) {
-        const where: any = {};
+      let data = await listRecognitionsRaw({ recognition_type: recognition_type as string, tenantId });
+      if (!data.length && Recognition && tenantId) {
+        const where: any = { tenantId };
         if (recognition_type) where.recognitionType = recognition_type;
         const rows = await safeModelFindAll(Recognition, { where, order: [['created_at', 'DESC']], limit: 50 });
         data = rows.map(mapRecognitionRow);
@@ -410,10 +428,10 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
     }
     case 'recognition-leaderboard': {
       const data: any = { topReceivers: [], topGivers: [], recentBadges: [] };
-      if (Recognition) {
-        const { Op } = require('sequelize');
+      if (Recognition && tenantId) {
         const receivers = await Recognition.findAll({
           attributes: ['toEmployeeId', [require('sequelize').fn('COUNT', '*'), 'count'], [require('sequelize').fn('SUM', require('sequelize').col('points')), 'totalPoints']],
+          where: { tenantId },
           group: ['toEmployeeId'],
           order: [[require('sequelize').fn('SUM', require('sequelize').col('points')), 'DESC']],
           limit: 10, raw: true
@@ -424,11 +442,15 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
     }
     case 'announcements': {
       const { status: aStatus, category } = req.query;
+      if (!tenantId) {
+        return res.json({ success: true, data: [], dataSource: 'empty' });
+      }
       if (sequelize) {
         try {
           const data = await listHrisAnnouncements({
             status: aStatus as string,
             category: category as string,
+            tenantId,
           });
           return res.json({
             success: true,
@@ -437,7 +459,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
           });
         } catch { /* fall through */ }
       }
-      const where: any = {};
+      const where: any = { tenantId };
       if (aStatus) where.status = aStatus;
       if (category) where.category = category;
       const data = Announcement ? await Announcement.findAll({ where, order: [['is_pinned', 'DESC'], ['publish_date', 'DESC']] }) : [];

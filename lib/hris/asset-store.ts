@@ -76,17 +76,32 @@ function mapAsset(row: any): HrAsset {
   };
 }
 
-export async function listAssets(filters?: { status?: AssetStatus; category?: AssetCategory; assignedTo?: string }): Promise<HrAsset[]> {
-  if (!sequelize) return getMockAssets(filters);
+export async function listAssets(filters?: {
+  status?: AssetStatus;
+  category?: AssetCategory;
+  assignedTo?: string;
+  tenantId?: string | null;
+}): Promise<HrAsset[]> {
+  const { allowHrMockFallback } = await import('./data-source');
+  // SaaS: without a tenant, never leak cross-tenant / mock inventory.
+  if (!filters?.tenantId) {
+    return allowHrMockFallback() ? getMockAssets(filters) : [];
+  }
+  if (!sequelize) {
+    return allowHrMockFallback() ? getMockAssets(filters) : [];
+  }
   await ensureAssetTables();
-  let sql = 'SELECT * FROM hris_assets WHERE 1=1';
-  const params: any[] = [];
+  let sql = 'SELECT * FROM hris_assets WHERE tenant_id = $1';
+  const params: any[] = [filters.tenantId];
   if (filters?.status) { params.push(filters.status); sql += ` AND status = $${params.length}`; }
   if (filters?.category) { params.push(filters.category); sql += ` AND category = $${params.length}`; }
   if (filters?.assignedTo) { params.push(filters.assignedTo); sql += ` AND assigned_to = $${params.length}`; }
   sql += ' ORDER BY asset_code ASC';
   const [rows] = await sequelize.query(sql, { bind: params });
-  if (!rows?.length) return getMockAssets(filters);
+  // Empty tenant inventory must stay empty in production (no MacBook demos).
+  if (!rows?.length) {
+    return allowHrMockFallback() ? getMockAssets(filters) : [];
+  }
   return rows.map(mapAsset);
 }
 
@@ -110,8 +125,8 @@ export async function returnAsset(assetId: string, condition?: string): Promise<
   return rows?.[0] ? mapAsset(rows[0]) : null;
 }
 
-export async function getAssetSummary() {
-  const assets = await listAssets();
+export async function getAssetSummary(tenantId?: string | null) {
+  const assets = await listAssets({ tenantId });
   return {
     total: assets.length,
     assigned: assets.filter(a => a.status === 'assigned').length,

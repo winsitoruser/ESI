@@ -31,7 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           const cycles = await listReviewCycles(20);
           return res.status(HttpStatus.OK).json(successResponse({ cycles }));
         }
-        return await getPerformanceReviews(req, res);
+        return await getPerformanceReviews(req, res, session);
       case 'POST':
         if (req.body?.action === 'launch-cycle') {
           return await handleLaunchReviewCycle(req, res, session);
@@ -56,14 +56,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 }
 
 // ========== GET: Fetch performance reviews from DB ==========
-async function getPerformanceReviews(req: NextApiRequest, res: NextApiResponse) {
+async function getPerformanceReviews(req: NextApiRequest, res: NextApiResponse, session: any) {
   const { employeeId, period, status, id } = req.query;
+  const tenantId = (session?.user as any)?.tenantId || null;
+
+  if (!tenantId) {
+    return res.status(HttpStatus.OK).json(
+      successResponse({
+        reviews: [],
+        templates: [],
+        dataSource: resolveDataSource(false, false),
+        summary: { total: 0, avgRating: 0, excellent: 0, good: 0, needsImprovement: 0 },
+      })
+    );
+  }
 
   // Single review by ID
   if (id && sequelize) {
     try {
       const [rows] = await sequelize.query(
-        'SELECT * FROM performance_reviews WHERE id = :id', { replacements: { id } }
+        'SELECT * FROM performance_reviews WHERE id = :id AND tenant_id = :tid',
+        { replacements: { id, tid: tenantId } }
       );
       if (rows.length === 0) {
         return res.status(HttpStatus.NOT_FOUND).json(errorResponse('NOT_FOUND', 'Review not found'));
@@ -85,8 +98,8 @@ async function getPerformanceReviews(req: NextApiRequest, res: NextApiResponse) 
 
   if (sequelize) {
     try {
-      let where = 'WHERE 1=1';
-      const replacements: any = {};
+      let where = 'WHERE pr.tenant_id = :tid';
+      const replacements: any = { tid: tenantId };
       if (employeeId) { where += ' AND pr.employee_id = :employeeId'; replacements.employeeId = employeeId; }
       if (period && period !== 'all') { where += ' AND (pr.review_period = :period OR pr.period = :period)'; replacements.period = period; }
       if (status && status !== 'all') { where += ' AND pr.status = :status'; replacements.status = status; }
@@ -95,9 +108,9 @@ async function getPerformanceReviews(req: NextApiRequest, res: NextApiResponse) 
         SELECT pr.*, e.name as emp_name, e.position as emp_position, e.department as emp_department,
                b.name as emp_branch_name
         FROM performance_reviews pr
-        LEFT JOIN employees e ON pr.employee_id = e.id
+        LEFT JOIN employees e ON pr.employee_id = e.id AND e.tenant_id = :tid
         LEFT JOIN branches b ON e.branch_id = b.id
-        ${where.replace(/pr\./g, 'pr.').replace('WHERE 1=1', 'WHERE 1=1')}
+        ${where}
         ORDER BY pr.created_at DESC
       `, { replacements });
 
@@ -131,7 +144,12 @@ async function getPerformanceReviews(req: NextApiRequest, res: NextApiResponse) 
   let templates: any[] = [];
   try {
     if (sequelize) {
-      const [tpls] = await sequelize.query('SELECT * FROM performance_templates WHERE is_active = true ORDER BY name');
+      const [tpls] = await sequelize.query(
+        `SELECT * FROM performance_templates
+         WHERE is_active = true AND tenant_id = :tid
+         ORDER BY name`,
+        { replacements: { tid: tenantId } }
+      );
       templates = tpls;
     }
   } catch {}

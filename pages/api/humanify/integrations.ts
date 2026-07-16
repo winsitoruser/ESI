@@ -37,27 +37,106 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         let totalEmployees = 0;
         let leaveTypes = 0;
         let contractCount = 0;
+        let attendanceConfigured = false;
+        let overtimeConfigured = false;
+        let reimbursementConfigured = false;
+        let approvalConfigured = false;
+
+        if (!tenantId) {
+          return res.json({
+            success: true,
+            dataSource: 'empty',
+            data: {
+              policies: [
+                { id: 'leave', name: 'Kebijakan Cuti', href: '/humanify/leave', status: 'not_configured' },
+                { id: 'attendance', name: 'Kebijakan Absensi & Geofence', href: '/humanify/attendance/settings', status: 'not_configured' },
+                { id: 'overtime', name: 'Kebijakan Lembur (PP 35/2021)', href: '/humanify/payroll/lembur', status: 'not_configured' },
+                { id: 'probation', name: 'Masa Percobaan & Kontrak', href: '/humanify/contracts', status: 'not_configured' },
+                { id: 'reimbursement', name: 'Kebijakan Reimbursement', href: '/humanify/reimbursement', status: 'not_configured' },
+                { id: 'approval', name: 'Multi-approval Workflow', href: '/humanify/users/roles', status: 'not_configured' },
+              ],
+              structure: [
+                { id: 'org', name: 'Struktur Organisasi', href: '/humanify/organization', count: 'Belum dikonfigurasi' },
+                { id: 'job-arch', name: 'Job Architecture & Grade', href: '/humanify/organization?tab=grades', count: 'Belum dikonfigurasi' },
+                { id: 'access', name: 'Access Management (RBAC)', href: '/humanify/users/roles', count: 'Role matrix' },
+                { id: 'workflow', name: 'Approval Workflow', href: '/humanify/mutations', count: 'Multi-step' },
+              ],
+              summary: { totalUnits: 0, totalGrades: 0, totalEmployees: 0 },
+            },
+          });
+        }
 
         if (sequelize) {
           try {
-            const [orgCount] = await sequelize.query(`SELECT COUNT(*)::int AS cnt FROM org_structures WHERE is_active = true`);
+            const [orgCount] = await sequelize.query(
+              `SELECT COUNT(*)::int AS cnt FROM org_structures WHERE is_active = true AND tenant_id = :tid`,
+              { replacements: { tid: tenantId } }
+            );
             totalUnits = orgCount?.[0]?.cnt || 0;
           } catch { /* table may not exist */ }
           try {
-            const [gradeCount] = await sequelize.query(`SELECT COUNT(*)::int AS cnt FROM job_grades WHERE is_active = true`);
+            const [gradeCount] = await sequelize.query(
+              `SELECT COUNT(*)::int AS cnt FROM job_grades WHERE is_active = true AND tenant_id = :tid`,
+              { replacements: { tid: tenantId } }
+            );
             totalGrades = gradeCount?.[0]?.cnt || 0;
           } catch { /* */ }
           try {
-            const [empCount] = await sequelize.query(`SELECT COUNT(*)::int AS cnt FROM employees WHERE is_active = true OR status = 'active' OR status IS NULL`);
+            const [empCount] = await sequelize.query(
+              `SELECT COUNT(*)::int AS cnt FROM employees WHERE (is_active = true OR status = 'active' OR status IS NULL) AND tenant_id = :tid`,
+              { replacements: { tid: tenantId } }
+            );
             totalEmployees = empCount?.[0]?.cnt || 0;
           } catch { /* */ }
           try {
-            const [lt] = await sequelize.query(`SELECT COUNT(*)::int AS cnt FROM leave_types WHERE is_active = true`);
+            const [lt] = await sequelize.query(
+              `SELECT COUNT(*)::int AS cnt FROM leave_types WHERE is_active = true AND tenant_id = :tid`,
+              { replacements: { tid: tenantId } }
+            );
             leaveTypes = lt?.[0]?.cnt || 0;
           } catch { /* */ }
           try {
-            const [ct] = await sequelize.query(`SELECT COUNT(*)::int AS cnt FROM employee_contracts WHERE status IN ('active','expiring_soon')`);
+            const [ct] = await sequelize.query(
+              `SELECT COUNT(*)::int AS cnt FROM employee_contracts WHERE status IN ('active','expiring_soon') AND tenant_id = :tid`,
+              { replacements: { tid: tenantId } }
+            );
             contractCount = ct?.[0]?.cnt || 0;
+          } catch { /* */ }
+          try {
+            const [att] = await sequelize.query(
+              `SELECT COUNT(*)::int AS cnt FROM attendance_settings WHERE tenant_id = :tid`,
+              { replacements: { tid: tenantId } }
+            );
+            attendanceConfigured = (att?.[0]?.cnt || 0) > 0;
+          } catch { /* */ }
+          try {
+            const [ot] = await sequelize.query(
+              `SELECT COUNT(*)::int AS cnt FROM overtime_policies WHERE is_active = true AND tenant_id = :tid`,
+              { replacements: { tid: tenantId } }
+            );
+            overtimeConfigured = (ot?.[0]?.cnt || 0) > 0;
+          } catch {
+            try {
+              const [ot2] = await sequelize.query(
+                `SELECT COUNT(*)::int AS cnt FROM payroll_components WHERE code ILIKE '%OT%' AND is_active = true AND tenant_id = :tid`,
+                { replacements: { tid: tenantId } }
+              );
+              overtimeConfigured = (ot2?.[0]?.cnt || 0) > 0;
+            } catch { /* */ }
+          }
+          try {
+            const [rb] = await sequelize.query(
+              `SELECT COUNT(*)::int AS cnt FROM reimbursement_categories WHERE is_active = true AND tenant_id = :tid`,
+              { replacements: { tid: tenantId } }
+            );
+            reimbursementConfigured = (rb?.[0]?.cnt || 0) > 0;
+          } catch { /* */ }
+          try {
+            const [ap] = await sequelize.query(
+              `SELECT COUNT(*)::int AS cnt FROM leave_approval_configs WHERE tenant_id = :tid`,
+              { replacements: { tid: tenantId } }
+            );
+            approvalConfigured = (ap?.[0]?.cnt || 0) > 0;
           } catch { /* */ }
         }
 
@@ -68,11 +147,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           data: {
             policies: [
               { id: 'leave', name: 'Kebijakan Cuti', href: '/humanify/leave', status: leaveTypes > 0 ? 'active' : 'not_configured' },
-              { id: 'attendance', name: 'Kebijakan Absensi & Geofence', href: '/humanify/attendance/settings', status: 'active' },
-              { id: 'overtime', name: 'Kebijakan Lembur (PP 35/2021)', href: '/humanify/payroll/lembur', status: 'active' },
+              { id: 'attendance', name: 'Kebijakan Absensi & Geofence', href: '/humanify/attendance/settings', status: attendanceConfigured ? 'active' : 'not_configured' },
+              { id: 'overtime', name: 'Kebijakan Lembur (PP 35/2021)', href: '/humanify/payroll/lembur', status: overtimeConfigured ? 'active' : 'not_configured' },
               { id: 'probation', name: 'Masa Percobaan & Kontrak', href: '/humanify/contracts', status: contractCount > 0 ? 'active' : 'not_configured' },
-              { id: 'reimbursement', name: 'Kebijakan Reimbursement', href: '/humanify/reimbursement', status: 'active' },
-              { id: 'approval', name: 'Multi-approval Workflow', href: '/humanify/users/roles', status: 'active' },
+              { id: 'reimbursement', name: 'Kebijakan Reimbursement', href: '/humanify/reimbursement', status: reimbursementConfigured ? 'active' : 'not_configured' },
+              { id: 'approval', name: 'Multi-approval Workflow', href: '/humanify/users/roles', status: approvalConfigured ? 'active' : 'not_configured' },
             ],
             structure: [
               { id: 'org', name: 'Struktur Organisasi', href: '/humanify/organization', count: totalUnits ? `${totalUnits} unit` : 'Belum dikonfigurasi' },

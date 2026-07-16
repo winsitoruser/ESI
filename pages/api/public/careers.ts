@@ -50,9 +50,6 @@ async function resolveTenant(req: NextApiRequest) {
   if (tenantId) return resolveTenantById(tenantId);
   if (hostSlug) return resolveTenantBySlug(hostSlug);
 
-  // Legacy single-tenant fallback (transition only)
-  const fallback = process.env.TENANT_DEFAULT_ID || process.env.DEFAULT_TENANT_ID || null;
-  if (fallback) return resolveTenantById(fallback);
   return null;
 }
 
@@ -83,7 +80,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           const [rows] = await sequelize.query(
             `SELECT * FROM hris_job_openings
              WHERE id = $1 AND status = 'open'
-               AND (tenant_id = $2 OR tenant_id IS NULL)
+               AND tenant_id = $2
              LIMIT 1`,
             { bind: [id, tenant.id] },
           );

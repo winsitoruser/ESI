@@ -48,8 +48,8 @@ async function fetchDbLeaveRequests(tenantId: string | null, limit = 50): Promis
   if (!sequelize) return [];
   try {
     const tenantClause = tenantId
-      ? 'WHERE (lr.tenant_id = :tenantId OR lr.tenant_id IS NULL)'
-      : '';
+      ? 'WHERE lr.tenant_id = :tenantId'
+      : 'WHERE 1=0';
     const [rows] = await sequelize.query(`
       SELECT lr.*, e.name as employee_name, e.position, e.department, e.branch_id
       FROM leave_requests lr
@@ -173,15 +173,17 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
 
     // Fetch leave types
     let leaveTypes: any[] = [];
-    if (LeaveType) {
-      const where: any = { isActive: true };
-      if (tenantId) where[Op.or] = [{ tenantId }, { tenantId: null }];
-      leaveTypes = await LeaveType.findAll({ where, order: [['sort_order', 'ASC']] });
+    if (LeaveType && tenantId) {
+      leaveTypes = await LeaveType.findAll({
+        where: { isActive: true, tenantId },
+        order: [['sort_order', 'ASC']],
+      });
     }
-    if (leaveTypes.length === 0 && sequelize) {
+    if (leaveTypes.length === 0 && sequelize && tenantId) {
       try {
         const [rows] = await sequelize.query(
-          `SELECT * FROM leave_types WHERE is_active = true ORDER BY sort_order ASC`
+          `SELECT * FROM leave_types WHERE is_active = true AND tenant_id = :tenantId ORDER BY sort_order ASC`,
+          { replacements: { tenantId } }
         );
         leaveTypes = rows || [];
       } catch { /* */ }
@@ -190,10 +192,11 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
 
     // Fetch approval configs
     let approvalConfigs: any[] = [];
-    if (LeaveApprovalConfig) {
-      const where: any = { isActive: true };
-      if (tenantId) where[Op.or] = [{ tenantId }, { tenantId: null }];
-      approvalConfigs = await LeaveApprovalConfig.findAll({ where, order: [['priority', 'DESC']] });
+    if (LeaveApprovalConfig && tenantId) {
+      approvalConfigs = await LeaveApprovalConfig.findAll({
+        where: { isActive: true, tenantId },
+        order: [['priority', 'DESC']],
+      });
     }
     if (approvalConfigs.length === 0 && allowHrMockFallback()) approvalConfigs = getMockApprovalConfigs();
 
@@ -279,9 +282,9 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
 async function getLeaveTypes(req: NextApiRequest, res: NextApiResponse, session: any) {
   try {
     if (!LeaveType) return res.json({ success: true, data: allowHrMockFallback() ? getMockLeaveTypes() : [] });
-    const where: any = {};
     const tenantId = session.user.tenantId;
-    if (tenantId) where[Op.or] = [{ tenantId }, { tenantId: null }];
+    if (!tenantId) return res.json({ success: true, data: allowHrMockFallback() ? getMockLeaveTypes() : [] });
+    const where: any = { tenantId };
     const types = await LeaveType.findAll({ where, order: [['sort_order', 'ASC']] });
     return res.json({ success: true, data: types.length > 0 ? types : (allowHrMockFallback() ? getMockLeaveTypes() : []) });
   } catch (e: any) {
@@ -294,14 +297,10 @@ async function getLeaveBalances(req: NextApiRequest, res: NextApiResponse, sessi
   const { employeeId, year } = req.query;
   try {
     if (!LeaveBalance || !sequelize) return res.json({ success: true, data: [] });
+    if (!tenantId) return res.json({ success: true, data: [] });
 
     // 🔒 TENANT ISOLATION: Add tenant filter
-    let tenantClause = "";
-    const replacements: any = { year: year || new Date().getFullYear(), employeeId };
-    if (tenantId) {
-      tenantClause = "AND lb.tenant_id = :tenantId";
-      replacements.tenantId = tenantId;
-    }
+    const replacements: any = { year: year || new Date().getFullYear(), employeeId, tenantId };
 
     const [rows] = await sequelize.query(`
       SELECT lb.*, lt.code as leave_type_code, lt.name as leave_type_name, lt.color,
@@ -309,7 +308,7 @@ async function getLeaveBalances(req: NextApiRequest, res: NextApiResponse, sessi
       FROM leave_balances lb
       JOIN leave_types lt ON lb.leave_type_id = lt.id
       LEFT JOIN employees e ON lb.employee_id = e.id
-      WHERE lb.year = :year ${employeeId ? 'AND lb.employee_id = :employeeId' : ''} ${tenantClause}
+      WHERE lb.year = :year AND lb.tenant_id = :tenantId ${employeeId ? 'AND lb.employee_id = :employeeId' : ''}
       ORDER BY e.name, lt.sort_order
     `, { replacements });
     return res.json({ success: true, data: rows || [] });
@@ -322,9 +321,8 @@ async function getLeaveBalances(req: NextApiRequest, res: NextApiResponse, sessi
 async function getApprovalConfigs(req: NextApiRequest, res: NextApiResponse, session: any, tenantId: string | null) {
   try {
     if (!LeaveApprovalConfig) return res.json({ success: true, data: allowHrMockFallback() ? getMockApprovalConfigs() : [] });
-    const where: any = { isActive: true };
-    // 🔒 TENANT ISOLATION: Filter by tenant (or global configs with null tenantId)
-    if (tenantId) where[Op.or] = [{ tenantId }, { tenantId: null }];
+    if (!tenantId) return res.json({ success: true, data: allowHrMockFallback() ? getMockApprovalConfigs() : [] });
+    const where: any = { isActive: true, tenantId };
     const configs = await LeaveApprovalConfig.findAll({ where, order: [['priority', 'DESC']] });
     return res.json({ success: true, data: configs.length > 0 ? configs : (allowHrMockFallback() ? getMockApprovalConfigs() : []) });
   } catch (e: any) {
@@ -337,9 +335,9 @@ async function getLeaveRequests(req: NextApiRequest, res: NextApiResponse, sessi
   const { status, leaveType, employeeId } = req.query;
   try {
     if (!sequelize) return res.json({ success: true, data: allowHrMockFallback() ? getMockRequests() : [] });
-    let where = 'WHERE 1=1';
-    const replacements: any = {};
-    if (session.user.tenantId) { where += ' AND lr.tenant_id = :tenantId'; replacements.tenantId = session.user.tenantId; }
+    if (!session.user.tenantId) return res.json({ success: true, data: [] });
+    let where = 'WHERE lr.tenant_id = :tenantId';
+    const replacements: any = { tenantId: session.user.tenantId };
     if (status && status !== 'all') { where += ' AND lr.status = :status'; replacements.status = status; }
     if (leaveType && leaveType !== 'all') { where += ' AND lr.leave_type = :leaveType'; replacements.leaveType = leaveType; }
     if (employeeId) { where += ' AND lr.employee_id = :employeeId'; replacements.employeeId = employeeId; }
@@ -384,14 +382,9 @@ async function getLeaveRequests(req: NextApiRequest, res: NextApiResponse, sessi
 async function getPendingApprovals(req: NextApiRequest, res: NextApiResponse, session: any, tenantId: string | null) {
   try {
     if (!sequelize) return res.json({ success: true, data: [] });
+    if (!tenantId) return res.json({ success: true, data: [] });
 
-    // 🔒 TENANT ISOLATION: Add tenant filter
-    let tenantClause = "";
-    const replacements: any = {};
-    if (tenantId) {
-      tenantClause = "AND lr.tenant_id = :tenantId";
-      replacements.tenantId = tenantId;
-    }
+    const replacements: any = { tenantId };
 
     const [rows] = await sequelize.query(`
       SELECT las.*, lr.employee_id, lr.leave_type, lr.start_date, lr.end_date, lr.total_days,
@@ -399,7 +392,7 @@ async function getPendingApprovals(req: NextApiRequest, res: NextApiResponse, se
       FROM leave_approval_steps las
       JOIN leave_requests lr ON las.leave_request_id = lr.id
       LEFT JOIN employees e ON lr.employee_id = e.id
-      WHERE las.status = 'pending' AND lr.status = 'pending' ${tenantClause}
+      WHERE las.status = 'pending' AND lr.status = 'pending' AND lr.tenant_id = :tenantId
       ORDER BY las.created_at ASC
     `, { replacements });
     return res.json({ success: true, data: rows || [] });

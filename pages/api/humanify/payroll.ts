@@ -168,9 +168,12 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
 
     // Employee salary configs count
     let salaryCount = 0;
-    if (sequelize) {
+    if (sequelize && tenantId) {
       try {
-        const [r] = await sequelize.query(`SELECT COUNT(*) as c FROM employee_salaries WHERE is_active = true`);
+        const [r] = await sequelize.query(
+          `SELECT COUNT(*) as c FROM employee_salaries WHERE is_active = true AND tenant_id = :tid`,
+          { replacements: { tid: tenantId } }
+        );
         salaryCount = parseInt(r?.[0]?.c || '0');
       } catch (e) {}
     }
@@ -184,12 +187,18 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
       monthlyPayroll: 0
     };
 
-    if (sequelize) {
+    if (sequelize && tenantId) {
       try {
-        const [empCount] = await sequelize.query(`SELECT COUNT(*) as c FROM employees WHERE ${ACTIVE_EMPLOYEE_FILTER.replace(/e\./g, '')}`);
+        const [empCount] = await sequelize.query(
+          `SELECT COUNT(*) as c FROM employees WHERE ${ACTIVE_EMPLOYEE_FILTER.replace(/e\./g, '')} AND tenant_id = :tid`,
+          { replacements: { tid: tenantId } }
+        );
         stats.totalEmployees = parseInt(empCount?.[0]?.c || '0');
 
-        const [totalSalary] = await sequelize.query(`SELECT COALESCE(SUM(base_salary), 0) as total FROM employee_salaries WHERE is_active = true`);
+        const [totalSalary] = await sequelize.query(
+          `SELECT COALESCE(SUM(base_salary), 0) as total FROM employee_salaries WHERE is_active = true AND tenant_id = :tid`,
+          { replacements: { tid: tenantId } }
+        );
         stats.monthlyPayroll = parseFloat(totalSalary?.[0]?.total || '0');
       } catch (e) {}
     }
@@ -231,6 +240,8 @@ async function getComponents(req: NextApiRequest, res: NextApiResponse, session:
 async function getEmployeeSalaries(req: NextApiRequest, res: NextApiResponse, session: any) {
   try {
     if (!sequelize) return res.json({ success: true, data: [] });
+    const tenantId = session?.user?.tenantId || null;
+    if (!tenantId) return res.json({ success: true, data: [] });
     const [rows] = await sequelize.query(`
       SELECT es.*, e.name as employee_name, e.position, e.department, e.employee_code as emp_code,
              b.name as branch_name
@@ -238,8 +249,9 @@ async function getEmployeeSalaries(req: NextApiRequest, res: NextApiResponse, se
       JOIN employees e ON es.employee_id = e.id
       LEFT JOIN branches b ON e.branch_id = b.id
       WHERE es.is_active = true
+        AND (es.tenant_id = :tid OR e.tenant_id = :tid)
       ORDER BY e.name
-    `);
+    `, { replacements: { tid: tenantId } });
     return res.json({ success: true, data: rows || [] });
   } catch (e: any) {
     return res.json({ success: true, data: [] });

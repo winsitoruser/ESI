@@ -9,22 +9,24 @@ import {
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
   if (!session) return res.status(401).json({ error: 'Unauthorized' });
+  const tenantId = (session.user as any)?.tenantId || null;
 
   const { action, id } = req.query;
 
   try {
     if (req.method === 'GET') {
       if (action === 'summary') {
-        const summary = await getAssetSummary();
-        return res.json({ success: true, data: summary });
+        const summary = await getAssetSummary(tenantId);
+        return res.json({ success: true, data: summary, dataSource: summary.total > 0 ? 'live' : 'empty' });
       }
       const filters = {
         status: req.query.status as AssetStatus | undefined,
         category: req.query.category as AssetCategory | undefined,
         assignedTo: req.query.assignedTo as string | undefined,
+        tenantId,
       };
       const data = await listAssets(filters);
-      return res.json({ success: true, data });
+      return res.json({ success: true, data, dataSource: data.length > 0 ? 'live' : 'empty' });
     }
 
     if (req.method === 'POST' && action === 'assign' && id) {

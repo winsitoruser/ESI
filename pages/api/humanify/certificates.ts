@@ -2,15 +2,18 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]';
 import { listCertificates, getCertificateAnalytics, type CertStatus, type CertSource } from '@/lib/hris/certificate-registry';
+import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
   if (!session) return res.status(401).json({ error: 'Unauthorized' });
 
+  const tenantId = tenantIdFromSession(session);
+
   try {
     if (req.method === 'GET') {
       if (req.query.action === 'analytics') {
-        const data = await getCertificateAnalytics();
+        const data = await getCertificateAnalytics(tenantId);
         return res.json({ success: true, data, dataSource: data.dataSource });
       }
       const filters = {
@@ -18,7 +21,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         source: req.query.source as CertSource | undefined,
         employeeId: req.query.employeeId as string | undefined,
       };
-      const { records, dataSource } = await listCertificates(filters);
+      const { records, dataSource } = await listCertificates(filters, tenantId);
       return res.json({ success: true, data: records, dataSource });
     }
     return res.status(405).json({ error: 'Method not allowed' });
