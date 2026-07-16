@@ -4,7 +4,8 @@ import { authOptions } from '@/pages/api/auth/[...nextauth]';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
 
 // 🚧 DEV BYPASS — set ke false untuk mengaktifkan kembali guard login
-const DEV_BYPASS = process.env.NODE_ENV === 'development';
+// NOTE: explicitly disable bypass so humanify pages require login
+const DEV_BYPASS = false;
 
 /** Redirect ke welcome jika belum login — dipakai halaman app Humanify (bukan /humanify root) */
 export async function requireHumanifySession(ctx: GetServerSidePropsContext) {

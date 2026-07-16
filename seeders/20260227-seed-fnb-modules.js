@@ -161,14 +161,22 @@ module.exports = {
       }
     ];
     
-    // Insert modules
-    await queryInterface.bulkInsert('modules', modules);
-    
-    // Create module map
+    // Insert modules (only missing) and build moduleMap from DB
+    const moduleCodes = modules.map(m => m.code);
+    const existingModules = await queryInterface.sequelize.query(
+      `SELECT code, id FROM modules WHERE code IN (:codes)`,
+      { replacements: { codes: moduleCodes }, type: Sequelize.QueryTypes.SELECT }
+    );
+    const existingModuleSet = new Set(existingModules.map(r => r.code));
+    const toInsertModules = modules.filter(m => !existingModuleSet.has(m.code));
+    if (toInsertModules.length) await queryInterface.bulkInsert('modules', toInsertModules);
+
+    const allModules = await queryInterface.sequelize.query(
+      `SELECT code, id FROM modules WHERE code IN (:codes)`,
+      { replacements: { codes: moduleCodes }, type: Sequelize.QueryTypes.SELECT }
+    );
     const moduleMap = {};
-    modules.forEach(m => {
-      moduleMap[m.code] = m.id;
-    });
+    allModules.forEach(m => { moduleMap[m.code] = m.id; });
     
     // Define business type module associations
     const businessTypeModules = [
@@ -205,16 +213,38 @@ module.exports = {
       { business_type_id: btMap.cafe, module_id: moduleMap.LOYALTY_PROGRAM, is_default: false, is_optional: true }
     ];
     
-    // Insert business type modules
-    const btmRecords = businessTypeModules.map(btm => ({
-      id: uuidv4(),
-      ...btm,
-      configuration: JSON.stringify({}),
-      created_at: now,
-      updated_at: now
-    }));
-    
-    await queryInterface.bulkInsert('business_type_modules', btmRecords);
+    // Insert business type modules (only include `configuration` if column exists)
+    // Inspect table columns and only include existing columns in inserts
+    let desc = {};
+    try { desc = await queryInterface.describeTable('business_type_modules'); } catch (err) { desc = {}; }
+    const columns = new Set(Object.keys(desc));
+
+    // Avoid inserting duplicate (business_type_id, module_id) pairs
+    const btIds = businessTypeModules.map(b => b.business_type_id).filter(Boolean);
+    const modIds = businessTypeModules.map(b => b.module_id).filter(Boolean);
+    const existingPairs = await queryInterface.sequelize.query(
+      `SELECT business_type_id, module_id FROM business_type_modules WHERE business_type_id IN (:btIds) AND module_id IN (:modIds)`,
+      { replacements: { btIds, modIds }, type: Sequelize.QueryTypes.SELECT }
+    );
+    const existingPairSet = new Set(existingPairs.map(r => `${r.business_type_id}::${r.module_id}`));
+
+    const btmToInsert = businessTypeModules.filter(b => !existingPairSet.has(`${b.business_type_id}::${b.module_id}`));
+
+    const btmRecords = btmToInsert.map(btm => {
+      const rec = { id: uuidv4() };
+      if (columns.has('business_type_id')) rec.business_type_id = btm.business_type_id;
+      if (columns.has('module_id')) rec.module_id = btm.module_id;
+      if (columns.has('is_default')) rec.is_default = btm.is_default;
+      if (columns.has('is_optional')) rec.is_optional = btm.is_optional;
+      if (columns.has('configuration')) rec.configuration = JSON.stringify({});
+      if (columns.has('created_at')) rec.created_at = now;
+      if (columns.has('updated_at')) rec.updated_at = now;
+      if (columns.has('createdAt')) rec.createdAt = now;
+      if (columns.has('updatedAt')) rec.updatedAt = now;
+      return rec;
+    });
+
+    if (btmRecords.length) await queryInterface.bulkInsert('business_type_modules', btmRecords);
     
     // Define module dependencies
     const dependencies = [
@@ -227,14 +257,18 @@ module.exports = {
       { module_id: moduleMap.WAITER_APP, depends_on_module_id: moduleMap.TABLE_MANAGEMENT, is_required: true }
     ];
     
-    const depRecords = dependencies.map(dep => ({
-      id: uuidv4(),
-      ...dep,
-      created_at: now,
-      updated_at: now
-    }));
-    
-    await queryInterface.bulkInsert('module_dependencies', depRecords);
+    // Avoid duplicate module_dependencies
+    const depModuleIds = dependencies.map(d => d.module_id).filter(Boolean);
+    const depDependsOnIds = dependencies.map(d => d.depends_on_module_id).filter(Boolean);
+    const existingDeps = await queryInterface.sequelize.query(
+      `SELECT module_id, depends_on_module_id FROM module_dependencies WHERE module_id IN (:mids) AND depends_on_module_id IN (:dids)`,
+      { replacements: { mids: depModuleIds, dids: depDependsOnIds }, type: Sequelize.QueryTypes.SELECT }
+    );
+    const existingDepSet = new Set(existingDeps.map(r => `${r.module_id}::${r.depends_on_module_id}`));
+    const depsToInsert = dependencies.filter(d => !existingDepSet.has(`${d.module_id}::${d.depends_on_module_id}`));
+
+    const depRecords = depsToInsert.map(dep => ({ id: uuidv4(), ...dep, created_at: now, updated_at: now }));
+    if (depRecords.length) await queryInterface.bulkInsert('module_dependencies', depRecords);
     
     console.log('✅ F&B modules, business type associations, and dependencies seeded');
   },

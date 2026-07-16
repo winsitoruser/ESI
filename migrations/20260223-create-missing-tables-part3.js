@@ -163,7 +163,7 @@ module.exports = {
     if (!ct('incident_reports')) {
       await queryInterface.createTable('incident_reports', {
         id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
-        tenant_id: { type: Sequelize.INTEGER, references: { model: 'tenants', key: 'id' }, onDelete: 'SET NULL' },
+        tenant_id: { type: Sequelize.UUID, references: { model: 'tenants', key: 'id' }, onDelete: 'SET NULL' },
         branch_id: { type: Sequelize.INTEGER },
         report_number: { type: Sequelize.STRING(50), unique: true },
         title: { type: Sequelize.STRING(255), allowNull: false },
@@ -204,7 +204,7 @@ module.exports = {
     if (!ct('kpi_scorings')) {
       await queryInterface.createTable('kpi_scorings', {
         id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
-        tenant_id: { type: Sequelize.INTEGER, references: { model: 'tenants', key: 'id' }, onDelete: 'SET NULL' },
+        tenant_id: { type: Sequelize.UUID, references: { model: 'tenants', key: 'id' }, onDelete: 'SET NULL' },
         template_id: { type: Sequelize.INTEGER },
         employee_id: { type: Sequelize.INTEGER },
         period_start: { type: Sequelize.DATEONLY },

@@ -3,31 +3,48 @@
 module.exports = {
   up: async (queryInterface, Sequelize) => {
     // Add tenant_id to customer_loyalty table for cross-branch support
-    await queryInterface.addColumn('customer_loyalty', 'tenant_id', {
-      type: Sequelize.UUID,
-      allowNull: false,
-      field: 'tenant_id',
-      references: {
-        model: 'tenants',
-        key: 'id'
-      },
-      onUpdate: 'CASCADE',
-      onDelete: 'CASCADE',
-      comment: 'Tenant ID for cross-branch loyalty support'
-    });
+    const customerLoyaltyDesc = await queryInterface.describeTable('customer_loyalty');
+    if (!customerLoyaltyDesc || !customerLoyaltyDesc['tenant_id']) {
+      await queryInterface.addColumn('customer_loyalty', 'tenant_id', {
+        type: Sequelize.UUID,
+        allowNull: false,
+        field: 'tenant_id',
+        references: {
+          model: 'tenants',
+          key: 'id'
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'CASCADE',
+        comment: 'Tenant ID for cross-branch loyalty support'
+      });
 
-    // Add index for tenant_id
-    await queryInterface.addIndex('customer_loyalty', ['tenant_id']);
+      // Add index for tenant_id (ignore if exists)
+      try {
+        await queryInterface.addIndex('customer_loyalty', ['tenant_id']);
+      } catch (err) {
+        // index may already exist
+      }
 
-    // Create unique constraint for customer-program-tenant combination
-    await queryInterface.addIndex('customer_loyalty', ['customerId', 'programId', 'tenant_id'], {
-      unique: true,
-      name: 'customer_loyalty_customer_program_tenant_unique'
-    });
+      // Create unique constraint for customer-program-tenant combination (ignore if exists)
+      try {
+        await queryInterface.addIndex('customer_loyalty', ['customerId', 'programId', 'tenant_id'], {
+          unique: true,
+          name: 'customer_loyalty_customer_program_tenant_unique'
+        });
+      } catch (err) {
+        // index may already exist
+      }
+    }
 
     // Update loyalty_points table to include tenant_id
-    const loyaltyPointsTableExists = await queryInterface.describeTable('loyalty_points');
-    
+    let loyaltyPointsTableExists = false;
+    try {
+      await queryInterface.describeTable('loyalty_points');
+      loyaltyPointsTableExists = true;
+    } catch (err) {
+      loyaltyPointsTableExists = false;
+    }
+
     if (loyaltyPointsTableExists) {
       await queryInterface.addColumn('loyalty_points', 'tenant_id', {
         type: Sequelize.UUID,
@@ -161,12 +178,12 @@ module.exports = {
       }
     });
 
-    // Add indexes for loyalty_transactions
-    await queryInterface.addIndex('loyalty_transactions', ['customer_id', 'tenant_id']);
-    await queryInterface.addIndex('loyalty_transactions', ['branch_id']);
-    await queryInterface.addIndex('loyalty_transactions', ['transaction_type']);
-    await queryInterface.addIndex('loyalty_transactions', ['reference_type', 'reference_id']);
-    await queryInterface.addIndex('loyalty_transactions', ['created_at']);
+    // Add indexes for loyalty_transactions (ignore if already exists)
+    try { await queryInterface.addIndex('loyalty_transactions', ['customer_id', 'tenant_id']); } catch (err) { }
+    try { await queryInterface.addIndex('loyalty_transactions', ['branch_id']); } catch (err) { }
+    try { await queryInterface.addIndex('loyalty_transactions', ['transaction_type']); } catch (err) { }
+    try { await queryInterface.addIndex('loyalty_transactions', ['reference_type', 'reference_id']); } catch (err) { }
+    try { await queryInterface.addIndex('loyalty_transactions', ['created_at']); } catch (err) { }
 
     // Update existing customer_loyalty records to have tenant_id
     // This assumes all existing loyalty records belong to their customer's tenant
@@ -174,7 +191,7 @@ module.exports = {
       UPDATE customer_loyalty cl
       SET tenant_id = c.tenant_id
       FROM customers c
-      WHERE cl.customer_id = c.id
+      WHERE cl."customerId" = c.id
       AND cl.tenant_id IS NULL
     `);
 
@@ -184,7 +201,7 @@ module.exports = {
         UPDATE loyalty_points lp
         SET tenant_id = c.tenant_id
         FROM customers c
-        WHERE lp.customer_id = c.id
+        WHERE lp."customerId" = c.id
         AND lp.tenant_id IS NULL
       `);
     }
@@ -202,7 +219,13 @@ module.exports = {
     await queryInterface.dropTable('loyalty_transactions');
 
     // Remove columns from loyalty_points if exists
-    const loyaltyPointsTableExists = await queryInterface.describeTable('loyalty_points');
+    let loyaltyPointsTableExists = false;
+    try {
+      await queryInterface.describeTable('loyalty_points');
+      loyaltyPointsTableExists = true;
+    } catch (err) {
+      loyaltyPointsTableExists = false;
+    }
     if (loyaltyPointsTableExists) {
       await queryInterface.removeIndex('loyalty_points', ['customer_id', 'tenant_id']);
       await queryInterface.removeIndex('loyalty_points', ['branch_id']);

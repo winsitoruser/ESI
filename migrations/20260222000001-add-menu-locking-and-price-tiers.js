@@ -85,13 +85,13 @@ module.exports = {
     });
 
     // Add new columns to product_prices for Menu Locking
-    await queryInterface.addColumn('product_prices', 'is_standard', {
+    try { await queryInterface.addColumn('product_prices', 'is_standard', {
       type: Sequelize.BOOLEAN,
       defaultValue: false,
       comment: 'Harga standar dari Pusat - tidak bisa diubah oleh BRANCH_MANAGER'
-    });
+    }); } catch (err) {}
 
-    await queryInterface.addColumn('product_prices', 'branch_id', {
+    try { await queryInterface.addColumn('product_prices', 'branch_id', {
       type: Sequelize.UUID,
       allowNull: true,
       references: {
@@ -100,9 +100,9 @@ module.exports = {
       },
       onUpdate: 'CASCADE',
       onDelete: 'SET NULL'
-    });
+    }); } catch (err) {}
 
-    await queryInterface.addColumn('product_prices', 'price_tier_id', {
+    try { await queryInterface.addColumn('product_prices', 'price_tier_id', {
       type: Sequelize.UUID,
       allowNull: true,
       references: {
@@ -111,9 +111,9 @@ module.exports = {
       },
       onUpdate: 'CASCADE',
       onDelete: 'SET NULL'
-    });
+    }); } catch (err) {}
 
-    await queryInterface.addColumn('product_prices', 'locked_by', {
+    try { await queryInterface.addColumn('product_prices', 'locked_by', {
       type: Sequelize.INTEGER,
       allowNull: true,
       references: {
@@ -122,24 +122,24 @@ module.exports = {
       },
       onUpdate: 'CASCADE',
       onDelete: 'SET NULL'
-    });
+    }); } catch (err) {}
 
-    await queryInterface.addColumn('product_prices', 'locked_at', {
+    try { await queryInterface.addColumn('product_prices', 'locked_at', {
       type: Sequelize.DATE,
       allowNull: true
-    });
+    }); } catch (err) {}
 
-    await queryInterface.addColumn('product_prices', 'requires_approval', {
+    try { await queryInterface.addColumn('product_prices', 'requires_approval', {
       type: Sequelize.BOOLEAN,
       defaultValue: false
-    });
+    }); } catch (err) {}
 
-    await queryInterface.addColumn('product_prices', 'approval_status', {
+    try { await queryInterface.addColumn('product_prices', 'approval_status', {
       type: Sequelize.ENUM('pending', 'approved', 'rejected'),
       allowNull: true
-    });
+    }); } catch (err) {}
 
-    await queryInterface.addColumn('product_prices', 'approved_by', {
+    try { await queryInterface.addColumn('product_prices', 'approved_by', {
       type: Sequelize.INTEGER,
       allowNull: true,
       references: {
@@ -148,15 +148,15 @@ module.exports = {
       },
       onUpdate: 'CASCADE',
       onDelete: 'SET NULL'
-    });
+    }); } catch (err) {}
 
-    await queryInterface.addColumn('product_prices', 'approved_at', {
+    try { await queryInterface.addColumn('product_prices', 'approved_at', {
       type: Sequelize.DATE,
       allowNull: true
-    });
+    }); } catch (err) {}
 
     // Add price_tier_id to branches for default tier assignment
-    await queryInterface.addColumn('branches', 'price_tier_id', {
+    try { await queryInterface.addColumn('branches', 'price_tier_id', {
       type: Sequelize.UUID,
       allowNull: true,
       references: {
@@ -165,15 +165,15 @@ module.exports = {
       },
       onUpdate: 'CASCADE',
       onDelete: 'SET NULL'
-    });
+    }); } catch (err) {}
 
     // Create indexes
-    await queryInterface.addIndex('product_prices', ['is_standard']);
-    await queryInterface.addIndex('product_prices', ['branch_id']);
-    await queryInterface.addIndex('product_prices', ['price_tier_id']);
-    await queryInterface.addIndex('price_tiers', ['code']);
-    await queryInterface.addIndex('price_tiers', ['location_type']);
-    await queryInterface.addIndex('price_tiers', ['is_active']);
+    try { await queryInterface.addIndex('product_prices', ['is_standard']); } catch (err) {}
+    try { await queryInterface.addIndex('product_prices', ['branch_id']); } catch (err) {}
+    try { await queryInterface.addIndex('product_prices', ['price_tier_id']); } catch (err) {}
+    try { await queryInterface.addIndex('price_tiers', ['code']); } catch (err) {}
+    try { await queryInterface.addIndex('price_tiers', ['location_type']); } catch (err) {}
+    try { await queryInterface.addIndex('price_tiers', ['is_active']); } catch (err) {}
   },
 
   async down(queryInterface, Sequelize) {

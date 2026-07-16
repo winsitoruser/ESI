@@ -2,83 +2,104 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    // Add master recipe fields to recipes table
-    await queryInterface.addColumn('recipes', 'is_master', {
-      type: Sequelize.BOOLEAN,
-      allowNull: false,
-      defaultValue: false,
-      comment: 'Whether this is a master recipe from HQ'
-    });
+    // Add master recipe fields to recipes table (idempotent)
+    let recipesDesc = {};
+    try {
+      recipesDesc = await queryInterface.describeTable('recipes');
+    } catch (err) {
+      recipesDesc = {};
+    }
 
-    await queryInterface.addColumn('recipes', 'master_recipe_id', {
-      type: Sequelize.UUID,
-      allowNull: true,
-      field: 'master_recipe_id',
-      references: {
-        model: 'recipes',
-        key: 'id'
-      },
-      onUpdate: 'CASCADE',
-      onDelete: 'SET NULL',
-      comment: 'Reference to master recipe if this is a branch copy'
-    });
+    if (!recipesDesc['is_master']) {
+      await queryInterface.addColumn('recipes', 'is_master', {
+        type: Sequelize.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        comment: 'Whether this is a master recipe from HQ'
+      });
+    }
 
-    await queryInterface.addColumn('recipes', 'sync_status', {
-      type: Sequelize.ENUM('pending', 'synced', 'modified', 'conflict'),
-      allowNull: true,
-      defaultValue: null,
-      field: 'sync_status',
-      comment: 'Sync status for branch recipes'
-    });
+    if (!recipesDesc['master_recipe_id']) {
+      await queryInterface.addColumn('recipes', 'master_recipe_id', {
+        type: Sequelize.INTEGER,
+        allowNull: true,
+        field: 'master_recipe_id',
+        references: {
+          model: 'recipes',
+          key: 'id'
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'SET NULL',
+        comment: 'Reference to master recipe if this is a branch copy'
+      });
+    }
 
-    await queryInterface.addColumn('recipes', 'last_synced_at', {
-      type: Sequelize.DATE,
-      allowNull: true,
-      field: 'last_synced_at',
-      comment: 'Last time this recipe was synced from master'
-    });
+    if (!recipesDesc['sync_status']) {
+      await queryInterface.addColumn('recipes', 'sync_status', {
+        type: Sequelize.ENUM('pending', 'synced', 'modified', 'conflict'),
+        allowNull: true,
+        defaultValue: null,
+        field: 'sync_status',
+        comment: 'Sync status for branch recipes'
+      });
+    }
 
-    await queryInterface.addColumn('recipes', 'sync_version', {
-      type: Sequelize.INTEGER,
-      allowNull: false,
-      defaultValue: 1,
-      field: 'sync_version',
-      comment: 'Version number for recipe sync tracking'
-    });
+    if (!recipesDesc['last_synced_at']) {
+      await queryInterface.addColumn('recipes', 'last_synced_at', {
+        type: Sequelize.DATE,
+        allowNull: true,
+        field: 'last_synced_at',
+        comment: 'Last time this recipe was synced from master'
+      });
+    }
 
-    await queryInterface.addColumn('recipes', 'branch_id', {
-      type: Sequelize.UUID,
-      allowNull: true,
-      field: 'branch_id',
-      references: {
-        model: 'branches',
-        key: 'id'
-      },
-      onUpdate: 'CASCADE',
-      onDelete: 'SET NULL',
-      comment: 'Branch that owns this recipe (null for master recipes)'
-    });
+    if (!recipesDesc['sync_version']) {
+      await queryInterface.addColumn('recipes', 'sync_version', {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        defaultValue: 1,
+        field: 'sync_version',
+        comment: 'Version number for recipe sync tracking'
+      });
+    }
 
-    await queryInterface.addColumn('recipes', 'tenant_id', {
-      type: Sequelize.UUID,
-      allowNull: false,
-      field: 'tenant_id',
-      references: {
-        model: 'tenants',
-        key: 'id'
-      },
-      onUpdate: 'CASCADE',
-      onDelete: 'CASCADE',
-      comment: 'Tenant that owns this recipe'
-    });
+    if (!recipesDesc['branch_id']) {
+      await queryInterface.addColumn('recipes', 'branch_id', {
+        type: Sequelize.UUID,
+        allowNull: true,
+        field: 'branch_id',
+        references: {
+          model: 'branches',
+          key: 'id'
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'SET NULL',
+        comment: 'Branch that owns this recipe (null for master recipes)'
+      });
+    }
 
-    // Add indexes
-    await queryInterface.addIndex('recipes', ['is_master']);
-    await queryInterface.addIndex('recipes', ['master_recipe_id']);
-    await queryInterface.addIndex('recipes', ['sync_status']);
-    await queryInterface.addIndex('recipes', ['branch_id']);
-    await queryInterface.addIndex('recipes', ['tenant_id']);
-    await queryInterface.addIndex('recipes', ['sync_version']);
+    if (!recipesDesc['tenant_id']) {
+      await queryInterface.addColumn('recipes', 'tenant_id', {
+        type: Sequelize.UUID,
+        allowNull: false,
+        field: 'tenant_id',
+        references: {
+          model: 'tenants',
+          key: 'id'
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'CASCADE',
+        comment: 'Tenant that owns this recipe'
+      });
+    }
+
+    // Add indexes (ignore if already exist)
+    try { await queryInterface.addIndex('recipes', ['is_master']); } catch (err) {}
+    try { await queryInterface.addIndex('recipes', ['master_recipe_id']); } catch (err) {}
+    try { await queryInterface.addIndex('recipes', ['sync_status']); } catch (err) {}
+    try { await queryInterface.addIndex('recipes', ['branch_id']); } catch (err) {}
+    try { await queryInterface.addIndex('recipes', ['tenant_id']); } catch (err) {}
+    try { await queryInterface.addIndex('recipes', ['sync_version']); } catch (err) {}
 
     // Create recipe sync log table
     await queryInterface.createTable('recipe_sync_logs', {
@@ -88,7 +109,7 @@ module.exports = {
         primaryKey: true
       },
       masterRecipeId: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: false,
         field: 'master_recipe_id',
         references: {
@@ -180,45 +201,52 @@ module.exports = {
       }
     });
 
-    // Add indexes for sync logs
-    await queryInterface.addIndex('recipe_sync_logs', ['master_recipe_id']);
-    await queryInterface.addIndex('recipe_sync_logs', ['branch_id']);
-    await queryInterface.addIndex('recipe_sync_logs', ['sync_type']);
-    await queryInterface.addIndex('recipe_sync_logs', ['status']);
-    await queryInterface.addIndex('recipe_sync_logs', ['synced_at']);
-    await queryInterface.addIndex('recipe_sync_logs', ['tenant_id']);
+    // Add indexes for sync logs (ignore if exist)
+    try { await queryInterface.addIndex('recipe_sync_logs', ['master_recipe_id']); } catch (err) {}
+    try { await queryInterface.addIndex('recipe_sync_logs', ['branch_id']); } catch (err) {}
+    try { await queryInterface.addIndex('recipe_sync_logs', ['sync_type']); } catch (err) {}
+    try { await queryInterface.addIndex('recipe_sync_logs', ['status']); } catch (err) {}
+    try { await queryInterface.addIndex('recipe_sync_logs', ['synced_at']); } catch (err) {}
+    try { await queryInterface.addIndex('recipe_sync_logs', ['tenant_id']); } catch (err) {}
 
-    // Add branch_id to recipe_ingredients for regional pricing
-    await queryInterface.addColumn('recipe_ingredients', 'branch_id', {
-      type: Sequelize.UUID,
-      allowNull: true,
-      field: 'branch_id',
-      references: {
-        model: 'branches',
-        key: 'id'
-      },
-      onUpdate: 'CASCADE',
-      onDelete: 'SET NULL',
-      comment: 'Override ingredient cost for specific branch'
-    });
+    // Add branch_id to recipe_ingredients for regional pricing (idempotent)
+    let recipeIngredientsDesc = {};
+    try { recipeIngredientsDesc = await queryInterface.describeTable('recipe_ingredients'); } catch (err) { recipeIngredientsDesc = {}; }
 
-    await queryInterface.addColumn('recipe_ingredients', 'cost_override', {
-      type: Sequelize.DECIMAL(10, 2),
-      allowNull: true,
-      field: 'cost_override',
-      comment: 'Override ingredient cost for regional pricing'
-    });
+    if (!recipeIngredientsDesc['branch_id']) {
+      await queryInterface.addColumn('recipe_ingredients', 'branch_id', {
+        type: Sequelize.UUID,
+        allowNull: true,
+        field: 'branch_id',
+        references: {
+          model: 'branches',
+          key: 'id'
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'SET NULL',
+        comment: 'Override ingredient cost for specific branch'
+      });
+    }
 
-    await queryInterface.addIndex('recipe_ingredients', ['branch_id']);
-    await queryInterface.addIndex('recipe_ingredients', ['recipe_id', 'branch_id']);
+    if (!recipeIngredientsDesc['cost_override']) {
+      await queryInterface.addColumn('recipe_ingredients', 'cost_override', {
+        type: Sequelize.DECIMAL(10, 2),
+        allowNull: true,
+        field: 'cost_override',
+        comment: 'Override ingredient cost for regional pricing'
+      });
+    }
+
+    try { await queryInterface.addIndex('recipe_ingredients', ['branch_id']); } catch (err) {}
+    try { await queryInterface.addIndex('recipe_ingredients', ['recipe_id', 'branch_id']); } catch (err) {}
 
     // Update existing recipes to have tenant_id
     await queryInterface.sequelize.query(`
       UPDATE recipes r
       SET tenant_id = COALESCE(
         (SELECT tenant_id FROM products p WHERE p.id = r.product_id LIMIT 1),
-        (SELECT tenant_id FROM branches b WHERE b.is_main_branch = true LIMIT 1),
-        'default'
+        (SELECT tenant_id FROM branches b WHERE b.tenant_id IS NOT NULL LIMIT 1),
+        NULL
       )
       WHERE r.tenant_id IS NULL
     `);

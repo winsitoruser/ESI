@@ -6,7 +6,7 @@
  * - team_members.employee_id, location, work_area
  */
 module.exports = {
-  up: async (queryInterface) => {
+  up: async (queryInterface, Sequelize) => {
     const safeAddColumn = async (table, column, spec) => {
       try {
         const desc = await queryInterface.describeTable(table);
@@ -20,31 +20,31 @@ module.exports = {
     };
 
     await safeAddColumn('employees', 'work_location', {
-      type: queryInterface.sequelize.STRING(50),
+      type: Sequelize.STRING(50),
       allowNull: true,
       defaultValue: 'ADMIN_OFFICE',
     });
 
     await safeAddColumn('employees', 'job_grade_id', {
-      type: queryInterface.sequelize.UUID,
+      type: Sequelize.UUID,
       allowNull: true,
     });
 
     await safeAddColumn('employees', 'org_structure_id', {
-      type: queryInterface.sequelize.UUID,
+      type: Sequelize.UUID,
       allowNull: true,
     });
 
     await safeAddColumn('team_members', 'employee_id', {
-      type: queryInterface.sequelize.UUID,
+      type: Sequelize.UUID,
       allowNull: true,
     });
     await safeAddColumn('team_members', 'location', {
-      type: queryInterface.sequelize.STRING(100),
+      type: Sequelize.STRING(100),
       allowNull: true,
     });
     await safeAddColumn('team_members', 'work_area', {
-      type: queryInterface.sequelize.STRING(50),
+      type: Sequelize.STRING(50),
       allowNull: true,
     });
 

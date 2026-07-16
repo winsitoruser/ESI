@@ -106,41 +106,44 @@ module.exports = {
       "pos.discount": false, "pos.refund": false, "pos.view_receipts": true, "pos.print_receipt": true,
       "products.view": true, "customers.view": true, "inventory.view": true, "promotions.view": true
     });
-
     const roles = [
       { name: 'admin', description: 'Administrator with full access to all features', permissions: adminPerms },
       { name: 'manager', description: 'Manager with access to most features except critical settings', permissions: managerPerms },
       { name: 'cashier', description: 'Cashier for POS operations and basic customer management', permissions: cashierPerms },
       { name: 'staff', description: 'Staff with basic access to POS and inventory', permissions: staffPerms },
     ];
+    // Only insert if roles table already exists (some environments create roles later)
+    if (rolesDesc) {
+      for (const role of roles) {
+        await queryInterface.sequelize.query(`
+          INSERT INTO roles (id, name, description, permissions, is_system, created_at, updated_at)
+          VALUES (gen_random_uuid(), :name, :description, :permissions::jsonb, true, NOW(), NOW())
+          ON CONFLICT (name) DO UPDATE SET
+            description = EXCLUDED.description,
+            permissions = EXCLUDED.permissions,
+            is_system = EXCLUDED.is_system,
+            updated_at = NOW()
+        `, { replacements: role });
+      }
 
-    for (const role of roles) {
-      await queryInterface.sequelize.query(`
-        INSERT INTO roles (id, name, description, permissions, is_system, created_at, updated_at)
-        VALUES (gen_random_uuid(), :name, :description, :permissions::jsonb, true, NOW(), NOW())
-        ON CONFLICT (name) DO UPDATE SET
-          description = EXCLUDED.description,
-          permissions = EXCLUDED.permissions,
-          is_system = EXCLUDED.is_system,
-          updated_at = NOW()
-      `, { replacements: role });
-    }
+      // 4. Update existing users with role_id
+      const roleUpdates = [
+        { roleName: 'admin', userRole: 'admin' },
+        { roleName: 'manager', userRole: 'manager' },
+        { roleName: 'cashier', userRole: 'cashier' },
+        { roleName: 'staff', userRole: 'staff' },
+      ];
 
-    // 4. Update existing users with role_id
-    const roleUpdates = [
-      { roleName: 'admin', userRole: 'admin' },
-      { roleName: 'manager', userRole: 'manager' },
-      { roleName: 'cashier', userRole: 'cashier' },
-      { roleName: 'staff', userRole: 'staff' },
-    ];
-
-    for (const { roleName, userRole } of roleUpdates) {
-      await queryInterface.sequelize.query(`
-        UPDATE users u SET role_id = r.id
-        FROM roles r
-        WHERE r.name = :roleName AND (u.role = :userRole ${userRole === 'staff' ? "OR u.role IS NULL" : ''})
-        AND u.role_id IS NULL
-      `, { replacements: { roleName, userRole } }).catch(() => {});
+      for (const { roleName, userRole } of roleUpdates) {
+        await queryInterface.sequelize.query(`
+          UPDATE users u SET role_id = r.id
+          FROM roles r
+          WHERE r.name = :roleName AND (u.role = :userRole ${userRole === 'staff' ? "OR u.role IS NULL" : ''})
+          AND u.role_id IS NULL
+        `, { replacements: { roleName, userRole } }).catch(() => {});
+      }
+    } else {
+      console.log('roles table not found — skipping default role inserts');
     }
 
     console.log('✅ Role & permissions integration complete');

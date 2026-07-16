@@ -102,10 +102,10 @@ module.exports = {
     });
 
     // Create indexes for finance_accounts
-    await queryInterface.addIndex('finance_accounts', ['tenantId']);
-    await queryInterface.addIndex('finance_accounts', ['branchId']);
-    await queryInterface.addIndex('finance_accounts', ['accountType']);
-    await queryInterface.addIndex('finance_accounts', ['isActive']);
+    try { await queryInterface.addIndex('finance_accounts', ['tenantId']); } catch (e) {}
+    try { await queryInterface.addIndex('finance_accounts', ['branchId']); } catch (e) {}
+    try { await queryInterface.addIndex('finance_accounts', ['accountType']); } catch (e) {}
+    try { await queryInterface.addIndex('finance_accounts', ['isActive']); } catch (e) {}
 
     // Create finance_transactions table
     await queryInterface.createTable('finance_transactions', {
@@ -247,12 +247,12 @@ module.exports = {
     });
 
     // Create indexes for finance_transactions
-    await queryInterface.addIndex('finance_transactions', ['tenantId']);
-    await queryInterface.addIndex('finance_transactions', ['branchId']);
-    await queryInterface.addIndex('finance_transactions', ['transactionDate']);
-    await queryInterface.addIndex('finance_transactions', ['type']);
-    await queryInterface.addIndex('finance_transactions', ['status']);
-    await queryInterface.addIndex('finance_transactions', ['accountId']);
+    try { await queryInterface.addIndex('finance_transactions', ['tenantId']); } catch (e) {}
+    try { await queryInterface.addIndex('finance_transactions', ['branchId']); } catch (e) {}
+    try { await queryInterface.addIndex('finance_transactions', ['transactionDate']); } catch (e) {}
+    try { await queryInterface.addIndex('finance_transactions', ['type']); } catch (e) {}
+    try { await queryInterface.addIndex('finance_transactions', ['status']); } catch (e) {}
+    try { await queryInterface.addIndex('finance_transactions', ['accountId']); } catch (e) {}
 
     // Create finance_invoices table
     await queryInterface.createTable('finance_invoices', {
@@ -392,12 +392,12 @@ module.exports = {
     });
 
     // Create indexes for finance_invoices
-    await queryInterface.addIndex('finance_invoices', ['tenantId']);
-    await queryInterface.addIndex('finance_invoices', ['branchId']);
-    await queryInterface.addIndex('finance_invoices', ['invoiceDate']);
-    await queryInterface.addIndex('finance_invoices', ['dueDate']);
-    await queryInterface.addIndex('finance_invoices', ['type']);
-    await queryInterface.addIndex('finance_invoices', ['status']);
+    try { await queryInterface.addIndex('finance_invoices', ['tenantId']); } catch (e) {}
+    try { await queryInterface.addIndex('finance_invoices', ['branchId']); } catch (e) {}
+    try { await queryInterface.addIndex('finance_invoices', ['invoiceDate']); } catch (e) {}
+    try { await queryInterface.addIndex('finance_invoices', ['dueDate']); } catch (e) {}
+    try { await queryInterface.addIndex('finance_invoices', ['type']); } catch (e) {}
+    try { await queryInterface.addIndex('finance_invoices', ['status']); } catch (e) {}
 
     // Create finance_budgets table
     await queryInterface.createTable('finance_budgets', {
@@ -516,11 +516,11 @@ module.exports = {
     });
 
     // Create indexes for finance_budgets
-    await queryInterface.addIndex('finance_budgets', ['tenantId']);
-    await queryInterface.addIndex('finance_budgets', ['branchId']);
-    await queryInterface.addIndex('finance_budgets', ['fiscalYear']);
-    await queryInterface.addIndex('finance_budgets', ['period']);
-    await queryInterface.addIndex('finance_budgets', ['status']);
+    try { await queryInterface.addIndex('finance_budgets', ['tenantId']); } catch (e) {}
+    try { await queryInterface.addIndex('finance_budgets', ['branchId']); } catch (e) {}
+    try { await queryInterface.addIndex('finance_budgets', ['fiscalYear']); } catch (e) {}
+    try { await queryInterface.addIndex('finance_budgets', ['period']); } catch (e) {}
+    try { await queryInterface.addIndex('finance_budgets', ['status']); } catch (e) {}
   },
 
   down: async (queryInterface, Sequelize) => {

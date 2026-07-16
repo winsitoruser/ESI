@@ -92,7 +92,7 @@ module.exports = {
     if (!ct('goods_receipts')) {
       await queryInterface.createTable('goods_receipts', {
         id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
-        tenant_id: { type: Sequelize.INTEGER, references: { model: 'tenants', key: 'id' }, onDelete: 'SET NULL' },
+        tenant_id: { type: Sequelize.UUID, references: { model: 'tenants', key: 'id' }, onDelete: 'SET NULL' },
         branch_id: { type: Sequelize.INTEGER },
         receipt_number: { type: Sequelize.STRING(50), unique: true, allowNull: false },
         purchase_order_id: { type: Sequelize.INTEGER },
@@ -148,7 +148,7 @@ module.exports = {
     if (!ct('internal_requisitions')) {
       await queryInterface.createTable('internal_requisitions', {
         id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
-        tenant_id: { type: Sequelize.INTEGER, references: { model: 'tenants', key: 'id' }, onDelete: 'SET NULL' },
+        tenant_id: { type: Sequelize.UUID, references: { model: 'tenants', key: 'id' }, onDelete: 'SET NULL' },
         requisition_number: { type: Sequelize.STRING(50), unique: true, allowNull: false },
         from_branch_id: { type: Sequelize.INTEGER },
         to_branch_id: { type: Sequelize.INTEGER },

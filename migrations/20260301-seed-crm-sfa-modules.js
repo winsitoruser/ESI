@@ -19,7 +19,7 @@ module.exports = {
     // Upsert module definitions (avoid duplicate errors)
     const modules = [
       {
-        id: require('crypto').randomgen_random_uuid(),
+        id: require('crypto').randomUUID(),
         code: 'crm',
         name: 'Customer Relationship Management',
         description: 'Customer 360°, komunikasi, task & kalender, tiket & SLA, forecasting, automasi CRM, dokumen',
@@ -32,12 +32,12 @@ module.exports = {
         features: JSON.stringify([
           'customer_360', 'communications', 'tasks', 'tickets', 'forecasting', 'automation', 'documents'
         ]),
-        dependencies: JSON.stringify([]),
+        // dependencies column may not exist in older schemas; omit if absent
         created_at: now,
         updated_at: now,
       },
       {
-        id: require('crypto').randomgen_random_uuid(),
+        id: require('crypto').randomUUID(),
         code: 'sfa',
         name: 'Sales Force Automation',
         description: 'Lead management, pipeline, tim & territory, kunjungan, order, target, insentif, coverage, geofence',
@@ -50,12 +50,12 @@ module.exports = {
         features: JSON.stringify([
           'leads', 'pipeline', 'teams', 'visits', 'orders', 'targets', 'incentives', 'coverage', 'geofence', 'approval'
         ]),
-        dependencies: JSON.stringify([]),
+        // dependencies column may not exist in older schemas; omit if absent
         created_at: now,
         updated_at: now,
       },
       {
-        id: require('crypto').randomgen_random_uuid(),
+        id: require('crypto').randomUUID(),
         code: 'marketing',
         name: 'Marketing & Campaign',
         description: 'Campaign management, promosi, segmentasi pelanggan, budget marketing',
@@ -68,7 +68,7 @@ module.exports = {
         features: JSON.stringify([
           'campaigns', 'promotions', 'segments', 'budgets'
         ]),
-        dependencies: JSON.stringify([]),
+        // dependencies column may not exist in older schemas; omit if absent
         created_at: now,
         updated_at: now,
       },

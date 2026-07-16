@@ -148,13 +148,23 @@ module.exports = {
       }
     ];
     
-    await queryInterface.bulkInsert('business_packages', packages);
-    
-    // Create package map
+    // Insert packages (only missing)
+    const packageCodes = packages.map(p => p.code);
+    const existingPackages = await queryInterface.sequelize.query(
+      `SELECT code, id FROM business_packages WHERE code IN (:codes)`,
+      { replacements: { codes: packageCodes }, type: Sequelize.QueryTypes.SELECT }
+    );
+    const existingCodes = new Set(existingPackages.map(r => r.code));
+    const toInsert = packages.filter(p => !existingCodes.has(p.code));
+    if (toInsert.length) await queryInterface.bulkInsert('business_packages', toInsert);
+
+    // Build pkgMap from DB (existing + newly inserted)
+    const allPackages = await queryInterface.sequelize.query(
+      `SELECT code, id FROM business_packages WHERE code IN (:codes)`,
+      { replacements: { codes: packageCodes }, type: Sequelize.QueryTypes.SELECT }
+    );
     const pkgMap = {};
-    packages.forEach(p => {
-      pkgMap[p.code] = p.id;
-    });
+    allPackages.forEach(p => { pkgMap[p.code] = p.id; });
     
     // Define package modules
     const packageModules = [
@@ -191,8 +201,10 @@ module.exports = {
       { package_id: pkgMap.FNB_CAFE_ESSENTIALS, module_id: modMap.LOYALTY_PROGRAM, is_required: false, is_default_enabled: false, sort_order: 6 }
     ];
     
+    // Only add package_modules for packages we just inserted
+    const newPackageCodes = toInsert.map(p => p.code);
     const pmRecords = packageModules
-      .filter(pm => pm.module_id) // Only include if module exists
+      .filter(pm => pm.module_id && newPackageCodes.includes(Object.keys(pkgMap).find(k => pkgMap[k] === pm.package_id) ? Object.keys(pkgMap).find(k => pkgMap[k] === pm.package_id) : ''))
       .map(pm => ({
         id: uuidv4(),
         ...pm,
@@ -200,8 +212,8 @@ module.exports = {
         created_at: now,
         updated_at: now
       }));
-    
-    await queryInterface.bulkInsert('package_modules', pmRecords);
+
+    if (pmRecords.length) await queryInterface.bulkInsert('package_modules', pmRecords);
     
     // Define package features
     const packageFeatures = [
@@ -229,15 +241,11 @@ module.exports = {
       { package_id: pkgMap.FNB_CAFE_ESSENTIALS, feature_code: 'inventory_tracking', feature_name: 'Inventory tracking' }
     ];
     
-    const pfRecords = packageFeatures.map(pf => ({
-      id: uuidv4(),
-      ...pf,
-      is_enabled: true,
-      created_at: now,
-      updated_at: now
-    }));
-    
-    await queryInterface.bulkInsert('package_features', pfRecords);
+    // Only add features for newly inserted packages
+    const pfRecords = packageFeatures
+      .filter(pf => newPackageCodes.includes(Object.keys(pkgMap).find(k => pkgMap[k] === pf.package_id) ? Object.keys(pkgMap).find(k => pkgMap[k] === pf.package_id) : ''))
+      .map(pf => ({ id: uuidv4(), ...pf, is_enabled: true, created_at: now, updated_at: now }));
+    if (pfRecords.length) await queryInterface.bulkInsert('package_features', pfRecords);
     
     console.log('✅ Seeded F&B business packages with modules and features');
   },

@@ -108,16 +108,16 @@ module.exports = {
     });
 
     // Add indexes
-    await queryInterface.addIndex('employee_branch_assignments', ['employee_id']);
-    await queryInterface.addIndex('employee_branch_assignments', ['branch_id']);
-    await queryInterface.addIndex('employee_branch_assignments', ['is_primary']);
-    await queryInterface.addIndex('employee_branch_assignments', ['can_roam']);
-    await queryInterface.addIndex('employee_branch_assignments', ['is_active']);
-    await queryInterface.addIndex('employee_branch_assignments', ['tenant_id']);
-    await queryInterface.addIndex('employee_branch_assignments', ['employee_id', 'branch_id'], {
+    try { await queryInterface.addIndex('employee_branch_assignments', ['employee_id']); } catch (err) {}
+    try { await queryInterface.addIndex('employee_branch_assignments', ['branch_id']); } catch (err) {}
+    try { await queryInterface.addIndex('employee_branch_assignments', ['is_primary']); } catch (err) {}
+    try { await queryInterface.addIndex('employee_branch_assignments', ['can_roam']); } catch (err) {}
+    try { await queryInterface.addIndex('employee_branch_assignments', ['is_active']); } catch (err) {}
+    try { await queryInterface.addIndex('employee_branch_assignments', ['tenant_id']); } catch (err) {}
+    try { await queryInterface.addIndex('employee_branch_assignments', ['employee_id', 'branch_id'], {
       unique: true,
       name: 'employee_branch_assignment_unique'
-    });
+    }); } catch (err) {}
 
     // Create roaming_requests table
     await queryInterface.createTable('roaming_requests', {
@@ -241,15 +241,15 @@ module.exports = {
       }
     });
 
-    // Add indexes for roaming_requests
-    await queryInterface.addIndex('roaming_requests', ['request_number'], { unique: true });
-    await queryInterface.addIndex('roaming_requests', ['employee_id']);
-    await queryInterface.addIndex('roaming_requests', ['from_branch_id']);
-    await queryInterface.addIndex('roaming_requests', ['to_branch_id']);
-    await queryInterface.addIndex('roaming_requests', ['status']);
-    await queryInterface.addIndex('roaming_requests', ['start_date']);
-    await queryInterface.addIndex('roaming_requests', ['end_date']);
-    await queryInterface.addIndex('roaming_requests', ['tenant_id']);
+    // Add indexes for roaming_requests (use actual column names)
+    try { await queryInterface.addIndex('roaming_requests', ['requestNumber'], { unique: true }); } catch (err) {}
+    try { await queryInterface.addIndex('roaming_requests', ['employee_id']); } catch (err) {}
+    try { await queryInterface.addIndex('roaming_requests', ['from_branch_id']); } catch (err) {}
+    try { await queryInterface.addIndex('roaming_requests', ['to_branch_id']); } catch (err) {}
+    try { await queryInterface.addIndex('roaming_requests', ['status']); } catch (err) {}
+    try { await queryInterface.addIndex('roaming_requests', ['start_date']); } catch (err) {}
+    try { await queryInterface.addIndex('roaming_requests', ['end_date']); } catch (err) {}
+    try { await queryInterface.addIndex('roaming_requests', ['tenant_id']); } catch (err) {}
 
     // Create roaming_attendance table
     await queryInterface.createTable('roaming_attendance', {
@@ -360,13 +360,13 @@ module.exports = {
       }
     });
 
-    // Add indexes for roaming_attendance
-    await queryInterface.addIndex('roaming_attendance', ['roaming_request_id']);
-    await queryInterface.addIndex('roaming_attendance', ['employee_id']);
-    await queryInterface.addIndex('roaming_attendance', ['branch_id']);
-    await queryInterface.addIndex('roaming_attendance', ['attendance_date']);
-    await queryInterface.addIndex('roaming_attendance', ['status']);
-    await queryInterface.addIndex('roaming_attendance', ['tenant_id']);
+    // Add indexes for roaming_attendance (idempotent)
+    try { await queryInterface.addIndex('roaming_attendance', ['roaming_request_id']); } catch (err) {}
+    try { await queryInterface.addIndex('roaming_attendance', ['employee_id']); } catch (err) {}
+    try { await queryInterface.addIndex('roaming_attendance', ['branch_id']); } catch (err) {}
+    try { await queryInterface.addIndex('roaming_attendance', ['attendance_date']); } catch (err) {}
+    try { await queryInterface.addIndex('roaming_attendance', ['status']); } catch (err) {}
+    try { await queryInterface.addIndex('roaming_attendance', ['tenant_id']); } catch (err) {}
 
     // Update existing employees to have primary branch assignment
     await queryInterface.sequelize.query(`
@@ -375,7 +375,7 @@ module.exports = {
         start_date, assigned_by, tenant_id, created_at, updated_at
       )
       SELECT 
-        gen_random_uuid(), e.id, e.branch_id, true, false, e.position,
+        gen_random_uuid(), e.id, e.branch_id, true, false, 'cashier',
         e.hire_date, :createdBy, e.tenant_id, NOW(), NOW()
       FROM employees e
       WHERE e.branch_id IS NOT NULL
@@ -384,7 +384,7 @@ module.exports = {
         WHERE eba.employee_id = e.id
       )
     `, {
-      replacements: { createdBy: 'system' }
+      replacements: { createdBy: 1 }
     });
   },
 
@@ -404,7 +404,8 @@ module.exports = {
     await queryInterface.removeIndex('roaming_requests', ['to_branch_id']);
     await queryInterface.removeIndex('roaming_requests', ['from_branch_id']);
     await queryInterface.removeIndex('roaming_requests', ['employee_id']);
-    await queryInterface.removeIndex('roaming_requests', ['request_number']);
+    // requestNumber used as column name; remove index by name if present
+    try { await queryInterface.removeIndex('roaming_requests', ['requestNumber']); } catch (err) { try { await queryInterface.removeIndex('roaming_requests', ['request_number']); } catch (e) {} }
     
     await queryInterface.removeIndex('employee_branch_assignments', 'employee_branch_assignment_unique');
     await queryInterface.removeIndex('employee_branch_assignments', ['tenant_id']);

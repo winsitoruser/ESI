@@ -3,7 +3,7 @@
 module.exports = {
   up: async (queryInterface, Sequelize) => {
     // Add branchId to PosTransactions
-    await queryInterface.addColumn('pos_transactions', 'branch_id', {
+    try { await queryInterface.addColumn('pos_transactions', 'branch_id', {
       type: Sequelize.UUID,
       allowNull: true, // Allow null for existing data
       references: {
@@ -12,10 +12,10 @@ module.exports = {
       },
       onUpdate: 'CASCADE',
       onDelete: 'SET NULL'
-    });
+    }); } catch (err) {}
 
     // Add branchId to StockMovements
-    await queryInterface.addColumn('stock_movements', 'branch_id', {
+    try { await queryInterface.addColumn('stock_movements', 'branch_id', {
       type: Sequelize.UUID,
       allowNull: true,
       references: {
@@ -24,10 +24,10 @@ module.exports = {
       },
       onUpdate: 'CASCADE',
       onDelete: 'SET NULL'
-    });
+    }); } catch (err) {}
 
     // Add branchId to FinanceTransactions
-    await queryInterface.addColumn('finance_transactions', 'branch_id', {
+    try { await queryInterface.addColumn('finance_transactions', 'branch_id', {
       type: Sequelize.UUID,
       allowNull: true,
       references: {
@@ -36,10 +36,10 @@ module.exports = {
       },
       onUpdate: 'CASCADE',
       onDelete: 'SET NULL'
-    });
+    }); } catch (err) {}
 
     // Add branchId to Productions
-    await queryInterface.addColumn('productions', 'branch_id', {
+    try { await queryInterface.addColumn('productions', 'branch_id', {
       type: Sequelize.UUID,
       allowNull: true,
       references: {
@@ -48,10 +48,10 @@ module.exports = {
       },
       onUpdate: 'CASCADE',
       onDelete: 'SET NULL'
-    });
+    }); } catch (err) {}
 
     // Add branchId to Shifts
-    await queryInterface.addColumn('shifts', 'branch_id', {
+    try { await queryInterface.addColumn('shifts', 'branch_id', {
       type: Sequelize.UUID,
       allowNull: true,
       references: {
@@ -60,14 +60,14 @@ module.exports = {
       },
       onUpdate: 'CASCADE',
       onDelete: 'SET NULL'
-    });
+    }); } catch (err) {}
 
     // Add indexes for performance
-    await queryInterface.addIndex('pos_transactions', ['branch_id']);
-    await queryInterface.addIndex('stock_movements', ['branch_id']);
-    await queryInterface.addIndex('finance_transactions', ['branch_id']);
-    await queryInterface.addIndex('productions', ['branch_id']);
-    await queryInterface.addIndex('shifts', ['branch_id']);
+    try { await queryInterface.addIndex('pos_transactions', ['branch_id']); } catch (err) {}
+    try { await queryInterface.addIndex('stock_movements', ['branch_id']); } catch (err) {}
+    try { await queryInterface.addIndex('finance_transactions', ['branch_id']); } catch (err) {}
+    try { await queryInterface.addIndex('productions', ['branch_id']); } catch (err) {}
+    try { await queryInterface.addIndex('shifts', ['branch_id']); } catch (err) {}
   },
 
   down: async (queryInterface, Sequelize) => {

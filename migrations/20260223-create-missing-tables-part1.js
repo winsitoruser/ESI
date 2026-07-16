@@ -35,7 +35,7 @@ module.exports = {
     if (!ct('employees')) {
       await queryInterface.createTable('employees', {
         id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
-        tenant_id: { type: Sequelize.INTEGER, references: { model: 'tenants', key: 'id' }, onDelete: 'SET NULL' },
+        tenant_id: { type: Sequelize.UUID, references: { model: 'tenants', key: 'id' }, onDelete: 'SET NULL' },
         branch_id: { type: Sequelize.INTEGER },
         user_id: { type: Sequelize.INTEGER, references: { model: 'users', key: 'id' }, onDelete: 'SET NULL' },
         employee_code: { type: Sequelize.STRING(30), unique: true },
@@ -66,7 +66,7 @@ module.exports = {
         id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
         tenant_id: { type: Sequelize.UUID, references: { model: 'tenants', key: 'id' }, onDelete: 'SET NULL' },
         branch_id: { type: Sequelize.UUID },
-        employee_id: { type: Sequelize.INTEGER, references: { model: 'employees', key: 'id' }, onDelete: 'CASCADE' },
+        employee_id: { type: Sequelize.UUID, references: { model: 'employees', key: 'id' }, onDelete: 'CASCADE' },
         date: { type: Sequelize.DATEONLY, allowNull: false },
         shift_name: { type: Sequelize.STRING(50) },
         start_time: { type: Sequelize.TIME, allowNull: false },
@@ -85,7 +85,7 @@ module.exports = {
         id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
         tenant_id: { type: Sequelize.UUID, references: { model: 'tenants', key: 'id' }, onDelete: 'SET NULL' },
         branch_id: { type: Sequelize.UUID },
-        employee_id: { type: Sequelize.INTEGER, references: { model: 'employees', key: 'id' }, onDelete: 'CASCADE' },
+        employee_id: { type: Sequelize.UUID, references: { model: 'employees', key: 'id' }, onDelete: 'CASCADE' },
         date: { type: Sequelize.DATEONLY, allowNull: false },
         clock_in: { type: Sequelize.DATE },
         clock_out: { type: Sequelize.DATE },
@@ -101,9 +101,9 @@ module.exports = {
     // 5. SHIFTS
     if (!ct('shifts')) {
       await queryInterface.createTable('shifts', {
-        id: { type: Sequelize.INTEGER, defaultValue: Sequelize.literal('gen_random_uuid()'), primaryKey: true },
-        tenant_id: { type: Sequelize.INTEGER, references: { model: 'tenants', key: 'id' }, onDelete: 'SET NULL' },
-        branch_id: { type: Sequelize.INTEGER },
+        id: { type: Sequelize.UUID, defaultValue: Sequelize.literal('gen_random_uuid()'), primaryKey: true },
+        tenant_id: { type: Sequelize.UUID, references: { model: 'tenants', key: 'id' }, onDelete: 'SET NULL' },
+        branch_id: { type: Sequelize.UUID },
         cashier_id: { type: Sequelize.INTEGER, references: { model: 'users', key: 'id' } },
         shift_number: { type: Sequelize.STRING(30) },
         opening_amount: { type: Sequelize.DECIMAL(15, 2), defaultValue: 0 },
@@ -162,7 +162,7 @@ module.exports = {
     if (!ct('notifications')) {
       await queryInterface.createTable('notifications', {
         id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
-        tenant_id: { type: Sequelize.INTEGER, references: { model: 'tenants', key: 'id' }, onDelete: 'SET NULL' },
+        tenant_id: { type: Sequelize.UUID, references: { model: 'tenants', key: 'id' }, onDelete: 'SET NULL' },
         user_id: { type: Sequelize.INTEGER, references: { model: 'users', key: 'id' }, onDelete: 'CASCADE' },
         title: { type: Sequelize.STRING(255), allowNull: false },
         message: { type: Sequelize.TEXT },
@@ -181,7 +181,7 @@ module.exports = {
     if (!ct('audit_logs')) {
       await queryInterface.createTable('audit_logs', {
         id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
-        tenant_id: { type: Sequelize.INTEGER, references: { model: 'tenants', key: 'id' }, onDelete: 'SET NULL' },
+        tenant_id: { type: Sequelize.UUID, references: { model: 'tenants', key: 'id' }, onDelete: 'SET NULL' },
         user_id: { type: Sequelize.INTEGER, references: { model: 'users', key: 'id' }, onDelete: 'SET NULL' },
         action: { type: Sequelize.STRING(50), allowNull: false },
         entity_type: { type: Sequelize.STRING(50) },

@@ -46,8 +46,8 @@ module.exports = {
     const tables = await queryInterface.showAllTables();
     if (!tables.includes('kyb_applications')) {
       await queryInterface.createTable('kyb_applications', {
-        id: { type: Sequelize.INTEGER, defaultValue: Sequelize.literal('gen_random_uuid()'), primaryKey: true },
-        tenant_id: { type: Sequelize.INTEGER, allowNull: false, references: { model: 'tenants', key: 'id' }, onDelete: 'CASCADE' },
+        id: { type: Sequelize.UUID, defaultValue: Sequelize.literal('gen_random_uuid()'), primaryKey: true },
+        tenant_id: { type: Sequelize.UUID, allowNull: false, references: { model: 'tenants', key: 'id' }, onDelete: 'CASCADE' },
         user_id: { type: Sequelize.INTEGER, allowNull: false, references: { model: 'users', key: 'id' }, onDelete: 'CASCADE' },
         business_name: { type: Sequelize.STRING(255), allowNull: false },
         business_category: { type: Sequelize.STRING(100) },

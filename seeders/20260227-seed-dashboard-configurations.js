@@ -392,13 +392,23 @@ module.exports = {
       }
     ];
     
-    await queryInterface.bulkInsert('dashboard_configurations', dashboards);
-    
-    // Update business packages to link with dashboards
+    // Insert dashboards (only missing)
+    const codes = dashboards.map(d => d.code);
+    const existing = await queryInterface.sequelize.query(
+      `SELECT code, id FROM dashboard_configurations WHERE code IN (:codes)`,
+      { replacements: { codes }, type: Sequelize.QueryTypes.SELECT }
+    );
+    const existingSet = new Set(existing.map(e => e.code));
+    const toInsert = dashboards.filter(d => !existingSet.has(d.code));
+    if (toInsert.length) await queryInterface.bulkInsert('dashboard_configurations', toInsert);
+
+    // Build dashMap from DB (existing + newly inserted)
+    const all = await queryInterface.sequelize.query(
+      `SELECT code, id FROM dashboard_configurations WHERE code IN (:codes)`,
+      { replacements: { codes }, type: Sequelize.QueryTypes.SELECT }
+    );
     const dashMap = {};
-    dashboards.forEach(d => {
-      dashMap[d.code] = d.id;
-    });
+    all.forEach(d => { dashMap[d.code] = d.id; });
     
     // Link packages to dashboards via metadata - using simple JSON merge
     const packageDashboardLinks = [

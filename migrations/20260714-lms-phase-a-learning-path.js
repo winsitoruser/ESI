@@ -30,10 +30,12 @@ module.exports = {
       createdAt: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.fn('NOW'), field: 'created_at' },
       updatedAt: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.fn('NOW'), field: 'updated_at' },
     });
-    await queryInterface.addIndex('hris_lms_enrollments', ['tenant_id', 'curriculum_id', 'employee_id'], {
-      unique: true,
-      name: 'idx_lms_enroll_unique',
-    });
+    try {
+      await queryInterface.addIndex('hris_lms_enrollments', ['tenant_id', 'curriculum_id', 'employee_id'], {
+        unique: true,
+        name: 'idx_lms_enroll_unique',
+      });
+    } catch { /* index may already exist */ }
 
     await addCol('hris_training_curricula', 'certificate_enabled', {
       type: Sequelize.BOOLEAN,
@@ -52,12 +54,12 @@ module.exports = {
       comment: 'Ordered steps: module_id, type, exam_id',
     });
 
-    await addCol('hris_certificates', 'verify_token', {
+    await addCol('hris_certifications', 'verify_token', {
       type: Sequelize.STRING(64),
       allowNull: true,
       unique: true,
     });
-    await addCol('hris_certificates', 'curriculum_id', {
+    await addCol('hris_certifications', 'curriculum_id', {
       type: Sequelize.UUID,
       allowNull: true,
     });

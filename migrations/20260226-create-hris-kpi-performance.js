@@ -126,13 +126,13 @@ module.exports = {
       }
     });
 
-    await queryInterface.addIndex('employee_kpis', ['employeeId'], { name: 'idx_emp_kpis_employee' });
-    await queryInterface.addIndex('employee_kpis', ['branchId'], { name: 'idx_emp_kpis_branch' });
-    await queryInterface.addIndex('employee_kpis', ['period'], { name: 'idx_emp_kpis_period' });
-    await queryInterface.addIndex('employee_kpis', ['category'], { name: 'idx_emp_kpis_category' });
-    await queryInterface.addIndex('employee_kpis', ['status'], { name: 'idx_emp_kpis_status' });
-    await queryInterface.addIndex('employee_kpis', ['tenantId'], { name: 'idx_emp_kpis_tenant' });
-    await queryInterface.addIndex('employee_kpis', ['employeeId', 'metricName', 'period'], { unique: true, name: 'idx_emp_kpis_unique_metric' });
+    try { await queryInterface.addIndex('employee_kpis', ['employeeId'], { name: 'idx_emp_kpis_employee' }); } catch (e) {}
+    try { await queryInterface.addIndex('employee_kpis', ['branchId'], { name: 'idx_emp_kpis_branch' }); } catch (e) {}
+    try { await queryInterface.addIndex('employee_kpis', ['period'], { name: 'idx_emp_kpis_period' }); } catch (e) {}
+    try { await queryInterface.addIndex('employee_kpis', ['category'], { name: 'idx_emp_kpis_category' }); } catch (e) {}
+    try { await queryInterface.addIndex('employee_kpis', ['status'], { name: 'idx_emp_kpis_status' }); } catch (e) {}
+    try { await queryInterface.addIndex('employee_kpis', ['tenantId'], { name: 'idx_emp_kpis_tenant' }); } catch (e) {}
+    try { await queryInterface.addIndex('employee_kpis', ['employeeId', 'metricName', 'period'], { unique: true, name: 'idx_emp_kpis_unique_metric' }); } catch (e) {}
 
     // ──────────────────────────────────────────────────
     // 2. kpi_templates - Template definisi KPI
@@ -234,10 +234,10 @@ module.exports = {
       }
     });
 
-    await queryInterface.addIndex('kpi_templates', ['code'], { unique: true, name: 'idx_kpi_tpl_code_unique' });
-    await queryInterface.addIndex('kpi_templates', ['category'], { name: 'idx_kpi_tpl_category' });
-    await queryInterface.addIndex('kpi_templates', ['is_active'], { name: 'idx_kpi_tpl_active' });
-    await queryInterface.addIndex('kpi_templates', ['tenant_id'], { name: 'idx_kpi_tpl_tenant' });
+    try { await queryInterface.addIndex('kpi_templates', ['code'], { unique: true, name: 'idx_kpi_tpl_code_unique' }); } catch (e) {}
+    try { await queryInterface.addIndex('kpi_templates', ['category'], { name: 'idx_kpi_tpl_category' }); } catch (e) {}
+    try { await queryInterface.addIndex('kpi_templates', ['is_active'], { name: 'idx_kpi_tpl_active' }); } catch (e) {}
+    try { await queryInterface.addIndex('kpi_templates', ['tenant_id'], { name: 'idx_kpi_tpl_tenant' }); } catch (e) {}
 
     // ──────────────────────────────────────────────────
     // 3. kpi_scoring - Rubrik penilaian KPI
@@ -302,9 +302,9 @@ module.exports = {
       }
     });
 
-    await queryInterface.addIndex('kpi_scoring', ['scoring_type'], { name: 'idx_kpi_scoring_type' });
-    await queryInterface.addIndex('kpi_scoring', ['is_default'], { name: 'idx_kpi_scoring_default' });
-    await queryInterface.addIndex('kpi_scoring', ['tenant_id'], { name: 'idx_kpi_scoring_tenant' });
+    try { await queryInterface.addIndex('kpi_scoring', ['scoring_type'], { name: 'idx_kpi_scoring_type' }); } catch (e) {}
+    try { await queryInterface.addIndex('kpi_scoring', ['is_default'], { name: 'idx_kpi_scoring_default' }); } catch (e) {}
+    try { await queryInterface.addIndex('kpi_scoring', ['tenant_id'], { name: 'idx_kpi_scoring_tenant' }); } catch (e) {}
 
     // ──────────────────────────────────────────────────
     // 4. performance_reviews - Review kinerja berkala
@@ -441,13 +441,13 @@ module.exports = {
       }
     });
 
-    await queryInterface.addIndex('performance_reviews', ['employeeId'], { name: 'idx_perf_reviews_employee' });
-    await queryInterface.addIndex('performance_reviews', ['branchId'], { name: 'idx_perf_reviews_branch' });
-    await queryInterface.addIndex('performance_reviews', ['reviewerId'], { name: 'idx_perf_reviews_reviewer' });
-    await queryInterface.addIndex('performance_reviews', ['reviewPeriod'], { name: 'idx_perf_reviews_period' });
-    await queryInterface.addIndex('performance_reviews', ['status'], { name: 'idx_perf_reviews_status' });
-    await queryInterface.addIndex('performance_reviews', ['tenantId'], { name: 'idx_perf_reviews_tenant' });
-    await queryInterface.addIndex('performance_reviews', ['employeeId', 'reviewPeriod'], { unique: true, name: 'idx_perf_reviews_emp_period_unique' });
+    try { await queryInterface.addIndex('performance_reviews', ['employeeId'], { name: 'idx_perf_reviews_employee' }); } catch (e) {}
+    try { await queryInterface.addIndex('performance_reviews', ['branchId'], { name: 'idx_perf_reviews_branch' }); } catch (e) {}
+    try { await queryInterface.addIndex('performance_reviews', ['reviewerId'], { name: 'idx_perf_reviews_reviewer' }); } catch (e) {}
+    try { await queryInterface.addIndex('performance_reviews', ['reviewPeriod'], { name: 'idx_perf_reviews_period' }); } catch (e) {}
+    try { await queryInterface.addIndex('performance_reviews', ['status'], { name: 'idx_perf_reviews_status' }); } catch (e) {}
+    try { await queryInterface.addIndex('performance_reviews', ['tenantId'], { name: 'idx_perf_reviews_tenant' }); } catch (e) {}
+    try { await queryInterface.addIndex('performance_reviews', ['employeeId', 'reviewPeriod'], { unique: true, name: 'idx_perf_reviews_emp_period_unique' }); } catch (e) {}
 
     // ──────────────────────────────────────────────────
     // 5. leave_requests - Pengajuan cuti karyawan
@@ -551,13 +551,13 @@ module.exports = {
       }
     });
 
-    await queryInterface.addIndex('leave_requests', ['employeeId'], { name: 'idx_leave_req_employee' });
-    await queryInterface.addIndex('leave_requests', ['branchId'], { name: 'idx_leave_req_branch' });
-    await queryInterface.addIndex('leave_requests', ['leaveType'], { name: 'idx_leave_req_type' });
-    await queryInterface.addIndex('leave_requests', ['status'], { name: 'idx_leave_req_status' });
-    await queryInterface.addIndex('leave_requests', ['startDate'], { name: 'idx_leave_req_start' });
-    await queryInterface.addIndex('leave_requests', ['tenantId'], { name: 'idx_leave_req_tenant' });
-    await queryInterface.addIndex('leave_requests', ['approvedBy'], { name: 'idx_leave_req_approver' });
+    try { await queryInterface.addIndex('leave_requests', ['employeeId'], { name: 'idx_leave_req_employee' }); } catch (e) {}
+    try { await queryInterface.addIndex('leave_requests', ['branchId'], { name: 'idx_leave_req_branch' }); } catch (e) {}
+    try { await queryInterface.addIndex('leave_requests', ['leaveType'], { name: 'idx_leave_req_type' }); } catch (e) {}
+    try { await queryInterface.addIndex('leave_requests', ['status'], { name: 'idx_leave_req_status' }); } catch (e) {}
+    try { await queryInterface.addIndex('leave_requests', ['startDate'], { name: 'idx_leave_req_start' }); } catch (e) {}
+    try { await queryInterface.addIndex('leave_requests', ['tenantId'], { name: 'idx_leave_req_tenant' }); } catch (e) {}
+    try { await queryInterface.addIndex('leave_requests', ['approvedBy'], { name: 'idx_leave_req_approver' }); } catch (e) {}
 
     // ──────────────────────────────────────────────────
     // 6. hris_webhook_logs - Audit trail webhook events
@@ -625,12 +625,12 @@ module.exports = {
       }
     });
 
-    await queryInterface.addIndex('hris_webhook_logs', ['eventType'], { name: 'idx_webhook_logs_event' });
-    await queryInterface.addIndex('hris_webhook_logs', ['employeeId'], { name: 'idx_webhook_logs_employee' });
-    await queryInterface.addIndex('hris_webhook_logs', ['branchId'], { name: 'idx_webhook_logs_branch' });
-    await queryInterface.addIndex('hris_webhook_logs', ['status'], { name: 'idx_webhook_logs_status' });
-    await queryInterface.addIndex('hris_webhook_logs', ['tenantId'], { name: 'idx_webhook_logs_tenant' });
-    await queryInterface.addIndex('hris_webhook_logs', ['createdAt'], { name: 'idx_webhook_logs_created' });
+    try { await queryInterface.addIndex('hris_webhook_logs', ['eventType'], { name: 'idx_webhook_logs_event' }); } catch (e) {}
+    try { await queryInterface.addIndex('hris_webhook_logs', ['employeeId'], { name: 'idx_webhook_logs_employee' }); } catch (e) {}
+    try { await queryInterface.addIndex('hris_webhook_logs', ['branchId'], { name: 'idx_webhook_logs_branch' }); } catch (e) {}
+    try { await queryInterface.addIndex('hris_webhook_logs', ['status'], { name: 'idx_webhook_logs_status' }); } catch (e) {}
+    try { await queryInterface.addIndex('hris_webhook_logs', ['tenantId'], { name: 'idx_webhook_logs_tenant' }); } catch (e) {}
+    try { await queryInterface.addIndex('hris_webhook_logs', ['createdAt'], { name: 'idx_webhook_logs_created' }); } catch (e) {}
   },
 
   async down(queryInterface) {

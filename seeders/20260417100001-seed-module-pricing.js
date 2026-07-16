@@ -1,4 +1,5 @@
 'use strict';
+const { v4: uuidv4 } = require('uuid');
 
 /**
  * Seeds default pricing for add-on modules. The entries are module-code based
@@ -41,10 +42,10 @@ module.exports = {
       .filter((m) => priceMap[m.code])
       .map((m) => {
         const cfg = priceMap[m.code];
-        return {
-          id: Sequelize.fn('gen_random_uuid'),
-          module_id: m.id,
-          price: cfg.price,
+          return {
+            id: uuidv4(),
+            module_id: m.id,
+            price: cfg.price,
           currency: 'IDR',
           billing_interval: 'monthly',
           per_user: cfg.perUser || false,
@@ -66,22 +67,30 @@ module.exports = {
 
     // Use raw INSERT so we can call gen_random_uuid safely; fallback to plain uuid if unsupported
     try {
-      await queryInterface.bulkInsert(
-        'module_pricing',
-        rows.map((r) => ({
-          ...r,
-          id: undefined
-        }))
-      );
+      // Ensure we don't include an explicit `id` column so DB defaults apply
+      await queryInterface.bulkInsert('module_pricing', rows);
     } catch (err) {
       console.warn('bulkInsert failed, using raw SQL fallback:', err.message);
       for (const r of rows) {
         await queryInterface.sequelize.query(
-          `INSERT INTO module_pricing (module_id, price, currency, billing_interval, per_user, per_branch, included_in_plans, trial_days, is_active, yearly_discount_percent, metadata, created_at, updated_at)
-           VALUES (:module_id, :price, :currency, :billing_interval, :per_user, :per_branch, :included_in_plans::jsonb, :trial_days, :is_active, :yearly_discount_percent, :metadata::jsonb, NOW(), NOW())
+          `INSERT INTO module_pricing (id, module_id, price, currency, billing_interval, per_user, per_branch, included_in_plans, trial_days, is_active, yearly_discount_percent, metadata, created_at, updated_at)
+           VALUES (:id, :module_id, :price, :currency, :billing_interval, :per_user, :per_branch, :included_in_plans::jsonb, :trial_days, :is_active, :yearly_discount_percent, :metadata::jsonb, NOW(), NOW())
            ON CONFLICT DO NOTHING`,
-          { replacements: r }
-        );
+          { replacements: {
+            id: r.id,
+            module_id: r.module_id,
+            price: r.price,
+            currency: r.currency,
+            billing_interval: r.billing_interval,
+            per_user: r.per_user,
+            per_branch: r.per_branch,
+            included_in_plans: r.included_in_plans,
+            trial_days: r.trial_days,
+            is_active: r.is_active,
+            yearly_discount_percent: r.yearly_discount_percent,
+            metadata: r.metadata
+          } }
+         );
       }
     }
 

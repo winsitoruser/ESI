@@ -20,8 +20,15 @@ export default function WelcomePage() {
 
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
   const session = await getServerSession(ctx.req, ctx.res, authOptions);
-  if (session?.user) {
-    return { redirect: { destination: HUMANIFY_BRAND.appPath, permanent: false } };
+  const path = ctx.resolvedUrl || '/humanify';
+  if (!session?.user) {
+    return {
+      redirect: {
+        destination: `${HUMANIFY_BRAND.loginPath}?callbackUrl=${encodeURIComponent(path)}`,
+        permanent: false,
+      },
+    };
   }
-  return { props: {} };
+  // Already logged in — send to app
+  return { redirect: { destination: HUMANIFY_BRAND.appPath, permanent: false } };
 };

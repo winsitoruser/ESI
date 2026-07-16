@@ -10,7 +10,7 @@ module.exports = {
         primaryKey: true
       },
       requisition_id: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: false,
         references: {
           model: 'internal_requisitions',
@@ -232,7 +232,7 @@ module.exports = {
         onDelete: 'CASCADE'
       },
       requisition_id: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: false,
         references: {
           model: 'internal_requisitions',
@@ -335,7 +335,7 @@ module.exports = {
         onDelete: 'CASCADE'
       },
       requisition_item_id: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: true,
         references: {
           model: 'internal_requisition_items',

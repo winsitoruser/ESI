@@ -495,7 +495,7 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
 
         {/* Navigation */}
         <nav className="px-3 py-3 overflow-y-auto h-[calc(100vh-8rem)] sidebar-scroll">
-          {filteredConfig.groups.map((group, idx) => renderMenuGroup(group, idx))}
+          {filteredConfig.groups.map((group, idx) => renderMenuGroup(group as any, idx))}
         </nav>
 
         {/* Scrollbar styling */}

@@ -197,14 +197,23 @@ module.exports = {
       }
     ];
 
-    // Insert plans
-    await queryInterface.bulkInsert('plans', plans.map(plan => ({
-      ...plan,
-      features: JSON.stringify(plan.features),
-      metadata: JSON.stringify(plan.metadata),
-      created_at: new Date(),
-      updated_at: new Date()
-    })));
+    // Insert plans (only missing)
+    const planIds = plans.map(p => p.id);
+    const existingPlans = await queryInterface.sequelize.query(
+      `SELECT id FROM plans WHERE id IN (:ids)`,
+      { replacements: { ids: planIds }, type: Sequelize.QueryTypes.SELECT }
+    );
+    const existingSet = new Set(existingPlans.map(r => r.id));
+    const toInsertPlans = plans.filter(p => !existingSet.has(p.id));
+    if (toInsertPlans.length) {
+      await queryInterface.bulkInsert('plans', toInsertPlans.map(plan => ({
+        ...plan,
+        features: JSON.stringify(plan.features),
+        metadata: JSON.stringify(plan.metadata),
+        created_at: new Date(),
+        updated_at: new Date()
+      })));
+    }
 
     // Create plan limits
     const planLimits = [
@@ -323,12 +332,21 @@ module.exports = {
       }
     ];
 
-    // Insert plan limits
-    await queryInterface.bulkInsert('plan_limits', planLimits.map(limit => ({
-      ...limit,
-      created_at: new Date(),
-      updated_at: new Date()
-    })));
+    // Insert plan limits (only missing)
+    const limitIds = planLimits.map(l => l.id);
+    const existingLimits = await queryInterface.sequelize.query(
+      `SELECT id FROM plan_limits WHERE id IN (:ids)`,
+      { replacements: { ids: limitIds }, type: Sequelize.QueryTypes.SELECT }
+    );
+    const existingLimitSet = new Set(existingLimits.map(r => r.id));
+    const toInsertLimits = planLimits.filter(l => !existingLimitSet.has(l.id));
+    if (toInsertLimits.length) {
+      await queryInterface.bulkInsert('plan_limits', toInsertLimits.map(limit => ({
+        ...limit,
+        created_at: new Date(),
+        updated_at: new Date()
+      })));
+    }
 
     console.log('✅ Billing plans seeded successfully!');
     console.log('   Plans created:', plans.length);
