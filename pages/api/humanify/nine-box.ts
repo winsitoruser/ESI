@@ -3,17 +3,31 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]';
 import { buildNineBoxFromReviews, getNineBoxSummary, getMockNineBox } from '@/lib/hris/nine-box-matrix';
 import { allowHrMockFallback } from '@/lib/hris/data-source';
+import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch {}
+
+const emptyPayload = () => ({
+  employees: [],
+  summary: getNineBoxSummary([]),
+});
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
   if (!session) return res.status(401).json({ error: 'Unauthorized' });
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
+  const tenantId = tenantIdFromSession(session);
   const period = (req.query.period as string) || new Date().toISOString().substring(0, 7);
-  let dataSource: 'live' | 'demo' = 'live';
+
+  if (!tenantId) {
+    if (allowHrMockFallback()) {
+      const mock = getMockNineBox();
+      return res.json({ success: true, data: { employees: mock, summary: getNineBoxSummary(mock) }, dataSource: 'demo' });
+    }
+    return res.json({ success: true, data: emptyPayload(), dataSource: 'empty' });
+  }
 
   try {
     if (!sequelize) {
@@ -21,7 +35,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const mock = getMockNineBox();
         return res.json({ success: true, data: { employees: mock, summary: getNineBoxSummary(mock) }, dataSource: 'demo' });
       }
-      return res.json({ success: true, data: { employees: [], summary: getNineBoxSummary([]) }, dataSource: 'empty' });
+      return res.json({ success: true, data: emptyPayload(), dataSource: 'empty' });
     }
 
     const [reviews] = await sequelize.query(`
@@ -34,22 +48,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       FROM performance_reviews pr
       JOIN employees e ON pr.employee_id = e.id
       WHERE pr.status = 'completed' AND pr.overall_score IS NOT NULL
+        AND e.tenant_id = :tenantId
         AND (pr.period LIKE :period || '%' OR pr.period IS NULL)
       ORDER BY pr.overall_score DESC
       LIMIT 100
-    `, { replacements: { period } });
+    `, { replacements: { period, tenantId } });
 
     if (!reviews?.length) {
-      // Fallback: use KPI data when no performance reviews
+      // Fallback: use KPI data when no performance reviews (tenant-scoped only)
       const [kpiRows] = await sequelize.query(`
         SELECT e.id as "employeeId", e.name as "employeeName", e.department, e.position,
           ROUND(AVG(CASE WHEN ek.target > 0 THEN ek.actual/ek.target*100 ELSE 70 END)::numeric, 0) as achievement
         FROM employees e
         LEFT JOIN employee_kpis ek ON ek.employee_id = e.id AND ek.period = :period
-        WHERE e.is_active = true OR e.status = 'active' OR e.status IS NULL
+        WHERE e.tenant_id = :tenantId
+          AND (e.is_active = true OR LOWER(COALESCE(e.status, 'active')) = 'active')
         GROUP BY e.id, e.name, e.department, e.position
         LIMIT 50
-      `, { replacements: { period } });
+      `, { replacements: { period, tenantId } });
 
       if (kpiRows?.length) {
         const syntheticReviews = kpiRows.map((r: any) => ({
@@ -69,7 +85,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const mock = getMockNineBox();
         return res.json({ success: true, data: { employees: mock, summary: getNineBoxSummary(mock) }, dataSource: 'demo' });
       }
-      return res.json({ success: true, data: { employees: [], summary: getNineBoxSummary([]) }, dataSource: 'empty' });
+      return res.json({ success: true, data: emptyPayload(), dataSource: 'empty' });
     }
 
     const employeeIds = reviews.map((r: any) => r.employeeId);
@@ -83,12 +99,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const employees = buildNineBoxFromReviews(reviews, kpiData);
     const summary = getNineBoxSummary(employees);
 
-    return res.json({ success: true, data: { employees, summary }, dataSource });
+    return res.json({ success: true, data: { employees, summary }, dataSource: 'live' });
   } catch (error: any) {
     if (allowHrMockFallback()) {
       const mock = getMockNineBox();
       return res.json({ success: true, data: { employees: mock, summary: getNineBoxSummary(mock) }, dataSource: 'demo', warning: error?.message });
     }
-    return res.json({ success: true, data: { employees: [], summary: getNineBoxSummary([]) }, dataSource: 'empty', warning: error?.message });
+    return res.json({ success: true, data: emptyPayload(), dataSource: 'empty', warning: error?.message });
   }
 }

@@ -6,6 +6,7 @@ import {
 } from '../../../lib/hris/master-data';
 import { HRIS_TEAM_WORK_AREAS } from '../../../lib/hris/team-member-sync';
 import { syncOrgDepartments, fetchDepartmentsFromOrg } from '../../../lib/hris/sync-org-departments';
+import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
 
 const ESI_HQ_BRANCH = {
   id: 'esi-hq',
@@ -107,65 +108,72 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   const session = (req as any).session;
-  const tenantId = session?.user?.tenantId || null;
+  const tenantId = tenantIdFromSession(session);
 
-  let branches: typeof ESI_HQ_BRANCH[] = [ESI_HQ_BRANCH];
+  // Empty for SaaS tenants until they create their own branches — never leak other tenants / ESI stub.
+  let branches: Array<{ id: string; code: string; name: string; city: string }> = [];
   let orgUnits: any[] = [];
   let jobGrades: any[] = [];
+  // Catalog taxonomy for forms (not company operational rows). Prefer org-derived when available.
   let departments = HRIS_DEPARTMENTS;
 
   try {
     const sequelize = require('../../../lib/sequelize');
 
-    const [branchRows] = await sequelize.query(
-      `SELECT id, code, name, city FROM branches WHERE is_active IS NOT FALSE ORDER BY name ASC LIMIT 100`
-    );
-    if (branchRows?.length) {
-      branches = branchRows.map((b: any) => ({
-        id: String(b.id),
-        code: b.code || '',
-        name: b.name || '',
-        city: b.city || '',
+    if (tenantId) {
+      const [branchRows] = await sequelize.query(
+        `SELECT id, code, name, city FROM branches
+         WHERE tenant_id = :tenantId AND is_active IS NOT FALSE
+         ORDER BY name ASC LIMIT 100`,
+        { replacements: { tenantId } }
+      );
+      if (branchRows?.length) {
+        branches = branchRows.map((b: any) => ({
+          id: String(b.id),
+          code: b.code || '',
+          name: b.name || '',
+          city: b.city || '',
+        }));
+      }
+
+      await ensureOrgTables(sequelize);
+      await syncOrgDepartments(sequelize, tenantId);
+      departments = await fetchDepartmentsFromOrg(sequelize, tenantId);
+
+      const tenantClause = 'WHERE tenant_id = :tenantId';
+      const [orgRows] = await sequelize.query(
+        `SELECT id, name, code, parent_id, level, description
+         FROM org_structures ${tenantClause}
+         ORDER BY level ASC, sort_order ASC, name ASC`,
+        { replacements: { tenantId } }
+      );
+      orgUnits = (orgRows || []).map((o: any) => ({
+        id: String(o.id),
+        name: o.name,
+        code: o.code || '',
+        parentId: o.parent_id,
+        level: o.level,
+        description: o.description,
+        /** Kode org yang cocok dengan kode departemen master (jika sama) */
+        departmentCode: HRIS_DEPARTMENTS.some((d) => d.code === o.code) ? o.code : null,
+      }));
+
+      const [gradeRows] = await sequelize.query(
+        `SELECT id, code, name, level, min_salary, max_salary, description
+         FROM job_grades ${tenantClause}
+         ORDER BY level ASC, sort_order ASC`,
+        { replacements: { tenantId } }
+      );
+      jobGrades = (gradeRows || []).map((g: any) => ({
+        id: String(g.id),
+        code: g.code,
+        name: g.name,
+        level: g.level,
+        salaryMin: g.min_salary,
+        salaryMax: g.max_salary,
+        description: g.description,
       }));
     }
-
-    await ensureOrgTables(sequelize);
-    await syncOrgDepartments(sequelize, tenantId);
-    departments = await fetchDepartmentsFromOrg(sequelize, tenantId);
-
-    const tenantClause = tenantId ? 'WHERE tenant_id = :tenantId OR tenant_id IS NULL' : '';
-    const [orgRows] = await sequelize.query(
-      `SELECT id, name, code, parent_id, level, description
-       FROM org_structures ${tenantClause}
-       ORDER BY level ASC, sort_order ASC, name ASC`,
-      { replacements: { tenantId } }
-    );
-    orgUnits = (orgRows || []).map((o: any) => ({
-      id: String(o.id),
-      name: o.name,
-      code: o.code || '',
-      parentId: o.parent_id,
-      level: o.level,
-      description: o.description,
-      /** Kode org yang cocok dengan kode departemen master (jika sama) */
-      departmentCode: HRIS_DEPARTMENTS.some((d) => d.code === o.code) ? o.code : null,
-    }));
-
-    const [gradeRows] = await sequelize.query(
-      `SELECT id, code, name, level, min_salary, max_salary, description
-       FROM job_grades ${tenantClause}
-       ORDER BY level ASC, sort_order ASC`,
-      { replacements: { tenantId } }
-    );
-    jobGrades = (gradeRows || []).map((g: any) => ({
-      id: String(g.id),
-      code: g.code,
-      name: g.name,
-      level: g.level,
-      salaryMin: g.min_salary,
-      salaryMax: g.max_salary,
-      description: g.description,
-    }));
   } catch {
     /* fallback stub */
   }

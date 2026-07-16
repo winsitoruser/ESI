@@ -71,7 +71,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         SELECT ch.competency_name, ch.competency_code,
           COUNT(*)::int AS holders,
           COALESCE(AVG(ch.score),0)::decimal(5,2) AS avg_score,
-          (SELECT COUNT(*)::int FROM employees WHERE tenant_id = :tid OR :tid IS NULL) AS total_employees
+          (SELECT COUNT(*)::int FROM employees WHERE tenant_id = :tid) AS total_employees
         FROM hris_lms_competency_history ch
         WHERE ch.tenant_id = :tid
         GROUP BY ch.competency_name, ch.competency_code

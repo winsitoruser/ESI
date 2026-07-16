@@ -12,6 +12,7 @@ import {
   formatRelativeTime,
   formatCheckInTime,
 } from '../../../lib/employee-portal';
+import { ensurePortalEmployee, ensurePortalSchema } from '@/lib/employee-portal/ensure-portal';
 import { canAccessManagerPortal, isSuperAdminRole } from '@/lib/humanify/manager-access';
 import {
   createPortalLeaveRequest,
@@ -29,6 +30,7 @@ import {
   portalClockOut,
 } from '../../../lib/hris/attendance-store';
 import { loadActiveGeofences, matchGeofences } from '@/lib/hris/geofence-utils';
+import { allowHrMockFallback } from '@/lib/hris/data-source';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch (e) {}
@@ -92,8 +94,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
 // ─── Profile ───
 async function getProfile(res: NextApiResponse, userId: string, tenantId: string) {
-  if (!sequelize) return res.json({ success: true, data: mockProfile() });
+  if (!sequelize) return res.json({ success: true, data: allowHrMockFallback() ? mockProfile() : null });
   try {
+    // Auto-link / provision employee so portal forms work for owner/self-serve users
+    await ensurePortalEmployee(sequelize, userId, tenantId);
+
     const [rows] = await sequelize.query(`
       SELECT u.id, u.name, u.email, u.phone, u.role,
         e.id as employee_id, e.employee_code, e.position, e.department, e.hire_date as join_date,
@@ -104,7 +109,8 @@ async function getProfile(res: NextApiResponse, userId: string, tenantId: string
       LEFT JOIN branches b ON u.assigned_branch_id = b.id OR e.branch_id = b.id
       WHERE u.id = :userId LIMIT 1
     `, { replacements: { userId } });
-    const profile = rows[0] || mockProfile();
+    const profile = rows[0] || (allowHrMockFallback() ? mockProfile() : null);
+    if (!profile) return res.json({ success: true, data: null });
     const mfCategories = ['account_officer', 'collector', 'surveyor', 'telemarketing', 'field_agent'];
     const isMfAgent = profile.business_vertical === 'multifinance'
       || mfCategories.includes(profile.employment_category || '');
@@ -115,7 +121,7 @@ async function getProfile(res: NextApiResponse, userId: string, tenantId: string
       success: true,
       data: { ...profile, isMfAgent, isManagerPortal, isSuperAdmin },
     });
-  } catch { return res.json({ success: true, data: mockProfile() }); }
+  } catch { return res.json({ success: true, data: allowHrMockFallback() ? mockProfile() : null }); }
 }
 
 const employeeAttendanceWhere = `(employee_id IN (
@@ -290,35 +296,79 @@ async function getOvertimeHistory(req: NextApiRequest, res: NextApiResponse, use
 
 // ─── Submit Overtime ─────────────────────────────────────────────────────────
 async function submitOvertime(req: NextApiRequest, res: NextApiResponse, userId: string, tenantId: string) {
-  const { date, start_time, end_time, reason, work_description, overtime_type = 'regular' } = req.body;
+  const { date, start_time, end_time, reason, work_description, overtime_type = 'regular' } = req.body || {};
   if (!date || !start_time || !end_time || !reason)
     return res.status(400).json({ success: false, error: 'date, start_time, end_time, reason wajib diisi' });
 
-  if (!sequelize) return res.json({ success: true, message: 'Pengajuan lembur berhasil dikirim dan menunggu persetujuan' });
+  if (!sequelize) {
+    if (allowHrMockFallback()) {
+      return res.json({ success: true, message: 'Pengajuan lembur berhasil dikirim dan menunggu persetujuan' });
+    }
+    return res.status(503).json({ success: false, error: 'Database tidak tersedia' });
+  }
 
   try {
-    const [empRows] = await sequelize.query(`SELECT id, base_salary FROM employees WHERE user_id=:uid AND tenant_id=:tid LIMIT 1`, { replacements: { uid: userId, tid: tenantId } });
-    const emp = empRows?.[0];
-    const empId = emp?.id || userId;
+    await ensurePortalSchema(sequelize);
+    const emp = await ensurePortalEmployee(sequelize, userId, tenantId);
+    if (!emp?.id) {
+      return res.status(400).json({ success: false, error: 'Profil karyawan belum tersedia' });
+    }
+
+    let baseSalary = emp.salary || 0;
+    try {
+      const [sal] = await sequelize.query(
+        `SELECT base_salary FROM employee_salaries
+         WHERE employee_id = :empId AND is_active = true
+         ORDER BY COALESCE(effective_date, created_at::date) DESC NULLS LAST LIMIT 1`,
+        { replacements: { empId: emp.id } },
+      );
+      if (sal?.[0]?.base_salary) baseSalary = Number(sal[0].base_salary);
+    } catch { /* optional */ }
 
     const dow = new Date(date).getDay();
     const dayType = (dow === 0 || dow === 6) ? 'weekend' : 'weekday';
     const mult = dayType === 'weekend' ? 2.0 : 1.5;
     const [sh, sm] = start_time.split(':').map(Number);
     const [eh, em] = end_time.split(':').map(Number);
-    const durHrs = Math.max(0, (eh + em / 60) - (sh + sm / 60));
-    const hourlyRate = emp?.base_salary ? emp.base_salary / 173 : 0;
+    const durHrs = Math.max(0.5, Math.round(((eh + em / 60) - (sh + sm / 60)) * 10) / 10);
+    const hourlyRate = baseSalary > 0 ? baseSalary / 173 : 0;
     const calcPay = Math.round(hourlyRate * durHrs * mult);
+    const tid = tenantId || emp.tenantId;
 
+    // Insert compatible with both legacy (request_date/hours) and rich schema
     await sequelize.query(`
-      INSERT INTO overtime_requests (id, tenant_id, employee_id, date, day_type, start_time, end_time,
-        reason, work_description, overtime_type, multiplier, calculated_pay, status, created_at, updated_at)
-      VALUES (uuid_generate_v4(), :tid, :empId, :date, :dayType, :start, :end,
-        :reason, :desc, :otype, :mult, :pay, 'pending', NOW(), NOW())
-    `, { replacements: { tid: tenantId, empId, date, dayType, start: start_time, end: end_time, reason, desc: work_description || null, otype: overtime_type, mult, pay: calcPay } });
+      INSERT INTO overtime_requests (
+        id, tenant_id, employee_id,
+        request_date, hours,
+        date, day_type, start_time, end_time,
+        reason, work_description, overtime_type, multiplier, calculated_pay, duration_hours,
+        status, created_at, updated_at
+      ) VALUES (
+        uuid_generate_v4(), :tid, :empId,
+        :date, :hours,
+        :date, :dayType, :start, :end,
+        :reason, :desc, :otype, :mult, :pay, :hours,
+        'pending', NOW(), NOW()
+      )
+    `, {
+      replacements: {
+        tid,
+        empId: emp.id,
+        date,
+        hours: durHrs,
+        dayType,
+        start: start_time,
+        end: end_time,
+        reason,
+        desc: work_description || null,
+        otype: overtime_type,
+        mult,
+        pay: calcPay,
+      },
+    });
 
-    await notifyManagersForEmployee(sequelize, empId, {
-      tenantId,
+    await notifyManagersForEmployee(sequelize, emp.id, {
+      tenantId: tid,
       title: 'Pengajuan Lembur Baru',
       message: `Lembur ${date} (${durHrs.toFixed(1)} jam) menunggu persetujuan Anda.`,
       type: 'approval',
@@ -327,21 +377,28 @@ async function submitOvertime(req: NextApiRequest, res: NextApiResponse, userId:
 
     return res.json({ success: true, message: 'Pengajuan lembur berhasil dikirim dan menunggu persetujuan' });
   } catch (e: any) {
+    console.warn('submitOvertime error:', e?.message || e);
     return res.status(500).json({ success: false, error: 'Gagal mengajukan lembur', details: e.message });
   }
 }
 
 // ─── Cancel Overtime ─────────────────────────────────────────────────────────
 async function cancelOvertime(req: NextApiRequest, res: NextApiResponse, userId: string, tenantId: string) {
-  const { id } = req.body;
+  const { id } = req.body || {};
   if (!id) return res.status(400).json({ success: false, error: 'id required' });
   if (!sequelize) return res.json({ success: true, message: 'Pengajuan lembur dibatalkan' });
   try {
-    const [empRows] = await sequelize.query(`SELECT id FROM employees WHERE user_id=:uid AND tenant_id=:tid LIMIT 1`, { replacements: { uid: userId, tid: tenantId } });
-    const empId = empRows?.[0]?.id || userId;
-    await sequelize.query(`UPDATE overtime_requests SET status='cancelled', updated_at=NOW() WHERE id=:id AND employee_id=:empId AND tenant_id=:tid AND status='pending'`, { replacements: { id, empId, tid: tenantId } });
+    const emp = await ensurePortalEmployee(sequelize, userId, tenantId);
+    if (!emp?.id) return res.status(400).json({ success: false, error: 'Profil karyawan belum tersedia' });
+    await sequelize.query(
+      `UPDATE overtime_requests SET status='cancelled', updated_at=NOW()
+       WHERE id=:id AND employee_id=:empId AND tenant_id=:tid AND status='pending'`,
+      { replacements: { id, empId: emp.id, tid: tenantId || emp.tenantId } },
+    );
     return res.json({ success: true, message: 'Pengajuan lembur berhasil dibatalkan' });
-  } catch { return res.status(500).json({ success: false, error: 'Gagal membatalkan' }); }
+  } catch {
+    return res.status(500).json({ success: false, error: 'Gagal membatalkan' });
+  }
 }
 
 // ─── Clock In/Out ───
@@ -496,24 +553,51 @@ async function getKPI(res: NextApiResponse, userId: string, tenantId: string) {
 
 // ─── Leave Balance & Requests ───
 async function getLeaveBalance(res: NextApiResponse, userId: string, tenantId: string) {
-  if (!sequelize) return res.json({ success: true, data: mockLeaveBalance() });
+  if (!sequelize) {
+    return res.json({ success: true, data: allowHrMockFallback() ? mockLeaveBalance() : [] });
+  }
   try {
+    await ensurePortalEmployee(sequelize, userId, tenantId);
     const year = new Date().getFullYear();
-    const [rows] = await sequelize.query(`
-      SELECT lt.name as type, lb.total_days as total, lb.used_days as used
-      FROM employee_leave_balances lb
-      LEFT JOIN leave_types lt ON lb.leave_type_id = lt.id
-      LEFT JOIN employees e ON lb.employee_id = e.id
-      WHERE (e.user_id = :userId OR e.email = (SELECT email FROM users WHERE id = :userId))
-      AND lb.year = :year
-    `, { replacements: { userId, year } });
-    if (!rows || rows.length === 0) return res.json({ success: true, data: mockLeaveBalance() });
+    // Prefer leave_balances (prod schema); fallback employee_leave_balances
+    let rows: any[] = [];
+    try {
+      const [r] = await sequelize.query(`
+        SELECT lt.name as type, lt.code,
+          COALESCE(lb.entitled, 12) as total,
+          COALESCE(lb.used, 0) as used,
+          COALESCE(lb.remaining, COALESCE(lb.entitled, 12) - COALESCE(lb.used, 0)) as remaining
+        FROM leave_balances lb
+        LEFT JOIN leave_types lt ON lb.leave_type_id = lt.id
+        LEFT JOIN employees e ON lb.employee_id = e.id
+        WHERE (e.user_id = :userId OR e.email = (SELECT email FROM users WHERE id = :userId))
+        AND lb.year = :year
+      `, { replacements: { userId, year } });
+      rows = r || [];
+    } catch {
+      const [r] = await sequelize.query(`
+        SELECT lt.name as type, lb.total_days as total, lb.used_days as used
+        FROM employee_leave_balances lb
+        LEFT JOIN leave_types lt ON lb.leave_type_id = lt.id
+        LEFT JOIN employees e ON lb.employee_id = e.id
+        WHERE (e.user_id = :userId OR e.email = (SELECT email FROM users WHERE id = :userId))
+        AND lb.year = :year
+      `, { replacements: { userId, year } });
+      rows = r || [];
+    }
+    if (!rows.length) {
+      return res.json({ success: true, data: allowHrMockFallback() ? mockLeaveBalance() : [] });
+    }
     return res.json({ success: true, data: rows });
-  } catch { return res.json({ success: true, data: mockLeaveBalance() }); }
+  } catch {
+    return res.json({ success: true, data: allowHrMockFallback() ? mockLeaveBalance() : [] });
+  }
 }
 
 async function getLeaveRequests(res: NextApiResponse, userId: string, tenantId: string) {
-  if (!sequelize) return res.json({ success: true, data: mockLeaveRequests() });
+  if (!sequelize) {
+    return res.json({ success: true, data: allowHrMockFallback() ? mockLeaveRequests() : [] });
+  }
   try {
     const [rows] = await sequelize.query(`
       SELECT lr.*, lt.name as leave_type_name FROM leave_requests lr
@@ -522,62 +606,80 @@ async function getLeaveRequests(res: NextApiResponse, userId: string, tenantId: 
       WHERE (e.user_id = :userId OR e.email = (SELECT email FROM users WHERE id = :userId))
       ORDER BY lr.created_at DESC LIMIT 20
     `, { replacements: { userId } });
-    if (!rows || rows.length === 0) return res.json({ success: true, data: mockLeaveRequests() });
+    if (!rows || rows.length === 0) {
+      return res.json({ success: true, data: allowHrMockFallback() ? mockLeaveRequests() : [] });
+    }
     const enriched = await attachApprovalSteps(rows as any[]);
     return res.json({ success: true, data: enriched });
-  } catch { return res.json({ success: true, data: mockLeaveRequests() }); }
+  } catch {
+    return res.json({ success: true, data: allowHrMockFallback() ? mockLeaveRequests() : [] });
+  }
 }
 
 async function createLeaveRequest(req: NextApiRequest, res: NextApiResponse, userId: string, tenantId: string) {
-  const { leaveType, startDate, endDate, reason } = req.body;
+  const { leaveType, startDate, endDate, reason } = req.body || {};
   if (!leaveType || !startDate || !endDate || !reason) {
     return res.status(400).json({ success: false, error: 'Semua field harus diisi' });
   }
 
-  let employeeId = userId;
-  if (sequelize) {
-    const [empRows] = await sequelize.query(
-      `SELECT id FROM employees WHERE user_id = :userId OR email = (SELECT email FROM users WHERE id = :userId) LIMIT 1`,
-      { replacements: { userId } },
-    );
-    employeeId = empRows?.[0]?.id || userId;
-  }
+  try {
+    if (!sequelize) {
+      if (allowHrMockFallback()) {
+        return res.json({ success: true, message: 'Pengajuan cuti berhasil (mock)', data: { leaveType, startDate, endDate, status: 'pending' } });
+      }
+      return res.status(503).json({ success: false, error: 'Database tidak tersedia' });
+    }
 
-  const result = await createPortalLeaveRequest({
-    employeeId,
-    leaveType,
-    startDate,
-    endDate,
-    reason,
-    tenantId,
-  });
+    const emp = await ensurePortalEmployee(sequelize, userId, tenantId);
+    if (!emp?.id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Profil karyawan belum tersedia. Hubungkan akun Anda dengan data karyawan di HRIS terlebih dahulu.',
+      });
+    }
 
-  if (!result.success) {
-    return res.status(400).json({ success: false, error: result.error });
-  }
-
-  if (sequelize && !result.autoApproved) {
-    await notifyManagersForEmployee(sequelize, employeeId, {
-      tenantId,
-      title: 'Pengajuan Cuti Baru',
-      message: `Ada pengajuan cuti ${leaveType} (${startDate} – ${endDate}) yang menunggu persetujuan Anda.`,
-      type: 'approval',
-      sourceType: 'leave_request',
-      sourceId: result.data?.id ? String(result.data.id) : null,
+    const result = await createPortalLeaveRequest({
+      employeeId: emp.id,
+      leaveType,
+      startDate,
+      endDate,
+      reason,
+      tenantId: tenantId || emp.tenantId,
     });
-  }
 
-  return res.json({
-    success: true,
-    message: result.message,
-    data: result.data,
-  });
+    if (!result.success) {
+      return res.status(400).json({ success: false, error: result.error });
+    }
+
+    if (!result.autoApproved) {
+      await notifyManagersForEmployee(sequelize, emp.id, {
+        tenantId: tenantId || emp.tenantId,
+        title: 'Pengajuan Cuti Baru',
+        message: `Ada pengajuan cuti ${leaveType} (${startDate} – ${endDate}) yang menunggu persetujuan Anda.`,
+        type: 'approval',
+        sourceType: 'leave_request',
+        sourceId: result.data?.id ? String(result.data.id) : null,
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: result.message,
+      data: result.data,
+    });
+  } catch (e: any) {
+    console.warn('createLeaveRequest error:', e?.message || e);
+    return res.status(500).json({ success: false, error: 'Gagal mengajukan cuti', details: e?.message });
+  }
 }
 
 // ─── Claims ───
 async function getClaims(res: NextApiResponse, userId: string, tenantId: string) {
-  if (!sequelize) return res.json({ success: true, data: mockClaims() });
+  if (!sequelize) {
+    return res.json({ success: true, data: allowHrMockFallback() ? mockClaims() : [] });
+  }
   try {
+    await ensurePortalSchema(sequelize);
     const [rows] = await sequelize.query(`
       SELECT c.*, c.rejection_reason, c.rejected_by_name, c.rejected_at, c.resubmit_count,
              COALESCE(c.attachments_count, 0) as attachments_count
@@ -586,35 +688,59 @@ async function getClaims(res: NextApiResponse, userId: string, tenantId: string)
       WHERE (e.user_id = :userId OR e.email = (SELECT email FROM users WHERE id = :userId))
       ORDER BY c.created_at DESC LIMIT 20
     `, { replacements: { userId } });
-    if (!rows || rows.length === 0) return res.json({ success: true, data: mockClaims() });
+    if (!rows || rows.length === 0) {
+      return res.json({ success: true, data: allowHrMockFallback() ? mockClaims() : [] });
+    }
     return res.json({ success: true, data: rows });
-  } catch { return res.json({ success: true, data: mockClaims() }); }
+  } catch {
+    return res.json({ success: true, data: allowHrMockFallback() ? mockClaims() : [] });
+  }
 }
 
 async function createClaim(req: NextApiRequest, res: NextApiResponse, userId: string, tenantId: string) {
-  const { claimType, amount, description, receiptDate, attachments } = req.body;
+  const { claimType, amount, description, receiptDate, attachments } = req.body || {};
   if (!claimType || !amount || !description) {
     return res.status(400).json({ success: false, error: 'Semua field harus diisi' });
   }
   if (!sequelize) {
-    return res.json({ success: true, data: { id: 'cl-new', claim_type: claimType, amount, description, status: 'pending' } });
+    if (allowHrMockFallback()) {
+      return res.json({ success: true, data: { id: 'cl-new', claim_type: claimType, amount, description, status: 'pending' } });
+    }
+    return res.status(503).json({ success: false, error: 'Database tidak tersedia' });
   }
   try {
+    await ensurePortalSchema(sequelize);
+    const emp = await ensurePortalEmployee(sequelize, userId, tenantId);
+    if (!emp?.id) {
+      return res.status(400).json({ success: false, error: 'Profil karyawan belum tersedia' });
+    }
     const now = new Date().toISOString();
-    const [empRows] = await sequelize.query(
-      `SELECT id FROM employees WHERE user_id = :userId OR email = (SELECT email FROM users WHERE id = :userId) LIMIT 1`,
-      { replacements: { userId } }
-    );
-    const employeeId = empRows?.[0]?.id || userId;
     const attachmentsCount = Array.isArray(attachments) ? attachments.length : 0;
     const receiptUrl = attachmentsCount > 0 ? JSON.stringify(attachments.map((a: any) => a.name)) : null;
     await sequelize.query(`
-      INSERT INTO employee_claims (employee_id, claim_type, amount, description, receipt_date, status, tenant_id, receipt_url, attachments_count, created_at, updated_at)
-      VALUES (:employeeId, :claimType, :amount, :description, :receiptDate, 'pending', :tenantId, :receiptUrl, :attachmentsCount, :now, :now)
-    `, { replacements: { employeeId, claimType, amount: parseFloat(amount), description, receiptDate: receiptDate || now, tenantId, receiptUrl, attachmentsCount, now } });
+      INSERT INTO employee_claims (
+        id, employee_id, claim_type, amount, description, receipt_date, claim_date,
+        status, tenant_id, receipt_url, attachments_count, created_at, updated_at
+      ) VALUES (
+        uuid_generate_v4(), :employeeId, :claimType, :amount, :description, :receiptDate, :receiptDate,
+        'pending', :tenantId, :receiptUrl, :attachmentsCount, :now, :now
+      )
+    `, {
+      replacements: {
+        employeeId: emp.id,
+        claimType,
+        amount: parseFloat(amount),
+        description,
+        receiptDate: receiptDate || now.slice(0, 10),
+        tenantId: tenantId || emp.tenantId,
+        receiptUrl,
+        attachmentsCount,
+        now,
+      },
+    });
 
-    await notifyManagersForEmployee(sequelize, employeeId, {
-      tenantId,
+    await notifyManagersForEmployee(sequelize, emp.id, {
+      tenantId: tenantId || emp.tenantId,
       title: 'Klaim Baru Menunggu Persetujuan',
       message: `Klaim ${claimType} sebesar Rp ${parseFloat(amount).toLocaleString('id-ID')} menunggu persetujuan Anda.`,
       type: 'approval',
@@ -622,8 +748,9 @@ async function createClaim(req: NextApiRequest, res: NextApiResponse, userId: st
     });
 
     return res.json({ success: true, message: 'Klaim berhasil dikirim' });
-  } catch {
-    return res.json({ success: true, data: { claim_type: claimType, amount, description, status: 'pending' }, message: 'Saved (mock)' });
+  } catch (e: any) {
+    console.warn('createClaim error:', e?.message || e);
+    return res.status(500).json({ success: false, error: 'Gagal mengirim klaim', details: e?.message });
   }
 }
 
@@ -672,7 +799,9 @@ async function resubmitClaim(req: NextApiRequest, res: NextApiResponse, userId: 
 
 // ─── Travel ───
 async function getTravel(res: NextApiResponse, userId: string, tenantId: string) {
-  if (!sequelize) return res.json({ success: true, data: mockTravel() });
+  if (!sequelize) {
+    return res.json({ success: true, data: allowHrMockFallback() ? mockTravel() : [] });
+  }
   try {
     const [rows] = await sequelize.query(`
       SELECT tr.* FROM travel_requests tr
@@ -680,34 +809,80 @@ async function getTravel(res: NextApiResponse, userId: string, tenantId: string)
       WHERE (e.user_id = :userId OR e.email = (SELECT email FROM users WHERE id = :userId))
       ORDER BY tr.created_at DESC LIMIT 20
     `, { replacements: { userId } });
-    if (!rows || rows.length === 0) return res.json({ success: true, data: mockTravel() });
+    if (!rows || rows.length === 0) {
+      return res.json({ success: true, data: allowHrMockFallback() ? mockTravel() : [] });
+    }
     return res.json({ success: true, data: rows });
-  } catch { return res.json({ success: true, data: mockTravel() }); }
+  } catch {
+    return res.json({ success: true, data: allowHrMockFallback() ? mockTravel() : [] });
+  }
 }
 
 async function createTravelRequest(req: NextApiRequest, res: NextApiResponse, userId: string, tenantId: string) {
-  const { destination, departureCity, purpose, departureDate, returnDate, transportation, estimatedBudget } = req.body;
-  if (!destination || !purpose || !departureDate || !returnDate) {
+  const {
+    destination,
+    departureCity,
+    purpose,
+    departureDate,
+    returnDate,
+    transportation,
+    estimatedBudget,
+    // aliases
+    startDate,
+    endDate,
+    estimatedCost,
+  } = req.body || {};
+
+  const depDate = departureDate || startDate;
+  const retDate = returnDate || endDate;
+  const budget = estimatedBudget ?? estimatedCost;
+
+  if (!destination || !purpose || !depDate || !retDate) {
     return res.status(400).json({ success: false, error: 'Semua field harus diisi' });
   }
   if (!sequelize) {
-    return res.json({ success: true, data: { destination, purpose, status: 'pending' } });
+    if (allowHrMockFallback()) {
+      return res.json({ success: true, data: { destination, purpose, status: 'pending' } });
+    }
+    return res.status(503).json({ success: false, error: 'Database tidak tersedia' });
   }
   try {
+    await ensurePortalSchema(sequelize);
+    const emp = await ensurePortalEmployee(sequelize, userId, tenantId);
+    if (!emp?.id) {
+      return res.status(400).json({ success: false, error: 'Profil karyawan belum tersedia' });
+    }
     const now = new Date().toISOString();
-    const [empRows] = await sequelize.query(
-      `SELECT id FROM employees WHERE user_id = :userId OR email = (SELECT email FROM users WHERE id = :userId) LIMIT 1`,
-      { replacements: { userId } }
-    );
-    const employeeId = empRows?.[0]?.id || userId;
     const reqNum = `TRV-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`;
     await sequelize.query(`
-      INSERT INTO travel_requests (employee_id, request_number, destination, departure_city, purpose, departure_date, return_date, transportation, estimated_budget, status, tenant_id, created_at, updated_at)
-      VALUES (:employeeId, :reqNum, :destination, :departureCity, :purpose, :departureDate, :returnDate, :transportation, :budget, 'pending', :tenantId, :now, :now)
-    `, { replacements: { employeeId, reqNum, destination, departureCity: departureCity || 'Jakarta', purpose, departureDate, returnDate, transportation: transportation || 'flight', budget: parseFloat(estimatedBudget) || 0, tenantId, now } });
+      INSERT INTO travel_requests (
+        id, employee_id, request_number, destination, departure_city, purpose,
+        departure_date, return_date, start_date, end_date,
+        transportation, estimated_budget, status, tenant_id, created_at, updated_at
+      ) VALUES (
+        uuid_generate_v4(), :employeeId, :reqNum, :destination, :departureCity, :purpose,
+        :depDate, :retDate, :depDate, :retDate,
+        :transportation, :budget, 'pending', :tenantId, :now, :now
+      )
+    `, {
+      replacements: {
+        employeeId: emp.id,
+        reqNum,
+        destination,
+        departureCity: departureCity || 'Jakarta',
+        purpose,
+        depDate,
+        retDate,
+        transportation: transportation || 'flight',
+        budget: parseFloat(budget) || 0,
+        tenantId: tenantId || emp.tenantId,
+        now,
+      },
+    });
     return res.json({ success: true, message: 'Pengajuan perjalanan berhasil dikirim' });
-  } catch {
-    return res.json({ success: true, data: { destination, purpose, status: 'pending' }, message: 'Saved (mock)' });
+  } catch (e: any) {
+    console.warn('createTravelRequest error:', e?.message || e);
+    return res.status(500).json({ success: false, error: 'Gagal mengajukan perjalanan', details: e?.message });
   }
 }
 

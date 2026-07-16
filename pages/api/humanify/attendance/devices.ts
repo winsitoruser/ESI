@@ -71,12 +71,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 async function getDevices(req: NextApiRequest, res: NextApiResponse, session: any) {
   const { branchId, status, deviceType, page = '1', limit = '20' } = req.query;
   const tenantId = session.user.tenantId;
-  const mock = getMockDevices();
   const pageNum = parseInt(page as string, 10) || 1;
   const limitNum = parseInt(limit as string, 10) || 20;
 
+  const emptyResponse = () => res.status(200).json({
+    success: true,
+    data: [],
+    pagination: { total: 0, page: pageNum, limit: limitNum, totalPages: 0 },
+    dataSource: 'empty',
+  });
+
   if (!AttendanceDevice) {
     if (allowHrMockFallback()) {
+      const mock = getMockDevices();
       return res.status(200).json({
         success: true,
         data: mock,
@@ -85,12 +92,7 @@ async function getDevices(req: NextApiRequest, res: NextApiResponse, session: an
         _mock: true,
       });
     }
-    return res.status(200).json({
-      success: true,
-      data: [],
-      pagination: { total: 0, page: pageNum, limit: limitNum, totalPages: 0 },
-      dataSource: 'empty',
-    });
+    return emptyResponse();
   }
 
   const where: any = { tenantId };
@@ -123,12 +125,17 @@ async function getDevices(req: NextApiRequest, res: NextApiResponse, session: an
     });
   } catch (error: any) {
     if (isMissingTableError(error)) {
-      return res.status(200).json({
-        success: true,
-        data: mock,
-        pagination: { total: mock.length, page: pageNum, limit: limitNum, totalPages: 1 },
-        _mock: true,
-      });
+      if (allowHrMockFallback()) {
+        const mock = getMockDevices();
+        return res.status(200).json({
+          success: true,
+          data: mock,
+          pagination: { total: mock.length, page: pageNum, limit: limitNum, totalPages: 1 },
+          dataSource: 'demo',
+          _mock: true,
+        });
+      }
+      return emptyResponse();
     }
     throw error;
   }

@@ -15,6 +15,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
+import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
+import { allowHrMockFallback } from '@/lib/hris/data-source';
 
 const sequelize = require('../../../lib/sequelize');
 
@@ -23,15 +25,42 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const session = await getServerSession(req, res, authOptions);
     if (!session?.user) return res.status(401).json({ error: 'Unauthorized' });
 
-    const tenantId = (session.user as any).tenantId || null;
+    const tenantId = tenantIdFromSession(session);
     const { action } = req.query;
     const method = req.method;
 
     // ── GET ──
     if (method === 'GET') {
+      if (!tenantId) {
+        if (action === 'pipeline') {
+          const stages = ['applied', 'screening', 'test', 'interview', 'offer', 'hired', 'rejected'];
+          return res.json({ success: true, data: stages.map((stage) => ({ stage, count: 0 })) });
+        }
+        if (action === 'analytics') {
+          return res.json({
+            success: true,
+            data: {
+              totalApplicants: 0,
+              hired: 0,
+              openPositions: 0,
+              acceptanceRate: 0,
+              avgTimeToHire: 0,
+              sourceStats: [],
+            },
+          });
+        }
+        if (action === 'screening') {
+          return res.json({ success: true, data: [] });
+        }
+        if (action === 'openings' || action === 'candidates') {
+          return res.json({ success: true, data: [], total: 0 });
+        }
+        return res.json({ success: true, data: { openings: 0, candidates: 0 } });
+      }
+
       if (action === 'openings') {
         const { status, department, search } = req.query;
-        let where = 'WHERE (o.tenant_id = :tid OR o.tenant_id IS NULL)';
+        let where = 'WHERE o.tenant_id = :tid';
         const repl: any = { tid: tenantId };
         if (status && status !== 'all') { where += ' AND o.status = :status'; repl.status = status; }
         if (department && department !== 'all') { where += ' AND o.department = :dept'; repl.dept = department; }
@@ -42,7 +71,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       if (action === 'candidates') {
         const { job_id, stage, status, search } = req.query;
-        let where = 'WHERE (c.tenant_id = :tid OR c.tenant_id IS NULL)';
+        let where = 'WHERE c.tenant_id = :tid';
         const repl: any = { tid: tenantId };
         if (job_id) { where += ' AND c.job_opening_id = :jid'; repl.jid = job_id; }
         if (stage && stage !== 'all') { where += ' AND c.current_stage = :stage'; repl.stage = stage; }
@@ -62,7 +91,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const [rows] = await sequelize.query(`
           SELECT c.current_stage, COUNT(*)::int as count
           FROM hris_candidates c
-          WHERE (c.tenant_id = :tid OR c.tenant_id IS NULL)
+          WHERE c.tenant_id = :tid
           GROUP BY c.current_stage
         `, { replacements: { tid: tenantId } });
         const countMap: Record<string, number> = {};
@@ -77,15 +106,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             COUNT(*)::int as total_applicants,
             COUNT(*) FILTER (WHERE current_stage = 'hired')::int as hired,
             COUNT(DISTINCT source) as source_count
-          FROM hris_candidates WHERE (tenant_id = :tid OR tenant_id IS NULL)
+          FROM hris_candidates WHERE tenant_id = :tid
         `, { replacements: { tid: tenantId } });
         const [jobStats] = await sequelize.query(`
           SELECT COUNT(*) FILTER (WHERE status = 'open')::int as open_positions
-          FROM hris_job_openings WHERE (tenant_id = :tid OR tenant_id IS NULL)
+          FROM hris_job_openings WHERE tenant_id = :tid
         `, { replacements: { tid: tenantId } });
         const [sourceRows] = await sequelize.query(`
           SELECT COALESCE(source, 'Other') as source, COUNT(*)::int as count
-          FROM hris_candidates WHERE (tenant_id = :tid OR tenant_id IS NULL)
+          FROM hris_candidates WHERE tenant_id = :tid
           GROUP BY source ORDER BY count DESC
         `, { replacements: { tid: tenantId } });
 
@@ -109,7 +138,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const candidateId = req.query.candidateId as string | undefined;
         const [rows] = await sequelize.query(`
           SELECT id, COALESCE(full_name, name) as name, experience_summary, education_level, source, rating, notes, resume_url
-          FROM hris_candidates WHERE (tenant_id = :tid OR tenant_id IS NULL)
+          FROM hris_candidates WHERE tenant_id = :tid
           ORDER BY created_at DESC LIMIT 100
         `, { replacements: { tid: tenantId } });
 
@@ -142,20 +171,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           return res.json({ success: true, data: screenCandidate(c, DEFAULT_SCREENING_CRITERIA) });
         }
 
-        return res.json({ success: true, data: batchScreen(candidates.length ? candidates : getFallbackCandidates(), DEFAULT_SCREENING_CRITERIA) });
+        const screeningInput = candidates.length
+          ? candidates
+          : (allowHrMockFallback() ? getFallbackCandidates() : []);
+        return res.json({ success: true, data: batchScreen(screeningInput, DEFAULT_SCREENING_CRITERIA) });
       }
 
       // Default: summary counts
       const [summary] = await sequelize.query(`
         SELECT
-          (SELECT COUNT(*)::int FROM hris_job_openings WHERE tenant_id = :tid OR tenant_id IS NULL) as openings,
-          (SELECT COUNT(*)::int FROM hris_candidates WHERE tenant_id = :tid OR tenant_id IS NULL) as candidates
+          (SELECT COUNT(*)::int FROM hris_job_openings WHERE tenant_id = :tid) as openings,
+          (SELECT COUNT(*)::int FROM hris_candidates WHERE tenant_id = :tid) as candidates
       `, { replacements: { tid: tenantId } });
       return res.json({ success: true, data: summary[0] });
     }
 
     // ── POST ──
     if (method === 'POST') {
+      if (!tenantId) return res.status(400).json({ error: 'Tenant context required' });
       const body = req.body;
       if (action === 'create-opening') {
         if (!body.title) return res.status(400).json({ error: 'title is required' });
@@ -217,6 +250,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // ── PUT ──
     if (method === 'PUT') {
+      if (!tenantId) return res.status(400).json({ error: 'Tenant context required' });
       const body = req.body;
       if (action === 'update-opening') {
         if (!body.id) return res.status(400).json({ error: 'id is required' });
@@ -228,10 +262,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             salary_min = COALESCE(:salMin, salary_min), salary_max = COALESCE(:salMax, salary_max),
             description = COALESCE(:desc, description), requirements = COALESCE(:reqs, requirements),
             deadline = COALESCE(:deadline, deadline), updated_at = NOW()
-          WHERE id = :id RETURNING *
+          WHERE id = :id AND tenant_id = :tid RETURNING *
         `, {
           replacements: {
-            id: body.id, title: body.title || null, dept: body.department || null,
+            id: body.id, tid: tenantId, title: body.title || null, dept: body.department || null,
             loc: body.location || null, status: body.status || null, priority: body.priority || null,
             salMin: body.salary_min ?? null, salMax: body.salary_max ?? null,
             desc: body.description || null, reqs: body.requirements || null,
@@ -251,10 +285,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             rating = COALESCE(:rating, rating),
             notes = COALESCE(:notes, notes),
             updated_at = NOW()
-          WHERE id = :id RETURNING *
+          WHERE id = :id AND tenant_id = :tid RETURNING *
         `, {
           replacements: {
-            id: body.id, stage: body.stage || null, status: body.status || null,
+            id: body.id, tid: tenantId, stage: body.stage || null, status: body.status || null,
             rating: body.rating ?? null, notes: body.notes || null
           }
         });
@@ -276,20 +310,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // ── DELETE ──
     if (method === 'DELETE') {
+      if (!tenantId) return res.status(400).json({ error: 'Tenant context required' });
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: 'id is required' });
       if (action === 'delete-opening') {
-        await sequelize.query('UPDATE hris_candidates SET job_opening_id = NULL WHERE job_opening_id = :id', { replacements: { id } });
-        await sequelize.query('DELETE FROM hris_job_openings WHERE id = :id', { replacements: { id } });
+        await sequelize.query(
+          'UPDATE hris_candidates SET job_opening_id = NULL WHERE job_opening_id = :id AND tenant_id = :tid',
+          { replacements: { id, tid: tenantId } }
+        );
+        await sequelize.query(
+          'DELETE FROM hris_job_openings WHERE id = :id AND tenant_id = :tid',
+          { replacements: { id, tid: tenantId } }
+        );
         return res.json({ success: true, message: 'Lowongan berhasil dihapus' });
       }
       if (action === 'delete-candidate') {
-        const [deleted] = await sequelize.query('DELETE FROM hris_candidates WHERE id = :id RETURNING job_opening_id', { replacements: { id } });
+        const [deleted] = await sequelize.query(
+          'DELETE FROM hris_candidates WHERE id = :id AND tenant_id = :tid RETURNING job_opening_id',
+          { replacements: { id, tid: tenantId } }
+        );
         if (deleted[0]?.job_opening_id) {
           await sequelize.query(`
-            UPDATE hris_job_openings SET applicants = (SELECT COUNT(*) FROM hris_candidates WHERE job_opening_id = :jid)
-            WHERE id = :jid
-          `, { replacements: { jid: deleted[0].job_opening_id } });
+            UPDATE hris_job_openings SET applicants = (SELECT COUNT(*) FROM hris_candidates WHERE job_opening_id = :jid AND tenant_id = :tid)
+            WHERE id = :jid AND tenant_id = :tid
+          `, { replacements: { jid: deleted[0].job_opening_id, tid: tenantId } });
         }
         return res.json({ success: true, message: 'Kandidat berhasil dihapus' });
       }

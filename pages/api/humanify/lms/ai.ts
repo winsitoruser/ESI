@@ -44,7 +44,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (action === 'recommend-paths') {
         const [gaps] = await sequelize.query(`
           SELECT ch.competency_name, ch.competency_code, COUNT(*)::int AS holders,
-            (SELECT COUNT(*)::int FROM employees WHERE tenant_id = :tid OR :tid IS NULL) AS total_employees
+            (SELECT COUNT(*)::int FROM employees WHERE tenant_id = :tid) AS total_employees
           FROM hris_lms_competency_history ch
           WHERE ch.tenant_id = :tid
           GROUP BY ch.competency_name, ch.competency_code

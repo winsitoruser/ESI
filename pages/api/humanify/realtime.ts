@@ -86,12 +86,20 @@ async function getRealtimeData(
   const { branchId, department, period } = req.query;
   const currentMonth = period || new Date().toISOString().substring(0, 7);
 
+  if (!tenantId) {
+    return res.status(200).json({
+      success: true,
+      data: allowHrMockFallback() ? getMockRealtimeData() : getEmptyRealtimeData(),
+      dataSource: allowHrMockFallback() ? 'demo' : 'empty',
+    });
+  }
+
   try {
     const { sequelize } = await import('@/lib/sequelizeClient');
 
     // Get employee metrics with attendance and KPI data
     let whereClause = `WHERE e.tenant_id = :tenantId AND e.is_active = true`;
-    const replacements: any = { tenantId: tenantId || 'default', currentMonth };
+    const replacements: any = { tenantId, currentMonth };
 
     if (branchId) {
       whereClause += ` AND e.branch_id = :branchId`;

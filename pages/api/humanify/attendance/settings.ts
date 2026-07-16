@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../auth/[...nextauth]';
+import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
 
 const POLICY_KEY = 'policy';
 
@@ -73,15 +74,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
 async function getSettings(req: NextApiRequest, res: NextApiResponse, session: any) {
   const branchId = (req.query.branchId as string) || null;
-  const tenantId = session.user.tenantId || null;
+  const tenantId = tenantIdFromSession(session);
 
   try {
+    if (!tenantId) {
+      return res.status(200).json({
+        success: true,
+        data: getDefaultSettings(),
+        branchOverrides: [],
+      });
+    }
+
     const sequelize = await getSequelize();
     const [rows] = await sequelize.query(`
       SELECT setting_key, setting_value, branch_id
       FROM attendance_settings
       WHERE setting_key IN (:policyKey, 'geofencing', 'overtime', 'late_policy', 'clock_methods')
-        AND (tenant_id = :tenantId OR tenant_id IS NULL)
+        AND tenant_id = :tenantId
         AND (branch_id = :branchId OR (:branchId IS NULL AND branch_id IS NULL))
       ORDER BY branch_id NULLS LAST
     `, { replacements: { policyKey: POLICY_KEY, tenantId, branchId } });
@@ -103,7 +112,10 @@ async function getSettings(req: NextApiRequest, res: NextApiResponse, session: a
 }
 
 async function upsertSettings(req: NextApiRequest, res: NextApiResponse, session: any) {
-  const tenantId = session.user.tenantId || null;
+  const tenantId = tenantIdFromSession(session);
+  if (!tenantId) {
+    return res.status(400).json({ success: false, error: 'Tenant context required' });
+  }
   const {
     branchId, workStartTime, workEndTime, breakStartTime, breakEndTime,
     breakDurationMinutes, workDays, lateGraceMinutes, earlyLeaveGraceMinutes,

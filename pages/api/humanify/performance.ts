@@ -167,10 +167,10 @@ async function getPerformanceReviews(req: NextApiRequest, res: NextApiResponse, 
 // ========== POST: Create performance review ==========
 async function resolveEmployeeId(employeeId: string | null | undefined, employeeName: string, tenantId: string | null) {
   if (employeeId) return employeeId;
-  if (!sequelize || !employeeName?.trim()) return null;
+  if (!sequelize || !employeeName?.trim() || !tenantId) return null;
   try {
     const [rows] = await sequelize.query(
-      `SELECT id FROM employees WHERE name ILIKE :name AND (:tid IS NULL OR tenant_id = :tid) LIMIT 1`,
+      `SELECT id FROM employees WHERE name ILIKE :name AND tenant_id = :tid LIMIT 1`,
       { replacements: { name: employeeName.trim(), tid: tenantId } }
     );
     return (rows as any[])[0]?.id || null;

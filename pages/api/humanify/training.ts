@@ -18,23 +18,49 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
+import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
 
 const sequelize = require('../../../lib/sequelize');
+
+const EMPTY_ANALYTICS = {
+  totalPrograms: 0,
+  activePrograms: 0,
+  totalEnrolled: 0,
+  totalCompleted: 0,
+  completionRate: 0,
+  activeCerts: 0,
+  expiringCerts: 0,
+  expiredCerts: 0,
+  totalBudget: 0,
+};
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     const session = await getServerSession(req, res, authOptions);
     if (!session?.user) return res.status(401).json({ error: 'Unauthorized' });
 
-    const tenantId = (session.user as any).tenantId || null;
+    const tenantId = tenantIdFromSession(session);
     const { action } = req.query;
     const method = req.method;
 
     // ── GET ──
     if (method === 'GET') {
+      if (!tenantId) {
+        if (action === 'analytics') {
+          return res.json({ success: true, data: EMPTY_ANALYTICS });
+        }
+        if (action === 'programs' || action === 'certifications' || action === 'enrollments') {
+          return res.json({ success: true, data: [], total: 0 });
+        }
+        if (action === 'schedule') {
+          return res.json({ success: true, data: [] });
+        }
+        return res.json({ success: true, data: { programs: 0, certifications: 0, enrollments: 0 } });
+      }
+
       if (action === 'programs') {
         const { category, status, search } = req.query;
-        let where = 'WHERE (p.tenant_id = :tid OR p.tenant_id IS NULL)';
+        let where = 'WHERE p.tenant_id = :tid';
         const repl: any = { tid: tenantId };
         if (category && category !== 'all') { where += ' AND p.category = :cat'; repl.cat = category; }
         if (status && status !== 'all') { where += ' AND p.status = :st'; repl.st = status; }
@@ -45,7 +71,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       if (action === 'certifications') {
         const { employee_id, status } = req.query;
-        let where = 'WHERE (c.tenant_id = :tid OR c.tenant_id IS NULL)';
+        let where = 'WHERE c.tenant_id = :tid';
         const repl: any = { tid: tenantId };
         if (employee_id) { where += ' AND c.employee_id = :eid'; repl.eid = employee_id; }
         if (status && status !== 'all') { where += ' AND c.status = :st'; repl.st = status; }
@@ -61,7 +87,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (action === 'schedule') {
         const [rows] = await sequelize.query(`
           SELECT * FROM hris_training_programs
-          WHERE status IN ('active', 'upcoming') AND (tenant_id = :tid OR tenant_id IS NULL)
+          WHERE status IN ('active', 'upcoming') AND tenant_id = :tid
           ORDER BY start_date ASC
         `, { replacements: { tid: tenantId } });
         return res.json({ success: true, data: rows });
@@ -69,7 +95,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       if (action === 'enrollments') {
         const { program_id } = req.query;
-        let where = 'WHERE (te.tenant_id = :tid OR te.tenant_id IS NULL)';
+        let where = 'WHERE te.tenant_id = :tid';
         const repl: any = { tid: tenantId };
         if (program_id) { where += ' AND te.training_program_id = :pid'; repl.pid = program_id; }
         const [rows] = await sequelize.query(`
@@ -88,20 +114,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             COUNT(*)::int as total_programs,
             COUNT(*) FILTER (WHERE status = 'active')::int as active_programs,
             COALESCE(SUM(cost_per_person * current_participants), 0)::bigint as total_budget
-          FROM hris_training_programs WHERE (tenant_id = :tid OR tenant_id IS NULL)
+          FROM hris_training_programs WHERE tenant_id = :tid
         `, { replacements: { tid: tenantId } });
         const [enrollStats] = await sequelize.query(`
           SELECT
             COUNT(*)::int as total_enrolled,
             COUNT(*) FILTER (WHERE status = 'completed')::int as total_completed
-          FROM hris_training_enrollments WHERE (tenant_id = :tid OR tenant_id IS NULL)
+          FROM hris_training_enrollments WHERE tenant_id = :tid
         `, { replacements: { tid: tenantId } });
         const [certStats] = await sequelize.query(`
           SELECT
             COUNT(*) FILTER (WHERE status = 'active')::int as active_certs,
             COUNT(*) FILTER (WHERE status = 'expiring_soon')::int as expiring_certs,
             COUNT(*) FILTER (WHERE status = 'expired')::int as expired_certs
-          FROM hris_certifications WHERE (tenant_id = :tid OR tenant_id IS NULL)
+          FROM hris_certifications WHERE tenant_id = :tid
         `, { replacements: { tid: tenantId } });
 
         const totalEnrolled = enrollStats[0]?.total_enrolled || 0;
@@ -125,15 +151,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Default: summary counts
       const [summary] = await sequelize.query(`
         SELECT
-          (SELECT COUNT(*)::int FROM hris_training_programs WHERE tenant_id = :tid OR tenant_id IS NULL) as programs,
-          (SELECT COUNT(*)::int FROM hris_certifications WHERE tenant_id = :tid OR tenant_id IS NULL) as certifications,
-          (SELECT COUNT(*)::int FROM hris_training_enrollments WHERE tenant_id = :tid OR tenant_id IS NULL) as enrollments
+          (SELECT COUNT(*)::int FROM hris_training_programs WHERE tenant_id = :tid) as programs,
+          (SELECT COUNT(*)::int FROM hris_certifications WHERE tenant_id = :tid) as certifications,
+          (SELECT COUNT(*)::int FROM hris_training_enrollments WHERE tenant_id = :tid) as enrollments
       `, { replacements: { tid: tenantId } });
       return res.json({ success: true, data: summary[0] });
     }
 
     // ── POST ──
     if (method === 'POST') {
+      if (!tenantId) return res.status(403).json({ error: 'Tenant required' });
       const body = req.body;
       if (action === 'create-program') {
         if (!body.title) return res.status(400).json({ error: 'title is required' });
@@ -176,8 +203,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (action === 'enroll') {
         const { program_id, employee_id } = body;
         if (!program_id || !employee_id) return res.status(400).json({ error: 'program_id and employee_id are required' });
-        // Check capacity
-        const [pgm] = await sequelize.query('SELECT max_participants, current_participants FROM hris_training_programs WHERE id = :pid', { replacements: { pid: program_id } });
+        // Check capacity (tenant-scoped)
+        const [pgm] = await sequelize.query(
+          'SELECT max_participants, current_participants FROM hris_training_programs WHERE id = :pid AND tenant_id = :tid',
+          { replacements: { pid: program_id, tid: tenantId } }
+        );
         if (pgm.length === 0) return res.status(404).json({ error: 'Program not found' });
         if (pgm[0].max_participants && (pgm[0].current_participants || 0) >= pgm[0].max_participants) {
           return res.status(400).json({ error: 'Program sudah penuh' });
@@ -187,7 +217,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           VALUES (:tid, :pid, :eid, 'enrolled', NOW())
           RETURNING *
         `, { replacements: { tid: tenantId, pid: program_id, eid: employee_id } });
-        await sequelize.query('UPDATE hris_training_programs SET current_participants = COALESCE(current_participants, 0) + 1 WHERE id = :pid', { replacements: { pid: program_id } });
+        await sequelize.query(
+          'UPDATE hris_training_programs SET current_participants = COALESCE(current_participants, 0) + 1 WHERE id = :pid AND tenant_id = :tid',
+          { replacements: { pid: program_id, tid: tenantId } }
+        );
         return res.status(201).json({ success: true, data: rows[0] });
       }
       return res.status(400).json({ error: 'Unknown POST action' });
@@ -195,6 +228,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // ── PUT ──
     if (method === 'PUT') {
+      if (!tenantId) return res.status(403).json({ error: 'Tenant required' });
       const body = req.body;
       if (action === 'update-program') {
         if (!body.id) return res.status(400).json({ error: 'id is required' });
@@ -207,10 +241,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             max_participants = COALESCE(:maxPart, max_participants),
             cost_per_person = COALESCE(:cost, cost_per_person),
             description = COALESCE(:desc, description), updated_at = NOW()
-          WHERE id = :id RETURNING *
+          WHERE id = :id AND tenant_id = :tid RETURNING *
         `, {
           replacements: {
-            id: body.id, title: body.title || null, cat: body.category || null,
+            id: body.id, tid: tenantId, title: body.title || null, cat: body.category || null,
             type: body.type || null, status: body.status || null, trainer: body.trainer || null,
             loc: body.location || null, startDate: body.start_date || null,
             endDate: body.end_date || null, maxPart: body.max_participants ?? null,
@@ -230,10 +264,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             expiry_date = COALESCE(:expiryDate, expiry_date),
             issuing_organization = COALESCE(:issuer, issuing_organization),
             updated_at = NOW()
-          WHERE id = :id RETURNING *
+          WHERE id = :id AND tenant_id = :tid RETURNING *
         `, {
           replacements: {
-            id: body.id, name: body.cert_name || null, status: body.status || null,
+            id: body.id, tid: tenantId, name: body.cert_name || null, status: body.status || null,
             expiryDate: body.expiry_date || null, issuer: body.issuer || null
           }
         });
@@ -249,10 +283,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             completion_date = COALESCE(:completionDate, completion_date),
             score = COALESCE(:score, score),
             updated_at = NOW()
-          WHERE id = :id RETURNING *
+          WHERE id = :id AND tenant_id = :tid RETURNING *
         `, {
           replacements: {
-            id: body.id, status: body.status || null,
+            id: body.id, tid: tenantId, status: body.status || null,
             completionDate: body.completion_date || null, score: body.score ?? null
           }
         });
@@ -264,15 +298,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // ── DELETE ──
     if (method === 'DELETE') {
+      if (!tenantId) return res.status(403).json({ error: 'Tenant required' });
       const { id } = req.query;
       if (!id) return res.status(400).json({ error: 'id is required' });
       if (action === 'delete-program') {
-        await sequelize.query('DELETE FROM hris_training_enrollments WHERE training_program_id = :id', { replacements: { id } });
-        await sequelize.query('DELETE FROM hris_training_programs WHERE id = :id', { replacements: { id } });
+        await sequelize.query(
+          'DELETE FROM hris_training_enrollments WHERE training_program_id = :id AND tenant_id = :tid',
+          { replacements: { id, tid: tenantId } }
+        );
+        await sequelize.query(
+          'DELETE FROM hris_training_programs WHERE id = :id AND tenant_id = :tid',
+          { replacements: { id, tid: tenantId } }
+        );
         return res.json({ success: true, message: 'Program pelatihan berhasil dihapus' });
       }
       if (action === 'delete-cert') {
-        await sequelize.query('DELETE FROM hris_certifications WHERE id = :id', { replacements: { id } });
+        await sequelize.query(
+          'DELETE FROM hris_certifications WHERE id = :id AND tenant_id = :tid',
+          { replacements: { id, tid: tenantId } }
+        );
         return res.json({ success: true, message: 'Sertifikasi berhasil dihapus' });
       }
       return res.status(400).json({ error: 'Unknown DELETE action' });

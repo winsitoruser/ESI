@@ -53,8 +53,11 @@ async function getSentry(): Promise<any> {
   sentryTried = true;
   if (!process.env.SENTRY_DSN) return null;
   try {
-    // Optional peer dep — only used when present.
-    const mod = await import('@sentry/node').catch(() => null as any);
+    // Optional peer — resolve at runtime only (avoid Next/webpack bundling).
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { createRequire } = require('module') as typeof import('module');
+    const requireFromHere = createRequire(__filename);
+    const mod = requireFromHere('@sentry/node');
     if (mod?.init) {
       mod.init({
         dsn: process.env.SENTRY_DSN,

@@ -11,6 +11,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 import { KPI_CATEGORIES, STANDARD_SCORING_LEVELS } from '../../../lib/hq/kpi-calculator';
 import { successResponse, errorResponse, ErrorCodes, HttpStatus } from '../../../lib/api/response';
+import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
 
 const sequelize = require('../../../lib/sequelize');
 
@@ -19,7 +20,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const session = await getServerSession(req, res, authOptions);
     if (!session?.user) return res.status(401).json({ error: 'Unauthorized' });
 
-    const tenantId = (session.user as any).tenantId || null;
+    const tenantId = tenantIdFromSession(session);
 
     switch (req.method) {
       case 'GET':
@@ -29,7 +30,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       case 'PUT':
         return updateTemplate(req, res, tenantId);
       case 'DELETE':
-        return deleteTemplate(req, res);
+        return deleteTemplate(req, res, tenantId);
       default:
         res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE']);
         return res.status(HttpStatus.METHOD_NOT_ALLOWED).json(
@@ -47,7 +48,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 async function getTemplates(req: NextApiRequest, res: NextApiResponse, tenantId: string | null) {
   const { category } = req.query;
 
-  let where = 'WHERE (t.tenant_id = :tid OR t.tenant_id IS NULL)';
+  if (!tenantId) {
+    return res.status(HttpStatus.OK).json(
+      successResponse({
+        templates: [],
+        categories: KPI_CATEGORIES,
+        scoringSchemes: [],
+        standardLevels: STANDARD_SCORING_LEVELS,
+        summary: {
+          totalTemplates: 0,
+          byCategory: Object.keys(KPI_CATEGORIES).map((cat) => ({ category: cat, count: 0 })),
+        },
+      })
+    );
+  }
+
+  let where = 'WHERE t.tenant_id = :tid';
   const repl: any = { tid: tenantId };
   if (category && category !== 'all') { where += ' AND t.category = :cat'; repl.cat = category; }
 
@@ -69,7 +85,7 @@ async function getTemplates(req: NextApiRequest, res: NextApiResponse, tenantId:
     const [schemeRows] = await sequelize.query(`
       SELECT s.id, s.name, s.description, s.is_default as "isDefault", s.is_active as "isActive"
       FROM kpi_scoring_schemes s
-      WHERE (s.tenant_id = :tid OR s.tenant_id IS NULL) AND s.is_active = true
+      WHERE s.tenant_id = :tid AND s.is_active = true
       ORDER BY s.is_default DESC, s.name
     `, { replacements: { tid: tenantId } });
     schemes = schemeRows;
@@ -106,6 +122,11 @@ async function getTemplates(req: NextApiRequest, res: NextApiResponse, tenantId:
 }
 
 async function createTemplate(req: NextApiRequest, res: NextApiResponse, tenantId: string | null) {
+  if (!tenantId) {
+    return res.status(HttpStatus.FORBIDDEN).json(
+      errorResponse(ErrorCodes.FORBIDDEN, 'Tenant required')
+    );
+  }
   const body = req.body;
 
   if (!body.code || !body.name || !body.category) {
@@ -114,9 +135,9 @@ async function createTemplate(req: NextApiRequest, res: NextApiResponse, tenantI
     );
   }
 
-  // Check for duplicate code
+  // Check for duplicate code within tenant
   const [existing] = await sequelize.query(
-    'SELECT id FROM kpi_templates WHERE code = :code AND (tenant_id = :tid OR tenant_id IS NULL)',
+    'SELECT id FROM kpi_templates WHERE code = :code AND tenant_id = :tid',
     { replacements: { code: body.code, tid: tenantId } }
   );
   if (existing.length > 0) {
@@ -148,6 +169,11 @@ async function createTemplate(req: NextApiRequest, res: NextApiResponse, tenantI
 }
 
 async function updateTemplate(req: NextApiRequest, res: NextApiResponse, tenantId: string | null) {
+  if (!tenantId) {
+    return res.status(HttpStatus.FORBIDDEN).json(
+      errorResponse(ErrorCodes.FORBIDDEN, 'Tenant required')
+    );
+  }
   const { id, ...updates } = req.body;
 
   if (!id) {
@@ -164,10 +190,10 @@ async function updateTemplate(req: NextApiRequest, res: NextApiResponse, tenantI
       formula = COALESCE(:formula, formula), default_weight = COALESCE(:defaultWeight, default_weight),
       measurement_frequency = COALESCE(:freq, measurement_frequency),
       is_active = COALESCE(:isActive, is_active), updated_at = NOW()
-    WHERE id = :id RETURNING *
+    WHERE id = :id AND tenant_id = :tid RETURNING *
   `, {
     replacements: {
-      id, name: updates.name || null, desc: updates.description || null,
+      id, tid: tenantId, name: updates.name || null, desc: updates.description || null,
       cat: updates.category || null, unit: updates.unit || null,
       dataType: updates.dataType || null, formulaType: updates.formulaType || null,
       formula: updates.formula || null, defaultWeight: updates.defaultWeight ?? null,
@@ -186,7 +212,12 @@ async function updateTemplate(req: NextApiRequest, res: NextApiResponse, tenantI
   );
 }
 
-async function deleteTemplate(req: NextApiRequest, res: NextApiResponse) {
+async function deleteTemplate(req: NextApiRequest, res: NextApiResponse, tenantId: string | null) {
+  if (!tenantId) {
+    return res.status(HttpStatus.FORBIDDEN).json(
+      errorResponse(ErrorCodes.FORBIDDEN, 'Tenant required')
+    );
+  }
   const { id } = req.query;
 
   if (!id) {
@@ -195,7 +226,10 @@ async function deleteTemplate(req: NextApiRequest, res: NextApiResponse) {
     );
   }
 
-  const [deleted] = await sequelize.query('DELETE FROM kpi_templates WHERE id = :id RETURNING id', { replacements: { id } });
+  const [deleted] = await sequelize.query(
+    'DELETE FROM kpi_templates WHERE id = :id AND tenant_id = :tid RETURNING id',
+    { replacements: { id, tid: tenantId } }
+  );
   if (deleted.length === 0) {
     return res.status(HttpStatus.NOT_FOUND).json(
       errorResponse(ErrorCodes.NOT_FOUND, 'Template not found')

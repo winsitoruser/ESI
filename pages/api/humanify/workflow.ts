@@ -7,6 +7,7 @@ import {
   buildMutationLetterData,
   type MutationType,
 } from '../../../lib/hris/mutation-workflow';
+import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch (e) {}
@@ -48,7 +49,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 }
 
 function getTenantId(session: any): string | null {
-  return (session.user as any)?.tenantId || null;
+  return tenantIdFromSession(session);
 }
 
 // ===== CLAIMS (unchanged) =====
@@ -225,10 +226,13 @@ async function getMutationLetterData(req: NextApiRequest, res: NextApiResponse) 
 async function getApprovalConfig(req: NextApiRequest, res: NextApiResponse, session: any) {
   if (!sequelize) return res.json({ success: true, data: { approval_levels: getDefaultApprovalLevels('transfer') } });
   const tenantId = getTenantId(session);
+  if (!tenantId) {
+    return res.json({ success: true, data: { approval_levels: getDefaultApprovalLevels('transfer') } });
+  }
   try {
     const [rows] = await sequelize.query(`
       SELECT * FROM mutation_approval_configs WHERE is_active = true
-      ${tenantId ? 'AND (tenant_id = :tenantId OR tenant_id IS NULL)' : ''}
+      AND tenant_id = :tenantId
       ORDER BY created_at ASC LIMIT 1
     `, { replacements: { tenantId } });
     if (rows[0]) return res.json({ success: true, data: rows[0] });

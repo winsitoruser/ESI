@@ -1,6 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { successResponse, errorResponse, ErrorCodes, HttpStatus } from '../../../lib/api/response';
 import { withHQAuth } from '../../../lib/middleware/withHQAuth';
+import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
+import { allowHrMockFallback } from '@/lib/hris/data-source';
 
 let EmployeeAttendance: any;
 let sequelize: any;
@@ -121,10 +123,23 @@ function buildBranchSummary(attendance: any[]) {
   }));
 }
 
-async function queryDailyRecords(date: string, branchId?: string, employeeId?: string) {
+/** Prefer ea.tenant_id; fall back to employee ownership for legacy rows. */
+function tenantAttendanceFilter(alias = 'ea'): string {
+  return `(
+    ${alias}.tenant_id = :tenantId
+    OR ${alias}.employee_id IN (SELECT id FROM employees WHERE tenant_id = :tenantId)
+  )`;
+}
+
+async function queryDailyRecords(
+  tenantId: string,
+  date: string,
+  branchId?: string,
+  employeeId?: string
+) {
   if (!sequelize) return [];
   let extra = '';
-  const replacements: Record<string, string> = { date };
+  const replacements: Record<string, string> = { date, tenantId };
   if (branchId) {
     extra += ' AND ea.branch_id::text = :branchId';
     replacements.branchId = branchId;
@@ -139,7 +154,7 @@ async function queryDailyRecords(date: string, branchId?: string, employeeId?: s
            e.name as employee_name, e.employee_code, e.position, e.department,
            COALESCE(b.name, 'HQ') as branch_name
     FROM employee_attendance ea
-    LEFT JOIN employees e ON ea.employee_id::text = e.id::text
+    INNER JOIN employees e ON ea.employee_id::text = e.id::text AND e.tenant_id = :tenantId
     LEFT JOIN branches b ON ea.branch_id::text = b.id::text
     WHERE ea.date = :date ${extra}
     ORDER BY ea.clock_in DESC NULLS LAST
@@ -147,10 +162,16 @@ async function queryDailyRecords(date: string, branchId?: string, employeeId?: s
   return rows.map(mapDailyRow);
 }
 
-async function queryMonthlyAttendance(startDate: string, endDate: string, branchId?: string, employeeId?: string) {
+async function queryMonthlyAttendance(
+  tenantId: string,
+  startDate: string,
+  endDate: string,
+  branchId?: string,
+  employeeId?: string
+) {
   if (!sequelize) return [];
   let extra = '';
-  const replacements: Record<string, string> = { startDate, endDate };
+  const replacements: Record<string, string> = { startDate, endDate, tenantId };
   if (branchId) {
     extra += ' AND ea.branch_id::text = :branchId';
     replacements.branchId = branchId;
@@ -172,7 +193,7 @@ async function queryMonthlyAttendance(startDate: string, endDate: string, branch
            COUNT(*) FILTER (WHERE ea.status IN ('leave', 'sick'))::int as leave,
            COUNT(*) FILTER (WHERE ea.status = 'work_from_home')::int as work_from_home
     FROM employee_attendance ea
-    LEFT JOIN employees e ON ea.employee_id::text = e.id::text
+    INNER JOIN employees e ON ea.employee_id::text = e.id::text AND e.tenant_id = :tenantId
     LEFT JOIN branches b ON ea.branch_id::text = b.id::text
     WHERE ea.date >= :startDate AND ea.date <= :endDate ${extra}
     GROUP BY ea.employee_id, e.name, e.employee_code, e.position, b.name
@@ -202,18 +223,23 @@ async function getAttendance(req: NextApiRequest, res: NextApiResponse) {
   const { period = 'month', branchId, employeeId, view } = req.query;
   const branch = branchId as string | undefined;
   const employee = employeeId as string | undefined;
+  const session = (req as any).session;
+  const tenantId = tenantIdFromSession(session);
+  const parsed = parsePeriod(String(period), view as string);
+
+  if (!tenantId) {
+    return res.status(HttpStatus.OK).json(successResponse(getEmptyAttendancePayload(parsed)));
+  }
 
   try {
     if (!sequelize) {
       return res.status(HttpStatus.OK).json(
-        successResponse(getEmptyAttendancePayload(parsePeriod(String(period), view as string)))
+        successResponse(getEmptyAttendancePayload(parsed))
       );
     }
 
-    const parsed = parsePeriod(String(period), view as string);
-
     if (parsed.mode === 'daily') {
-      const dailyRecords = await queryDailyRecords(parsed.date, branch, employee);
+      const dailyRecords = await queryDailyRecords(tenantId, parsed.date, branch, employee);
       const present = dailyRecords.filter((r) => r.status === 'present').length;
       const late = dailyRecords.filter((r) => r.status === 'late').length;
       const absent = dailyRecords.filter((r) => r.status === 'absent').length;
@@ -235,7 +261,13 @@ async function getAttendance(req: NextApiRequest, res: NextApiResponse) {
       );
     }
 
-    const attendance = await queryMonthlyAttendance(parsed.startDate, parsed.endDate, branch, employee);
+    const attendance = await queryMonthlyAttendance(
+      tenantId,
+      parsed.startDate,
+      parsed.endDate,
+      branch,
+      employee
+    );
     const branchSummary = buildBranchSummary(attendance);
 
     const [trendRows] = await sequelize.query(`
@@ -245,9 +277,10 @@ async function getAttendance(req: NextApiRequest, res: NextApiResponse) {
              COUNT(*) FILTER (WHERE ea.status = 'absent')::int as absent
       FROM employee_attendance ea
       WHERE ea.date >= :startDate AND ea.date <= :endDate
+        AND ${tenantAttendanceFilter('ea')}
       GROUP BY ea.date
       ORDER BY ea.date ASC
-    `, { replacements: { startDate: parsed.startDate, endDate: parsed.endDate } });
+    `, { replacements: { startDate: parsed.startDate, endDate: parsed.endDate, tenantId } });
 
     const dailyTrend = (trendRows as any[]).map((d) => ({
       date: d.date,
@@ -275,7 +308,7 @@ async function getAttendance(req: NextApiRequest, res: NextApiResponse) {
   } catch (error) {
     console.warn('Error fetching attendance:', (error as any)?.message || error);
     return res.status(HttpStatus.OK).json(
-      successResponse(getEmptyAttendancePayload(parsePeriod(String(period), view as string)))
+      successResponse(getEmptyAttendancePayload(parsed))
     );
   }
 }
@@ -299,6 +332,7 @@ function getEmptyAttendancePayload(parsed: PeriodMode) {
 
 async function recordAttendance(req: NextApiRequest, res: NextApiResponse) {
   const { employeeId, branchId, date, clockIn, clockOut, status, notes } = req.body;
+  const tenantId = tenantIdFromSession((req as any).session);
 
   if (!employeeId || !date) {
     return res.status(HttpStatus.BAD_REQUEST).json(
@@ -306,9 +340,33 @@ async function recordAttendance(req: NextApiRequest, res: NextApiResponse) {
     );
   }
 
+  if (!tenantId) {
+    return res.status(HttpStatus.BAD_REQUEST).json(
+      errorResponse(ErrorCodes.MISSING_REQUIRED_FIELDS, 'Tenant context required')
+    );
+  }
+
   try {
     if (!EmployeeAttendance) {
-      return res.status(200).json({ success: true, message: 'Attendance recorded (mock mode)' });
+      if (allowHrMockFallback()) {
+        return res.status(200).json({ success: true, message: 'Attendance recorded (mock mode)' });
+      }
+      return res.status(HttpStatus.SERVICE_UNAVAILABLE).json(
+        errorResponse(ErrorCodes.DATABASE_ERROR, 'Attendance model unavailable')
+      );
+    }
+
+    // Ensure employee belongs to this tenant
+    if (sequelize) {
+      const [owned] = await sequelize.query(
+        `SELECT id FROM employees WHERE id::text = :employeeId AND tenant_id = :tenantId LIMIT 1`,
+        { replacements: { employeeId: String(employeeId), tenantId } }
+      );
+      if (!owned?.length) {
+        return res.status(HttpStatus.NOT_FOUND).json(
+          errorResponse(ErrorCodes.NOT_FOUND, 'Employee not found for this tenant')
+        );
+      }
     }
 
     const [record, created] = await EmployeeAttendance.findOrCreate({
@@ -321,6 +379,7 @@ async function recordAttendance(req: NextApiRequest, res: NextApiResponse) {
         clockOut,
         status: status || 'present',
         notes,
+        tenantId,
       },
     });
 

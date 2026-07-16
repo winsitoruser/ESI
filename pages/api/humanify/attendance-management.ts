@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]';
 import { allowHrMockFallback, resolveDataSource } from '@/lib/hris/data-source';
+import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
 
 let sequelize: any, Op: any;
 try { sequelize = require('../../../lib/sequelize'); Op = require('sequelize').Op; } catch (e) {}
@@ -85,9 +86,9 @@ async function safeModelFindAll(model: any, options: any, fallback: any[] = []) 
   }
 }
 
-async function fetchTodayAttendanceLive() {
+async function fetchTodayAttendanceLive(tenantId: string | null) {
   const emptyStats = { total: 0, present: 0, late: 0, absent: 0, leave: 0, clockedIn: 0 };
-  if (!sequelize) return { records: [], stats: emptyStats };
+  if (!sequelize || !tenantId) return { records: [], stats: emptyStats };
   try {
     const today = new Date().toISOString().split('T')[0];
     const [records] = await sequelize.query(`
@@ -96,11 +97,11 @@ async function fetchTodayAttendanceLive() {
              e.name as employee_name, e.employee_code, e.position, e.department,
              COALESCE(b.name, 'HQ') as branch_name
       FROM employee_attendance ea
-      LEFT JOIN employees e ON ea.employee_id::text = e.id::text
+      INNER JOIN employees e ON ea.employee_id::text = e.id::text AND e.tenant_id = :tenantId
       LEFT JOIN branches b ON ea.branch_id::text = b.id::text
       WHERE ea.date = :today
       ORDER BY ea.clock_in DESC NULLS LAST
-    `, { replacements: { today } });
+    `, { replacements: { today, tenantId } });
 
     const stats = {
       total: records.length,
@@ -119,33 +120,50 @@ async function fetchTodayAttendanceLive() {
 
 // ================= GET: Overview =================
 async function getOverview(req: NextApiRequest, res: NextApiResponse, session: any) {
+  const tenantId = tenantIdFromSession(session);
   const mockSettings = allowHrMockFallback() ? getMockSettings() : [];
-  const { records: todayRecords, stats: todayStats } = await fetchTodayAttendanceLive();
+  const { records: todayRecords, stats: todayStats } = await fetchTodayAttendanceLive(tenantId);
   const mockShifts = allowHrMockFallback() ? getMockShifts() : [];
   const mockRotations = allowHrMockFallback() ? getMockRotations() : [];
   const mockGeofences = allowHrMockFallback() ? getMockGeofences() : [];
 
+  if (!tenantId) {
+    return res.json({
+      success: true,
+      shifts: mockShifts,
+      schedules: [],
+      rotations: mockRotations,
+      geofences: mockGeofences,
+      settings: settingsToMap(mockSettings),
+      settingsRaw: mockSettings,
+      todayStats,
+      todayRecords,
+      dataSource: resolveDataSource(false, allowHrMockFallback()),
+    });
+  }
+
+  const tenantWhere = { tenantId };
   const shifts = await safeModelFindAll(
     WorkShift,
-    { where: { isActive: true }, order: [['sort_order', 'ASC']] },
+    { where: { isActive: true, ...tenantWhere }, order: [['sort_order', 'ASC']] },
     mockShifts
   );
   const schedules = await safeModelFindAll(
     ShiftSchedule,
-    { limit: 200, order: [['schedule_date', 'DESC']] },
+    { where: tenantWhere, limit: 200, order: [['schedule_date', 'DESC']] },
     []
   );
   const rotations = await safeModelFindAll(
     ShiftRotation,
-    { order: [['created_at', 'DESC']] },
+    { where: tenantWhere, order: [['created_at', 'DESC']] },
     mockRotations
   );
   const geofences = await safeModelFindAll(
     GeofenceLocation,
-    { order: [['name', 'ASC']] },
+    { where: tenantWhere, order: [['name', 'ASC']] },
     mockGeofences
   );
-  const settingsRaw = await safeModelFindAll(AttendanceSetting, {}, mockSettings);
+  const settingsRaw = await safeModelFindAll(AttendanceSetting, { where: tenantWhere }, mockSettings);
 
   const isDemoRow = (row: any) => {
     const id = String(row?.id ?? '');
@@ -242,17 +260,21 @@ async function getAttendanceRecords(req: NextApiRequest, res: NextApiResponse, s
 
 // ================= GET: Today Live =================
 async function getTodayLive(req: NextApiRequest, res: NextApiResponse, session: any) {
-  if (!sequelize) return res.json({ success: true, records: [], employees: [] });
+  const tenantId = tenantIdFromSession(session);
+  if (!sequelize || !tenantId) return res.json({ success: true, records: [], totalEmployees: 0 });
   try {
     const today = new Date().toISOString().split('T')[0];
     const [records] = await sequelize.query(`
       SELECT ea.*, e.name as employee_name, e.position, e.department 
       FROM employee_attendance ea 
-      LEFT JOIN employees e ON ea.employee_id::text = e.id::text
+      INNER JOIN employees e ON ea.employee_id::text = e.id::text AND e.tenant_id = :tenantId
       WHERE ea.date = :today ORDER BY ea.clock_in DESC NULLS LAST
-    `, { replacements: { today } });
+    `, { replacements: { today, tenantId } });
 
-    const [totalEmps] = await sequelize.query(`SELECT COUNT(*) as cnt FROM employees WHERE status = 'ACTIVE'`);
+    const [totalEmps] = await sequelize.query(
+      `SELECT COUNT(*) as cnt FROM employees WHERE UPPER(status) = 'ACTIVE' AND tenant_id = :tenantId`,
+      { replacements: { tenantId } }
+    );
     return res.json({ success: true, records, totalEmployees: parseInt(totalEmps[0]?.cnt || '0') });
   } catch (e: any) {
     return res.json({ success: true, records: [], totalEmployees: 0 });
@@ -400,10 +422,17 @@ async function generateRotationSchedules(req: NextApiRequest, res: NextApiRespon
 
     if (pattern.length === 0) return res.status(400).json({ error: 'No rotation pattern defined' });
 
-    // Get employees if empIds empty, fall back to all active
+    // Get employees if empIds empty, fall back to tenant's active employees
     let employees = empIds;
+    const tenantId = tenantIdFromSession(session) || session.user?.tenantId;
     if (employees.length === 0) {
-      const [emps] = await sequelize.query(`SELECT id FROM employees WHERE status = 'ACTIVE' LIMIT 100`);
+      if (!tenantId) {
+        return res.json({ success: true, message: 'No tenant employees to schedule', count: 0 });
+      }
+      const [emps] = await sequelize.query(
+        `SELECT id FROM employees WHERE UPPER(status) = 'ACTIVE' AND tenant_id = :tenantId LIMIT 100`,
+        { replacements: { tenantId } }
+      );
       employees = emps.map((e: any) => e.id);
     }
 

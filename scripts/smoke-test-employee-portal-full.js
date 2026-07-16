@@ -219,6 +219,73 @@ async function testManagerApis(isManager, month, today) {
   }
 }
 
+async function testSuccessfulWrites() {
+  console.log('\n══ Successful Writes (leave / claim / OT / travel) ══');
+  const today = new Date();
+  const d1 = new Date(today); d1.setDate(d1.getDate() + 14);
+  const d2 = new Date(today); d2.setDate(d2.getDate() + 15);
+  const fmt = (d) => d.toISOString().slice(0, 10);
+  const otDate = new Date(today); otDate.setDate(otDate.getDate() - 1);
+  // skip weekend for OT weekday calc
+  while (otDate.getDay() === 0 || otDate.getDay() === 6) otDate.setDate(otDate.getDate() - 1);
+
+  const leave = await req('POST', '/api/employee/dashboard?action=leave-request', {
+    leaveType: 'annual',
+    startDate: fmt(d1),
+    endDate: fmt(d2),
+    reason: `Smoke leave ${Date.now()}`,
+  });
+  if (leave.res.status === 200 && leave.json.success) ok('leave-request create', leave.ms);
+  else fail('leave-request create', `HTTP ${leave.res.status}: ${leave.json.error || leave.json.details || ''}`);
+
+  const claim = await req('POST', '/api/employee/dashboard?action=claim', {
+    claimType: 'medical',
+    amount: 75000,
+    description: `Smoke claim ${Date.now()}`,
+    receiptDate: fmt(today),
+  });
+  if (claim.res.status === 200 && claim.json.success && !/mock/i.test(claim.json.message || '')) {
+    ok('claim create', claim.ms);
+  } else if (claim.res.status === 200 && claim.json.success) {
+    warn('claim create returned mock message', claim.json.message);
+  } else {
+    fail('claim create', `HTTP ${claim.res.status}: ${claim.json.error || claim.json.details || ''}`);
+  }
+
+  const ot = await req('POST', '/api/employee/dashboard?action=submit-overtime', {
+    date: fmt(otDate),
+    start_time: '17:00',
+    end_time: '19:00',
+    reason: `Smoke OT ${Date.now()}`,
+    work_description: 'Portal smoke test',
+    overtime_type: 'regular',
+  });
+  if (ot.res.status === 200 && ot.json.success) ok('submit-overtime create', ot.ms);
+  else fail('submit-overtime create', `HTTP ${ot.res.status}: ${ot.json.error || ot.json.details || ''}`);
+
+  const travel = await req('POST', '/api/employee/dashboard?action=travel-request', {
+    destination: 'Bandung',
+    departureCity: 'Jakarta',
+    purpose: `Smoke travel ${Date.now()}`,
+    departureDate: fmt(d1),
+    returnDate: fmt(d2),
+    transportation: 'train',
+    estimatedBudget: 500000,
+  });
+  if (travel.res.status === 200 && travel.json.success && !/mock/i.test(travel.json.message || '')) {
+    ok('travel-request create', travel.ms);
+  } else if (travel.res.status === 200 && travel.json.success) {
+    warn('travel create returned mock', travel.json.message);
+  } else {
+    fail('travel-request create', `HTTP ${travel.res.status}: ${travel.json.error || travel.json.details || ''}`);
+  }
+
+  // Profile should now have employee_id after auto-provision
+  const profile = await req('GET', '/api/employee/dashboard?action=profile');
+  if (profile.json?.data?.employee_id) ok(`profile linked employee_id=${String(profile.json.data.employee_id).slice(0, 8)}…`);
+  else fail('profile employee_id after writes', 'still null');
+}
+
 async function testLeaveClaimValidation() {
   console.log('\n══ Form Validation (POST — expect 400) ══');
   const validations = [
@@ -321,6 +388,7 @@ async function main() {
   await testFieldVisit();
   await testManagerApis(!!dash.profile?.isManagerPortal, month, today);
   await testLeaveClaimValidation();
+  await testSuccessfulWrites();
   await testNotifications();
   await testStress(month);
   await testLatencyReport();

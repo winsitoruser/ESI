@@ -328,6 +328,7 @@ async function updateSupervisor(
 // ===== GET: Employee Detail with all sub-data =====
 async function getEmployeeDetail(req: NextApiRequest, res: NextApiResponse, tenantId: string | null, empId: string) {
   if (!sequelize) return res.json({ success: true, data: null });
+  if (!tenantId) return res.status(403).json({ success: false, error: 'Tenant required' });
 
   // 🔒 TENANT ISOLATION: Verify employee belongs to current tenant
   const isAllowed = await verifyEmployeeTenant(empId, tenantId);
@@ -352,7 +353,7 @@ async function getEmployeeDetail(req: NextApiRequest, res: NextApiResponse, tena
     LEFT JOIN employees sup ON e.supervisor_id = sup.id
     LEFT JOIN job_grades jg ON e.job_grade_id = jg.id
     LEFT JOIN org_structures os ON e.org_structure_id = os.id
-    WHERE e.id = :empId
+    WHERE e.id = :empId AND e.tenant_id = :tenantId
   `;
   const detailSqlFallback = detailSql
     .replace('jg.code AS grade_code, jg.name AS grade_name, e.job_grade_id,', 'NULL::varchar AS grade_code, NULL::varchar AS grade_name, NULL::uuid AS job_grade_id,')
@@ -363,9 +364,9 @@ async function getEmployeeDetail(req: NextApiRequest, res: NextApiResponse, tena
 
   let employees: any[];
   try {
-    [employees] = await sequelize.query(detailSql, { replacements: { empId } });
+    [employees] = await sequelize.query(detailSql, { replacements: { empId, tenantId } });
   } catch {
-    [employees] = await sequelize.query(detailSqlFallback, { replacements: { empId } });
+    [employees] = await sequelize.query(detailSqlFallback, { replacements: { empId, tenantId } });
   }
 
   if (!employees[0]) return res.status(404).json({ success: false, error: 'Employee not found' });
@@ -383,32 +384,32 @@ async function getEmployeeDetail(req: NextApiRequest, res: NextApiResponse, tena
   };
 
   const families = await safeQuery(
-    `SELECT * FROM employee_families WHERE employee_id = :empId AND (:tenantId IS NULL OR tenant_id = :tenantId) ORDER BY relationship, name`,
+    `SELECT * FROM employee_families WHERE employee_id = :empId AND tenant_id = :tenantId ORDER BY relationship, name`,
     { empId, tenantId }
   );
   const educations = await safeQuery(
-    `SELECT * FROM employee_educations WHERE employee_id = :empId AND (:tenantId IS NULL OR tenant_id = :tenantId) ORDER BY end_year DESC NULLS LAST`,
+    `SELECT * FROM employee_educations WHERE employee_id = :empId AND tenant_id = :tenantId ORDER BY end_year DESC NULLS LAST`,
     { empId, tenantId }
   );
   const certifications = await safeQuery(
-    `SELECT * FROM employee_certifications WHERE employee_id = :empId AND (:tenantId IS NULL OR tenant_id = :tenantId) ORDER BY expiry_date DESC NULLS LAST`,
+    `SELECT * FROM employee_certifications WHERE employee_id = :empId AND tenant_id = :tenantId ORDER BY expiry_date DESC NULLS LAST`,
     { empId, tenantId }
   );
   const skills = await safeQuery(
-    `SELECT * FROM employee_skills WHERE employee_id = :empId AND (:tenantId IS NULL OR tenant_id = :tenantId) ORDER BY category, name`,
+    `SELECT * FROM employee_skills WHERE employee_id = :empId AND tenant_id = :tenantId ORDER BY category, name`,
     { empId, tenantId }
   );
   const experiences = await safeQuery(
-    `SELECT * FROM employee_work_experiences WHERE employee_id = :empId AND (:tenantId IS NULL OR tenant_id = :tenantId) ORDER BY start_date DESC NULLS LAST`,
+    `SELECT * FROM employee_work_experiences WHERE employee_id = :empId AND tenant_id = :tenantId ORDER BY start_date DESC NULLS LAST`,
     { empId, tenantId }
   );
   await ensureEmployeeDocumentsTable(sequelize);
   const documents = await safeQuery(
-    `SELECT * FROM employee_documents WHERE employee_id = :empId AND (:tenantId IS NULL OR tenant_id = :tenantId) ORDER BY created_at DESC`,
+    `SELECT * FROM employee_documents WHERE employee_id = :empId AND tenant_id = :tenantId ORDER BY created_at DESC`,
     { empId, tenantId }
   );
   const contracts = await safeQuery(
-    `SELECT * FROM employee_contracts WHERE employee_id = :empId AND (:tenantId IS NULL OR tenant_id = :tenantId) ORDER BY start_date DESC`,
+    `SELECT * FROM employee_contracts WHERE employee_id = :empId AND tenant_id = :tenantId ORDER BY start_date DESC`,
     { empId, tenantId }
   );
 
@@ -453,8 +454,11 @@ async function getSubData(
   }
 
   // Note: Table name is whitelisted above, safe for interpolation
+  if (!tenantId) {
+    return res.json({ success: true, data: [] });
+  }
   const [rows] = await sequelize.query(
-    `SELECT * FROM ${table} WHERE employee_id = :empId AND (:tenantId IS NULL OR tenant_id = :tenantId) ORDER BY created_at DESC`,
+    `SELECT * FROM ${table} WHERE employee_id = :empId AND tenant_id = :tenantId ORDER BY created_at DESC`,
     { replacements: { empId, tenantId } }
   );
   return res.json({ success: true, data: rows || [] });
@@ -607,8 +611,11 @@ async function createEmployee(
   }
 
   try {
+    if (!tenantId) {
+      return res.status(403).json({ success: false, error: 'Tenant required' });
+    }
     const [countResult] = await sequelize.query(
-      `SELECT COUNT(*)::int AS c FROM employees WHERE (:tenantId IS NULL OR tenant_id = :tenantId)`,
+      `SELECT COUNT(*)::int AS c FROM employees WHERE tenant_id = :tenantId`,
       { replacements: { tenantId } }
     );
     const nextNum = (countResult[0]?.c || 0) + 1;
@@ -695,6 +702,7 @@ async function deleteEmployee(
   tenantId: string | null
 ) {
   if (!sequelize) return res.json({ success: true });
+  if (!tenantId) return res.status(403).json({ success: false, error: 'Tenant required' });
 
   const { employeeId } = req.body;
   if (!employeeId) return res.status(400).json({ success: false, error: 'employeeId required' });
@@ -704,7 +712,7 @@ async function deleteEmployee(
 
   await sequelize.query(
     `UPDATE employees SET status = 'INACTIVE', is_active = false, updated_at = NOW()
-     WHERE id = :id AND (:tenantId IS NULL OR tenant_id = :tenantId)`,
+     WHERE id = :id AND tenant_id = :tenantId`,
     { replacements: { id: employeeId, tenantId } }
   );
   return res.json({ success: true, message: 'Karyawan berhasil dihapus' });

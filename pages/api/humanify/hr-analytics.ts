@@ -4,6 +4,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]';
+import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch {}
@@ -28,11 +29,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!session) return res.status(401).json({ success: false, error: 'Unauthorized' });
   if (req.method !== 'GET') return res.status(405).json({ success: false, error: 'Method not allowed' });
 
-  const tenantId = (session.user as any)?.tenantId || null;
+  const tenantId = tenantIdFromSession(session);
   const period = (req.query.period as string) || new Date().toISOString().substring(0, 7);
   const tf = tenantId ? 'AND tenant_id = :tenantId' : '';
   const etf = tenantId ? 'AND e.tenant_id = :tenantId' : '';
   const r = { tenantId, period };
+
+  // Recruitment counts: tenant-only (no OR NULL). Missing tenant → zeros.
+  const recruitmentSql = tenantId
+    ? `SELECT
+        (SELECT COUNT(*)::int FROM hris_job_openings WHERE status = 'open' AND tenant_id = :tenantId) as open_positions,
+        (SELECT COUNT(*)::int FROM hris_candidates WHERE tenant_id = :tenantId) as total_candidates,
+        (SELECT COUNT(*)::int FROM hris_candidates WHERE current_stage = 'hired' AND tenant_id = :tenantId) as hired`
+    : `SELECT 0::int as open_positions, 0::int as total_candidates, 0::int as hired`;
 
   const [
     totalEmployees,
@@ -103,12 +112,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       FROM payroll_runs
       WHERE TO_CHAR(period_start, 'YYYY-MM') = :period ${tf}
     `, r),
-    safeQuery(`
-      SELECT
-        (SELECT COUNT(*)::int FROM hris_job_openings WHERE status = 'open' AND (tenant_id = :tenantId OR tenant_id IS NULL OR :tenantId IS NULL)) as open_positions,
-        (SELECT COUNT(*)::int FROM hris_candidates WHERE (tenant_id = :tenantId OR tenant_id IS NULL OR :tenantId IS NULL)) as total_candidates,
-        (SELECT COUNT(*)::int FROM hris_candidates WHERE current_stage = 'hired' AND (tenant_id = :tenantId OR tenant_id IS NULL OR :tenantId IS NULL)) as hired
-    `, r),
+    safeQuery(recruitmentSql, r),
     safeQuery(`
       SELECT
         COUNT(*)::int as total,

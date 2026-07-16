@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 import { resolveDataSource } from '@/lib/hris/data-source';
+import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
 
 let sequelize: any, Op: any;
 try {
@@ -27,15 +28,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(401).json({ success: false, error: 'Unauthorized' });
     }
 
+    const tenantId = tenantIdFromSession(session);
+
     switch (req.method) {
       case 'GET':
-        return await getKPIData(req, res);
+        return await getKPIData(req, res, tenantId);
       case 'POST':
-        return await createKPI(req, res);
+        return await createKPI(req, res, tenantId);
       case 'PUT':
-        return await updateKPI(req, res);
+        return await updateKPI(req, res, tenantId);
       case 'DELETE':
-        return await deleteKPI(req, res);
+        return await deleteKPI(req, res, tenantId);
       default:
         res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE']);
         return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
@@ -47,9 +50,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 }
 
 // ========== GET: Fetch KPI data with real branch calculations ==========
-async function getKPIData(req: NextApiRequest, res: NextApiResponse) {
+async function getKPIData(req: NextApiRequest, res: NextApiResponse, tenantId: string | null) {
   const { period, employeeId, branchId, view } = req.query;
   const currentPeriod = (period as string) || new Date().toISOString().substring(0, 7);
+
+  if (!tenantId) {
+    return res.status(200).json({
+      success: true,
+      employeeKPIs: [],
+      branchKPIs: [],
+      templates: [],
+      employees: [],
+      period: currentPeriod,
+      dataSource: 'empty',
+      summary: { totalEmployees: 0, exceeded: 0, achieved: 0, partial: 0, notAchieved: 0, avgAchievement: 0 },
+    });
+  }
 
   // Fetch employee KPIs from DB
   let employeeKPIs: any[] = [];
@@ -57,18 +73,18 @@ async function getKPIData(req: NextApiRequest, res: NextApiResponse) {
 
   try {
     if (sequelize) {
-      // Get employee KPI records
+      // Get employee KPI records (tenant-scoped via employees)
       const [kpiRows] = await sequelize.query(`
         SELECT ek.*, e.name as emp_name, e.position as emp_position, e.department as emp_department,
                b.name as branch_name, b.code as branch_code
         FROM employee_kpis ek
-        LEFT JOIN employees e ON ek.employee_id = e.id
+        INNER JOIN employees e ON ek.employee_id = e.id AND e.tenant_id = :tenantId
         LEFT JOIN branches b ON COALESCE(ek.branch_id, e.branch_id) = b.id
         WHERE ek.period = :period
         ${employeeId ? 'AND ek.employee_id = :employeeId' : ''}
         ${branchId ? 'AND COALESCE(ek.branch_id, e.branch_id) = :branchId' : ''}
         ORDER BY e.name ASC, ek.category ASC
-      `, { replacements: { period: currentPeriod, employeeId, branchId } });
+      `, { replacements: { period: currentPeriod, employeeId, branchId, tenantId } });
 
       if (kpiRows.length > 0) {
         // Group by employee
@@ -124,7 +140,7 @@ async function getKPIData(req: NextApiRequest, res: NextApiResponse) {
       }
 
       // Calculate real branch KPIs from pos_transactions
-      branchKPIs = await calculateBranchKPIs(currentPeriod, branchId as string | undefined);
+      branchKPIs = await calculateBranchKPIs(currentPeriod, branchId as string | undefined, tenantId);
     }
   } catch (e: any) {
     console.warn('KPI DB query failed:', e.message);
@@ -144,9 +160,10 @@ async function getKPIData(req: NextApiRequest, res: NextApiResponse) {
   try {
     if (sequelize) {
       const [tplRows] = await sequelize.query(
-        'SELECT * FROM kpi_templates WHERE is_active = true ORDER BY category, code'
+        `SELECT * FROM kpi_templates WHERE is_active = true AND tenant_id = :tenantId ORDER BY category, code`,
+        { replacements: { tenantId } }
       );
-      templates = tplRows.map(normalizeTemplate);
+      templates = (tplRows || []).map(normalizeTemplate);
 
       let empRows: any[] = [];
       try {
@@ -156,9 +173,10 @@ async function getKPIData(req: NextApiRequest, res: NextApiResponse) {
                  b.name as branch_name
           FROM employees e
           LEFT JOIN branches b ON e.branch_id = b.id
-          WHERE (e.is_active = true OR e.status = 'active' OR e.status = 'ACTIVE' OR e.status IS NULL)
+          WHERE e.tenant_id = :tenantId
+            AND (e.is_active = true OR e.status = 'active' OR e.status = 'ACTIVE' OR e.status IS NULL)
           ORDER BY e.name ASC
-        `);
+        `, { replacements: { tenantId } });
         empRows = rows || [];
       } catch {
         const [rows] = await sequelize.query(`
@@ -167,9 +185,10 @@ async function getKPIData(req: NextApiRequest, res: NextApiResponse) {
                  b.name as branch_name
           FROM employees e
           LEFT JOIN branches b ON e.branch_id = b.id
-          WHERE (e.is_active = true OR e.status = 'active' OR e.status = 'ACTIVE' OR e.status IS NULL)
+          WHERE e.tenant_id = :tenantId
+            AND (e.is_active = true OR e.status = 'active' OR e.status = 'ACTIVE' OR e.status IS NULL)
           ORDER BY e.name ASC
-        `);
+        `, { replacements: { tenantId } });
         empRows = rows || [];
       }
       employees = empRows.map((e: any) => ({
@@ -198,17 +217,17 @@ async function getKPIData(req: NextApiRequest, res: NextApiResponse) {
 }
 
 // ========== Calculate real branch KPIs from pos_transactions ==========
-async function calculateBranchKPIs(period: string, filterBranchId?: string) {
-  if (!sequelize) return [];
+async function calculateBranchKPIs(period: string, filterBranchId?: string, tenantId?: string | null) {
+  if (!sequelize || !tenantId) return [];
 
   try {
     const [year, month] = period.split('-');
     const startDate = `${year}-${month}-01`;
     const endDate = new Date(parseInt(year), parseInt(month), 0).toISOString().split('T')[0];
 
-    // Get branches
-    let branchQuery = 'SELECT id, name, code FROM branches WHERE 1=1';
-    const replacements: any = {};
+    // Get branches (tenant-scoped)
+    let branchQuery = 'SELECT id, name, code FROM branches WHERE tenant_id = :tenantId';
+    const replacements: any = { tenantId };
     if (filterBranchId) {
       branchQuery += ' AND id = :branchId';
       replacements.branchId = filterBranchId;
@@ -322,9 +341,12 @@ async function calculateBranchKPIs(period: string, filterBranchId?: string) {
 }
 
 // ========== POST: Create/Assign KPI ==========
-async function createKPI(req: NextApiRequest, res: NextApiResponse) {
+async function createKPI(req: NextApiRequest, res: NextApiResponse, tenantId: string | null) {
   const { employeeId, branchId, metrics, period, templateId } = req.body;
 
+  if (!tenantId) {
+    return res.status(403).json({ error: 'Tenant context required' });
+  }
   if (!employeeId || !metrics || metrics.length === 0) {
     return res.status(400).json({ error: 'Employee ID and metrics are required' });
   }
@@ -333,13 +355,16 @@ async function createKPI(req: NextApiRequest, res: NextApiResponse) {
 
   if (sequelize) {
     try {
-      // Resolve branch from employee if not provided
+      // Resolve branch from employee if not provided — verify employee belongs to tenant
       let resolvedBranchId = branchId || null;
+      const [empRow] = await sequelize.query(
+        'SELECT branch_id FROM employees WHERE id = :employeeId AND tenant_id = :tenantId LIMIT 1',
+        { replacements: { employeeId, tenantId } }
+      );
+      if (!empRow?.length) {
+        return res.status(404).json({ error: 'Employee not found' });
+      }
       if (!resolvedBranchId) {
-        const [empRow] = await sequelize.query(
-          'SELECT branch_id FROM employees WHERE id = :employeeId LIMIT 1',
-          { replacements: { employeeId } }
-        );
         resolvedBranchId = empRow[0]?.branch_id || null;
       }
 
@@ -383,17 +408,24 @@ async function createKPI(req: NextApiRequest, res: NextApiResponse) {
 }
 
 // ========== PUT: Update KPI actual/status ==========
-async function updateKPI(req: NextApiRequest, res: NextApiResponse) {
+async function updateKPI(req: NextApiRequest, res: NextApiResponse, tenantId: string | null) {
   const { id, actual, status, notes } = req.body;
 
+  if (!tenantId) {
+    return res.status(403).json({ error: 'Tenant context required' });
+  }
   if (!id) {
     return res.status(400).json({ error: 'KPI ID is required' });
   }
 
   if (sequelize) {
     try {
-      // Get current KPI
-      const [kpiRows] = await sequelize.query('SELECT * FROM employee_kpis WHERE id = :id', { replacements: { id } });
+      // Get current KPI — must belong to tenant employee
+      const [kpiRows] = await sequelize.query(`
+        SELECT ek.* FROM employee_kpis ek
+        INNER JOIN employees e ON ek.employee_id = e.id AND e.tenant_id = :tenantId
+        WHERE ek.id = :id
+      `, { replacements: { id, tenantId } });
       if (kpiRows.length === 0) return res.status(404).json({ error: 'KPI not found' });
 
       const kpi = kpiRows[0];
@@ -425,13 +457,22 @@ async function updateKPI(req: NextApiRequest, res: NextApiResponse) {
 }
 
 // ========== DELETE: Remove KPI ==========
-async function deleteKPI(req: NextApiRequest, res: NextApiResponse) {
+async function deleteKPI(req: NextApiRequest, res: NextApiResponse, tenantId: string | null) {
   const { id } = req.query;
+  if (!tenantId) {
+    return res.status(403).json({ error: 'Tenant context required' });
+  }
   if (!id) return res.status(400).json({ error: 'KPI ID is required' });
 
   if (sequelize) {
     try {
-      await sequelize.query('DELETE FROM employee_kpis WHERE id = :id', { replacements: { id } });
+      const [result] = await sequelize.query(`
+        DELETE FROM employee_kpis ek
+        USING employees e
+        WHERE ek.id = :id AND ek.employee_id = e.id AND e.tenant_id = :tenantId
+        RETURNING ek.id
+      `, { replacements: { id, tenantId } });
+      if (!result?.length) return res.status(404).json({ error: 'KPI not found' });
       return res.status(200).json({ success: true, message: 'KPI berhasil dihapus' });
     } catch (e: any) {
       return res.status(500).json({ error: 'Gagal menghapus KPI', details: e.message });

@@ -200,7 +200,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             (SELECT COUNT(*)::int FROM hris_lms_competency_history ch WHERE ch.employee_id = e.id) as competencies
           FROM users u
           LEFT JOIN employees e ON e.user_id = u.id
-          WHERE u.tenant_id = :tid OR :tid IS NULL
+          WHERE u.tenant_id = :tid
           ORDER BY u.name LIMIT 500
         `, { replacements: { tid: tenantId } }).catch(() => [[]]);
         return res.json({ success: true, data: rows });

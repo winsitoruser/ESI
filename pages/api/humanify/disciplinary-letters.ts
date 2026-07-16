@@ -19,6 +19,7 @@ import {
   notifyHRStaff,
   notifyDisciplinaryStakeholders,
 } from '../../../lib/hris/disciplinary-notifications';
+import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch (_) {}
@@ -83,7 +84,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 }
 
 function getTenantId(session: any): string | null {
-  return (session.user as any)?.tenantId || null;
+  return tenantIdFromSession(session);
 }
 
 function getUserId(session: any): number | null {
@@ -215,10 +216,11 @@ async function ensureSchema() {
 async function getActiveSOP(letterType: DisciplinaryLetterType, tenantId: string | null): Promise<LetterSOPTemplate & { id?: string }> {
   if (!sequelize) return getDefaultSOP(letterType);
   try {
+    if (!tenantId) return getDefaultSOP(letterType);
     const [rows] = await sequelize.query(`
       SELECT * FROM hr_letter_sop_templates
       WHERE letter_type = :letterType AND is_active = true
-      ${tenantId ? 'AND (tenant_id = :tenantId OR tenant_id IS NULL)' : ''}
+      AND tenant_id = :tenantId
       ORDER BY is_default DESC, created_at ASC LIMIT 1
     `, { replacements: { letterType, tenantId } });
     if (rows[0]) {
@@ -324,9 +326,24 @@ async function getSOPTemplates(req: NextApiRequest, res: NextApiResponse, sessio
   if (!sequelize) {
     return res.json({ success: true, data: DEFAULT_SOP_TEMPLATES.map((t, i) => ({ ...t, id: `default-${i}`, letter_type: t.letterType, is_default: true })) });
   }
+  if (!tenantId) {
+    return res.json({
+      success: true,
+      data: DEFAULT_SOP_TEMPLATES.map((t, i) =>
+        normalizeSOPTemplate({
+          ...t,
+          id: `default-${i}`,
+          letter_type: t.letterType,
+          approval_levels: t.approvalLevels,
+          validity_months: t.validityMonths,
+          is_default: true,
+        })
+      ),
+    });
+  }
   const [rows] = await sequelize.query(`
     SELECT * FROM hr_letter_sop_templates
-    WHERE is_active = true ${tenantId ? 'AND (tenant_id = :tenantId OR tenant_id IS NULL)' : ''}
+    WHERE is_active = true AND tenant_id = :tenantId
     ORDER BY letter_type, is_default DESC, name ASC
   `, { replacements: { tenantId } });
   const data = (rows?.length ? rows : []).map(normalizeSOPTemplate).filter(Boolean);
