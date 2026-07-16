@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
@@ -44,15 +44,15 @@ export default function OrgSettingsPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="bg-white rounded-xl border shadow-sm p-5">
-              <h3 className="font-semibold flex items-center gap-2 mb-4"><Network className="w-4 h-4 text-blue-600" /> Struktur & Job Architecture</h3>
+              <h3 className="font-semibold flex items-center gap-2 mb-4"><Network className="w-4 h-4 text-violet-600" /> Struktur & Job Architecture</h3>
               <div className="space-y-2">
                 {data.structure.map((s: any) => (
                   <Link key={s.id} href={s.href} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 border group">
                     <div>
-                      <p className="font-medium text-sm group-hover:text-blue-600">{s.name}</p>
+                      <p className="font-medium text-sm group-hover:text-violet-600">{s.name}</p>
                       <p className="text-xs text-gray-400">{s.count}</p>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-blue-400" />
+                    <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-violet-400" />
                   </Link>
                 ))}
               </div>
@@ -97,11 +97,11 @@ export default function OrgSettingsPage() {
             </div>
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm">
+          <div className="bg-violet-50 border border-violet-200 rounded-xl p-4 text-sm">
             <strong>Database HR:</strong> Custom data/doc, sertifikat, dan contract expiry terkelola di{' '}
-            <Link href="/humanify/employees" className="text-blue-600 underline">Database Karyawan</Link>,{' '}
-            <Link href="/humanify/certificates" className="text-blue-600 underline">Certificate Registry</Link>, dan{' '}
-            <Link href="/humanify/contracts" className="text-blue-600 underline">Kontrak & Reminder</Link>.
+            <Link href="/humanify/employees" className="text-violet-600 underline">Database Karyawan</Link>,{' '}
+            <Link href="/humanify/certificates" className="text-violet-600 underline">Certificate Registry</Link>, dan{' '}
+            <Link href="/humanify/contracts" className="text-violet-600 underline">Kontrak & Reminder</Link>.
           </div>
         </div>
       </HQLayout>

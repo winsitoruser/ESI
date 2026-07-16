@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
@@ -25,7 +25,7 @@ type Tab = 'list' | 'create' | 'detail';
 
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-amber-100 text-amber-700',
-  approved: 'bg-blue-100 text-blue-700',
+  approved: 'bg-violet-100 text-violet-700',
   executed: 'bg-green-100 text-green-700',
   rejected: 'bg-red-100 text-red-700',
   cancelled: 'bg-gray-100 text-gray-600',
@@ -408,7 +408,7 @@ export default function MutationsPage() {
                 <textarea value={form.reason} onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
                   rows={3} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" placeholder="Kebutuhan operasional, penugasan proyek, dll." />
               </div>
-              <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs text-blue-700 flex gap-2">
+              <div className="bg-violet-50 border border-violet-100 rounded-lg p-3 text-xs text-violet-700 flex gap-2">
                 <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                 Pengajuan akan melalui tahap persetujuan: <strong>Manajer → HRD</strong>
                 {['promotion', 'demotion'].includes(form.mutation_type) && ' → Direktur'}.

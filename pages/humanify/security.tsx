@@ -118,7 +118,7 @@ export default function HumanifySecurityPage() {
           <div className="bg-white border border-slate-200 rounded-2xl p-6">
             <div className="flex items-center justify-between mb-1">
               <h3 className="font-semibold text-slate-900 flex items-center gap-2">
-                <Lock className="w-4 h-4 text-blue-600" /> Autentikasi dua faktor
+                <Lock className="w-4 h-4 text-violet-600" /> Autentikasi dua faktor
               </h3>
               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${enabled ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                 {enabled ? 'Aktif' : 'Nonaktif'}
@@ -136,7 +136,7 @@ export default function HumanifySecurityPage() {
                 type="button"
                 onClick={startEnroll}
                 disabled={busy}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 disabled:opacity-50"
               >
                 {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
                 Aktifkan 2FA
@@ -146,7 +146,7 @@ export default function HumanifySecurityPage() {
 
           {!enabled && enroll && (
             <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
-              <div className="flex items-start gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+              <div className="flex items-start gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900">
                 <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
                 <span>Tambahkan secret di bawah ke aplikasi authenticator Anda (mode manual / entry key), lalu masukkan kode 6 digit untuk konfirmasi.</span>
               </div>
@@ -165,7 +165,7 @@ export default function HumanifySecurityPage() {
                 <span className="text-sm text-slate-600">Atau salin URL otpauth</span>
                 <div className="mt-1 flex items-center gap-2">
                   <code className="flex-1 bg-slate-100 rounded px-2 py-1 text-xs truncate">{enroll.otpauthUrl}</code>
-                  <button type="button" onClick={() => copy(enroll.otpauthUrl)} className="text-xs text-blue-600 hover:underline whitespace-nowrap">Salin</button>
+                  <button type="button" onClick={() => copy(enroll.otpauthUrl)} className="text-xs text-violet-600 hover:underline whitespace-nowrap">Salin</button>
                 </div>
               </div>
 

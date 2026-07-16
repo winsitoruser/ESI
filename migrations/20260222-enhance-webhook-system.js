@@ -64,7 +64,7 @@ module.exports = {
         comment: 'Retry configuration'
       },
       createdBy: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: false,
         field: 'created_by',
         references: {
@@ -136,7 +136,7 @@ module.exports = {
         defaultValue: 'pending'
       },
       dispatchedBy: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: false,
         field: 'dispatched_by',
         references: {
@@ -243,12 +243,12 @@ module.exports = {
     // Create dashboard_notifications table
     await queryInterface.createTable('dashboard_notifications', {
       id: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         defaultValue: Sequelize.UUIDV4,
         primaryKey: true
       },
       userId: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: false,
         field: 'user_id',
         references: {
@@ -359,7 +359,7 @@ module.exports = {
         email_recipients, whatsapp_recipients, created_by, tenant_id, created_at, updated_at
       )
       SELECT 
-        uuid_generate_v4(),
+        gen_random_uuid(),
         'transaction_voided',
         'Transaction Voided',
         'Alert when a transaction is voided',
@@ -386,7 +386,7 @@ module.exports = {
         email_recipients, created_by, tenant_id, created_at, updated_at
       )
       SELECT 
-        uuid_generate_v4(),
+        gen_random_uuid(),
         'low_stock',
         'Low Stock Alert',
         'Alert when product stock is low',
@@ -412,7 +412,7 @@ module.exports = {
         email_recipients, whatsapp_recipients, created_by, tenant_id, created_at, updated_at
       )
       SELECT 
-        uuid_generate_v4(),
+        gen_random_uuid(),
         'suspicious_activity',
         'Suspicious Activity',
         'Alert for suspicious activities (large voids, unusual patterns)',

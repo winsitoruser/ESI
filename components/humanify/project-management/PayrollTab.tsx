@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { DollarSign, Upload, Trash2 } from 'lucide-react';
 import { PayrollItem, ProjectItem } from './types';
 import { fmtCur, statusColor } from './utils';
@@ -65,7 +65,7 @@ export default function PayrollTab({ payrollItems, projects, selectedProject, op
                         <button onClick={async () => { await api('approve-payroll', 'POST', { id: pi.id }); showToast('Disetujui'); loadData(); }} className="text-xs px-2 py-1 text-green-600 hover:bg-green-50 rounded">Setujui</button>
                       )}
                       {pi.status === 'approved' && (
-                        <button onClick={async () => { await api('pay-payroll', 'POST', { id: pi.id, paymentRef: `PAY-${Date.now()}` }); showToast('Dibayar'); loadData(); }} className="text-xs px-2 py-1 text-blue-600 hover:bg-blue-50 rounded">Bayar</button>
+                        <button onClick={async () => { await api('pay-payroll', 'POST', { id: pi.id, paymentRef: `PAY-${Date.now()}` }); showToast('Dibayar'); loadData(); }} className="text-xs px-2 py-1 text-violet-600 hover:bg-violet-50 rounded">Bayar</button>
                       )}
                       <button onClick={() => handleDelete('payroll', pi.id)} className="p-1 text-gray-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DepartmentSelect from '@/components/humanify/DepartmentSelect';
 import { useHrisMasterData } from '@/hooks/useHrisMasterData';
@@ -14,7 +14,7 @@ type TabKey = 'openings' | 'candidates' | 'pipeline' | 'analytics' | 'integratio
 
 const STAGES = ['applied', 'screening', 'test', 'interview', 'offer', 'hired', 'rejected'];
 const STAGE_LABELS: Record<string, string> = { applied: 'Lamaran Masuk', screening: 'Penyaringan', test: 'Tes', interview: 'Wawancara', offer: 'Penawaran', hired: 'Diterima', rejected: 'Ditolak' };
-const STAGE_COLORS: Record<string, string> = { applied: 'bg-gray-100 text-gray-700', screening: 'bg-blue-100 text-blue-700', test: 'bg-indigo-100 text-indigo-700', interview: 'bg-purple-100 text-purple-700', offer: 'bg-orange-100 text-orange-700', hired: 'bg-green-100 text-green-700', rejected: 'bg-red-100 text-red-700' };
+const STAGE_COLORS: Record<string, string> = { applied: 'bg-gray-100 text-gray-700', screening: 'bg-violet-100 text-violet-700', test: 'bg-indigo-100 text-indigo-700', interview: 'bg-purple-100 text-purple-700', offer: 'bg-orange-100 text-orange-700', hired: 'bg-green-100 text-green-700', rejected: 'bg-red-100 text-red-700' };
 const PRIORITY_COLORS: Record<string, string> = { high: 'border-red-400 bg-red-50', medium: 'border-yellow-400 bg-yellow-50', low: 'border-gray-300 bg-gray-50' };
 
 const emptyForm = { title: '', department: '', location: '', type: 'full_time', priority: 'medium', salary_min: '', salary_max: '', description: '', requirements: '', deadline: '' };
@@ -199,7 +199,7 @@ export default function RecruitmentPage() {
   const statusBadge = (status: string) => {
     const map: Record<string, string> = {
       connected: 'bg-green-100 text-green-700',
-      webhook_only: 'bg-blue-100 text-blue-700',
+      webhook_only: 'bg-violet-100 text-violet-700',
       configured: 'bg-indigo-100 text-indigo-700',
       pending: 'bg-amber-100 text-amber-700',
       coming_soon: 'bg-gray-100 text-gray-600',
@@ -342,14 +342,14 @@ export default function RecruitmentPage() {
         {toast && <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white ${toast.type === 'error' ? 'bg-red-500' : 'bg-green-500'}`}>{toast.msg}</div>}
 
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm flex-1 min-w-0">
+          <div className="bg-violet-50 border border-violet-200 rounded-xl px-4 py-3 text-sm flex-1 min-w-0">
             Portal karir publik per perusahaan (SaaS multi-tenant).{' '}
             {saasCtx?.careersUrl ? (
-              <a href={saasCtx.careersUrl} target="_blank" rel="noopener noreferrer" className="text-blue-700 font-medium hover:underline">
+              <a href={saasCtx.careersUrl} target="_blank" rel="noopener noreferrer" className="text-violet-700 font-medium hover:underline">
                 Buka {saasCtx.careersUrl} →
               </a>
             ) : (
-              <span className="text-blue-800">URL: /c/&#123;slug-perusahaan&#125;/careers</span>
+              <span className="text-violet-800">URL: /c/&#123;slug-perusahaan&#125;/careers</span>
             )}
           </div>
           <DataSourceBadge source={dataSource} />
@@ -358,7 +358,7 @@ export default function RecruitmentPage() {
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-white rounded-xl p-4 border shadow-sm">
-            <div className="flex items-center gap-3"><div className="p-2 bg-blue-100 rounded-lg"><Briefcase className="w-5 h-5 text-blue-600" /></div>
+            <div className="flex items-center gap-3"><div className="p-2 bg-violet-100 rounded-lg"><Briefcase className="w-5 h-5 text-violet-600" /></div>
               <div><p className="text-2xl font-bold">{openCount}</p><p className="text-xs text-gray-500">Lowongan Aktif</p></div></div>
           </div>
           <div className="bg-white rounded-xl p-4 border shadow-sm">
@@ -633,7 +633,7 @@ export default function RecruitmentPage() {
                 <div key={ch.id} className="bg-white border rounded-xl p-5 shadow-sm">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      {ch.provider === 'linkedin' && <Globe className="w-5 h-5 text-blue-600" />}
+                      {ch.provider === 'linkedin' && <Globe className="w-5 h-5 text-violet-600" />}
                       {ch.provider === 'whatsapp' && <MessageCircle className="w-5 h-5 text-green-600" />}
                       {ch.provider === 'dealls' && <Link2 className="w-5 h-5 text-purple-600" />}
                       {!['linkedin', 'whatsapp', 'dealls'].includes(ch.provider) && <Globe className="w-5 h-5 text-gray-600" />}
@@ -760,7 +760,7 @@ export default function RecruitmentPage() {
             <div className="bg-white border rounded-xl p-5">
               <h3 className="font-semibold mb-4">Metrik Rekrutmen</h3>
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-blue-50 rounded-lg p-4 text-center"><p className="text-2xl font-bold text-blue-600">{avgTimeToHire}</p><p className="text-xs text-gray-500">Rata-rata Hari Rekrut</p></div>
+                <div className="bg-violet-50 rounded-lg p-4 text-center"><p className="text-2xl font-bold text-violet-600">{avgTimeToHire}</p><p className="text-xs text-gray-500">Rata-rata Hari Rekrut</p></div>
                 <div className="bg-green-50 rounded-lg p-4 text-center"><p className="text-2xl font-bold text-green-600">{totalApplicants > 0 ? Math.round(hiredCount / totalApplicants * 100) : 0}%</p><p className="text-xs text-gray-500">Tingkat Penerimaan</p></div>
                 <div className="bg-purple-50 rounded-lg p-4 text-center"><p className="text-2xl font-bold text-purple-600">{openCount}</p><p className="text-xs text-gray-500">Posisi Terbuka</p></div>
                 <div className="bg-orange-50 rounded-lg p-4 text-center"><p className="text-2xl font-bold text-orange-600">{totalApplicants > 0 ? Math.round(candidates.filter(c => (c.rating || 0) >= 4).length / totalApplicants * 100) : 0}%</p><p className="text-xs text-gray-500">Tingkat Kualitas Rekrut</p></div>
@@ -879,7 +879,7 @@ export default function RecruitmentPage() {
                       <button
                         onClick={() => publishToPortals(selectedOpening.id)}
                         disabled={publishing}
-                        className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"
+                        className="text-xs px-3 py-1.5 bg-violet-600 text-white rounded-lg hover:bg-violet-700 disabled:opacity-50 flex items-center gap-1"
                       >
                         {publishing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Globe className="w-3 h-3" />}
                         Publish ke portal

@@ -161,7 +161,7 @@ module.exports = {
           allowNull: false
         },
         role: {
-          type: Sequelize.ENUM('owner', 'admin', 'manager', 'cashier', 'staff'),
+          type: Sequelize.ENUM('super_admin', 'owner', 'admin', 'manager', 'cashier', 'staff'),
           defaultValue: 'owner'
         },
         isActive: {
@@ -600,97 +600,7 @@ module.exports = {
       });
     }
 
-    // ============================================================
-    // 8. SUPPLIERS (INTEGER PK)
-    // Originally created in: 20260125-create-suppliers-table.js,
-    //   20260127000002-create-inventory-system.js
-    // Referenced by: 20260118-create-inventory-tables.js, purchase tables, etc.
-    // Note: Uses INTEGER PK to match the original migrations & models.
-    // ============================================================
-    if (!exists('suppliers')) {
-      await queryInterface.createTable('suppliers', {
-        id: {
-          type: Sequelize.INTEGER,
-          primaryKey: true,
-          autoIncrement: true
-        },
-        name: {
-          type: Sequelize.STRING(255),
-          allowNull: false
-        },
-        code: {
-          type: Sequelize.STRING(50),
-          allowNull: false,
-          unique: true
-        },
-        company_name: {
-          type: Sequelize.STRING(255),
-          allowNull: true
-        },
-        supplier_type: {
-          type: Sequelize.ENUM('manufacturer', 'distributor', 'wholesaler', 'retailer', 'other'),
-          defaultValue: 'distributor'
-        },
-        contact_person: {
-          type: Sequelize.STRING(100),
-          allowNull: true
-        },
-        phone: {
-          type: Sequelize.STRING(20),
-          allowNull: true
-        },
-        email: {
-          type: Sequelize.STRING(100),
-          allowNull: true
-        },
-        address: {
-          type: Sequelize.TEXT,
-          allowNull: true
-        },
-        city: {
-          type: Sequelize.STRING(100),
-          allowNull: true
-        },
-        province: {
-          type: Sequelize.STRING(100),
-          allowNull: true
-        },
-        postal_code: {
-          type: Sequelize.STRING(10),
-          allowNull: true
-        },
-        country: {
-          type: Sequelize.STRING(100),
-          defaultValue: 'Indonesia'
-        },
-        tax_id: {
-          type: Sequelize.STRING(50),
-          allowNull: true
-        },
-        payment_terms: {
-          type: Sequelize.STRING(50),
-          allowNull: true
-        },
-        is_active: {
-          type: Sequelize.BOOLEAN,
-          defaultValue: true
-        },
-        notes: {
-          type: Sequelize.TEXT,
-          allowNull: true
-        },
-        created_at: {
-          type: Sequelize.DATE,
-          allowNull: false,
-          defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
-        },
-        updated_at: {
-          type: Sequelize.DATE,
-          allowNull: false,
-          defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
-        }
-      });
-    }
+
 
     // ============================================================
     // 9. WAREHOUSES (INTEGER PK)
@@ -783,7 +693,6 @@ module.exports = {
         },
         code: {
           type: Sequelize.STRING(50),
-          unique: true,
           allowNull: true
         },
         type: {
@@ -851,83 +760,12 @@ module.exports = {
       });
     }
 
-    // ============================================================
-    // 11. RECIPES (INTEGER PK)
-    // Originally created in: 20260125-create-recipes-table.js
-    // Referenced by: 20260125-create-recipe-history.js (same day)
-    // ============================================================
-    if (!exists('recipes')) {
-      await queryInterface.createTable('recipes', {
-        id: {
-          type: Sequelize.INTEGER,
-          primaryKey: true,
-          autoIncrement: true
-        },
-        code: {
-          type: Sequelize.STRING(50),
-          allowNull: false,
-          unique: true
-        },
-        name: {
-          type: Sequelize.STRING(255),
-          allowNull: false
-        },
-        description: {
-          type: Sequelize.TEXT,
-          allowNull: true
-        },
-        product_id: {
-          type: Sequelize.INTEGER,
-          allowNull: true,
-          references: { model: 'products', key: 'id' },
-          onUpdate: 'CASCADE',
-          onDelete: 'SET NULL'
-        },
-        batch_size: {
-          type: Sequelize.DECIMAL(10, 2),
-          allowNull: false,
-          defaultValue: 1
-        },
-        batch_unit: {
-          type: Sequelize.STRING(20),
-          allowNull: false,
-          defaultValue: 'pcs'
-        },
-        estimated_yield: {
-          type: Sequelize.DECIMAL(10, 2),
-          allowNull: true
-        },
-        yield_percentage: {
-          type: Sequelize.DECIMAL(5, 2),
-          defaultValue: 100
-        },
-        preparation_time_minutes: {
-          type: Sequelize.INTEGER,
-          defaultValue: 0
-        },
-        is_active: {
-          type: Sequelize.BOOLEAN,
-          defaultValue: true
-        },
-        created_at: {
-          type: Sequelize.DATE,
-          allowNull: false,
-          defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
-        },
-        updated_at: {
-          type: Sequelize.DATE,
-          allowNull: false,
-          defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
-        }
-      });
-    }
-
-    console.log('✅ Core tables created (tenants, users, branches, employees, customers, products, categories, suppliers, warehouses, locations, recipes)');
+    console.log('✅ Core tables created (tenants, users, branches, employees, customers, products, categories, warehouses, locations)');
   },
 
   down: async (queryInterface) => {
     // Drop core tables in reverse dependency order
-    const tables = ['recipes', 'locations', 'warehouses', 'suppliers', 'categories', 'products', 'customers', 'employees', 'branches', 'users', 'tenants'];
+    const tables = ['locations', 'warehouses', 'categories', 'products', 'customers', 'employees', 'branches', 'users', 'tenants'];
     for (const t of tables) {
       await queryInterface.dropTable(t).catch(() => {});
     }

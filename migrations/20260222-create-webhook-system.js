@@ -93,7 +93,7 @@ module.exports = {
         onDelete: 'CASCADE'
       },
       createdBy: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: false,
         field: 'created_by',
         references: {
@@ -296,7 +296,7 @@ module.exports = {
     await queryInterface.sequelize.query(`
       INSERT INTO webhooks (id, name, description, url, event, is_active, tenant_id, created_by, created_at, updated_at)
       SELECT 
-        UUID(),
+        gen_random_uuid(),
         'Low Stock Alert',
         'Automatically sends alert when product stock falls below minimum level',
         'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK',

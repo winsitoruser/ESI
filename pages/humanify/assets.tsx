@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
@@ -10,7 +10,7 @@ const CATEGORY_ICONS: Record<string, any> = {
   laptop: Laptop, phone: Smartphone, id_card: CreditCard, access_card: Key, other: Package,
 };
 const STATUS_COLORS: Record<string, string> = {
-  available: 'bg-green-100 text-green-700', assigned: 'bg-blue-100 text-blue-700',
+  available: 'bg-green-100 text-green-700', assigned: 'bg-violet-100 text-violet-700',
   returned: 'bg-gray-100 text-gray-700', maintenance: 'bg-amber-100 text-amber-700',
 };
 
@@ -93,7 +93,7 @@ export default function AssetsPage() {
                         <h3 className="font-semibold text-sm mt-0.5">{a.name}</h3>
                         {a.brand && <p className="text-xs text-gray-500">{a.brand} · {a.serialNumber}</p>}
                         {a.assignedToName && (
-                          <p className="text-xs text-blue-600 mt-1 flex items-center gap-1"><ArrowLeftRight className="w-3 h-3" />{a.assignedToName}</p>
+                          <p className="text-xs text-violet-600 mt-1 flex items-center gap-1"><ArrowLeftRight className="w-3 h-3" />{a.assignedToName}</p>
                         )}
                         {a.purchaseValue && <p className="text-xs text-gray-400 mt-1">{fmt(a.purchaseValue)}</p>}
                       </div>

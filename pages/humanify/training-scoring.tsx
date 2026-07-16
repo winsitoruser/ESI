@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
@@ -19,7 +19,7 @@ const COMP_CATEGORIES: Record<string, string> = {
 };
 
 const GRADE_COLORS: Record<string, string> = {
-  A: 'bg-green-100 text-green-700', B: 'bg-blue-100 text-blue-700',
+  A: 'bg-green-100 text-green-700', B: 'bg-violet-100 text-violet-700',
   C: 'bg-yellow-100 text-yellow-700', D: 'bg-orange-100 text-orange-700',
   E: 'bg-red-100 text-red-700',
 };
@@ -240,7 +240,7 @@ export default function TrainingScoringPage() {
                   {/* Weight Bars */}
                   <div className="space-y-1.5 mb-3">
                     <WeightBar label="Ujian" value={c.weight_exam} color="bg-indigo-500" />
-                    <WeightBar label="Kehadiran" value={c.weight_attendance} color="bg-blue-500" />
+                    <WeightBar label="Kehadiran" value={c.weight_attendance} color="bg-violet-500" />
                     <WeightBar label="Praktik" value={c.weight_practical} color="bg-purple-500" />
                     <WeightBar label="Tugas" value={c.weight_assignment} color="bg-teal-500" />
                     <WeightBar label="Sikap" value={c.weight_attitude} color="bg-orange-500" />
@@ -503,7 +503,7 @@ export default function TrainingScoringPage() {
                 <h4 className="text-sm font-semibold text-indigo-900 mb-2">Bobot Penilaian</h4>
                 <div className="space-y-2">
                   <WeightBar label="Ujian" value={selectedItem.weight_exam} color="bg-indigo-500" />
-                  <WeightBar label="Kehadiran" value={selectedItem.weight_attendance} color="bg-blue-500" />
+                  <WeightBar label="Kehadiran" value={selectedItem.weight_attendance} color="bg-violet-500" />
                   <WeightBar label="Praktik" value={selectedItem.weight_practical} color="bg-purple-500" />
                   <WeightBar label="Tugas" value={selectedItem.weight_assignment} color="bg-teal-500" />
                   <WeightBar label="Sikap" value={selectedItem.weight_attitude} color="bg-orange-500" />
@@ -570,7 +570,7 @@ export default function TrainingScoringPage() {
                 <FField label="No. KTP" value={form.id_number || ''} onChange={v => setForm({...form, id_number: v})} />
                 <FField label="Pendidikan" value={form.education || ''} onChange={v => setForm({...form, education: v})} />
               </div>
-              <div className="p-3 bg-blue-50 rounded-lg text-xs text-blue-700">
+              <div className="p-3 bg-violet-50 rounded-lg text-xs text-violet-700">
                 <p className="font-medium mb-1">ℹ️ Info Login Portal</p>
                 <p>Kandidat dapat login di <strong>/candidate/login</strong> menggunakan email dan password yang dibuat.</p>
               </div>
@@ -601,7 +601,7 @@ function WeightBar({ label, value, color }: { label: string; value: number; colo
 
 function WeightInput({ label, value, onChange, color }: { label: string; value: number; onChange: (v: string) => void; color: string }) {
   const colorClasses: Record<string, string> = {
-    indigo: 'border-indigo-300', blue: 'border-blue-300', purple: 'border-purple-300',
+    indigo: 'border-indigo-300', blue: 'border-violet-300', purple: 'border-purple-300',
     teal: 'border-teal-300', orange: 'border-orange-300',
   };
   return (

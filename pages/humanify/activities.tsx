@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
@@ -19,7 +19,7 @@ interface ActivityItem {
 }
 
 const TYPE_CONFIG: Record<string, { icon: typeof Activity; color: string; badge: string; label: string }> = {
-  employee_joined: { icon: UserPlus, color: 'bg-blue-500', badge: 'bg-blue-50 text-blue-700 border-blue-200', label: 'Karyawan' },
+  employee_joined: { icon: UserPlus, color: 'bg-violet-500', badge: 'bg-violet-50 text-violet-700 border-violet-200', label: 'Karyawan' },
   leave_request: { icon: Calendar, color: 'bg-amber-500', badge: 'bg-amber-50 text-amber-700 border-amber-200', label: 'Cuti' },
   kpi_update: { icon: Target, color: 'bg-purple-500', badge: 'bg-purple-50 text-purple-700 border-purple-200', label: 'KPI' },
   kpi_assigned: { icon: Target, color: 'bg-purple-500', badge: 'bg-purple-50 text-purple-700 border-purple-200', label: 'KPI' },

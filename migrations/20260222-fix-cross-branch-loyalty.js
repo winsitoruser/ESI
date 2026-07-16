@@ -145,7 +145,7 @@ module.exports = {
         comment: 'Additional transaction metadata'
       },
       createdBy: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: true,
         field: 'created_by',
         references: {

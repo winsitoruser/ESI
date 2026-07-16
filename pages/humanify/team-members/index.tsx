@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import HumanifyLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
@@ -38,7 +38,7 @@ interface TeamMember {
 const ROLE_CONFIG: Record<MemberRole, { label: string; color: string; icon: any }> = {
   sales: { label: 'Sales', color: 'text-emerald-600 bg-emerald-50', icon: Target },
   marketing: { label: 'Marketing', color: 'text-purple-600 bg-purple-50', icon: Star },
-  ops: { label: 'Operations', color: 'text-blue-600 bg-blue-50', icon: Clock },
+  ops: { label: 'Operations', color: 'text-violet-600 bg-violet-50', icon: Clock },
   finance: { label: 'Finance', color: 'text-amber-600 bg-amber-50', icon: Briefcase },
   admin: { label: 'Admin', color: 'text-gray-600 bg-gray-50', icon: User },
   manager: { label: 'Manager', color: 'text-indigo-600 bg-indigo-50', icon: UserCheck },
@@ -180,7 +180,7 @@ export default function TeamMembersPage() {
           </div>
           <div className="bg-white rounded-xl border border-gray-200 p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-50 text-blue-600">
+              <div className="p-2 rounded-lg bg-violet-50 text-violet-600">
                 <Target className="w-5 h-5" />
               </div>
               <div>

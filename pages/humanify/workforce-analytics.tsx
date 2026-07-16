@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+﻿import { useState, useEffect, useCallback, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import { PageGuard } from '@/components/permissions';
@@ -184,7 +184,7 @@ export default function WorkforceAnalyticsPage() {
   const fmtDateInput = (d: string) => (d ? String(d).slice(0, 10) : '');
 
   const statusColor = (s: string) => {
-    const m: any = { draft: 'bg-gray-100 text-gray-800', submitted: 'bg-blue-100 text-blue-800', approved: 'bg-green-100 text-green-800', active: 'bg-indigo-100 text-indigo-800', closed: 'bg-gray-200 text-gray-600' };
+    const m: any = { draft: 'bg-gray-100 text-gray-800', submitted: 'bg-violet-100 text-violet-800', approved: 'bg-green-100 text-green-800', active: 'bg-indigo-100 text-indigo-800', closed: 'bg-gray-200 text-gray-600' };
     return m[s] || 'bg-gray-100 text-gray-800';
   };
 
@@ -430,7 +430,7 @@ export default function WorkforceAnalyticsPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
               { label: 'Tingkat Absensi', value: `${overview.absenteeismRate || 0}%`, sub: '30 hari terakhir', color: 'text-orange-600', bg: 'bg-orange-50' },
-              { label: 'Rata-rata Jam Kerja', value: `${productivity.avgWorkHours || 0} jam`, sub: 'Per hari', color: 'text-blue-600', bg: 'bg-blue-50' },
+              { label: 'Rata-rata Jam Kerja', value: `${productivity.avgWorkHours || 0} jam`, sub: 'Per hari', color: 'text-violet-600', bg: 'bg-violet-50' },
               { label: 'Keterlambatan', value: `${productivity.lateRate || 0}%`, sub: 'Dari total kehadiran', color: 'text-amber-600', bg: 'bg-amber-50' },
               { label: 'Rencana Headcount', value: String(plans.filter(p => p.status === 'approved').length), sub: `${plans.length} total rencana`, color: 'text-indigo-600', bg: 'bg-indigo-50' },
             ].map((item) => (
@@ -460,7 +460,7 @@ export default function WorkforceAnalyticsPage() {
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(p.status)}`}>{p.status}</span>
-                      {p.department && <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded">{p.department}</span>}
+                      {p.department && <span className="text-xs bg-violet-50 text-violet-600 px-2 py-0.5 rounded">{p.department}</span>}
                     </div>
                     <h3 className="font-semibold">{p.name}</h3>
                     <p className="text-sm text-gray-500 mt-1">Periode: {p.period_start && new Date(p.period_start).toLocaleDateString('id-ID')} - {p.period_end && new Date(p.period_end).toLocaleDateString('id-ID')}</p>
@@ -469,13 +469,13 @@ export default function WorkforceAnalyticsPage() {
                     {p.status !== 'approved' && (
                       <button onClick={() => handleApprovePlan(p)} className="p-1.5 text-gray-400 hover:text-green-600" title="Setujui"><CheckCircle className="w-4 h-4" /></button>
                     )}
-                    <button onClick={() => { setEditingItem(p); setPlanForm({ name: p.name, periodStart: fmtDateInput(p.period_start), periodEnd: fmtDateInput(p.period_end), department: p.department || '', currentHeadcount: p.current_headcount, plannedHeadcount: p.planned_headcount, budgetAmount: Number(p.budget_amount) || 0, justification: p.justification || '', status: p.status }); setModalType('plan'); setShowModal(true); }} className="p-1.5 text-gray-400 hover:text-blue-600"><Edit className="w-4 h-4" /></button>
+                    <button onClick={() => { setEditingItem(p); setPlanForm({ name: p.name, periodStart: fmtDateInput(p.period_start), periodEnd: fmtDateInput(p.period_end), department: p.department || '', currentHeadcount: p.current_headcount, plannedHeadcount: p.planned_headcount, budgetAmount: Number(p.budget_amount) || 0, justification: p.justification || '', status: p.status }); setModalType('plan'); setShowModal(true); }} className="p-1.5 text-gray-400 hover:text-violet-600"><Edit className="w-4 h-4" /></button>
                     <button onClick={() => handleDelete('headcount-plan', p.id)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>
                 <div className="grid grid-cols-4 gap-4 mt-3 pt-3 border-t">
                   <div><p className="text-xs text-gray-500">Saat Ini</p><p className="text-lg font-bold">{p.current_headcount}</p></div>
-                  <div><p className="text-xs text-gray-500">Direncanakan</p><p className="text-lg font-bold text-blue-600">{p.planned_headcount}</p></div>
+                  <div><p className="text-xs text-gray-500">Direncanakan</p><p className="text-lg font-bold text-violet-600">{p.planned_headcount}</p></div>
                   <div><p className="text-xs text-gray-500">Disetujui</p><p className="text-lg font-bold text-green-600">{p.approved_headcount || '-'}</p></div>
                   <div><p className="text-xs text-gray-500">Anggaran</p><p className="text-lg font-bold">Rp {fmtNum(p.budget_amount)}</p></div>
                 </div>
@@ -522,7 +522,7 @@ export default function WorkforceAnalyticsPage() {
                     <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(b.status)}`}>{b.status}</span></td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1">
-                        <button onClick={() => { setEditingItem(b); setBudgetForm({ fiscalYear: b.fiscal_year, department: b.department || '', budgetCategory: b.budget_category, plannedAmount: Number(b.planned_amount) || 0, actualAmount: Number(b.actual_amount) || 0, notes: b.notes || '', status: b.status }); setModalType('budget'); setShowModal(true); }} className="p-1 text-gray-400 hover:text-blue-600"><Edit className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => { setEditingItem(b); setBudgetForm({ fiscalYear: b.fiscal_year, department: b.department || '', budgetCategory: b.budget_category, plannedAmount: Number(b.planned_amount) || 0, actualAmount: Number(b.actual_amount) || 0, notes: b.notes || '', status: b.status }); setModalType('budget'); setShowModal(true); }} className="p-1 text-gray-400 hover:text-violet-600"><Edit className="w-3.5 h-3.5" /></button>
                         <button onClick={() => handleDelete('budget', b.id)} className="p-1 text-gray-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
                     </td>
@@ -585,8 +585,8 @@ export default function WorkforceAnalyticsPage() {
               <p className="text-sm text-gray-500 mt-1">Tingkat Kehadiran</p>
             </div>
             <div className="bg-white border rounded-xl p-5 text-center">
-              <Clock className="w-8 h-8 text-blue-500 mx-auto mb-2" />
-              <p className="text-3xl font-bold text-blue-600">{productivity.avgWorkHours || 0}</p>
+              <Clock className="w-8 h-8 text-violet-500 mx-auto mb-2" />
+              <p className="text-3xl font-bold text-violet-600">{productivity.avgWorkHours || 0}</p>
               <p className="text-sm text-gray-500 mt-1">Rata-rata Jam Kerja</p>
             </div>
             <div className="bg-white border rounded-xl p-5 text-center">

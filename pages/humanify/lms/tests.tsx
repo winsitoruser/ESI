@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import HumanifyLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import { PageGuard } from '@/components/permissions';
@@ -55,7 +55,7 @@ export default function LmsTestsPage() {
                   <LmsStatusBadge status={ex.status} />
                   {ex.anti_cheat_enabled && <span className="text-xs bg-orange-50 text-orange-700 px-2 py-0.5 rounded">Anti-cheat</span>}
                   {ex.proctor_enabled && <span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded">Proctoring</span>}
-                  {ex.shuffle_questions && <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">Random soal</span>}
+                  {ex.shuffle_questions && <span className="text-xs bg-violet-50 text-violet-700 px-2 py-0.5 rounded">Random soal</span>}
                 </div>
               </div>
               <div className="flex gap-2">

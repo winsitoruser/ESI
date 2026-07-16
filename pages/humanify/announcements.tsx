@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DepartmentSelect from '@/components/humanify/DepartmentSelect';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
@@ -27,7 +27,7 @@ interface Announcement {
 }
 
 const CATEGORY_CONF: Record<string, { label: string; color: string }> = {
-  general: { label: 'Umum', color: 'bg-blue-100 text-blue-700' },
+  general: { label: 'Umum', color: 'bg-violet-100 text-violet-700' },
   urgent: { label: 'Mendesak', color: 'bg-red-100 text-red-700' },
   hr_policy: { label: 'Kebijakan HR', color: 'bg-purple-100 text-purple-700' },
   company_news: { label: 'Berita Perusahaan', color: 'bg-green-100 text-green-700' },
@@ -208,7 +208,7 @@ export default function HRISAnnouncementsPage() {
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'Total Aktif', value: items.filter(i => i.status === 'published').length, icon: Megaphone, color: 'text-blue-600', bg: 'bg-blue-100' },
+            { label: 'Total Aktif', value: items.filter(i => i.status === 'published').length, icon: Megaphone, color: 'text-violet-600', bg: 'bg-violet-100' },
             { label: 'Dipin', value: items.filter(i => i.isPinned).length, icon: Pin, color: 'text-orange-600', bg: 'bg-orange-100' },
             { label: 'Mendesak', value: items.filter(i => i.priority === 'high').length, icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-100' },
             { label: 'Draft', value: items.filter(i => i.status === 'draft').length, icon: Edit, color: 'text-gray-600', bg: 'bg-gray-100' },

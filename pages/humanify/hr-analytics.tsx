@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+﻿import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
@@ -89,7 +89,7 @@ export default function HRAnalyticsPage() {
     { href: '/humanify/reimbursement', label: 'Reimbursement', icon: Wallet, color: 'text-teal-600 bg-teal-50' },
     { href: '/humanify/performance', label: 'Penilaian', icon: Award, color: 'text-indigo-600 bg-indigo-50' },
     { href: '/employee', label: 'Portal Karyawan', icon: Users, color: 'text-cyan-600 bg-cyan-50' },
-    { href: '/humanify/workforce-analytics', label: 'Workforce', icon: TrendingUp, color: 'text-blue-600 bg-blue-50' },
+    { href: '/humanify/workforce-analytics', label: 'Workforce', icon: TrendingUp, color: 'text-violet-600 bg-violet-50' },
   ];
 
   return (
@@ -125,7 +125,7 @@ export default function HRAnalyticsPage() {
 
         {/* KPI Cards */}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <HRStatCard label="Total Karyawan" value={data.overview.totalEmployees} sub={`${data.overview.activeEmployees} aktif`} icon={Users} gradient="from-blue-500 to-blue-700" trend={{ value: `+${data.overview.newHires} baru`, positive: true }} />
+          <HRStatCard label="Total Karyawan" value={data.overview.totalEmployees} sub={`${data.overview.activeEmployees} aktif`} icon={Users} gradient="from-violet-500 to-violet-700" trend={{ value: `+${data.overview.newHires} baru`, positive: true }} />
           <HRStatCard label="Tingkat Kehadiran" value={`${data.overview.attendanceRate}%`} sub={`Telat ${data.overview.lateRate}% · Absen ${data.overview.absentRate}%`} icon={Clock} gradient="from-emerald-500 to-teal-700" />
           <HRStatCard label="Rata-rata KPI" value={`${data.kpi.avgAchievement}%`} sub={`${data.kpi.onTrack} on track · ${data.kpi.atRisk} at risk`} icon={Target} gradient="from-violet-500 to-purple-700" />
           <HRStatCard label="Biaya Lembur" value={fmtCur(data.overtime.totalCost)} sub={`${data.overtime.totalHours} jam · ${data.overtime.requests} pengajuan`} icon={Timer} gradient="from-amber-500 to-orange-600" />
@@ -218,7 +218,7 @@ export default function HRAnalyticsPage() {
                   { label: 'Hadir', value: data.attendance.present, color: 'bg-emerald-50 text-emerald-700' },
                   { label: 'Terlambat', value: data.attendance.late, color: 'bg-amber-50 text-amber-700' },
                   { label: 'Absen', value: data.attendance.absent, color: 'bg-rose-50 text-rose-700' },
-                  { label: 'Rata-rata Jam Kerja', value: `${data.overview.avgWorkHours} jam`, color: 'bg-blue-50 text-blue-700' },
+                  { label: 'Rata-rata Jam Kerja', value: `${data.overview.avgWorkHours} jam`, color: 'bg-violet-50 text-violet-700' },
                   { label: 'Rata-rata Telat', value: `${data.overview.avgLateMinutes} menit`, color: 'bg-orange-50 text-orange-700' },
                 ].map(s => (
                   <div key={s.label} className={`rounded-xl p-4 ${s.color}`}>
@@ -339,7 +339,7 @@ export default function HRAnalyticsPage() {
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
               <HRStatCard label="Risiko Kritis" value={predictive.attritionRisk?.criticalCount ?? 0} sub="Perlu intervensi segera" icon={AlertTriangle} gradient="from-rose-500 to-red-700" />
               <HRStatCard label="Risiko Tinggi" value={predictive.attritionRisk?.highRiskCount ?? 0} sub={`Avg score ${predictive.attritionRisk?.avgRiskScore ?? 0}`} icon={TrendingDown} gradient="from-orange-500 to-amber-600" />
-              <HRStatCard label="Prediksi Absen" value={`${predictive.absenteeism?.predictedRate ?? 0}%`} sub={predictive.absenteeism?.trend ?? 'stable'} icon={Clock} gradient="from-blue-500 to-indigo-600" />
+              <HRStatCard label="Prediksi Absen" value={`${predictive.absenteeism?.predictedRate ?? 0}%`} sub={predictive.absenteeism?.trend ?? 'stable'} icon={Clock} gradient="from-violet-500 to-indigo-600" />
               <HRStatCard label="Prediksi Cuti" value={predictive.leaveForecast?.predictedRequests ?? 0} sub={`Risiko ops: ${predictive.leaveForecast?.operationalRisk ?? 'low'}`} icon={CalendarDays} gradient="from-teal-500 to-emerald-600" />
               <HRStatCard label="Engagement" value={predictive.engagementScore ?? '—'} sub="skor survei 6 bln" icon={Sparkles} gradient="from-violet-500 to-purple-600" />
             </div>
@@ -409,7 +409,7 @@ export default function HRAnalyticsPage() {
               <h3 className="mb-4 font-semibold">AI Predictive Insights</h3>
               <div className="grid gap-3 md:grid-cols-2">
                 {(predictive.insights || []).map((ins: any, i: number) => (
-                  <div key={i} className={`rounded-xl border-l-4 p-4 ${ins.severity === 'critical' ? 'border-l-red-500 bg-red-50' : ins.severity === 'high' ? 'border-l-orange-500 bg-orange-50' : 'border-l-blue-500 bg-blue-50'}`}>
+                  <div key={i} className={`rounded-xl border-l-4 p-4 ${ins.severity === 'critical' ? 'border-l-red-500 bg-red-50' : ins.severity === 'high' ? 'border-l-orange-500 bg-orange-50' : 'border-l-blue-500 bg-violet-50'}`}>
                     <p className="font-medium text-gray-900">{ins.title}</p>
                     <p className="mt-1 text-sm text-gray-600">{ins.description}</p>
                     <p className="mt-2 text-xs font-medium text-indigo-600">→ {ins.action}</p>
@@ -458,7 +458,7 @@ export default function HRAnalyticsPage() {
               <h3 className="font-semibold">Rekrutmen Pipeline</h3>
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <div className="rounded-xl bg-orange-50 p-4"><Briefcase className="mb-2 h-5 w-5 text-orange-600" /><p className="text-2xl font-bold">{data.recruitment.openPositions}</p><p className="text-xs text-orange-700">Posisi Terbuka</p></div>
-                <div className="rounded-xl bg-blue-50 p-4"><Users className="mb-2 h-5 w-5 text-blue-600" /><p className="text-2xl font-bold">{data.recruitment.totalCandidates}</p><p className="text-xs text-blue-700">Total Kandidat</p></div>
+                <div className="rounded-xl bg-violet-50 p-4"><Users className="mb-2 h-5 w-5 text-violet-600" /><p className="text-2xl font-bold">{data.recruitment.totalCandidates}</p><p className="text-xs text-violet-700">Total Kandidat</p></div>
                 <div className="rounded-xl bg-emerald-50 p-4"><CheckCircle2 className="mb-2 h-5 w-5 text-emerald-600" /><p className="text-2xl font-bold">{data.recruitment.hired}</p><p className="text-xs text-emerald-700">Diterima</p></div>
                 <div className="rounded-xl bg-violet-50 p-4"><Activity className="mb-2 h-5 w-5 text-violet-600" /><p className="text-2xl font-bold">{data.recruitment.acceptanceRate}%</p><p className="text-xs text-violet-700">Acceptance Rate</p></div>
               </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import HumanifyLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
@@ -34,14 +34,14 @@ interface TeamMember {
 
 const PRIORITY_CONFIG: Record<string, { label: string; color: string }> = {
   low: { label: 'Low', color: 'bg-gray-100 text-gray-600' },
-  medium: { label: 'Medium', color: 'bg-blue-100 text-blue-700' },
+  medium: { label: 'Medium', color: 'bg-violet-100 text-violet-700' },
   high: { label: 'High', color: 'bg-amber-100 text-amber-700' },
   urgent: { label: 'Urgent', color: 'bg-red-100 text-red-700' },
 };
 
 const TASK_TYPE_CONFIG: Record<string, { label: string; badge: string }> = {
   target: { label: 'Target', badge: 'bg-purple-100 text-purple-700' },
-  routine: { label: 'Rutin', badge: 'bg-blue-100 text-blue-700' },
+  routine: { label: 'Rutin', badge: 'bg-violet-100 text-violet-700' },
   sop: { label: 'SOP', badge: 'bg-teal-100 text-teal-700' },
   project: { label: 'Proyek', badge: 'bg-orange-100 text-orange-700' },
 };

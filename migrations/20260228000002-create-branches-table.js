@@ -7,7 +7,7 @@ module.exports = {
     if (!tables.includes('branches')) {
       await queryInterface.createTable('branches', {
         id: { type: Sequelize.UUID, defaultValue: Sequelize.literal('gen_random_uuid()'), primaryKey: true },
-        store_id: { type: Sequelize.UUID },
+        store_id: { type: Sequelize.INTEGER },
         code: { type: Sequelize.STRING(50), unique: true, allowNull: false },
         name: { type: Sequelize.STRING(255), allowNull: false },
         type: { type: Sequelize.STRING(20), defaultValue: 'branch', comment: 'main, branch, warehouse, kiosk' },

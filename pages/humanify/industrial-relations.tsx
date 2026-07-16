@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
@@ -181,7 +181,7 @@ export default function IndustrialRelationsPage() {
   const statusColor = (s: string) => {
     const m: Record<string, string> = {
       active: 'bg-emerald-100 text-emerald-800', draft: 'bg-slate-100 text-slate-700',
-      expired: 'bg-red-100 text-red-800', reported: 'bg-blue-100 text-blue-800',
+      expired: 'bg-red-100 text-red-800', reported: 'bg-violet-100 text-violet-800',
       triage: 'bg-violet-100 text-violet-800', open: 'bg-sky-100 text-sky-800',
       investigating: 'bg-amber-100 text-amber-800', mitigating: 'bg-orange-100 text-orange-800',
       resolved: 'bg-emerald-100 text-emerald-800', closed: 'bg-slate-100 text-slate-600',
@@ -193,7 +193,7 @@ export default function IndustrialRelationsPage() {
 
   const priorityColor = (p: string) => {
     const m: Record<string, string> = {
-      low: 'bg-slate-100 text-slate-600', medium: 'bg-blue-100 text-blue-700',
+      low: 'bg-slate-100 text-slate-600', medium: 'bg-violet-100 text-violet-700',
       high: 'bg-orange-100 text-orange-700', critical: 'bg-red-100 text-red-700',
     };
     return m[p] || 'bg-slate-100 text-slate-600';

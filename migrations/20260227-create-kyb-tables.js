@@ -152,7 +152,7 @@ module.exports = {
 
       // Review
       reviewed_by: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         references: {
           model: 'users',
           key: 'id'
@@ -224,7 +224,7 @@ module.exports = {
         defaultValue: false
       },
       verified_by: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         references: {
           model: 'users',
           key: 'id'

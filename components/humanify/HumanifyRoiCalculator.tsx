@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import {
@@ -114,7 +114,7 @@ const RESULT_CARDS: Array<{
     label: 'Waktu yang Dihemat',
     sublabel: 'jam per bulan',
     icon: Clock,
-    gradient: 'from-blue-500/30 to-indigo-600/20',
+    gradient: 'from-violet-500/30 to-indigo-600/20',
     format: (v) => formatNumber(Math.round(v)),
   },
   {

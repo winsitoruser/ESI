@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
@@ -121,7 +121,7 @@ export default function AttendanceSettingsPage() {
   const Toggle = ({ value, onChange, label }: { value: boolean; onChange: (v: boolean) => void; label: string }) => (
     <div className="flex items-center justify-between py-2">
       <span className="text-sm text-gray-700">{label}</span>
-      <button onClick={() => onChange(!value)} className={`relative w-11 h-6 rounded-full transition ${value ? 'bg-blue-600' : 'bg-gray-300'}`}>
+      <button onClick={() => onChange(!value)} className={`relative w-11 h-6 rounded-full transition ${value ? 'bg-violet-600' : 'bg-gray-300'}`}>
         <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${value ? 'translate-x-5.5 left-0.5' : 'left-0.5'}`}
           style={{ transform: value ? 'translateX(22px)' : 'translateX(0)' }} />
       </button>
@@ -155,7 +155,7 @@ export default function AttendanceSettingsPage() {
         {/* Jam Kerja */}
         <div className="bg-white rounded-xl shadow-sm border p-6">
           <div className="flex items-center gap-2 mb-4">
-            <Clock className="w-5 h-5 text-blue-600" />
+            <Clock className="w-5 h-5 text-violet-600" />
             <h3 className="text-lg font-semibold">Jam Kerja</h3>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
@@ -186,7 +186,7 @@ export default function AttendanceSettingsPage() {
               {dayNames.map((name, i) => (
                 <button key={i} onClick={() => toggleDay(i)}
                   className={`w-10 h-10 rounded-lg text-sm font-medium transition ${
-                    settings.workDays.includes(i) ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                    settings.workDays.includes(i) ? 'bg-violet-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                   }`}>
                   {name}
                 </button>
@@ -289,7 +289,7 @@ export default function AttendanceSettingsPage() {
         {/* Cuti */}
         <div className="bg-white rounded-xl shadow-sm border p-6">
           <div className="flex items-center gap-2 mb-4">
-            <Coffee className="w-5 h-5 text-blue-600" />
+            <Coffee className="w-5 h-5 text-violet-600" />
             <h3 className="text-lg font-semibold">Kuota Cuti</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
@@ -323,7 +323,7 @@ export default function AttendanceSettingsPage() {
         {/* Save */}
         <div className="flex justify-end">
           <button onClick={handleSave} disabled={saving}
-            className="flex items-center gap-2 px-8 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 disabled:opacity-50 transition shadow-lg shadow-blue-200">
+            className="flex items-center gap-2 px-8 py-3 bg-violet-600 text-white rounded-xl font-medium hover:bg-violet-700 disabled:opacity-50 transition shadow-lg shadow-blue-200">
             <Save className="w-5 h-5" />
             {saving ? 'Menyimpan...' : 'Simpan Pengaturan'}
           </button>

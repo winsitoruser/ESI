@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
@@ -210,7 +210,7 @@ export default function OrganizationPage() {
 
   const fmtCurrency = (n: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0);
 
-  const levelColors = ['bg-blue-600', 'bg-indigo-500', 'bg-purple-500', 'bg-pink-500', 'bg-orange-500'];
+  const levelColors = ['bg-violet-600', 'bg-indigo-500', 'bg-purple-500', 'bg-pink-500', 'bg-orange-500'];
 
   // Recursive tree node renderer
   const renderOrgNode = (node: any, depth: number = 0) => {
@@ -234,7 +234,7 @@ export default function OrganizationPage() {
             <div className="flex items-center gap-2">
               <span className="font-medium text-gray-800 text-sm">{node.name}</span>
               {node.code && <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 text-[10px] rounded">{node.code}</span>}
-              <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[10px] rounded">Level {node.level}</span>
+              <span className="px-1.5 py-0.5 bg-violet-50 text-violet-600 text-[10px] rounded">Level {node.level}</span>
               {parseInt(node.employee_count) > 0 && (
                 <span className="px-1.5 py-0.5 bg-green-50 text-green-600 text-[10px] rounded flex items-center gap-0.5">
                   <Users className="w-3 h-3" /> {node.employee_count}
@@ -251,7 +251,7 @@ export default function OrganizationPage() {
               <Plus className="w-3.5 h-3.5" />
             </button>
             <button onClick={() => { setOrgForm({ id: node.id, name: node.name, code: node.code, parent_id: node.parent_id, level: node.level, sort_order: node.sort_order, head_employee_id: node.head_employee_id, description: node.description }); setShowOrgModal(true); }}
-              className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded" title="Edit">
+              className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded" title="Edit">
               <Edit className="w-3.5 h-3.5" />
             </button>
             <button onClick={() => deleteOrg(node.id, node.name)}
@@ -300,7 +300,7 @@ export default function OrganizationPage() {
             {[
               { label: 'Unit Organisasi', value: summary.totalUnits || 0, icon: Building2, color: 'text-indigo-600 bg-indigo-50' },
               { label: 'Golongan Jabatan', value: summary.totalGrades || 0, icon: Layers, color: 'text-purple-600 bg-purple-50' },
-              { label: 'Total Karyawan', value: summary.totalEmployees || 0, icon: Users, color: 'text-blue-600 bg-blue-50' },
+              { label: 'Total Karyawan', value: summary.totalEmployees || 0, icon: Users, color: 'text-violet-600 bg-violet-50' },
               { label: 'Departemen', value: summary.departmentBreakdown?.length || 0, icon: Briefcase, color: 'text-green-600 bg-green-50' },
             ].map((card, i) => (
               <div key={i} className="bg-white rounded-xl border p-4">
@@ -464,7 +464,7 @@ export default function OrganizationPage() {
                                     <p className="text-[10px] font-medium text-gray-400 mb-1">TUNJANGAN</p>
                                     <div className="flex flex-wrap gap-1">
                                       {benefits.map((b: string, i: number) => (
-                                        <span key={i} className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] rounded">{b}</span>
+                                        <span key={i} className="px-2 py-0.5 bg-violet-50 text-violet-600 text-[10px] rounded">{b}</span>
                                       ))}
                                     </div>
                                   </div>
@@ -488,7 +488,7 @@ export default function OrganizationPage() {
 
                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button onClick={() => { setGradeForm({ ...g, benefits, leave_quota: leaveQuota }); setShowGradeModal(true); }}
-                                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"><Edit className="w-3.5 h-3.5" /></button>
+                                className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded"><Edit className="w-3.5 h-3.5" /></button>
                               <button onClick={() => deleteGrade(g.id, g.name)}
                                 className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
                             </div>

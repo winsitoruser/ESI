@@ -113,8 +113,9 @@ export default function HumanifyLoginForm({
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMiI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-60" />
       </div>
 
-      {/* Left panel — branding */}
-      <div className="hidden lg:flex lg:w-[52%] relative z-10 flex-col justify-between p-12 xl:p-16">
+      <div className="relative z-10 w-full max-w-7xl mx-auto flex flex-col lg:flex-row min-h-screen">
+        {/* Left panel — branding */}
+        <div className="hidden lg:flex flex-1 relative flex-col justify-between p-12 xl:p-16">
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -219,6 +220,16 @@ export default function HumanifyLoginForm({
                   Masuk ke akun {HUMANIFY_BRAND.name} Anda
                 </p>
               </div>
+
+              {/* Quick Login for Dev/Boss */}
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, email: 'superadmin@humanify.id', password: 'superadmin123' })}
+                className="w-full mb-6 flex items-center justify-center gap-2 p-3 rounded-xl border border-dashed border-violet-400/30 bg-violet-500/10 hover:bg-violet-500/20 text-violet-200 text-sm font-medium transition-all"
+              >
+                <Sparkles className="w-4 h-4 text-violet-300" />
+                Isi Cepat Login Super Admin (Dev)
+              </button>
 
               <form onSubmit={handleSubmit} className="space-y-5">
                 <input type="hidden" name="csrfToken" value={csrfToken} />
@@ -353,6 +364,7 @@ export default function HumanifyLoginForm({
             </div>
           </div>
         </motion.div>
+      </div>
       </div>
     </div>
   );

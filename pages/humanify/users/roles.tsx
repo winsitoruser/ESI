@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import HumanifyLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
@@ -99,25 +99,25 @@ const ACTION_ICONS: Record<ActionType, React.ComponentType<any>> = {
 
 // Static color classes (Tailwind JIT friendly)
 const COLOR_BG50: Record<string, string> = {
-  blue: 'bg-blue-50', green: 'bg-green-50', amber: 'bg-amber-50', purple: 'bg-purple-50',
+  blue: 'bg-violet-50', green: 'bg-green-50', amber: 'bg-amber-50', purple: 'bg-purple-50',
   indigo: 'bg-indigo-50', pink: 'bg-pink-50', cyan: 'bg-cyan-50', orange: 'bg-orange-50',
   teal: 'bg-teal-50', red: 'bg-red-50', rose: 'bg-rose-50', gray: 'bg-gray-50',
   yellow: 'bg-yellow-50'
 };
 const COLOR_BG100: Record<string, string> = {
-  blue: 'bg-blue-100', green: 'bg-green-100', amber: 'bg-amber-100', purple: 'bg-purple-100',
+  blue: 'bg-violet-100', green: 'bg-green-100', amber: 'bg-amber-100', purple: 'bg-purple-100',
   indigo: 'bg-indigo-100', pink: 'bg-pink-100', cyan: 'bg-cyan-100', orange: 'bg-orange-100',
   teal: 'bg-teal-100', red: 'bg-red-100', rose: 'bg-rose-100', gray: 'bg-gray-100',
   yellow: 'bg-yellow-100'
 };
 const COLOR_TEXT600: Record<string, string> = {
-  blue: 'text-blue-600', green: 'text-green-600', amber: 'text-amber-600', purple: 'text-purple-600',
+  blue: 'text-violet-600', green: 'text-green-600', amber: 'text-amber-600', purple: 'text-purple-600',
   indigo: 'text-indigo-600', pink: 'text-pink-600', cyan: 'text-cyan-600', orange: 'text-orange-600',
   teal: 'text-teal-600', red: 'text-red-600', rose: 'text-rose-600', gray: 'text-gray-600',
   yellow: 'text-yellow-600'
 };
 const COLOR_TEXT700: Record<string, string> = {
-  blue: 'text-blue-700', green: 'text-green-700', amber: 'text-amber-700', purple: 'text-purple-700',
+  blue: 'text-violet-700', green: 'text-green-700', amber: 'text-amber-700', purple: 'text-purple-700',
   indigo: 'text-indigo-700', pink: 'text-pink-700', cyan: 'text-cyan-700', orange: 'text-orange-700',
   teal: 'text-teal-700', red: 'text-red-700', rose: 'text-rose-700', gray: 'text-gray-700',
   yellow: 'text-yellow-700'
@@ -497,7 +497,7 @@ export default function UserRoles() {
                   if (t.key === 'users') { fetchRoleGroups(); setSelectedGroupRoleId(null); setGroupUsers([]); }
                 }}
                 className={`flex items-center gap-2 px-4 py-2 border-b-2 text-sm font-medium transition ${
-                  active ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                  active ? 'border-violet-600 text-violet-600' : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -519,7 +519,7 @@ export default function UserRoles() {
                     placeholder="Cari role..."
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
-                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-64 text-sm focus:ring-2 focus:ring-blue-500"
+                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-64 text-sm focus:ring-2 focus:ring-violet-500"
                   />
                 </div>
                 <select
@@ -553,7 +553,7 @@ export default function UserRoles() {
                 </button>
                 <button
                   onClick={openCreate}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+                  className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700"
                 >
                   <Plus className="w-4 h-4" />
                   Tambah Role
@@ -564,7 +564,7 @@ export default function UserRoles() {
             <div className="overflow-x-auto">
               {loading ? (
                 <div className="flex items-center justify-center py-12">
-                  <RefreshCw className="w-8 h-8 animate-spin text-blue-600" />
+                  <RefreshCw className="w-8 h-8 animate-spin text-violet-600" />
                 </div>
               ) : filteredRoles.length === 0 ? (
                 <div className="p-12 text-center text-gray-500">
@@ -592,8 +592,8 @@ export default function UserRoles() {
                         <tr key={role.id} className="border-b border-gray-100 hover:bg-gray-50">
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-3">
-                              <div className="p-2 bg-blue-100 rounded-lg">
-                                <Shield className="w-4 h-4 text-blue-600" />
+                              <div className="p-2 bg-violet-100 rounded-lg">
+                                <Shield className="w-4 h-4 text-violet-600" />
                               </div>
                               <div>
                                 <p className="font-medium text-gray-900">{role.name}</p>
@@ -679,7 +679,7 @@ export default function UserRoles() {
                       openCreate();
                       setTimeout(() => applyPreset(preset.code), 0);
                     }}
-                    className="mt-4 w-full px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-100 flex items-center justify-center gap-2"
+                    className="mt-4 w-full px-3 py-2 bg-violet-50 text-violet-700 rounded-lg text-sm font-medium hover:bg-violet-100 flex items-center justify-center gap-2"
                   >
                     <Copy className="w-4 h-4" />
                     Gunakan Template
@@ -1071,7 +1071,7 @@ export default function UserRoles() {
 
 function StatCard({ icon: Icon, color, value, label }: { icon: any; color: string; value: number; label: string }) {
   const colorMap: Record<string, string> = {
-    blue: 'bg-blue-100 text-blue-600',
+    blue: 'bg-violet-100 text-violet-600',
     purple: 'bg-purple-100 text-purple-600',
     green: 'bg-green-100 text-green-600',
     orange: 'bg-orange-100 text-orange-600',
@@ -1096,7 +1096,7 @@ function IconBtn({
   title, onClick, color, disabled, children
 }: { title: string; onClick: () => void; color: 'blue' | 'red'; disabled?: boolean; children: React.ReactNode }) {
   const hoverMap = {
-    blue: 'hover:text-blue-600 hover:bg-blue-50',
+    blue: 'hover:text-violet-600 hover:bg-violet-50',
     red: 'hover:text-red-600 hover:bg-red-50'
   };
   return (
@@ -1257,7 +1257,7 @@ function RoleForm(p: RoleFormProps) {
             type="text"
             value={p.form.code}
             onChange={e => p.setForm(prev => ({ ...prev, code: e.target.value.toUpperCase() }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-violet-500"
             placeholder="ROLE_CODE"
             disabled={p.isEdit}
           />
@@ -1268,7 +1268,7 @@ function RoleForm(p: RoleFormProps) {
             type="text"
             value={p.form.name}
             onChange={e => p.setForm(prev => ({ ...prev, name: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-violet-500"
             placeholder="Nama Role"
           />
         </div>
@@ -1277,7 +1277,7 @@ function RoleForm(p: RoleFormProps) {
           <textarea
             value={p.form.description}
             onChange={e => p.setForm(prev => ({ ...prev, description: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-violet-500"
             rows={2}
           />
         </div>
@@ -1346,19 +1346,19 @@ function RoleForm(p: RoleFormProps) {
           </select>
         </div>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
+        <div className="bg-violet-50 border border-violet-200 rounded-lg p-3 mt-4">
           <div className="flex items-center gap-2 text-sm">
-            <Gauge className="w-4 h-4 text-blue-600" />
+            <Gauge className="w-4 h-4 text-violet-600" />
             <span className="font-medium text-blue-900">Ringkasan</span>
           </div>
-          <p className="text-xs text-blue-800 mt-1">
+          <p className="text-xs text-violet-800 mt-1">
             {selectedCount} dari {total} permission terpilih
             <span className="mx-1">·</span>
             {Math.round((selectedCount / total) * 100)}% akses
           </p>
           <div className="mt-2 h-1.5 bg-white rounded-full overflow-hidden">
             <div
-              className="h-full bg-blue-600 rounded-full transition-all"
+              className="h-full bg-violet-600 rounded-full transition-all"
               style={{ width: `${Math.round((selectedCount / total) * 100)}%` }}
             />
           </div>
@@ -1499,7 +1499,7 @@ function RoleForm(p: RoleFormProps) {
           <button
             onClick={p.onSave}
             disabled={p.saving || !p.form.code || !p.form.name}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700 disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
             {p.saving ? 'Menyimpan...' : 'Simpan Role'}

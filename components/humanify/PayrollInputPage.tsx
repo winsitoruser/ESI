@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
@@ -11,7 +11,7 @@ import {
 const ICONS: Record<string, any> = { gift: Gift, wallet: Wallet, credit: CreditCard };
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-700', approved: 'bg-green-100 text-green-700',
-  active: 'bg-blue-100 text-blue-700', paid: 'bg-gray-100 text-gray-700',
+  active: 'bg-violet-100 text-violet-700', paid: 'bg-gray-100 text-gray-700',
   rejected: 'bg-red-100 text-red-700', completed: 'bg-purple-100 text-purple-700',
 };
 

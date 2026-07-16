@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
@@ -15,7 +15,7 @@ const CATEGORY_ICONS: Record<string, any> = {
   kepegawaian: Users, kehadiran: Clock, kinerja: Target, cuti: Calendar, payroll: DollarSign,
 };
 const CATEGORY_COLORS: Record<string, string> = {
-  kepegawaian: 'bg-blue-50 text-blue-700 border-blue-200',
+  kepegawaian: 'bg-violet-50 text-violet-700 border-violet-200',
   kehadiran: 'bg-green-50 text-green-700 border-green-200',
   kinerja: 'bg-purple-50 text-purple-700 border-purple-200',
   cuti: 'bg-amber-50 text-amber-700 border-amber-200',
@@ -74,7 +74,7 @@ export default function HRISReportsPage() {
   };
 
   const statCards = [
-    { label: 'Total Karyawan', value: summary.employees?.total ?? '-', sub: `${summary.employees?.active ?? 0} aktif`, icon: Users, color: 'text-blue-600 bg-blue-50' },
+    { label: 'Total Karyawan', value: summary.employees?.total ?? '-', sub: `${summary.employees?.active ?? 0} aktif`, icon: Users, color: 'text-violet-600 bg-violet-50' },
     { label: 'Kehadiran Bulan Ini', value: summary.attendance?.present ?? '-', sub: `${summary.attendance?.absent ?? 0} absen`, icon: Clock, color: 'text-green-600 bg-green-50' },
     { label: 'Rata-rata KPI', value: summary.kpi?.avg_achievement ? `${summary.kpi.avg_achievement}%` : '-', sub: `${summary.kpi?.employees ?? 0} karyawan`, icon: Target, color: 'text-purple-600 bg-purple-50' },
     { label: 'Cuti Pending', value: summary.leave?.pending ?? '-', sub: `${summary.leave?.approved ?? 0} disetujui`, icon: Calendar, color: 'text-amber-600 bg-amber-50' },

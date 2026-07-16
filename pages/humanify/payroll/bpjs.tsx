@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
@@ -139,7 +139,7 @@ export default function BPJSPage() {
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'Peserta Aktif', value: items.filter(i => i.status === 'active').length, icon: Users, bg: 'bg-blue-100', color: 'text-blue-600' },
+            { label: 'Peserta Aktif', value: items.filter(i => i.status === 'active').length, icon: Users, bg: 'bg-violet-100', color: 'text-violet-600' },
             { label: 'Iuran Karyawan/Bln', value: totals.total_e, icon: DollarSign, bg: 'bg-amber-100', color: 'text-amber-600', fmt: true },
             { label: 'Iuran Perusahaan/Bln', value: totals.total_c, icon: Building2, bg: 'bg-green-100', color: 'text-green-600', fmt: true },
             { label: 'Total Iuran/Bln', value: totals.total_e + totals.total_c, icon: Shield, bg: 'bg-purple-100', color: 'text-purple-600', fmt: true },
@@ -160,7 +160,7 @@ export default function BPJSPage() {
               { key: 'ketenagakerjaan', label: 'BPJS Ketenagakerjaan', icon: Shield },
               { key: 'tarif', label: 'Tarif & Ketentuan', icon: Settings },
             ].map(tab => (
-              <button key={tab.key} onClick={() => setActiveTab(tab.key as any)} className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 whitespace-nowrap ${activeTab === tab.key ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}><tab.icon className="w-4 h-4" />{tab.label}</button>
+              <button key={tab.key} onClick={() => setActiveTab(tab.key as any)} className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 whitespace-nowrap ${activeTab === tab.key ? 'border-violet-600 text-violet-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}><tab.icon className="w-4 h-4" />{tab.label}</button>
             ))}
           </div>
 
@@ -187,15 +187,15 @@ export default function BPJSPage() {
                     <td className="px-4 py-3 text-center text-sm">{i.dependents}</td>
                     <td className="px-4 py-3 text-right text-sm">{fmtCurrency(Math.min(i.base_salary, 12000000))}</td>
                     <td className="px-4 py-3 text-right text-sm text-amber-600">{fmtCurrency(i.kes_employee)}</td>
-                    <td className="px-4 py-3 text-right text-sm text-blue-600">{fmtCurrency(i.kes_company)}</td>
+                    <td className="px-4 py-3 text-right text-sm text-violet-600">{fmtCurrency(i.kes_company)}</td>
                     <td className="px-4 py-3 text-right text-sm font-semibold">{fmtCurrency(i.kes_employee + i.kes_company)}</td>
-                    <td className="px-4 py-3 text-center"><button onClick={() => setSelectedItem(i)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"><Eye className="w-4 h-4" /></button></td>
+                    <td className="px-4 py-3 text-center"><button onClick={() => setSelectedItem(i)} className="p-1.5 text-violet-600 hover:bg-violet-50 rounded"><Eye className="w-4 h-4" /></button></td>
                   </tr>
                 ))}</tbody>
                 <tfoot className="bg-gray-50 font-bold"><tr>
                   <td className="px-4 py-3 text-sm" colSpan={4}>Total ({filtered.length} karyawan)</td>
                   <td className="px-4 py-3 text-right text-sm text-amber-600">{fmtCurrency(totals.kes_e)}</td>
-                  <td className="px-4 py-3 text-right text-sm text-blue-600">{fmtCurrency(totals.kes_c)}</td>
+                  <td className="px-4 py-3 text-right text-sm text-violet-600">{fmtCurrency(totals.kes_c)}</td>
                   <td className="px-4 py-3 text-right text-sm">{fmtCurrency(totals.kes_e + totals.kes_c)}</td>
                   <td></td>
                 </tr></tfoot></table>
@@ -225,22 +225,22 @@ export default function BPJSPage() {
                     <td className="px-4 py-3"><p className="font-medium text-sm">{i.employee_name}</p><p className="text-xs text-gray-500">{i.position}</p></td>
                     <td className="px-4 py-3 text-xs font-mono">{i.bpjs_tk_no || '-'}</td>
                     <td className="px-4 py-3 text-right text-xs text-amber-600">{fmtCurrency(i.jht_employee)}</td>
-                    <td className="px-4 py-3 text-right text-xs text-blue-600">{fmtCurrency(i.jht_company)}</td>
+                    <td className="px-4 py-3 text-right text-xs text-violet-600">{fmtCurrency(i.jht_company)}</td>
                     <td className="px-4 py-3 text-right text-xs text-amber-600">{fmtCurrency(i.jp_employee)}</td>
-                    <td className="px-4 py-3 text-right text-xs text-blue-600">{fmtCurrency(i.jp_company)}</td>
-                    <td className="px-4 py-3 text-right text-xs text-blue-600">{fmtCurrency(i.jkk)}</td>
-                    <td className="px-4 py-3 text-right text-xs text-blue-600">{fmtCurrency(i.jkm)}</td>
+                    <td className="px-4 py-3 text-right text-xs text-violet-600">{fmtCurrency(i.jp_company)}</td>
+                    <td className="px-4 py-3 text-right text-xs text-violet-600">{fmtCurrency(i.jkk)}</td>
+                    <td className="px-4 py-3 text-right text-xs text-violet-600">{fmtCurrency(i.jkm)}</td>
                     <td className="px-4 py-3 text-right text-xs font-bold">{fmtCurrency(i.total_employee + i.total_company)}</td>
                   </tr>
                 ))}</tbody>
                 <tfoot className="bg-gray-50 font-bold text-xs"><tr>
                   <td className="px-4 py-3" colSpan={2}>Total</td>
                   <td className="px-4 py-3 text-right text-amber-600">{fmtCurrency(totals.jht_e)}</td>
-                  <td className="px-4 py-3 text-right text-blue-600">{fmtCurrency(totals.jht_c)}</td>
+                  <td className="px-4 py-3 text-right text-violet-600">{fmtCurrency(totals.jht_c)}</td>
                   <td className="px-4 py-3 text-right text-amber-600">{fmtCurrency(totals.jp_e)}</td>
-                  <td className="px-4 py-3 text-right text-blue-600">{fmtCurrency(totals.jp_c)}</td>
-                  <td className="px-4 py-3 text-right text-blue-600">{fmtCurrency(totals.jkk)}</td>
-                  <td className="px-4 py-3 text-right text-blue-600">{fmtCurrency(totals.jkm)}</td>
+                  <td className="px-4 py-3 text-right text-violet-600">{fmtCurrency(totals.jp_c)}</td>
+                  <td className="px-4 py-3 text-right text-violet-600">{fmtCurrency(totals.jkk)}</td>
+                  <td className="px-4 py-3 text-right text-violet-600">{fmtCurrency(totals.jkm)}</td>
                   <td className="px-4 py-3 text-right">{fmtCurrency(totals.total_e + totals.total_c)}</td>
                 </tr></tfoot></table>
               </div>
@@ -259,7 +259,7 @@ export default function BPJSPage() {
                 </div>
               </div>
               <div className="border rounded-xl overflow-hidden">
-                <div className="px-4 py-3 bg-blue-50 border-b"><h4 className="font-semibold text-blue-800 flex items-center gap-2"><Shield className="w-4 h-4" /> BPJS Ketenagakerjaan</h4></div>
+                <div className="px-4 py-3 bg-violet-50 border-b"><h4 className="font-semibold text-violet-800 flex items-center gap-2"><Shield className="w-4 h-4" /> BPJS Ketenagakerjaan</h4></div>
                 <table className="w-full text-sm"><thead className="bg-gray-50"><tr><th className="px-4 py-2 text-left">Program</th><th className="px-4 py-2 text-right">Karyawan</th><th className="px-4 py-2 text-right">Perusahaan</th><th className="px-4 py-2 text-left">Keterangan</th></tr></thead>
                 <tbody className="divide-y">
                   <tr><td className="px-4 py-2 font-medium">JHT</td><td className="px-4 py-2 text-right">2%</td><td className="px-4 py-2 text-right">3.7%</td><td className="px-4 py-2 text-xs text-gray-500">Dicairkan saat pensiun/PHK</td></tr>
@@ -289,12 +289,12 @@ export default function BPJSPage() {
               <div className="border rounded-lg overflow-hidden">
                 <table className="w-full text-xs"><thead className="bg-gray-50"><tr><th className="px-3 py-2 text-left">Program</th><th className="px-3 py-2 text-right">Karyawan</th><th className="px-3 py-2 text-right">Perusahaan</th></tr></thead>
                 <tbody className="divide-y">
-                  <tr><td className="px-3 py-2">BPJS Kesehatan</td><td className="px-3 py-2 text-right text-amber-600">{fmtCurrency(selectedItem.kes_employee)}</td><td className="px-3 py-2 text-right text-blue-600">{fmtCurrency(selectedItem.kes_company)}</td></tr>
-                  <tr><td className="px-3 py-2">JHT</td><td className="px-3 py-2 text-right text-amber-600">{fmtCurrency(selectedItem.jht_employee)}</td><td className="px-3 py-2 text-right text-blue-600">{fmtCurrency(selectedItem.jht_company)}</td></tr>
-                  <tr><td className="px-3 py-2">JP</td><td className="px-3 py-2 text-right text-amber-600">{fmtCurrency(selectedItem.jp_employee)}</td><td className="px-3 py-2 text-right text-blue-600">{fmtCurrency(selectedItem.jp_company)}</td></tr>
-                  <tr><td className="px-3 py-2">JKK</td><td className="px-3 py-2 text-right">-</td><td className="px-3 py-2 text-right text-blue-600">{fmtCurrency(selectedItem.jkk)}</td></tr>
-                  <tr><td className="px-3 py-2">JKM</td><td className="px-3 py-2 text-right">-</td><td className="px-3 py-2 text-right text-blue-600">{fmtCurrency(selectedItem.jkm)}</td></tr>
-                  <tr className="font-bold bg-gray-50"><td className="px-3 py-2">Total</td><td className="px-3 py-2 text-right text-amber-600">{fmtCurrency(selectedItem.total_employee)}</td><td className="px-3 py-2 text-right text-blue-600">{fmtCurrency(selectedItem.total_company)}</td></tr>
+                  <tr><td className="px-3 py-2">BPJS Kesehatan</td><td className="px-3 py-2 text-right text-amber-600">{fmtCurrency(selectedItem.kes_employee)}</td><td className="px-3 py-2 text-right text-violet-600">{fmtCurrency(selectedItem.kes_company)}</td></tr>
+                  <tr><td className="px-3 py-2">JHT</td><td className="px-3 py-2 text-right text-amber-600">{fmtCurrency(selectedItem.jht_employee)}</td><td className="px-3 py-2 text-right text-violet-600">{fmtCurrency(selectedItem.jht_company)}</td></tr>
+                  <tr><td className="px-3 py-2">JP</td><td className="px-3 py-2 text-right text-amber-600">{fmtCurrency(selectedItem.jp_employee)}</td><td className="px-3 py-2 text-right text-violet-600">{fmtCurrency(selectedItem.jp_company)}</td></tr>
+                  <tr><td className="px-3 py-2">JKK</td><td className="px-3 py-2 text-right">-</td><td className="px-3 py-2 text-right text-violet-600">{fmtCurrency(selectedItem.jkk)}</td></tr>
+                  <tr><td className="px-3 py-2">JKM</td><td className="px-3 py-2 text-right">-</td><td className="px-3 py-2 text-right text-violet-600">{fmtCurrency(selectedItem.jkm)}</td></tr>
+                  <tr className="font-bold bg-gray-50"><td className="px-3 py-2">Total</td><td className="px-3 py-2 text-right text-amber-600">{fmtCurrency(selectedItem.total_employee)}</td><td className="px-3 py-2 text-right text-violet-600">{fmtCurrency(selectedItem.total_company)}</td></tr>
                 </tbody></table>
               </div>
               <div className="bg-emerald-50 rounded-lg p-3 text-center"><p className="text-xs text-gray-500">Grand Total BPJS / Bulan</p><p className="text-xl font-bold text-emerald-600">{fmtCurrency(selectedItem.total_employee + selectedItem.total_company)}</p></div>

@@ -200,6 +200,8 @@ module.exports = {
     // Insert plans
     await queryInterface.bulkInsert('plans', plans.map(plan => ({
       ...plan,
+      features: JSON.stringify(plan.features),
+      metadata: JSON.stringify(plan.metadata),
       created_at: new Date(),
       updated_at: new Date()
     })));

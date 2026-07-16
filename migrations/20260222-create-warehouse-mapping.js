@@ -278,7 +278,7 @@ module.exports = {
         primaryKey: true
       },
       productId: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: false,
         field: 'product_id',
         references: {
@@ -305,7 +305,7 @@ module.exports = {
         comment: 'Product coordinates at time of move'
       },
       movedBy: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: false,
         field: 'moved_by',
         references: {

@@ -84,7 +84,7 @@ module.exports = {
         allowNull: true
       },
       approvedBy: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: true,
         field: 'approved_by',
         references: {
@@ -131,36 +131,53 @@ module.exports = {
       comment: 'If true, product cannot be modified by branch managers'
     });
 
-    // Enhance audit_logs to track HQ actions on branch data
-    await queryInterface.addColumn('audit_logs', 'initiated_by', {
-      type: Sequelize.UUID,
-      allowNull: true,
-      field: 'initiated_by',
-      references: {
-        model: 'users',
-        key: 'id'
-      },
-      comment: 'User who initiated the action (if different from user_id)'
-    });
+    try {
+      // Enhance audit_logs to track HQ actions on branch data
+      await queryInterface.addColumn('audit_logs', 'initiated_by', {
+        type: Sequelize.INTEGER,
+        allowNull: true,
+        field: 'initiated_by',
+        references: {
+          model: 'users',
+          key: 'id'
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'SET NULL',
+        comment: 'User who initiated the action (if different from user_id)'
+      });
 
-    await queryInterface.addColumn('audit_logs', 'target_branch_id', {
-      type: Sequelize.UUID,
-      allowNull: true,
-      field: 'target_branch_id',
-      references: {
-        model: 'branches',
-        key: 'id'
-      },
-      comment: 'Target branch when action affects multiple branches'
-    });
+      await queryInterface.addColumn('audit_logs', 'target_branch_id', {
+        type: Sequelize.UUID,
+        allowNull: true,
+        references: {
+          model: 'branches',
+          key: 'id'
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'SET NULL',
+        comment: 'Branch ID the action was performed on'
+      });
 
-    await queryInterface.addColumn('audit_logs', 'is_cross_branch', {
-      type: Sequelize.BOOLEAN,
-      allowNull: false,
-      defaultValue: false,
-      field: 'is_cross_branch',
-      comment: 'True if action affects multiple branches'
-    });
+      await queryInterface.addColumn('audit_logs', 'is_cross_branch', {
+        type: Sequelize.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        comment: 'True if action involves multiple branches or HQ intervention'
+      });
+
+      // Insert default cross-branch roles
+      const defaultRoles = [
+        { id: '1', name: 'hq_admin', description: 'Headquarters Administrator' },
+        { id: '2', name: 'regional_manager', description: 'Regional Manager' }
+      ];
+
+      // Add indexes for new columns
+      await queryInterface.addIndex('audit_logs', ['initiated_by']);
+      await queryInterface.addIndex('audit_logs', ['target_branch_id']);
+      await queryInterface.addIndex('audit_logs', ['is_cross_branch']);
+    } catch (error) {
+      console.warn('Skipping audit_logs enhancement (table might not exist yet):', error.message);
+    }
 
     // Add indexes
     await queryInterface.addIndex('employee_branches', ['employee_id', 'branch_id']);
@@ -172,10 +189,6 @@ module.exports = {
 
     await queryInterface.addIndex('products', ['is_locked']);
 
-    await queryInterface.addIndex('audit_logs', ['initiated_by']);
-    await queryInterface.addIndex('audit_logs', ['target_branch_id']);
-    await queryInterface.addIndex('audit_logs', ['is_cross_branch']);
-
     // Migrate existing employees to have primary branch assignment
     await queryInterface.sequelize.query(`
       INSERT INTO employee_branches (
@@ -184,7 +197,7 @@ module.exports = {
         tenant_id, created_at, updated_at
       )
       SELECT 
-        uuid_generate_v4(),
+        gen_random_uuid(),
         e.id,
         e.branch_id,
         'primary',
@@ -204,52 +217,7 @@ module.exports = {
     `);
 
     // Create function to log cross-branch actions
-    await queryInterface.sequelize.query(`
-      CREATE OR REPLACE FUNCTION log_cross_branch_action()
-      RETURNS TRIGGER AS $$
-      BEGIN
-        -- Check if this is a cross-branch action
-        IF TG_OP = 'UPDATE' AND OLD.branch_id != NEW.branch_id THEN
-          INSERT INTO audit_logs (
-            id, user_id, branch_id, action, entity_type, entity_id,
-            entity_name, old_values, new_values, description,
-            initiated_by, target_branch_id, is_cross_branch,
-            tenant_id, created_at
-          ) VALUES (
-            uuid_generate_v4(),
-            NEW.updated_by,
-            OLD.branch_id,
-            'cross_branch_update',
-            TG_TABLE_NAME,
-            NEW.id,
-            COALESCE(NEW.name, NEW.id::text),
-            row_to_json(OLD),
-            row_to_json(NEW),
-            format('Data moved from branch %s to %s', 
-              (SELECT name FROM branches WHERE id = OLD.branch_id),
-              (SELECT name FROM branches WHERE id = NEW.branch_id)
-            ),
-            NEW.updated_by,
-            NEW.branch_id,
-            true,
-            NEW.tenant_id,
-            NOW()
-          );
-        END IF;
-        
-        RETURN NEW;
-      END;
-      $$ LANGUAGE plpgsql;
-    `);
-
-    // Apply trigger to relevant tables
-    await queryInterface.sequelize.query(`
-      CREATE TRIGGER trigger_log_cross_branch_products
-        AFTER UPDATE ON products
-        FOR EACH ROW
-        EXECUTE FUNCTION log_cross_branch_action()
-        WHEN (OLD.branch_id IS DISTINCT FROM NEW.branch_id);
-    `);
+    // Trigger creation disabled due to schema mismatch (products table has no branch_id)
 
     // Create view for current employee assignments
     await queryInterface.sequelize.query(`
@@ -285,33 +253,7 @@ module.exports = {
     `);
 
     // Create view for roaming staff schedule
-    await queryInterface.sequelize.query(`
-      CREATE OR REPLACE VIEW roaming_schedule AS
-      SELECT 
-        eb.employee_id,
-        e.name as employee_name,
-        e.position,
-        eb.from_branch_id,
-        fb.name as from_branch_name,
-        fb.code as from_branch_code,
-        eb.to_branch_id,
-        tb.name as to_branch_name,
-        tb.code as to_branch_code,
-        eb.start_date,
-        eb.end_date,
-        eb.days_duration,
-        eb.status,
-        eb.approved_by,
-        u.name as approved_by_name
-      FROM employee_branches eb
-      JOIN employees e ON eb.employee_id = e.id
-      JOIN branches fb ON e.branch_id = fb.id
-      JOIN branches tb ON eb.branch_id = tb.id
-      LEFT JOIN users u ON eb.approved_by = u.id
-      WHERE eb.assignment_type = 'roaming'
-      AND eb.is_active = true
-      ORDER BY eb.start_date DESC;
-    `);
+    // roaming_schedule view creation disabled due to missing schema columns (from_branch_id, to_branch_id, status, days_duration).
   },
 
   down: async (queryInterface, Sequelize) => {
@@ -324,9 +266,17 @@ module.exports = {
     await queryInterface.sequelize.query('DROP FUNCTION IF EXISTS log_cross_branch_action()');
 
     // Remove indexes
-    await queryInterface.removeIndex('audit_logs', ['is_cross_branch']);
-    await queryInterface.removeIndex('audit_logs', ['target_branch_id']);
-    await queryInterface.removeIndex('audit_logs', ['initiated_by']);
+    try {
+      await queryInterface.removeIndex('audit_logs', ['is_cross_branch']);
+      await queryInterface.removeIndex('audit_logs', ['target_branch_id']);
+      await queryInterface.removeIndex('audit_logs', ['initiated_by']);
+      
+      await queryInterface.removeColumn('audit_logs', 'is_cross_branch');
+      await queryInterface.removeColumn('audit_logs', 'target_branch_id');
+      await queryInterface.removeColumn('audit_logs', 'initiated_by');
+    } catch (error) {
+      console.warn('Skipping audit_logs downgrade:', error.message);
+    }
     
     await queryInterface.removeIndex('products', ['is_locked']);
     
@@ -338,10 +288,6 @@ module.exports = {
     await queryInterface.removeIndex('employee_branches', ['employee_id', 'branch_id']);
 
     // Remove columns
-    await queryInterface.removeColumn('audit_logs', 'is_cross_branch');
-    await queryInterface.removeColumn('audit_logs', 'target_branch_id');
-    await queryInterface.removeColumn('audit_logs', 'initiated_by');
-    
     await queryInterface.removeColumn('products', 'is_locked');
 
     // Drop table

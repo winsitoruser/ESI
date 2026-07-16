@@ -12,7 +12,8 @@ module.exports = {
       settlementNumber: {
         type: Sequelize.STRING(50),
         allowNull: false,
-        unique: true
+        unique: true,
+        field: 'settlement_number'
       },
       fromBranchId: {
         type: Sequelize.UUID,
@@ -43,9 +44,9 @@ module.exports = {
           'expense_sharing',
           'revenue_sharing',
           'loan_repayment',
-          'other'
         ),
-        allowNull: false
+        allowNull: false,
+        field: 'settlement_type'
       },
       amount: {
         type: Sequelize.DECIMAL(15, 2),
@@ -66,10 +67,10 @@ module.exports = {
           'expense_report',
           'revenue_report',
           'manual',
-          'other'
         ),
         allowNull: false,
-        defaultValue: 'manual'
+        defaultValue: 'manual',
+        field: 'reference_type'
       },
       referenceId: {
         type: Sequelize.UUID,
@@ -80,7 +81,8 @@ module.exports = {
       settlementDate: {
         type: Sequelize.DATE,
         allowNull: false,
-        defaultValue: Sequelize.NOW
+        defaultValue: Sequelize.NOW,
+        field: 'settlement_date'
       },
       dueDate: {
         type: Sequelize.DATE,
@@ -94,7 +96,7 @@ module.exports = {
         defaultValue: 'pending'
       },
       approvedBy: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: true,
         field: 'approved_by',
         references: {
@@ -108,7 +110,7 @@ module.exports = {
         field: 'approved_at'
       },
       paidBy: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: true,
         field: 'paid_by',
         references: {
@@ -142,7 +144,7 @@ module.exports = {
         allowNull: true
       },
       createdBy: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: false,
         field: 'created_by',
         references: {
@@ -151,7 +153,7 @@ module.exports = {
         }
       },
       updatedBy: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: true,
         field: 'updated_by',
         references: {
@@ -231,7 +233,7 @@ module.exports = {
         allowNull: true
       },
       userId: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: false,
         field: 'user_id',
         references: {
@@ -294,7 +296,7 @@ module.exports = {
         field: 'last_replenished_at'
       },
       lastReplenishedBy: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: true,
         field: 'last_replenished_by',
         references: {

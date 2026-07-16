@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import HumanifyLayout from '@/components/humanify/HumanifyLayout';
 import {
   UserPlus, Users, Mail, RefreshCw, Send, Copy, Check, X, Clock,
@@ -453,7 +453,7 @@ function StatCard({ icon: Icon, color, value, label }: { icon: any; color: strin
     indigo: 'bg-indigo-100 text-indigo-600',
     amber: 'bg-amber-100 text-amber-600',
     emerald: 'bg-emerald-100 text-emerald-600',
-    blue: 'bg-blue-100 text-blue-600',
+    blue: 'bg-violet-100 text-violet-600',
   };
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">

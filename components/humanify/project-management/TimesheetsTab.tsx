@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Plus, Upload, Check, Trash2 } from 'lucide-react';
 import { Timesheet, ProjectItem } from './types';
 import { statusColor } from './utils';
@@ -21,10 +21,10 @@ export default function TimesheetsTab({ timesheets, projects, selectedProject, o
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold">Timesheet Proyek</h2>
         <div className="flex gap-2">
-          <button onClick={() => openBulk('timesheets')} className="flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-700 rounded-lg text-sm hover:bg-blue-50">
+          <button onClick={() => openBulk('timesheets')} className="flex items-center gap-2 px-4 py-2 border border-violet-600 text-violet-700 rounded-lg text-sm hover:bg-violet-50">
             <Upload className="w-4 h-4" /> Bulk Import CSV
           </button>
-          <button onClick={() => openAdd('timesheet')} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
+          <button onClick={() => openAdd('timesheet')} className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700">
             <Plus className="w-4 h-4" /> Input Timesheet
           </button>
         </div>

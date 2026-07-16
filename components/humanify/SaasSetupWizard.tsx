@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+﻿import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
@@ -147,7 +147,7 @@ export default function SaasSetupWizard() {
   if (status === 'loading' || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
       </div>
     );
   }
@@ -155,7 +155,7 @@ export default function SaasSetupWizard() {
   const progress = Math.round((step / STEP_META.length) * 100);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-violet-50">
       <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
           <HumanifyLogo href={HUMANIFY_BRAND.appPath} size="sm" variant="withText" />
@@ -165,13 +165,13 @@ export default function SaasSetupWizard() {
 
       <main className="max-w-3xl mx-auto px-6 py-10">
         <div className="mb-8">
-          <p className="text-sm font-medium text-blue-600 mb-1">Setup workspace</p>
+          <p className="text-sm font-medium text-violet-600 mb-1">Setup workspace</p>
           <h1 className="text-2xl font-bold text-slate-900 mb-2">
             {tenant?.name ? `Selamat datang, ${tenant.name}` : 'Konfigurasi Humanify'}
           </h1>
           <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
             <motion.div
-              className="h-full bg-blue-600 rounded-full"
+              className="h-full bg-violet-600 rounded-full"
               initial={{ width: 0 }}
               animate={{ width: `${progress}%` }}
             />
@@ -188,7 +188,7 @@ export default function SaasSetupWizard() {
               <div
                 key={s.key}
                 className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium whitespace-nowrap ${
-                  active ? 'bg-blue-600 text-white' : done ? 'bg-blue-50 text-blue-700' : 'bg-white border border-slate-200 text-slate-500'
+                  active ? 'bg-violet-600 text-white' : done ? 'bg-violet-50 text-violet-700' : 'bg-white border border-slate-200 text-slate-500'
                 }`}
               >
                 {done ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Icon className="w-3.5 h-3.5" />}
@@ -231,8 +231,8 @@ export default function SaasSetupWizard() {
                     onClick={() => toggleDept(d)}
                     className={`px-4 py-2 rounded-xl text-sm font-medium border transition ${
                       departments.includes(d)
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
+                        ? 'bg-violet-600 text-white border-violet-600'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-violet-300'
                     }`}
                   >
                     {d}
@@ -255,7 +255,7 @@ export default function SaasSetupWizard() {
                       onClick={() => toggleWorkDay(d.value)}
                       className={`w-12 py-2 rounded-lg text-sm font-medium border ${
                         policies.workDays.includes(d.value)
-                          ? 'bg-blue-600 text-white border-blue-600'
+                          ? 'bg-violet-600 text-white border-violet-600'
                           : 'bg-white text-slate-500 border-slate-200'
                       }`}
                     >
@@ -281,8 +281,8 @@ export default function SaasSetupWizard() {
 
           {step === 4 && (
             <div className="space-y-4 text-center">
-              <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto">
-                <Rocket className="w-8 h-8 text-blue-600" />
+              <div className="w-16 h-16 bg-violet-100 rounded-2xl flex items-center justify-center mx-auto">
+                <Rocket className="w-8 h-8 text-violet-600" />
               </div>
               <h2 className="text-xl font-bold text-slate-900">Workspace siap diluncurkan!</h2>
               <p className="text-slate-600 text-sm max-w-md mx-auto">
@@ -293,7 +293,7 @@ export default function SaasSetupWizard() {
                   href={careersUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-medium"
+                  className="inline-flex items-center gap-2 text-sm text-violet-600 hover:text-violet-800 font-medium"
                 >
                   Portal karir: {careersUrl}
                   <ExternalLink className="w-4 h-4" />
@@ -329,7 +329,7 @@ export default function SaasSetupWizard() {
                     else if (step === 3) await saveStep('policies', policies, 4);
                   } catch { /* toast shown */ }
                 }}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 disabled:opacity-50"
               >
                 {saving ? 'Menyimpan...' : 'Lanjut'}
                 <ArrowRight className="w-4 h-4" />
@@ -339,7 +339,7 @@ export default function SaasSetupWizard() {
                 type="button"
                 disabled={saving}
                 onClick={handleComplete}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 disabled:opacity-50"
               >
                 {saving ? 'Memproses...' : 'Masuk ke Humanify'}
                 <ArrowRight className="w-4 h-4" />
@@ -349,7 +349,7 @@ export default function SaasSetupWizard() {
         </div>
 
         <p className="text-center text-xs text-slate-400 mt-6">
-          Butuh bantuan? <Link href={`mailto:${HUMANIFY_BRAND.company}`} className="text-blue-600">Hubungi tim Naincode</Link>
+          Butuh bantuan? <Link href={`mailto:${HUMANIFY_BRAND.company}`} className="text-violet-600">Hubungi tim Naincode</Link>
         </p>
       </main>
     </div>

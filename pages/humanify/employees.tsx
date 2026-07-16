@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
@@ -334,7 +334,7 @@ export default function EmployeeManagementPage() {
       header: t('hris.employee'),
       render: (emp) => (
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm">
+          <div className="w-9 h-9 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 font-bold text-sm">
             {(emp.name || '?')[0]}
           </div>
           <div>
@@ -405,7 +405,7 @@ export default function EmployeeManagementPage() {
         <button 
           onClick={(e) => { e.stopPropagation(); fetchDetail(emp.id); }}
           aria-label={`Lihat detail karyawan ${emp.name || ''}`}
-          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+          className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded"
           title={`Lihat detail: ${emp.name || ''}`}
         >
           <Eye className="w-4 h-4" aria-hidden="true" />
@@ -436,7 +436,7 @@ export default function EmployeeManagementPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-              <Users className="w-6 h-6 text-blue-600" /> {t('hris.employeeDbTitle')}
+              <Users className="w-6 h-6 text-violet-600" /> {t('hris.employeeDbTitle')}
             </h1>
             <p className="text-sm text-gray-500 mt-0.5">{t('hris.employeeDbSubtitle')}</p>
           </div>
@@ -446,7 +446,7 @@ export default function EmployeeManagementPage() {
               <CanAccess permission="employees.create">
                 <button
                   onClick={() => setShowCreateModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+                  className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 text-sm font-medium"
                 >
                   <Plus className="w-4 h-4" /> Tambah Karyawan
                 </button>
@@ -477,7 +477,7 @@ export default function EmployeeManagementPage() {
                     </div>
                   </div>
                   <button onClick={() => setShowCreateModal(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 whitespace-nowrap">
+                    className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700 whitespace-nowrap">
                     <Plus className="w-4 h-4" /> Tambah Karyawan
                   </button>
                 </div>
@@ -499,7 +499,7 @@ export default function EmployeeManagementPage() {
                     <button
                       type="button"
                       onClick={() => setListView('table')}
-                      className={`flex items-center gap-1.5 px-3 py-2 ${listView === 'table' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                      className={`flex items-center gap-1.5 px-3 py-2 ${listView === 'table' ? 'bg-violet-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
                     >
                       <Users className="w-4 h-4" /> Daftar
                     </button>
@@ -586,7 +586,7 @@ export default function EmployeeManagementPage() {
             {/* Employee Header Card */}
             <div className="bg-white rounded-xl border p-5">
               <div className="flex items-start gap-4">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-2xl flex-shrink-0">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white font-bold text-2xl flex-shrink-0">
                   {(selectedEmployee.name || '?')[0]}
                 </div>
                 <div className="flex-1">
@@ -632,7 +632,7 @@ export default function EmployeeManagementPage() {
                   ] as { key: DetailTab; label: string; icon: any }[]).map(tab => (
                     <button key={tab.key} onClick={() => setDetailTab(tab.key)}
                       className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                        detailTab === tab.key ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                        detailTab === tab.key ? 'border-violet-600 text-violet-600' : 'border-transparent text-gray-500 hover:text-gray-700'
                       }`}>
                       <tab.icon className="w-4 h-4" /> {tab.label}
                       {tab.key === 'family' && selectedEmployee.families?.length > 0 && (
@@ -670,7 +670,7 @@ export default function EmployeeManagementPage() {
                         ) : (
                           <div className="flex gap-2">
                             <button onClick={() => setEditMode(false)} className="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50">{t('hris.cancel')}</button>
-                            <button onClick={savePersonal} className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                            <button onClick={savePersonal} className="flex items-center gap-1 px-3 py-1.5 text-sm bg-violet-600 text-white rounded-lg hover:bg-violet-700">
                               <Save className="w-3.5 h-3.5" /> {t('hris.save')}
                             </button>
                           </div>
@@ -818,7 +818,7 @@ export default function EmployeeManagementPage() {
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="font-semibold text-gray-800">{t('hris.familyData')}</h3>
                       <button onClick={() => openSubModal('family')}
-                        className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        className="flex items-center gap-1 px-3 py-1.5 text-sm bg-violet-600 text-white rounded-lg hover:bg-violet-700">
                         <Plus className="w-3.5 h-3.5" /> {t('hris.add')}
                       </button>
                     </div>
@@ -836,11 +836,11 @@ export default function EmployeeManagementPage() {
                                 {f.phone_number && <p className="text-xs text-gray-400">Telp: {f.phone_number}</p>}
                                 <div className="flex gap-2 mt-1">
                                   {f.is_emergency_contact && <span className="px-2 py-0.5 bg-red-50 text-red-600 text-[10px] rounded-full">Kontak Darurat</span>}
-                                  {f.is_dependent && <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] rounded-full">Tanggungan</span>}
+                                  {f.is_dependent && <span className="px-2 py-0.5 bg-violet-50 text-violet-600 text-[10px] rounded-full">Tanggungan</span>}
                                 </div>
                               </div>
                               <div className="flex gap-1">
-                                <button onClick={() => openSubModal('family', f)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"><Edit className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => openSubModal('family', f)} className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded"><Edit className="w-3.5 h-3.5" /></button>
                                 <button onClick={() => deleteSubData('family', f.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
                               </div>
                             </div>
@@ -857,7 +857,7 @@ export default function EmployeeManagementPage() {
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="font-semibold text-gray-800">{t('hris.educationHistory')}</h3>
                       <button onClick={() => openSubModal('education')}
-                        className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        className="flex items-center gap-1 px-3 py-1.5 text-sm bg-violet-600 text-white rounded-lg hover:bg-violet-700">
                         <Plus className="w-3.5 h-3.5" /> {t('hris.add')}
                       </button>
                     </div>
@@ -878,7 +878,7 @@ export default function EmployeeManagementPage() {
                                 <p className="text-xs text-gray-400">{e.start_year || '?'} - {e.end_year || 'sekarang'} {e.gpa ? `• IPK: ${e.gpa}` : ''}</p>
                               </div>
                               <div className="flex gap-1">
-                                <button onClick={() => openSubModal('education', e)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"><Edit className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => openSubModal('education', e)} className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded"><Edit className="w-3.5 h-3.5" /></button>
                                 <button onClick={() => deleteSubData('education', e.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
                               </div>
                             </div>
@@ -895,7 +895,7 @@ export default function EmployeeManagementPage() {
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="font-semibold text-gray-800">{t('hris.certificationLicense')}</h3>
                       <button onClick={() => openSubModal('certification')}
-                        className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        className="flex items-center gap-1 px-3 py-1.5 text-sm bg-violet-600 text-white rounded-lg hover:bg-violet-700">
                         <Plus className="w-3.5 h-3.5" /> {t('hris.add')}
                       </button>
                     </div>
@@ -920,7 +920,7 @@ export default function EmployeeManagementPage() {
                                 ) : (
                                   <span className="px-2 py-0.5 bg-green-50 text-green-600 text-[10px] rounded-full">Aktif</span>
                                 )}
-                                <button onClick={() => openSubModal('certification', c)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"><Edit className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => openSubModal('certification', c)} className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded"><Edit className="w-3.5 h-3.5" /></button>
                                 <button onClick={() => deleteSubData('certification', c.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
                               </div>
                             </div>
@@ -937,7 +937,7 @@ export default function EmployeeManagementPage() {
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="font-semibold text-gray-800">{t('hris.workExperience')}</h3>
                       <button onClick={() => openSubModal('experience')}
-                        className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        className="flex items-center gap-1 px-3 py-1.5 text-sm bg-violet-600 text-white rounded-lg hover:bg-violet-700">
                         <Plus className="w-3.5 h-3.5" /> {t('hris.add')}
                       </button>
                     </div>
@@ -957,7 +957,7 @@ export default function EmployeeManagementPage() {
                                 {e.description && <p className="text-xs text-gray-500 mt-1">{e.description}</p>}
                               </div>
                               <div className="flex gap-1">
-                                <button onClick={() => openSubModal('experience', e)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"><Edit className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => openSubModal('experience', e)} className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded"><Edit className="w-3.5 h-3.5" /></button>
                                 <button onClick={() => deleteSubData('experience', e.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
                               </div>
                             </div>
@@ -986,7 +986,7 @@ export default function EmployeeManagementPage() {
                       <h3 className="font-semibold text-gray-800">{t('hris.contractHistory')}</h3>
                       <CanAccess permission="employees.update">
                         <button onClick={() => openSubModal('contract')}
-                          className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                          className="flex items-center gap-1 px-3 py-1.5 text-sm bg-violet-600 text-white rounded-lg hover:bg-violet-700">
                           <Plus className="w-3.5 h-3.5" /> {t('hris.add')}
                         </button>
                       </CanAccess>
@@ -1020,7 +1020,7 @@ export default function EmployeeManagementPage() {
                               </div>
                               <div className="flex gap-1">
                                 <CanAccess permission="employees.update">
-                                  <button onClick={() => openSubModal('contract', c)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"><Edit className="w-3.5 h-3.5" /></button>
+                                  <button onClick={() => openSubModal('contract', c)} className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded"><Edit className="w-3.5 h-3.5" /></button>
                                 </CanAccess>
                                 <CanAccess permission="employees.delete">
                                   <button onClick={() => deleteSubData('contract', c.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
@@ -1100,7 +1100,7 @@ export default function EmployeeManagementPage() {
               </button>
             </div>
             <div className="p-6 space-y-4">
-              <p className="text-xs text-gray-500 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+              <p className="text-xs text-gray-500 bg-violet-50 border border-violet-100 rounded-lg px-3 py-2">
                 UID karyawan (contoh EMP-001) akan digenerate otomatis setelah data disimpan.
               </p>
               <div>
@@ -1198,7 +1198,7 @@ export default function EmployeeManagementPage() {
               <button onClick={() => setShowCreateModal(false)}
                 className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">Batal</button>
               <button onClick={handleCreateEmployee} disabled={createLoading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 flex items-center gap-2">
+                className="px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700 flex items-center gap-2">
                 {createLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Simpan Karyawan
               </button>
@@ -1354,7 +1354,7 @@ export default function EmployeeManagementPage() {
             </div>
             <div className="flex justify-end gap-2 p-4 border-t sticky bottom-0 bg-white">
               <button onClick={() => setShowSubModal(false)} className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">{t('hris.cancel')}</button>
-              <button onClick={saveSubData} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">{t('hris.save')}</button>
+              <button onClick={saveSubData} className="px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700">{t('hris.save')}</button>
             </div>
           </div>
         </div>

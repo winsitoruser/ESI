@@ -1,4 +1,4 @@
-import {
+﻿import {
   AlertTriangle, CheckCircle, Clock, FileText, MessageSquare, Scale,
   Shield, UserX, XCircle, Ban, Gavel, type LucideIcon,
 } from 'lucide-react';
@@ -20,7 +20,7 @@ export const TYPE_STYLES: Record<string, { bg: string; text: string; border: str
 
 export const STATUS_STYLES: Record<string, string> = {
   draft: 'bg-slate-100 text-slate-700 ring-slate-200',
-  submitted: 'bg-blue-50 text-blue-700 ring-blue-200',
+  submitted: 'bg-violet-50 text-violet-700 ring-violet-200',
   investigating: 'bg-violet-50 text-violet-700 ring-violet-200',
   drafting: 'bg-indigo-50 text-indigo-700 ring-indigo-200',
   review: 'bg-cyan-50 text-cyan-700 ring-cyan-200',

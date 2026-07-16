@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
@@ -132,7 +132,7 @@ export default function LaporanPage() {
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'YTD Gaji Kotor', value: ytdGross, icon: TrendingUp, bg: 'bg-blue-100', color: 'text-blue-600' },
+            { label: 'YTD Gaji Kotor', value: ytdGross, icon: TrendingUp, bg: 'bg-violet-100', color: 'text-violet-600' },
             { label: 'YTD Gaji Bersih', value: ytdNet, icon: DollarSign, bg: 'bg-green-100', color: 'text-green-600' },
             { label: 'YTD Pajak', value: ytdTax, icon: FileText, bg: 'bg-amber-100', color: 'text-amber-600' },
             { label: 'Karyawan Aktif', value: latestMonth?.employees || 0, icon: Users, bg: 'bg-purple-100', color: 'text-purple-600', noFmt: true },
@@ -151,7 +151,7 @@ export default function LaporanPage() {
               { key: 'distribution', label: 'Distribusi Gaji', icon: PieChart },
               { key: 'ytd', label: 'Year to Date', icon: Calendar },
             ].map(tab => (
-              <button key={tab.key} onClick={() => setActiveReport(tab.key as any)} className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 whitespace-nowrap ${activeReport === tab.key ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}><tab.icon className="w-4 h-4" />{tab.label}</button>
+              <button key={tab.key} onClick={() => setActiveReport(tab.key as any)} className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 whitespace-nowrap ${activeReport === tab.key ? 'border-violet-600 text-violet-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}><tab.icon className="w-4 h-4" />{tab.label}</button>
             ))}
           </div>
 
@@ -182,7 +182,7 @@ export default function LaporanPage() {
                     <td className="px-4 py-2 text-right">{fmtCurrency(m.gross)}</td>
                     <td className="px-4 py-2 text-right text-red-600">{fmtCurrency(m.deductions)}</td>
                     <td className="px-4 py-2 text-right text-amber-600">{fmtCurrency(m.tax)}</td>
-                    <td className="px-4 py-2 text-right text-blue-600">{fmtCurrency(m.bpjs)}</td>
+                    <td className="px-4 py-2 text-right text-violet-600">{fmtCurrency(m.bpjs)}</td>
                     <td className="px-4 py-2 text-right font-bold text-green-600">{fmtCurrency(m.net)}</td>
                   </tr>
                 ))}</tbody>
@@ -191,7 +191,7 @@ export default function LaporanPage() {
                   <td className="px-4 py-2 text-right">{fmtCurrency(ytdGross)}</td>
                   <td className="px-4 py-2 text-right text-red-600">{fmtCurrency(monthly.reduce((s, m) => s + m.deductions, 0))}</td>
                   <td className="px-4 py-2 text-right text-amber-600">{fmtCurrency(ytdTax)}</td>
-                  <td className="px-4 py-2 text-right text-blue-600">{fmtCurrency(monthly.reduce((s, m) => s + m.bpjs, 0))}</td>
+                  <td className="px-4 py-2 text-right text-violet-600">{fmtCurrency(monthly.reduce((s, m) => s + m.bpjs, 0))}</td>
                   <td className="px-4 py-2 text-right text-green-600">{fmtCurrency(ytdNet)}</td>
                 </tr></tfoot></table>
               </div>
@@ -248,7 +248,7 @@ export default function LaporanPage() {
                   {distribution.map(s => (
                     <div key={s.range} className="flex items-center gap-3">
                       <div className="w-20 text-sm font-medium">{s.range}</div>
-                      <div className="flex-1"><div className="w-full bg-gray-200 rounded-full h-4"><div className="bg-blue-500 h-4 rounded-full transition-all" style={{ width: `${s.pct}%` }} /></div></div>
+                      <div className="flex-1"><div className="w-full bg-gray-200 rounded-full h-4"><div className="bg-violet-500 h-4 rounded-full transition-all" style={{ width: `${s.pct}%` }} /></div></div>
                       <div className="w-20 text-right text-sm"><span className="font-bold">{s.count}</span> <span className="text-gray-500">({s.pct}%)</span></div>
                     </div>
                   ))}
@@ -262,7 +262,7 @@ export default function LaporanPage() {
               <h3 className="font-semibold text-lg">Ringkasan Year-to-Date {selectedYear}</h3>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {[
-                  { label: 'Total Gaji Bruto', value: ytdGross, color: 'text-blue-600', bg: 'bg-blue-50' },
+                  { label: 'Total Gaji Bruto', value: ytdGross, color: 'text-violet-600', bg: 'bg-violet-50' },
                   { label: 'Total Gaji Bersih', value: ytdNet, color: 'text-green-600', bg: 'bg-green-50' },
                   { label: 'Total Pajak PPh 21', value: ytdTax, color: 'text-amber-600', bg: 'bg-amber-50' },
                   { label: 'Total BPJS', value: monthly.reduce((s, m) => s + m.bpjs, 0), color: 'text-purple-600', bg: 'bg-purple-50' },

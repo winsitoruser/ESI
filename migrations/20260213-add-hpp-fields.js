@@ -52,10 +52,7 @@ module.exports = {
         comment: 'Margin / Selling Price * 100'
       }, { transaction });
 
-      await queryInterface.addColumn('products', 'markup_percentage', {
-        type: Sequelize.DECIMAL(5, 2),
-        comment: 'Margin / HPP * 100'
-      }, { transaction });
+      // markup_percentage already added by 20260125-enhance-product-system.js
 
       await queryInterface.addColumn('products', 'min_margin_percentage', {
         type: Sequelize.DECIMAL(5, 2),
@@ -100,7 +97,7 @@ module.exports = {
           primaryKey: true
         },
         product_id: {
-          type: Sequelize.UUID,
+          type: Sequelize.INTEGER,
           allowNull: false,
           references: {
             model: 'products',
@@ -155,7 +152,7 @@ module.exports = {
         
         // Audit
         changed_by: {
-          type: Sequelize.UUID
+          type: Sequelize.INTEGER
         },
         changed_at: {
           type: Sequelize.DATE,
@@ -193,7 +190,7 @@ module.exports = {
           primaryKey: true
         },
         product_id: {
-          type: Sequelize.UUID,
+          type: Sequelize.INTEGER,
           allowNull: false,
           references: {
             model: 'products',
@@ -288,7 +285,6 @@ module.exports = {
         'standard_cost',
         'margin_amount',
         'margin_percentage',
-        'markup_percentage',
         'min_margin_percentage',
         'packaging_cost',
         'labor_cost',

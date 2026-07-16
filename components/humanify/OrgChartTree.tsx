@@ -1,4 +1,4 @@
-import { useState, useEffect, Component, type ReactNode } from 'react';
+﻿import { useState, useEffect, Component, type ReactNode } from 'react';
 import {
   Building2, ChevronDown, ChevronRight, Edit, Plus, Trash2, Users, User,
 } from 'lucide-react';
@@ -27,9 +27,9 @@ interface OrgChartTreeProps {
 }
 
 const LEVEL_THEMES = [
-  { gradient: 'from-indigo-600 to-blue-600', accent: 'border-indigo-200', badge: 'bg-indigo-100 text-indigo-700' },
+  { gradient: 'from-indigo-600 to-violet-600', accent: 'border-indigo-200', badge: 'bg-indigo-100 text-indigo-700' },
   { gradient: 'from-violet-600 to-purple-600', accent: 'border-violet-200', badge: 'bg-violet-100 text-violet-700' },
-  { gradient: 'from-blue-600 to-cyan-600', accent: 'border-blue-200', badge: 'bg-blue-100 text-blue-700' },
+  { gradient: 'from-violet-600 to-cyan-600', accent: 'border-violet-200', badge: 'bg-violet-100 text-violet-700' },
   { gradient: 'from-emerald-600 to-teal-600', accent: 'border-emerald-200', badge: 'bg-emerald-100 text-emerald-700' },
   { gradient: 'from-amber-500 to-orange-500', accent: 'border-amber-200', badge: 'bg-amber-100 text-amber-700' },
 ];
@@ -123,7 +123,7 @@ function OrgUnitCard({
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onEdit(node); }}
-              className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+              className="p-1 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded"
               title="Edit"
             >
               <Edit className="w-3.5 h-3.5" />

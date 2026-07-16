@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
@@ -20,7 +20,7 @@ const DOC_TYPES = [
 const STATUS_COLORS: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-700',
   pending: 'bg-yellow-100 text-yellow-700',
-  partially_signed: 'bg-blue-100 text-blue-700',
+  partially_signed: 'bg-violet-100 text-violet-700',
   completed: 'bg-green-100 text-green-700',
 };
 

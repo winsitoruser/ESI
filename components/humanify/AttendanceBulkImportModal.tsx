@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+﻿import React, { useRef, useState } from 'react';
 import { X, Download, FilePlus, Eye, Check, AlertTriangle, Upload, FileSpreadsheet } from 'lucide-react';
 import {
   downloadAttendanceTemplate,
@@ -144,12 +144,12 @@ export default function AttendanceBulkImportModal({ open, onClose, onSuccess, sh
             </button>
             <input ref={fileRef} type="file" accept=".csv,.txt,.xlsx,.xls" onChange={handleFileUpload} className="hidden" />
             <button onClick={fillExample}
-              className="flex items-center gap-2 px-3 py-2 border border-blue-200 rounded-lg text-sm text-blue-700 hover:bg-blue-50">
+              className="flex items-center gap-2 px-3 py-2 border border-violet-200 rounded-lg text-sm text-violet-700 hover:bg-violet-50">
               <Eye className="w-4 h-4" /> Isi Contoh
             </button>
           </div>
 
-          <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs text-blue-800">
+          <div className="bg-violet-50 border border-violet-100 rounded-lg p-3 text-xs text-violet-800">
             <strong>Kolom wajib:</strong> kode_karyawan, tanggal (YYYY-MM-DD), status (present/late/absent/leave/sick/work_from_home/holiday).
             <br />
             <strong>Opsional:</strong> jam_masuk, jam_keluar (HH:MM), sumber (fingerprint/face_recognition/gps_mobile/manual), cabang, keterangan.
@@ -161,7 +161,7 @@ export default function AttendanceBulkImportModal({ open, onClose, onSuccess, sh
               value={csvText}
               onChange={e => handleTextChange(e.target.value)}
               placeholder={`Paste CSV di sini...\n\n${ATTENDANCE_IMPORT_HEADERS.join(', ')}`}
-              className="w-full mt-1 px-3 py-2 border rounded-lg text-sm font-mono h-32 focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none"
+              className="w-full mt-1 px-3 py-2 border rounded-lg text-sm font-mono h-32 focus:ring-2 focus:ring-violet-200 focus:border-violet-400 outline-none"
             />
           </div>
 
@@ -216,7 +216,7 @@ export default function AttendanceBulkImportModal({ open, onClose, onSuccess, sh
           <button
             onClick={handleImport}
             disabled={uploading || !parsed.length || errors.length > 0}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+            className="px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700 disabled:opacity-50 flex items-center gap-2"
           >
             <Upload className="w-4 h-4" />
             {uploading ? 'Mengimport...' : `Import ${parsed.length || ''} Data`}

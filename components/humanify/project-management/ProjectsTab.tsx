@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Plus, Eye, Edit, Trash2 } from 'lucide-react';
 import { ProjectItem } from './types';
 import { fmtCur, statusColor, priorityColor } from './utils';
@@ -86,7 +86,7 @@ export default function ProjectsTab({ projects, projectDetail, setProjectDetail,
               </div>
               <div className="flex gap-1">
                 <button onClick={async () => { const res = await api('project-detail', 'GET', null, `&id=${p.id}`); setProjectDetail(res.data); }} className="p-1.5 text-gray-400 hover:text-indigo-600"><Eye className="w-4 h-4" /></button>
-                <button onClick={() => openAdd('project')} className="p-1.5 text-gray-400 hover:text-blue-600"><Edit className="w-4 h-4" /></button>
+                <button onClick={() => openAdd('project')} className="p-1.5 text-gray-400 hover:text-violet-600"><Edit className="w-4 h-4" /></button>
                 <button onClick={() => handleDelete('project', p.id)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
               </div>
             </div>

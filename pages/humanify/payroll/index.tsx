@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
@@ -15,7 +15,7 @@ const fmtCurrency = (n: number) => `Rp ${(n || 0).toLocaleString('id-ID')}`;
 
 const PAYROLL_INPUT_MODULES = [
   { key: 'attendance', label: 'Shift / Absensi', href: '/humanify/attendance', icon: Clock, color: 'text-green-600' },
-  { key: 'leave', label: 'Cuti', href: '/humanify/leave', icon: Calendar, color: 'text-blue-600' },
+  { key: 'leave', label: 'Cuti', href: '/humanify/leave', icon: Calendar, color: 'text-violet-600' },
   { key: 'overtime', label: 'Lembur', href: '/humanify/payroll/lembur', icon: Clock, color: 'text-orange-600' },
   { key: 'reimbursement', label: 'Reimbursement', href: '/humanify/reimbursement', icon: Wallet, color: 'text-emerald-600' },
   { key: 'bonus', label: 'Bonus', href: '/humanify/payroll/bonus', icon: Gift, color: 'text-pink-600' },
@@ -25,7 +25,7 @@ const PAYROLL_INPUT_MODULES = [
 ];
 
 const PAYROLL_MODULES = [
-  { key: 'main', label: 'Penggajian Utama', desc: 'Proses penggajian, konfigurasi gaji, komponen gaji, dan impor data', href: '/humanify/payroll/main', icon: Calculator, color: 'bg-blue-500', badge: 'Core' },
+  { key: 'main', label: 'Penggajian Utama', desc: 'Proses penggajian, konfigurasi gaji, komponen gaji, dan impor data', href: '/humanify/payroll/main', icon: Calculator, color: 'bg-violet-500', badge: 'Core' },
   { key: 'slip-gaji', label: 'Slip Gaji', desc: 'Riwayat slip gaji karyawan, detail pendapatan dan potongan', href: '/humanify/payroll/slip-gaji', icon: FileText, color: 'bg-green-500', badge: '' },
   { key: 'thr', label: 'THR (Tunjangan Hari Raya)', desc: 'Perhitungan dan manajemen THR sesuai PP No. 36/2021', href: '/humanify/payroll/thr', icon: Gift, color: 'bg-amber-500', badge: '' },
   { key: 'bonus', label: 'Bonus & Insentif', desc: 'Bonus kinerja, proyek, dan insentif karyawan', href: '/humanify/payroll/bonus', icon: Gift, color: 'bg-pink-500', badge: 'New' },
@@ -89,7 +89,7 @@ export default function PayrollIndexPage() {
         {/* Summary Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'Total Karyawan', value: stats.totalEmployees, icon: Users, bg: 'bg-blue-100', color: 'text-blue-600' },
+            { label: 'Total Karyawan', value: stats.totalEmployees, icon: Users, bg: 'bg-violet-100', color: 'text-violet-600' },
             { label: 'Gaji Terkonfigurasi', value: stats.configuredSalaries, icon: CreditCard, bg: 'bg-green-100', color: 'text-green-600' },
             { label: 'Total Gaji/Bulan', value: fmtCurrency(stats.monthlyPayroll), icon: Banknote, bg: 'bg-emerald-100', color: 'text-emerald-600' },
             { label: 'Proses Terakhir', value: stats.lastRunCode, icon: CheckCircle, bg: 'bg-purple-100', color: 'text-purple-600' },
@@ -124,7 +124,7 @@ export default function PayrollIndexPage() {
             <ChevronRight className="w-4 h-4 text-gray-300" />
             <div className="flex gap-2">
               <span className="px-3 py-1 bg-red-100 text-red-700 text-xs rounded-full font-medium">Tax Report (PPh 21)</span>
-              <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">BPJS Report</span>
+              <span className="px-3 py-1 bg-violet-100 text-violet-700 text-xs rounded-full font-medium">BPJS Report</span>
             </div>
           </div>
         </div>
@@ -133,19 +133,19 @@ export default function PayrollIndexPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {PAYROLL_MODULES.map(mod => (
             <Link key={mod.key} href={mod.href}
-              className="bg-white rounded-xl border shadow-sm p-5 hover:shadow-md hover:border-blue-200 transition-all group">
+              className="bg-white rounded-xl border shadow-sm p-5 hover:shadow-md hover:border-violet-200 transition-all group">
               <div className="flex items-start gap-4">
                 <div className={`w-12 h-12 ${mod.color} rounded-xl flex items-center justify-center flex-shrink-0`}>
                   <mod.icon className="w-6 h-6 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-sm group-hover:text-blue-600 transition-colors">{mod.label}</h3>
-                    {mod.badge && <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] rounded font-bold uppercase">{mod.badge}</span>}
+                    <h3 className="font-semibold text-sm group-hover:text-violet-600 transition-colors">{mod.label}</h3>
+                    {mod.badge && <span className="px-1.5 py-0.5 bg-violet-100 text-violet-700 text-[9px] rounded font-bold uppercase">{mod.badge}</span>}
                   </div>
                   <p className="text-xs text-gray-500 mt-1 line-clamp-2">{mod.desc}</p>
                 </div>
-                <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-blue-400 transition-colors flex-shrink-0 mt-1" />
+                <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-violet-400 transition-colors flex-shrink-0 mt-1" />
               </div>
             </Link>
           ))}
@@ -153,7 +153,7 @@ export default function PayrollIndexPage() {
 
         {/* Quick Reference */}
         <div className="bg-white rounded-xl border shadow-sm p-6">
-          <h3 className="font-semibold text-lg mb-4 flex items-center gap-2"><Layers className="w-5 h-5 text-blue-600" /> Referensi Cepat</h3>
+          <h3 className="font-semibold text-lg mb-4 flex items-center gap-2"><Layers className="w-5 h-5 text-violet-600" /> Referensi Cepat</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
             <div>
               <h4 className="font-semibold text-gray-700 mb-2">Tarif BPJS</h4>

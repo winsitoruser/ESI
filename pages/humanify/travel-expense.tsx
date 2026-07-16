@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
@@ -119,7 +119,7 @@ export default function TravelExpensePage() {
   };
 
   const statusColor = (s: string) => {
-    const m: any = { draft: 'bg-gray-100 text-gray-800', pending: 'bg-yellow-100 text-yellow-800', approved: 'bg-green-100 text-green-800', rejected: 'bg-red-100 text-red-800', in_progress: 'bg-blue-100 text-blue-800', completed: 'bg-green-100 text-green-800', cancelled: 'bg-gray-200 text-gray-600', reimbursed: 'bg-emerald-100 text-emerald-800', submitted: 'bg-blue-100 text-blue-800' };
+    const m: any = { draft: 'bg-gray-100 text-gray-800', pending: 'bg-yellow-100 text-yellow-800', approved: 'bg-green-100 text-green-800', rejected: 'bg-red-100 text-red-800', in_progress: 'bg-violet-100 text-violet-800', completed: 'bg-green-100 text-green-800', cancelled: 'bg-gray-200 text-gray-600', reimbursed: 'bg-emerald-100 text-emerald-800', submitted: 'bg-violet-100 text-violet-800' };
     return m[s] || 'bg-gray-100 text-gray-800';
   };
 
@@ -145,7 +145,7 @@ export default function TravelExpensePage() {
       {/* Overview Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white border rounded-xl p-4">
-          <Plane className="w-5 h-5 text-blue-600 mb-1" />
+          <Plane className="w-5 h-5 text-violet-600 mb-1" />
           <p className="text-2xl font-bold">{overview.totalRequests || 0}</p>
           <p className="text-xs text-gray-500">Total Perjalanan</p>
         </div>
@@ -220,7 +220,7 @@ export default function TravelExpensePage() {
                     <button onClick={async () => { await api('reject-request', 'POST', { id: r.id, reason: 'Ditolak' }); showToast('Ditolak'); loadData(); }} className="text-xs px-2 py-1 text-red-600 hover:bg-red-50 rounded">Tolak</button>
                   </>)}
                   {r.status === 'approved' && (
-                    <button onClick={async () => { await api('complete-travel', 'POST', { id: r.id }); showToast('Perjalanan selesai'); loadData(); }} className="text-xs px-2 py-1 text-blue-600 hover:bg-blue-50 rounded">Selesai</button>
+                    <button onClick={async () => { await api('complete-travel', 'POST', { id: r.id }); showToast('Perjalanan selesai'); loadData(); }} className="text-xs px-2 py-1 text-violet-600 hover:bg-violet-50 rounded">Selesai</button>
                   )}
                   <button onClick={() => handleDelete('request', r.id)} className="text-xs px-2 py-1 text-gray-400 hover:text-red-600 ml-auto"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
@@ -300,7 +300,7 @@ export default function TravelExpensePage() {
                           <button onClick={async () => { await api('approve-expense', 'POST', { id: e.id }); showToast('Biaya disetujui'); loadData(); }} className="text-xs px-2 py-1 text-green-600 hover:bg-green-50 rounded">Setujui</button>
                         )}
                         {e.status === 'approved' && (
-                          <button onClick={async () => { await api('reimburse-expense', 'POST', { id: e.id }); showToast('Diganti'); loadData(); }} className="text-xs px-2 py-1 text-blue-600 hover:bg-blue-50 rounded">Ganti Biaya</button>
+                          <button onClick={async () => { await api('reimburse-expense', 'POST', { id: e.id }); showToast('Diganti'); loadData(); }} className="text-xs px-2 py-1 text-violet-600 hover:bg-violet-50 rounded">Ganti Biaya</button>
                         )}
                         <button onClick={() => handleDelete('expense', e.id)} className="p-1 text-gray-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>

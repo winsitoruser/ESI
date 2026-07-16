@@ -497,10 +497,10 @@ export default function DisciplinaryLettersPage() {
                       <LetterTypeCards value={form.letter_type} onChange={(t) => setForm({ ...form, letter_type: t })} />
                     </div>
                     {activeSOP && (
-                      <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-4 text-sm">
-                        <p className="font-semibold text-blue-900">{activeSOP.name}</p>
-                        <p className="text-blue-700/80 text-xs mt-1">{activeSOP.description}</p>
-                        <p className="text-xs text-blue-600 mt-2">{(activeSOP.approval_levels || []).length} tahap persetujuan · berlaku {activeSOP.validity_months} bulan</p>
+                      <div className="rounded-2xl border border-violet-100 bg-violet-50/50 p-4 text-sm">
+                        <p className="font-semibold text-violet-900">{activeSOP.name}</p>
+                        <p className="text-violet-700/80 text-xs mt-1">{activeSOP.description}</p>
+                        <p className="text-xs text-violet-600 mt-2">{(activeSOP.approval_levels || []).length} tahap persetujuan · berlaku {activeSOP.validity_months} bulan</p>
                       </div>
                     )}
                     <div className="grid sm:grid-cols-2 gap-4">

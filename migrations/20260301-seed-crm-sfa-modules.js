@@ -19,7 +19,7 @@ module.exports = {
     // Upsert module definitions (avoid duplicate errors)
     const modules = [
       {
-        id: require('crypto').randomUUID(),
+        id: require('crypto').randomgen_random_uuid(),
         code: 'crm',
         name: 'Customer Relationship Management',
         description: 'Customer 360°, komunikasi, task & kalender, tiket & SLA, forecasting, automasi CRM, dokumen',
@@ -37,7 +37,7 @@ module.exports = {
         updated_at: now,
       },
       {
-        id: require('crypto').randomUUID(),
+        id: require('crypto').randomgen_random_uuid(),
         code: 'sfa',
         name: 'Sales Force Automation',
         description: 'Lead management, pipeline, tim & territory, kunjungan, order, target, insentif, coverage, geofence',
@@ -55,7 +55,7 @@ module.exports = {
         updated_at: now,
       },
       {
-        id: require('crypto').randomUUID(),
+        id: require('crypto').randomgen_random_uuid(),
         code: 'marketing',
         name: 'Marketing & Campaign',
         description: 'Campaign management, promosi, segmentasi pelanggan, budget marketing',

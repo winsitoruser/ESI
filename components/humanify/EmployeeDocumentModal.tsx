@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+﻿import { useRef, useState } from 'react';
 import { X, Upload, FileText, Download, Eye, Edit, Trash2, AlertCircle } from 'lucide-react';
 import {
   EMPLOYEE_DOCUMENT_CATEGORIES,
@@ -182,7 +182,7 @@ export default function EmployeeDocumentModal({
           </div>
 
           {typeMeta?.uploadHint && (
-            <div className="flex items-start gap-2 p-2.5 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-800">
+            <div className="flex items-start gap-2 p-2.5 bg-violet-50 border border-violet-100 rounded-lg text-xs text-violet-800">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <span>{typeMeta.uploadHint}</span>
             </div>
@@ -249,13 +249,13 @@ export default function EmployeeDocumentModal({
               File Dokumen {!isEdit && '*'}
             </label>
             {existingFileUrl && !selectedFile && (
-              <div className="mt-1 mb-2 flex items-center gap-2 p-2 bg-blue-50 border border-blue-100 rounded-lg text-sm">
-                <FileText className="w-4 h-4 text-blue-600 shrink-0" />
+              <div className="mt-1 mb-2 flex items-center gap-2 p-2 bg-violet-50 border border-violet-100 rounded-lg text-sm">
+                <FileText className="w-4 h-4 text-violet-600 shrink-0" />
                 <span className="flex-1 truncate text-gray-700">{existingFileName}</span>
-                <a href={existingFileUrl} target="_blank" rel="noopener noreferrer" className="p-1 text-blue-600 hover:bg-blue-100 rounded" title="Lihat">
+                <a href={existingFileUrl} target="_blank" rel="noopener noreferrer" className="p-1 text-violet-600 hover:bg-violet-100 rounded" title="Lihat">
                   <Eye className="w-4 h-4" />
                 </a>
-                <a href={existingFileDownloadUrl || existingFileUrl} download className="p-1 text-blue-600 hover:bg-blue-100 rounded" title="Unduh">
+                <a href={existingFileDownloadUrl || existingFileUrl} download className="p-1 text-violet-600 hover:bg-violet-100 rounded" title="Unduh">
                   <Download className="w-4 h-4" />
                 </a>
               </div>
@@ -267,7 +267,7 @@ export default function EmployeeDocumentModal({
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
               className={`mt-1 border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${
-                dragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
+                dragActive ? 'border-violet-500 bg-violet-50' : 'border-gray-300 hover:border-violet-400 hover:bg-gray-50'
               }`}
             >
               <input
@@ -278,9 +278,9 @@ export default function EmployeeDocumentModal({
                 onChange={(e) => pickFile(e.target.files?.[0] || null)}
               />
               <div className={`w-12 h-12 rounded-xl mx-auto mb-2 flex items-center justify-center ${
-                dragActive ? 'bg-blue-100' : 'bg-gray-100'
+                dragActive ? 'bg-violet-100' : 'bg-gray-100'
               }`}>
-                <Upload className={`w-6 h-6 ${dragActive ? 'text-blue-600' : 'text-gray-400'}`} />
+                <Upload className={`w-6 h-6 ${dragActive ? 'text-violet-600' : 'text-gray-400'}`} />
               </div>
               {selectedFile ? (
                 <div>
@@ -298,7 +298,7 @@ export default function EmployeeDocumentModal({
                 <>
                   <p className="text-sm font-medium text-gray-700">Drag & drop file di sini</p>
                   <p className="text-xs text-gray-500 mt-1">
-                    atau <span className="text-blue-600">klik untuk pilih file</span>
+                    atau <span className="text-violet-600">klik untuk pilih file</span>
                   </p>
                   <p className="text-xs text-gray-400 mt-2">
                     PDF, JPG, PNG, DOC (maks {MAX_DOCUMENT_SIZE_MB}MB)
@@ -339,7 +339,7 @@ export default function EmployeeDocumentModal({
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+            className="px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700 disabled:opacity-50 flex items-center gap-2"
           >
             {saving ? (
               <>
@@ -387,8 +387,8 @@ export function EmployeeDocumentCard({
           {isImage && fileAccessUrl ? (
             <img src={fileAccessUrl} alt={doc.title} className="w-12 h-12 rounded-lg object-cover border shrink-0" />
           ) : (
-            <div className="p-2 bg-blue-50 rounded-lg shrink-0">
-              <FileText className="w-5 h-5 text-blue-600" />
+            <div className="p-2 bg-violet-50 rounded-lg shrink-0">
+              <FileText className="w-5 h-5 text-violet-600" />
             </div>
           )}
           <div className="min-w-0">
@@ -419,7 +419,7 @@ export function EmployeeDocumentCard({
         <div className="flex items-center gap-1 shrink-0">
           {fileAccessUrl && (
             <>
-              <a href={fileAccessUrl} target="_blank" rel="noopener noreferrer" className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded" title="Lihat">
+              <a href={fileAccessUrl} target="_blank" rel="noopener noreferrer" className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded" title="Lihat">
                 <Eye className="w-3.5 h-3.5" />
               </a>
               <a href={fileDownloadUrl || fileAccessUrl} download className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded" title="Unduh">
@@ -427,7 +427,7 @@ export function EmployeeDocumentCard({
               </a>
             </>
           )}
-          <button type="button" onClick={onEdit} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded">
+          <button type="button" onClick={onEdit} className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded">
             <Edit className="w-3.5 h-3.5" />
           </button>
           <button type="button" onClick={onDelete} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded">

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { CheckCircle2, ExternalLink, FileText, Play, Video } from 'lucide-react';
 import type { LearningMaterial } from '@/lib/hris/lms/course-service';
 
@@ -22,7 +22,7 @@ export function ContentPlayer({ material, completed, onComplete }: ContentPlayer
         <div className="flex items-center gap-2">
           {material.type === 'video' && <Video className="w-5 h-5 text-indigo-600" />}
           {material.type === 'pdf' && <FileText className="w-5 h-5 text-red-600" />}
-          {material.type === 'link' && <ExternalLink className="w-5 h-5 text-blue-600" />}
+          {material.type === 'link' && <ExternalLink className="w-5 h-5 text-violet-600" />}
           <h3 className="font-semibold">{material.title}</h3>
         </div>
         {ack && <CheckCircle2 className="w-5 h-5 text-green-600" />}

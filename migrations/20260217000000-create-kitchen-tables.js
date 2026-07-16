@@ -96,11 +96,11 @@ module.exports = {
         primaryKey: true
       },
       tenant_id: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: false
       },
       user_id: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: true,
         references: {
           model: 'users',
@@ -270,80 +270,6 @@ module.exports = {
       }
     });
 
-    // Create kitchen_order_items table
-    await queryInterface.createTable('kitchen_order_items', {
-      id: {
-        type: Sequelize.UUID,
-        defaultValue: Sequelize.UUIDV4,
-        primaryKey: true
-      },
-      kitchen_order_id: {
-        type: Sequelize.UUID,
-        allowNull: false,
-        references: {
-          model: 'kitchen_orders',
-          key: 'id'
-        },
-        onDelete: 'CASCADE'
-      },
-      product_id: {
-        type: Sequelize.UUID,
-        allowNull: false,
-        references: {
-          model: 'products',
-          key: 'id'
-        }
-      },
-      recipe_id: {
-        type: Sequelize.UUID,
-        allowNull: true,
-        references: {
-          model: 'kitchen_recipes',
-          key: 'id'
-        }
-      },
-      name: {
-        type: Sequelize.STRING,
-        allowNull: false
-      },
-      quantity: {
-        type: Sequelize.INTEGER,
-        allowNull: false,
-        defaultValue: 1
-      },
-      notes: {
-        type: Sequelize.TEXT,
-        allowNull: true
-      },
-      modifiers: {
-        type: Sequelize.JSON,
-        allowNull: true
-      },
-      status: {
-        type: Sequelize.ENUM('pending', 'preparing', 'ready'),
-        allowNull: false,
-        defaultValue: 'pending'
-      },
-      prepared_by: {
-        type: Sequelize.UUID,
-        allowNull: true,
-        references: {
-          model: 'kitchen_staff',
-          key: 'id'
-        }
-      },
-      created_at: {
-        type: Sequelize.DATE,
-        allowNull: false,
-        defaultValue: Sequelize.NOW
-      },
-      updated_at: {
-        type: Sequelize.DATE,
-        allowNull: false,
-        defaultValue: Sequelize.NOW
-      }
-    });
-
     // Create kitchen_recipes table
     await queryInterface.createTable('kitchen_recipes', {
       id: {
@@ -352,11 +278,11 @@ module.exports = {
         primaryKey: true
       },
       tenant_id: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: false
       },
       product_id: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: true,
         references: {
           model: 'products',
@@ -426,6 +352,80 @@ module.exports = {
       }
     });
 
+    // Create kitchen_order_items table
+    await queryInterface.createTable('kitchen_order_items', {
+      id: {
+        type: Sequelize.UUID,
+        defaultValue: Sequelize.UUIDV4,
+        primaryKey: true
+      },
+      kitchen_order_id: {
+        type: Sequelize.UUID,
+        allowNull: false,
+        references: {
+          model: 'kitchen_orders',
+          key: 'id'
+        },
+        onDelete: 'CASCADE'
+      },
+      product_id: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        references: {
+          model: 'products',
+          key: 'id'
+        }
+      },
+      recipe_id: {
+        type: Sequelize.UUID,
+        allowNull: true,
+        references: {
+          model: 'kitchen_recipes',
+          key: 'id'
+        }
+      },
+      name: {
+        type: Sequelize.STRING,
+        allowNull: false
+      },
+      quantity: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        defaultValue: 1
+      },
+      notes: {
+        type: Sequelize.TEXT,
+        allowNull: true
+      },
+      modifiers: {
+        type: Sequelize.JSON,
+        allowNull: true
+      },
+      status: {
+        type: Sequelize.ENUM('pending', 'preparing', 'ready'),
+        allowNull: false,
+        defaultValue: 'pending'
+      },
+      prepared_by: {
+        type: Sequelize.UUID,
+        allowNull: true,
+        references: {
+          model: 'kitchen_staff',
+          key: 'id'
+        }
+      },
+      created_at: {
+        type: Sequelize.DATE,
+        allowNull: false,
+        defaultValue: Sequelize.NOW
+      },
+      updated_at: {
+        type: Sequelize.DATE,
+        allowNull: false,
+        defaultValue: Sequelize.NOW
+      }
+    });
+
     // Create kitchen_inventory_items table
     await queryInterface.createTable('kitchen_inventory_items', {
       id: {
@@ -434,11 +434,11 @@ module.exports = {
         primaryKey: true
       },
       tenant_id: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: false
       },
       product_id: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: true,
         references: {
           model: 'products',
@@ -495,7 +495,7 @@ module.exports = {
         defaultValue: 'good'
       },
       warehouse_id: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: true,
         references: {
           model: 'warehouses',
@@ -503,7 +503,7 @@ module.exports = {
         }
       },
       location_id: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: true,
         references: {
           model: 'locations',
@@ -552,7 +552,7 @@ module.exports = {
         }
       },
       product_id: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: true,
         references: {
           model: 'products',
@@ -639,7 +639,7 @@ module.exports = {
         allowNull: true
       },
       reference_id: {
-        type: Sequelize.UUID,
+        type: Sequelize.STRING,
         allowNull: true
       },
       notes: {
@@ -647,7 +647,7 @@ module.exports = {
         allowNull: true
       },
       performed_by: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: true,
         references: {
           model: 'users',
@@ -693,8 +693,8 @@ module.exports = {
     await queryInterface.dropTable('kitchen_inventory_transactions');
     await queryInterface.dropTable('kitchen_recipe_ingredients');
     await queryInterface.dropTable('kitchen_inventory_items');
-    await queryInterface.dropTable('kitchen_recipes');
     await queryInterface.dropTable('kitchen_order_items');
+    await queryInterface.dropTable('kitchen_recipes');
     await queryInterface.dropTable('kitchen_orders');
     await queryInterface.dropTable('kitchen_staff');
     await queryInterface.dropTable('kitchen_settings');

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
@@ -35,7 +35,7 @@ interface Device {
 }
 
 const deviceTypeConfig: Record<string, { icon: any; label: string; color: string }> = {
-  fingerprint: { icon: Fingerprint, label: 'Fingerprint', color: 'bg-blue-100 text-blue-700' },
+  fingerprint: { icon: Fingerprint, label: 'Fingerprint', color: 'bg-violet-100 text-violet-700' },
   face_recognition: { icon: Eye, label: 'Face Recognition', color: 'bg-purple-100 text-purple-700' },
   card: { icon: Monitor, label: 'Kartu RFID', color: 'bg-amber-100 text-amber-700' },
   mobile_app: { icon: Smartphone, label: 'Mobile App', color: 'bg-green-100 text-green-700' },
@@ -247,7 +247,7 @@ export default function DeviceManagementPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-white rounded-xl p-4 shadow-sm border">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg"><Server className="w-5 h-5 text-blue-600" /></div>
+              <div className="p-2 bg-violet-100 rounded-lg"><Server className="w-5 h-5 text-violet-600" /></div>
               <div>
                 <p className="text-sm text-gray-500">Total Device</p>
                 <p className="text-xl font-bold">{devices.length}</p>
@@ -315,7 +315,7 @@ export default function DeviceManagementPage() {
                 <RefreshCw className="w-4 h-4" /> Refresh
               </button>
               <button onClick={openAdd}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
+                className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700">
                 <Plus className="w-4 h-4" /> Tambah Device
               </button>
             </div>
@@ -396,7 +396,7 @@ export default function DeviceManagementPage() {
                   <div className="flex border-t divide-x">
                     <button onClick={() => handleSync(device.id)}
                       disabled={syncing === device.id}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm text-blue-600 hover:bg-blue-50 transition disabled:opacity-50">
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm text-violet-600 hover:bg-violet-50 transition disabled:opacity-50">
                       <RefreshCw className={`w-4 h-4 ${syncing === device.id ? 'animate-spin' : ''}`} />
                       {syncing === device.id ? 'Syncing...' : 'Sync'}
                     </button>
@@ -416,11 +416,11 @@ export default function DeviceManagementPage() {
         </div>
 
         {/* Integration Guide */}
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 p-6">
+        <div className="bg-gradient-to-r from-violet-50 to-indigo-50 rounded-xl border border-violet-200 p-6">
           <h3 className="text-lg font-semibold text-blue-900 mb-3">📡 Panduan Integrasi Device</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
             <div className="bg-white/70 rounded-lg p-4">
-              <h4 className="font-semibold text-blue-800 mb-2">🔐 Fingerprint (ZKTeco)</h4>
+              <h4 className="font-semibold text-violet-800 mb-2">🔐 Fingerprint (ZKTeco)</h4>
               <ul className="space-y-1 text-gray-600">
                 <li>• Hubungkan via TCP/IP (port 4370)</li>
                 <li>• Masukkan IP address & comm key</li>
@@ -567,7 +567,7 @@ export default function DeviceManagementPage() {
               <button onClick={() => { setShowAddModal(false); setEditDevice(null); }}
                 className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">Batal</button>
               <button onClick={handleSave}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
+                className="px-6 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700">
                 {editDevice ? 'Update' : 'Simpan'}
               </button>
             </div>

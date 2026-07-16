@@ -67,12 +67,12 @@ module.exports = {
     });
 
     // Add index for customerType
-    await queryInterface.addIndex('Customers', ['customerType'], {
+    await queryInterface.addIndex('customers', ['customerType'], {
       name: 'idx_customers_customer_type'
     });
 
     // Add index for companyName
-    await queryInterface.addIndex('Customers', ['companyName'], {
+    await queryInterface.addIndex('customers', ['companyName'], {
       name: 'idx_customers_company_name'
     });
 
@@ -81,8 +81,8 @@ module.exports = {
 
   down: async (queryInterface, Sequelize) => {
     // Remove indexes
-    await queryInterface.removeIndex('Customers', 'idx_customers_customer_type');
-    await queryInterface.removeIndex('Customers', 'idx_customers_company_name');
+    await queryInterface.removeIndex('customers', 'idx_customers_customer_type');
+    await queryInterface.removeIndex('customers', 'idx_customers_company_name');
 
     // Remove columns
     await queryInterface.removeColumn('customers', 'taxId');

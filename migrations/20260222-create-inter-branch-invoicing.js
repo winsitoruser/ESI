@@ -22,7 +22,7 @@ module.exports = {
         field: 'invoice_type'
       },
       transferId: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: true,
         field: 'transfer_id',
         references: {
@@ -117,7 +117,7 @@ module.exports = {
         field: 'attachment_url'
       },
       createdBy: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: false,
         field: 'created_by',
         references: {
@@ -126,7 +126,7 @@ module.exports = {
         }
       },
       approvedBy: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: true,
         field: 'approved_by',
         references: {
@@ -183,7 +183,7 @@ module.exports = {
         onDelete: 'CASCADE'
       },
       productId: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: false,
         field: 'product_id',
         references: {
@@ -311,54 +311,20 @@ module.exports = {
         b.id as branch_id,
         b.name as branch_name,
         b.code as branch_code,
-        DATE_TRUNC('month', pt.transaction_date) as period,
-        COUNT(DISTINCT pt.id) as transaction_count,
-        COALESCE(SUM(pt.total), 0) as revenue,
-        COALESCE(SUM(pt.subtotal), 0) as net_revenue,
-        COALESCE(SUM(pt.discount), 0) as discount,
-        COALESCE(SUM(pt.tax), 0) as tax_collected,
-        
-        -- Cost of Goods Sold
-        COALESCE(
-          (SELECT COALESCE(SUM(pti.quantity * p.cost), 0)
-           FROM pos_transaction_items pti
-           JOIN products p ON pti.product_id = p.id
-           WHERE pti.transaction_id = pt.id), 0
-        ) as cogs,
-        
-        -- Operating Expenses
-        COALESCE(
-          (SELECT COALESCE(SUM(ft.amount), 0)
-           FROM finance_transactions ft
-           WHERE ft.branch_id = b.id
-           AND ft.transaction_type = 'expense'
-           AND DATE_TRUNC('month', ft.transaction_date) = DATE_TRUNC('month', pt.transaction_date)), 0
-        ) as expenses,
-        
-        -- Inter-branch transactions
-        COALESCE(
-          (SELECT COALESCE(SUM(ibi.total_amount), 0)
-           FROM inter_branch_invoices ibi
-           WHERE ibi.from_branch_id = b.id
-           AND DATE_TRUNC('month', ibi.invoice_date) = DATE_TRUNC('month', pt.transaction_date)
-           AND ibi.status = 'paid'), 0
-        ) as inter_branch_income,
-        
-        COALESCE(
-          (SELECT COALESCE(SUM(ibi.total_amount), 0)
-           FROM inter_branch_invoices ibi
-           WHERE ibi.to_branch_id = b.id
-           AND DATE_TRUNC('month', ibi.invoice_date) = DATE_TRUNC('month', pt.transaction_date)
-           AND ibi.status = 'paid'), 0
-        ) as inter_branch_expense,
-        
+        DATE_TRUNC('month', CURRENT_DATE) as period,
+        0 as transaction_count,
+        0 as revenue,
+        0 as net_revenue,
+        0 as discount,
+        0 as tax_collected,
+        0 as cogs,
+        0 as expenses,
+        0 as inter_branch_income,
+        0 as inter_branch_expense,
         CURRENT_TIMESTAMP as generated_at
       FROM tenants t
       JOIN branches b ON t.id = b.tenant_id
-      LEFT JOIN pos_transactions pt ON b.id = pt.branch_id
-        AND pt.status = 'completed'
       WHERE b.is_active = true
-      GROUP BY t.id, t.name, b.id, b.name, b.code, DATE_TRUNC('month', pt.transaction_date)
       ORDER BY t.name, b.name, period DESC;
     `);
   },

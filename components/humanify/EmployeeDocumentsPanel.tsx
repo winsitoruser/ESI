@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+﻿import { useMemo, useState } from 'react';
 import {
   Plus, FileText, Search, CheckCircle, AlertCircle, Clock,
   Upload, ShieldCheck, XCircle,
@@ -107,14 +107,14 @@ export default function EmployeeDocumentsPanel({
         <button
           type="button"
           onClick={() => openUpload()}
-          className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className="flex items-center gap-1 px-3 py-1.5 text-sm bg-violet-600 text-white rounded-lg hover:bg-violet-700"
         >
           <Plus className="w-3.5 h-3.5" /> Upload Dokumen
         </button>
       </div>
 
       {/* Kelengkapan berkas wajib */}
-      <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-100 rounded-xl p-4">
+      <div className="bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-100 rounded-xl p-4">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-indigo-600" />
@@ -148,7 +148,7 @@ export default function EmployeeDocumentsPanel({
                     ? 'bg-green-50 border-green-200 text-green-800'
                     : uploaded
                       ? 'bg-amber-50 border-amber-200 text-amber-800'
-                      : 'bg-white border-dashed border-gray-300 text-gray-500 hover:border-blue-400'
+                      : 'bg-white border-dashed border-gray-300 text-gray-500 hover:border-violet-400'
                 }`}
               >
                 <div className="flex items-center gap-1">
@@ -233,7 +233,7 @@ export default function EmployeeDocumentsPanel({
         <div className="text-center py-10 border-2 border-dashed rounded-xl">
           <FileText className="w-10 h-10 text-gray-300 mx-auto mb-2" />
           <p className="text-gray-400 text-sm">Belum ada dokumen diunggah</p>
-          <button type="button" onClick={() => openUpload()} className="mt-3 text-sm text-blue-600 hover:underline">
+          <button type="button" onClick={() => openUpload()} className="mt-3 text-sm text-violet-600 hover:underline">
             + Upload dokumen pertama
           </button>
         </div>

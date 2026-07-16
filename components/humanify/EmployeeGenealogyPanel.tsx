@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import {
   ChevronDown, ChevronRight, Users, GitBranch, Network, User,
   ArrowUp, ArrowDown, Save, RefreshCw, Eye, Building2,
@@ -51,12 +51,12 @@ function EmployeeCard({
       onClick={onClick}
       className={`text-left w-full rounded-xl border p-3 transition-all ${
         highlight
-          ? 'border-blue-400 bg-blue-50 ring-2 ring-blue-200'
-          : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-sm'
+          ? 'border-violet-400 bg-violet-50 ring-2 ring-violet-200'
+          : 'border-gray-200 bg-white hover:border-violet-300 hover:shadow-sm'
       } ${onClick ? 'cursor-pointer' : 'cursor-default'}`}
     >
       <div className="flex items-start gap-3">
-        <div className={`${compact ? 'w-8 h-8 text-xs' : 'w-10 h-10 text-sm'} rounded-full bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-white font-bold flex-shrink-0`}>
+        <div className={`${compact ? 'w-8 h-8 text-xs' : 'w-10 h-10 text-sm'} rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-bold flex-shrink-0`}>
           {(emp.name || '?')[0]}
         </div>
         <div className="flex-1 min-w-0">
@@ -311,7 +311,7 @@ export default function EmployeeGenealogyPanel({
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
             { label: 'Level Atasan', value: chain.managers.length, icon: ArrowUp, color: 'text-purple-600 bg-purple-50' },
-            { label: 'Bawahan Langsung', value: chain.directReports.length, icon: ArrowDown, color: 'text-blue-600 bg-blue-50' },
+            { label: 'Bawahan Langsung', value: chain.directReports.length, icon: ArrowDown, color: 'text-violet-600 bg-violet-50' },
             { label: 'Total Bawahan', value: chain.totalReportsCount, icon: Users, color: 'text-green-600 bg-green-50' },
             { label: 'Peran', value: chain.employee.workRoleLabel, icon: User, color: 'text-amber-600 bg-amber-50' },
           ].map((card, i) => (
@@ -350,8 +350,8 @@ export default function EmployeeGenealogyPanel({
 
         {/* Current employee */}
         <div className="relative">
-          <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-blue-200" />
-          <h4 className="text-xs font-semibold text-blue-600 uppercase tracking-wide flex items-center gap-1 mb-2">
+          <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-violet-200" />
+          <h4 className="text-xs font-semibold text-violet-600 uppercase tracking-wide flex items-center gap-1 mb-2">
             <User className="w-3.5 h-3.5" /> Karyawan Saat Ini
           </h4>
           <EmployeeCard emp={chain.employee} highlight />
@@ -414,7 +414,7 @@ export default function EmployeeGenealogyPanel({
               type="button"
               onClick={saveSupervisor}
               disabled={saving}
-              className="mt-3 flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
+              className="mt-3 flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700 disabled:opacity-50"
             >
               <Save className="w-4 h-4" /> {saving ? 'Menyimpan...' : 'Simpan Perubahan'}
             </button>
@@ -481,7 +481,7 @@ export default function EmployeeGenealogyPanel({
           <button
             type="button"
             onClick={() => onSelectEmployee(selectedId)}
-            className="flex items-center gap-2 px-4 py-2 text-sm border border-blue-300 text-blue-600 rounded-lg hover:bg-blue-50"
+            className="flex items-center gap-2 px-4 py-2 text-sm border border-violet-300 text-violet-600 rounded-lg hover:bg-violet-50"
           >
             <Eye className="w-4 h-4" /> Lihat Detail Karyawan
           </button>

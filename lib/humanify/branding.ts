@@ -8,7 +8,7 @@ export const NAINCODE = {
     'Trusted technology partner to build scalable, secure digital solutions that have a real impact on your business growth.',
   website: 'https://naincode.com',
   logoPath: '/images/naincode-logo.png',
-  logoTextPath: '/images/naincode-logo-text.png',
+  logoTextPath: '/images/humanify_white.png',
   email: 'hello@naincode.com',
   phone: '+62 877-8814-1650',
   address:
@@ -51,8 +51,11 @@ export const HUMANIFY_BRAND = {
   tagline: 'HRIS Software for People & Growth',
   logoPath: '/images/humanify-logo.png',
   /** Full wordmark for dark marketing pages (welcome, login) */
-  welcomeLogoPath: '/images/humanify-logo-brand.png',
+  welcomeLogoPath: '/images/humanify_white.png',
   welcomeLogoAspect: 1024 / 405,
+  /** Full wordmark for light background (app/dashboard sidebar) */
+  appLogoPath: '/images/humanify.png',
+  appLogoAspect: 1024 / 405,
   description:
     'Sistem HRIS lengkap untuk mengelola karyawan, kehadiran, payroll, rekrutmen, dan kinerja — bagian dari ekosistem produk Naincode.',
   company: NAINCODE.legalName,

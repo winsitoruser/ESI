@@ -3,8 +3,13 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/pages/api/auth/[...nextauth]';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
 
+// 🚧 DEV BYPASS — set ke false untuk mengaktifkan kembali guard login
+const DEV_BYPASS = process.env.NODE_ENV === 'development';
+
 /** Redirect ke welcome jika belum login — dipakai halaman app Humanify (bukan /humanify root) */
 export async function requireHumanifySession(ctx: GetServerSidePropsContext) {
+  if (DEV_BYPASS) return { props: {} }; // ← bypass login saat development
+
   const session = await getServerSession(ctx.req, ctx.res, authOptions);
   if (!session?.user) {
     const path = ctx.resolvedUrl || HUMANIFY_BRAND.appPath;

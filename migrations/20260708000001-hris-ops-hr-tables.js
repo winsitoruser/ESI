@@ -8,7 +8,7 @@ module.exports = {
 
     await sequelize.query(`
       CREATE TABLE IF NOT EXISTS employee_claims (
-        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         tenant_id UUID,
         employee_id UUID NOT NULL,
         claim_number VARCHAR(50),
@@ -33,7 +33,7 @@ module.exports = {
 
     await sequelize.query(`
       CREATE TABLE IF NOT EXISTS claim_approval_steps (
-        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         claim_id UUID NOT NULL REFERENCES employee_claims(id) ON DELETE CASCADE,
         step_order INTEGER NOT NULL DEFAULT 1,
         approver_id UUID,

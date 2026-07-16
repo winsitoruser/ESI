@@ -113,7 +113,7 @@ module.exports = {
         allowNull: true
       },
       enabled_by: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: true,
         references: {
           model: 'users',
@@ -244,7 +244,7 @@ module.exports = {
         allowNull: true
       },
       activated_by: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: true,
         references: {
           model: 'users',

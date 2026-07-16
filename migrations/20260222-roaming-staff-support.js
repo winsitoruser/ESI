@@ -70,7 +70,7 @@ module.exports = {
         field: 'is_active'
       },
       assignedBy: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: false,
         field: 'assigned_by',
         references: {
@@ -185,7 +185,7 @@ module.exports = {
         defaultValue: 'pending'
       },
       approvedBy: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: true,
         field: 'approved_by',
         references: {
@@ -208,7 +208,7 @@ module.exports = {
         allowNull: true
       },
       requestedBy: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: false,
         field: 'requested_by',
         references: {
@@ -322,7 +322,7 @@ module.exports = {
         allowNull: true
       },
       verifiedBy: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: true,
         field: 'verified_by',
         references: {
@@ -375,7 +375,7 @@ module.exports = {
         start_date, assigned_by, tenant_id, created_at, updated_at
       )
       SELECT 
-        UUID(), e.id, e.branch_id, true, false, e.position,
+        gen_random_uuid(), e.id, e.branch_id, true, false, e.position,
         e.hire_date, :createdBy, e.tenant_id, NOW(), NOW()
       FROM employees e
       WHERE e.branch_id IS NOT NULL

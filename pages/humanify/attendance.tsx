@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
@@ -134,7 +134,7 @@ export default function AttendancePage() {
   const navigateDate = (dir: number) => { const d = new Date(selectedDate); d.setDate(d.getDate() + dir); setSelectedDate(d.toISOString().split('T')[0]); };
   const formatTime = (t: string | null) => t ? new Date(t).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-';
   const getStatusConfig = (status: string) => {
-    const map: Record<string, { label: string; color: string; icon: any }> = { present: { label: 'Hadir', color: 'bg-green-100 text-green-700', icon: CheckCircle }, late: { label: 'Terlambat', color: 'bg-yellow-100 text-yellow-700', icon: AlertTriangle }, absent: { label: 'Tidak Hadir', color: 'bg-red-100 text-red-700', icon: XCircle }, leave: { label: 'Cuti', color: 'bg-blue-100 text-blue-700', icon: Coffee }, sick: { label: 'Sakit', color: 'bg-purple-100 text-purple-700', icon: Coffee }, work_from_home: { label: 'WFH', color: 'bg-indigo-100 text-indigo-700', icon: MapPin }, holiday: { label: 'Libur', color: 'bg-gray-100 text-gray-600', icon: Calendar } };
+    const map: Record<string, { label: string; color: string; icon: any }> = { present: { label: 'Hadir', color: 'bg-green-100 text-green-700', icon: CheckCircle }, late: { label: 'Terlambat', color: 'bg-yellow-100 text-yellow-700', icon: AlertTriangle }, absent: { label: 'Tidak Hadir', color: 'bg-red-100 text-red-700', icon: XCircle }, leave: { label: 'Cuti', color: 'bg-violet-100 text-violet-700', icon: Coffee }, sick: { label: 'Sakit', color: 'bg-purple-100 text-purple-700', icon: Coffee }, work_from_home: { label: 'WFH', color: 'bg-indigo-100 text-indigo-700', icon: MapPin }, holiday: { label: 'Libur', color: 'bg-gray-100 text-gray-600', icon: Calendar } };
     return map[status] || map.absent;
   };
   const getSourceIcon = (source: string) => {
@@ -228,7 +228,7 @@ export default function AttendancePage() {
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
           {[
-            { label: 'Total Hari Ini', value: todayStats.total || dailyRecords.length, icon: Users, bg: 'bg-blue-100', color: 'text-blue-600' },
+            { label: 'Total Hari Ini', value: todayStats.total || dailyRecords.length, icon: Users, bg: 'bg-violet-100', color: 'text-violet-600' },
             { label: 'Hadir', value: todayStats.present || dPresent, icon: UserCheck, bg: 'bg-green-100', color: 'text-green-600' },
             { label: 'Terlambat', value: todayStats.late || dLate, icon: Clock, bg: 'bg-yellow-100', color: 'text-yellow-600' },
             { label: 'Tidak Hadir', value: todayStats.absent || dAbsent, icon: UserX, bg: 'bg-red-100', color: 'text-red-600' },
@@ -259,7 +259,7 @@ export default function AttendancePage() {
           <div className="flex border-b overflow-x-auto">
             {TABS.map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${activeTab === tab.key ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${activeTab === tab.key ? 'border-violet-600 text-violet-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
                 <tab.icon className="w-4 h-4" /> {tab.label}
               </button>
             ))}
@@ -286,7 +286,7 @@ export default function AttendancePage() {
                     <thead className="bg-gray-50"><tr><th scope="col" className="px-4 py-3 text-left font-medium text-gray-500 text-xs uppercase">Karyawan</th><th scope="col" className="px-4 py-3 text-center font-medium text-gray-500 text-xs uppercase">Masuk</th><th scope="col" className="px-4 py-3 text-center font-medium text-gray-500 text-xs uppercase">Keluar</th><th scope="col" className="px-4 py-3 text-center font-medium text-gray-500 text-xs uppercase">Status</th><th scope="col" className="px-4 py-3 text-center font-medium text-gray-500 text-xs uppercase">Metode</th><th scope="col" className="px-4 py-3 text-center font-medium text-gray-500 text-xs uppercase">Jam Kerja</th></tr></thead>
                     <tbody className="divide-y">
                       {todayRecords.map((r: any, i: number) => {
-                        const statusMap: Record<string, { label: string; cls: string }> = { present: { label: 'Hadir', cls: 'bg-green-100 text-green-700' }, late: { label: 'Terlambat', cls: 'bg-yellow-100 text-yellow-700' }, absent: { label: 'Tidak Hadir', cls: 'bg-red-100 text-red-700' }, leave: { label: 'Cuti', cls: 'bg-blue-100 text-blue-700' }, sick: { label: 'Sakit', cls: 'bg-purple-100 text-purple-700' }, work_from_home: { label: 'WFH', cls: 'bg-cyan-100 text-cyan-700' } };
+                        const statusMap: Record<string, { label: string; cls: string }> = { present: { label: 'Hadir', cls: 'bg-green-100 text-green-700' }, late: { label: 'Terlambat', cls: 'bg-yellow-100 text-yellow-700' }, absent: { label: 'Tidak Hadir', cls: 'bg-red-100 text-red-700' }, leave: { label: 'Cuti', cls: 'bg-violet-100 text-violet-700' }, sick: { label: 'Sakit', cls: 'bg-purple-100 text-purple-700' }, work_from_home: { label: 'WFH', cls: 'bg-cyan-100 text-cyan-700' } };
                         const st = statusMap[r.status] || statusMap.present;
                         return (
                           <tr key={i} className="hover:bg-gray-50">
@@ -320,7 +320,7 @@ export default function AttendancePage() {
                   <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-green-500 rounded-full" /><span>Hadir: <strong>{dPresent}</strong></span></div>
                   <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-yellow-500 rounded-full" /><span>Terlambat: <strong>{dLate}</strong></span></div>
                   <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-red-500 rounded-full" /><span>Tidak Hadir: <strong>{dAbsent}</strong></span></div>
-                  <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-blue-500 rounded-full" /><span>Cuti: <strong>{dLeave}</strong></span></div>
+                  <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-violet-500 rounded-full" /><span>Cuti: <strong>{dLeave}</strong></span></div>
                   {dClockedIn > 0 && <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-orange-500 rounded-full animate-pulse" /><span>Aktif: <strong>{dClockedIn}</strong></span></div>}
                 </div>
               </div>
@@ -342,11 +342,11 @@ export default function AttendancePage() {
                           <td className="px-4 py-3"><p className="font-medium">{r.employeeName}</p><p className="text-xs text-gray-500">{r.employeeId} · {r.position}</p></td>
                           <td className="px-4 py-3 text-sm">{r.branchName}</td>
                           <td className="px-4 py-3 text-center"><span className={`text-sm font-mono ${r.clockIn ? (r.status === 'late' ? 'text-yellow-600' : 'text-green-600') : 'text-gray-400'}`}>{formatTime(r.clockIn)}</span></td>
-                          <td className="px-4 py-3 text-center"><span className={`text-sm font-mono ${r.clockOut ? 'text-blue-600' : (r.clockIn ? 'text-orange-500' : 'text-gray-400')}`}>{r.clockOut ? formatTime(r.clockOut) : (r.clockIn ? '⏳ Aktif' : '-')}</span></td>
+                          <td className="px-4 py-3 text-center"><span className={`text-sm font-mono ${r.clockOut ? 'text-violet-600' : (r.clockIn ? 'text-orange-500' : 'text-gray-400')}`}>{r.clockOut ? formatTime(r.clockOut) : (r.clockIn ? '⏳ Aktif' : '-')}</span></td>
                           <td className="px-4 py-3 text-center">{r.workHours > 0 ? <span className="text-sm font-medium">{r.workHours.toFixed(1)}h</span> : <span className="text-gray-400">-</span>}</td>
                           <td className="px-4 py-3 text-center"><span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${sc.color}`}><StatusIcon className="w-3 h-3" />{sc.label}</span></td>
                           <td className="px-4 py-3 text-center"><span className="inline-flex items-center gap-1 text-xs text-gray-500"><SourceIcon className="w-3.5 h-3.5" />{si.label}</span></td>
-                          <td className="px-4 py-3 text-center text-xs"><div className="space-y-0.5">{r.lateMinutes > 0 && <span className="block text-yellow-600">Telat {r.lateMinutes}m</span>}{r.overtimeMinutes > 0 && <span className="block text-blue-600">Lembur {r.overtimeMinutes}m</span>}{r.earlyLeaveMinutes > 0 && <span className="block text-orange-600">Pulang awal {r.earlyLeaveMinutes}m</span>}{r.isOutsideGeofence && <span className="block text-red-500">⚠ Di luar area</span>}{!r.lateMinutes && !r.overtimeMinutes && !r.earlyLeaveMinutes && !r.isOutsideGeofence && <span className="text-gray-400">-</span>}</div></td>
+                          <td className="px-4 py-3 text-center text-xs"><div className="space-y-0.5">{r.lateMinutes > 0 && <span className="block text-yellow-600">Telat {r.lateMinutes}m</span>}{r.overtimeMinutes > 0 && <span className="block text-violet-600">Lembur {r.overtimeMinutes}m</span>}{r.earlyLeaveMinutes > 0 && <span className="block text-orange-600">Pulang awal {r.earlyLeaveMinutes}m</span>}{r.isOutsideGeofence && <span className="block text-red-500">⚠ Di luar area</span>}{!r.lateMinutes && !r.overtimeMinutes && !r.earlyLeaveMinutes && !r.isOutsideGeofence && <span className="text-gray-400">-</span>}</div></td>
                         </tr>
                       );
                     })}
@@ -361,7 +361,7 @@ export default function AttendancePage() {
             <div className="p-4 space-y-4">
               {/* Stats */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="bg-blue-50 rounded-lg p-3"><p className="text-xs text-blue-600">Total Karyawan</p><p className="text-xl font-bold text-blue-800">{mTotal}</p></div>
+                <div className="bg-violet-50 rounded-lg p-3"><p className="text-xs text-violet-600">Total Karyawan</p><p className="text-xl font-bold text-violet-800">{mTotal}</p></div>
                 <div className="bg-green-50 rounded-lg p-3"><p className="text-xs text-green-600">Rata-rata Kehadiran</p><p className="text-xl font-bold text-green-800">{mAvg.toFixed(1)}%</p></div>
                 <div className="bg-purple-50 rounded-lg p-3"><p className="text-xs text-purple-600">Kehadiran Sempurna</p><p className="text-xl font-bold text-purple-800">{mPerfect}</p></div>
                 <div className="bg-red-50 rounded-lg p-3"><p className="text-xs text-red-600">Kehadiran Rendah (&lt;80%)</p><p className="text-xl font-bold text-red-800">{mLow}</p></div>
@@ -401,7 +401,7 @@ export default function AttendancePage() {
                         <td className="px-4 py-3 text-center"><span className="flex items-center justify-center gap-1 text-green-600"><UserCheck className="w-3.5 h-3.5" />{r.present}</span></td>
                         <td className="px-4 py-3 text-center"><span className="flex items-center justify-center gap-1 text-yellow-600"><Clock className="w-3.5 h-3.5" />{r.late}</span></td>
                         <td className="px-4 py-3 text-center"><span className="flex items-center justify-center gap-1 text-red-600"><UserX className="w-3.5 h-3.5" />{r.absent}</span></td>
-                        <td className="px-4 py-3 text-center"><span className="flex items-center justify-center gap-1 text-blue-600"><Coffee className="w-3.5 h-3.5" />{r.leave}</span></td>
+                        <td className="px-4 py-3 text-center"><span className="flex items-center justify-center gap-1 text-violet-600"><Coffee className="w-3.5 h-3.5" />{r.leave}</span></td>
                         <td className="px-4 py-3 text-center font-medium">{r.totalDays}</td>
                         <td className="px-4 py-3 text-center"><span className={`px-3 py-1 rounded-full text-xs font-medium ${getAttendanceColor(r.attendanceRate)}`}>{r.attendanceRate}%</span></td>
                       </tr>
@@ -457,7 +457,7 @@ function AttendanceExportBar({
       </button>
       {(view === 'daily' || view === 'monthly' || view === 'live') && (
         <button onClick={onImport} title="Import data massal"
-          className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-600 text-white rounded-lg text-xs hover:bg-blue-700 ml-1">
+          className="flex items-center gap-1 px-2.5 py-1.5 bg-violet-600 text-white rounded-lg text-xs hover:bg-violet-700 ml-1">
           <Upload className="w-3.5 h-3.5" /> Import
         </button>
       )}

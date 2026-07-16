@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
@@ -103,7 +103,7 @@ export default function DailyAttendancePage() {
       present: { label: 'Hadir', color: 'bg-green-100 text-green-700', icon: CheckCircle },
       late: { label: 'Terlambat', color: 'bg-yellow-100 text-yellow-700', icon: AlertTriangle },
       absent: { label: 'Tidak Hadir', color: 'bg-red-100 text-red-700', icon: XCircle },
-      leave: { label: 'Cuti', color: 'bg-blue-100 text-blue-700', icon: Coffee },
+      leave: { label: 'Cuti', color: 'bg-violet-100 text-violet-700', icon: Coffee },
       sick: { label: 'Sakit', color: 'bg-purple-100 text-purple-700', icon: Coffee },
       work_from_home: { label: 'WFH', color: 'bg-indigo-100 text-indigo-700', icon: MapPin },
       holiday: { label: 'Libur', color: 'bg-gray-100 text-gray-600', icon: Calendar },
@@ -182,7 +182,7 @@ export default function DailyAttendancePage() {
                 <span>Tidak Hadir: <strong>{absent}</strong></span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                <div className="w-3 h-3 bg-violet-500 rounded-full"></div>
                 <span>Cuti: <strong>{leave}</strong></span>
               </div>
               <div className="flex items-center gap-1.5">
@@ -223,7 +223,7 @@ export default function DailyAttendancePage() {
               <option value="gps_mobile">Mobile/GPS</option>
               <option value="manual">Manual</option>
             </select>
-            <button onClick={handleExport} className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
+            <button onClick={handleExport} className="flex items-center gap-2 px-3 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700">
               <Download className="w-4 h-4" /> Export CSV
             </button>
           </div>
@@ -271,7 +271,7 @@ export default function DailyAttendancePage() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <span className={`text-sm font-mono ${r.clockOut ? 'text-blue-600' : (r.clockIn ? 'text-orange-500' : 'text-gray-400')}`}>
+                          <span className={`text-sm font-mono ${r.clockOut ? 'text-violet-600' : (r.clockIn ? 'text-orange-500' : 'text-gray-400')}`}>
                             {r.clockOut ? formatTime(r.clockOut) : (r.clockIn ? '⏳ Aktif' : '-')}
                           </span>
                         </td>
@@ -300,7 +300,7 @@ export default function DailyAttendancePage() {
                               <span className="block text-yellow-600">Terlambat {r.lateMinutes} mnt</span>
                             )}
                             {r.overtimeMinutes > 0 && (
-                              <span className="block text-blue-600">Lembur {r.overtimeMinutes} mnt</span>
+                              <span className="block text-violet-600">Lembur {r.overtimeMinutes} mnt</span>
                             )}
                             {r.earlyLeaveMinutes > 0 && (
                               <span className="block text-orange-600">Pulang awal {r.earlyLeaveMinutes} mnt</span>

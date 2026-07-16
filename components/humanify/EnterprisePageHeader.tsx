@@ -1,4 +1,4 @@
-import type { LucideIcon } from 'lucide-react';
+﻿import type { LucideIcon } from 'lucide-react';
 import { ReactNode } from 'react';
 
 interface EnterprisePageHeaderProps {
@@ -32,13 +32,13 @@ export default function EnterprisePageHeader({
 
   if (isCorporate) {
     return (
-      <div className="relative overflow-hidden rounded-2xl border border-slate-200/90 bg-gradient-to-br from-white via-slate-50 to-blue-50/40 p-6 shadow-sm md:p-8">
-        <div className="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-blue-100/40" />
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200/90 bg-gradient-to-br from-white via-slate-50 to-violet-50/40 p-6 shadow-sm md:p-8">
+        <div className="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-violet-100/40" />
         <div className="absolute bottom-0 left-1/3 h-24 w-24 rounded-full bg-slate-100/60" />
         <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             {badge && (
-              <div className="mb-2 flex items-center gap-2 text-blue-700">
+              <div className="mb-2 flex items-center gap-2 text-violet-700">
                 {Icon && <Icon className="h-4 w-4" />}
                 <span className="text-xs font-semibold uppercase tracking-wider">{badge}</span>
               </div>

@@ -2,34 +2,41 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
+    const safeAddColumn = async (table, column, options) => {
+      const desc = await queryInterface.describeTable(table);
+      if (!desc[column]) {
+        await queryInterface.addColumn(table, column, options);
+      }
+    };
+
     // Check if inventory_transfers table exists
     const tableExists = await queryInterface.describeTable('inventory_transfers');
     
     if (tableExists) {
       // Add new status to ENUM if not exists
-      await queryInterface.changeColumn('inventory_transfers', 'status', {
-        type: Sequelize.ENUM(
-          'requested',
-          'approved',
-          'rejected',
-          'in_transit',  // New status
-          'received',
-          'completed',
-          'cancelled'
-        ),
-        allowNull: false,
-        defaultValue: 'requested'
-      });
+      // Add new status to ENUM (converting from STRING)
+      await queryInterface.sequelize.query('ALTER TABLE inventory_transfers ALTER COLUMN status DROP DEFAULT');
+      await queryInterface.sequelize.query(`
+        DO $$ BEGIN 
+          CREATE TYPE "public"."enum_inventory_transfers_status" AS ENUM('requested', 'approved', 'rejected', 'in_transit', 'received', 'completed', 'cancelled'); 
+        EXCEPTION WHEN duplicate_object THEN null; END $$;
+      `);
+      await queryInterface.sequelize.query(`
+        ALTER TABLE inventory_transfers ALTER COLUMN status TYPE "public"."enum_inventory_transfers_status" USING status::"public"."enum_inventory_transfers_status"
+      `);
+      await queryInterface.sequelize.query(`
+        ALTER TABLE inventory_transfers ALTER COLUMN status SET DEFAULT 'requested'::"public"."enum_inventory_transfers_status"
+      `);
 
       // Add tracking fields
-      await queryInterface.addColumn('inventory_transfers', 'shipped_at', {
+      await safeAddColumn('inventory_transfers', 'shipped_at', {
         type: Sequelize.DATE,
         allowNull: true,
         comment: 'When items were shipped from source'
       });
 
-      await queryInterface.addColumn('inventory_transfers', 'shipped_by', {
-        type: Sequelize.UUID,
+      await safeAddColumn('inventory_transfers', 'shipped_by', {
+        type: Sequelize.INTEGER,
         allowNull: true,
         references: {
           model: 'users',
@@ -38,14 +45,14 @@ module.exports = {
         comment: 'User who marked as shipped'
       });
 
-      await queryInterface.addColumn('inventory_transfers', 'received_at', {
+      await safeAddColumn('inventory_transfers', 'received_at', {
         type: Sequelize.DATE,
         allowNull: true,
         comment: 'When items were received at destination'
       });
 
-      await queryInterface.addColumn('inventory_transfers', 'received_by', {
-        type: Sequelize.UUID,
+      await safeAddColumn('inventory_transfers', 'received_by', {
+        type: Sequelize.INTEGER,
         allowNull: true,
         references: {
           model: 'users',
@@ -55,7 +62,7 @@ module.exports = {
       });
 
       // Add branch IDs for multi-branch support
-      await queryInterface.addColumn('inventory_transfers', 'from_branch_id', {
+      await safeAddColumn('inventory_transfers', 'from_branch_id', {
         type: Sequelize.UUID,
         allowNull: true,
         references: {
@@ -66,7 +73,7 @@ module.exports = {
         onDelete: 'SET NULL'
       });
 
-      await queryInterface.addColumn('inventory_transfers', 'to_branch_id', {
+      await safeAddColumn('inventory_transfers', 'to_branch_id', {
         type: Sequelize.UUID,
         allowNull: true,
         references: {
@@ -89,33 +96,33 @@ module.exports = {
     const itemsTableExists = await queryInterface.describeTable('inventory_transfer_items');
     
     if (itemsTableExists) {
-      await queryInterface.addColumn('inventory_transfer_items', 'quantity_shipped', {
+      await safeAddColumn('inventory_transfer_items', 'quantity_shipped', {
         type: Sequelize.DECIMAL(15, 2),
         allowNull: true,
         defaultValue: 0,
         comment: 'Actual quantity shipped'
       });
 
-      await queryInterface.addColumn('inventory_transfer_items', 'quantity_received', {
+      await safeAddColumn('inventory_transfer_items', 'quantity_received', {
         type: Sequelize.DECIMAL(15, 2),
         allowNull: true,
         defaultValue: 0,
         comment: 'Actual quantity received'
       });
 
-      await queryInterface.addColumn('inventory_transfer_items', 'batch_number', {
+      await safeAddColumn('inventory_transfer_items', 'batch_number', {
         type: Sequelize.STRING(50),
         allowNull: true,
         comment: 'Batch/lot number for tracking'
       });
 
-      await queryInterface.addColumn('inventory_transfer_items', 'expiry_date', {
+      await safeAddColumn('inventory_transfer_items', 'expiry_date', {
         type: Sequelize.DATE,
         allowNull: true,
         comment: 'Expiry date for perishable items'
       });
 
-      await queryInterface.addColumn('inventory_transfer_items', 'notes', {
+      await safeAddColumn('inventory_transfer_items', 'notes', {
         type: Sequelize.TEXT,
         allowNull: true,
         comment: 'Item-specific notes'
@@ -139,19 +146,7 @@ module.exports = {
     await queryInterface.removeColumn('inventory_transfers', 'from_branch_id');
     await queryInterface.removeColumn('inventory_transfers', 'to_branch_id');
 
-    // Revert status ENUM to original values
-    await queryInterface.changeColumn('inventory_transfers', 'status', {
-      type: Sequelize.ENUM(
-        'requested',
-        'approved',
-        'rejected',
-        'received',
-        'completed',
-        'cancelled'
-      ),
-      allowNull: false,
-      defaultValue: 'requested'
-    });
+    // Revert status ENUM to original values (omitted as PostgreSQL does not support dropping ENUM values easily)
 
     // Remove columns from inventory_transfer_items
     await queryInterface.removeColumn('inventory_transfer_items', 'quantity_shipped');

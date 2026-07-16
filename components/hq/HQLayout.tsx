@@ -133,18 +133,23 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
     }
   }, []);
 
-  // Auto-expand some menus and find active menu's parent
+  // Compute the single active menu item (memoized) — used for precise active-state highlighting
+  const activeMenuItem = useMemo(
+    () => findActiveMenuItem(filteredConfig.groups, router.pathname, router.query as Record<string, string | string[] | undefined>),
+    [filteredConfig.groups, router.pathname, router.query]
+  );
+
+  // Auto-expand parent of active menu item
   useEffect(() => {
-    const activeItem = findActiveMenuItem(filteredConfig.groups, router.pathname, router.query as Record<string, string | string[] | undefined>);
-    if (activeItem) {
-      const parent = getParentMenuItem(filteredConfig.groups, activeItem.id);
+    if (activeMenuItem) {
+      const parent = getParentMenuItem(filteredConfig.groups, activeMenuItem.id);
       if (parent) {
         setExpandedMenus(prev => [...new Set([...prev, parent.id])]);
       }
     }
     
     fetchNotifications();
-  }, [router.pathname, router.query, filteredConfig.groups]);
+  }, [router.pathname, router.query, filteredConfig.groups, activeMenuItem]);
 
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -286,22 +291,12 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
     localStorage.setItem(sidebarStorageKey, String(newState));
   };
 
-  const isActive = (href?: string) => {
-    if (!href) return false;
-    // Support query-param tabs like /hq/fms?tab=vehicles
-    if (href.includes('?')) {
-      const [path, qs] = href.split('?');
-      if (router.pathname !== path) return false;
-      const params = new URLSearchParams(qs);
-      for (const [k, v] of params.entries()) {
-        if (router.query[k] !== v) return false;
-      }
-      return true;
-    }
-    // Exact match or nested path, but NOT if there's a tab query (so parent dashboard doesn't highlight for all tabs)
-    if (router.pathname === href && !router.query.tab) return true;
-    if (router.pathname === href && !href.includes('?')) return false; // has tab query but href is base path
-    return router.pathname.startsWith(href + '/');
+  const isActive = (item: MenuItem) => {
+    // Gunakan ID-based comparison dari findActiveMenuItem agar hanya SATU item aktif
+    if (activeMenuItem) return activeMenuItem.id === item.id;
+    // Fallback: exact match saja (tidak pakai startsWith agar tidak double-active)
+    if (!item.href) return false;
+    return router.pathname === item.href;
   };
 
   const handleLogout = async () => {
@@ -342,7 +337,7 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
   const renderNavItem = (item: MenuItem, depth = 0) => {
     const hasChildren = item.children && item.children.length > 0;
     const isExpanded = expandedMenus.includes(item.id);
-    const active = item.href ? isActive(item.href) : false;
+    const active = isActive(item);
     const Icon = item.icon;
     const isChild = depth > 0;
 
@@ -454,22 +449,25 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
           {isHumanify ? (
             <Link
               href={filteredConfig.logo.href}
-              className={`inline-flex shrink-0 hover:opacity-90 transition-opacity ${sidebarCollapsed ? 'lg:mx-auto' : 'items-center gap-3'}`}
+              className={`inline-flex items-center hover:opacity-85 transition-opacity ${sidebarCollapsed ? 'lg:mx-auto lg:justify-center' : ''}`}
             >
-              <span className="relative block h-10 w-10 shrink-0 overflow-hidden rounded-xl">
+              {sidebarCollapsed ? (
+                /* Collapsed: tunjukkan icon saja */
+                <span className="relative block h-9 w-9 shrink-0 overflow-hidden rounded-xl">
+                  <img
+                    src={HUMANIFY_BRAND.logoPath}
+                    alt={HUMANIFY_BRAND.name}
+                    className="absolute inset-0 h-full w-full scale-[2.4] object-cover object-[22%_center]"
+                  />
+                </span>
+              ) : (
+                /* Expanded: full wordmark humanify.png */
                 <img
-                  src={HUMANIFY_BRAND.logoPath}
+                  src={HUMANIFY_BRAND.appLogoPath}
                   alt={HUMANIFY_BRAND.name}
-                  className="absolute inset-0 h-full w-full scale-[2.4] object-cover object-[22%_center]"
+                  style={{ aspectRatio: HUMANIFY_BRAND.appLogoAspect }}
+                  className="h-14 w-auto object-contain"
                 />
-              </span>
-              {!sidebarCollapsed && (
-                <div>
-                  <h1 className="text-base font-bold text-gray-900 leading-tight">{filteredConfig.logo.title}</h1>
-                  {filteredConfig.logo.subtitle && (
-                    <p className="text-xs text-gray-400 font-medium leading-tight">{filteredConfig.logo.subtitle}</p>
-                  )}
-                </div>
               )}
             </Link>
           ) : (

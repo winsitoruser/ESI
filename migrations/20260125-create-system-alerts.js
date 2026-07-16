@@ -88,7 +88,7 @@ module.exports = {
         allowNull: true
       },
       resolved_by: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: true,
         references: {
           model: 'users',
@@ -100,7 +100,7 @@ module.exports = {
         allowNull: true
       },
       assigned_to: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: true,
         references: {
           model: 'users',
@@ -149,7 +149,7 @@ module.exports = {
         primaryKey: true
       },
       user_id: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: false,
         references: {
           model: 'users',
@@ -217,7 +217,7 @@ module.exports = {
         onDelete: 'CASCADE'
       },
       user_id: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: false,
         references: {
           model: 'users',

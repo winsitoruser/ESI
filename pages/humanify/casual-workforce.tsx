@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
@@ -198,7 +198,7 @@ export default function CasualWorkforcePage() {
           {/* Mekanisme info */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-6">
             {[
-              { title: 'Per Jam / Harian', desc: 'Upah dari absensi aktual, diawasi pengawas lapangan', icon: Calendar, bg: 'bg-blue-50 border-blue-100', ic: 'text-blue-600' },
+              { title: 'Per Jam / Harian', desc: 'Upah dari absensi aktual, diawasi pengawas lapangan', icon: Calendar, bg: 'bg-violet-50 border-violet-100', ic: 'text-violet-600' },
               { title: 'Per Proyek', desc: 'Timesheet disetujui pengawas proyek × tarif', icon: ClipboardList, bg: 'bg-purple-50 border-purple-100', ic: 'text-purple-600' },
               { title: 'Borongan', desc: 'Diverifikasi pengawas → disetujui HR → payroll', icon: Package, bg: 'bg-amber-50 border-amber-100', ic: 'text-amber-600' },
               { title: 'Laporan Pengawas', desc: 'Pengawas kirim laporan harian kehadiran & produktivitas', icon: Shield, bg: 'bg-green-50 border-green-100', ic: 'text-green-600' },
@@ -230,7 +230,7 @@ export default function CasualWorkforcePage() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 {[
-                  { label: 'Tenaga Harian Aktif', value: stats.casualWorkers || 0, icon: Users, color: 'text-blue-600' },
+                  { label: 'Tenaga Harian Aktif', value: stats.casualWorkers || 0, icon: Users, color: 'text-violet-600' },
                   { label: 'Tanpa Pengawas', value: stats.workersWithoutSupervisor || 0, icon: AlertTriangle, color: 'text-red-600' },
                   { label: 'Pengawas Aktif', value: supervisors.length, icon: Shield, color: 'text-indigo-600' },
                   { label: 'Laporan Pending HR', value: stats.pendingSupervisionReports || 0, icon: FileText, color: 'text-orange-600' },
@@ -255,7 +255,7 @@ export default function CasualWorkforcePage() {
                         <p className="font-medium text-sm">{s.name}</p>
                         <p className="text-xs text-gray-500">{s.position}</p>
                         <div className="flex gap-3 mt-2 text-xs">
-                          <span className="text-blue-700">{s.casual_worker_count} bawahan</span>
+                          <span className="text-violet-700">{s.casual_worker_count} bawahan</span>
                           {Number(s.pending_reports) > 0 && (
                             <span className="text-orange-600">{s.pending_reports} laporan pending</span>
                           )}
@@ -428,7 +428,7 @@ export default function CasualWorkforcePage() {
                               <button onClick={async () => {
                                 await api('submit-report', 'POST', { id: r.id });
                                 showToast('Laporan dikirim'); loadData();
-                              }} className="text-xs text-blue-600 hover:underline flex items-center gap-0.5">
+                              }} className="text-xs text-violet-600 hover:underline flex items-center gap-0.5">
                                 <Send className="w-3 h-3" /> Kirim
                               </button>
                             )}
@@ -507,7 +507,7 @@ export default function CasualWorkforcePage() {
                         <td className="px-4 py-3">
                           <span className={`text-xs px-2 py-0.5 rounded-full ${
                             p.status === 'approved' ? 'bg-green-100 text-green-700' :
-                            p.status === 'paid' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'
+                            p.status === 'paid' ? 'bg-violet-100 text-violet-700' : 'bg-yellow-100 text-yellow-700'
                           }`}>{p.status}</span>
                         </td>
                         <td className="px-4 py-3">
@@ -564,7 +564,7 @@ export default function CasualWorkforcePage() {
                         <td className="px-4 py-3">
                           <span className={`text-xs px-2 py-0.5 rounded-full ${
                             a.status === 'completed' ? 'bg-green-100 text-green-700' :
-                            a.status === 'in_progress' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
+                            a.status === 'in_progress' ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-600'
                           }`}>{a.status}</span>
                         </td>
                       </tr>

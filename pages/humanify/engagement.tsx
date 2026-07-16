@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import HRStatCard from '@/components/humanify/HRStatCard';
 import PerformanceModuleChrome, { EnterpriseTabBar } from '@/components/humanify/PerformanceModuleChrome';
@@ -130,12 +130,12 @@ export default function EngagementPage() {
   };
 
   const statusColor = (s: string) => {
-    const m: any = { draft: 'bg-gray-100 text-gray-800', active: 'bg-green-100 text-green-800', closed: 'bg-red-100 text-red-800', published: 'bg-blue-100 text-blue-800', archived: 'bg-gray-200 text-gray-600' };
+    const m: any = { draft: 'bg-gray-100 text-gray-800', active: 'bg-green-100 text-green-800', closed: 'bg-red-100 text-red-800', published: 'bg-violet-100 text-violet-800', archived: 'bg-gray-200 text-gray-600' };
     return m[s] || 'bg-gray-100 text-gray-800';
   };
 
   const priorityColor = (p: string) => {
-    const m: any = { low: 'text-gray-500', normal: 'text-blue-600', high: 'text-orange-600', urgent: 'text-red-600' };
+    const m: any = { low: 'text-gray-500', normal: 'text-violet-600', high: 'text-orange-600', urgent: 'text-red-600' };
     return m[p] || 'text-gray-500';
   };
 
@@ -176,7 +176,7 @@ export default function EngagementPage() {
         <HRStatCard label="Total Survei" value={overview.totalSurveys || 0} sub={`${overview.activeSurveys || 0} aktif`} icon={BarChart3} gradient="from-violet-500 to-purple-600" />
         <HRStatCard label="Total Respons" value={overview.totalResponses || 0} sub={`Skor ${overview.avgEngagementScore || 0}%`} icon={Users} gradient="from-emerald-500 to-teal-600" />
         <HRStatCard label="Penghargaan" value={overview.totalRecognitions || 0} icon={Award} gradient="from-amber-500 to-orange-600" />
-        <HRStatCard label="Pengumuman" value={overview.publishedAnnouncements || 0} icon={Bell} gradient="from-blue-500 to-cyan-600" />
+        <HRStatCard label="Pengumuman" value={overview.publishedAnnouncements || 0} icon={Bell} gradient="from-violet-500 to-cyan-600" />
       </div>
 
       <EnterpriseTabBar tabs={tabs} active={tab} onChange={(k) => { setTab(k); setSurveyDetail(null); }} />
@@ -320,13 +320,13 @@ export default function EngagementPage() {
         <div>
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold">Pengumuman Perusahaan</h2>
-            <button onClick={() => openAdd('announcement')} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
+            <button onClick={() => openAdd('announcement')} className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700">
               <Plus className="w-4 h-4" /> Buat Pengumuman
             </button>
           </div>
           <div className="space-y-3">
             {announcements.map(a => (
-              <div key={a.id} className={`bg-white border rounded-xl p-4 ${a.is_pinned ? 'border-blue-300 bg-blue-50/30' : ''}`}>
+              <div key={a.id} className={`bg-white border rounded-xl p-4 ${a.is_pinned ? 'border-violet-300 bg-violet-50/30' : ''}`}>
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
@@ -346,7 +346,7 @@ export default function EngagementPage() {
                     {a.status === 'draft' && (
                       <button onClick={async () => { await api('publish-announcement', 'POST', { id: a.id }); showToast('Pengumuman diterbitkan'); loadData(); }} className="text-xs px-2 py-1 text-green-600 hover:bg-green-50 rounded">Publikasikan</button>
                     )}
-                    <button onClick={() => { setEditingItem(a); setAnnForm({ title: a.title, content: a.content, category: a.category, priority: a.priority, isPinned: a.is_pinned }); setModalType('announcement'); setShowModal(true); }} className="p-1.5 text-gray-400 hover:text-blue-600"><Edit className="w-4 h-4" /></button>
+                    <button onClick={() => { setEditingItem(a); setAnnForm({ title: a.title, content: a.content, category: a.category, priority: a.priority, isPinned: a.is_pinned }); setModalType('announcement'); setShowModal(true); }} className="p-1.5 text-gray-400 hover:text-violet-600"><Edit className="w-4 h-4" /></button>
                     <button onClick={() => handleDelete('announcement', a.id)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>

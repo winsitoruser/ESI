@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
@@ -22,7 +22,7 @@ const CATEGORIES = [
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   pending: { label: 'Menunggu', color: 'bg-amber-100 text-amber-800' },
-  approved: { label: 'Disetujui', color: 'bg-blue-100 text-blue-800' },
+  approved: { label: 'Disetujui', color: 'bg-violet-100 text-violet-800' },
   paid: { label: 'Dibayar', color: 'bg-emerald-100 text-emerald-800' },
   reimbursed: { label: 'Direimburse', color: 'bg-emerald-100 text-emerald-800' },
   rejected: { label: 'Ditolak', color: 'bg-rose-100 text-rose-800' },
@@ -216,7 +216,7 @@ export default function ReimbursementPage() {
 
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <HRStatCard label="Menunggu Approval" value={pending.length} sub={fmt(totalPending)} icon={Clock} gradient="from-amber-500 to-orange-600" />
-            <HRStatCard label="Total Klaim" value={claims.length} sub={fmt(claims.reduce((s, c) => s + c.amount, 0))} icon={Receipt} gradient="from-blue-500 to-indigo-600" />
+            <HRStatCard label="Total Klaim" value={claims.length} sub={fmt(claims.reduce((s, c) => s + c.amount, 0))} icon={Receipt} gradient="from-violet-500 to-indigo-600" />
             <HRStatCard label="Disetujui" value={approved.length} icon={CheckCircle2} gradient="from-emerald-500 to-teal-600" />
             <HRStatCard label="Integrasi Payroll" value="Auto" sub="Klaim approved → komponen gaji" icon={DollarSign} gradient="from-violet-500 to-purple-700" />
           </div>

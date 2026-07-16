@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
@@ -21,7 +21,7 @@ interface OvertimeRecord {
 }
 
 const OT_TYPES: Record<string, { label: string; color: string }> = {
-  workday: { label: 'Hari Kerja', color: 'bg-blue-100 text-blue-700' },
+  workday: { label: 'Hari Kerja', color: 'bg-violet-100 text-violet-700' },
   weekend: { label: 'Akhir Pekan', color: 'bg-orange-100 text-orange-700' },
   holiday: { label: 'Hari Libur', color: 'bg-red-100 text-red-700' },
 };
@@ -191,12 +191,12 @@ export default function LemburPage() {
           <button type="button" onClick={handleSyncToAttendance} className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50">
             <TrendingUp className="w-4 h-4" /> Sync ke Absensi
           </button>
-          <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"><Plus className="w-4 h-4" /> Ajukan Lembur</button>
+          <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700"><Plus className="w-4 h-4" /> Ajukan Lembur</button>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'Total Jam', value: `${stats.totalHours} jam`, icon: Clock, bg: 'bg-blue-100', color: 'text-blue-600' },
+            { label: 'Total Jam', value: `${stats.totalHours} jam`, icon: Clock, bg: 'bg-violet-100', color: 'text-violet-600' },
             { label: 'Total Biaya', value: fmtCurrency(stats.totalAmount), icon: DollarSign, bg: 'bg-green-100', color: 'text-green-600' },
             { label: 'Menunggu Approval', value: stats.pending, icon: AlertCircle, bg: 'bg-yellow-100', color: 'text-yellow-600' },
             { label: 'Disetujui', value: stats.approved, icon: CheckCircle, bg: 'bg-emerald-100', color: 'text-emerald-600' },
@@ -208,9 +208,9 @@ export default function LemburPage() {
         </div>
 
         {/* Aturan Lembur */}
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <h4 className="font-semibold text-blue-800 text-sm mb-2">Ketentuan Perhitungan Lembur (PP 35/2021)</h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-blue-700">
+        <div className="bg-violet-50 border border-violet-200 rounded-xl p-4">
+          <h4 className="font-semibold text-violet-800 text-sm mb-2">Ketentuan Perhitungan Lembur (PP 35/2021)</h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-violet-700">
             <div><p className="font-medium">Hari Kerja</p><p>Jam ke-1: 1.5× upah/jam</p><p>Jam ke-2 dst: 2× upah/jam</p></div>
             <div><p className="font-medium">Akhir Pekan / Hari Libur</p><p>Semua jam: 2× upah/jam</p></div>
             <div><p className="font-medium">Upah per Jam</p><p>= 1/173 × gaji bulanan</p><p>Maks 4 jam/hari, 18 jam/minggu</p></div>
@@ -252,7 +252,7 @@ export default function LemburPage() {
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
                         {r.status === 'pending' && (<><button onClick={() => handleApprove(r.id)} className="p-1 text-green-600 hover:bg-green-50 rounded" title="Setujui"><CheckCircle className="w-4 h-4" /></button><button onClick={() => handleReject(r.id)} className="p-1 text-red-600 hover:bg-red-50 rounded" title="Tolak"><X className="w-4 h-4" /></button></>)}
-                        <button onClick={() => setSelectedRecord(r)} className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="Detail"><Eye className="w-4 h-4" /></button>
+                        <button onClick={() => setSelectedRecord(r)} className="p-1 text-violet-600 hover:bg-violet-50 rounded" title="Detail"><Eye className="w-4 h-4" /></button>
                       </div>
                     </td>
                   </tr>
@@ -297,7 +297,7 @@ export default function LemburPage() {
             </div>
             <div className="px-6 py-4 border-t flex justify-end gap-3">
               <button onClick={() => setShowModal(false)} className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">Batal</button>
-              <button onClick={handleSubmit} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 flex items-center gap-2"><Save className="w-4 h-4" /> Ajukan</button>
+              <button onClick={handleSubmit} className="px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700 flex items-center gap-2"><Save className="w-4 h-4" /> Ajukan</button>
             </div>
           </div>
         </div>

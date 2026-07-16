@@ -39,15 +39,15 @@ module.exports = {
       await queryInterface.addColumn('tenants', 'activated_at', { type: Sequelize.DATE, allowNull: true });
     }
     if (!tenantsDesc.activated_by) {
-      await queryInterface.addColumn('tenants', 'activated_by', { type: Sequelize.UUID, allowNull: true });
+      await queryInterface.addColumn('tenants', 'activated_by', { type: Sequelize.INTEGER, allowNull: true });
     }
 
     // Create kyb_applications table (skip if already exists from 20260227-create-kyb-tables.js)
     const tables = await queryInterface.showAllTables();
     if (!tables.includes('kyb_applications')) {
       await queryInterface.createTable('kyb_applications', {
-        id: { type: Sequelize.UUID, defaultValue: Sequelize.literal('gen_random_uuid()'), primaryKey: true },
-        tenant_id: { type: Sequelize.UUID, allowNull: false, references: { model: 'tenants', key: 'id' }, onDelete: 'CASCADE' },
+        id: { type: Sequelize.INTEGER, defaultValue: Sequelize.literal('gen_random_uuid()'), primaryKey: true },
+        tenant_id: { type: Sequelize.INTEGER, allowNull: false, references: { model: 'tenants', key: 'id' }, onDelete: 'CASCADE' },
         user_id: { type: Sequelize.INTEGER, allowNull: false, references: { model: 'users', key: 'id' }, onDelete: 'CASCADE' },
         business_name: { type: Sequelize.STRING(255), allowNull: false },
         business_category: { type: Sequelize.STRING(100) },

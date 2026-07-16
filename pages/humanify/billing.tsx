@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useSession } from 'next-auth/react';
@@ -192,7 +192,7 @@ export default function HumanifyBillingPage() {
           <div className="bg-white border border-slate-200 rounded-2xl p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-wide text-blue-600 font-semibold">Paket saat ini</p>
+                <p className="text-xs uppercase tracking-wide text-violet-600 font-semibold">Paket saat ini</p>
                 <h2 className="text-2xl font-bold text-slate-900 capitalize">{current?.planName || current?.plan || '—'}</h2>
                 <p className="text-sm text-slate-500 mt-1">
                   Status tenant: {current?.status || '—'}
@@ -211,14 +211,14 @@ export default function HumanifyBillingPage() {
             <button
               type="button"
               onClick={() => setInterval('monthly')}
-              className={`px-4 py-2 rounded-xl text-sm font-medium ${interval === 'monthly' ? 'bg-blue-600 text-white' : 'bg-white border text-slate-600'}`}
+              className={`px-4 py-2 rounded-xl text-sm font-medium ${interval === 'monthly' ? 'bg-violet-600 text-white' : 'bg-white border text-slate-600'}`}
             >
               Bulanan
             </button>
             <button
               type="button"
               onClick={() => setInterval('yearly')}
-              className={`px-4 py-2 rounded-xl text-sm font-medium ${interval === 'yearly' ? 'bg-blue-600 text-white' : 'bg-white border text-slate-600'}`}
+              className={`px-4 py-2 rounded-xl text-sm font-medium ${interval === 'yearly' ? 'bg-violet-600 text-white' : 'bg-white border text-slate-600'}`}
             >
               Tahunan (−20%)
             </button>
@@ -233,15 +233,15 @@ export default function HumanifyBillingPage() {
               return (
                 <div
                   key={plan.id}
-                  className={`relative bg-white border rounded-2xl p-6 ${isCurrent ? 'border-blue-500 ring-2 ring-blue-100' : 'border-slate-200'}`}
+                  className={`relative bg-white border rounded-2xl p-6 ${isCurrent ? 'border-violet-500 ring-2 ring-violet-100' : 'border-slate-200'}`}
                 >
                   {plan.id === 'growth' && (
-                    <span className="absolute -top-2 right-4 text-[10px] font-bold uppercase bg-blue-600 text-white px-2 py-0.5 rounded-full">
+                    <span className="absolute -top-2 right-4 text-[10px] font-bold uppercase bg-violet-600 text-white px-2 py-0.5 rounded-full">
                       Populer
                     </span>
                   )}
                   <div className="flex items-center gap-2 mb-2">
-                    <Sparkles className="w-4 h-4 text-blue-600" />
+                    <Sparkles className="w-4 h-4 text-violet-600" />
                     <h3 className="font-bold text-slate-900">{plan.name}</h3>
                   </div>
                   <p className="text-sm text-slate-500 mb-4 min-h-[40px]">{plan.description}</p>
@@ -264,7 +264,7 @@ export default function HumanifyBillingPage() {
                     className={`w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 ${
                       isDowngrade
                         ? 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'
-                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                        : 'bg-violet-600 text-white hover:bg-violet-700'
                     }`}
                   >
                     {acting === plan.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}

@@ -74,6 +74,11 @@ export async function middleware(request: NextRequest) {
 
   // Humanify platform — pintu masuk & landing publik
   if (pathname.startsWith('/humanify')) {
+    // 🚧 DEV BYPASS — lewati semua guard auth Humanify saat development
+    if (process.env.NODE_ENV === 'development') {
+      return NextResponse.next();
+    }
+
     if (isHumanifyPublic) {
       return NextResponse.next();
     }

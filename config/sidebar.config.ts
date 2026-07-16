@@ -1147,7 +1147,8 @@ export function flattenMenuItems(groups: MenuGroup[]): MenuItem[] {
 
 export function findActiveMenuItem(groups: MenuGroup[], pathname: string, query?: Record<string, string | string[] | undefined>): MenuItem | undefined {
   const allItems = flattenMenuItems(groups);
-  // First try exact match including query params
+  
+  // 1. Try exact match including query params
   if (query) {
     const qMatch = allItems.find(item => {
       if (!item.href || !item.href.includes('?')) return false;
@@ -1161,11 +1162,21 @@ export function findActiveMenuItem(groups: MenuGroup[], pathname: string, query?
     });
     if (qMatch) return qMatch;
   }
-  // Fallback to pathname-only match (no tab query active)
-  return allItems.find(item => {
+  
+  // 2. Try exact pathname match first
+  const exactMatch = allItems.find(item => {
     if (!item.href) return false;
-    if (item.href.includes('?')) return false; // skip query-based items for pathname-only match
-    return pathname === item.href || pathname.startsWith(item.href + '/');
+    if (item.href.includes('?')) return false; // skip query-based items
+    return pathname === item.href;
+  });
+  if (exactMatch) return exactMatch;
+  
+  // 3. Fallback to startsWith match, sorting by length descending to match the most specific path
+  const pathItems = allItems.filter(item => item.href && !item.href.includes('?'));
+  const sortedItems = [...pathItems].sort((a, b) => b.href!.length - a.href!.length);
+  
+  return sortedItems.find(item => {
+    return pathname.startsWith(item.href + '/');
   });
 }
 

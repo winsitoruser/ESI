@@ -45,6 +45,8 @@ module.exports = {
       // Create tenant first
       await queryInterface.bulkInsert('tenants', [{
         id: tenantId,
+        name: 'Winsitor Restaurant',
+        code: 'winsitor',
         business_name: 'Winsitor Restaurant',
         business_type_id: fnbBusinessTypeId,
         business_address: 'Jakarta',
@@ -59,15 +61,15 @@ module.exports = {
       // Create user
       const hashedPassword = await bcrypt.hash('winsitor123', 10);
       await queryInterface.bulkInsert('users', [{
-        id: userId,
         tenant_id: tenantId,
         name: 'Winsitor User',
         email: 'winsitoruser@gmail.com',
+        businessName: 'Winsitor Restaurant',
         password: hashedPassword,
         role: 'owner',
-        is_active: true,
-        created_at: new Date(),
-        updated_at: new Date()
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
       }]);
 
       console.log('✅ Created F&B user: winsitoruser@gmail.com with password: winsitor123');
@@ -125,8 +127,7 @@ module.exports = {
       tenant_id: tenantId,
       module_id: module.id,
       is_enabled: true,
-      created_at: new Date(),
-      updated_at: new Date()
+      created_at: new Date()
     }));
 
     // Delete existing tenant modules first

@@ -74,7 +74,7 @@ module.exports = {
         allowNull: true
       },
       requestedBy: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: false,
         field: 'requested_by',
         references: {
@@ -83,7 +83,7 @@ module.exports = {
         }
       },
       approvedBy: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: true,
         field: 'approved_by',
         references: {
@@ -210,7 +210,7 @@ module.exports = {
         defaultValue: 'draft'
       },
       postedBy: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: true,
         field: 'posted_by',
         references: {
@@ -224,7 +224,7 @@ module.exports = {
         field: 'posted_at'
       },
       createdBy: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: false,
         field: 'created_by',
         references: {
@@ -365,10 +365,12 @@ module.exports = {
     `);
 
     // Insert default chart of accounts if not exists
+    // (Table chart_of_accounts does not exist yet)
+    /*
     await queryInterface.sequelize.query(`
       INSERT INTO chart_of_accounts (id, code, name, type, parent_id, level, is_active, tenant_id, created_at, updated_at)
       SELECT 
-        uuid_generate_v4(),
+        gen_random_uuid(),
         '1',
         'Assets',
         'group',
@@ -384,7 +386,7 @@ module.exports = {
       )
       UNION ALL
       SELECT 
-        uuid_generate_v4(),
+        gen_random_uuid(),
         '2',
         'Liabilities',
         'group',
@@ -400,7 +402,7 @@ module.exports = {
       )
       UNION ALL
       SELECT 
-        uuid_generate_v4(),
+        gen_random_uuid(),
         '3',
         'Equity',
         'group',
@@ -416,7 +418,7 @@ module.exports = {
       )
       UNION ALL
       SELECT 
-        uuid_generate_v4(),
+        gen_random_uuid(),
         '4',
         'Revenue',
         'group',
@@ -432,7 +434,7 @@ module.exports = {
       )
       UNION ALL
       SELECT 
-        uuid_generate_v4(),
+        gen_random_uuid(),
         '5',
         'Expenses',
         'group',
@@ -447,6 +449,7 @@ module.exports = {
         SELECT 1 FROM chart_of_accounts WHERE code = '5' AND tenant_id = t.id
       )
     `);
+    */
   },
 
   down: async (queryInterface, Sequelize) => {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import HRStatCard from '@/components/humanify/HRStatCard';
 import PerformanceModuleChrome, { EnterpriseTabBar } from '@/components/humanify/PerformanceModuleChrome';
@@ -346,7 +346,7 @@ export default function PerformancePage() {
   const getStatusBadge = (status: string) => {
     const cfg: Record<string, { label: string; cls: string; Icon: React.ElementType }> = {
       acknowledged: { label: 'Dikonfirmasi', cls: 'bg-green-100 text-green-700', Icon: CheckCircle },
-      reviewed: { label: 'Direview', cls: 'bg-blue-100 text-blue-700', Icon: Eye },
+      reviewed: { label: 'Direview', cls: 'bg-violet-100 text-violet-700', Icon: Eye },
       submitted: { label: 'Diajukan', cls: 'bg-yellow-100 text-yellow-700', Icon: Send },
       draft: { label: 'Draf', cls: 'bg-gray-100 text-gray-700', Icon: FileText },
     };
@@ -457,7 +457,7 @@ export default function PerformancePage() {
               <label className="text-sm font-medium text-gray-700">Kategori Penilaian</label>
               <button type="button" onClick={() => setForm(f => ({
                 ...f, categories: [...f.categories, { name: '', rating: 0, weight: 10, comments: '' }]
-              }))} className="text-xs text-blue-600 hover:text-blue-700">+ Tambah</button>
+              }))} className="text-xs text-violet-600 hover:text-violet-700">+ Tambah</button>
             </div>
             <div className="space-y-3">
               {form.categories.map((cat, idx) => (
@@ -501,7 +501,7 @@ export default function PerformancePage() {
                   className="flex-1 px-2 py-1.5 border rounded text-sm" />
                 {idx === form.strengths.length - 1 && (
                   <button type="button" onClick={() => setForm(f => ({ ...f, strengths: [...f.strengths, ''] }))}
-                    className="text-xs text-blue-600">+</button>
+                    className="text-xs text-violet-600">+</button>
                 )}
               </div>
             ))}
@@ -517,7 +517,7 @@ export default function PerformancePage() {
                   className="flex-1 px-2 py-1.5 border rounded text-sm" />
                 {idx === form.areasForImprovement.length - 1 && (
                   <button type="button" onClick={() => setForm(f => ({ ...f, areasForImprovement: [...f.areasForImprovement, ''] }))}
-                    className="text-xs text-blue-600">+</button>
+                    className="text-xs text-violet-600">+</button>
                 )}
               </div>
             ))}
@@ -533,7 +533,7 @@ export default function PerformancePage() {
                   className="flex-1 px-2 py-1.5 border rounded text-sm" />
                 {idx === form.goals.length - 1 && (
                   <button type="button" onClick={() => setForm(f => ({ ...f, goals: [...f.goals, ''] }))}
-                    className="text-xs text-blue-600">+</button>
+                    className="text-xs text-violet-600">+</button>
                 )}
               </div>
             ))}
@@ -550,7 +550,7 @@ export default function PerformancePage() {
             goals: form.goals.filter(g => g.trim()),
           }) : handleCreate}
             disabled={saving || !form.employeeName}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm">
+            className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 disabled:opacity-50 text-sm">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             {saving ? 'Menyimpan...' : 'Simpan'}
           </button>
@@ -579,7 +579,7 @@ export default function PerformancePage() {
         />
 
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <HRStatCard label="Total Evaluasi" value={reviews.length} icon={Users} gradient="from-blue-500 to-indigo-600" />
+          <HRStatCard label="Total Evaluasi" value={reviews.length} icon={Users} gradient="from-violet-500 to-indigo-600" />
           <HRStatCard label="Rata-rata Rating" value={avgRating.toFixed(1)} sub="skala 1–5" icon={Star} gradient="from-amber-500 to-orange-600" />
           <HRStatCard label="Kinerja Sangat Baik" value={excellentPerformers} sub="rating ≥ 4.5" icon={Award} gradient="from-emerald-500 to-teal-600" />
           <HRStatCard label="Perlu Peningkatan" value={needsImprovement} sub="rating < 3.5" icon={TrendingDown} gradient="from-rose-500 to-red-600" />
@@ -710,7 +710,7 @@ export default function PerformancePage() {
               {[
                 { label: 'Total Talent', value: nineBoxData.summary?.total || 0 },
                 { label: 'Stars & High Performers', value: nineBoxData.summary?.highPerformers || 0, color: 'text-green-600' },
-                { label: 'Develop Pool', value: nineBoxData.summary?.develop || 0, color: 'text-blue-600' },
+                { label: 'Develop Pool', value: nineBoxData.summary?.develop || 0, color: 'text-violet-600' },
                 { label: 'At Risk', value: nineBoxData.summary?.risk || 0, color: 'text-red-600' },
               ].map(s => (
                 <div key={s.label} className="bg-white rounded-xl p-4 border shadow-sm">
@@ -743,12 +743,12 @@ export default function PerformancePage() {
 
         {/* Review Cards */}
         {pageTab === 'reviews' && (loading ? (
-          <div className="flex items-center justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-blue-600" /></div>
+          <div className="flex items-center justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-violet-600" /></div>
         ) : filteredReviews.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-xl border">
             <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
             <p className="text-gray-500">Belum ada evaluasi kinerja</p>
-            <button onClick={openCreate} className="mt-3 text-blue-600 hover:text-blue-700 text-sm">+ Buat Evaluasi Baru</button>
+            <button onClick={openCreate} className="mt-3 text-violet-600 hover:text-violet-700 text-sm">+ Buat Evaluasi Baru</button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -866,12 +866,12 @@ export default function PerformancePage() {
 
                 {/* Goals */}
                 {selectedReview.goals.length > 0 && (
-                  <div className="bg-blue-50 rounded-lg p-4">
-                    <h4 className="font-semibold text-blue-700 mb-2">Tujuan & Sasaran</h4>
+                  <div className="bg-violet-50 rounded-lg p-4">
+                    <h4 className="font-semibold text-violet-700 mb-2">Tujuan & Sasaran</h4>
                     <ul className="text-sm space-y-1">
                       {selectedReview.goals.map((g, i) => (
                         <li key={i} className="flex items-center gap-2">
-                          <Target className="w-4 h-4 text-blue-500 flex-shrink-0" />{g}
+                          <Target className="w-4 h-4 text-violet-500 flex-shrink-0" />{g}
                         </li>
                       ))}
                     </ul>
@@ -890,7 +890,7 @@ export default function PerformancePage() {
                   )}
                   {selectedReview.status === 'submitted' && (
                     <button onClick={() => handleStatusChange(selectedReview, 'reviewed')}
-                      className="flex items-center gap-1 px-3 py-2 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600">
+                      className="flex items-center gap-1 px-3 py-2 bg-violet-500 text-white rounded-lg text-sm hover:bg-violet-600">
                       <Eye className="w-4 h-4" /> Tandai Direview
                     </button>
                   )}
@@ -907,7 +907,7 @@ export default function PerformancePage() {
                     <Trash2 className="w-4 h-4" /> Hapus
                   </button>
                   <button onClick={() => openEdit(selectedReview)}
-                    className="flex items-center gap-1 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
+                    className="flex items-center gap-1 px-3 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700">
                     <Edit className="w-4 h-4" /> Edit Evaluasi
                   </button>
                 </div>

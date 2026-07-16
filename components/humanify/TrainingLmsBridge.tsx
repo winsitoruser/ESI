@@ -1,4 +1,4 @@
-import Link from 'next/link';
+﻿import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { GraduationCap, BookOpen, Award, PenTool, Link2, RefreshCw, ArrowRight } from 'lucide-react';
 
@@ -13,7 +13,7 @@ const CURRENT_PATHS: Record<string, string> = {
 };
 const MODULE_LINKS = [
   { href: '/humanify/lms', label: 'LMS Dashboard', icon: GraduationCap, color: 'text-indigo-600' },
-  { href: '/humanify/training', label: 'Program Training', icon: BookOpen, color: 'text-blue-600' },
+  { href: '/humanify/training', label: 'Program Training', icon: BookOpen, color: 'text-violet-600' },
   { href: '/humanify/training-development', label: 'Pelatihan & Pengembangan', icon: BookOpen, color: 'text-emerald-600' },
   { href: '/humanify/training-scoring', label: 'Skor Training', icon: PenTool, color: 'text-purple-600' },
   { href: '/humanify/certificates', label: 'Certificate Registry', icon: Award, color: 'text-amber-600' },

@@ -342,7 +342,7 @@ module.exports = {
         field: 'reviewDate'
       },
       reviewerId: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: false,
         field: 'reviewerId',
         references: { model: 'users', key: 'id' },
@@ -509,7 +509,7 @@ module.exports = {
         defaultValue: 'pending'
       },
       approvedBy: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: true,
         field: 'approvedBy',
         references: { model: 'users', key: 'id' },

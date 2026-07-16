@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { FileSpreadsheet, FileImage, File, FileText } from 'lucide-react';
 
 export const fmtCur = (n: number) => `Rp ${(n || 0).toLocaleString('id-ID')}`;
@@ -7,12 +7,12 @@ export const statusColor = (s: string) => {
   const m: Record<string, string> = {
     planning: 'bg-gray-100 text-gray-800',
     active: 'bg-green-100 text-green-800',
-    in_progress: 'bg-blue-100 text-blue-800',
+    in_progress: 'bg-violet-100 text-violet-800',
     on_hold: 'bg-yellow-100 text-yellow-800',
-    completed: 'bg-blue-100 text-blue-800',
+    completed: 'bg-violet-100 text-violet-800',
     cancelled: 'bg-red-100 text-red-800',
     draft: 'bg-gray-100 text-gray-800',
-    submitted: 'bg-blue-100 text-blue-800',
+    submitted: 'bg-violet-100 text-violet-800',
     approved: 'bg-green-100 text-green-800',
     rejected: 'bg-red-100 text-red-800',
     calculated: 'bg-purple-100 text-purple-800',
@@ -24,7 +24,7 @@ export const statusColor = (s: string) => {
 export const priorityColor = (p: string) => {
   const m: Record<string, string> = {
     low: 'border-gray-300',
-    medium: 'border-blue-300',
+    medium: 'border-violet-300',
     high: 'border-orange-300',
     critical: 'border-red-400',
   };
@@ -42,7 +42,7 @@ export const getFileIcon = (ext: string): React.ReactNode => {
   if (['xlsx', 'xls', 'csv'].includes(e)) return <FileSpreadsheet className="w-5 h-5 text-green-600" />;
   if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(e)) return <FileImage className="w-5 h-5 text-pink-600" />;
   if (['pdf'].includes(e)) return <File className="w-5 h-5 text-red-600" />;
-  return <FileText className="w-5 h-5 text-blue-600" />;
+  return <FileText className="w-5 h-5 text-violet-600" />;
 };
 
 export const DOC_CATEGORIES = ['Umum', 'Kontrak', 'Proposal', 'Laporan', 'Invoice', 'SPK', 'K3/Safety', 'Legalitas', 'Foto/Dokumentasi', 'Lainnya'];

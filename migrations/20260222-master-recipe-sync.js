@@ -147,7 +147,7 @@ module.exports = {
         field: 'error_message'
       },
       syncedBy: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: false,
         field: 'synced_by',
         references: {

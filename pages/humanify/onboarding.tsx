@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
@@ -45,7 +45,7 @@ const CATEGORY_ICONS: Record<string, any> = {
 
 const CATEGORY_COLORS: Record<string, string> = {
   legal: 'text-purple-600 bg-purple-100',
-  document: 'text-blue-600 bg-blue-100',
+  document: 'text-violet-600 bg-violet-100',
   benefit: 'text-pink-600 bg-pink-100',
   it: 'text-cyan-600 bg-cyan-100',
   training: 'text-indigo-600 bg-indigo-100',
@@ -167,7 +167,7 @@ export default function OnboardingPage() {
           <DataSourceBadge source={dataSource} />
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard icon={UserPlus} label="Total Proses" value={stats.total} color="text-blue-600" bg="bg-blue-100" />
+          <StatCard icon={UserPlus} label="Total Proses" value={stats.total} color="text-violet-600" bg="bg-violet-100" />
           <StatCard icon={Clock} label="Sedang Berjalan" value={stats.inProgress} color="text-orange-600" bg="bg-orange-100" />
           <StatCard icon={CheckCircle} label="Selesai" value={stats.completed} color="text-green-600" bg="bg-green-100" />
           <StatCard icon={Briefcase} label="Progress Task" value={`${stats.tasksProgress}%`} color="text-fuchsia-600" bg="bg-fuchsia-100" />
@@ -220,7 +220,7 @@ export default function OnboardingPage() {
                   <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${
                     i.status === 'completed' ? 'bg-green-100 text-green-700' :
                     i.status === 'paused' ? 'bg-yellow-100 text-yellow-700' :
-                    'bg-blue-100 text-blue-700'
+                    'bg-violet-100 text-violet-700'
                   }`}>
                     {i.status === 'completed' ? 'Selesai' : i.status === 'paused' ? 'Ditunda' : 'Berjalan'}
                   </span>
@@ -321,7 +321,7 @@ export default function OnboardingPage() {
                 <Input label="Tanggal Bergabung" type="date" value={form.joinDate || ''} onChange={(v: string) => setForm((f: any) => ({ ...f, joinDate: v }))} />
                 <Input label="Buddy / Mentor" value={form.buddyName || ''} onChange={(v: string) => setForm((f: any) => ({ ...f, buddyName: v }))} />
               </div>
-              <div className="text-xs text-gray-500 bg-blue-50 rounded p-2">
+              <div className="text-xs text-gray-500 bg-violet-50 rounded p-2">
                 {template.length} task akan otomatis dibuat berdasarkan template standar onboarding.
               </div>
             </div>

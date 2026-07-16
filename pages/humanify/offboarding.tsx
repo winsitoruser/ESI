@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
@@ -36,7 +36,7 @@ interface OffEntry {
 }
 
 const REASON_LABELS: Record<string, { label: string; color: string }> = {
-  resignation: { label: 'Resign', color: 'bg-blue-100 text-blue-700' },
+  resignation: { label: 'Resign', color: 'bg-violet-100 text-violet-700' },
   termination: { label: 'PHK', color: 'bg-red-100 text-red-700' },
   retirement: { label: 'Pensiun', color: 'bg-purple-100 text-purple-700' },
   contract_end: { label: 'Akhir Kontrak', color: 'bg-orange-100 text-orange-700' },
@@ -55,7 +55,7 @@ const CATEGORY_ICONS: Record<string, any> = {
 
 const CATEGORY_COLORS: Record<string, string> = {
   legal: 'text-purple-600 bg-purple-100',
-  hr: 'text-blue-600 bg-blue-100',
+  hr: 'text-violet-600 bg-violet-100',
   work: 'text-orange-600 bg-orange-100',
   it: 'text-cyan-600 bg-cyan-100',
   finance: 'text-green-600 bg-green-100',

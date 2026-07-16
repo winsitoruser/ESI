@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Briefcase, Users, DollarSign, BarChart3 } from 'lucide-react';
 import { fmtCur } from './utils';
 
@@ -20,7 +20,7 @@ export default function OverviewCards({ overview }: Props) {
         <p className="text-xs text-gray-500">Pekerja Aktif</p>
       </div>
       <div className="bg-white border rounded-xl p-4">
-        <DollarSign className="w-5 h-5 text-blue-600 mb-1" />
+        <DollarSign className="w-5 h-5 text-violet-600 mb-1" />
         <p className="text-2xl font-bold">{fmtCur(overview.totalBudget || 0)}</p>
         <p className="text-xs text-gray-500">Total Anggaran</p>
       </div>

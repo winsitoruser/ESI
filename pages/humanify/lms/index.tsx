@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import HumanifyLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import { PageGuard } from '@/components/permissions';
@@ -14,7 +14,7 @@ import TrainingLmsBridge from '@/components/humanify/TrainingLmsBridge';
 
 const MODULES = [
   { id: 'courses', href: '/humanify/lms/courses', icon: BookOpen, color: 'text-emerald-600 bg-emerald-50', label: 'Kursus & Learning Path', desc: 'Kurikulum, modul, materi video/PDF, progress belajar' },
-  { id: 'question-bank', href: '/humanify/lms/question-bank', icon: BookOpen, color: 'text-blue-600 bg-blue-50', label: 'Bank Soal', desc: 'Bank soal terpusat — MC, essay, likert, situational' },
+  { id: 'question-bank', href: '/humanify/lms/question-bank', icon: BookOpen, color: 'text-violet-600 bg-violet-50', label: 'Bank Soal', desc: 'Bank soal terpusat — MC, essay, likert, situational' },
   { id: 'tests', href: '/humanify/lms/tests', icon: ClipboardList, color: 'text-indigo-600 bg-indigo-50', label: 'Tes & Ujian', desc: 'Buat & kelola tes/ujian online' },
   { id: 'blueprints', href: '/humanify/lms/blueprints', icon: ClipboardList, color: 'text-amber-600 bg-amber-50', label: 'Blueprint Adaptif', desc: 'Randomisasi soal per kategori & tingkat kesulitan' },
   { id: 'psychometric', href: '/humanify/lms/psychometric', icon: Brain, color: 'text-purple-600 bg-purple-50', label: 'Psikotes', desc: 'Psikotes kognitif, kepribadian, integritas' },

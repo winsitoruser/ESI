@@ -3,25 +3,26 @@ import Link from 'next/link';
 import { motion, useInView, useMotionValue, useSpring } from 'framer-motion';
 import {
   UserCheck, Users, Clock, DollarSign, Target, GraduationCap, Smartphone,
-  ArrowRight, Sparkles, BarChart3, Shield, Layers, ChevronRight,
-  Building2, Zap, Lock, HeadphonesIcon, Globe, CheckCircle2,
+  ArrowRight, Sparkles, BarChart3, Shield, Layers,
+  Building2, Lock, Globe, CheckCircle2,
+  PieChart, Activity,
 } from 'lucide-react';
 import { HUMANIFY_BRAND, HUMANIFY_FEATURES, NAINCODE } from '@/lib/humanify/branding';
 import { HumanifyLogo } from '@/components/humanify/HumanifyLogo';
 import { NaincodeFooter } from '@/components/humanify/NaincodeFooter';
 
-const ICONS = [Users, Clock, DollarSign, Target, GraduationCap, Smartphone];
+const ICONS = [Users, Clock, DollarSign, Target, GraduationCap, Smartphone, PieChart, Activity];
 const MODULE_ICON_BG = [
-  'bg-blue-50 text-blue-600',
-  'bg-slate-100 text-slate-600',
-  'bg-emerald-50 text-emerald-600',
-  'bg-indigo-50 text-indigo-600',
-  'bg-cyan-50 text-cyan-600',
-  'bg-violet-50 text-violet-600',
-  'bg-amber-50 text-amber-600',
-  'bg-rose-50 text-rose-600',
-  'bg-orange-50 text-orange-600',
-  'bg-sky-50 text-sky-600',
+  'bg-violet-500/10 text-violet-400',
+  'bg-white/[0.05] text-violet-200/80',
+  'bg-emerald-500/10 text-emerald-400',
+  'bg-indigo-500/10 text-indigo-400',
+  'bg-cyan-500/10 text-cyan-400',
+  'bg-fuchsia-500/10 text-fuchsia-400',
+  'bg-amber-500/10 text-amber-400',
+  'bg-rose-500/10 text-rose-400',
+  'bg-orange-500/10 text-orange-400',
+  'bg-sky-500/10 text-sky-400',
 ];
 
 const STATS = [
@@ -98,15 +99,7 @@ const PROCESS_STEPS = [
   },
 ];
 
-function AnimatedCounter({
-  value,
-  suffix = '',
-  decimals = 0,
-}: {
-  value: number;
-  suffix?: string;
-  decimals?: number;
-}) {
+function AnimatedCounter({ value, suffix = '', decimals = 0 }: { value: number; suffix?: string; decimals?: number }) {
   const ref = useRef<HTMLSpanElement>(null);
   const isInView = useInView(ref, { once: true, margin: '-80px' });
   const motionVal = useMotionValue(0);
@@ -124,23 +117,10 @@ function AnimatedCounter({
     return unsub;
   }, [spring, decimals]);
 
-  return (
-    <span ref={ref}>
-      {display}
-      {suffix}
-    </span>
-  );
+  return <span ref={ref}>{display}{suffix}</span>;
 }
 
-function FadeIn({
-  children,
-  className = '',
-  delay = 0,
-}: {
-  children: React.ReactNode;
-  className?: string;
-  delay?: number;
-}) {
+function FadeIn({ children, className = '', delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: '-60px' });
   return (
@@ -162,17 +142,156 @@ function CorporateHeroBadge() {
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay: 0.15 }}
-      className="mb-8 inline-flex items-center gap-3 rounded-2xl border border-slate-200/90 bg-white px-5 py-3 shadow-sm"
+      className="mb-8 inline-flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-5 py-3 shadow-sm backdrop-blur-md"
     >
-      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50">
-        <Building2 className="h-4 w-4 text-blue-600" />
+      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-500/10">
+        <Building2 className="h-4 w-4 text-violet-400" />
       </div>
       <div className="text-left">
-        <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Enterprise HRIS</p>
-        <p className="text-sm text-slate-500">People-first platform untuk institusi & korporasi</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-fuchsia-400">Enterprise HRIS</p>
+        <p className="text-sm text-violet-200/60">People-first platform untuk institusi & korporasi</p>
       </div>
     </motion.div>
   );
+}
+
+function DashboardMockup() {
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 40 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.8, delay: 0.5, ease: "easeOut" }}
+      className="relative mt-16 mx-auto w-full max-w-5xl rounded-t-2xl border-t border-x border-white/[0.1] bg-[#0a0812]/80 backdrop-blur-2xl shadow-[0_-20px_50px_rgba(139,92,246,0.15)] overflow-hidden"
+    >
+      {/* Mac-like Window Controls */}
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.05] bg-white/[0.02]">
+        <div className="w-3 h-3 rounded-full bg-rose-500/80" />
+        <div className="w-3 h-3 rounded-full bg-amber-500/80" />
+        <div className="w-3 h-3 rounded-full bg-emerald-500/80" />
+        <div className="ml-4 text-xs text-violet-200/40 font-mono flex-1 text-center pr-12">humanify.naincode.com</div>
+      </div>
+      
+      {/* Mockup Content */}
+      <div className="flex h-[400px] sm:h-[500px]">
+        {/* Sidebar */}
+        <div className="hidden sm:flex flex-col w-48 border-r border-white/[0.05] p-4 gap-2">
+          <div className="h-8 w-24 bg-white/[0.05] rounded-md mb-4" />
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className={`h-8 rounded-md flex items-center px-3 gap-3 ${i === 0 ? 'bg-violet-500/10 text-violet-400' : 'text-violet-200/30'}`}>
+              <div className={`w-4 h-4 rounded ${i === 0 ? 'bg-violet-400/50' : 'bg-violet-200/20'}`} />
+              <div className={`h-2 rounded ${i === 0 ? 'bg-violet-400/50 w-16' : 'bg-violet-200/20 w-12'}`} />
+            </div>
+          ))}
+        </div>
+        
+        {/* Main Content Area */}
+        <div className="flex-1 p-6 flex flex-col gap-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <div className="h-4 w-32 bg-white/10 rounded mb-2" />
+              <div className="h-3 w-48 bg-white/5 rounded" />
+            </div>
+            <div className="h-10 w-28 bg-violet-600/20 rounded-lg border border-violet-500/30" />
+          </div>
+          
+          <div className="grid grid-cols-3 gap-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-24 bg-white/[0.02] border border-white/[0.05] rounded-xl p-4 flex flex-col justify-between">
+                <div className="flex justify-between">
+                  <div className="w-8 h-8 rounded-lg bg-white/[0.05]" />
+                  <div className="w-12 h-4 rounded-full bg-emerald-500/20" />
+                </div>
+                <div className="h-6 w-20 bg-white/10 rounded" />
+              </div>
+            ))}
+          </div>
+          
+          <div className="flex-1 bg-white/[0.02] border border-white/[0.05] rounded-xl p-4 flex flex-col gap-4">
+             <div className="h-4 w-40 bg-white/10 rounded" />
+             <div className="flex-1 flex items-end gap-2 pb-2">
+               {[40, 70, 45, 90, 60, 80, 50, 100, 75, 85].map((h, i) => (
+                 <div key={i} className="flex-1 bg-violet-500/20 rounded-t-sm" style={{ height: `${h}%` }}>
+                   <div className="w-full h-full bg-gradient-to-t from-transparent to-violet-400/40" />
+                 </div>
+               ))}
+             </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Bottom fade out */}
+      <div className="absolute bottom-0 inset-x-0 h-32 bg-gradient-to-t from-[#0a0812] to-transparent" />
+    </motion.div>
+  );
+}
+
+function SimpleParticles() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const parent = canvas.parentElement;
+    if (!parent) return;
+
+    let particles: { x: number; y: number; r: number; dx: number; dy: number; alpha: number }[] = [];
+    let animationFrameId: number;
+    let width = 0;
+    let height = 0;
+
+    const init = () => {
+      width = canvas.width = parent.offsetWidth;
+      height = canvas.height = parent.offsetHeight;
+      particles = [];
+      const count = Math.floor(width / 10); // More particles
+      for (let i = 0; i < count; i++) {
+        particles.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          r: Math.random() * 2 + 0.8, // Slightly larger
+          dx: (Math.random() - 0.5) * 0.8,
+          dy: (Math.random() - 0.5) * 0.8,
+          alpha: Math.random() * 0.5 + 0.3, // Higher opacity
+        });
+      }
+    };
+
+    const draw = () => {
+      ctx.clearRect(0, 0, width, height);
+      particles.forEach(p => {
+        p.x += p.dx;
+        p.y += p.dy;
+        if (p.x < 0) p.x = width;
+        if (p.x > width) p.x = 0;
+        if (p.y < 0) p.y = height;
+        if (p.y > height) p.y = 0;
+        
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        // Bright violet/white color for better visibility
+        ctx.fillStyle = `rgba(196, 181, 253, ${p.alpha})`; 
+        ctx.fill();
+      });
+      animationFrameId = requestAnimationFrame(draw);
+    };
+
+    init();
+    draw();
+
+    const observer = new ResizeObserver(() => {
+      init();
+    });
+    observer.observe(parent);
+
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none z-0" />;
 }
 
 export default function HumanifyWelcomePage() {
@@ -184,33 +303,18 @@ export default function HumanifyWelcomePage() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  return (
-    <div className="min-h-screen overflow-x-hidden bg-slate-50 text-slate-800">
-      <style>{`
-        @keyframes marquee {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-        .hf-marquee {
-          animation: marquee 35s linear infinite;
-        }
-        .hf-marquee:hover {
-          animation-play-state: paused;
-        }
-      `}</style>
+  const marquee1 = MARQUEE_ITEMS.slice(0, Math.ceil(MARQUEE_ITEMS.length / 2));
+  const marquee2 = MARQUEE_ITEMS.slice(Math.ceil(MARQUEE_ITEMS.length / 2));
 
-      {/* Soft ambient */}
-      <div className="pointer-events-none fixed inset-0">
-        <div className="absolute inset-0 bg-[linear-gradient(to_bottom,_#f8fafc_0%,_#ffffff_40%,_#f1f5f9_100%)]" />
-        <div className="absolute top-0 right-0 h-[420px] w-[420px] rounded-full bg-blue-100/40 blur-3xl" />
-        <div className="absolute bottom-0 left-0 h-[320px] w-[320px] rounded-full bg-slate-200/50 blur-3xl" />
-      </div>
+  return (
+    <div className="min-h-screen overflow-x-hidden bg-[#0a0812] text-white">
+
 
       {/* Header */}
       <header
         className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
           scrolled
-            ? 'border-b border-slate-200/90 bg-white/95 shadow-sm backdrop-blur-md'
+            ? 'border-b border-white/[0.08] bg-[#0a0812]/80 shadow-sm backdrop-blur-md'
             : 'bg-transparent'
         }`}
       >
@@ -218,42 +322,25 @@ export default function HumanifyWelcomePage() {
           <HumanifyLogo
             href={HUMANIFY_BRAND.welcomePath}
             size="lg"
-            variant="withText"
+            variant="full"
+            src={HUMANIFY_BRAND.welcomeLogoPath}
+            aspect={HUMANIFY_BRAND.welcomeLogoAspect}
             priority
-            textClassName="font-semibold text-slate-800 tracking-tight"
-            subtitleClassName="text-xs text-slate-500 font-medium"
           />
           <nav className="flex items-center gap-2 sm:gap-5">
-            <Link
-              href={HUMANIFY_BRAND.roiCalculatorPath}
-              className="hidden text-sm text-slate-500 transition hover:text-slate-800 md:inline"
-            >
+            <Link href={HUMANIFY_BRAND.roiCalculatorPath} className="hidden text-sm text-violet-200/60 transition hover:text-white md:inline">
               Kalkulator ROI
             </Link>
-            <a
-              href={NAINCODE.website}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden text-sm text-slate-500 transition hover:text-slate-800 md:inline"
-            >
+            <a href={NAINCODE.website} target="_blank" rel="noopener noreferrer" className="hidden text-sm text-violet-200/60 transition hover:text-white md:inline">
               {NAINCODE.name}
             </a>
-            <Link
-              href={HUMANIFY_BRAND.signupPath}
-              className="hidden text-sm text-slate-600 transition hover:text-slate-900 sm:inline"
-            >
+            <Link href={HUMANIFY_BRAND.signupPath} className="hidden text-sm text-violet-200/80 transition hover:text-white sm:inline">
               Daftar
             </Link>
-            <Link
-              href={HUMANIFY_BRAND.employeeLoginPath}
-              className="hidden text-sm text-slate-600 transition hover:text-slate-900 sm:inline"
-            >
+            <Link href={HUMANIFY_BRAND.employeeLoginPath} className="hidden text-sm text-violet-200/80 transition hover:text-white sm:inline">
               Portal Karyawan
             </Link>
-            <Link
-              href={HUMANIFY_BRAND.loginPath}
-              className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
-            >
+            <Link href={HUMANIFY_BRAND.loginPath} className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-500">
               Masuk
             </Link>
           </nav>
@@ -262,140 +349,171 @@ export default function HumanifyWelcomePage() {
 
       <main className="relative z-10">
         {/* Hero */}
-        <section className="relative overflow-hidden border-b border-slate-200/80">
-          <div className="pointer-events-none absolute inset-0" aria-hidden>
-            <div
-              className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-[0.07]"
-              style={{ backgroundImage: "url('/images/humanify-hero-bg.png')" }}
-            />
-            <div className="absolute inset-0 bg-gradient-to-b from-white/90 via-slate-50/95 to-slate-50" />
+        <section className="relative pt-32 sm:pt-40 overflow-hidden border-b border-white/[0.08]">
+          <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+            <div className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-[0.05]" style={{ backgroundImage: "url('/images/humanify-hero-bg.png')" }} />
+            
+            <SimpleParticles />
+            
+            {/* Dynamic Grid */}
+            <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.06)_1px,transparent_1px)] bg-[size:48px_48px] [mask-image:radial-gradient(ellipse_80%_80%_at_50%_0%,#000_70%,transparent_100%)]" />
+            
+            {/* Subtle glow blobs for hero */}
+            <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] bg-violet-600/20 rounded-full blur-[120px] mix-blend-screen" />
+            <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-fuchsia-600/10 rounded-full blur-[150px] mix-blend-screen" />
+
+            {/* Gradient overlay */}
+            <div className="absolute inset-0 bg-gradient-to-b from-[#0a0812]/10 via-[#0a0812]/60 to-[#0a0812]" />
+
+            {/* Floating Decorative Elements */}
+            <motion.div animate={{ y: [0, -20, 0], opacity: [0.6, 1, 0.6] }} transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }} className="absolute top-[25%] right-[5%] lg:right-[15%] hidden lg:flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-[#0a0812]/40 p-4 backdrop-blur-xl shadow-[0_0_30px_rgba(139,92,246,0.15)] z-20">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-500/20 text-violet-400">
+                <Users className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-violet-200/60 uppercase tracking-wider">Karyawan Aktif</p>
+                <p className="text-lg font-bold text-white">10.000<span className="text-fuchsia-400">+</span></p>
+              </div>
+            </motion.div>
+
+            <motion.div animate={{ y: [0, 20, 0], opacity: [0.5, 0.9, 0.5] }} transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut', delay: 1 }} className="absolute bottom-[20%] left-[2%] lg:left-[10%] hidden lg:flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-[#0a0812]/40 p-4 backdrop-blur-xl shadow-[0_0_30px_rgba(217,70,239,0.1)] z-20">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                <CheckCircle2 className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-violet-200/60 uppercase tracking-wider">Payroll Bulan Ini</p>
+                <p className="text-lg font-bold text-white">Selesai 100%</p>
+              </div>
+            </motion.div>
           </div>
 
-          <div className="relative mx-auto max-w-7xl px-6 pb-20 pt-32 sm:pb-28 sm:pt-40">
+          <div className="relative mx-auto max-w-7xl px-6">
             <div className="mx-auto max-w-4xl text-center">
               <CorporateHeroBadge />
 
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.3 }}
-                className="mb-4 text-sm tracking-wide text-slate-500"
-              >
+              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="mb-4 text-sm tracking-wide text-violet-200/60">
                 {NAINCODE.legalName}
               </motion.p>
 
-              <motion.h1
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.65, delay: 0.25 }}
-                className="mb-6 text-4xl font-semibold leading-[1.12] tracking-tight text-slate-900 sm:text-5xl lg:text-6xl"
-              >
+              <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, delay: 0.25 }} className="mb-6 text-4xl sm:text-5xl lg:text-7xl font-bold leading-[1.1] tracking-tight text-white">
                 HRIS yang
-                <span className="mt-2 block text-blue-700">mengutamakan manusia</span>
+                <span className="mt-2 block text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-fuchsia-400">mengutamakan manusia</span>
               </motion.h1>
 
-              <motion.p
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.55, delay: 0.45 }}
-                className="mx-auto mb-10 max-w-2xl text-lg leading-relaxed text-slate-600 sm:text-xl"
-              >
+              <motion.p initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, delay: 0.45 }} className="mx-auto mb-10 max-w-2xl text-lg leading-relaxed text-violet-200/80 sm:text-xl">
                 {HUMANIFY_BRAND.description}
               </motion.p>
 
-              <motion.div
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.55, delay: 0.6 }}
-                className="flex flex-col items-center justify-center gap-3 sm:flex-row"
-              >
-                <Link
-                  href={HUMANIFY_BRAND.signupPath}
-                  className="group inline-flex min-w-[240px] items-center justify-center gap-2 rounded-xl bg-blue-600 px-8 py-3.5 font-semibold text-white shadow-sm transition hover:bg-blue-700"
-                >
+              <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, delay: 0.6 }} className="flex flex-col items-center justify-center gap-3 sm:flex-row relative z-30">
+                <Link href={HUMANIFY_BRAND.signupPath} className="group inline-flex min-w-[240px] items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-8 py-3.5 font-semibold text-white shadow-lg shadow-violet-500/25 transition hover:shadow-violet-500/40 hover:-translate-y-0.5">
                   Mulai trial gratis
                   <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
                 </Link>
-                <Link
-                  href={HUMANIFY_BRAND.loginPath}
-                  className="inline-flex min-w-[240px] items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-8 py-3.5 font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
-                >
+                <Link href={HUMANIFY_BRAND.loginPath} className="inline-flex min-w-[240px] items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-md px-8 py-3.5 font-medium text-white transition hover:border-white/[0.15] hover:bg-white/[0.06]">
                   Masuk ke Humanify
                 </Link>
               </motion.div>
             </div>
           </div>
+          
+          <DashboardMockup />
         </section>
 
         {/* Stats */}
-        <section className="border-b border-slate-200/80 bg-white">
+        <section className="border-b border-white/[0.08] bg-white/[0.02]">
           <div className="mx-auto grid max-w-7xl grid-cols-2 gap-8 px-6 py-14 lg:grid-cols-4">
             {STATS.map((stat, i) => (
-              <FadeIn key={stat.label} delay={i * 0.08} className="text-center">
-                <p className="text-3xl font-semibold text-blue-700 sm:text-4xl">
+              <FadeIn key={stat.label} delay={i * 0.08} className="text-center relative">
+                <div className="absolute inset-0 bg-violet-500/5 blur-2xl rounded-full" />
+                <p className="relative text-3xl font-bold text-white sm:text-4xl">
                   <AnimatedCounter value={stat.value} suffix={stat.suffix} decimals={stat.decimals} />
                 </p>
-                <p className="mt-2 text-sm text-slate-500">{stat.label}</p>
+                <p className="relative mt-2 text-sm font-medium uppercase tracking-widest text-violet-200/50">{stat.label}</p>
               </FadeIn>
             ))}
           </div>
         </section>
 
         {/* Marquee */}
-        <section className="overflow-hidden border-b border-slate-200/80 bg-slate-100/60 py-10">
-          <p className="mb-6 text-center text-xs uppercase tracking-[0.25em] text-slate-400">
-            Modul terintegrasi dalam satu platform
+        <section className="overflow-hidden border-b border-white/[0.08] bg-white/[0.01] py-16">
+          <p className="mb-10 text-center text-xs font-semibold uppercase tracking-[0.25em] text-violet-200/40">
+            Ekosistem fitur terlengkap dalam satu platform
           </p>
-          <div className="relative">
-            <div className="absolute bottom-0 left-0 top-0 z-10 w-24 bg-gradient-to-r from-slate-100 to-transparent" />
-            <div className="absolute bottom-0 right-0 top-0 z-10 w-24 bg-gradient-to-l from-slate-100 to-transparent" />
-            <div className="hf-marquee flex whitespace-nowrap">
-              {[...MARQUEE_ITEMS, ...MARQUEE_ITEMS].map((item, i) => (
-                <span
-                  key={`${item}-${i}`}
-                  className="mx-6 inline-flex items-center text-sm font-medium text-slate-500"
-                >
-                  <Sparkles className="mr-2 h-3.5 w-3.5 text-blue-400/70" />
-                  {item}
-                </span>
+          <div className="relative marquee-container flex flex-col gap-4">
+            {/* Left fades */}
+            <div className="absolute bottom-0 left-0 top-0 z-10 w-32 bg-gradient-to-r from-[#0a0812] to-transparent pointer-events-none" />
+            <div className="absolute bottom-0 right-0 top-0 z-10 w-32 bg-gradient-to-l from-[#0a0812] to-transparent pointer-events-none" />
+            
+            {/* Row 1 */}
+            <div className="flex w-max animate-marquee-left whitespace-nowrap">
+              {[...marquee1, ...marquee1, ...marquee1].map((item, i) => (
+                <div key={`m1-${i}`} className="mx-3 inline-flex items-center gap-2 rounded-full border border-white/[0.06] bg-white/[0.03] px-5 py-2.5 backdrop-blur-sm transition-colors hover:bg-white/[0.08]">
+                  <Sparkles className="h-4 w-4 text-fuchsia-400" />
+                  <span className="text-sm font-medium text-violet-100/80">{item}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Row 2 */}
+            <div className="flex w-max animate-marquee-right whitespace-nowrap">
+              {[...marquee2, ...marquee2, ...marquee2].map((item, i) => (
+                <div key={`m2-${i}`} className="mx-3 inline-flex items-center gap-2 rounded-full border border-white/[0.06] bg-white/[0.03] px-5 py-2.5 backdrop-blur-sm transition-colors hover:bg-white/[0.08]">
+                  <CheckCircle2 className="h-4 w-4 text-violet-400" />
+                  <span className="text-sm font-medium text-violet-100/80">{item}</span>
+                </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* Modules */}
+        {/* Modules Bento Grid */}
         <section className="mx-auto max-w-7xl px-6 py-24 sm:py-32">
           <FadeIn className="mb-16 text-center">
-            <p className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-blue-600">Our Modules</p>
-            <h2 className="mb-4 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
-              Solusi HRIS <span className="text-blue-700">End-to-End</span>
+            <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-violet-400">Our Modules</p>
+            <h2 className="mb-4 text-3xl font-bold tracking-tight text-white sm:text-5xl">
+              Solusi HRIS <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-fuchsia-400">End-to-End</span>
             </h2>
-            <p className="mx-auto max-w-xl text-slate-600">
-              Dari konsep hingga operasional harian — modul lengkap untuk setiap tahap siklus hidup karyawan.
+            <p className="mx-auto max-w-xl text-violet-200/70 text-lg">
+              Dari rekrutmen hingga operasional harian — fitur canggih yang dirancang untuk skala enterprise.
             </p>
           </FadeIn>
 
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 auto-rows-[240px]">
             {HUMANIFY_FEATURES.map((f, i) => {
               const Icon = ICONS[i] || UserCheck;
               const iconBg = MODULE_ICON_BG[i % MODULE_ICON_BG.length];
+              
+              // Bento box sizing logic
+              let colSpan = 'col-span-1';
+              let rowSpan = 'row-span-1';
+              
+              if (i === 0) { colSpan = 'md:col-span-2 xl:col-span-2'; rowSpan = 'md:row-span-2'; } // Large hero card
+              else if (i === 3) { colSpan = 'md:col-span-2 xl:col-span-2'; } // Wide card
+              
               return (
-                <FadeIn key={f.title} delay={i * 0.06}>
+                <FadeIn key={f.title} delay={i * 0.05} className={`${colSpan} ${rowSpan}`}>
                   <motion.div
-                    whileHover={{ y: -3 }}
-                    className="group h-full rounded-2xl border border-slate-200/90 bg-white p-7 shadow-sm transition hover:border-blue-200 hover:shadow-md"
+                    whileHover={{ scale: 0.98 }}
+                    className="group relative h-full w-full overflow-hidden rounded-3xl border border-white/[0.08] bg-[#110e1b] p-8 transition-all hover:border-violet-500/30 flex flex-col justify-between"
                   >
-                    <div className={`mb-5 flex h-12 w-12 items-center justify-center rounded-xl ${iconBg}`}>
-                      <Icon className="h-5 w-5" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="absolute -right-12 -top-12 w-40 h-40 bg-violet-500/10 rounded-full blur-3xl group-hover:bg-violet-500/20 transition-colors" />
+                    
+                    <div>
+                      <div className={`mb-6 flex h-14 w-14 items-center justify-center rounded-2xl ${iconBg} shadow-inner`}>
+                        <Icon className="h-6 w-6" />
+                      </div>
+                      <h3 className={`font-bold text-white mb-3 ${i === 0 ? 'text-3xl' : 'text-xl'}`}>
+                        {f.title}
+                      </h3>
+                      <p className={`text-violet-200/60 leading-relaxed ${i === 0 ? 'text-lg max-w-md' : 'text-sm'}`}>
+                        {f.desc}
+                      </p>
                     </div>
-                    <h3 className="mb-2 text-lg font-semibold text-slate-800 transition-colors group-hover:text-blue-800">
-                      {f.title}
-                    </h3>
-                    <p className="mb-4 text-sm leading-relaxed text-slate-500">{f.desc}</p>
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 transition-colors group-hover:text-blue-700">
-                      Pelajari lebih lanjut
-                      <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-                    </span>
+                    
+                    <div className="mt-6 flex items-center gap-2 text-sm font-semibold text-violet-400 opacity-0 transform translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all">
+                      Pelajari modul <ArrowRight className="h-4 w-4" />
+                    </div>
                   </motion.div>
                 </FadeIn>
               );
@@ -404,35 +522,36 @@ export default function HumanifyWelcomePage() {
         </section>
 
         {/* Why Humanify */}
-        <section className="border-y border-slate-200/80 bg-white">
+        <section className="border-y border-white/[0.08] bg-white/[0.01]">
           <div className="mx-auto max-w-7xl px-6 py-24 sm:py-32">
-            <div className="grid items-start gap-16 lg:grid-cols-2">
-              <FadeIn>
-                <p className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-blue-600">Why Humanify</p>
-                <h2 className="mb-5 text-3xl font-semibold leading-tight tracking-tight text-slate-900 sm:text-4xl">
-                  Bukan sekadar software,
-                  <span className="mt-1 block text-blue-700">partner SDM Anda</span>
-                </h2>
-                <p className="mb-8 leading-relaxed text-slate-600">
-                  Kami tidak hanya membangun sistem HR — kami membangun fondasi untuk pertumbuhan tim Anda.
-                  Setiap fitur dirancang dengan standar enterprise dan visi jangka panjang.
-                </p>
-                <Link
-                  href={HUMANIFY_BRAND.loginPath}
-                  className="group inline-flex items-center gap-2 text-sm font-semibold text-blue-700 transition hover:text-blue-800"
-                >
-                  Mulai sekarang
-                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                </Link>
-              </FadeIn>
+            <div className="grid items-center gap-16 lg:grid-cols-5">
+              <div className="lg:col-span-2">
+                <FadeIn>
+                  <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-fuchsia-400">Why Humanify</p>
+                  <h2 className="mb-6 text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl">
+                    Bukan sekadar software,
+                    <span className="mt-2 block text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-fuchsia-400">partner SDM Anda</span>
+                  </h2>
+                  <p className="mb-8 text-lg leading-relaxed text-violet-200/70">
+                    Kami tidak hanya membangun sistem HR — kami membangun fondasi untuk pertumbuhan tim Anda.
+                    Setiap fitur dirancang dengan standar enterprise, keamanan tinggi, dan kemudahan penggunaan.
+                  </p>
+                  <Link href={HUMANIFY_BRAND.loginPath} className="group inline-flex items-center gap-2 text-sm font-bold text-white bg-white/5 border border-white/10 px-6 py-3 rounded-xl transition hover:bg-white/10">
+                    Mulai sekarang
+                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </Link>
+                </FadeIn>
+              </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="lg:col-span-3 grid gap-4 sm:grid-cols-2">
                 {WHY_ITEMS.map((item, i) => (
-                  <FadeIn key={item.title} delay={i * 0.06}>
-                    <div className="h-full rounded-2xl border border-slate-200/90 bg-slate-50/50 p-5 transition hover:border-blue-200 hover:bg-white">
-                      <item.icon className="mb-3 h-5 w-5 text-blue-600" />
-                      <h4 className="mb-1.5 text-sm font-semibold text-slate-800">{item.title}</h4>
-                      <p className="text-xs leading-relaxed text-slate-500">{item.desc}</p>
+                  <FadeIn key={item.title} delay={i * 0.1}>
+                    <div className="group h-full rounded-3xl border border-white/[0.06] bg-[#110e1b]/50 p-6 transition-all hover:border-fuchsia-500/30 hover:bg-[#110e1b]">
+                      <div className="mb-4 inline-flex p-3 rounded-xl bg-white/5 group-hover:bg-fuchsia-500/10 transition-colors">
+                        <item.icon className="h-6 w-6 text-violet-300 group-hover:text-fuchsia-400 transition-colors" />
+                      </div>
+                      <h4 className="mb-2 text-lg font-bold text-white">{item.title}</h4>
+                      <p className="text-sm leading-relaxed text-violet-200/60">{item.desc}</p>
                     </div>
                   </FadeIn>
                 ))}
@@ -442,100 +561,72 @@ export default function HumanifyWelcomePage() {
         </section>
 
         {/* Process */}
-        <section className="mx-auto max-w-7xl px-6 py-24 sm:py-32">
-          <FadeIn className="mb-16 text-center">
-            <p className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-blue-600">Our Process</p>
-            <h2 className="mb-4 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
-              Dari rekrutmen hingga <span className="text-blue-700">payroll</span>
+        <section className="mx-auto max-w-7xl px-6 py-24 sm:py-32 relative">
+          <FadeIn className="mb-20 text-center relative z-10">
+            <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-violet-400">Workflow</p>
+            <h2 className="mb-4 text-3xl font-bold tracking-tight text-white sm:text-5xl">
+              Dari rekrutmen hingga <span className="text-fuchsia-400">payroll</span>
             </h2>
-            <p className="mx-auto max-w-lg text-slate-600">
-              Metodologi terstruktur yang memastikan setiap tahap SDM berjalan efisien dan terukur.
+            <p className="mx-auto max-w-xl text-violet-200/70 text-lg">
+              Siklus hidup karyawan yang mulus dalam satu alur yang terotomatisasi.
             </p>
           </FadeIn>
 
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {PROCESS_STEPS.map((step, i) => (
-              <FadeIn key={step.step} delay={i * 0.1}>
-                <div className="group relative h-full rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm transition hover:border-blue-200 hover:shadow-md">
-                  <span className="absolute right-5 top-4 text-5xl font-black text-slate-100 transition-colors group-hover:text-blue-50">
-                    {step.step}
-                  </span>
-                  <p className="mb-3 text-xs font-bold tracking-wider text-blue-600">{step.step}</p>
-                  <h3 className="mb-2 text-base font-semibold text-slate-800">{step.title}</h3>
-                  <p className="mb-4 text-sm leading-relaxed text-slate-500">{step.desc}</p>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs text-blue-700">
-                    <Clock className="h-3 w-3" />
-                    {step.duration}
-                  </span>
-                </div>
-              </FadeIn>
-            ))}
-          </div>
-        </section>
-
-        {/* Trust badges */}
-        <section className="border-y border-slate-200/80 bg-slate-50">
-          <div className="mx-auto grid max-w-7xl gap-8 px-6 py-14 sm:grid-cols-3">
-            {[
-              { icon: Shield, title: 'Enterprise-ready', desc: 'Multi-tenant, RBAC, audit trail' },
-              { icon: Zap, title: 'Real-time Data', desc: 'Dashboard & laporan instan' },
-              { icon: Building2, title: 'Ekosistem Naincode', desc: 'Produk teknologi terintegrasi' },
-            ].map((item, i) => (
-              <FadeIn key={item.title} delay={i * 0.08} className="flex items-start gap-4">
-                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-blue-50">
-                  <item.icon className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="mb-1 font-semibold text-slate-800">{item.title}</p>
-                  <p className="text-sm text-slate-500">{item.desc}</p>
-                </div>
-              </FadeIn>
-            ))}
+          <div className="relative">
+            {/* Connecting Line background */}
+            <div className="hidden lg:block absolute top-1/2 left-0 w-full h-0.5 bg-gradient-to-r from-violet-500/0 via-violet-500/50 to-fuchsia-500/0 -translate-y-1/2 z-0" />
+            
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 relative z-10">
+              {PROCESS_STEPS.map((step, i) => (
+                <FadeIn key={step.step} delay={i * 0.15}>
+                  <div className="group relative h-full rounded-3xl border border-white/[0.08] bg-[#0a0812] p-8 shadow-xl transition-all hover:-translate-y-2 hover:border-violet-500/40 hover:shadow-violet-500/10">
+                    <div className="absolute -top-4 -right-4 w-24 h-24 bg-violet-500/10 rounded-full blur-2xl group-hover:bg-fuchsia-500/20 transition-all" />
+                    <span className="inline-block mb-4 text-4xl font-black text-transparent bg-clip-text bg-gradient-to-br from-violet-400 to-white/20">
+                      {step.step}
+                    </span>
+                    <h3 className="mb-3 text-lg font-bold text-white leading-snug">{step.title}</h3>
+                    <p className="mb-6 text-sm leading-relaxed text-violet-200/60">{step.desc}</p>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-white/5 border border-white/10 px-3 py-1.5 text-xs font-medium text-violet-300">
+                      <Clock className="h-3.5 w-3.5" />
+                      {step.duration}
+                    </span>
+                  </div>
+                </FadeIn>
+              ))}
+            </div>
           </div>
         </section>
 
         {/* CTA */}
         <section className="mx-auto max-w-7xl px-6 py-24 sm:py-32">
           <FadeIn>
-            <div className="relative overflow-hidden rounded-3xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-slate-50 p-10 text-center shadow-sm sm:p-16">
-              <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-blue-100/50" />
-              <div className="absolute -bottom-12 -left-12 h-36 w-36 rounded-full bg-slate-100/80" />
-              <div className="relative">
-                <h2 className="mb-4 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+            <div className="relative overflow-hidden rounded-[2.5rem] border border-violet-500/20 bg-[#110e1b] p-10 text-center shadow-2xl sm:p-20">
+              {/* Complex background for CTA */}
+              <div className="absolute inset-0 bg-[url('/images/noise.png')] opacity-[0.03] mix-blend-overlay" />
+              <div className="absolute -right-20 -top-20 h-96 w-96 rounded-full bg-violet-600/20 blur-[100px]" />
+              <div className="absolute -bottom-20 -left-20 h-80 w-80 rounded-full bg-fuchsia-600/20 blur-[100px]" />
+              
+              <div className="relative z-10">
+                <h2 className="mb-6 text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white">
                   Siap transformasi
-                  <span className="mt-1 block text-blue-700">manajemen SDM Anda?</span>
+                  <span className="mt-2 block text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-fuchsia-400">manajemen SDM Anda?</span>
                 </h2>
-                <p className="mx-auto mb-8 max-w-lg text-slate-600">
-                  Mulai kelola karyawan, kehadiran, dan payroll dalam satu platform — didukung teknologi Naincode.
+                <p className="mx-auto mb-10 max-w-xl text-lg text-violet-200/70">
+                  Mulai kelola karyawan, kehadiran, dan payroll dalam satu platform modern — didukung teknologi Naincode.
                 </p>
-                <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
-                  <Link
-                    href={HUMANIFY_BRAND.signupPath}
-                    className="group inline-flex min-w-[220px] items-center justify-center gap-2 rounded-xl bg-blue-600 px-8 py-3.5 font-semibold text-white shadow-sm transition hover:bg-blue-700"
-                  >
+                <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
+                  <Link href={HUMANIFY_BRAND.signupPath} className="group inline-flex min-w-[220px] items-center justify-center gap-2 rounded-2xl bg-white text-[#0a0812] px-8 py-4 font-bold transition hover:bg-violet-50 hover:scale-105">
                     Daftar trial gratis
-                    <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
+                    <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
                   </Link>
-                  <Link
-                    href={HUMANIFY_BRAND.loginPath}
-                    className="inline-flex min-w-[220px] items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-8 py-3.5 font-medium text-slate-700 transition hover:bg-slate-50"
-                  >
-                    Masuk ke Humanify
+                  <Link href={HUMANIFY_BRAND.loginPath} className="inline-flex min-w-[220px] items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-8 py-4 font-bold text-white transition hover:bg-white/10">
+                    Masuk ke aplikasi
                   </Link>
-                  <a
-                    href={NAINCODE.website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex min-w-[220px] items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-8 py-3.5 font-medium text-slate-700 transition hover:bg-slate-50"
-                  >
-                    <HeadphonesIcon className="h-4 w-4" />
-                    Kunjungi {NAINCODE.name}
-                  </a>
                 </div>
-                <div className="mt-8 flex flex-wrap justify-center gap-6 text-xs text-slate-500">
-                  {['Gratis untuk tim internal', 'Tanpa komitmen', 'Dukungan penuh'].map((t) => (
-                    <span key={t} className="inline-flex items-center gap-1.5">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-blue-500" />
+                <div className="mt-10 flex flex-wrap justify-center gap-6 text-sm font-medium text-violet-200/50">
+                  {['Gratis untuk tim internal', 'Tanpa kartu kredit', 'Setup dalam 5 menit'].map((t) => (
+                    <span key={t} className="inline-flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-400" />
                       {t}
                     </span>
                   ))}
@@ -546,7 +637,7 @@ export default function HumanifyWelcomePage() {
         </section>
       </main>
 
-      <NaincodeFooter variant="light" />
+      <NaincodeFooter variant="dark" />
     </div>
   );
 }

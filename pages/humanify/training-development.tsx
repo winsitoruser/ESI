@@ -21,15 +21,15 @@ type TabKey = 'dashboard' | 'curricula' | 'modules' | 'batches' | 'schedules' | 
 
 const STATUS_COLORS: Record<string, string> = {
   active: 'bg-green-100 text-green-700', draft: 'bg-gray-100 text-gray-600',
-  archived: 'bg-gray-200 text-gray-500', planned: 'bg-blue-100 text-blue-700',
+  archived: 'bg-gray-200 text-gray-500', planned: 'bg-violet-100 text-violet-700',
   registration: 'bg-indigo-100 text-indigo-700', in_progress: 'bg-yellow-100 text-yellow-700',
   exam_phase: 'bg-purple-100 text-purple-700', completed: 'bg-green-100 text-green-700',
-  cancelled: 'bg-red-100 text-red-700', scheduled: 'bg-blue-100 text-blue-700',
+  cancelled: 'bg-red-100 text-red-700', scheduled: 'bg-violet-100 text-violet-700',
   open: 'bg-green-100 text-green-700', closed: 'bg-gray-100 text-gray-600',
   graded: 'bg-teal-100 text-teal-700', passed: 'bg-green-100 text-green-700',
   failed: 'bg-red-100 text-red-700', conditional: 'bg-orange-100 text-orange-700',
   remedial: 'bg-yellow-100 text-yellow-700', withdrawn: 'bg-gray-100 text-gray-600',
-  pending: 'bg-yellow-100 text-yellow-700', confirmed: 'bg-blue-100 text-blue-700',
+  pending: 'bg-yellow-100 text-yellow-700', confirmed: 'bg-violet-100 text-violet-700',
   recalled: 'bg-red-100 text-red-700', rescheduled: 'bg-orange-100 text-orange-700',
   submitted: 'bg-indigo-100 text-indigo-700',
 };
@@ -443,7 +443,7 @@ export default function TrainingDevelopmentPage() {
               <MetricCard title="Status Batch" icon={Users} iconColor="text-purple-600" bg="from-purple-50 to-white">
                 <MetricRow label="Aktif / Berlangsung" value={dashboard.batches?.active || 0} color="text-yellow-600" />
                 <MetricRow label="Selesai" value={dashboard.batches?.completed || 0} color="text-green-600" />
-                <MetricRow label="Outsourcing" value={dashboard.batches?.outsourcing || 0} color="text-blue-600" />
+                <MetricRow label="Outsourcing" value={dashboard.batches?.outsourcing || 0} color="text-violet-600" />
                 <MetricRow label="Total Batch" value={dashboard.batches?.total || 0} color="text-gray-800" bold />
               </MetricCard>
 
@@ -457,7 +457,7 @@ export default function TrainingDevelopmentPage() {
               <MetricCard title="Status Penempatan" icon={MapPin} iconColor="text-orange-600" bg="from-orange-50 to-white">
                 <MetricRow label="Menunggu" value={dashboard.placements?.pending || 0} color="text-yellow-600" />
                 <MetricRow label="Aktif" value={dashboard.placements?.active || 0} color="text-green-600" />
-                <MetricRow label="Outsourcing" value={dashboard.placements?.outsourcing || 0} color="text-blue-600" />
+                <MetricRow label="Outsourcing" value={dashboard.placements?.outsourcing || 0} color="text-violet-600" />
                 <MetricRow label="Total Penempatan" value={dashboard.placements?.total || 0} color="text-gray-800" bold />
               </MetricCard>
             </div>
@@ -479,7 +479,7 @@ export default function TrainingDevelopmentPage() {
                 </div>
                 <div className="flex items-stretch gap-2 overflow-x-auto pb-1">
                   {[
-                    { label: 'Rekrutmen', value: pipeline.recruiting || 0, color: 'bg-blue-500', light: 'bg-blue-50 text-blue-700' },
+                    { label: 'Rekrutmen', value: pipeline.recruiting || 0, color: 'bg-violet-500', light: 'bg-violet-50 text-violet-700' },
                     { label: 'Dalam Pelatihan', value: pipeline.in_training || 0, color: 'bg-amber-500', light: 'bg-amber-50 text-amber-700' },
                     { label: 'Siap Ditempatkan', value: pipeline.ready_deploy || 0, color: 'bg-indigo-500', light: 'bg-indigo-50 text-indigo-700' },
                     { label: 'Ditempatkan', value: pipeline.deployed || 0, color: 'bg-emerald-500', light: 'bg-emerald-50 text-emerald-700' },
@@ -513,8 +513,8 @@ export default function TrainingDevelopmentPage() {
                   <p className="text-3xl font-bold text-emerald-600 tabular-nums">{Number(dashboard.exams?.pass_rate || 0).toFixed(1)}%</p>
                   <p className="text-xs text-gray-500 mt-1">Tingkat Kelulusan</p>
                 </div>
-                <div className="rounded-xl bg-gradient-to-br from-blue-50 to-white border border-blue-100 p-5 text-center">
-                  <p className="text-3xl font-bold text-blue-600 tabular-nums">{Number(dashboard.exams?.avg_score || 0).toFixed(1)}</p>
+                <div className="rounded-xl bg-gradient-to-br from-violet-50 to-white border border-violet-100 p-5 text-center">
+                  <p className="text-3xl font-bold text-violet-600 tabular-nums">{Number(dashboard.exams?.avg_score || 0).toFixed(1)}</p>
                   <p className="text-xs text-gray-500 mt-1">Rata-rata Skor</p>
                 </div>
               </div>
@@ -560,7 +560,7 @@ export default function TrainingDevelopmentPage() {
                   </div>
                   <div className="flex items-center gap-2 mt-3 text-xs">
                     <span className="bg-gray-100 px-2 py-0.5 rounded-md font-medium">{c.category}</span>
-                    {c.target_audience && <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md font-medium">{c.target_audience}</span>}
+                    {c.target_audience && <span className="bg-violet-50 text-violet-600 px-2 py-0.5 rounded-md font-medium">{c.target_audience}</span>}
                   </div>
                 </div>
               ))}
@@ -666,7 +666,7 @@ export default function TrainingDevelopmentPage() {
                         <div className="bg-indigo-500 h-1.5 rounded-full transition-all" style={{ width: `${fillPct}%` }} />
                       </div>
                     </div>
-                    {b.client_company && <div className="flex items-center gap-1 text-xs text-blue-600 mb-1"><Building2 className="w-3 h-3" /> {b.client_company}</div>}
+                    {b.client_company && <div className="flex items-center gap-1 text-xs text-violet-600 mb-1"><Building2 className="w-3 h-3" /> {b.client_company}</div>}
                     {b.instructor && <div className="flex items-center gap-1 text-xs text-gray-500"><UserCheck className="w-3 h-3" /> {b.instructor}</div>}
                     <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-100">
                       <div className="flex-1">
@@ -766,7 +766,7 @@ export default function TrainingDevelopmentPage() {
                   </div>
                   <div className="flex items-center gap-4 text-xs mt-2">
                     {e.batch_name && <span className="text-purple-600 font-medium">Batch: {e.batch_name}</span>}
-                    {e.curriculum_title && <span className="text-blue-600">{e.curriculum_title}</span>}
+                    {e.curriculum_title && <span className="text-violet-600">{e.curriculum_title}</span>}
                   </div>
                   <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-gray-100 text-center">
                     <div className="rounded-lg bg-gray-50 py-2">
@@ -777,9 +777,9 @@ export default function TrainingDevelopmentPage() {
                       <p className="text-sm font-bold text-emerald-700">{e.passed_count || 0}</p>
                       <p className="text-[10px] text-emerald-600">Lulus</p>
                     </div>
-                    <div className="rounded-lg bg-blue-50 py-2">
-                      <p className="text-sm font-bold text-blue-700">{Number(e.avg_score || 0).toFixed(1)}</p>
-                      <p className="text-[10px] text-blue-600">Avg Skor</p>
+                    <div className="rounded-lg bg-violet-50 py-2">
+                      <p className="text-sm font-bold text-violet-700">{Number(e.avg_score || 0).toFixed(1)}</p>
+                      <p className="text-[10px] text-violet-600">Avg Skor</p>
                     </div>
                   </div>
                 </div>
@@ -886,7 +886,7 @@ export default function TrainingDevelopmentPage() {
                         <td className="px-4 py-3.5">{p.position}<br /><span className="text-xs text-gray-400">{p.department || '—'}</span></td>
                         <td className="px-4 py-3.5"><span className="text-xs bg-gray-100 px-2 py-0.5 rounded-md font-medium">{PLACEMENT_TYPES[p.placement_type] || p.placement_type}</span></td>
                         <td className="px-4 py-3.5 text-xs">
-                          {p.client_company && <p className="text-blue-600 font-medium">{p.client_company}</p>}
+                          {p.client_company && <p className="text-violet-600 font-medium">{p.client_company}</p>}
                           {p.client_site && <p className="text-gray-500">{p.client_site}</p>}
                           {p.target_branch_name && <p className="text-gray-500">{p.target_branch_name}</p>}
                           {!p.client_company && !p.target_branch_name && '—'}
@@ -917,7 +917,7 @@ export default function TrainingDevelopmentPage() {
               {pipeline && (
                 <div className="flex items-stretch gap-3 overflow-x-auto pb-2">
                   {[
-                    { label: 'Rekrutmen', desc: 'Calon karyawan dalam proses seleksi', value: pipeline.recruiting || 0, color: 'from-blue-500 to-blue-600', icon: UserCheck },
+                    { label: 'Rekrutmen', desc: 'Calon karyawan dalam proses seleksi', value: pipeline.recruiting || 0, color: 'from-violet-500 to-violet-600', icon: UserCheck },
                     { label: 'Pelatihan', desc: 'Dalam program pelatihan & pembinaan', value: pipeline.in_training || 0, color: 'from-amber-500 to-amber-600', icon: BookOpen },
                     { label: 'Siap Ditempatkan', desc: 'Lulus pelatihan, siap ditempatkan', value: pipeline.ready_deploy || 0, color: 'from-indigo-500 to-indigo-600', icon: GraduationCap },
                     { label: 'Ditempatkan', desc: 'Aktif bekerja di lokasi klien', value: pipeline.deployed || 0, color: 'from-emerald-500 to-emerald-600', icon: MapPin },
@@ -1047,7 +1047,7 @@ export default function TrainingDevelopmentPage() {
               </div>
               <FormField label="Lokasi" value={form.location || ''} onChange={v => setForm({...form, location: v})} />
               {(form.batch_type === 'outsourcing') && (
-                <div className="grid grid-cols-2 gap-3 p-3 bg-blue-50 rounded-lg">
+                <div className="grid grid-cols-2 gap-3 p-3 bg-violet-50 rounded-lg">
                   <FormField label="Perusahaan Klien" value={form.client_company || ''} onChange={v => setForm({...form, client_company: v})} />
                   <FormField label="No. Kontrak/PO" value={form.contract_id || ''} onChange={v => setForm({...form, contract_id: v})} />
                 </div>
@@ -1126,7 +1126,7 @@ export default function TrainingDevelopmentPage() {
               <FormSelect label="Batch (opsional)" value={form.batch_id || ''} onChange={v => setForm({...form, batch_id: v})}
                 options={batches.map(b => [b.id, `${b.batch_code} - ${b.batch_name}`])} placeholder="Pilih batch" />
               {(form.placement_type === 'outsourcing_deployment' || form.placement_type === 'client_site') && (
-                <div className="p-3 bg-blue-50 rounded-lg space-y-3">
+                <div className="p-3 bg-violet-50 rounded-lg space-y-3">
                   <FormField label="Perusahaan Klien" value={form.client_company || ''} onChange={v => setForm({...form, client_company: v})} />
                   <FormField label="Lokasi Klien" value={form.client_site || ''} onChange={v => setForm({...form, client_site: v})} />
                 </div>
@@ -1326,7 +1326,7 @@ export default function TrainingDevelopmentPage() {
                 )}
                 {selectedItem.status === 'active' && (
                   <button onClick={() => handleUpdate('update-placement', { id: selectedItem.id, status: 'completed', end_date: new Date().toISOString().split('T')[0] }, refreshPlacements)}
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">Selesai Penempatan</button>
+                    className="flex-1 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700">Selesai Penempatan</button>
                 )}
                 <button onClick={() => handleDelete('delete-placement', selectedItem.id, refreshPlacements)} className="px-4 py-2 border border-red-300 text-red-600 rounded-lg text-sm hover:bg-red-50 flex items-center gap-1"><Trash2 className="w-4 h-4" /> Hapus</button>
               </div>
@@ -1484,7 +1484,7 @@ export default function TrainingDevelopmentPage() {
 // Reusable Sub-Components
 // ═══════════════════════════════════════════
 const STAT_COLORS: Record<string, { bg: string; icon: string; border: string }> = {
-  blue: { bg: 'from-blue-50 to-white', icon: 'bg-blue-100 text-blue-600', border: 'border-blue-100' },
+  blue: { bg: 'from-violet-50 to-white', icon: 'bg-violet-100 text-violet-600', border: 'border-violet-100' },
   purple: { bg: 'from-purple-50 to-white', icon: 'bg-purple-100 text-purple-600', border: 'border-purple-100' },
   green: { bg: 'from-emerald-50 to-white', icon: 'bg-emerald-100 text-emerald-600', border: 'border-emerald-100' },
   orange: { bg: 'from-orange-50 to-white', icon: 'bg-orange-100 text-orange-600', border: 'border-orange-100' },
@@ -1573,7 +1573,7 @@ function FilterSelect({ value, onChange, options }: { value: string; onChange: (
 
 function IntegrationCard({ title, desc, href, icon: Icon, color }: { title: string; desc: string; href: string; icon: any; color: 'blue' | 'purple' | 'green' }) {
   const styles = {
-    blue: { bg: 'bg-blue-50 border-blue-100', title: 'text-blue-900', text: 'text-blue-700', link: 'text-blue-600' },
+    blue: { bg: 'bg-violet-50 border-violet-100', title: 'text-violet-900', text: 'text-violet-700', link: 'text-violet-600' },
     purple: { bg: 'bg-purple-50 border-purple-100', title: 'text-purple-900', text: 'text-purple-700', link: 'text-purple-600' },
     green: { bg: 'bg-emerald-50 border-emerald-100', title: 'text-emerald-900', text: 'text-emerald-700', link: 'text-emerald-600' },
   }[color];

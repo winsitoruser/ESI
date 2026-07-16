@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
@@ -9,9 +9,9 @@ import TrainingLmsBridge from '@/components/humanify/TrainingLmsBridge';
 type TabKey = 'programs' | 'schedule' | 'certifications' | 'reports';
 
 const TYPE_ICONS: Record<string, any> = { workshop: BookOpen, course: GraduationCap, hands_on: Monitor, certification: Award, online: Video, training: GraduationCap };
-const STATUS_COLORS: Record<string, string> = { active: 'bg-green-100 text-green-700', upcoming: 'bg-blue-100 text-blue-700', completed: 'bg-gray-100 text-gray-600', cancelled: 'bg-red-100 text-red-700' };
+const STATUS_COLORS: Record<string, string> = { active: 'bg-green-100 text-green-700', upcoming: 'bg-violet-100 text-violet-700', completed: 'bg-gray-100 text-gray-600', cancelled: 'bg-red-100 text-red-700' };
 const CERT_STATUS_COLORS: Record<string, string> = { active: 'bg-green-100 text-green-700', expiring_soon: 'bg-yellow-100 text-yellow-700', expired: 'bg-red-100 text-red-700' };
-const LEVEL_COLORS: Record<string, string> = { beginner: 'text-green-600', intermediate: 'text-blue-600', advanced: 'text-purple-600' };
+const LEVEL_COLORS: Record<string, string> = { beginner: 'text-green-600', intermediate: 'text-violet-600', advanced: 'text-purple-600' };
 
 const emptyProgramForm = { title: '', category: 'technical', type: 'training', trainer: '', location: '', status: 'upcoming', start_date: '', end_date: '', max_participants: '30', cost_per_person: '0', description: '' };
 
@@ -184,7 +184,7 @@ export default function TrainingPage() {
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div className="bg-white rounded-xl p-4 border shadow-sm">
-            <div className="flex items-center gap-3"><div className="p-2 bg-blue-100 rounded-lg"><BookOpen className="w-5 h-5 text-blue-600" /></div>
+            <div className="flex items-center gap-3"><div className="p-2 bg-violet-100 rounded-lg"><BookOpen className="w-5 h-5 text-violet-600" /></div>
               <div><p className="text-2xl font-bold">{activeProgramCount}</p><p className="text-xs text-gray-500">Program Aktif</p></div></div>
           </div>
           <div className="bg-white rounded-xl p-4 border shadow-sm">
@@ -380,7 +380,7 @@ export default function TrainingPage() {
                   return (
                     <div key={p.id}>
                       <div className="flex justify-between text-sm mb-1"><span className="text-gray-700 truncate mr-2">{p.title}</span><span className="font-medium">{pct}%</span></div>
-                      <div className="w-full bg-gray-100 rounded-full h-2"><div className={`h-2 rounded-full ${pct === 100 ? 'bg-green-500' : pct > 50 ? 'bg-blue-500' : 'bg-orange-500'}`} style={{ width: `${pct}%` }} /></div>
+                      <div className="w-full bg-gray-100 rounded-full h-2"><div className={`h-2 rounded-full ${pct === 100 ? 'bg-green-500' : pct > 50 ? 'bg-violet-500' : 'bg-orange-500'}`} style={{ width: `${pct}%` }} /></div>
                     </div>
                   );
                 })}

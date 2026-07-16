@@ -50,11 +50,12 @@ export default function DynamicSidebar({
   }, [config, userRole, enabledModules]);
 
   // Auto-expand parent of active menu item
+  const activeItem = useMemo(() => findActiveMenuItem(filteredConfig.groups, router.pathname, router.query as any), [filteredConfig.groups, router.pathname, router.query]);
+
   useEffect(() => {
     setMounted(true);
     
     // Find active item and expand its parent
-    const activeItem = findActiveMenuItem(filteredConfig.groups, router.pathname);
     if (activeItem) {
       const parent = getParentMenuItem(filteredConfig.groups, activeItem.id);
       if (parent && !expandedMenus.includes(parent.id)) {
@@ -67,7 +68,7 @@ export default function DynamicSidebar({
     if (saved !== null) {
       setSidebarCollapsed(saved === 'true');
     }
-  }, [router.pathname, filteredConfig.groups, config.layout]);
+  }, [router.pathname, filteredConfig.groups, config.layout, activeItem]);
 
   const toggleSidebarCollapse = () => {
     const newState = !sidebarCollapsed;
@@ -83,9 +84,8 @@ export default function DynamicSidebar({
     );
   };
 
-  const isActive = (href?: string) => {
-    if (!href) return false;
-    return router.pathname === href || router.pathname.startsWith(href + '/');
+  const isActive = (item: MenuItem) => {
+    return activeItem?.id === item.id;
   };
 
   const isMenuExpanded = (menuId: string) => expandedMenus.includes(menuId);
@@ -93,7 +93,7 @@ export default function DynamicSidebar({
   const renderMenuItem = (item: MenuItem, depth = 0) => {
     const hasChildren = item.children && item.children.length > 0;
     const isExpanded = isMenuExpanded(item.id);
-    const active = isActive(item.href);
+    const active = isActive(item);
     const Icon = item.icon;
     const isChild = depth > 0;
 

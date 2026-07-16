@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { X, Download, FilePlus, Eye, Check, AlertTriangle, Upload } from 'lucide-react';
 import { ProjectItem } from './types';
 
@@ -131,7 +131,7 @@ export default function BulkImportModal({
             <button onClick={() => setShowBulkModal(false)} className="px-4 py-2 text-sm text-gray-700 border rounded-lg hover:bg-gray-50">Tutup</button>
             <button onClick={handleBulkImport} disabled={bulkUploading || bulkParsed.length === 0 || !bulkProjectId}
               className={`px-5 py-2 text-sm text-white rounded-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
-                bulkType === 'workers' ? 'bg-green-600 hover:bg-green-700' : bulkType === 'timesheets' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-purple-600 hover:bg-purple-700'
+                bulkType === 'workers' ? 'bg-green-600 hover:bg-green-700' : bulkType === 'timesheets' ? 'bg-violet-600 hover:bg-violet-700' : 'bg-purple-600 hover:bg-purple-700'
               }`}>
               {bulkUploading ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Mengimport...</> : <><Upload className="w-4 h-4" /> Import {bulkParsed.length} Data</>}
             </button>

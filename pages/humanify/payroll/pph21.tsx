@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
@@ -142,7 +142,7 @@ export default function PPh21Page() {
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'Wajib Pajak', value: items.length, icon: Users, bg: 'bg-blue-100', color: 'text-blue-600' },
+            { label: 'Wajib Pajak', value: items.length, icon: Users, bg: 'bg-violet-100', color: 'text-violet-600' },
             { label: 'Total PPh 21/Tahun', value: totalAnnualTax, icon: DollarSign, bg: 'bg-amber-100', color: 'text-amber-600', fmt: true },
             { label: 'YTD Disetor', value: totalYTD, icon: CheckCircle, bg: 'bg-green-100', color: 'text-green-600', fmt: true },
             { label: 'Sisa Kewajiban', value: totalAnnualTax - totalYTD, icon: AlertCircle, bg: 'bg-red-100', color: 'text-red-600', fmt: true },
@@ -164,7 +164,7 @@ export default function PPh21Page() {
               { key: 'ptkp', label: 'Tabel PTKP', icon: Users },
               { key: 'brackets', label: 'Tarif Progresif', icon: Percent },
             ].map(tab => (
-              <button key={tab.key} onClick={() => setActiveTab(tab.key as any)} className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 whitespace-nowrap ${activeTab === tab.key ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}><tab.icon className="w-4 h-4" />{tab.label}</button>
+              <button key={tab.key} onClick={() => setActiveTab(tab.key as any)} className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 whitespace-nowrap ${activeTab === tab.key ? 'border-violet-600 text-violet-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}><tab.icon className="w-4 h-4" />{tab.label}</button>
             ))}
           </div>
 
@@ -196,8 +196,8 @@ export default function PPh21Page() {
                         <td className="px-4 py-3 text-right text-sm font-semibold text-amber-600">{fmtCurrency(i.annual_tax)}</td>
                         <td className="px-4 py-3 text-right text-sm">{fmtCurrency(i.monthly_tax)}</td>
                         <td className="px-4 py-3 text-right text-sm text-green-600">{fmtCurrency(i.ytd_paid)}</td>
-                        <td className="px-4 py-3 text-center"><span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${i.tax_method === 'gross_up' ? 'bg-blue-100 text-blue-700' : i.tax_method === 'nett' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'}`}>{i.tax_method === 'gross_up' ? 'Gross Up' : i.tax_method === 'nett' ? 'Nett' : 'Gross'}</span></td>
-                        <td className="px-4 py-3 text-center"><button onClick={() => setSelectedItem(i)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"><Eye className="w-4 h-4" /></button></td>
+                        <td className="px-4 py-3 text-center"><span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${i.tax_method === 'gross_up' ? 'bg-violet-100 text-violet-700' : i.tax_method === 'nett' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'}`}>{i.tax_method === 'gross_up' ? 'Gross Up' : i.tax_method === 'nett' ? 'Nett' : 'Gross'}</span></td>
+                        <td className="px-4 py-3 text-center"><button onClick={() => setSelectedItem(i)} className="p-1.5 text-violet-600 hover:bg-violet-50 rounded"><Eye className="w-4 h-4" /></button></td>
                       </tr>
                     ))}
                   </tbody>
@@ -215,7 +215,7 @@ export default function PPh21Page() {
 
           {activeTab === 'simulator' && (
             <div className="p-6 max-w-3xl">
-              <h3 className="font-semibold text-lg mb-4 flex items-center gap-2"><Calculator className="w-5 h-5 text-blue-600" /> Simulator Perhitungan PPh 21</h3>
+              <h3 className="font-semibold text-lg mb-4 flex items-center gap-2"><Calculator className="w-5 h-5 text-violet-600" /> Simulator Perhitungan PPh 21</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div><label className="block text-sm font-medium mb-1">Gaji Kotor per Bulan</label><input type="number" value={simGross} onChange={e => setSimGross(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="10000000" /></div>
@@ -254,7 +254,7 @@ export default function PPh21Page() {
               <h3 className="font-semibold text-lg mb-4">Tarif Pajak Progresif PPh 21</h3>
               <div className="border rounded-xl overflow-hidden">
                 <table className="w-full"><thead className="bg-gray-50"><tr><th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Layer</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">PKP</th><th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Tarif</th></tr></thead>
-                  <tbody className="divide-y">{TAX_BRACKETS.map((b, i) => (<tr key={i} className="hover:bg-gray-50"><td className="px-4 py-3 text-center font-bold text-sm">{i + 1}</td><td className="px-4 py-3 text-sm">{fmtCurrency(b.min)} - {b.max === Infinity ? '∞' : fmtCurrency(b.max)}</td><td className="px-4 py-3 text-center"><span className={`px-3 py-1 rounded-full text-sm font-bold ${i === 0 ? 'bg-green-100 text-green-700' : i === 1 ? 'bg-blue-100 text-blue-700' : i === 2 ? 'bg-yellow-100 text-yellow-700' : i === 3 ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'}`}>{b.rate}%</span></td></tr>))}</tbody>
+                  <tbody className="divide-y">{TAX_BRACKETS.map((b, i) => (<tr key={i} className="hover:bg-gray-50"><td className="px-4 py-3 text-center font-bold text-sm">{i + 1}</td><td className="px-4 py-3 text-sm">{fmtCurrency(b.min)} - {b.max === Infinity ? '∞' : fmtCurrency(b.max)}</td><td className="px-4 py-3 text-center"><span className={`px-3 py-1 rounded-full text-sm font-bold ${i === 0 ? 'bg-green-100 text-green-700' : i === 1 ? 'bg-violet-100 text-violet-700' : i === 2 ? 'bg-yellow-100 text-yellow-700' : i === 3 ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'}`}>{b.rate}%</span></td></tr>))}</tbody>
                 </table>
               </div>
             </div>

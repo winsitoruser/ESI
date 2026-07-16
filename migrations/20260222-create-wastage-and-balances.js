@@ -27,7 +27,7 @@ module.exports = {
         onDelete: 'CASCADE'
       },
       productId: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: false,
         field: 'product_id',
         references: {
@@ -74,7 +74,7 @@ module.exports = {
         field: 'waste_date'
       },
       reportedBy: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: false,
         field: 'reported_by',
         references: {
@@ -83,7 +83,7 @@ module.exports = {
         }
       },
       verifiedBy: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: true,
         field: 'verified_by',
         references: {
@@ -208,7 +208,7 @@ module.exports = {
         allowNull: true
       },
       createdBy: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: false,
         field: 'created_by',
         references: {

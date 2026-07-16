@@ -112,7 +112,7 @@ export default function HumanifySsoPage() {
           <KeyRound className="w-10 h-10 mx-auto text-slate-300 mb-3" />
           <h2 className="text-lg font-bold text-slate-900">SSO tersedia di paket Enterprise</h2>
           <p className="text-sm text-slate-500 mt-2">Upgrade paket untuk mengaktifkan Single Sign-On SAML bagi tim Anda.</p>
-          <a href="/humanify/billing" className="inline-block mt-4 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700">
+          <a href="/humanify/billing" className="inline-block mt-4 px-4 py-2 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700">
             Lihat paket
           </a>
         </div>
@@ -125,7 +125,7 @@ export default function HumanifySsoPage() {
       <Head><title>SSO — {HUMANIFY_BRAND.name}</title></Head>
       <HumanifyLayout title="Single Sign-On (SAML)" subtitle="Konfigurasi Identity Provider enterprise Anda">
         <div className="max-w-3xl mx-auto space-y-6">
-          <div className="flex items-start gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+          <div className="flex items-start gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900">
             <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
             <span>
               Simpan konfigurasi IdP di sini dan daftarkan detail Service Provider di bawah pada IdP Anda.
@@ -148,7 +148,7 @@ export default function HumanifySsoPage() {
                   <span className="w-32 text-slate-500 flex-shrink-0">{label}</span>
                   <code className="flex-1 bg-slate-100 rounded px-2 py-1 text-xs truncate">{val || '—'}</code>
                   {val && (
-                    <button type="button" onClick={() => copy(String(val))} className="text-xs text-blue-600 hover:underline">Salin</button>
+                    <button type="button" onClick={() => copy(String(val))} className="text-xs text-violet-600 hover:underline">Salin</button>
                   )}
                 </div>
               ))}
@@ -226,7 +226,7 @@ export default function HumanifySsoPage() {
                 type="button"
                 disabled={saving}
                 onClick={save}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 disabled:opacity-50"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Simpan konfigurasi
               </button>

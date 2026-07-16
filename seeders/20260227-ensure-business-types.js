@@ -4,6 +4,7 @@ module.exports = {
   up: async (queryInterface, Sequelize) => {
     const businessTypes = [
       {
+        id: require('uuid').v4(),
         code: 'fine_dining',
         name: 'Fine Dining',
         description: 'Restoran mewah dengan layanan lengkap dan menu premium',
@@ -12,6 +13,7 @@ module.exports = {
         updated_at: new Date()
       },
       {
+        id: require('uuid').v4(),
         code: 'cloud_kitchen',
         name: 'Cloud Kitchen',
         description: 'Dapur virtual untuk delivery dan takeaway',
@@ -20,6 +22,7 @@ module.exports = {
         updated_at: new Date()
       },
       {
+        id: require('uuid').v4(),
         code: 'qsr',
         name: 'Quick Service Restaurant',
         description: 'Restoran cepat saji dengan layanan counter',
@@ -28,6 +31,7 @@ module.exports = {
         updated_at: new Date()
       },
       {
+        id: require('uuid').v4(),
         code: 'cafe',
         name: 'Cafe',
         description: 'Kafe dengan menu minuman dan makanan ringan',
@@ -36,6 +40,7 @@ module.exports = {
         updated_at: new Date()
       },
       {
+        id: require('uuid').v4(),
         code: 'retail',
         name: 'Retail',
         description: 'Toko retail umum',
@@ -47,8 +52,16 @@ module.exports = {
 
     // Use upsert to avoid duplicates
     for (const bt of businessTypes) {
-      await queryInterface.bulkInsert('business_types', [bt], {
-        updateOnDuplicate: ['name', 'description', 'is_active', 'updated_at']
+      await queryInterface.sequelize.query(`
+        INSERT INTO business_types (id, code, name, description, is_active, created_at, updated_at)
+        VALUES (:id, :code, :name, :description, :is_active, :created_at, :updated_at)
+        ON CONFLICT (code) DO UPDATE SET
+          name = EXCLUDED.name,
+          description = EXCLUDED.description,
+          is_active = EXCLUDED.is_active,
+          updated_at = EXCLUDED.updated_at
+      `, {
+        replacements: bt
       });
     }
   },

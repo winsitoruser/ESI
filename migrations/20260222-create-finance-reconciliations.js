@@ -76,7 +76,7 @@ module.exports = {
         allowNull: true
       },
       reviewedBy: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: true,
         field: 'reviewed_by',
         references: {
@@ -101,7 +101,7 @@ module.exports = {
         onDelete: 'CASCADE'
       },
       createdBy: {
-        type: Sequelize.UUID,
+        type: Sequelize.INTEGER,
         allowNull: false,
         field: 'created_by',
         references: {
