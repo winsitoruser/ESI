@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import { ArrowRight, Sparkles } from 'lucide-react';
+import Image from 'next/image';
 
 const Hero: React.FC = () => {
   const { data: session } = useSession();
@@ -47,7 +48,8 @@ const Hero: React.FC = () => {
       </div>
 
       {/* Content */}
-      <div className="relative z-10 max-w-6xl mx-auto px-6 text-center">
+      <div className="relative z-10 max-w-6xl mx-auto px-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 items-center gap-8 text-center md:text-left">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -109,13 +111,14 @@ const Hero: React.FC = () => {
             </motion.button>
           )}
         </motion.div>
+        </motion.div>
 
         {/* Stats */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.6 }}
-          className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto"
+          className="mt-10 md:mt-0 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto"
         >
           {[
             { number: '10,000+', label: 'Bisnis Terdaftar' },
@@ -128,6 +131,25 @@ const Hero: React.FC = () => {
             </div>
           ))}
         </motion.div>
+
+        {/* Right column: dashboard sample preview */}
+        <div className="hidden md:flex justify-center items-center mt-8 md:mt-0">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, delay: 0.6 }}
+            className="relative w-full max-w-lg rounded-xl shadow-2xl overflow-hidden border border-white/5 bg-black/40"
+          >
+            <Image
+              src="/images/dashboard-sample.png"
+              alt="Dashboard sample"
+              width={1200}
+              height={700}
+              className="object-cover w-full h-auto"
+              priority
+            />
+          </motion.div>
+        </div>
       </div>
 
       {/* Scroll Indicator */}

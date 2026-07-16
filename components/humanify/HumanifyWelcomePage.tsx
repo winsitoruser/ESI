@@ -8,6 +8,7 @@ import {
   PieChart, Activity,
 } from 'lucide-react';
 import { HUMANIFY_BRAND, HUMANIFY_FEATURES, NAINCODE } from '@/lib/humanify/branding';
+import Image from 'next/image';
 import { HumanifyLogo } from '@/components/humanify/HumanifyLogo';
 import { NaincodeFooter } from '@/components/humanify/NaincodeFooter';
 
@@ -157,68 +158,36 @@ function CorporateHeroBadge() {
 
 function DashboardMockup() {
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 40 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.8, delay: 0.5, ease: "easeOut" }}
       className="relative mt-16 mx-auto w-full max-w-5xl rounded-t-2xl border-t border-x border-white/[0.1] bg-[#0a0812]/80 backdrop-blur-2xl shadow-[0_-20px_50px_rgba(139,92,246,0.15)] overflow-hidden"
     >
-      {/* Mac-like Window Controls */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.05] bg-white/[0.02]">
-        <div className="w-3 h-3 rounded-full bg-rose-500/80" />
-        <div className="w-3 h-3 rounded-full bg-amber-500/80" />
-        <div className="w-3 h-3 rounded-full bg-emerald-500/80" />
-        <div className="ml-4 text-xs text-violet-200/40 font-mono flex-1 text-center pr-12">humanify.naincode.com</div>
-      </div>
-      
-      {/* Mockup Content */}
-      <div className="flex h-[400px] sm:h-[500px]">
-        {/* Sidebar */}
-        <div className="hidden sm:flex flex-col w-48 border-r border-white/[0.05] p-4 gap-2">
-          <div className="h-8 w-24 bg-white/[0.05] rounded-md mb-4" />
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className={`h-8 rounded-md flex items-center px-3 gap-3 ${i === 0 ? 'bg-violet-500/10 text-violet-400' : 'text-violet-200/30'}`}>
-              <div className={`w-4 h-4 rounded ${i === 0 ? 'bg-violet-400/50' : 'bg-violet-200/20'}`} />
-              <div className={`h-2 rounded ${i === 0 ? 'bg-violet-400/50 w-16' : 'bg-violet-200/20 w-12'}`} />
-            </div>
-          ))}
-        </div>
-        
-        {/* Main Content Area */}
-        <div className="flex-1 p-6 flex flex-col gap-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <div className="h-4 w-32 bg-white/10 rounded mb-2" />
-              <div className="h-3 w-48 bg-white/5 rounded" />
-            </div>
-            <div className="h-10 w-28 bg-violet-600/20 rounded-lg border border-violet-500/30" />
+
+      {/* Mockup Content — render provided dashboard sample image for clarity */}
+      <div className="flex h-[400px] sm:h-[500px] w-full items-center justify-center pt-10">
+        <div className="relative w-full max-w-5xl">
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.05] bg-white/[0.02]">
+            <div className="w-3 h-3 rounded-full bg-rose-500/80" />
+            <div className="w-3 h-3 rounded-full bg-amber-500/80" />
+            <div className="w-3 h-3 rounded-full bg-emerald-500/80" />
+            <div className="ml-4 text-xs text-violet-200/40 font-mono flex-1 text-center pr-12">humanify.naincode.com</div>
           </div>
-          
-          <div className="grid grid-cols-3 gap-4">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-24 bg-white/[0.02] border border-white/[0.05] rounded-xl p-4 flex flex-col justify-between">
-                <div className="flex justify-between">
-                  <div className="w-8 h-8 rounded-lg bg-white/[0.05]" />
-                  <div className="w-12 h-4 rounded-full bg-emerald-500/20" />
-                </div>
-                <div className="h-6 w-20 bg-white/10 rounded" />
-              </div>
-            ))}
-          </div>
-          
-          <div className="flex-1 bg-white/[0.02] border border-white/[0.05] rounded-xl p-4 flex flex-col gap-4">
-             <div className="h-4 w-40 bg-white/10 rounded" />
-             <div className="flex-1 flex items-end gap-2 pb-2">
-               {[40, 70, 45, 90, 60, 80, 50, 100, 75, 85].map((h, i) => (
-                 <div key={i} className="flex-1 bg-violet-500/20 rounded-t-sm" style={{ height: `${h}%` }}>
-                   <div className="w-full h-full bg-gradient-to-t from-transparent to-violet-400/40" />
-                 </div>
-               ))}
-             </div>
+          <div className="relative">
+            <Image
+              src="/images/dashboard-sample.png"
+              alt="Dashboard sample"
+              width={1400}
+              height={700}
+              className="w-full h-[400px] sm:h-[500px] object-cover rounded-b-2xl border border-white/[0.05]"
+              priority
+            />
+            <div className="absolute bottom-0 inset-x-0 h-32 bg-gradient-to-t from-[#0a0812] to-transparent" />
           </div>
         </div>
       </div>
-      
+
       {/* Bottom fade out */}
       <div className="absolute bottom-0 inset-x-0 h-32 bg-gradient-to-t from-[#0a0812] to-transparent" />
     </motion.div>
@@ -267,11 +236,11 @@ function SimpleParticles() {
         if (p.x > width) p.x = 0;
         if (p.y < 0) p.y = height;
         if (p.y > height) p.y = 0;
-        
+
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
         // Bright violet/white color for better visibility
-        ctx.fillStyle = `rgba(196, 181, 253, ${p.alpha})`; 
+        ctx.fillStyle = `rgba(196, 181, 253, ${p.alpha})`;
         ctx.fill();
       });
       animationFrameId = requestAnimationFrame(draw);
@@ -312,11 +281,10 @@ export default function HumanifyWelcomePage() {
 
       {/* Header */}
       <header
-        className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
-          scrolled
+        className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${scrolled
             ? 'border-b border-white/[0.08] bg-[#0a0812]/80 shadow-sm backdrop-blur-md'
             : 'bg-transparent'
-        }`}
+          }`}
       >
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
           <HumanifyLogo
@@ -352,12 +320,12 @@ export default function HumanifyWelcomePage() {
         <section className="relative pt-32 sm:pt-40 overflow-hidden border-b border-white/[0.08]">
           <div className="pointer-events-none absolute inset-0" aria-hidden="true">
             <div className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-[0.05]" style={{ backgroundImage: "url('/images/humanify-hero-bg.png')" }} />
-            
+
             <SimpleParticles />
-            
+
             {/* Dynamic Grid */}
             <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.06)_1px,transparent_1px)] bg-[size:48px_48px] [mask-image:radial-gradient(ellipse_80%_80%_at_50%_0%,#000_70%,transparent_100%)]" />
-            
+
             {/* Subtle glow blobs for hero */}
             <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] bg-violet-600/20 rounded-full blur-[120px] mix-blend-screen" />
             <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-fuchsia-600/10 rounded-full blur-[150px] mix-blend-screen" />
@@ -415,12 +383,12 @@ export default function HumanifyWelcomePage() {
               </motion.div>
             </div>
           </div>
-          
+
           <DashboardMockup />
         </section>
 
         {/* Stats */}
-        <section className="border-b border-white/[0.08] bg-white/[0.02]">
+        {/* <section className="border-b border-white/[0.08] bg-white/[0.02]">
           <div className="mx-auto grid max-w-7xl grid-cols-2 gap-8 px-6 py-14 lg:grid-cols-4">
             {STATS.map((stat, i) => (
               <FadeIn key={stat.label} delay={i * 0.08} className="text-center relative">
@@ -432,7 +400,7 @@ export default function HumanifyWelcomePage() {
               </FadeIn>
             ))}
           </div>
-        </section>
+        </section> */}
 
         {/* Marquee */}
         <section className="overflow-hidden border-b border-white/[0.08] bg-white/[0.01] py-16">
@@ -443,7 +411,7 @@ export default function HumanifyWelcomePage() {
             {/* Left fades */}
             <div className="absolute bottom-0 left-0 top-0 z-10 w-32 bg-gradient-to-r from-[#0a0812] to-transparent pointer-events-none" />
             <div className="absolute bottom-0 right-0 top-0 z-10 w-32 bg-gradient-to-l from-[#0a0812] to-transparent pointer-events-none" />
-            
+
             {/* Row 1 */}
             <div className="flex w-max animate-marquee-left whitespace-nowrap">
               {[...marquee1, ...marquee1, ...marquee1].map((item, i) => (
@@ -482,14 +450,14 @@ export default function HumanifyWelcomePage() {
             {HUMANIFY_FEATURES.map((f, i) => {
               const Icon = ICONS[i] || UserCheck;
               const iconBg = MODULE_ICON_BG[i % MODULE_ICON_BG.length];
-              
+
               // Bento box sizing logic
               let colSpan = 'col-span-1';
               let rowSpan = 'row-span-1';
-              
+
               if (i === 0) { colSpan = 'md:col-span-2 xl:col-span-2'; rowSpan = 'md:row-span-2'; } // Large hero card
               else if (i === 3) { colSpan = 'md:col-span-2 xl:col-span-2'; } // Wide card
-              
+
               return (
                 <FadeIn key={f.title} delay={i * 0.05} className={`${colSpan} ${rowSpan}`}>
                   <motion.div
@@ -498,7 +466,7 @@ export default function HumanifyWelcomePage() {
                   >
                     <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                     <div className="absolute -right-12 -top-12 w-40 h-40 bg-violet-500/10 rounded-full blur-3xl group-hover:bg-violet-500/20 transition-colors" />
-                    
+
                     <div>
                       <div className={`mb-6 flex h-14 w-14 items-center justify-center rounded-2xl ${iconBg} shadow-inner`}>
                         <Icon className="h-6 w-6" />
@@ -510,7 +478,7 @@ export default function HumanifyWelcomePage() {
                         {f.desc}
                       </p>
                     </div>
-                    
+
                     <div className="mt-6 flex items-center gap-2 text-sm font-semibold text-violet-400 opacity-0 transform translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all">
                       Pelajari modul <ArrowRight className="h-4 w-4" />
                     </div>
@@ -575,7 +543,7 @@ export default function HumanifyWelcomePage() {
           <div className="relative">
             {/* Connecting Line background */}
             <div className="hidden lg:block absolute top-1/2 left-0 w-full h-0.5 bg-gradient-to-r from-violet-500/0 via-violet-500/50 to-fuchsia-500/0 -translate-y-1/2 z-0" />
-            
+
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 relative z-10">
               {PROCESS_STEPS.map((step, i) => (
                 <FadeIn key={step.step} delay={i * 0.15}>
@@ -605,7 +573,7 @@ export default function HumanifyWelcomePage() {
               <div className="absolute inset-0 bg-[url('/images/noise.png')] opacity-[0.03] mix-blend-overlay" />
               <div className="absolute -right-20 -top-20 h-96 w-96 rounded-full bg-violet-600/20 blur-[100px]" />
               <div className="absolute -bottom-20 -left-20 h-80 w-80 rounded-full bg-fuchsia-600/20 blur-[100px]" />
-              
+
               <div className="relative z-10">
                 <h2 className="mb-6 text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white">
                   Siap transformasi
