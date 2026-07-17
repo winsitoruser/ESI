@@ -64,7 +64,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 
     if (req.method === 'POST') {
-      if (!checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+      if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
       sanitizeBody(req);
       const errors = validateBody(req, {
         fromWarehouseId: V.required().integer(),
@@ -99,7 +99,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 
     if (req.method === 'PUT') {
-      if (!checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+      if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
       const ctx = getTenantContext(req);
       const tf = buildTenantFilter(ctx.tenantId);
       const { id, operation } = req.query;

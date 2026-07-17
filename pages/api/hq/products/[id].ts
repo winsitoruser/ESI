@@ -126,7 +126,7 @@ async function getProductById(req: NextApiRequest, res: NextApiResponse) {
  * Update product
  */
 async function updateProduct(req: NextApiRequest, res: NextApiResponse) {
-  if (!checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
   sanitizeBody(req);
 
   const errors = validateBody(req, {
@@ -250,7 +250,7 @@ async function updateProduct(req: NextApiRequest, res: NextApiResponse) {
  * Delete product (soft delete via is_active = false)
  */
 async function deleteProduct(req: NextApiRequest, res: NextApiResponse) {
-  if (!checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
 
   const ctx = getTenantContext(req);
   const { id } = req.query;

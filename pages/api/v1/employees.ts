@@ -17,7 +17,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
   // Rate limit public API (per IP) — applied before auth so headers are present
   // even on 401/403 and abusive unauthenticated traffic is throttled.
-  if (!checkLimit(req, res, RateLimitTier.STANDARD)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.STANDARD)) return;
 
   const auth = await authenticateBearer(
     req.headers.authorization,

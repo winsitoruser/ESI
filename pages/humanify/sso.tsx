@@ -129,7 +129,7 @@ export default function HumanifySsoPage() {
             <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
             <span>
               Simpan konfigurasi IdP di sini dan daftarkan detail Service Provider di bawah pada IdP Anda.
-              Aktivasi login SSO end-to-end (ACS) menyusul pada rilis berikutnya; login kredensial tetap berjalan normal.
+              Aktivasi login SSO end-to-end (ACS) sudah aktif. Bagikan Login Init URL ke pengguna, atau uji dari halaman login Humanify (kolom slug + tombol SSO). Login kredensial tetap berjalan normal.
             </span>
           </div>
 

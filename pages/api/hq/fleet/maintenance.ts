@@ -163,7 +163,7 @@ async function getMaintenanceRecords(req: NextApiRequest, res: NextApiResponse) 
 }
 
 async function createMaintenanceRecord(req: NextApiRequest, res: NextApiResponse) {
-  if (!checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
   sanitizeBody(req);
   const errors = validateBody(req, {
     vehicleId: V.required().string(),
@@ -221,7 +221,7 @@ async function createMaintenanceRecord(req: NextApiRequest, res: NextApiResponse
 }
 
 async function updateMaintenanceRecord(req: NextApiRequest, res: NextApiResponse) {
-  if (!checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
   sanitizeBody(req);
   const ctx = getTenantContext(req);
   const { id, ...updates } = req.body;
@@ -264,7 +264,7 @@ async function updateMaintenanceRecord(req: NextApiRequest, res: NextApiResponse
 }
 
 async function deleteMaintenanceRecord(req: NextApiRequest, res: NextApiResponse) {
-  if (!checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
   const ctx = getTenantContext(req);
   const { id } = req.body;
   if (!id) return res.status(HttpStatus.BAD_REQUEST).json(errorResponse(ErrorCodes.MISSING_REQUIRED_FIELDS, 'Maintenance record ID is required'));

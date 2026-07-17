@@ -149,6 +149,69 @@ const REFRESH_THRESHOLD = 15 * 60; // 15 minutes in seconds
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
+      id: 'sso',
+      name: 'SSO',
+      credentials: {
+        token: { label: 'SSO Token', type: 'text' },
+      },
+      async authorize(credentials) {
+        const raw = String((credentials as any)?.token || '');
+        if (!raw) throw new Error('Token SSO wajib');
+        const { consumeSsoHandoff } = await import('../../../lib/saas/sso-handoff');
+        const handoff = await consumeSsoHandoff(raw);
+        if (!handoff) throw new Error('Token SSO tidak valid atau kedaluwarsa');
+
+        const db = getDb();
+        const user = await db.User.findOne({ where: { id: handoff.userId } });
+        if (!user || !user.isActive) throw new Error('Akun tidak aktif');
+        if (user.tenantId && String(user.tenantId) !== String(handoff.tenantId)) {
+          throw new Error('Token SSO tidak cocok dengan tenant');
+        }
+
+        const normalizedRole = normalizeRole(user.role);
+        let setupCompleted = true;
+        if (user.tenantId && !['super_admin', 'superadmin', 'platform_admin'].includes(normalizedRole)) {
+          try {
+            const { isSaasOnboardingComplete } = await import('../../../lib/saas/humanify-onboarding');
+            setupCompleted = await isSaasOnboardingComplete(user.tenantId);
+          } catch {
+            setupCompleted = true;
+          }
+        }
+
+        let redirectUrl = getRedirectUrlForRole(normalizedRole);
+        if (normalizedRole === 'owner') {
+          redirectUrl = setupCompleted ? '/humanify' : '/humanify/setup';
+        } else if (['hr_staff', 'hris_staff', 'staff', 'manager', 'hq_admin', 'admin'].includes(normalizedRole)) {
+          redirectUrl = '/humanify';
+        }
+
+        try { await user.update({ lastLogin: new Date() }); } catch { /* */ }
+
+        return {
+          id: user.id.toString(),
+          email: user.email,
+          name: user.name,
+          role: normalizedRole,
+          originalRole: user.role,
+          businessName: user.businessName,
+          tenantId: user.tenantId || handoff.tenantId || null,
+          branchId: null,
+          branchName: null,
+          branchCode: null,
+          tenantName: null,
+          assignedBranchId: user.assignedBranchId || null,
+          kybStatus: null,
+          dataScope: user.dataScope || 'own_branch',
+          businessCode: null,
+          businessStructure: null,
+          setupCompleted,
+          redirectUrl,
+          authVia: 'sso',
+        };
+      },
+    }),
+    CredentialsProvider({
       name: 'Credentials',
       credentials: {
         email: { label: "Email", type: "email" },
@@ -163,7 +226,7 @@ export const authOptions: NextAuthOptions = {
         // Phase 17 — brute-force / credential-stuffing guard (fail-open)
         const ip = normalizeIp((req as any)?.headers?.['x-forwarded-for'] || (req as any)?.headers?.['x-real-ip']);
         const emailKey = String(credentials.email).toLowerCase();
-        const verdict = evaluateLogin(emailKey, ip);
+        const verdict = await evaluateLogin(emailKey, ip);
         if (!verdict.allowed) {
           const mins = Math.max(1, Math.ceil(verdict.retryAfterSec / 60));
           throw new Error(`Terlalu banyak percobaan login. Coba lagi dalam ${mins} menit.`);
@@ -177,7 +240,7 @@ export const authOptions: NextAuthOptions = {
           });
 
           if (!user) {
-            recordLoginFailure(emailKey, ip);
+            await recordLoginFailure(emailKey, ip);
             throw new Error('Email atau password salah');
           }
 
@@ -192,7 +255,7 @@ export const authOptions: NextAuthOptions = {
             user.password
           );
           if (!isPasswordValid) {
-            recordLoginFailure(emailKey, ip);
+            await recordLoginFailure(emailKey, ip);
             throw new Error('Email atau password salah');
           }
 
@@ -209,7 +272,7 @@ export const authOptions: NextAuthOptions = {
           }
 
           // Successful credential check — clear brute-force counter
-          recordLoginSuccess(emailKey, ip);
+          await recordLoginSuccess(emailKey, ip);
 
           // Update last login
           await user.update({ lastLogin: new Date() });

@@ -30,7 +30,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
   if (action === 'request') {
     // Tight limit to curb enumeration / mail-bombing.
-    if (!checkLimit(req, res, {
+    if (!(await checkLimit(req, res, {
       windowMs: 60 * 1000,
       maxRequests: 5,
       message: 'Terlalu banyak permintaan reset. Coba lagi sebentar.',
@@ -66,7 +66,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   if (action === 'confirm') {
-    if (!checkLimit(req, res, RateLimitTier.AUTH)) return;
+    if (!(await checkLimit(req, res, RateLimitTier.AUTH)) return;
 
     const { token, password } = req.body || {};
     if (!token || !password) {

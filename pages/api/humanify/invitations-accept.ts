@@ -16,7 +16,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === 'POST') {
-      if (!checkLimit(req, res, {
+      if (!(await checkLimit(req, res, {
         windowMs: 60 * 1000,
         maxRequests: 15,
         message: 'Terlalu banyak percobaan. Coba lagi sebentar.',

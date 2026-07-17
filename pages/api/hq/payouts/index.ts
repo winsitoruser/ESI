@@ -81,7 +81,7 @@ async function getPayouts(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function createPayout(req: NextApiRequest, res: NextApiResponse) {
-  if (!checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
   sanitizeBody(req);
   const errors = validateBody(req, {
     partnerId: V.required().string(),

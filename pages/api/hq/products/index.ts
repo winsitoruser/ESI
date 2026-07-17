@@ -178,7 +178,7 @@ async function getProducts(req: NextApiRequest, res: NextApiResponse) {
  * Create a new product
  */
 async function createProduct(req: NextApiRequest, res: NextApiResponse) {
-  if (!checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
   sanitizeBody(req);
 
   const errors = validateBody(req, {

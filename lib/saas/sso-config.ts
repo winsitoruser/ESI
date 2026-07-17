@@ -98,7 +98,28 @@ function toPublic(raw: any): SsoConfigPublic {
     certPresent: Boolean(cert),
     certFingerprint: fingerprint(cert),
     updatedAt: raw?.updatedAt || null,
-    loginActive: false,
+    /** True when IdP configured & enabled — ACS/login routes are live. */
+    loginActive: Boolean(raw?.enabled && cert),
+  };
+}
+
+/** Internal: full SSO settings including PEM cert (never expose to client). */
+export async function getRawSsoConfig(tenantId: string): Promise<{
+  enabled: boolean;
+  entryPoint: string | null;
+  idpEntityId: string | null;
+  cert: string | null;
+  emailDomain: string | null;
+} | null> {
+  const settings = (await readSettings(tenantId)) || {};
+  const raw = settings.sso;
+  if (!raw) return null;
+  return {
+    enabled: Boolean(raw.enabled),
+    entryPoint: raw.entryPoint || null,
+    idpEntityId: raw.idpEntityId || null,
+    cert: normalizePem(raw.cert),
+    emailDomain: raw.emailDomain || null,
   };
 }
 

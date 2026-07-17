@@ -16,7 +16,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // Throttle tenant-creation abuse (per IP). Generous enough for legitimate
   // bursts (incl. QA), protective against automated signup floods.
-  if (!checkLimit(req, res, {
+  if (!(await checkLimit(req, res, {
     windowMs: 60 * 1000,
     maxRequests: 30,
     message: 'Terlalu banyak percobaan pendaftaran. Coba lagi sebentar.',

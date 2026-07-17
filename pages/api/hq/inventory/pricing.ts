@@ -116,7 +116,7 @@ async function getPricing(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function createPriceTier(req: NextApiRequest, res: NextApiResponse) {
-  if (!checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
   sanitizeBody(req);
   const errors = validateBody(req, {
     code: V.required().string().minLength(1).maxLength(20),
@@ -146,7 +146,7 @@ async function createPriceTier(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function updatePricing(req: NextApiRequest, res: NextApiResponse) {
-  if (!checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
   sanitizeBody(req);
   const ctx = getTenantContext(req);
   const tf = buildTenantFilter(ctx.tenantId);
@@ -194,7 +194,7 @@ async function updatePricing(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function deletePriceTier(req: NextApiRequest, res: NextApiResponse) {
-  if (!checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
   const ctx = getTenantContext(req);
   const tf = buildTenantFilter(ctx.tenantId);
   const id = req.query.id || req.body?.id;

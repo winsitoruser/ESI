@@ -85,7 +85,7 @@ async function getReceipts(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function createReceipt(req: NextApiRequest, res: NextApiResponse) {
-  if (!checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
   sanitizeBody(req);
   const errors = validateBody(req, {
     items: V.required().array().arrayMinLength(1),
@@ -133,7 +133,7 @@ async function createReceipt(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function updateReceipt(req: NextApiRequest, res: NextApiResponse) {
-  if (!checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
   const ctx = getTenantContext(req);
   const tf = buildTenantFilter(ctx.tenantId);
   const { id, action } = req.body;

@@ -66,7 +66,7 @@ async function getInvoices(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function createInvoice(req: NextApiRequest, res: NextApiResponse) {
-  if (!checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
   sanitizeBody(req);
   const errors = validateBody(req, {
     type: V.required().oneOf(['sales', 'purchase', 'internal']),
@@ -112,7 +112,7 @@ async function createInvoice(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function updateInvoice(req: NextApiRequest, res: NextApiResponse) {
-  if (!checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
   sanitizeBody(req);
   const ctx = getTenantContext(req);
   const tf = buildTenantFilter(ctx.tenantId);
@@ -186,7 +186,7 @@ async function updateInvoice(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function deleteInvoice(req: NextApiRequest, res: NextApiResponse) {
-  if (!checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
   const ctx = getTenantContext(req);
   const tf = buildTenantFilter(ctx.tenantId);
   const { id } = req.query;

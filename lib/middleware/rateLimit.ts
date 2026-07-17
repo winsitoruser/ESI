@@ -1,25 +1,15 @@
 /**
  * Rate Limiting Middleware for Next.js API Routes
- * In-memory sliding window rate limiter.
- * Protects sensitive endpoints from brute force and abuse.
- *
- * Usage:
- *   import { withRateLimit, RateLimitTier } from '@/lib/middleware/rateLimit';
- *
- *   // Apply to handler
- *   export default withHQAuth(withRateLimit(handler, RateLimitTier.SENSITIVE));
- *
- *   // Or with custom config
- *   export default withRateLimit(handler, { windowMs: 60000, maxRequests: 10 });
+ * Memory store by default; Redis when REDIS_URL is set (multi-instance safe).
  */
-
 import type { NextApiRequest, NextApiResponse, NextApiHandler } from 'next';
+import { getRedis } from '@/lib/redis/client';
 
 interface RateLimitConfig {
-  windowMs: number;       // Time window in milliseconds
-  maxRequests: number;    // Max requests per window per key
-  keyGenerator?: (req: NextApiRequest) => string;  // Custom key generator
-  message?: string;       // Custom error message
+  windowMs: number;
+  maxRequests: number;
+  keyGenerator?: (req: NextApiRequest) => string;
+  message?: string;
 }
 
 interface RateLimitEntry {
@@ -27,47 +17,27 @@ interface RateLimitEntry {
   resetAt: number;
 }
 
-// In-memory store (per-process). Use Redis in production for multi-instance.
-const store = new Map<string, RateLimitEntry>();
-
-// Cleanup stale entries every 5 minutes
+const memoryStore = new Map<string, RateLimitEntry>();
 const CLEANUP_INTERVAL = 5 * 60 * 1000;
 let lastCleanup = Date.now();
 
-function cleanup() {
+function cleanupMemory() {
   const now = Date.now();
   if (now - lastCleanup < CLEANUP_INTERVAL) return;
   lastCleanup = now;
-  for (const [key, entry] of store.entries()) {
-    if (entry.resetAt < now) {
-      store.delete(key);
-    }
+  for (const [key, entry] of memoryStore.entries()) {
+    if (entry.resetAt < now) memoryStore.delete(key);
   }
 }
 
-/**
- * Pre-defined rate limit tiers
- */
 export const RateLimitTier = {
-  /** Standard API: 100 req/min */
   STANDARD: { windowMs: 60 * 1000, maxRequests: 100 } as RateLimitConfig,
-
-  /** Sensitive endpoints (finance write, sync): 30 req/min */
   SENSITIVE: { windowMs: 60 * 1000, maxRequests: 30 } as RateLimitConfig,
-
-  /** Auth endpoints (login, register): 10 req/min */
   AUTH: { windowMs: 60 * 1000, maxRequests: 10 } as RateLimitConfig,
-
-  /** Export/heavy endpoints: 5 req/min */
   HEAVY: { windowMs: 60 * 1000, maxRequests: 5 } as RateLimitConfig,
-
-  /** Webhook receivers: 200 req/min */
   WEBHOOK: { windowMs: 60 * 1000, maxRequests: 200 } as RateLimitConfig,
 };
 
-/**
- * Default key generator: uses IP + user ID (if authenticated)
- */
 function defaultKeyGenerator(req: NextApiRequest): string {
   const ip =
     (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
@@ -78,44 +48,55 @@ function defaultKeyGenerator(req: NextApiRequest): string {
   return `rl:${ip}:${userId}:${path}`;
 }
 
-/**
- * Check rate limit for a given key
- */
-function checkRateLimit(key: string, config: RateLimitConfig): {
-  allowed: boolean;
-  remaining: number;
-  resetAt: number;
-} {
-  cleanup();
+function checkRateLimitMemory(key: string, config: RateLimitConfig) {
+  cleanupMemory();
   const now = Date.now();
-  const entry = store.get(key);
-
+  let entry = memoryStore.get(key);
   if (!entry || entry.resetAt < now) {
-    // New window
-    store.set(key, { count: 1, resetAt: now + config.windowMs });
-    return { allowed: true, remaining: config.maxRequests - 1, resetAt: now + config.windowMs };
+    entry = { count: 0, resetAt: now + config.windowMs };
   }
-
-  entry.count++;
+  entry.count += 1;
+  memoryStore.set(key, entry);
   const remaining = Math.max(0, config.maxRequests - entry.count);
-  const allowed = entry.count <= config.maxRequests;
-
-  return { allowed, remaining, resetAt: entry.resetAt };
+  return { allowed: entry.count <= config.maxRequests, remaining, resetAt: entry.resetAt };
 }
 
-/**
- * Rate limit middleware wrapper
- */
+async function checkRateLimitRedis(key: string, config: RateLimitConfig) {
+  const redis = getRedis();
+  if (!redis) return checkRateLimitMemory(key, config);
+  try {
+    const rkey = `hfy:${key}`;
+    const count = await redis.incr(rkey);
+    if (count === 1) {
+      await redis.pexpire(rkey, config.windowMs);
+    }
+    const ttl = await redis.pttl(rkey);
+    const resetAt = Date.now() + (ttl > 0 ? ttl : config.windowMs);
+    const remaining = Math.max(0, config.maxRequests - count);
+    return { allowed: count <= config.maxRequests, remaining, resetAt };
+  } catch {
+    return checkRateLimitMemory(key, config);
+  }
+}
+
+/** @deprecated sync — prefer checkRateLimitAsync; kept for tests */
+export function checkRateLimit(key: string, config: RateLimitConfig) {
+  return checkRateLimitMemory(key, config);
+}
+
+export async function checkRateLimitAsync(key: string, config: RateLimitConfig) {
+  return checkRateLimitRedis(key, config);
+}
+
 export function withRateLimit(
   handler: NextApiHandler,
-  config: RateLimitConfig = RateLimitTier.STANDARD
+  config: RateLimitConfig = RateLimitTier.STANDARD,
 ): NextApiHandler {
   return async (req: NextApiRequest, res: NextApiResponse) => {
     const keyGen = config.keyGenerator || defaultKeyGenerator;
     const key = keyGen(req);
-    const result = checkRateLimit(key, config);
+    const result = await checkRateLimitAsync(key, config);
 
-    // Set rate limit headers
     res.setHeader('X-RateLimit-Limit', config.maxRequests);
     res.setHeader('X-RateLimit-Remaining', result.remaining);
     res.setHeader('X-RateLimit-Reset', Math.ceil(result.resetAt / 1000));
@@ -136,19 +117,17 @@ export function withRateLimit(
 }
 
 /**
- * Standalone rate limit check (for use inside handlers without wrapping)
- *
- * Usage:
- *   if (!checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+ * Standalone rate limit check. Async — always await.
+ * Usage: if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE))) return;
  */
-export function checkLimit(
+export async function checkLimit(
   req: NextApiRequest,
   res: NextApiResponse,
-  config: RateLimitConfig = RateLimitTier.STANDARD
-): boolean {
+  config: RateLimitConfig = RateLimitTier.STANDARD,
+): Promise<boolean> {
   const keyGen = config.keyGenerator || defaultKeyGenerator;
   const key = keyGen(req);
-  const result = checkRateLimit(key, config);
+  const result = await checkRateLimitAsync(key, config);
 
   res.setHeader('X-RateLimit-Limit', config.maxRequests);
   res.setHeader('X-RateLimit-Remaining', result.remaining);

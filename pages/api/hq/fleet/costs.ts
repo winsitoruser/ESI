@@ -174,7 +174,7 @@ async function getCosts(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function createCost(req: NextApiRequest, res: NextApiResponse) {
-  if (!checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
   sanitizeBody(req);
   const errors = validateBody(req, {
     vehicleId: V.required().string(),
@@ -225,7 +225,7 @@ async function createCost(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function updateCost(req: NextApiRequest, res: NextApiResponse) {
-  if (!checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
   sanitizeBody(req);
   const ctx = getTenantContext(req);
   const { id, ...updates } = req.body;
@@ -260,7 +260,7 @@ async function updateCost(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function deleteCost(req: NextApiRequest, res: NextApiResponse) {
-  if (!checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
   const ctx = getTenantContext(req);
   const { id } = req.body;
   if (!id) return res.status(HttpStatus.BAD_REQUEST).json(errorResponse(ErrorCodes.MISSING_REQUIRED_FIELDS, 'Cost ID is required'));

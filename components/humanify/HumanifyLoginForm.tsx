@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { signIn, getSession } from 'next-auth/react';
 import Link from 'next/link';
@@ -38,6 +38,62 @@ export default function HumanifyLoginForm({
   const [isLoading, setIsLoading] = useState(false);
   const [mfaRequired, setMfaRequired] = useState(false);
   const [formData, setFormData] = useState({ email: '', password: '', totp: '' });
+  const [ssoBusy, setSsoBusy] = useState(false);
+  const [tenantSlug, setTenantSlug] = useState('');
+
+  // Complete SSO handoff after ACS redirect
+  useEffect(() => {
+    const token = typeof router.query.ssoToken === 'string' ? router.query.ssoToken : '';
+    const err = typeof router.query.error === 'string' ? router.query.error : '';
+    if (err) toast.error(err);
+    if (!token || ssoBusy) return;
+    let cancelled = false;
+    (async () => {
+      setSsoBusy(true);
+      setIsLoading(true);
+      try {
+        const result = await signIn('sso', { redirect: false, token });
+        if (cancelled) return;
+        if (result?.error) {
+          toast.error(result.error || 'SSO gagal');
+        } else if (result?.ok) {
+          toast.success('Login SSO berhasil');
+          const session = await getSession();
+          const role = session?.user?.role as string | undefined;
+          const callbackUrl = router.query.callbackUrl as string;
+          let target = defaultRedirect;
+          if (callbackUrl && callbackUrl.startsWith('/')) target = callbackUrl;
+          else if (resolveRedirect) target = resolveRedirect(role, session as any);
+          else if ((session?.user as any)?.redirectUrl) target = (session?.user as any).redirectUrl;
+          router.replace(target);
+          return;
+        }
+      } catch {
+        if (!cancelled) toast.error('SSO gagal');
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+          setSsoBusy(false);
+          // strip token from URL
+          const q = { ...router.query };
+          delete q.ssoToken;
+          delete q.error;
+          router.replace({ pathname: router.pathname, query: q }, undefined, { shallow: true });
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.query.ssoToken]);
+
+  const startSso = () => {
+    const slug = tenantSlug.trim();
+    if (!slug) {
+      toast.error('Masukkan slug tenant untuk SSO');
+      return;
+    }
+    window.location.href = `/api/humanify/sso/login?tenant=${encodeURIComponent(slug)}`;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -278,6 +334,27 @@ export default function HumanifyLoginForm({
                     >
                       Lupa password?
                     </Link>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-2">
+                  <p className="text-xs text-violet-200/70">Atau masuk dengan SSO (SAML)</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={tenantSlug}
+                      onChange={(e) => setTenantSlug(e.target.value)}
+                      placeholder="slug-tenant"
+                      className="flex-1 px-3 py-2 bg-white/[0.05] border border-white/[0.1] rounded-lg text-white text-sm placeholder:text-white/25 outline-none focus:border-violet-400/40"
+                    />
+                    <button
+                      type="button"
+                      onClick={startSso}
+                      disabled={isLoading}
+                      className="px-3 py-2 rounded-lg bg-violet-600/80 hover:bg-violet-500 text-white text-sm font-medium disabled:opacity-50"
+                    >
+                      SSO
+                    </button>
                   </div>
                 </div>
 

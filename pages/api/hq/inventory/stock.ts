@@ -121,7 +121,7 @@ async function getStock(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function updateStock(req: NextApiRequest, res: NextApiResponse) {
-  if (!checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
   sanitizeBody(req);
   const errors = validateBody(req, {
     productId: V.required().integer(),
@@ -162,7 +162,7 @@ async function updateStock(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function transferStock(req: NextApiRequest, res: NextApiResponse) {
-  if (!checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
   sanitizeBody(req);
   const errors = validateBody(req, {
     productId: V.required().integer(),

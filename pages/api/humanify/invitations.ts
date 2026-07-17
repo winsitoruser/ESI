@@ -63,7 +63,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       if (action === 'create') {
-        if (!checkLimit(req, res, {
+        if (!(await checkLimit(req, res, {
           windowMs: 60 * 1000,
           maxRequests: 20,
           message: 'Terlalu banyak undangan. Coba lagi sebentar.',

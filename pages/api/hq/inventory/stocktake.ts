@@ -67,7 +67,7 @@ async function getStocktakes(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function createStocktake(req: NextApiRequest, res: NextApiResponse) {
-  if (!checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
   sanitizeBody(req);
   const errors = validateBody(req, {
     warehouseId: V.required().integer(),
@@ -103,7 +103,7 @@ async function createStocktake(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function updateStocktake(req: NextApiRequest, res: NextApiResponse) {
-  if (!checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
   const ctx = getTenantContext(req);
   const tf = buildTenantFilter(ctx.tenantId);
   const { id, action } = req.body;
@@ -132,7 +132,7 @@ async function updateStocktake(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function deleteStocktake(req: NextApiRequest, res: NextApiResponse) {
-  if (!checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
   const ctx = getTenantContext(req);
   const tf = buildTenantFilter(ctx.tenantId);
   const id = req.query.id || req.body?.id;

@@ -21,7 +21,7 @@ interface RateLimitModule {
     req: NextApiRequest,
     res: NextApiResponse,
     config?: any,
-  ) => boolean;
+  ) => Promise<boolean>;
   RateLimitTier: Record<string, { windowMs: number; maxRequests: number }>;
 }
 
@@ -63,7 +63,7 @@ const passthrough: NextApiHandler = async (_req, res) => {
 // RateLimitTier constants
 // =========================================================================
 describe('RateLimitTier', () => {
-  it('STANDARD = 100 req/min', () => {
+  it('STANDARD = 100 req/min', async () => {
     const rl = freshModule();
     expect(rl.RateLimitTier.STANDARD).toEqual({
       windowMs: 60000,
@@ -71,7 +71,7 @@ describe('RateLimitTier', () => {
     });
   });
 
-  it('SENSITIVE = 30 req/min', () => {
+  it('SENSITIVE = 30 req/min', async () => {
     const rl = freshModule();
     expect(rl.RateLimitTier.SENSITIVE).toEqual({
       windowMs: 60000,
@@ -79,7 +79,7 @@ describe('RateLimitTier', () => {
     });
   });
 
-  it('AUTH = 10 req/min', () => {
+  it('AUTH = 10 req/min', async () => {
     const rl = freshModule();
     expect(rl.RateLimitTier.AUTH).toEqual({
       windowMs: 60000,
@@ -87,7 +87,7 @@ describe('RateLimitTier', () => {
     });
   });
 
-  it('HEAVY = 5 req/min', () => {
+  it('HEAVY = 5 req/min', async () => {
     const rl = freshModule();
     expect(rl.RateLimitTier.HEAVY).toEqual({
       windowMs: 60000,
@@ -95,7 +95,7 @@ describe('RateLimitTier', () => {
     });
   });
 
-  it('WEBHOOK = 200 req/min', () => {
+  it('WEBHOOK = 200 req/min', async () => {
     const rl = freshModule();
     expect(rl.RateLimitTier.WEBHOOK).toEqual({
       windowMs: 60000,
@@ -342,14 +342,14 @@ describe('withRateLimit — different tiers', () => {
 // checkLimit — standalone
 // =========================================================================
 describe('checkLimit — standalone', () => {
-  it('returns true when under limit and sets headers', () => {
+  it('returns true when under limit and sets headers', async () => {
     const rl = freshModule();
     const now = _realDateNow();
     const spy = mockNow(now);
     const req = mockReq();
     const res = mockRes();
 
-    const allowed = rl.checkLimit(req, res, {
+    const allowed = await rl.checkLimit(req, res, {
       windowMs: 60000,
       maxRequests: 5,
     });
@@ -360,24 +360,24 @@ describe('checkLimit — standalone', () => {
     spy.mockRestore();
   });
 
-  it('returns false when over limit and sends 429', () => {
+  it('returns false when over limit and sends 429', async () => {
     const rl = freshModule();
     const now = _realDateNow();
     const spy = mockNow(now);
     const req = mockReq();
     const config = { windowMs: 60000, maxRequests: 1 };
 
-    expect(rl.checkLimit(req, mockRes(), config)).toBe(true);
-    expect(rl.checkLimit(req, mockRes(), config)).toBe(false);
+    expect(await rl.checkLimit(req, mockRes(), config)).toBe(true);
+    expect(await rl.checkLimit(req, mockRes(), config)).toBe(false);
 
     const res = mockRes();
-    rl.checkLimit(req, res, config);
+    await rl.checkLimit(req, res, config);
     expect(res._getStatusCode()).toBe(429);
     expect(res._getJSONData().error).toBe('RATE_LIMIT_EXCEEDED');
     spy.mockRestore();
   });
 
-  it('uses custom message in 429 response', () => {
+  it('uses custom message in 429 response', async () => {
     const rl = freshModule();
     const now = _realDateNow();
     const spy = mockNow(now);
@@ -389,16 +389,16 @@ describe('checkLimit — standalone', () => {
     };
 
     // 1st call — allowed (new window created)
-    rl.checkLimit(req, mockRes(), config);
+    await rl.checkLimit(req, mockRes(), config);
 
     // 2nd call — blocked with custom message
     const res = mockRes();
-    rl.checkLimit(req, res, config);
+    await rl.checkLimit(req, res, config);
     expect(res._getJSONData().message).toBe('Custom RL msg');
     spy.mockRestore();
   });
 
-  it('sets Retry-After header on block', () => {
+  it('sets Retry-After header on block', async () => {
     const rl = freshModule();
     const now = _realDateNow();
     const spy = mockNow(now);
@@ -406,11 +406,11 @@ describe('checkLimit — standalone', () => {
     const config = { windowMs: 60000, maxRequests: 1 };
 
     // 1st call — allowed
-    rl.checkLimit(req, mockRes(), config);
+    await rl.checkLimit(req, mockRes(), config);
 
     // 2nd call — blocked with Retry-After
     const res = mockRes();
-    rl.checkLimit(req, res, config);
+    await rl.checkLimit(req, res, config);
     expect(res._getHeaders()['retry-after']).toBeDefined();
     expect(typeof res._getHeaders()['retry-after']).toBe('number');
     spy.mockRestore();
