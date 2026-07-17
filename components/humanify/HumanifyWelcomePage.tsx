@@ -5,7 +5,7 @@ import {
   UserCheck, Users, Clock, DollarSign, Target, GraduationCap, Smartphone,
   ArrowRight, Sparkles, BarChart3, Shield, Layers,
   Building2, Lock, Globe, CheckCircle2,
-  PieChart, Activity,
+  PieChart, Activity, Brain, Bot, ScanLine, TrendingUp, MessageSquare, Zap, Cpu, Wand2,
 } from 'lucide-react';
 import { HUMANIFY_BRAND, HUMANIFY_FEATURES, NAINCODE } from '@/lib/humanify/branding';
 import Image from 'next/image';
@@ -34,6 +34,7 @@ const STATS = [
 ];
 
 const MARQUEE_ITEMS = [
+  'AIMAN AI Copilot', 'AI Screening Kandidat', 'Prediksi Cuti', 'OCR Reimbursement',
   'Hire-to-Retire', 'Dealls & LinkedIn', 'E-Sign Privy', 'OKR Cascading', 'Payroll Otomatis',
   'Rekrutmen AI Search', 'Onboarding & Asset', 'Offboarding & Exit', 'BPJS & THR', 'PPh 21',
   'Reimbursement', 'Bonus & Pinjaman', '360° Appraisal', 'Certificate Tracker', 'Geofence Absensi',
@@ -98,6 +99,64 @@ const PROCESS_STEPS = [
     desc: 'Gaji daily/weekly/monthly, PPh 21, BPJS report, exit interview, asset return, final settlement.',
     duration: 'Bulanan',
   },
+];
+
+const AI_FEATURES = [
+  {
+    icon: Bot,
+    title: 'AIMAN — AI Guide HR',
+    desc: 'Copilot percakapan yang memahami data live Humanify: absensi, cuti, rekrutmen, KPI, dan payroll — jawaban kontekstual dalam bahasa Indonesia.',
+    tag: 'Copilot',
+    accent: 'from-violet-500 to-fuchsia-500',
+  },
+  {
+    icon: Wand2,
+    title: 'AI Screening Rekrutmen',
+    desc: 'Skor kandidat otomatis, ranking pipeline 7-stage, dan rekomendasi tindak lanjut — kurangi time-to-hire tanpa kehilangan kualitas.',
+    tag: 'Rekrutmen',
+    accent: 'from-fuchsia-500 to-pink-500',
+  },
+  {
+    icon: TrendingUp,
+    title: 'Prediktif & Workforce Analytics',
+    desc: 'Forecast permintaan cuti, deteksi pola kehadiran, dan insight turnover — keputusan SDM berbasis sinyal, bukan asumsi.',
+    tag: 'Analytics',
+    accent: 'from-cyan-500 to-violet-500',
+  },
+  {
+    icon: ScanLine,
+    title: 'OCR Klaim & Reimbursement',
+    desc: 'Upload foto struk → auto-fill nominal, tanggal, kategori. Vision AI opsional via SumoPod untuk struk kompleks.',
+    tag: 'OCR',
+    accent: 'from-emerald-500 to-cyan-500',
+  },
+  {
+    icon: Brain,
+    title: 'Insight Multi-Modul',
+    desc: 'Rekomendasi prioritas tinggi per modul HR — rekrutmen, absensi, kinerja, engagement — dengan confidence score & action items.',
+    tag: 'Insights',
+    accent: 'from-amber-500 to-orange-500',
+  },
+  {
+    icon: Shield,
+    title: 'Hybrid & Privacy-First',
+    desc: 'Rule-based intelligence default; LLM SumoPod hanya saat dikonfigurasi. Data tenant tetap ter-scope — bukan chatbot generik.',
+    tag: 'Enterprise',
+    accent: 'from-indigo-500 to-violet-500',
+  },
+];
+
+const AI_PIPELINE = [
+  { step: '01', label: 'Kumpulkan sinyal', desc: 'Data HR live dari modul terintegrasi — absensi, cuti, pipeline, KPI.' },
+  { step: '02', label: 'Analisis cerdas', desc: 'Rule engine + LLM SumoPod (opsional) menghasilkan insight & skor.' },
+  { step: '03', label: 'Rekomendasi aksi', desc: 'AIMAN merangkum prioritas dan langkah operasional untuk tim SDM.' },
+];
+
+const AIMAN_DEMO_LINES = [
+  { role: 'user' as const, text: 'Bagaimana kondisi absensi tim minggu ini?' },
+  { role: 'ai' as const, text: 'Tingkat kehadiran 94,2%. 3 karyawan terlambat berulang di divisi Operasional — saya sarankan review shift & reminder manager.' },
+  { role: 'user' as const, text: 'Prediksi kebutuhan cuti bulan depan?' },
+  { role: 'ai' as const, text: 'Forecast +18% vs rata-rata — puncak di minggu 2–3. Pertimbangkan backup shift dan approval cuti lebih awal.' },
 ];
 
 function AnimatedCounter({ value, suffix = '', decimals = 0 }: { value: number; suffix?: string; decimals?: number }) {
@@ -261,6 +320,64 @@ function SimpleParticles() {
   }, []);
 
   return <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none z-0" />;
+}
+
+function AimanChatMockup() {
+  const [visibleLines, setVisibleLines] = useState(0);
+
+  useEffect(() => {
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    AIMAN_DEMO_LINES.forEach((_, i) => {
+      timers.push(setTimeout(() => setVisibleLines(i + 1), 800 + i * 1200));
+    });
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
+  return (
+    <div className="relative rounded-3xl border border-white/[0.1] bg-[#0a0812]/80 backdrop-blur-xl overflow-hidden shadow-[0_0_60px_rgba(139,92,246,0.2)]">
+      <div className="absolute inset-0 bg-gradient-to-br from-violet-600/10 via-transparent to-fuchsia-600/10 pointer-events-none" />
+      <div className="flex items-center gap-3 border-b border-white/[0.08] px-5 py-4 bg-white/[0.02]">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 shadow-lg shadow-violet-500/30">
+          <Bot className="h-5 w-5 text-white" />
+        </div>
+        <div>
+          <p className="text-sm font-bold text-white">AIMAN</p>
+          <p className="text-xs text-violet-300/70">AI Guide HR · powered by SumoPod</p>
+        </div>
+        <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-400">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          Live
+        </span>
+      </div>
+      <div className="p-5 space-y-3 min-h-[280px]">
+        {AIMAN_DEMO_LINES.slice(0, visibleLines).map((line, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className={`flex ${line.role === 'user' ? 'justify-end' : 'justify-start'}`}
+          >
+            <div
+              className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                line.role === 'user'
+                  ? 'bg-violet-600/30 border border-violet-500/20 text-violet-100'
+                  : 'bg-white/[0.05] border border-white/[0.08] text-violet-100/90'
+              }`}
+            >
+              {line.text}
+            </div>
+          </motion.div>
+        ))}
+        {visibleLines < AIMAN_DEMO_LINES.length && visibleLines > 0 && (
+          <div className="flex items-center gap-2 text-xs text-violet-300/50 pl-1">
+            <Cpu className="h-3.5 w-3.5 animate-spin" style={{ animationDuration: '2s' }} />
+            AIMAN menelusuri data Humanify...
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default function HumanifyWelcomePage() {
@@ -431,6 +548,145 @@ export default function HumanifyWelcomePage() {
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+
+        {/* AI — Fitur Unggulan */}
+        <section className="relative overflow-hidden border-b border-white/[0.08]">
+          <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-violet-600/15 rounded-full blur-[120px]" />
+            <div className="absolute bottom-0 right-0 w-[500px] h-[300px] bg-fuchsia-600/10 rounded-full blur-[100px]" />
+            <div className="absolute inset-0 bg-[linear-gradient(rgba(139,92,246,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(139,92,246,0.03)_1px,transparent_1px)] bg-[size:64px_64px] [mask-image:radial-gradient(ellipse_70%_60%_at_50%_50%,#000_40%,transparent_100%)]" />
+          </div>
+
+          <div className="relative mx-auto max-w-7xl px-6 py-24 sm:py-32">
+            <FadeIn className="mb-16 text-center">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                className="mb-6 inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-4 py-2 text-sm font-semibold text-violet-200"
+              >
+                <Sparkles className="h-4 w-4 text-fuchsia-400" />
+                Fitur Unggulan AI
+                <Zap className="h-4 w-4 text-amber-400" />
+              </motion.div>
+              <h2 className="mb-4 text-3xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl">
+                SDM lebih cerdas dengan{' '}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-400">
+                  kecerdasan buatan
+                </span>
+              </h2>
+              <p className="mx-auto max-w-2xl text-lg text-violet-200/70">
+                Humanify memadukan rule engine, vision AI, dan LLM SumoPod — dari screening kandidat hingga prediksi cuti.
+                Bukan gimmick: AI yang benar-benar membaca data HR tenant Anda.
+              </p>
+            </FadeIn>
+
+            <div className="grid gap-10 lg:grid-cols-2 lg:gap-16 items-start mb-20">
+              <FadeIn delay={0.1}>
+                <AimanChatMockup />
+              </FadeIn>
+              <FadeIn delay={0.2} className="space-y-6">
+                <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 border border-violet-500/20">
+                      <MessageSquare className="h-6 w-6 text-violet-300" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white mb-2">Kenalan dengan AIMAN</h3>
+                      <p className="text-sm leading-relaxed text-violet-200/70">
+                        AIMAN (<em>Artificial Intelligence Management Advisor for HR</em>) adalah asisten percakapan resmi Humanify.
+                        Tanya apa saja tentang workforce — AIMAN merangkum data live, memberi prioritas, dan menyarankan langkah operasional.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { val: '8+', label: 'Modul HR' },
+                    { val: 'Hybrid', label: 'Rules + LLM' },
+                    { val: 'ID', label: 'Bahasa Indonesia' },
+                  ].map((s) => (
+                    <div key={s.label} className="rounded-xl border border-white/[0.06] bg-[#110e1b]/60 px-4 py-3 text-center">
+                      <p className="text-lg font-bold text-white">{s.val}</p>
+                      <p className="text-[10px] uppercase tracking-wider text-violet-300/50 mt-0.5">{s.label}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {['Rekrutmen', 'Absensi', 'Cuti', 'KPI', 'Payroll', 'Engagement', 'Workforce'].map((m) => (
+                    <span key={m} className="inline-flex items-center gap-1 rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1 text-xs font-medium text-violet-200/80">
+                      <Brain className="h-3 w-3 text-fuchsia-400" />
+                      {m}
+                    </span>
+                  ))}
+                </div>
+              </FadeIn>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-16">
+              {AI_FEATURES.map((f, i) => (
+                <FadeIn key={f.title} delay={i * 0.06}>
+                  <motion.div
+                    whileHover={{ y: -4 }}
+                    className="group relative h-full overflow-hidden rounded-2xl border border-white/[0.08] bg-[#110e1b]/80 p-6 transition-all hover:border-violet-500/30"
+                  >
+                    <div className={`absolute -right-8 -top-8 h-24 w-24 rounded-full bg-gradient-to-br ${f.accent} opacity-10 blur-2xl group-hover:opacity-20 transition-opacity`} />
+                    <div className="relative">
+                      <div className="mb-4 flex items-center justify-between">
+                        <div className={`flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${f.accent} shadow-lg`}>
+                          <f.icon className="h-5 w-5 text-white" />
+                        </div>
+                        <span className="rounded-full bg-white/5 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-300/70">
+                          {f.tag}
+                        </span>
+                      </div>
+                      <h3 className="mb-2 text-lg font-bold text-white">{f.title}</h3>
+                      <p className="text-sm leading-relaxed text-violet-200/60">{f.desc}</p>
+                    </div>
+                  </motion.div>
+                </FadeIn>
+              ))}
+            </div>
+
+            <FadeIn>
+              <div className="rounded-3xl border border-white/[0.08] bg-gradient-to-br from-[#110e1b] to-[#0a0812] p-8 sm:p-12">
+                <div className="mb-10 text-center">
+                  <p className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-cyan-400">Penerapan AI</p>
+                  <h3 className="text-2xl font-bold text-white sm:text-3xl">
+                    Dari data mentah → insight → aksi
+                  </h3>
+                </div>
+                <div className="grid gap-6 md:grid-cols-3 relative">
+                  <div className="hidden md:block absolute top-1/2 left-[16%] right-[16%] h-px bg-gradient-to-r from-transparent via-violet-500/40 to-transparent -translate-y-1/2" />
+                  {AI_PIPELINE.map((p, i) => (
+                    <div key={p.step} className="relative text-center">
+                      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-violet-500/30 bg-violet-500/10 text-xl font-black text-violet-300">
+                        {p.step}
+                      </div>
+                      <h4 className="mb-2 font-bold text-white">{p.label}</h4>
+                      <p className="text-sm text-violet-200/60 leading-relaxed max-w-xs mx-auto">{p.desc}</p>
+                      {i < AI_PIPELINE.length - 1 && (
+                        <ArrowRight className="hidden md:block absolute top-7 -right-3 h-5 w-5 text-violet-500/50" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+                  <Link
+                    href={HUMANIFY_BRAND.signupPath}
+                    className="group inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-6 py-3 font-semibold text-white shadow-lg shadow-violet-500/20 transition hover:shadow-violet-500/40"
+                  >
+                    Coba Humanify + AIMAN
+                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                  </Link>
+                  <p className="text-xs text-violet-300/50 text-center sm:text-left">
+                    LLM opsional · Rule-based selalu aktif · Data tenant terisolasi
+                  </p>
+                </div>
+              </div>
+            </FadeIn>
           </div>
         </section>
 
