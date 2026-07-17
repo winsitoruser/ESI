@@ -6,6 +6,7 @@ import {
   normalizeHumanifyPlan,
   type HumanifyPlanId,
 } from './plan-entitlements';
+import { QA_TENANT_SLUG_REGEX } from './partners';
 
 let sequelize: any;
 try { sequelize = require('../sequelize'); } catch {}
@@ -105,12 +106,15 @@ export async function computePaidOrdersMrr(): Promise<{
     }
 
     const [rows] = await sequelize.query(`
-      SELECT DISTINCT ON (tenant_id)
-        tenant_id, amount_idr, "interval", plan
-      FROM saas_billing_orders
-      WHERE status = 'paid'
-      ORDER BY tenant_id, paid_at DESC NULLS LAST, created_at DESC
-    `);
+      SELECT DISTINCT ON (b.tenant_id)
+        b.tenant_id, b.amount_idr, b."interval", b.plan
+      FROM saas_billing_orders b
+      JOIN tenants t ON t.id = b.tenant_id
+      WHERE b.status = 'paid'
+        AND COALESCE(t.status::text, 'trial') <> 'archived'
+        AND COALESCE(t.slug, '') !~* :qaRegex
+      ORDER BY b.tenant_id, b.paid_at DESC NULLS LAST, b.created_at DESC
+    `, { replacements: { qaRegex: QA_TENANT_SLUG_REGEX } });
     let paidMrrIdr = 0;
     for (const row of rows || []) {
       const amount = Number(row.amount_idr) || 0;

@@ -134,6 +134,14 @@ export async function attachPartnerToTenant(
 }
 
 /**
+ * Anchored (^) regex matching QA / smoke / hardening test tenant slugs.
+ * Deliberately excludes real tenants like `pt-naincode`, `naincode-hq`
+ * (only slugs *starting with* `naincode-test` match).
+ */
+export const QA_TENANT_SLUG_REGEX =
+  '^(empty-qa-|qa-|smoke-|ent-|bill-|seat-|golive-|p5b-|ent5-|harden-|invite-|sso-|offb-|smtp-test-|phase|p\\d+-|naincode-test)';
+
+/**
  * Soft-suspend QA & smoke tenants matching known prefixes / test emails.
  * Default dryRun=true; pass dryRun:false to apply.
  */
@@ -156,14 +164,14 @@ export async function cleanupQaTenants(opts?: {
     SELECT id, slug, status
     FROM tenants
     WHERE (
-      slug ~* '^(qa-|smoke-|ent-|bill-|seat-|golive-|p5b-|ent5-)'
+      COALESCE(slug, '') ~* :qaRegex
       OR ${emailExpr} ILIKE '%@humanify.test'
     )
     AND COALESCE(status::text, '') <> 'suspended'
     AND created_at < NOW() - (:hours)::int * INTERVAL '1 hour'
     ORDER BY created_at ASC
-    LIMIT 200
-  `, { replacements: { hours } });
+    LIMIT 500
+  `, { replacements: { hours, qaRegex: QA_TENANT_SLUG_REGEX } });
 
   const list = rows || [];
   const slugs = list.map((r: any) => r.slug).filter(Boolean);
@@ -179,4 +187,54 @@ export async function cleanupQaTenants(opts?: {
   }
 
   return { matched: list.length, suspended: list.length, slugs };
+}
+
+/**
+ * Archive QA/smoke tenants that are already `suspended` (cleanup step two).
+ * Matches the same slug/email rules as {@link cleanupQaTenants}.
+ * Default dryRun=true; pass dryRun:false to apply.
+ */
+export async function archiveSuspendedQaTenants(opts?: {
+  dryRun?: boolean;
+  olderThanHours?: number;
+}): Promise<{ matched: number; archived: number; slugs: string[] }> {
+  if (!sequelize) return { matched: 0, archived: 0, slugs: [] };
+  const hours = Math.max(1, opts?.olderThanHours ?? 24);
+  const dryRun = opts?.dryRun !== false;
+  const cols = await getTenantColumns();
+
+  const emailExpr = cols.has('contact_email')
+    ? `COALESCE(contact_email, '')`
+    : cols.has('business_email')
+      ? `COALESCE(business_email, '')`
+      : `''`;
+  const timeCol = cols.has('updated_at') ? 'updated_at' : 'created_at';
+
+  const [rows] = await sequelize.query(`
+    SELECT id, slug, status
+    FROM tenants
+    WHERE status::text = 'suspended'
+    AND (
+      COALESCE(slug, '') ~* :qaRegex
+      OR ${emailExpr} ILIKE '%@humanify.test'
+    )
+    AND ${timeCol} < NOW() - (:hours)::int * INTERVAL '1 hour'
+    ORDER BY ${timeCol} ASC
+    LIMIT 500
+  `, { replacements: { hours, qaRegex: QA_TENANT_SLUG_REGEX } });
+
+  const list = rows || [];
+  const slugs = list.map((r: any) => r.slug).filter(Boolean);
+  if (dryRun || !list.length) {
+    return { matched: list.length, archived: 0, slugs };
+  }
+
+  for (const row of list) {
+    await sequelize.query(
+      `UPDATE tenants SET status = 'archived', updated_at = NOW() WHERE id = :id`,
+      { replacements: { id: row.id } },
+    );
+  }
+
+  return { matched: list.length, archived: list.length, slugs };
 }

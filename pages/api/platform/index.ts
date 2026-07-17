@@ -1,7 +1,8 @@
 /**
  * Platform Control Plane API — Humanify SaaS ops
- * GET ?action=overview|tenants|tenant|metrics
+ * GET   ?action=overview|tenants|tenant|tenant-detail|billing-orders|expiring-trials|partners
  * PATCH ?action=tenant-status|tenant-plan
+ * POST  ?action=dunning-scan|partner-create|cleanup-qa|archive-qa|impersonate|end-impersonate
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
@@ -17,10 +18,13 @@ import {
 import { HUMANIFY_PLANS } from '@/lib/saas/plan-entitlements';
 import { listExpiringTrials, runDunningScan } from '@/lib/saas/humanify-billing';
 import {
+  archiveSuspendedQaTenants,
   cleanupQaTenants,
   createPartner,
   listPartners,
+  QA_TENANT_SLUG_REGEX,
 } from '@/lib/saas/partners';
+import { parseTenantSettings } from '@/lib/saas/tenant-schema';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch {}
@@ -75,9 +79,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           COUNT(*) FILTER (WHERE COALESCE(status::text, 'trial') = 'active')::int AS active,
           COUNT(*) FILTER (WHERE COALESCE(status::text, 'trial') = 'trial')::int AS trial,
           COUNT(*) FILTER (WHERE status::text = 'suspended')::int AS suspended,
+          COUNT(*) FILTER (WHERE status::text = 'archived')::int AS archived,
+          COUNT(*) FILTER (WHERE COALESCE(slug, '') ~* :qaRegex)::int AS qa_noise,
           ${setupExpr}
         FROM tenants
-      `);
+      `, { replacements: { qaRegex: QA_TENANT_SLUG_REGEX } });
 
       const planExpr = cols.has('subscription_plan')
         ? `COALESCE(subscription_plan, 'none')`
@@ -106,7 +112,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         LIMIT 8
       `);
 
-      // MRR / health — list-price estimate until billing live
+      // MRR / health — list-price estimate until billing live.
+      // Excludes archived + QA/smoke noise so ops metrics reflect real tenants only.
       const [metricRows] = await sequelize.query(`
         SELECT t.id, t.slug, t.status,
           ${cols.has('subscription_plan') ? 't.subscription_plan' : 'NULL AS subscription_plan'},
@@ -115,7 +122,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           (SELECT COUNT(*)::int FROM users u WHERE u.tenant_id = t.id) AS user_count,
           (SELECT COUNT(*)::int FROM employees e WHERE e.tenant_id = t.id AND COALESCE(e.is_active, true)) AS employee_count
         FROM tenants t
-      `);
+        WHERE COALESCE(t.status::text, 'trial') <> 'archived'
+          AND COALESCE(t.slug, '') !~* :qaRegex
+      `, { replacements: { qaRegex: QA_TENANT_SLUG_REGEX } });
 
       const revenue = estimateMrrFromTenants(metricRows || []);
       const paid = await computePaidOrdersMrr();
@@ -345,6 +354,130 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           ? `Dry-run: ${result.matched} QA tenants`
           : `Suspended ${result.suspended} QA tenants`,
       });
+    }
+
+    if (req.method === 'POST' && action === 'archive-qa') {
+      const dryRun = req.body?.dryRun !== false;
+      const olderThanHours = Number(req.body?.olderThanHours) || 24;
+      const result = await archiveSuspendedQaTenants({ dryRun, olderThanHours });
+      return res.json({
+        success: true,
+        data: result,
+        message: dryRun
+          ? `Dry-run: ${result.matched} tenant QA suspended siap diarsipkan`
+          : `Diarsipkan ${result.archived} tenant QA`,
+      });
+    }
+
+    if (req.method === 'GET' && action === 'tenant-detail') {
+      const id = String(req.query.id || '');
+      if (!id) return res.status(400).json({ success: false, error: 'id required' });
+
+      const [rows] = await sequelize.query(`
+        SELECT t.*, ${nsql} AS name,
+          (SELECT COUNT(*)::int FROM users u WHERE u.tenant_id = t.id) AS user_count,
+          (SELECT COUNT(*)::int FROM employees e WHERE e.tenant_id = t.id AND COALESCE(e.is_active, true)) AS employee_count
+        FROM tenants t WHERE t.id = :id LIMIT 1
+      `, { replacements: { id } });
+      const tenant = rows?.[0];
+      if (!tenant) return res.status(404).json({ success: false, error: 'Tenant not found' });
+
+      let owner: any = null;
+      try {
+        const [ownerRows] = await sequelize.query(`
+          SELECT id, name, email, role, created_at
+          FROM users WHERE tenant_id = :id
+          ORDER BY (CASE WHEN role IN ('owner', 'admin', 'super_admin') THEN 0 ELSE 1 END), created_at ASC
+          LIMIT 1
+        `, { replacements: { id } });
+        owner = ownerRows?.[0] || null;
+      } catch { /* users schema may vary */ }
+
+      let leaveRequests30d = 0;
+      try {
+        const [lv] = await sequelize.query(`
+          SELECT COUNT(*)::int AS c FROM leave_requests
+          WHERE tenant_id = :id AND created_at >= NOW() - INTERVAL '30 days'
+        `, { replacements: { id } });
+        leaveRequests30d = lv?.[0]?.c || 0;
+      } catch { /* leave_requests may be missing */ }
+
+      let overtimeRequests30d = 0;
+      try {
+        const [ot] = await sequelize.query(`
+          SELECT COUNT(*)::int AS c FROM overtime_requests
+          WHERE tenant_id = :id AND created_at >= NOW() - INTERVAL '30 days'
+        `, { replacements: { id } });
+        overtimeRequests30d = ot?.[0]?.c || 0;
+      } catch { /* overtime_requests may be missing */ }
+
+      const settings = parseTenantSettings(tenant.settings);
+      const health = computeTenantHealth(tenant);
+      const trialEndsAt = cols.has('trial_ends_at') ? tenant.trial_ends_at : null;
+
+      return res.json({
+        success: true,
+        data: {
+          ...tenant,
+          health,
+          owner,
+          leaveRequests30d,
+          overtimeRequests30d,
+          partnerCode: settings.partner_code || settings.partner?.code || null,
+          trialEndsAt,
+          careersUrl: tenant.slug ? `/c/${tenant.slug}/careers` : null,
+        },
+      });
+    }
+
+    if (req.method === 'GET' && action === 'billing-orders') {
+      const [exists] = await sequelize.query(`
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'saas_billing_orders' LIMIT 1
+      `);
+      if (!exists?.length) {
+        return res.json({ success: true, data: { orders: [], available: false } });
+      }
+
+      const [bColRows] = await sequelize.query(`
+        SELECT column_name FROM information_schema.columns
+        WHERE table_name = 'saas_billing_orders' AND table_schema = 'public'
+      `);
+      const bCols = new Set((bColRows || []).map((c: any) => c.column_name));
+
+      const tenantId = req.query.tenantId ? String(req.query.tenantId) : '';
+      const lim = Math.min(100, Math.max(1, parseInt(String(req.query.limit || '20'), 10) || 20));
+
+      const selectParts = [
+        'id',
+        bCols.has('tenant_id') ? 'tenant_id' : 'NULL AS tenant_id',
+        bCols.has('order_code') ? 'order_code' : (bCols.has('midtrans_order_id') ? 'midtrans_order_id AS order_code' : `NULL AS order_code`),
+        bCols.has('plan') ? 'plan' : `NULL AS plan`,
+        bCols.has('interval') ? '"interval"' : `NULL AS interval`,
+        bCols.has('amount_idr') ? 'amount_idr' : (bCols.has('amount') ? 'amount AS amount_idr' : `NULL AS amount_idr`),
+        bCols.has('status') ? 'status' : `NULL AS status`,
+        bCols.has('provider') ? 'provider' : `NULL AS provider`,
+        bCols.has('midtrans_order_id') ? 'midtrans_order_id' : `NULL AS midtrans_order_id`,
+        bCols.has('paid_at') ? 'paid_at' : `NULL AS paid_at`,
+        bCols.has('created_at') ? 'created_at' : `NULL AS created_at`,
+      ].join(', ');
+
+      const conditions = ['1=1'];
+      const repl: Record<string, unknown> = { lim };
+      if (tenantId && bCols.has('tenant_id')) {
+        conditions.push('tenant_id = :tenantId');
+        repl.tenantId = tenantId;
+      }
+
+      const [orders] = await sequelize.query(`
+        SELECT ${selectParts}
+        FROM saas_billing_orders
+        WHERE ${conditions.join(' AND ')}
+        ORDER BY ${bCols.has('created_at') ? 'created_at' : 'id'} DESC
+        LIMIT :lim
+      `, { replacements: repl });
+
+      return res.json({ success: true, data: { orders: orders || [], available: true } });
     }
 
     if (req.method === 'POST' && action === 'impersonate') {

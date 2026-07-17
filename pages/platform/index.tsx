@@ -6,6 +6,7 @@ import HQLayout from '@/components/hq/HQLayout';
 import {
   Building2, Users, Briefcase, Search, ExternalLink,
   CheckCircle2, PauseCircle, Clock, Loader2, RefreshCw, TrendingUp, HeartPulse, Eye,
+  Activity, ClipboardList, Archive,
 } from 'lucide-react';
 
 /**
@@ -29,6 +30,7 @@ export default function PlatformDashboardPage() {
   const [partners, setPartners] = useState<any[]>([]);
   const [partnerForm, setPartnerForm] = useState({ code: '', name: '', contactEmail: '' });
   const [cleanupBusy, setCleanupBusy] = useState(false);
+  const [archiveBusy, setArchiveBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -178,6 +180,25 @@ export default function PlatformDashboardPage() {
     }
   }
 
+  async function runArchiveQa(apply: boolean) {
+    setArchiveBusy(true);
+    try {
+      const res = await fetch('/api/platform?action=archive-qa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dryRun: !apply, olderThanHours: 24 }),
+      });
+      const j = await res.json();
+      if (j.success) {
+        setToast(j.message + (j.data?.slugs?.length ? `: ${j.data.slugs.slice(0, 5).join(', ')}` : ''));
+        if (apply) load();
+      } else setToast(j.error || 'Archive gagal');
+    } finally {
+      setArchiveBusy(false);
+      setTimeout(() => setToast(''), 4000);
+    }
+  }
+
   const s = overview?.summary || {};
   const m = overview?.metrics || {};
   const maxPlanCount = Math.max(1, ...(m.byPlan || []).map((p: any) => p.count || 0));
@@ -202,35 +223,55 @@ export default function PlatformDashboardPage() {
             <p className="text-xs uppercase tracking-wide text-indigo-600 font-semibold">Phase 3 · Control Plane</p>
             <h2 className="text-lg font-semibold text-slate-900">MRR, kesehatan tenant & operasi</h2>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={() => runCleanupQa(false)}
-              disabled={cleanupBusy}
-              className="text-sm px-3 py-2 border rounded-lg hover:bg-slate-50 disabled:opacity-50"
-            >
-              Preview QA cleanup
-            </button>
-            <button
-              onClick={() => {
-                if (confirm('Suspend semua QA/smoke tenants (>1 jam)?')) runCleanupQa(true);
-              }}
-              disabled={cleanupBusy}
-              className="text-sm px-3 py-2 border border-red-200 text-red-700 rounded-lg hover:bg-red-50 disabled:opacity-50"
-            >
-              Apply QA cleanup
-            </button>
-            <button
-              onClick={runDunning}
-              disabled={dunningBusy}
-              className="flex items-center gap-2 text-sm px-3 py-2 border border-amber-300 text-amber-900 rounded-lg hover:bg-amber-50 disabled:opacity-50"
-            >
-              {dunningBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <PauseCircle className="w-4 h-4" />}
-              Run dunning
-            </button>
-            <button onClick={load} className="flex items-center gap-2 text-sm px-3 py-2 border rounded-lg hover:bg-slate-50">
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
-            </button>
-          </div>
+          <Link href="/platform/observability" className="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:underline">
+            <Activity className="w-4 h-4" /> Observability
+          </Link>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 flex-wrap">
+          <button
+            onClick={() => runCleanupQa(false)}
+            disabled={cleanupBusy}
+            className="text-sm px-3 py-2 border rounded-lg hover:bg-slate-50 disabled:opacity-50"
+          >
+            Preview QA cleanup
+          </button>
+          <button
+            onClick={() => {
+              if (confirm('Suspend semua QA/smoke tenants (>1 jam)?')) runCleanupQa(true);
+            }}
+            disabled={cleanupBusy}
+            className="text-sm px-3 py-2 border border-red-200 text-red-700 rounded-lg hover:bg-red-50 disabled:opacity-50"
+          >
+            Apply QA cleanup
+          </button>
+          <button
+            onClick={() => runArchiveQa(false)}
+            disabled={archiveBusy}
+            className="flex items-center gap-1.5 text-sm px-3 py-2 border rounded-lg hover:bg-slate-50 disabled:opacity-50"
+          >
+            <Archive className="w-3.5 h-3.5" /> Preview archive QA
+          </button>
+          <button
+            onClick={() => {
+              if (confirm('Arsipkan tenant QA/smoke yang sudah suspended (>24 jam)?')) runArchiveQa(true);
+            }}
+            disabled={archiveBusy}
+            className="flex items-center gap-1.5 text-sm px-3 py-2 border border-red-200 text-red-700 rounded-lg hover:bg-red-50 disabled:opacity-50"
+          >
+            <Archive className="w-3.5 h-3.5" /> Apply archive QA
+          </button>
+          <button
+            onClick={runDunning}
+            disabled={dunningBusy}
+            className="flex items-center gap-2 text-sm px-3 py-2 border border-amber-300 text-amber-900 rounded-lg hover:bg-amber-50 disabled:opacity-50"
+          >
+            {dunningBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <PauseCircle className="w-4 h-4" />}
+            Run dunning
+          </button>
+          <button onClick={load} className="flex items-center gap-2 text-sm px-3 py-2 border rounded-lg hover:bg-slate-50">
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+          </button>
         </div>
 
         <div className="bg-white border rounded-xl p-4 space-y-3">
@@ -341,6 +382,20 @@ export default function PlatformDashboardPage() {
             <p className="text-xs text-slate-500">Karyawan aktif (all)</p>
           </div>
         </div>
+
+        {(s.archived != null || s.qa_noise != null) && (
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="bg-slate-50 border rounded-xl p-4">
+              <p className="text-2xl font-bold text-slate-500">{s.archived ?? 0}</p>
+              <p className="text-xs text-slate-500">Archived</p>
+            </div>
+            <div className="bg-slate-50 border rounded-xl p-4">
+              <p className="text-2xl font-bold text-slate-500">{s.qa_noise ?? 0}</p>
+              <p className="text-xs text-slate-500">QA/smoke noise (semua status)</p>
+              <p className="text-[11px] text-slate-400 mt-1">Dikeluarkan dari MRR & health</p>
+            </div>
+          </div>
+        )}
 
         {(m.byPlan || []).length > 0 && (
           <div className="bg-white border rounded-xl p-4">
@@ -462,6 +517,11 @@ export default function PlatformDashboardPage() {
                     ) : '—'}
                   </td>
                   <td className="px-4 py-3 text-right space-x-1">
+                    <Link
+                      href={`/platform/tenants/${t.id}`}
+                      title="Lihat detail tenant"
+                      className="text-[11px] px-2 py-1 rounded border text-slate-600 hover:bg-slate-50 inline-flex items-center gap-1"
+                    ><ClipboardList className="w-3 h-3" /> Detail</Link>
                     <button
                       disabled={acting === t.id || t.status === 'suspended'}
                       onClick={() => impersonateTenant(t.id)}
