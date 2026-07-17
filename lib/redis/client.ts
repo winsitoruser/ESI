@@ -1,19 +1,22 @@
 /**
- * Lazy Redis singleton for Humanify Next.js app.
- * Returns null when REDIS_URL is unset or connection fails (callers fall back to memory).
+ * Lazy Redis singleton for Humanify Next.js app (server-only).
+ * Never import this from client components.
  */
 let client: any = null;
 let initAttempted = false;
 let logged = false;
 
 export function getRedis(): any | null {
+  if (typeof window !== 'undefined') return null;
   if (initAttempted) return client;
   initAttempted = true;
   const url = process.env.REDIS_URL;
   if (!url) return null;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const Redis = require('ioredis');
+    // eval(require) prevents webpack from parsing/bundling ioredis into client graphs
+    // that accidentally import NextAuth helpers.
+    // eslint-disable-next-line no-eval
+    const Redis = eval('require')('ioredis');
     client = new Redis(url, {
       maxRetriesPerRequest: 1,
       enableReadyCheck: true,
@@ -35,5 +38,5 @@ export function getRedis(): any | null {
 }
 
 export function redisEnabled(): boolean {
-  return Boolean(process.env.REDIS_URL);
+  return Boolean(process.env.REDIS_URL) && typeof window === 'undefined';
 }

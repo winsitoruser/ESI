@@ -298,6 +298,9 @@ export NODE_OPTIONS='--max-old-space-size=6144'
 export NEXT_TELEMETRY_DISABLED=1
 export GENERATE_SOURCEMAP=false
 
+# Refresh deps so new packages (samlify/ioredis) are present even when node_modules already exists
+npm install --legacy-peer-deps 2>&1 | tail -8
+
 python3 scripts/patch-next-config-vps.py next.config.mjs
 
 rm -rf .next

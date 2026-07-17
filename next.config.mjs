@@ -29,9 +29,12 @@ const isExport = process.env.NEXT_EXPORT === 'true';
 const nextConfig = {
   // Enable standalone output for Docker deployment (only in production)
   ...(process.env.NODE_ENV === 'production' ? { output: 'standalone' } : {}),
+  // Keep Node-only packages out of the client/webpack graph
+  serverExternalPackages: ['ioredis', 'samlify', '@xmldom/xmldom'],
   experimental: {
     workerThreads: false,
     cpus: 1,
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons', 'recharts', 'apexcharts', 'react-apexcharts'],
   },
   reactStrictMode: false,
   eslint: {
@@ -79,14 +82,16 @@ const nextConfig = {
       fs: false,
       net: false,
       tls: false,
+      dns: false,
+      child_process: false,
     };
+    if (isServer) {
+      config.externals = config.externals || [];
+      if (Array.isArray(config.externals)) {
+        config.externals.push('ioredis', 'samlify');
+      }
+    }
     return config;
-  },
-  
-  // Experimental features for better performance
-  experimental: {
-    // Optimize package imports
-    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons', 'recharts', 'apexcharts', 'react-apexcharts'],
   },
   
   // Transpile Radix UI and other ESM packages
