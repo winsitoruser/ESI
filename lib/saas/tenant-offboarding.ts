@@ -148,11 +148,11 @@ export async function purgeExpiredOffboardings(limit = 50): Promise<{
     SELECT id, slug, settings
     FROM tenants
     WHERE COALESCE(status::text, '') NOT IN ('archived')
-      AND settings ? 'offboarding'
-      AND COALESCE(settings->'offboarding'->>'status', '') = 'requested'
-      AND NULLIF(settings->'offboarding'->>'graceUntil', '') IS NOT NULL
-      AND (settings->'offboarding'->>'graceUntil')::timestamptz < NOW()
-    ORDER BY (settings->'offboarding'->>'graceUntil')::timestamptz ASC
+      AND settings IS NOT NULL
+      AND COALESCE((settings::jsonb)->'offboarding'->>'status', '') = 'requested'
+      AND NULLIF((settings::jsonb)->'offboarding'->>'graceUntil', '') IS NOT NULL
+      AND ((settings::jsonb)->'offboarding'->>'graceUntil')::timestamptz < NOW()
+    ORDER BY ((settings::jsonb)->'offboarding'->>'graceUntil')::timestamptz ASC
     LIMIT :lim
   `, { replacements: { lim: Math.min(200, Math.max(1, limit)) } });
 
