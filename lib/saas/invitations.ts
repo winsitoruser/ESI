@@ -61,6 +61,107 @@ function normalizeRole(role?: string | null): string {
   return r;
 }
 
+/** Map invite roles onto User.role ENUM (no `viewer` in ENUM → staff). */
+function roleForUserModel(role?: string | null): string {
+  const r = normalizeRole(role);
+  return r === 'viewer' ? 'staff' : r;
+}
+
+export async function updateMemberRole(opts: {
+  tenantId: string;
+  memberId: string | number;
+  role: string;
+  actorUserId?: string | number | null;
+}): Promise<{ id: string | number; role: string }> {
+  const db = getDb();
+  const role = roleForUserModel(opts.role);
+  const user = await db.User.findOne({
+    where: { id: opts.memberId, tenantId: opts.tenantId },
+  });
+  if (!user) throw new Error('Anggota tidak ditemukan');
+  const current = String(user.role || '').toLowerCase();
+  if (FORBIDDEN_ROLES.has(current) || current === 'owner') {
+    throw new Error('Role owner tidak dapat diubah dari sini');
+  }
+  if (String(opts.actorUserId) === String(user.id)) {
+    throw new Error('Tidak dapat mengubah role akun sendiri');
+  }
+  await user.update({ role });
+  try {
+    const { logAdminAction } = await import('./admin-audit');
+    await logAdminAction({
+      tenantId: opts.tenantId,
+      actorUserId: opts.actorUserId ? String(opts.actorUserId) : null,
+      action: 'role.change',
+      resourceType: 'user',
+      resourceId: String(user.id),
+      meta: { from: current, to: role, email: user.email },
+    });
+  } catch { /* ignore */ }
+  return { id: user.id, role };
+}
+
+export async function deactivateMember(opts: {
+  tenantId: string;
+  memberId: string | number;
+  actorUserId?: string | number | null;
+}): Promise<{ id: string | number; isActive: boolean }> {
+  const db = getDb();
+  const user = await db.User.findOne({
+    where: { id: opts.memberId, tenantId: opts.tenantId },
+  });
+  if (!user) throw new Error('Anggota tidak ditemukan');
+  const current = String(user.role || '').toLowerCase();
+  if (FORBIDDEN_ROLES.has(current) || current === 'owner') {
+    throw new Error('Owner tidak dapat dinonaktifkan dari sini');
+  }
+  if (String(opts.actorUserId) === String(user.id)) {
+    throw new Error('Tidak dapat menonaktifkan akun sendiri');
+  }
+  await user.update({ isActive: false });
+  try {
+    const { logAdminAction } = await import('./admin-audit');
+    await logAdminAction({
+      tenantId: opts.tenantId,
+      actorUserId: opts.actorUserId ? String(opts.actorUserId) : null,
+      action: 'member.deactivate',
+      resourceType: 'user',
+      resourceId: String(user.id),
+      meta: { email: user.email, role: current },
+    });
+  } catch { /* ignore */ }
+  return { id: user.id, isActive: false };
+}
+
+export async function reactivateMember(opts: {
+  tenantId: string;
+  memberId: string | number;
+  actorUserId?: string | number | null;
+}): Promise<{ id: string | number; isActive: boolean }> {
+  const db = getDb();
+  const usage = await getSeatUsage(opts.tenantId).catch(() => null);
+  if (usage && usage.users >= usage.maxUsers) {
+    throw new Error(`Batas user paket tercapai (${usage.users}/${usage.maxUsers}). Upgrade untuk mengaktifkan kembali.`);
+  }
+  const user = await db.User.findOne({
+    where: { id: opts.memberId, tenantId: opts.tenantId },
+  });
+  if (!user) throw new Error('Anggota tidak ditemukan');
+  await user.update({ isActive: true });
+  try {
+    const { logAdminAction } = await import('./admin-audit');
+    await logAdminAction({
+      tenantId: opts.tenantId,
+      actorUserId: opts.actorUserId ? String(opts.actorUserId) : null,
+      action: 'member.reactivate',
+      resourceType: 'user',
+      resourceId: String(user.id),
+      meta: { email: user.email },
+    });
+  } catch { /* ignore */ }
+  return { id: user.id, isActive: true };
+}
+
 export interface CreateInviteResult {
   id: string;
   emailed: boolean;
@@ -366,7 +467,7 @@ export async function acceptInvitation(opts: {
     email,
     password: hashedPassword,
     tenantId: inv.tenant_id,
-    role: inv.role,
+    role: roleForUserModel(inv.role),
     isActive: true,
   });
 

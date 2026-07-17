@@ -27,9 +27,16 @@ export async function ensureMfaTable() {
       enabled BOOLEAN NOT NULL DEFAULT false,
       enrolled_at TIMESTAMPTZ,
       disabled_at TIMESTAMPTZ,
+      recovery_hashes TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  try {
+    await sequelize.query(`
+      ALTER TABLE saas_user_mfa
+      ADD COLUMN IF NOT EXISTS recovery_hashes TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[]
+    `);
+  } catch { /* */ }
   ready = true;
 }
 
@@ -125,17 +132,23 @@ async function readRow(userId: string): Promise<any | null> {
   return rows?.[0] || null;
 }
 
-export async function getMfaStatus(userId: string | number): Promise<{ enabled: boolean; enrolledAt: string | null; pending: boolean }> {
-  if (!sequelize) return { enabled: false, enrolledAt: null, pending: false };
+export async function getMfaStatus(userId: string | number): Promise<{
+  enabled: boolean;
+  enrolledAt: string | null;
+  pending: boolean;
+  recoveryRemaining: number;
+}> {
+  if (!sequelize) return { enabled: false, enrolledAt: null, pending: false, recoveryRemaining: 0 };
   try {
     const row = await readRow(String(userId));
     return {
       enabled: Boolean(row?.enabled),
       enrolledAt: row?.enrolled_at || null,
       pending: Boolean(row) && !row.enabled,
+      recoveryRemaining: Array.isArray(row?.recovery_hashes) ? row.recovery_hashes.length : 0,
     };
   } catch {
-    return { enabled: false, enrolledAt: null, pending: false };
+    return { enabled: false, enrolledAt: null, pending: false, recoveryRemaining: 0 };
   }
 }
 
@@ -155,10 +168,70 @@ export async function verifyMfaCode(userId: string | number, code: string): Prom
   try {
     const row = await readRow(String(userId));
     if (!row?.enabled || !row.secret) return false;
-    return verifyTotp(row.secret, code);
+    const trimmed = String(code || '').replace(/\s+/g, '');
+    if (verifyTotp(row.secret, trimmed)) return true;
+    // One-time recovery codes (8-char alnum)
+    if (/^[A-Za-z0-9]{8}$/.test(trimmed)) {
+      return consumeRecoveryCode(String(userId), trimmed, row.recovery_hashes || []);
+    }
+    return false;
   } catch {
     return false;
   }
+}
+
+function hashRecovery(code: string) {
+  return crypto.createHash('sha256').update(code.toUpperCase()).digest('hex');
+}
+
+function generateRecoveryCodes(n = 8): string[] {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const codes: string[] = [];
+  for (let i = 0; i < n; i++) {
+    let c = '';
+    const buf = crypto.randomBytes(8);
+    for (let j = 0; j < 8; j++) c += alphabet[buf[j] % alphabet.length];
+    codes.push(c);
+  }
+  return codes;
+}
+
+async function consumeRecoveryCode(userId: string, code: string, hashes: string[]): Promise<boolean> {
+  const h = hashRecovery(code);
+  if (!hashes.includes(h)) return false;
+  const next = hashes.filter((x) => x !== h);
+  await sequelize.query(
+    `UPDATE saas_user_mfa SET recovery_hashes = CAST(:hashes AS text[]), updated_at = NOW() WHERE user_id = :uid`,
+    {
+      replacements: {
+        uid: userId,
+        hashes: `{${next.map((x) => `"${x}"`).join(',')}}`,
+      },
+    },
+  );
+  return true;
+}
+
+export async function issueRecoveryCodes(userId: string | number): Promise<string[]> {
+  if (!sequelize) throw new Error('Database unavailable');
+  await ensureMfaTable();
+  const codes = generateRecoveryCodes(8);
+  const hashes = codes.map(hashRecovery);
+  await sequelize.query(
+    `UPDATE saas_user_mfa SET recovery_hashes = CAST(:hashes AS text[]), updated_at = NOW() WHERE user_id = :uid`,
+    {
+      replacements: {
+        uid: String(userId),
+        hashes: `{${hashes.map((x) => `"${x}"`).join(',')}}`,
+      },
+    },
+  );
+  return codes;
+}
+
+export async function recoveryCodesRemaining(userId: string | number): Promise<number> {
+  const row = await readRow(String(userId));
+  return Array.isArray(row?.recovery_hashes) ? row.recovery_hashes.length : 0;
 }
 
 export async function beginEnrollment(opts: {
@@ -186,16 +259,17 @@ export async function beginEnrollment(opts: {
   return { secret, otpauthUrl: otpauthUrl(opts.email, secret) };
 }
 
-export async function confirmEnrollment(userId: string | number, code: string): Promise<boolean> {
+export async function confirmEnrollment(userId: string | number, code: string): Promise<{ ok: boolean; recoveryCodes?: string[] }> {
   if (!sequelize) throw new Error('Database unavailable');
   const row = await readRow(String(userId));
   if (!row?.secret) throw new Error('Belum ada proses enrol MFA. Mulai enrol dulu.');
-  if (!verifyTotp(row.secret, code)) return false;
+  if (!verifyTotp(row.secret, code)) return { ok: false };
   await sequelize.query(
     `UPDATE saas_user_mfa SET enabled = true, enrolled_at = NOW(), disabled_at = NULL, updated_at = NOW() WHERE user_id = :uid`,
     { replacements: { uid: String(userId) } },
   );
-  return true;
+  const recoveryCodes = await issueRecoveryCodes(userId);
+  return { ok: true, recoveryCodes };
 }
 
 export async function disableMfa(userId: string | number, code: string): Promise<boolean> {

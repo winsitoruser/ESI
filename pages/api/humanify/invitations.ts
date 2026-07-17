@@ -17,6 +17,9 @@ import {
   listTenantMembers,
   revokeInvitation,
   resendInvitation,
+  updateMemberRole,
+  deactivateMember,
+  reactivateMember,
   INVITE_ROLES,
 } from '@/lib/saas/invitations';
 import { getSeatUsage } from '@/lib/saas/seat-metering';
@@ -91,6 +94,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (!id) return res.status(400).json({ success: false, error: 'id wajib diisi' });
         const result = await resendInvitation(tenantId, id, origin);
         return res.json({ success: true, data: result });
+      }
+
+      if (action === 'update-role') {
+        const id = req.body?.id;
+        const newRole = String(req.body?.role || '');
+        if (!id) return res.status(400).json({ success: false, error: 'id wajib diisi' });
+        if (!newRole) return res.status(400).json({ success: false, error: 'role wajib diisi' });
+        const data = await updateMemberRole({
+          tenantId,
+          memberId: id,
+          role: newRole,
+          actorUserId: userId,
+        });
+        return res.json({ success: true, data });
+      }
+
+      if (action === 'deactivate') {
+        const id = req.body?.id;
+        if (!id) return res.status(400).json({ success: false, error: 'id wajib diisi' });
+        const data = await deactivateMember({ tenantId, memberId: id, actorUserId: userId });
+        return res.json({ success: true, data });
+      }
+
+      if (action === 'reactivate') {
+        const id = req.body?.id;
+        if (!id) return res.status(400).json({ success: false, error: 'id wajib diisi' });
+        const data = await reactivateMember({ tenantId, memberId: id, actorUserId: userId });
+        return res.json({ success: true, data });
       }
 
       return res.status(400).json({ success: false, error: 'Action tidak dikenal' });

@@ -40,11 +40,21 @@ export async function countTenantSeats(tenantId: string): Promise<{ users: numbe
   let employees = 0;
   try {
     const [u] = await sequelize.query(
-      `SELECT COUNT(*)::int AS c FROM users WHERE tenant_id = :tid`,
+      `SELECT COUNT(*)::int AS c FROM users
+       WHERE tenant_id = :tid
+         AND COALESCE("isActive", true) = true`,
       { replacements: { tid: tenantId } },
     );
     users = u?.[0]?.c || 0;
-  } catch { /* */ }
+  } catch {
+    try {
+      const [u] = await sequelize.query(
+        `SELECT COUNT(*)::int AS c FROM users WHERE tenant_id = :tid`,
+        { replacements: { tid: tenantId } },
+      );
+      users = u?.[0]?.c || 0;
+    } catch { /* */ }
+  }
 
   try {
     if (await tableExists('employees')) {

@@ -42,9 +42,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (req.method === 'POST' && action === 'confirm') {
       if (!checkLimit(req, res, RateLimitTier.AUTH)) return;
       const code = String(req.body?.code || '');
-      const ok = await confirmEnrollment(userId, code);
-      if (!ok) return res.status(400).json({ success: false, error: 'Kode salah atau kedaluwarsa' });
-      return res.json({ success: true, message: '2FA aktif' });
+      const result = await confirmEnrollment(userId, code);
+      if (!result.ok) return res.status(400).json({ success: false, error: 'Kode salah atau kedaluwarsa' });
+      return res.json({
+        success: true,
+        message: '2FA aktif — simpan kode pemulihan Anda',
+        data: { recoveryCodes: result.recoveryCodes || [] },
+      });
+    }
+
+    if (req.method === 'POST' && action === 'regenerate-recovery') {
+      if (!checkLimit(req, res, RateLimitTier.AUTH)) return;
+      const code = String(req.body?.code || '');
+      const { verifyMfaCode, issueRecoveryCodes, isMfaEnabled } = await import('@/lib/saas/mfa');
+      if (!(await isMfaEnabled(userId))) {
+        return res.status(400).json({ success: false, error: '2FA belum aktif' });
+      }
+      if (!(await verifyMfaCode(userId, code))) {
+        return res.status(400).json({ success: false, error: 'Kode 2FA salah' });
+      }
+      // verifyMfaCode may have consumed a recovery code — issue new set after TOTP ok preferred
+      const recoveryCodes = await issueRecoveryCodes(userId);
+      return res.json({ success: true, data: { recoveryCodes } });
     }
 
     if (req.method === 'POST' && action === 'disable') {

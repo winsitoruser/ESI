@@ -18,6 +18,8 @@ export default function HumanifySecurityPage() {
   const [busy, setBusy] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [enrolledAt, setEnrolledAt] = useState<string | null>(null);
+  const [recoveryRemaining, setRecoveryRemaining] = useState(0);
+  const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
   const [enroll, setEnroll] = useState<{ secret: string; otpauthUrl: string } | null>(null);
   const [code, setCode] = useState('');
   const [disableCode, setDisableCode] = useState('');
@@ -33,6 +35,7 @@ export default function HumanifySecurityPage() {
       if (j.success) {
         setEnabled(Boolean(j.data.enabled));
         setEnrolledAt(j.data.enrolledAt || null);
+        setRecoveryRemaining(Number(j.data.recoveryRemaining || 0));
       }
       if (a?.success) setAudit(a.data || []);
     } catch {
@@ -73,12 +76,34 @@ export default function HumanifySecurityPage() {
         body: JSON.stringify({ code }),
       })).json();
       if (!j.success) throw new Error(j.error);
-      toast.success('2FA aktif — akun Anda lebih aman');
+      toast.success('2FA aktif — simpan kode pemulihan');
       setEnroll(null);
       setCode('');
+      if (j.data?.recoveryCodes?.length) setRecoveryCodes(j.data.recoveryCodes);
       await load();
     } catch (e: any) {
       toast.error(e.message || 'Kode salah');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function regenerateRecovery() {
+    const totp = window.prompt('Masukkan kode 2FA (authenticator) untuk menerbitkan ulang kode pemulihan:');
+    if (!totp) return;
+    setBusy(true);
+    try {
+      const j = await (await fetch('/api/humanify/mfa?action=regenerate-recovery', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: totp }),
+      })).json();
+      if (!j.success) throw new Error(j.error);
+      setRecoveryCodes(j.data.recoveryCodes || []);
+      toast.success('Kode pemulihan baru diterbitkan');
+      await load();
+    } catch (e: any) {
+      toast.error(e.message || 'Gagal');
     } finally {
       setBusy(false);
     }
@@ -205,6 +230,46 @@ export default function HumanifySecurityPage() {
                   Batal
                 </button>
               </div>
+            </div>
+          )}
+
+          {enabled && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-3">
+              <h3 className="font-semibold text-slate-900">Kode pemulihan 2FA</h3>
+              <p className="text-sm text-slate-500">
+                Sisa kode: <span className="font-semibold text-slate-800">{recoveryRemaining}</span>.
+                Satu kode = satu kali pakai jika authenticator hilang.
+              </p>
+              <button
+                type="button"
+                onClick={regenerateRecovery}
+                disabled={busy}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 disabled:opacity-50"
+              >
+                {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                Terbitkan ulang kode
+              </button>
+            </div>
+          )}
+
+          {recoveryCodes && recoveryCodes.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 space-y-3">
+              <h3 className="font-semibold text-amber-900">Simpan kode pemulihan ini sekarang</h3>
+              <p className="text-sm text-amber-800">Ditampilkan sekali. Simpan di tempat aman — tidak bisa dilihat lagi.</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-sm">
+                {recoveryCodes.map((c) => (
+                  <div key={c} className="bg-white border border-amber-100 rounded-lg px-2 py-1.5 text-center tracking-wider">
+                    {c}
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => setRecoveryCodes(null)}
+                className="text-sm text-amber-900 underline"
+              >
+                Sudah saya simpan
+              </button>
             </div>
           )}
 

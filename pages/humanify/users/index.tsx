@@ -1,8 +1,9 @@
 ﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import HumanifyLayout from '@/components/humanify/HumanifyLayout';
 import {
   UserPlus, Users, Mail, RefreshCw, Send, Copy, Check, X, Clock,
-  ShieldCheck, AlertTriangle, Loader2, Trash2,
+  ShieldCheck, AlertTriangle, Loader2, Trash2, UserMinus, UserCheck,
 } from 'lucide-react';
 
 interface Member {
@@ -37,6 +38,11 @@ const ROLE_LABELS: Record<string, string> = {
   owner: 'Owner', hq_admin: 'Admin', admin: 'Admin', manager: 'Manajer',
   staff: 'Staf', viewer: 'Viewer',
 };
+const INVITE_FALLBACK_ROLES: RoleOption[] = [
+  { code: 'hq_admin', label: 'Admin' },
+  { code: 'manager', label: 'Manajer' },
+  { code: 'staff', label: 'Staf' },
+];
 const roleLabel = (r?: string | null) => (r ? (ROLE_LABELS[r] || r) : '—');
 
 function fmtDate(d?: string | null) {
@@ -46,6 +52,8 @@ function fmtDate(d?: string | null) {
 }
 
 export default function TeamUsersPage() {
+  const { data: session } = useSession();
+  const selfId = String((session?.user as any)?.id || '');
   const [members, setMembers] = useState<Member[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [seats, setSeats] = useState<Seats | null>(null);
@@ -153,14 +161,56 @@ export default function TeamUsersPage() {
     }
   };
 
+  const memberAction = async (
+    id: string | number,
+    act: 'update-role' | 'deactivate' | 'reactivate',
+    extra?: { role?: string },
+  ) => {
+    const key = `${act}-${id}`;
+    setBusyId(key);
+    setMsg(null);
+    try {
+      if (act === 'deactivate' && !window.confirm('Nonaktifkan anggota ini? Slot user akan dibebaskan.')) {
+        setBusyId(null);
+        return;
+      }
+      const res = await fetch(`/api/humanify/invitations?action=${act}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...(extra || {}) }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setMsg({
+          type: 'success',
+          text: act === 'update-role' ? 'Role diperbarui.'
+            : act === 'deactivate' ? 'Anggota dinonaktifkan.'
+              : 'Anggota diaktifkan kembali.',
+        });
+        fetchData();
+      } else {
+        setMsg({ type: 'error', text: json.error || 'Aksi gagal' });
+      }
+    } catch {
+      setMsg({ type: 'error', text: 'Gagal menghubungi server' });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const seatFull = seats ? seats.users + pending.length >= seats.maxUsers : false;
+  const activeMembers = useMemo(() => members.filter((m) => m.isActive), [members]);
+  const manageRoles = useMemo(
+    () => (roles.length ? roles : INVITE_FALLBACK_ROLES).filter((r) => r.code !== 'viewer'),
+    [roles],
+  );
 
   return (
     <HumanifyLayout title="Tim & Undangan" subtitle="Kelola anggota tim dan undang rekan kerja ke tenant Anda">
       <div className="space-y-6">
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard icon={Users} color="indigo" value={members.length} label="Anggota Aktif" />
+          <StatCard icon={Users} color="indigo" value={activeMembers.length} label="Anggota Aktif" />
           <StatCard icon={Clock} color="amber" value={pending.length} label="Undangan Tertunda" />
           <StatCard
             icon={ShieldCheck}
@@ -366,35 +416,87 @@ export default function TeamUsersPage() {
                     <th className="py-2.5 px-4 font-medium">Role</th>
                     <th className="py-2.5 px-4 font-medium">Login Terakhir</th>
                     <th className="py-2.5 px-4 font-medium text-center">Status</th>
+                    {canManage && <th className="py-2.5 px-4 font-medium text-right">Aksi</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {members.map((m) => (
-                    <tr key={m.id} className="hover:bg-gray-50">
-                      <td className="py-2.5 px-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
-                            {m.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?'}
+                  {members.map((m) => {
+                    const isOwner = String(m.role || '').toLowerCase() === 'owner';
+                    const isSelf = selfId && String(m.id) === selfId;
+                    const canEdit = canManage && !isOwner && !isSelf;
+                    return (
+                      <tr key={m.id} className="hover:bg-gray-50">
+                        <td className="py-2.5 px-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
+                              {m.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?'}
+                            </div>
+                            <span className="font-medium text-gray-800">{m.name}</span>
                           </div>
-                          <span className="font-medium text-gray-800">{m.name}</span>
-                        </div>
-                      </td>
-                      <td className="py-2.5 px-4 text-gray-600">{m.email}</td>
-                      <td className="py-2.5 px-4">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700">
-                          {roleLabel(m.role)}
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-4 text-gray-500">{m.lastLogin ? fmtDate(m.lastLogin) : 'Belum pernah'}</td>
-                      <td className="py-2.5 px-4 text-center">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${
-                          m.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'
-                        }`}>
-                          {m.isActive ? 'Aktif' : 'Nonaktif'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="py-2.5 px-4 text-gray-600">{m.email}</td>
+                        <td className="py-2.5 px-4">
+                          {canEdit && m.isActive ? (
+                            <select
+                              value={['hq_admin', 'manager', 'staff'].includes(String(m.role)) ? m.role! : 'staff'}
+                              disabled={busyId === `update-role-${m.id}`}
+                              onChange={(e) => memberAction(m.id, 'update-role', { role: e.target.value })}
+                              className="border border-gray-200 rounded-lg px-2 py-1 text-xs bg-white"
+                            >
+                              {manageRoles.map((r) => (
+                                <option key={r.code} value={r.code}>{r.label}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700">
+                              {roleLabel(m.role)}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-4 text-gray-500">{m.lastLogin ? fmtDate(m.lastLogin) : 'Belum pernah'}</td>
+                        <td className="py-2.5 px-4 text-center">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${
+                            m.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'
+                          }`}>
+                            {m.isActive ? 'Aktif' : 'Nonaktif'}
+                          </span>
+                        </td>
+                        {canManage && (
+                          <td className="py-2.5 px-4 text-right">
+                            {canEdit ? (
+                              m.isActive ? (
+                                <button
+                                  type="button"
+                                  disabled={busyId === `deactivate-${m.id}`}
+                                  onClick={() => memberAction(m.id, 'deactivate')}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50"
+                                >
+                                  {busyId === `deactivate-${m.id}`
+                                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    : <UserMinus className="w-3.5 h-3.5" />}
+                                  Nonaktifkan
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  disabled={busyId === `reactivate-${m.id}`}
+                                  onClick={() => memberAction(m.id, 'reactivate')}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-50 disabled:opacity-50"
+                                >
+                                  {busyId === `reactivate-${m.id}`
+                                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    : <UserCheck className="w-3.5 h-3.5" />}
+                                  Aktifkan
+                                </button>
+                              )
+                            ) : (
+                              <span className="text-xs text-gray-300">—</span>
+                            )}
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

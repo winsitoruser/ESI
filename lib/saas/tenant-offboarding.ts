@@ -125,3 +125,59 @@ export async function buildOffboardingExport(tenantId: string): Promise<Offboard
     offboarding,
   };
 }
+
+/**
+ * After grace window: archive tenant + mark offboarding completed.
+ * Soft purge (status=archived) — no hard DELETE of tenant data.
+ */
+export async function purgeExpiredOffboardings(limit = 50): Promise<{
+  matched: number;
+  purged: number;
+  slugs: string[];
+}> {
+  if (!sequelize) return { matched: 0, purged: 0, slugs: [] };
+  const cols = await getTenantColumns();
+  if (!cols.has('settings')) return { matched: 0, purged: 0, slugs: [] };
+
+  // Ensure archived enum exists
+  try {
+    await sequelize.query(`ALTER TYPE enum_tenants_status ADD VALUE IF NOT EXISTS 'archived'`);
+  } catch { /* */ }
+
+  const [rows] = await sequelize.query(`
+    SELECT id, slug, settings
+    FROM tenants
+    WHERE COALESCE(status::text, '') NOT IN ('archived')
+      AND settings ? 'offboarding'
+      AND COALESCE(settings->'offboarding'->>'status', '') = 'requested'
+      AND NULLIF(settings->'offboarding'->>'graceUntil', '') IS NOT NULL
+      AND (settings->'offboarding'->>'graceUntil')::timestamptz < NOW()
+    ORDER BY (settings->'offboarding'->>'graceUntil')::timestamptz ASC
+    LIMIT :lim
+  `, { replacements: { lim: Math.min(200, Math.max(1, limit)) } });
+
+  const list = rows || [];
+  const slugs: string[] = [];
+  for (const row of list) {
+    const settings = typeof row.settings === 'string'
+      ? JSON.parse(row.settings || '{}')
+      : (row.settings || {});
+    settings.offboarding = {
+      ...(settings.offboarding || {}),
+      status: 'purged',
+      purgedAt: new Date().toISOString(),
+    };
+    await sequelize.query(
+      `UPDATE tenants
+       SET status = 'archived',
+           settings = CAST(:settings AS jsonb),
+           ${cols.has('is_active') ? 'is_active = false,' : ''}
+           updated_at = NOW()
+       WHERE id = :id`,
+      { replacements: { id: row.id, settings: JSON.stringify(settings) } },
+    );
+    if (row.slug) slugs.push(row.slug);
+  }
+  return { matched: list.length, purged: list.length, slugs };
+}
+

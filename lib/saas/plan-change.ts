@@ -4,11 +4,13 @@
  */
 import {
   getPlanDefinition,
+  HUMANIFY_PLANS,
   normalizeHumanifyPlan,
   type HumanifyPlanId,
 } from './plan-entitlements';
 import { getTenantColumns } from './tenant-schema';
 import { countTenantSeats } from './seat-metering';
+import { splitInclusivePpn } from './humanify-billing';
 
 let sequelize: any;
 try { sequelize = require('../sequelize'); } catch {}
@@ -32,6 +34,15 @@ export interface PlanChangePreview {
   fits: boolean;
   blockers: string[];
   requiresCheckout: boolean;
+  /** Rough unused-time credit when downgrading mid-cycle (IDR, tax-inclusive). */
+  proration?: {
+    daysRemaining: number;
+    cycleDays: number;
+    currentMonthlyIdr: number;
+    targetMonthlyIdr: number;
+    creditIdr: number;
+    note: string;
+  } | null;
 }
 
 async function readTenantPlan(tenantId: string): Promise<HumanifyPlanId> {
@@ -76,6 +87,39 @@ export async function previewPlanChange(
   // Upgrades to a higher paid tier require payment via checkout.
   const requiresCheckout = direction === 'upgrade' && targetPlan !== 'trial';
 
+  let proration: PlanChangePreview['proration'] = null;
+  if (direction === 'downgrade' && fits && sequelize) {
+    const cols = await getTenantColumns();
+    let daysRemaining = 0;
+    const cycleDays = 30;
+    if (cols.has('subscription_end')) {
+      const [rows] = await sequelize.query(
+        `SELECT subscription_end FROM tenants WHERE id = :id LIMIT 1`,
+        { replacements: { id: tenantId } },
+      );
+      const end = rows?.[0]?.subscription_end ? new Date(rows[0].subscription_end) : null;
+      if (end && end.getTime() > Date.now()) {
+        daysRemaining = Math.max(0, Math.ceil((end.getTime() - Date.now()) / (24 * 60 * 60 * 1000)));
+      }
+    }
+    if (!daysRemaining) daysRemaining = Math.floor(cycleDays / 2); // assume mid-cycle if no end date
+    const currentMonthlyIdr = HUMANIFY_PLANS[currentPlan]?.priceMonthlyIdr || 0;
+    const targetMonthlyIdr = HUMANIFY_PLANS[targetPlan]?.priceMonthlyIdr || 0;
+    const delta = Math.max(0, currentMonthlyIdr - targetMonthlyIdr);
+    const creditIdr = Math.round((delta * daysRemaining) / cycleDays);
+    const money = splitInclusivePpn(creditIdr);
+    proration = {
+      daysRemaining,
+      cycleDays,
+      currentMonthlyIdr,
+      targetMonthlyIdr,
+      creditIdr,
+      note: creditIdr > 0
+        ? `Perkiraan kredit pro-rata ~${creditIdr.toLocaleString('id-ID')} IDR (termasuk PPN ~${money.tax.toLocaleString('id-ID')}) untuk ${daysRemaining} hari sisa siklus. Kredit dicatat di akun; cairkan via support bila perlu refund.`
+        : 'Tidak ada kredit pro-rata (selisih harga 0 atau siklus habis).',
+    };
+  }
+
   return {
     currentPlan,
     targetPlan,
@@ -86,6 +130,7 @@ export async function previewPlanChange(
     fits,
     blockers,
     requiresCheckout,
+    proration,
   };
 }
 
@@ -143,9 +188,40 @@ export async function applyPlanChange(
     { replacements: { plan: preview.targetPlan, id: tenantId } },
   );
 
+  // Persist estimated proration credit on tenant settings for ops/support.
+  if (preview.proration?.creditIdr) {
+    try {
+      const cols = await getTenantColumns();
+      if (cols.has('settings')) {
+        const [rows] = await sequelize.query(
+          `SELECT settings FROM tenants WHERE id = :id LIMIT 1`,
+          { replacements: { id: tenantId } },
+        );
+        const settings = typeof rows?.[0]?.settings === 'string'
+          ? JSON.parse(rows[0].settings || '{}')
+          : (rows?.[0]?.settings || {});
+        settings.billingCredits = settings.billingCredits || [];
+        settings.billingCredits.push({
+          at: new Date().toISOString(),
+          type: 'downgrade_proration',
+          from: preview.currentPlan,
+          to: preview.targetPlan,
+          creditIdr: preview.proration.creditIdr,
+          daysRemaining: preview.proration.daysRemaining,
+        });
+        await sequelize.query(
+          `UPDATE tenants SET settings = CAST(:settings AS jsonb) WHERE id = :id`,
+          { replacements: { id: tenantId, settings: JSON.stringify(settings) } },
+        );
+      }
+    } catch { /* ignore credit persist errors */ }
+  }
+
   return {
     ...base,
     applied: true,
-    message: `Paket diturunkan ke ${preview.targetPlan}. Perubahan berlaku segera.`,
+    message: preview.proration?.creditIdr
+      ? `Paket diturunkan ke ${preview.targetPlan}. Kredit pro-rata ~Rp ${preview.proration.creditIdr.toLocaleString('id-ID')} dicatat.`
+      : `Paket diturunkan ke ${preview.targetPlan}. Perubahan berlaku segera.`,
   };
 }
