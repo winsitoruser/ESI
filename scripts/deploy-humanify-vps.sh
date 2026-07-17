@@ -232,6 +232,9 @@ else
   echo "  (skip — set SUMOPOD_AI_API_KEY or ~/.hermes/.env)"
 fi
 
+echo "=== [3d/6] Ensure Sentry env keys ==="
+ssh_cmd "ENV_FILE=$APP_DIR/.env bash -s" < "$SRC/scripts/ensure-humanify-sentry.sh" || true
+
 echo "=== [4/6] npm install + migrations ==="
 if [ "${DEPLOY_SKIP_MIGRATE:-false}" = true ]; then
   echo "  (skip migrations — DEPLOY_SKIP_MIGRATE=true)"

@@ -56,7 +56,7 @@ export async function createApiKey(opts: {
   const name = String(opts.name || '').trim().slice(0, 120) || 'Default';
   const scopes = (opts.scopes?.length
     ? opts.scopes
-    : ['employees:read', 'leave:read', 'attendance:read']
+    : ['employees:read', 'employees:write', 'leave:read', 'attendance:read', 'webhooks:manage']
   ).map(String);
   const { raw, prefix } = generateRawKey();
   const id = crypto.randomUUID();

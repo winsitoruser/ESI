@@ -130,6 +130,7 @@
     "@radix-ui/react-toast": "^1.2.6",
     "@radix-ui/react-tooltip": "^1.2.0",
     "@reduxjs/toolkit": "^2.8.1",
+    "@sentry/node": "^10.66.0",
     "@supabase/supabase-js": "^2.49.4",
     "@tanstack/react-table": "^8.10.6",
     "@tremor/react": "^3.18.7",

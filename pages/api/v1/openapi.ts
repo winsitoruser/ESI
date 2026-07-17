@@ -31,6 +31,41 @@ const SPEC = {
         ],
         responses: { '200': { description: 'Employee list' }, '401': { description: 'Unauthorized' } },
       },
+      post: {
+        summary: 'Create employee',
+        description: 'Requires scope employees:write',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['name', 'email', 'position'],
+                properties: {
+                  name: { type: 'string' },
+                  email: { type: 'string', format: 'email' },
+                  phone: { type: 'string' },
+                  position: { type: 'string' },
+                  department: { type: 'string' },
+                  workLocation: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+        responses: { '201': { description: 'Created' }, '401': { description: 'Unauthorized' }, '409': { description: 'Conflict' } },
+      },
+    },
+    '/webhooks': {
+      get: {
+        summary: 'List outbound webhook subscriptions',
+        responses: { '200': { description: 'Webhook list' } },
+      },
+      post: {
+        summary: 'Register outbound webhook (HMAC-signed delivery)',
+        description: 'Requires scope webhooks:manage. Secret returned once.',
+        responses: { '201': { description: 'Registered' } },
+      },
     },
     '/departments': {
       get: {

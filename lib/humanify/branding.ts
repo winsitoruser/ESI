@@ -71,14 +71,14 @@ export const HUMANIFY_BRAND = {
 } as const;
 
 export const HUMANIFY_FEATURES = [
-  { title: 'Rekrutmen & Onboarding', desc: 'Dealls, LinkedIn, Indeed, Google Jobs, WhatsApp 1-click, E-Sign Privy, onboarding checklist' },
-  { title: 'Database Karyawan', desc: 'Org chart, mutasi, contract expiry alert, custom data, genealogy' },
-  { title: 'Payroll, Tax, BPJS', desc: 'Integrated calculation, THR, bonus, kasbon, pinjaman, slip gaji, tax & BPJS report' },
-  { title: 'OKR / KPI', desc: 'Unlimited cascading alignment, monitoring, check-in, in-app reminder' },
-  { title: 'Shift & Absensi', desc: 'GPS/geofence CI/CO, live tracking, leave, overtime management' },
-  { title: 'Reimbursement', desc: 'Expense policy, self-service request, budget tracking per employee' },
-  { title: 'Appraisal / 360°', desc: 'Performance review, 360 feedback, custom forms, 9-box matrix' },
-  { title: 'Certificate & Analytics', desc: 'Certificate tracker, attendance stats, overtime & payroll analytics' },
-  { title: 'Offboarding & Exit', desc: 'Exit interview, asset return, penggantian hak & cuti, final payroll, paklaring' },
-  { title: 'Portal Karyawan', desc: 'Employee self-service — absensi, cuti, slip gaji, klaim' },
+  { title: 'Rekrutmen & Onboarding', desc: 'Pipeline kandidat, webhook job board, onboarding checklist, integrasi e-sign (Privy) tersedia.', href: '/humanify/recruitment' },
+  { title: 'Database Karyawan', desc: 'Org chart, mutasi, contract expiry alert, custom data, genealogy.', href: '/humanify/employees' },
+  { title: 'Payroll, Tax, BPJS', desc: 'Perhitungan terintegrasi, THR, bonus, kasbon, pinjaman, slip gaji, laporan pajak & BPJS.', href: '/humanify/payroll' },
+  { title: 'OKR / KPI', desc: 'Cascading alignment, monitoring, check-in, dan pengingat in-app.', href: '/humanify/kpi' },
+  { title: 'Shift & Absensi', desc: 'GPS/geofence clock-in/out, shift, cuti, dan manajemen lembur.', href: '/humanify/attendance-management' },
+  { title: 'Reimbursement', desc: 'Kebijakan expense, self-service request, OCR struk, tracking budget per karyawan.', href: '/humanify/reimbursement' },
+  { title: 'Appraisal / 360°', desc: 'Performance review, feedback 360°, form kustom, matriks 9-box.', href: '/humanify/performance' },
+  { title: 'Certificate & Analytics', desc: 'Certificate tracker, statistik absensi, lembur & payroll analytics.', href: '/humanify/workforce-analytics' },
+  { title: 'Offboarding & Exit', desc: 'Exit interview, pengembalian asset, hak & cuti, final payroll, paklaring.', href: '/humanify/offboarding' },
+  { title: 'Portal Karyawan', desc: 'Employee self-service — absensi, cuti, slip gaji, klaim.', href: '/employee' },
 ] as const;

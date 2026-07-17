@@ -344,12 +344,12 @@ function AimanChatMockup() {
           <p className="text-sm font-bold text-white">AIMAN</p>
           <p className="text-xs text-violet-300/70">AI Guide HR · Humanify Intelligence</p>
         </div>
-        <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-400">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          Live
+        <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-violet-500/10 border border-violet-500/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-violet-300">
+          Demo
         </span>
       </div>
       <div className="p-5 space-y-3 min-h-[280px]">
+        <p className="text-[10px] text-violet-400/60 uppercase tracking-wider mb-2">Ilustrasi percakapan — bukan data live</p>
         {AIMAN_DEMO_LINES.slice(0, visibleLines).map((line, i) => (
           <motion.div
             key={i}
@@ -453,21 +453,21 @@ export default function HumanifyWelcomePage() {
             {/* Floating Decorative Elements */}
             <motion.div animate={{ y: [0, -20, 0], opacity: [0.6, 1, 0.6] }} transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }} className="absolute top-[25%] right-[5%] lg:right-[15%] hidden lg:flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-[#0a0812]/40 p-4 backdrop-blur-xl shadow-[0_0_30px_rgba(139,92,246,0.15)] z-20">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-500/20 text-violet-400">
-                <Users className="h-6 w-6" />
+                <Layers className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-xs font-medium text-violet-200/60 uppercase tracking-wider">Karyawan Aktif</p>
-                <p className="text-lg font-bold text-white">10.000<span className="text-fuchsia-400">+</span></p>
+                <p className="text-xs font-medium text-violet-200/60 uppercase tracking-wider">Modul HRIS</p>
+                <p className="text-lg font-bold text-white">50<span className="text-fuchsia-400">+</span> fitur</p>
               </div>
             </motion.div>
 
             <motion.div animate={{ y: [0, 20, 0], opacity: [0.5, 0.9, 0.5] }} transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut', delay: 1 }} className="absolute bottom-[20%] left-[2%] lg:left-[10%] hidden lg:flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-[#0a0812]/40 p-4 backdrop-blur-xl shadow-[0_0_30px_rgba(217,70,239,0.1)] z-20">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-                <CheckCircle2 className="h-6 w-6" />
+                <Shield className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-xs font-medium text-violet-200/60 uppercase tracking-wider">Payroll Bulan Ini</p>
-                <p className="text-lg font-bold text-white">Selesai 100%</p>
+                <p className="text-xs font-medium text-violet-200/60 uppercase tracking-wider">Arsitektur</p>
+                <p className="text-lg font-bold text-white">Multi-tenant</p>
               </div>
             </motion.div>
           </div>
@@ -675,7 +675,7 @@ export default function HumanifyWelcomePage() {
                 </div>
                 <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
                   <Link
-                    href={HUMANIFY_BRAND.signupPath}
+                    href={`${HUMANIFY_BRAND.loginPath}?callbackUrl=${encodeURIComponent('/humanify/ai')}`}
                     className="group inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-6 py-3 font-semibold text-white shadow-lg shadow-violet-500/20 transition hover:shadow-violet-500/40"
                   >
                     Coba Humanify + AIMAN
@@ -716,6 +716,10 @@ export default function HumanifyWelcomePage() {
 
               return (
                 <FadeIn key={f.title} delay={i * 0.05} className={`${colSpan} ${rowSpan}`}>
+                  <Link
+                    href={`${HUMANIFY_BRAND.loginPath}?callbackUrl=${encodeURIComponent(f.href)}`}
+                    className="block h-full"
+                  >
                   <motion.div
                     whileHover={{ scale: 0.98 }}
                     className="group relative h-full w-full overflow-hidden rounded-3xl border border-white/[0.08] bg-[#110e1b] p-8 transition-all hover:border-violet-500/30 flex flex-col justify-between"
@@ -739,6 +743,7 @@ export default function HumanifyWelcomePage() {
                       Pelajari modul <ArrowRight className="h-4 w-4" />
                     </div>
                   </motion.div>
+                  </Link>
                 </FadeIn>
               );
             })}
@@ -848,7 +853,7 @@ export default function HumanifyWelcomePage() {
                   </Link>
                 </div>
                 <div className="mt-10 flex flex-wrap justify-center gap-6 text-sm font-medium text-violet-200/50">
-                  {['Gratis untuk tim internal', 'Tanpa kartu kredit', 'Setup dalam 5 menit'].map((t) => (
+                  {['Gratis untuk tim internal', 'Tanpa kartu kredit', 'Onboarding terpandu'].map((t) => (
                     <span key={t} className="inline-flex items-center gap-2">
                       <CheckCircle2 className="h-4 w-4 text-emerald-400" />
                       {t}
