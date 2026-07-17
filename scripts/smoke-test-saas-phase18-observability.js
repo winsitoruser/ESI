@@ -55,6 +55,8 @@ async function main() {
   else fail('counters shape');
   if (Array.isArray(d.recent)) ok(`recent events array (${d.recent.length})`);
   else fail('recent events');
+  if (d.redis && typeof d.redis.configured === 'boolean') ok(`redis probe (configured=${d.redis.configured}, ok=${d.redis.ok})`);
+  else fail('redis probe shape');
 
   console.log(`\nRESULT: ${passed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);

@@ -200,8 +200,56 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
     }
   };
 
-  // Initial load + poll notifications every 60 seconds
+  // Initial load + Humanify SSE (fallback poll 60s for SIMESI / unsupported browsers)
   useEffect(() => {
+    if (!session?.user) return;
+
+    const mapHumanifyNotifs = (items: any[]) => (items || []).map((n: any) => ({
+      id: n.id,
+      type: n.type,
+      title: n.title,
+      message: n.message,
+      time: n.createdAt ? formatTimeAgo(n.createdAt) : '',
+      isRead: n.isRead,
+      actionHref: n.actionHref,
+    }));
+
+    if (isHumanify) {
+      fetchNotifications();
+      let es: EventSource | null = null;
+      let fallbackInterval: ReturnType<typeof setInterval> | null = null;
+
+      const startFallback = () => {
+        if (fallbackInterval) return;
+        fallbackInterval = setInterval(fetchNotifications, 60000);
+      };
+
+      try {
+        es = new EventSource('/api/humanify/notifications/stream');
+        es.onmessage = (ev) => {
+          try {
+            const json = JSON.parse(ev.data);
+            if (Array.isArray(json.notifications)) {
+              setNotifications(mapHumanifyNotifs(json.notifications));
+              setUnreadCount(json.unreadCount || 0);
+            }
+          } catch { /* ignore malformed */ }
+        };
+        es.onerror = () => {
+          es?.close();
+          es = null;
+          startFallback();
+        };
+      } catch {
+        startFallback();
+      }
+
+      return () => {
+        es?.close();
+        if (fallbackInterval) clearInterval(fallbackInterval);
+      };
+    }
+
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 60000);
     return () => clearInterval(interval);

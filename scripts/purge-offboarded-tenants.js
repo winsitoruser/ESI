@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 /**
  * Soft-purge tenants whose offboarding grace window has elapsed.
- * Usage on VPS (env loaded from .env via dotenv or shell):
- *   node -r dotenv/config scripts/purge-offboarded-tenants.js
- * Cron (daily 04:00 WIB = 21:00 UTC):
- *   0 21 * * * cd /root/humanify && set -a && . ./.env && set +a && node scripts/purge-offboarded-tenants.js >> /var/log/humanify-offboard-purge.log 2>&1
+ * Usage:
+ *   node scripts/purge-offboarded-tenants.js
+ *
+ * Cron: installed by scripts/ensure-humanify-crons.sh (daily soft-purge).
  */
+require('./_load-env')();
 const { Sequelize } = require('sequelize');
 
 function buildSequelize() {

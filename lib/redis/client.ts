@@ -40,3 +40,29 @@ export function getRedis(): any | null {
 export function redisEnabled(): boolean {
   return Boolean(process.env.REDIS_URL) && typeof window === 'undefined';
 }
+
+export type RedisProbe = {
+  configured: boolean;
+  ok: boolean;
+  latencyMs?: number;
+  error?: string;
+};
+
+/** Ping Redis for platform observability (server-only). */
+export async function probeRedis(): Promise<RedisProbe> {
+  if (!process.env.REDIS_URL) return { configured: false, ok: false };
+  const r = getRedis();
+  if (!r) return { configured: true, ok: false, error: 'init failed' };
+  const t0 = Date.now();
+  try {
+    await r.ping();
+    return { configured: true, ok: true, latencyMs: Date.now() - t0 };
+  } catch (e: any) {
+    return {
+      configured: true,
+      ok: false,
+      latencyMs: Date.now() - t0,
+      error: e?.message || String(e),
+    };
+  }
+}

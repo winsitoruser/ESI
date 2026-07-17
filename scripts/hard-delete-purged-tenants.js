@@ -11,9 +11,9 @@
  *   DRY_RUN=true node scripts/hard-delete-purged-tenants.js
  *   HARD_DELETE_CONFIRM=true node scripts/hard-delete-purged-tenants.js
  *
- * Cron (weekly, after soft-purge):
- *   30 22 * * 0 cd /root/humanify && set -a && . ./.env && set +a && HARD_DELETE_CONFIRM=true node scripts/hard-delete-purged-tenants.js >> /var/log/humanify-hard-delete.log 2>&1
+ * Cron: installed by scripts/ensure-humanify-crons.sh (weekly, after soft-purge).
  */
+require('./_load-env')();
 const { Sequelize } = require('sequelize');
 
 const HARD_DELETE_DAYS = Number(process.env.HARD_DELETE_DAYS || 30);

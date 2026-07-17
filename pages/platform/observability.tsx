@@ -102,6 +102,18 @@ export default function PlatformObservabilityPage() {
             <p className="text-[11px] text-slate-400 mt-1">Latency {health?.dbLatencyMs != null ? `${health.dbLatencyMs}ms` : '—'}</p>
           </div>
           <div className="bg-white border rounded-xl p-4">
+            <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
+              {obs?.redis?.ok ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <XCircle className="w-3.5 h-3.5 text-amber-500" />}
+              Redis
+            </div>
+            <p className={`text-lg font-bold ${obs?.redis?.ok ? 'text-emerald-700' : obs?.redis?.configured ? 'text-amber-700' : 'text-slate-500'}`}>
+              {!obs?.redis?.configured ? 'Not configured' : obs.redis.ok ? 'Connected' : 'Down'}
+            </p>
+            <p className="text-[11px] text-slate-400 mt-1">
+              {obs?.redis?.latencyMs != null ? `${obs.redis.latencyMs}ms` : obs?.redis?.error || '—'}
+            </p>
+          </div>
+          <div className="bg-white border rounded-xl p-4">
             <div className="flex items-center gap-2 text-xs text-slate-500 mb-1"><Clock className="w-3.5 h-3.5 text-indigo-600" /> Uptime</div>
             <p className="text-lg font-bold text-slate-800">{fmtUptime(obs?.uptimeSec)}</p>
             <p className="text-[11px] text-slate-400 mt-1">PID {obs?.pid ?? '—'} · Node {obs?.node ?? '—'}</p>
@@ -113,12 +125,22 @@ export default function PlatformObservabilityPage() {
               Heap {obs?.memory?.heapUsedMb ?? '—'}/{obs?.memory?.heapTotalMb ?? '—'} MB
             </p>
           </div>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-2 gap-3">
           <div className="bg-white border rounded-xl p-4">
             <div className="flex items-center gap-2 text-xs text-slate-500 mb-1"><Activity className="w-3.5 h-3.5 text-rose-600" /> Requests</div>
             <p className="text-lg font-bold text-slate-800">{obs?.counters?.requests ?? 0}</p>
             <p className="text-[11px] text-slate-400 mt-1">
               {obs?.counters?.errors ?? 0} error · {obs?.counters?.slow ?? 0} slow (&gt;{obs?.slowMs ?? '—'}ms)
             </p>
+          </div>
+          <div className="bg-white border rounded-xl p-4">
+            <div className="flex items-center gap-2 text-xs text-slate-500 mb-1"><Database className="w-3.5 h-3.5 text-indigo-600" /> Integrations</div>
+            <p className="text-sm text-slate-700">
+              Sentry: {obs?.sentry ? (obs?.sentrySdk ? 'DSN + SDK aktif' : 'DSN diset, SDK belum load') : 'nonaktif'}
+            </p>
+            <p className="text-[11px] text-slate-400 mt-1">Redis URL: {obs?.redisUrl ? 'diset' : 'tidak diset'}</p>
           </div>
         </div>
 
@@ -134,7 +156,7 @@ export default function PlatformObservabilityPage() {
               </span>
             ))}
           </div>
-          <p className="text-[11px] text-slate-400 mt-3">Sentry forwarding: {obs?.sentry ? 'aktif' : 'nonaktif (SENTRY_DSN tidak diset)'}</p>
+          <p className="text-[11px] text-slate-400 mt-3">Notifikasi Humanify: SSE ~15s (fallback poll 60s)</p>
         </div>
 
         <div className="bg-white border rounded-xl overflow-hidden">

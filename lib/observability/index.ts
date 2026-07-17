@@ -109,7 +109,7 @@ export function logEvent(input: Omit<ObsEvent, 'id' | 'at'> & { at?: string }): 
   return ev;
 }
 
-export function getObservabilitySnapshot() {
+function buildObservabilitySnapshot() {
   const mem = process.memoryUsage();
   return {
     uptimeSec: Math.round((Date.now() - startedAt) / 1000),
@@ -123,9 +123,32 @@ export function getObservabilitySnapshot() {
     },
     counters: { ...counters, byStatus: { ...counters.byStatus } },
     sentry: Boolean(process.env.SENTRY_DSN),
+    sentrySdk: Boolean(sentry),
+    redisUrl: Boolean(process.env.REDIS_URL),
     slowMs: SLOW_MS,
     recent: ring.slice(-50).reverse(),
   };
+}
+
+export function getObservabilitySnapshot() {
+  return buildObservabilitySnapshot();
+}
+
+export async function getObservabilitySnapshotAsync() {
+  const base = buildObservabilitySnapshot();
+  let redis = { configured: false, ok: false } as {
+    configured: boolean;
+    ok: boolean;
+    latencyMs?: number;
+    error?: string;
+  };
+  try {
+    const { probeRedis } = await import('@/lib/redis/client');
+    redis = await probeRedis();
+  } catch {
+    /* redis module unavailable */
+  }
+  return { ...base, redis };
 }
 
 export function withObservability(handler: NextApiHandler, routeName?: string): NextApiHandler {

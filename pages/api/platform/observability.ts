@@ -6,7 +6,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 import { isPlatformOperator } from '@/lib/middleware/tenantIsolation';
-import { getObservabilitySnapshot } from '@/lib/observability';
+import { getObservabilitySnapshotAsync } from '@/lib/observability';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -22,5 +22,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   res.setHeader('Cache-Control', 'no-store, max-age=0');
-  return res.json({ success: true, data: getObservabilitySnapshot() });
+  const data = await getObservabilitySnapshotAsync();
+  return res.json({ success: true, data });
 }

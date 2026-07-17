@@ -235,6 +235,12 @@ fi
 echo "=== [3d/6] Ensure Sentry env keys ==="
 ssh_cmd "ENV_FILE=$APP_DIR/.env bash -s" < "$SRC/scripts/ensure-humanify-sentry.sh" || true
 
+echo "=== [3e/6] Ensure platform crons (purge / hard-delete / health) ==="
+ssh_cmd "APP_DIR=$APP_DIR bash -s" < "$SRC/scripts/ensure-humanify-crons.sh" || true
+
+echo "=== [3f/6] Uptime monitor probe ==="
+ssh_cmd "HEALTH_URL=https://${DOMAIN}/api/health?deep=1 STATE_FILE=/var/log/humanify-uptime-last.json bash -s" < "$SRC/scripts/ensure-humanify-uptime-monitor.sh" || true
+
 echo "=== [4/6] npm install + migrations ==="
 if [ "${DEPLOY_SKIP_MIGRATE:-false}" = true ]; then
   echo "  (skip migrations — DEPLOY_SKIP_MIGRATE=true)"
