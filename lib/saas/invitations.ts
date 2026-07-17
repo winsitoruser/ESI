@@ -67,7 +67,7 @@ function roleForUserModel(role?: string | null): string {
   return r === 'viewer' ? 'staff' : r;
 }
 
-/** Resolve RBAC roles.id for an invite/legacy role code (best-effort). */
+/** Resolve RBAC roles.id for an invite/legacy role code (best-effort, auto-seed). */
 async function resolveRoleIdForInvite(roleCode: string): Promise<string | null> {
   if (!sequelize) return null;
   try {
@@ -81,8 +81,8 @@ async function resolveRoleIdForInvite(roleCode: string): Promise<string | null> 
     const aliases: Record<string, string[]> = {
       hq_admin: ['hq_admin', 'HQ_ADMIN', 'admin', 'ADMIN'],
       manager: ['manager', 'MANAGER'],
-      staff: ['staff', 'STAFF', 'employee', 'EMPLOYEE'],
-      viewer: ['viewer', 'VIEWER', 'staff', 'STAFF'],
+      staff: ['staff', 'STAFF', 'employee', 'EMPLOYEE', 'hr_staff'],
+      viewer: ['viewer', 'VIEWER'],
     };
     const candidates = aliases[roleCode] || [roleCode];
     for (const code of candidates) {
@@ -92,10 +92,76 @@ async function resolveRoleIdForInvite(roleCode: string): Promise<string | null> 
       );
       if (rows?.[0]?.id) return String(rows[0].id);
     }
+
+    // Auto-seed missing invite role so role_id is always set after accept
+    return await ensureInviteRoleRow(roleCode, colSet);
   } catch (e: any) {
     console.warn('[invitations] resolveRoleId:', e?.message);
   }
   return null;
+}
+
+async function ensureInviteRoleRow(roleCode: string, colSet: Set<string>): Promise<string | null> {
+  if (!sequelize || !colSet.has('id') || !colSet.has('code')) return null;
+  const labels: Record<string, string> = {
+    hq_admin: 'Admin',
+    manager: 'Manajer',
+    staff: 'Staf',
+    viewer: 'Viewer',
+  };
+  const perms: Record<string, Record<string, boolean>> = {
+    hq_admin: { '*': true },
+    manager: {
+      'dashboard.view': true, 'employees.*': true, 'attendance.*': true,
+      'leave.*': true, 'reports.hris': true, 'recruitment.view': true,
+    },
+    staff: {
+      'dashboard.view': true, 'employees.view': true, 'attendance.view': true,
+      'leave.view': true, 'leave.create': true,
+    },
+    viewer: {
+      'dashboard.view': true, 'employees.view': true, 'attendance.view': true, 'leave.view': true,
+    },
+  };
+  const id = crypto.randomUUID();
+  const code = roleCode;
+  const name = labels[roleCode] || roleCode;
+  const permissions = JSON.stringify(perms[roleCode] || perms.staff);
+
+  const cols = ['id', 'name', 'permissions', 'created_at', 'updated_at'];
+  const vals = [':id', ':name', 'CAST(:permissions AS jsonb)', 'NOW()', 'NOW()'];
+  const repl: Record<string, unknown> = { id, name, permissions };
+  if (colSet.has('code')) { cols.push('code'); vals.push(':code'); repl.code = code; }
+  if (colSet.has('description')) {
+    cols.push('description');
+    vals.push(`'Humanify invite role: ${code}'`);
+  }
+  if (colSet.has('is_active')) { cols.push('is_active'); vals.push('true'); }
+  if (colSet.has('is_system')) { cols.push('is_system'); vals.push('true'); }
+
+  try {
+    await sequelize.query(
+      `INSERT INTO roles (${cols.join(', ')}) VALUES (${vals.join(', ')})
+       ON CONFLICT DO NOTHING`,
+      { replacements: repl },
+    );
+  } catch {
+    // Some schemas lack unique on code — try plain insert then re-select
+    try {
+      await sequelize.query(
+        `INSERT INTO roles (${cols.join(', ')}) VALUES (${vals.join(', ')})`,
+        { replacements: repl },
+      );
+    } catch (e: any) {
+      console.warn('[invitations] seed role failed:', e?.message);
+    }
+  }
+
+  const [rows] = await sequelize.query(
+    `SELECT id FROM roles WHERE LOWER(code) = LOWER(:code) LIMIT 1`,
+    { replacements: { code } },
+  );
+  return rows?.[0]?.id ? String(rows[0].id) : null;
 }
 
 async function assignUserRoleId(userId: string | number, roleCode: string) {

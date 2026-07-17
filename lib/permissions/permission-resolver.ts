@@ -251,11 +251,17 @@ function legacyRolePermissions(role: string): Record<string, boolean> {
       };
     case 'inventory_staff':
       return { 'dashboard.view': true, 'products.view': true, 'inventory.*': true, 'purchase.receive': true };
+    case 'viewer':
+      return {
+        'dashboard.view': true, 'employees.view': true, 'attendance.view': true,
+        'leave.view': true, 'reports.view': true,
+      };
     case 'staff':
     default:
       return {
-        'dashboard.view': true, 'pos.view': true, 'pos.create_transaction': true,
-        'products.view': true, 'customers.view': true, 'inventory.view': true
+        'dashboard.view': true, 'employees.view': true, 'attendance.view': true,
+        'attendance.create': true, 'leave.view': true, 'leave.create': true,
+        'products.view': true, 'customers.view': true, 'inventory.view': true,
       };
   }
 }

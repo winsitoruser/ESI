@@ -82,6 +82,30 @@ const SPEC = {
         ],
         responses: { '200': { description: 'Leave list' } },
       },
+      post: {
+        summary: 'Create leave request',
+        description: 'Requires scope leave:write',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['employeeId', 'startDate', 'endDate'],
+                properties: {
+                  employeeId: { type: 'string', format: 'uuid' },
+                  leaveType: { type: 'string', default: 'annual' },
+                  startDate: { type: 'string', format: 'date' },
+                  endDate: { type: 'string', format: 'date' },
+                  reason: { type: 'string' },
+                  status: { type: 'string', default: 'pending' },
+                },
+              },
+            },
+          },
+        },
+        responses: { '201': { description: 'Created' }, '400': { description: 'Validation error' }, '404': { description: 'Employee not found' } },
+      },
     },
     '/attendance/summary': {
       get: {

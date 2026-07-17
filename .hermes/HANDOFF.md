@@ -82,7 +82,9 @@ Sumber tiap fase:
 
 Kandidat lanjutan: aktifkan **Sentry** (`SENTRY_DSN` + `npm i @sentry/node`) + **uptime monitor eksternal** (`scripts/ensure-humanify-uptime-monitor.sh` → `/api/health?deep=1`); konfigurasi **IdP SAML nyata** untuk tenant QC (`scripts/setup-sso-qc-tenant.sh`); notifikasi in-app real-time (WebSocket — polling 60s sudah live P21); hard-delete offboarding (kini soft-archive via cron). **Selesai Jul 2026 (F–I series)**: F1 tim (role/deactivate), F2 MFA recovery, F3 proration, F4 offboard purge cron, F5 Sentry wiring; G1 SSO ACS→session, G2 Redis rate-limit/login-guard, G3 Sentry optional-load; H1 QR MFA enrol, H2 invite `role_id`+audit, H3 kebijakan wajib 2FA, H4 API `/departments`; I1 marketing hygiene welcome, I2 ops scripts Sentry/uptime, I3 SSO QC helper, I4 API POST employees + outbound webhooks, landing AI section + wording cleanup.
 
-**Utang teknis tersisa**: (b) `role_id` RBAC penuh di permission resolver (invite sudah set `role_id` best-effort). (c) Public API v1 masih read-heavy — POST employees + webhooks baru; belum POST leaves. (d) SSO butuh IdP customer untuk e2e QC. (e) Sentry DSN belum diset di prod.
+**Utang teknis tersisa**: (b) ~~invite role_id~~ → auto-seed roles + legacy staff/viewer mapping diperluas (J3). (c) Public API: GET/POST employees, leaves, departments, webhooks. (d) SSO butuh IdP customer untuk e2e QC. (e) Sentry DSN belum diset di prod. (f) Soft-purge cron live; hard-delete script `scripts/hard-delete-purged-tenants.js` (DRY_RUN default, `HARD_DELETE_CONFIRM=true`).
+
+**J-series (17 Jul 2026)**: J1 POST `/api/v1/leaves`; J2 hard-delete purged tenants (retention 30 hari); J3 invite role auto-seed + permission-resolver viewer/staff HRIS.
 
 ---
 

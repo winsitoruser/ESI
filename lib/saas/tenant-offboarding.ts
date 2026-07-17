@@ -181,3 +181,59 @@ export async function purgeExpiredOffboardings(limit = 50): Promise<{
   return { matched: list.length, purged: list.length, slugs };
 }
 
+/**
+ * Hard-delete archived tenants past retention (default 30 days after purgedAt).
+ * Requires confirm=true or HARD_DELETE_CONFIRM=true.
+ */
+export async function hardDeletePurgedTenants(opts?: {
+  retentionDays?: number;
+  limit?: number;
+  confirm?: boolean;
+}): Promise<{
+  matched: number;
+  deleted: number;
+  dryRun: boolean;
+  slugs: string[];
+}> {
+  if (!sequelize) return { matched: 0, deleted: 0, dryRun: true, slugs: [] };
+  const days = Math.max(1, opts?.retentionDays ?? Number(process.env.HARD_DELETE_DAYS || 30));
+  const lim = Math.min(50, Math.max(1, opts?.limit ?? 20));
+  const confirm = opts?.confirm === true || String(process.env.HARD_DELETE_CONFIRM || '').toLowerCase() === 'true';
+
+  const [rows] = await sequelize.query(`
+    SELECT id, slug
+    FROM tenants
+    WHERE COALESCE(status::text, '') = 'archived'
+      AND settings IS NOT NULL
+      AND COALESCE((settings::jsonb)->'offboarding'->>'status', '') = 'purged'
+      AND NULLIF((settings::jsonb)->'offboarding'->>'purgedAt', '') IS NOT NULL
+      AND ((settings::jsonb)->'offboarding'->>'purgedAt')::timestamptz
+          < NOW() - (:days || ' days')::interval
+    ORDER BY ((settings::jsonb)->'offboarding'->>'purgedAt')::timestamptz ASC
+    LIMIT :lim
+  `, { replacements: { days: String(days), lim } });
+
+  const list = rows || [];
+  const slugs: string[] = [];
+  if (!confirm) {
+    return { matched: list.length, deleted: 0, dryRun: true, slugs: list.map((r: any) => r.slug).filter(Boolean) };
+  }
+
+  const tables = [
+    'saas_notifications', 'saas_invitations', 'saas_api_keys', 'saas_outbound_webhooks',
+    'saas_admin_audit', 'leave_requests', 'employees', 'users',
+  ];
+  for (const row of list) {
+    for (const table of tables) {
+      try {
+        await sequelize.query(`DELETE FROM ${table} WHERE tenant_id = :tid`, {
+          replacements: { tid: row.id },
+        });
+      } catch { /* table may not exist */ }
+    }
+    await sequelize.query(`DELETE FROM tenants WHERE id = :tid`, { replacements: { tid: row.id } });
+    if (row.slug) slugs.push(row.slug);
+  }
+  return { matched: list.length, deleted: list.length, dryRun: false, slugs };
+}
+
