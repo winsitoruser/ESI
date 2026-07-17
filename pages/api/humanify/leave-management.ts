@@ -171,18 +171,23 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
   try {
     const tenantId = session.user.tenantId;
 
-    // Fetch leave types
+    // Fetch leave types — tenant-owned first, then shared catalog (tenant_id NULL)
     let leaveTypes: any[] = [];
-    if (LeaveType && tenantId) {
-      leaveTypes = await LeaveType.findAll({
-        where: { isActive: true, tenantId },
-        order: [['sort_order', 'ASC']],
-      });
-    }
+    try {
+      if (LeaveType && tenantId) {
+        leaveTypes = await LeaveType.findAll({
+          where: { isActive: true, tenantId },
+          order: [['sortOrder', 'ASC']],
+        });
+      }
+    } catch { /* model order/attr mismatch — fall through to SQL */ }
     if (leaveTypes.length === 0 && sequelize && tenantId) {
       try {
         const [rows] = await sequelize.query(
-          `SELECT * FROM leave_types WHERE is_active = true AND tenant_id = :tenantId ORDER BY sort_order ASC`,
+          `SELECT * FROM leave_types
+           WHERE is_active = true
+             AND (tenant_id = :tenantId OR tenant_id IS NULL)
+           ORDER BY CASE WHEN tenant_id = :tenantId THEN 0 ELSE 1 END, sort_order ASC`,
           { replacements: { tenantId } }
         );
         leaveTypes = rows || [];
@@ -190,14 +195,21 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
     }
     if (leaveTypes.length === 0 && allowHrMockFallback()) leaveTypes = getMockLeaveTypes();
 
-    // Fetch approval configs
+    // Fetch approval configs (schema may lag model — never fail whole overview)
     let approvalConfigs: any[] = [];
-    if (LeaveApprovalConfig && tenantId) {
-      approvalConfigs = await LeaveApprovalConfig.findAll({
-        where: { isActive: true, tenantId },
-        order: [['priority', 'DESC']],
-      });
-    }
+    try {
+      if (LeaveApprovalConfig && tenantId) {
+        approvalConfigs = await LeaveApprovalConfig.findAll({
+          where: { isActive: true, tenantId },
+          order: [['priority', 'DESC']],
+          attributes: [
+            'id', 'tenantId', 'name', 'description', 'department',
+            'minDaysTrigger', 'maxAutoApproveDays', 'approvalLevels',
+            'escalationHours', 'isActive', 'priority',
+          ],
+        });
+      }
+    } catch { /* column mismatch — leave empty */ }
     if (approvalConfigs.length === 0 && allowHrMockFallback()) approvalConfigs = getMockApprovalConfigs();
 
     // Fetch leave requests — never mix mock IDs with real approve flow
@@ -248,11 +260,27 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
     });
   } catch (e: any) {
     console.warn('getOverview error:', e.message);
-    const requests = await fetchDbLeaveRequests(session?.user?.tenantId || null, 50);
+    const tid = session?.user?.tenantId || null;
+    const requests = await fetchDbLeaveRequests(tid, 50);
+    let leaveTypes: any[] = [];
+    if (sequelize && tid) {
+      try {
+        const [rows] = await sequelize.query(
+          `SELECT * FROM leave_types
+           WHERE is_active = true AND (tenant_id = :tenantId OR tenant_id IS NULL)
+           ORDER BY sort_order ASC`,
+          { replacements: { tenantId: tid } },
+        );
+        leaveTypes = rows || [];
+      } catch { /* */ }
+    }
+    if (leaveTypes.length === 0 && allowHrMockFallback()) leaveTypes = getMockLeaveTypes();
+
     if (requests.length > 0) {
       return res.status(200).json({
         success: true,
-        leaveTypes: allowHrMockFallback() ? getMockLeaveTypes() : [],
+        dataSource: 'live',
+        leaveTypes,
         approvalConfigs: allowHrMockFallback() ? getMockApprovalConfigs() : [],
         requests,
         balances: [],
@@ -268,8 +296,8 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
     }
     return res.status(200).json({
       success: true,
-      dataSource: requests.length ? 'live' : 'empty',
-      leaveTypes: allowHrMockFallback() ? getMockLeaveTypes() : [],
+      dataSource: 'empty',
+      leaveTypes,
       approvalConfigs: allowHrMockFallback() ? getMockApprovalConfigs() : [],
       requests: allowHrMockFallback() ? getMockRequests() : [],
       balances: [],
@@ -281,12 +309,27 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
 // ===== GET: Leave Types =====
 async function getLeaveTypes(req: NextApiRequest, res: NextApiResponse, session: any) {
   try {
-    if (!LeaveType) return res.json({ success: true, data: allowHrMockFallback() ? getMockLeaveTypes() : [] });
+    if (!LeaveType && !sequelize) {
+      return res.json({ success: true, data: allowHrMockFallback() ? getMockLeaveTypes() : [] });
+    }
     const tenantId = session.user.tenantId;
     if (!tenantId) return res.json({ success: true, data: allowHrMockFallback() ? getMockLeaveTypes() : [] });
-    const where: any = { tenantId };
-    const types = await LeaveType.findAll({ where, order: [['sort_order', 'ASC']] });
-    return res.json({ success: true, data: types.length > 0 ? types : (allowHrMockFallback() ? getMockLeaveTypes() : []) });
+
+    if (sequelize) {
+      const [rows] = await sequelize.query(
+        `SELECT * FROM leave_types
+         WHERE is_active = true AND (tenant_id = :tenantId OR tenant_id IS NULL)
+         ORDER BY CASE WHEN tenant_id = :tenantId THEN 0 ELSE 1 END, sort_order ASC`,
+        { replacements: { tenantId } },
+      );
+      if (rows?.length) return res.json({ success: true, data: rows });
+    }
+
+    if (LeaveType) {
+      const types = await LeaveType.findAll({ where: { tenantId }, order: [['sort_order', 'ASC']] });
+      if (types.length > 0) return res.json({ success: true, data: types });
+    }
+    return res.json({ success: true, data: allowHrMockFallback() ? getMockLeaveTypes() : [] });
   } catch (e: any) {
     return res.json({ success: true, data: allowHrMockFallback() ? getMockLeaveTypes() : [] });
   }

@@ -296,7 +296,7 @@ export async function ensurePortalEmployee(
        position, department, hire_date, status, is_active, employment_category, created_at, updated_at
      ) VALUES (
        gen_random_uuid(), :tenantId, :uid, :code, :code, :name, :email, :phone,
-       :position, 'GENERAL', CURRENT_DATE, 'ACTIVE', true, 'permanent', NOW(), NOW()
+       :position, 'GENERAL', CURRENT_DATE, 'active', true, 'permanent', NOW(), NOW()
      )
      RETURNING id, name, email, tenant_id, branch_id, COALESCE(salary, 0) AS salary`,
     {

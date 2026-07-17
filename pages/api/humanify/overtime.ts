@@ -18,12 +18,17 @@ import { authOptions } from '../auth/[...nextauth]';
 import { allowHrMockFallback } from '@/lib/hris/data-source';
 
 let sequelize: any;
-try { ({ sequelize } = require('../../../lib/sequelize')); } catch {}
+try { sequelize = require('../../../lib/sequelize'); } catch {}
 
 const q = async (sql: string, params: any = {}) => {
   if (!sequelize) return [];
-  try { const [rows] = await sequelize.query(sql, { replacements: params }); return rows as any[]; }
-  catch { return []; }
+  try {
+    const [rows] = await sequelize.query(sql, { replacements: params });
+    return rows as any[];
+  } catch (e: any) {
+    console.warn('[overtime] query failed:', e?.message || e);
+    return [];
+  }
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -67,22 +72,41 @@ async function getList(req: NextApiRequest, res: NextApiResponse, tenantId: stri
   const params: any = { tenantId, limit: parseInt(String(limit)), offset };
   if (status) { conds.push('o.status = :status'); params.status = status; }
   if (dept)   { conds.push('e.department = :dept'); params.dept = dept; }
-  if (month)  { conds.push("TO_CHAR(o.date,'YYYY-MM') = :month"); params.month = month; }
+  if (month)  { conds.push("TO_CHAR(COALESCE(o.date, o.request_date),'YYYY-MM') = :month"); params.month = month; }
 
   const rows = await q(`
-    SELECT o.*, e.name AS employee_name, e.employee_no, e.department, e.position,
-      ROUND(EXTRACT(EPOCH FROM (o.end_time::time - o.start_time::time))/3600, 2) AS duration_hours,
+    SELECT o.*,
+      e.name AS employee_name,
+      COALESCE(e.employee_code, e.employee_id) AS employee_no,
+      e.department, e.position,
+      COALESCE(
+        o.duration_hours,
+        o.hours,
+        CASE
+          WHEN o.start_time IS NOT NULL AND o.end_time IS NOT NULL
+            THEN ROUND(EXTRACT(EPOCH FROM (o.end_time::time - o.start_time::time))/3600.0, 2)
+          ELSE 0
+        END
+      ) AS duration_hours,
       ap.name AS approved_by_name
     FROM overtime_requests o
     LEFT JOIN employees e ON o.employee_id = e.id
-    LEFT JOIN users ap ON o.approved_by = ap.id
+    LEFT JOIN users ap ON ap.id::text = o.approved_by::text
     WHERE ${conds.join(' AND ')}
-    ORDER BY o.date DESC, o.created_at DESC
+    ORDER BY COALESCE(o.date, o.request_date) DESC NULLS LAST, o.created_at DESC
     LIMIT :limit OFFSET :offset
   `, params);
 
-  const [{ count }] = await q(`SELECT COUNT(*) AS count FROM overtime_requests o LEFT JOIN employees e ON o.employee_id = e.id WHERE ${conds.join(' AND ')}`, { ...params, limit: undefined, offset: undefined });
-  return res.json({ success: true, data: { records: rows, total: parseInt(count || '0') } });
+  const countRows = await q(
+    `SELECT COUNT(*) AS count FROM overtime_requests o LEFT JOIN employees e ON o.employee_id = e.id WHERE ${conds.join(' AND ')}`,
+    { ...params, limit: undefined, offset: undefined },
+  );
+  const count = countRows?.[0]?.count || 0;
+  return res.json({
+    success: true,
+    data: { records: rows, total: parseInt(String(count), 10) || 0 },
+    dataSource: rows.length ? 'live' : 'empty',
+  });
 }
 
 // ── GET: Stats ────────────────────────────────────────────────────────────────
@@ -100,16 +124,17 @@ async function getStats(req: NextApiRequest, res: NextApiResponse, tenantId: str
       COUNT(*) FILTER (WHERE status='approved') AS approved,
       COUNT(*) FILTER (WHERE status='rejected') AS rejected,
       COUNT(*) AS total,
-      COALESCE(SUM(CASE WHEN status='approved' THEN EXTRACT(EPOCH FROM (end_time::time - start_time::time))/3600 ELSE 0 END),0) AS total_hours_approved,
-      COALESCE(SUM(CASE WHEN status='pending'  THEN EXTRACT(EPOCH FROM (end_time::time - start_time::time))/3600 ELSE 0 END),0) AS total_hours_pending
-    FROM overtime_requests WHERE tenant_id=:tenantId AND TO_CHAR(date,'YYYY-MM')=:month
+      COALESCE(SUM(CASE WHEN status='approved' THEN COALESCE(duration_hours, hours, 0) ELSE 0 END),0) AS total_hours_approved,
+      COALESCE(SUM(CASE WHEN status='pending'  THEN COALESCE(duration_hours, hours, 0) ELSE 0 END),0) AS total_hours_pending
+    FROM overtime_requests
+    WHERE tenant_id=:tenantId AND TO_CHAR(COALESCE(date, request_date),'YYYY-MM')=:month
   `, { tenantId, month: thisMonth });
 
   const byDept = await q(`
     SELECT e.department, COUNT(*) AS count,
-      COALESCE(SUM(EXTRACT(EPOCH FROM (o.end_time::time - o.start_time::time))/3600),0) AS hours
+      COALESCE(SUM(COALESCE(o.duration_hours, o.hours, 0)),0) AS hours
     FROM overtime_requests o LEFT JOIN employees e ON o.employee_id=e.id
-    WHERE o.tenant_id=:tenantId AND o.status='approved' AND TO_CHAR(o.date,'YYYY-MM')=:month
+    WHERE o.tenant_id=:tenantId AND o.status='approved' AND TO_CHAR(COALESCE(o.date, o.request_date),'YYYY-MM')=:month
     GROUP BY e.department ORDER BY hours DESC LIMIT 8
   `, { tenantId, month: thisMonth });
 
@@ -126,14 +151,16 @@ async function getRecap(req: NextApiRequest, res: NextApiResponse, tenantId: str
     return res.json({ success: true, data: { recap, month: targetMonth }, dataSource: recap.length ? 'demo' : 'empty' });
   }
 
-  const conds = ["o.tenant_id=:tenantId AND o.status='approved' AND TO_CHAR(o.date,'YYYY-MM')=:month"];
+  const conds = ["o.tenant_id=:tenantId AND o.status='approved' AND TO_CHAR(COALESCE(o.date, o.request_date),'YYYY-MM')=:month"];
   const params: any = { tenantId, month: targetMonth };
   if (dept) { conds.push('e.department=:dept'); params.dept = dept; }
 
   const recap = await q(`
-    SELECT e.id AS employee_id, e.employee_no, e.name AS employee_name, e.department, e.position,
+    SELECT e.id AS employee_id,
+      COALESCE(e.employee_code, e.employee_id) AS employee_no,
+      e.name AS employee_name, e.department, e.position,
       COUNT(o.id) AS total_sessions,
-      ROUND(COALESCE(SUM(EXTRACT(EPOCH FROM (o.end_time::time - o.start_time::time))/3600),0)::numeric, 2) AS total_hours,
+      ROUND(COALESCE(SUM(COALESCE(o.duration_hours, o.hours, 0)),0)::numeric, 2) AS total_hours,
       COUNT(o.id) FILTER (WHERE o.day_type='weekday')  AS weekday_sessions,
       COUNT(o.id) FILTER (WHERE o.day_type='weekend')  AS weekend_sessions,
       COUNT(o.id) FILTER (WHERE o.day_type='holiday')  AS holiday_sessions,
@@ -141,7 +168,7 @@ async function getRecap(req: NextApiRequest, res: NextApiResponse, tenantId: str
     FROM overtime_requests o
     LEFT JOIN employees e ON o.employee_id=e.id
     WHERE ${conds.join(' AND ')}
-    GROUP BY e.id, e.employee_no, e.name, e.department, e.position
+    GROUP BY e.id, e.employee_code, e.employee_id, e.name, e.department, e.position
     ORDER BY total_hours DESC
   `, params);
 
@@ -158,12 +185,14 @@ async function getDetail(req: NextApiRequest, res: NextApiResponse, tenantId: st
   }
 
   const [rows] = await q(`
-    SELECT o.*, e.name AS employee_name, e.employee_no, e.department, e.position,
-      ROUND(EXTRACT(EPOCH FROM (o.end_time::time - o.start_time::time))/3600,2) AS duration_hours,
+    SELECT o.*, e.name AS employee_name,
+      COALESCE(e.employee_code, e.employee_id) AS employee_no,
+      e.department, e.position,
+      COALESCE(o.duration_hours, o.hours, 0) AS duration_hours,
       ap.name AS approved_by_name
     FROM overtime_requests o
     LEFT JOIN employees e ON o.employee_id=e.id
-    LEFT JOIN users ap ON o.approved_by=ap.id
+    LEFT JOIN users ap ON ap.id::text = o.approved_by::text
     WHERE o.id=:id AND o.tenant_id=:tenantId
   `, { id, tenantId });
 

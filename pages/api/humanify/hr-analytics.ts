@@ -60,10 +60,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     kpiByDept,
     overtimeByDept,
   ] = await Promise.all([
-    safeScalar(`SELECT COUNT(*)::float as cnt FROM employees WHERE 1=1 ${etf}`, r),
-    safeScalar(`SELECT COUNT(*)::float as cnt FROM employees e WHERE (status = 'active' OR status IS NULL OR is_active = true) ${etf}`, r),
+    safeScalar(`SELECT COUNT(*)::float as cnt FROM employees WHERE 1=1 ${tf}`, r),
+    safeScalar(`SELECT COUNT(*)::float as cnt FROM employees e WHERE (LOWER(COALESCE(status,'active')) = 'active' OR status IS NULL OR is_active = true) ${etf}`, r),
     safeScalar(`SELECT COUNT(*)::float as cnt FROM employees e WHERE created_at >= NOW() - INTERVAL '30 days' ${etf}`, r),
-    safeScalar(`SELECT COUNT(*)::float as cnt FROM termination_requests WHERE status IN ('approved','completed') AND created_at >= NOW() - INTERVAL '30 days'`, r),
+    safeScalar(`SELECT COUNT(*)::float as cnt FROM termination_requests WHERE status IN ('approved','completed') AND created_at >= NOW() - INTERVAL '30 days' ${tf}`, r),
     safeQuery(`
       SELECT
         COUNT(*)::int as total,

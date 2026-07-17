@@ -18,9 +18,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     const [empStats] = await sequelize.query(`
       SELECT
         COUNT(*)::int AS total,
-        COUNT(*) FILTER (WHERE is_active = true AND (status = 'active' OR status IS NULL))::int AS active,
-        COUNT(*) FILTER (WHERE status = 'on_leave')::int AS on_leave,
-        COUNT(*) FILTER (WHERE status IN ('inactive','terminated') OR is_active = false)::int AS inactive
+        COUNT(*) FILTER (WHERE COALESCE(is_active, true) = true AND LOWER(COALESCE(status, 'active')) IN ('active'))::int AS active,
+        COUNT(*) FILTER (WHERE LOWER(COALESCE(status, '')) IN ('on_leave', 'leave'))::int AS on_leave,
+        COUNT(*) FILTER (WHERE LOWER(COALESCE(status, '')) IN ('inactive','terminated','resigned','exited','offboarded') OR is_active = false)::int AS inactive
       FROM employees e WHERE 1=1 ${etf}
     `, { replacements: r });
 
