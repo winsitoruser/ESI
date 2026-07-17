@@ -34,7 +34,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       windowMs: 60 * 1000,
       maxRequests: 5,
       message: 'Terlalu banyak permintaan reset. Coba lagi sebentar.',
-    })) return;
+    }))) return;
 
     const { email } = req.body || {};
     if (!email || !EMAIL_RE.test(String(email).trim())) {

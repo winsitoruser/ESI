@@ -20,7 +20,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     windowMs: 60 * 1000,
     maxRequests: 30,
     message: 'Terlalu banyak percobaan pendaftaran. Coba lagi sebentar.',
-  })) return;
+  }))) return;
 
   try {
     const {

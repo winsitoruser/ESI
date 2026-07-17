@@ -67,7 +67,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           windowMs: 60 * 1000,
           maxRequests: 20,
           message: 'Terlalu banyak undangan. Coba lagi sebentar.',
-        })) return;
+        }))) return;
 
         const { email, role: inviteRole, name } = req.body || {};
         if (!email) return res.status(400).json({ success: false, error: 'Email wajib diisi' });

@@ -20,7 +20,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         windowMs: 60 * 1000,
         maxRequests: 15,
         message: 'Terlalu banyak percobaan. Coba lagi sebentar.',
-      })) return;
+      }))) return;
 
       const { token, name, password } = req.body || {};
       if (!token || !name || !password) {
