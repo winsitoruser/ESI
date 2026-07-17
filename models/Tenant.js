@@ -97,7 +97,7 @@ module.exports = (sequelize) => {
       unique: true
     },
     status: {
-      type: DataTypes.ENUM('active', 'inactive', 'suspended', 'trial'),
+      type: DataTypes.ENUM('active', 'inactive', 'suspended', 'trial', 'archived'),
       defaultValue: 'trial'
     },
     subscriptionPlan: {

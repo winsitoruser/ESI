@@ -139,7 +139,7 @@ export async function attachPartnerToTenant(
  * (only slugs *starting with* `naincode-test` match).
  */
 export const QA_TENANT_SLUG_REGEX =
-  '^(empty-qa-|qa-|smoke-|ent-|bill-|seat-|golive-|p5b-|ent5-|harden-|invite-|sso-|offb-|smtp-test-|phase|p\\d+-|naincode-test)';
+  '^(empty-qa-|qa-|smoke-|ent-|bill-|seat-|golive-|p5b-|ent5-|harden-|invite-|sso-|offb-|smtp-test-|phase|p\\d+-|naincode-test|search-co|plan-co|digest-co|reset-co|lock-|mfa-co|import-co|notif-co|alert-co|redir)';
 
 /**
  * Soft-suspend QA & smoke tenants matching known prefixes / test emails.
@@ -194,6 +194,15 @@ export async function cleanupQaTenants(opts?: {
  * Matches the same slug/email rules as {@link cleanupQaTenants}.
  * Default dryRun=true; pass dryRun:false to apply.
  */
+async function ensureArchivedTenantStatus(): Promise<void> {
+  if (!sequelize) return;
+  try {
+    await sequelize.query(`ALTER TYPE enum_tenants_status ADD VALUE IF NOT EXISTS 'archived'`);
+  } catch {
+    // Non-Postgres or type already present / concurrent add — ignore.
+  }
+}
+
 export async function archiveSuspendedQaTenants(opts?: {
   dryRun?: boolean;
   olderThanHours?: number;
@@ -201,6 +210,7 @@ export async function archiveSuspendedQaTenants(opts?: {
   if (!sequelize) return { matched: 0, archived: 0, slugs: [] };
   const hours = Math.max(1, opts?.olderThanHours ?? 24);
   const dryRun = opts?.dryRun !== false;
+  await ensureArchivedTenantStatus();
   const cols = await getTenantColumns();
 
   const emailExpr = cols.has('contact_email')
