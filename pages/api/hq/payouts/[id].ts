@@ -56,7 +56,7 @@ async function getPayout(req: NextApiRequest, res: NextApiResponse, id: string) 
 }
 
 async function updatePayout(req: NextApiRequest, res: NextApiResponse, id: string) {
-  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE))) return;
   const ctx = getTenantContext(req);
   const tf = buildTenantFilter(ctx.tenantId, 'p');
 
@@ -134,7 +134,7 @@ async function updatePayout(req: NextApiRequest, res: NextApiResponse, id: strin
 }
 
 async function deletePayout(req: NextApiRequest, res: NextApiResponse, id: string) {
-  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE))) return;
   const ctx = getTenantContext(req);
   const tf = buildTenantFilter(ctx.tenantId, 'p');
 

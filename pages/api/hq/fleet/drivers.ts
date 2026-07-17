@@ -125,7 +125,7 @@ async function getDrivers(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function createDriver(req: NextApiRequest, res: NextApiResponse) {
-  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE))) return;
   sanitizeBody(req);
   const errors = validateBody(req, {
     fullName: V.required().string().minLength(2).maxLength(100),
@@ -184,7 +184,7 @@ async function createDriver(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function updateDriver(req: NextApiRequest, res: NextApiResponse) {
-  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE))) return;
   sanitizeBody(req);
   const ctx = getTenantContext(req);
   const { id, ...updates } = req.body;
@@ -213,7 +213,7 @@ async function updateDriver(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function deleteDriver(req: NextApiRequest, res: NextApiResponse) {
-  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE))) return;
   const ctx = getTenantContext(req);
   const { id } = req.body;
   if (!id) return res.status(HttpStatus.BAD_REQUEST).json(errorResponse(ErrorCodes.MISSING_REQUIRED_FIELDS, 'Driver ID is required'));

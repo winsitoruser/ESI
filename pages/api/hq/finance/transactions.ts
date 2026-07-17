@@ -61,7 +61,7 @@ async function getTransactions(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function createTransaction(req: NextApiRequest, res: NextApiResponse) {
-  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE))) return;
   sanitizeBody(req);
   const errors = validateBody(req, {
     transactionType: V.required().oneOf(['income', 'expense', 'transfer']),
@@ -107,7 +107,7 @@ async function createTransaction(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function updateTransaction(req: NextApiRequest, res: NextApiResponse) {
-  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE))) return;
   sanitizeBody(req);
   const ctx = getTenantContext(req);
   const tf = buildTenantFilter(ctx.tenantId);
@@ -138,7 +138,7 @@ async function updateTransaction(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function deleteTransaction(req: NextApiRequest, res: NextApiResponse) {
-  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE))) return;
   const ctx = getTenantContext(req);
   const tf = buildTenantFilter(ctx.tenantId);
   const { id } = req.query;

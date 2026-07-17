@@ -121,7 +121,7 @@ async function getVehicles(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function createVehicle(req: NextApiRequest, res: NextApiResponse) {
-  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE))) return;
   sanitizeBody(req);
   const errors = validateBody(req, {
     licensePlate: V.required().string().minLength(3).maxLength(20),
@@ -167,7 +167,7 @@ async function createVehicle(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function updateVehicle(req: NextApiRequest, res: NextApiResponse) {
-  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE))) return;
   sanitizeBody(req);
   const ctx = getTenantContext(req);
   const { id, ...updates } = req.body;
@@ -196,7 +196,7 @@ async function updateVehicle(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function deleteVehicle(req: NextApiRequest, res: NextApiResponse) {
-  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE))) return;
   const ctx = getTenantContext(req);
   const { id } = req.body;
   if (!id) return res.status(HttpStatus.BAD_REQUEST).json(errorResponse(ErrorCodes.MISSING_REQUIRED_FIELDS, 'Vehicle ID is required'));

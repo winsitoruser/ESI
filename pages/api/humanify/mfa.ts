@@ -34,13 +34,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === 'POST' && action === 'enroll') {
-      if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+      if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE))) return;
       const { secret, otpauthUrl } = await beginEnrollment({ userId, tenantId, email });
       return res.json({ success: true, data: { secret, otpauthUrl } });
     }
 
     if (req.method === 'POST' && action === 'confirm') {
-      if (!(await checkLimit(req, res, RateLimitTier.AUTH)) return;
+      if (!(await checkLimit(req, res, RateLimitTier.AUTH))) return;
       const code = String(req.body?.code || '');
       const result = await confirmEnrollment(userId, code);
       if (!result.ok) return res.status(400).json({ success: false, error: 'Kode salah atau kedaluwarsa' });
@@ -52,7 +52,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === 'POST' && action === 'regenerate-recovery') {
-      if (!(await checkLimit(req, res, RateLimitTier.AUTH)) return;
+      if (!(await checkLimit(req, res, RateLimitTier.AUTH))) return;
       const code = String(req.body?.code || '');
       const { verifyMfaCode, issueRecoveryCodes, isMfaEnabled } = await import('@/lib/saas/mfa');
       if (!(await isMfaEnabled(userId))) {
@@ -67,7 +67,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === 'POST' && action === 'disable') {
-      if (!(await checkLimit(req, res, RateLimitTier.AUTH)) return;
+      if (!(await checkLimit(req, res, RateLimitTier.AUTH))) return;
       const code = String(req.body?.code || '');
       const ok = await disableMfa(userId, code);
       if (!ok) return res.status(400).json({ success: false, error: 'Kode salah — 2FA tetap aktif' });

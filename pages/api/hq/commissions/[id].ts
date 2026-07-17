@@ -57,7 +57,7 @@ async function getCommission(req: NextApiRequest, res: NextApiResponse, id: stri
 }
 
 async function updateCommission(req: NextApiRequest, res: NextApiResponse, id: string) {
-  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE))) return;
   const ctx = getTenantContext(req);
   const tf = buildTenantFilter(ctx.tenantId, 'c');
 
@@ -139,7 +139,7 @@ async function updateCommission(req: NextApiRequest, res: NextApiResponse, id: s
 }
 
 async function deleteCommission(req: NextApiRequest, res: NextApiResponse, id: string) {
-  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE))) return;
   const ctx = getTenantContext(req);
   const tf = buildTenantFilter(ctx.tenantId, 'c');
 

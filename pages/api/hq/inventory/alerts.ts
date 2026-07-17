@@ -55,7 +55,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 
     if (req.method === 'PATCH' || req.method === 'PUT') {
-      if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+      if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE))) return;
       const ctx = getTenantContext(req);
       const tf = buildTenantFilter(ctx.tenantId);
       const { id, action: alertAction } = req.body;

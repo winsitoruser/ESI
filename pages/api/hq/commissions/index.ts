@@ -83,7 +83,7 @@ async function getCommissions(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function createCommission(req: NextApiRequest, res: NextApiResponse) {
-  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE))) return;
   sanitizeBody(req);
   const errors = validateBody(req, {
     partnerId: V.required().string(),

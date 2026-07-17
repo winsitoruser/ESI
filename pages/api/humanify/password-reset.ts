@@ -66,7 +66,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   if (action === 'confirm') {
-    if (!(await checkLimit(req, res, RateLimitTier.AUTH)) return;
+    if (!(await checkLimit(req, res, RateLimitTier.AUTH))) return;
 
     const { token, password } = req.body || {};
     if (!token || !password) {

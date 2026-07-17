@@ -100,7 +100,7 @@ async function getJournalEntries(req: NextApiRequest, res: NextApiResponse) {
 
 // ─── POST: Create journal entry with balanced lines ───
 async function createJournalEntry(req: NextApiRequest, res: NextApiResponse) {
-  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE))) return;
   sanitizeBody(req);
 
   const ctx = getTenantContext(req);
@@ -240,7 +240,7 @@ async function createJournalEntry(req: NextApiRequest, res: NextApiResponse) {
 
 // ─── PUT: Post or void a journal entry ───
 async function updateJournalEntry(req: NextApiRequest, res: NextApiResponse) {
-  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE))) return;
   sanitizeBody(req);
 
   const ctx = getTenantContext(req);

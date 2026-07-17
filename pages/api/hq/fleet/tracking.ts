@@ -99,7 +99,7 @@ async function getTrackingData(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function updateTrackingData(req: NextApiRequest, res: NextApiResponse) {
-  if (!(await checkLimit(req, res, RateLimitTier.STANDARD)) return;
+  if (!(await checkLimit(req, res, RateLimitTier.STANDARD))) return;
   sanitizeBody(req);
   const errors = validateBody(req, {
     vehicleId: V.required().string(),

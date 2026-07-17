@@ -19,7 +19,7 @@ export async function requireV1Auth(
   res: NextApiResponse,
   requiredScope: string,
 ): Promise<V1Auth | null> {
-  if (!(await checkLimit(req, res, RateLimitTier.STANDARD)) return null;
+  if (!(await checkLimit(req, res, RateLimitTier.STANDARD))) return null;
 
   const auth = await authenticateBearer(req.headers.authorization, requiredScope);
   if (!auth) {
