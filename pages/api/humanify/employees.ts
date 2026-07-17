@@ -372,7 +372,7 @@ async function createEmployee(req: NextApiRequest, res: NextApiResponse) {
           'employee.created',
           employee.id,
           name,
-          { email, phone, position, department, branchId },
+          { email, phone, position, department, branchId, tenantId },
           branchId,
           branchName
         );
@@ -545,6 +545,19 @@ async function deleteEmployee(req: NextApiRequest, res: NextApiResponse) {
     } else {
       await record.update({ isActive: false });
     }
+
+    try {
+      const { logAdminAction } = await import('@/lib/saas/admin-audit');
+      const row = record.toJSON ? record.toJSON() : record;
+      await logAdminAction({
+        tenantId: tenantId || null,
+        actorEmail: (req as any).user?.email || null,
+        action: 'employee.delete',
+        resourceType: 'employee',
+        resourceId: String(id),
+        meta: { name: row.name, email: row.email },
+      });
+    } catch { /* ignore */ }
 
     // P4: auto-start offboarding checklist
     try {

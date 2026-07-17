@@ -21,15 +21,20 @@ export default function HumanifySecurityPage() {
   const [enroll, setEnroll] = useState<{ secret: string; otpauthUrl: string } | null>(null);
   const [code, setCode] = useState('');
   const [disableCode, setDisableCode] = useState('');
+  const [audit, setAudit] = useState<any[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const j = await (await fetch('/api/humanify/mfa?action=status')).json();
+      const [j, a] = await Promise.all([
+        fetch('/api/humanify/mfa?action=status').then((r) => r.json()),
+        fetch('/api/humanify/admin-audit?limit=30').then((r) => r.json()).catch(() => null),
+      ]);
       if (j.success) {
         setEnabled(Boolean(j.data.enabled));
         setEnrolledAt(j.data.enrolledAt || null);
       }
+      if (a?.success) setAudit(a.data || []);
     } catch {
       toast.error('Gagal memuat status 2FA');
     } finally {
@@ -233,6 +238,43 @@ export default function HumanifySecurityPage() {
               </div>
             </div>
           )}
+
+          <div className="bg-white border border-slate-200 rounded-2xl p-6">
+            <h3 className="font-semibold text-slate-900 mb-1">Audit log admin</h3>
+            <p className="text-sm text-slate-500 mb-4">
+              Jejak aksi sensitif: ekspor data, ubah paket, nonaktifkan karyawan, penutupan akun.
+            </p>
+            {audit.length === 0 ? (
+              <p className="text-sm text-slate-400">Belum ada entri audit.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-left text-slate-500 border-b">
+                    <tr>
+                      <th className="py-2 pr-3">Waktu</th>
+                      <th className="py-2 pr-3">Aksi</th>
+                      <th className="py-2 pr-3">Aktor</th>
+                      <th className="py-2">Resource</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {audit.map((row) => (
+                      <tr key={row.id}>
+                        <td className="py-2 pr-3 text-xs text-slate-500 whitespace-nowrap">
+                          {row.createdAt ? new Date(row.createdAt).toLocaleString('id-ID') : '—'}
+                        </td>
+                        <td className="py-2 pr-3 font-mono text-xs">{row.action}</td>
+                        <td className="py-2 pr-3 text-xs">{row.actorEmail || '—'}</td>
+                        <td className="py-2 text-xs text-slate-600">
+                          {[row.resourceType, row.resourceId].filter(Boolean).join(' · ') || '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       </HumanifyLayout>
     </>

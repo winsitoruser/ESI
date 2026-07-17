@@ -1,0 +1,58 @@
+name: Humanify SaaS Gate
+
+# CI gate for Humanify SaaS — fails PR/main if critical modules don't typecheck.
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'lib/saas/**'
+      - 'pages/api/humanify/**'
+      - 'pages/api/v1/**'
+      - 'pages/humanify/**'
+      - 'pages/platform/**'
+      - 'package.json'
+      - '.github/workflows/humanify-saas-gate.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'lib/saas/**'
+      - 'pages/api/humanify/**'
+      - 'pages/api/v1/**'
+      - 'pages/humanify/**'
+      - 'pages/platform/**'
+
+jobs:
+  saas-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Typecheck SaaS surface (tsc — no emit)
+        run: |
+          npx tsc --noEmit --pretty false 2>&1 | tee /tmp/tsc.log || true
+          # Fail only if errors touch Humanify SaaS paths (repo has legacy noise)
+          if rg -n "error TS" /tmp/tsc.log | rg -q "lib/saas/|pages/api/humanify/|pages/api/v1/|pages/humanify/|pages/platform/"; then
+            echo "::error::TypeScript errors in Humanify SaaS paths"
+            rg -n "error TS" /tmp/tsc.log | rg "lib/saas/|pages/api/humanify/|pages/api/v1/|pages/humanify/|pages/platform/" || true
+            exit 1
+          fi
+          echo "✓ No SaaS-path TypeScript errors"
+
+      - name: OpenAPI + v1 route smoke (static)
+        run: |
+          test -f pages/api/v1/employees.ts
+          test -f pages/api/v1/leaves.ts
+          test -f pages/api/v1/attendance/summary.ts
+          test -f pages/api/v1/openapi.ts
+          test -f lib/saas/admin-audit.ts
+          test -f lib/saas/humanify-billing.ts
+          echo "✓ Required SaaS files present"

@@ -176,6 +176,31 @@ async function processHRISWebhook(payload: HRISWebhookPayload) {
       console.log(`[HRIS] Event ${eventType} processed`);
   }
 
+  // Outbound HTTP to tenant-configured webhooks (integrations table)
+  try {
+    const { webhookService } = await import('@/lib/webhookService');
+    const tenantId = String(
+      (payload.data && (payload.data.tenantId || payload.data.tenant_id)) || '',
+    );
+    if (tenantId) {
+      await webhookService.triggerWebhooks(
+        payload.eventType,
+        {
+          employeeId: payload.employeeId,
+          employeeName: payload.employeeName,
+          branchId: payload.branchId,
+          branchName: payload.branchName,
+          ...(typeof payload.data === 'object' ? payload.data : { data: payload.data }),
+        },
+        tenantId,
+        payload.branchId,
+        payload.triggeredBy,
+      );
+    }
+  } catch (e: any) {
+    console.warn('[HRIS Webhook] outbound dispatch skipped:', e?.message || e);
+  }
+
   // Update status to processed
   if (HRISWebhookLog) {
     try {

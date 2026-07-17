@@ -39,6 +39,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (req.method === 'GET' && action === 'export') {
       const bundle = await buildOffboardingExport(tenantId);
+      try {
+        const { logAdminAction } = await import('@/lib/saas/admin-audit');
+        await logAdminAction({
+          tenantId,
+          actorUserId: (session.user as any).id,
+          actorEmail: session.user.email,
+          action: 'account.export',
+          resourceType: 'account',
+          meta: { format: String(req.query.format || 'json'), employees: bundle?.employees?.count },
+          ip: (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.socket.remoteAddress,
+        });
+      } catch { /* ignore */ }
       const format = String(req.query.format || 'json');
       if (format === 'csv') {
         res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -53,6 +65,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         reason: req.body?.reason,
         requestedBy: session.user.email || null,
       });
+      try {
+        const { logAdminAction } = await import('@/lib/saas/admin-audit');
+        await logAdminAction({
+          tenantId,
+          actorUserId: (session.user as any).id,
+          actorEmail: session.user.email,
+          action: 'account.offboard_request',
+          resourceType: 'account',
+          meta: { reason: req.body?.reason || null },
+        });
+      } catch { /* ignore */ }
       return res.json({ success: true, data, message: 'Penutupan akun dijadwalkan. Data dapat diekspor selama masa tenggang.' });
     }
 

@@ -330,6 +330,108 @@ export async function runDunningScan(): Promise<{
   return { suspended, trialsExpired };
 }
 
+/** PPN 11% inclusive: amount_idr is gross (customer paid). */
+export const HUMANIFY_PPN_RATE = 11;
+
+export function splitInclusivePpn(amountIdr: number): {
+  subtotal: number;
+  tax: number;
+  total: number;
+  taxRate: number;
+} {
+  const total = Math.max(0, Math.round(Number(amountIdr) || 0));
+  const tax = Math.round((total * HUMANIFY_PPN_RATE) / (100 + HUMANIFY_PPN_RATE));
+  return { subtotal: total - tax, tax, total, taxRate: HUMANIFY_PPN_RATE };
+}
+
+/**
+ * Build invoice/kwitansi payload for a paid order owned by tenant.
+ * Seller = Naincode/Humanify; buyer = tenant.
+ */
+export async function getPaidOrderInvoice(tenantId: string, orderCode: string) {
+  if (!sequelize) throw new Error('Database unavailable');
+  await ensureBillingOrdersTable();
+  const cols = await getTenantColumns();
+
+  const [orders] = await sequelize.query(`
+    SELECT id, tenant_id, order_code, plan, interval, amount_idr, status, provider, paid_at, created_at
+    FROM saas_billing_orders
+    WHERE tenant_id = :tid
+      AND (order_code = :code OR id::text = :code)
+    LIMIT 1
+  `, { replacements: { tid: tenantId, code: orderCode } });
+  const order = orders?.[0];
+  if (!order) throw Object.assign(new Error('Order tidak ditemukan'), { statusCode: 404 });
+  if (String(order.status) !== 'paid') {
+    throw Object.assign(new Error('Invoice hanya untuk order berstatus paid'), { statusCode: 400 });
+  }
+
+  const [tenants] = await sequelize.query(`SELECT * FROM tenants WHERE id = :id LIMIT 1`, {
+    replacements: { id: tenantId },
+  });
+  const t = tenants?.[0] || {};
+  const name = String(t.business_name || t.name || t.slug || 'Tenant');
+  const addressParts = [t.address, t.city, t.province, t.postal_code].filter(Boolean);
+  let npwp: string | null = null;
+  try {
+    const [kyb] = await sequelize.query(`
+      SELECT npwp_number FROM kyb_applications
+      WHERE tenant_id = :tid AND npwp_number IS NOT NULL AND npwp_number <> ''
+      ORDER BY updated_at DESC NULLS LAST
+      LIMIT 1
+    `, { replacements: { tid: tenantId } });
+    npwp = kyb?.[0]?.npwp_number || null;
+  } catch {
+    /* table optional */
+  }
+
+  const money = splitInclusivePpn(order.amount_idr);
+  const planId = normalizeHumanifyPlan(order.plan);
+  const planName = HUMANIFY_PLANS[planId]?.name || String(order.plan);
+  const intervalLabel = order.interval === 'yearly' ? 'Tahunan' : 'Bulanan';
+  const paidAt = order.paid_at || order.created_at;
+
+  return {
+    orderCode: order.order_code,
+    orderId: order.id,
+    status: order.status,
+    provider: order.provider,
+    plan: planId,
+    planName,
+    interval: order.interval,
+    paidAt,
+    createdAt: order.created_at,
+    money,
+    company: {
+      name: 'Humanify by Naincode',
+      address: 'Jl. Tanah Abang II No.74A, Petojo Sel., Gambir, Jakarta Pusat 10160',
+      city: 'Jakarta Pusat',
+      province: 'DKI Jakarta',
+      phone: '+62 877-8814-1650',
+      email: 'billing@humanify.id',
+      website: 'https://humanify.id',
+      taxId: process.env.HUMANIFY_SELLER_NPWP || undefined,
+    },
+    customer: {
+      name,
+      address: addressParts.join(', ') || undefined,
+      phone: t.contact_phone || t.business_phone || undefined,
+      email: t.contact_email || t.business_email || undefined,
+      npwp,
+      slug: t.slug || null,
+    },
+    items: [{
+      description: `Langganan Humanify ${planName} (${intervalLabel})`,
+      quantity: 1,
+      unit: 'paket',
+      unitPrice: money.subtotal,
+      total: money.subtotal,
+    }],
+    documentNumber: `INV-${order.order_code}`,
+    notes: cols.has('slug') ? `Tenant: ${t.slug}` : undefined,
+  };
+}
+
 /** Tenants whose trial ends within N days (for platform ops). */
 export async function listExpiringTrials(withinDays = 7): Promise<any[]> {
   if (!sequelize) return [];

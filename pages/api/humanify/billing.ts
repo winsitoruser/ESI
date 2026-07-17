@@ -9,6 +9,7 @@ import { authOptions } from '../auth/[...nextauth]';
 import {
   activatePaidOrder,
   createHumanifyCheckout,
+  getPaidOrderInvoice,
   getTenantBillingStatus,
   listBillablePlans,
   listExpiringTrials,
@@ -61,6 +62,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.json({ success: true, data: preview });
     }
 
+    if (req.method === 'GET' && action === 'invoice') {
+      if (!tenantId) return res.status(400).json({ success: false, error: 'No tenant' });
+      const orderCode = String(req.query.orderCode || req.query.orderId || '');
+      if (!orderCode) return res.status(400).json({ success: false, error: 'orderCode required' });
+      try {
+        const data = await getPaidOrderInvoice(tenantId, orderCode);
+        return res.json({ success: true, data });
+      } catch (e: any) {
+        const code = e.statusCode || 500;
+        return res.status(code).json({ success: false, error: e.message || 'Invoice error' });
+      }
+    }
+
     if (req.method === 'POST' && action === 'change-plan') {
       if (!tenantId) return res.status(400).json({ success: false, error: 'No tenant' });
       if (!PLAN_CHANGE_ROLES.has(String(role || '').toLowerCase()) && !isPlatformOperator(role)) {
@@ -69,6 +83,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const plan = String(req.body?.plan || '');
       if (!plan) return res.status(400).json({ success: false, error: 'plan required' });
       const result = await applyPlanChange(tenantId, plan);
+      if (result.applied) {
+        try {
+          const { logAdminAction } = await import('@/lib/saas/admin-audit');
+          await logAdminAction({
+            tenantId,
+            actorUserId: (session.user as any).id,
+            actorEmail: session.user.email,
+            action: 'billing.plan_change',
+            resourceType: 'plan',
+            resourceId: plan,
+            meta: result as any,
+          });
+        } catch { /* ignore */ }
+      }
       const status = result.applied ? 200 : (result.requiresCheckout ? 409 : 422);
       return res.status(status).json({ success: result.applied, data: result, message: result.message });
     }

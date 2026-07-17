@@ -56,7 +56,7 @@ phase23-invitations 21/0 · employee-hardening 12/0 · phase18-observability 5/0
 > - TXT `@` → `sumo-verification=85a7087f-f1ea-4af7-bad4-c3e275009960`
 > - TXT `trx_ke._domainkey` → DKIM RSA public key SumoPod
 > - TXT `_dmarc` → `v=DMARC1; p=none; fo=1` (monitor)
-> Status SumoPod masih **Not Verified** sampai record hidup di Cloudflare. Butuh `CF_API_TOKEN` (Zone:DNS:Edit) atau tempel manual di Cloudflare, lalu Verify di dashboard SumoPod.
+> ✅ **DNS live (17 Jul 2026)** — TXT SPF + sumo-verification + DKIM `trx_ke._domainkey` + DMARC `_dmarc` terverifikasi via dig `@1.1.1.1` / `@8.8.8.8` setelah tempel manual Cloudflare. Langkah terakhir: klik **Verify** di dashboard SumoPod sampai status Verified.
 
 > ⚠️ Urutan penting: `phase17-login-lockout` mengunci email throwaway + menambah counter gagal per-IP (ambang 100), lalu `phase14-ratelimit` **harus terakhir** (sengaja habiskan budget reset 5/mnt untuk buktikan 429). Beri jeda ~60 dtk sebelum loop agar window rate-limit (signup 30/mnt, reset 5/mnt) mereset. Bila menjalankan seluruh suite beruntun, `phase15-password-reset` bisa kena `RATE_LIMIT_EXCEEDED` (reset 5/mnt) — jalankan ulang standalone setelah jeda untuk konfirmasi 11/0.
 

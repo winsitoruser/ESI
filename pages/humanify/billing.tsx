@@ -6,6 +6,7 @@ import { Check, CreditCard, Loader2, Sparkles, Download, AlertTriangle } from 'l
 import toast from 'react-hot-toast';
 import HumanifyLayout from '@/components/humanify/HumanifyLayout';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
+import { generatePDF } from '@/lib/documents';
 
 function formatIdr(n: number) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n || 0);
@@ -110,6 +111,54 @@ export default function HumanifyBillingPage() {
       load();
     } catch (e: any) {
       toast.error(e.message || 'Ubah paket gagal');
+    } finally {
+      setActing(null);
+    }
+  }
+
+  async function downloadInvoice(orderCode: string) {
+    setActing(`inv-${orderCode}`);
+    try {
+      const res = await fetch(`/api/humanify/billing?action=invoice&orderCode=${encodeURIComponent(orderCode)}`);
+      const j = await res.json();
+      if (!j.success) throw new Error(j.error || 'Gagal memuat invoice');
+      const inv = j.data;
+      const blob = await generatePDF({
+        type: 'invoice',
+        format: 'pdf',
+        company: inv.company,
+        meta: {
+          documentNumber: inv.documentNumber,
+          documentDate: inv.paidAt || inv.createdAt,
+          createdBy: 'Humanify Billing',
+          createdAt: new Date().toISOString(),
+          tenantId: String((session?.user as any)?.tenantId || ''),
+          notes: inv.notes,
+        },
+        data: {
+          customerName: inv.customer.name,
+          customerAddress: inv.customer.address,
+          customerPhone: inv.customer.phone,
+          customerNPWP: inv.customer.npwp,
+          items: inv.items,
+          subtotal: inv.money.subtotal,
+          tax: inv.money.tax,
+          taxRate: inv.money.taxRate,
+          total: inv.money.total,
+          paymentTerms: inv.paidAt,
+          bankInfo: `Dibayar via ${inv.provider || 'manual'} · Order ${inv.orderCode}`,
+        },
+        options: { language: 'id', currency: 'IDR', includeHeader: true, includeFooter: true },
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${inv.documentNumber}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Invoice PDF diunduh');
+    } catch (e: any) {
+      toast.error(e.message || 'Gagal unduh invoice');
     } finally {
       setActing(null);
     }
@@ -286,7 +335,8 @@ export default function HumanifyBillingPage() {
                       <th className="py-2 pr-3">Plan</th>
                       <th className="py-2 pr-3">Jumlah</th>
                       <th className="py-2 pr-3">Provider</th>
-                      <th className="py-2">Status</th>
+                      <th className="py-2 pr-3">Status</th>
+                      <th className="py-2">Invoice</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -296,7 +346,26 @@ export default function HumanifyBillingPage() {
                         <td className="py-2 pr-3 capitalize">{o.plan}</td>
                         <td className="py-2 pr-3">{formatIdr(o.amount_idr)}</td>
                         <td className="py-2 pr-3">{o.provider}</td>
-                        <td className="py-2 capitalize">{o.status}</td>
+                        <td className="py-2 pr-3 capitalize">{o.status}</td>
+                        <td className="py-2">
+                          {o.status === 'paid' ? (
+                            <button
+                              type="button"
+                              disabled={acting === `inv-${o.order_code}`}
+                              onClick={() => downloadInvoice(o.order_code)}
+                              className="inline-flex items-center gap-1 text-violet-700 hover:underline text-xs font-medium disabled:opacity-50"
+                            >
+                              {acting === `inv-${o.order_code}` ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Download className="w-3.5 h-3.5" />
+                              )}
+                              PDF + PPN
+                            </button>
+                          ) : (
+                            <span className="text-slate-300 text-xs">—</span>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

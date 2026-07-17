@@ -54,7 +54,10 @@ export async function createApiKey(opts: {
   if (!sequelize) throw new Error('Database unavailable');
   await ensureApiKeysTable();
   const name = String(opts.name || '').trim().slice(0, 120) || 'Default';
-  const scopes = (opts.scopes?.length ? opts.scopes : ['employees:read']).map(String);
+  const scopes = (opts.scopes?.length
+    ? opts.scopes
+    : ['employees:read', 'leave:read', 'attendance:read']
+  ).map(String);
   const { raw, prefix } = generateRawKey();
   const id = crypto.randomUUID();
   const createdBy =
