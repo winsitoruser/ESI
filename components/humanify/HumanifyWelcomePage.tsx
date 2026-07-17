@@ -126,7 +126,7 @@ const AI_FEATURES = [
   {
     icon: ScanLine,
     title: 'OCR Klaim & Reimbursement',
-    desc: 'Upload foto struk → auto-fill nominal, tanggal, kategori. Vision AI opsional via SumoPod untuk struk kompleks.',
+    desc: 'Upload foto struk → auto-fill nominal, tanggal, kategori. Vision AI opsional untuk struk kompleks.',
     tag: 'OCR',
     accent: 'from-emerald-500 to-cyan-500',
   },
@@ -140,7 +140,7 @@ const AI_FEATURES = [
   {
     icon: Shield,
     title: 'Hybrid & Privacy-First',
-    desc: 'Rule-based intelligence default; LLM SumoPod hanya saat dikonfigurasi. Data tenant tetap ter-scope — bukan chatbot generik.',
+    desc: 'Rule-based intelligence default; LLM hanya saat dikonfigurasi. Data tenant tetap ter-scope — bukan chatbot generik.',
     tag: 'Enterprise',
     accent: 'from-indigo-500 to-violet-500',
   },
@@ -148,7 +148,7 @@ const AI_FEATURES = [
 
 const AI_PIPELINE = [
   { step: '01', label: 'Kumpulkan sinyal', desc: 'Data HR live dari modul terintegrasi — absensi, cuti, pipeline, KPI.' },
-  { step: '02', label: 'Analisis cerdas', desc: 'Rule engine + LLM SumoPod (opsional) menghasilkan insight & skor.' },
+  { step: '02', label: 'Analisis cerdas', desc: 'Rule engine + LLM (opsional) menghasilkan insight & skor.' },
   { step: '03', label: 'Rekomendasi aksi', desc: 'AIMAN merangkum prioritas dan langkah operasional untuk tim SDM.' },
 ];
 
@@ -342,7 +342,7 @@ function AimanChatMockup() {
         </div>
         <div>
           <p className="text-sm font-bold text-white">AIMAN</p>
-          <p className="text-xs text-violet-300/70">AI Guide HR · powered by SumoPod</p>
+          <p className="text-xs text-violet-300/70">AI Guide HR · Humanify Intelligence</p>
         </div>
         <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-400">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -574,11 +574,11 @@ export default function HumanifyWelcomePage() {
               <h2 className="mb-4 text-3xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl">
                 SDM lebih cerdas dengan{' '}
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-400">
-                  kecerdasan buatan
+                  AI
                 </span>
               </h2>
               <p className="mx-auto max-w-2xl text-lg text-violet-200/70">
-                Humanify memadukan rule engine, vision AI, dan LLM SumoPod — dari screening kandidat hingga prediksi cuti.
+                Humanify memadukan rule engine, vision AI, dan LLM — dari screening kandidat hingga prediksi cuti.
                 Bukan gimmick: AI yang benar-benar membaca data HR tenant Anda.
               </p>
             </FadeIn>
