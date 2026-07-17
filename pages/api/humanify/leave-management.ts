@@ -186,8 +186,8 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
         const [rows] = await sequelize.query(
           `SELECT * FROM leave_types
            WHERE is_active = true
-             AND (tenant_id = :tenantId OR tenant_id IS NULL)
-           ORDER BY CASE WHEN tenant_id = :tenantId THEN 0 ELSE 1 END, sort_order ASC`,
+             AND tenant_id = :tenantId
+           ORDER BY sort_order ASC`,
           { replacements: { tenantId } }
         );
         leaveTypes = rows || [];
@@ -267,7 +267,7 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
       try {
         const [rows] = await sequelize.query(
           `SELECT * FROM leave_types
-           WHERE is_active = true AND (tenant_id = :tenantId OR tenant_id IS NULL)
+           WHERE is_active = true AND tenant_id = :tenantId
            ORDER BY sort_order ASC`,
           { replacements: { tenantId: tid } },
         );
@@ -318,8 +318,8 @@ async function getLeaveTypes(req: NextApiRequest, res: NextApiResponse, session:
     if (sequelize) {
       const [rows] = await sequelize.query(
         `SELECT * FROM leave_types
-         WHERE is_active = true AND (tenant_id = :tenantId OR tenant_id IS NULL)
-         ORDER BY CASE WHEN tenant_id = :tenantId THEN 0 ELSE 1 END, sort_order ASC`,
+         WHERE is_active = true AND tenant_id = :tenantId
+         ORDER BY sort_order ASC`,
         { replacements: { tenantId } },
       );
       if (rows?.length) return res.json({ success: true, data: rows });

@@ -350,6 +350,7 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
     }
     case 'case': {
       if (!IrCase) return res.json({ success: true, data: body, message: 'Created (mock)' });
+      const tenantId = tenantIdFromSession(session);
       const count = await IrCase.count();
       const evidence = {
         ...(body.evidence || {}),
@@ -359,6 +360,7 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
         incident_location: body.incidentLocation || body.incident_location || '',
       };
       const irCase = await IrCase.create({
+        tenantId,
         title: body.title,
         caseType: body.category || body.caseType || 'operational',
         description: body.description,

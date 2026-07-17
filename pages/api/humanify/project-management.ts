@@ -127,12 +127,24 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
     }
     case 'payroll': {
       if (!tenantId) return res.json({ success: true, data: [] });
+      if (!ProjectPayroll) return res.json({ success: true, data: [] });
       const { project_id: prId, employee_id: eId, status: pStatus } = req.query;
-      const where: any = { tenantId };
-      if (prId) where.projectId = prId;
+      const { Op } = require('sequelize');
+      // project_payroll has no tenant_id — scope via tenant's projects
+      let projectIds: string[] = [];
+      if (prId) {
+        const owned = Project ? await Project.findOne({ where: { id: prId, tenantId }, attributes: ['id'] }) : null;
+        if (!owned) return res.json({ success: true, data: [] });
+        projectIds = [String(prId)];
+      } else if (Project) {
+        const rows = await Project.findAll({ where: { tenantId }, attributes: ['id'], raw: true });
+        projectIds = rows.map((r: any) => String(r.id));
+        if (!projectIds.length) return res.json({ success: true, data: [] });
+      }
+      const where: any = { projectId: prId ? String(prId) : { [Op.in]: projectIds } };
       if (eId) where.employeeId = eId;
       if (pStatus) where.status = pStatus;
-      const data = ProjectPayroll ? await ProjectPayroll.findAll({ where, order: [['periodStart', 'DESC']] }) : [];
+      const data = await ProjectPayroll.findAll({ where, order: [['periodStart', 'DESC']] });
       return res.json({ success: true, data: rowsToSnake(data) });
     }
     default:

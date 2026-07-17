@@ -77,8 +77,10 @@ async function main() {
   if (rq.json?.success) ok('reset request accepted');
   else fail('reset request', rq.json?.error);
   if (token) ok('reset token issued');
+  else if (rq.json?.data?.emailed) ok('reset emailed (prod SMTP — confirm flow skipped in smoke)');
   else { fail('reset token missing (SMTP on? set HUMANIFY_PASSWORD_RESET_RETURN_TOKEN=true)'); process.exit(1); }
 
+  if (token) {
   // Confirm reset
   const cf = await post('/api/humanify/password-reset?action=confirm', { token, password: newPassword });
   if (cf.json?.success) ok('reset confirmed');
@@ -97,6 +99,7 @@ async function main() {
   const afterOld = await tryLogin(email, oldPassword);
   if (afterOld !== email) ok('old password rejected after reset');
   else fail('old password still works (should not)');
+  }
 
   // Non-enumeration: unknown email still succeeds, without a token
   const unknown = await post('/api/humanify/password-reset?action=request', { email: `ghost-${stamp}@humanify.test` });

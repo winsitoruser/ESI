@@ -3,14 +3,19 @@
 # Usage: SMOKE_BASE_URL=https://humanify.id bash scripts/run-saas-regression.sh
 set -uo pipefail
 
+export HUMANIFY_EMAIL_VERIFY_RETURN_TOKEN="${HUMANIFY_EMAIL_VERIFY_RETURN_TOKEN:-true}"
+export HUMANIFY_INVITE_RETURN_TOKEN="${HUMANIFY_INVITE_RETURN_TOKEN:-true}"
+export HUMANIFY_PASSWORD_RESET_RETURN_TOKEN="${HUMANIFY_PASSWORD_RESET_RETURN_TOKEN:-true}"
+
 SCRIPTS=(
   phase1-signup phase2-entitlement phase3-metrics phase4-billing
   phase5-enterprise phase5b-support phase6-seats phase7-golive
   phase8-partners phase9-alerts phase10-plan-change phase11-offboarding
-  phase12-digest phase13-sso phase14-ratelimit phase15-password-reset
-  phase16-health phase17-login-lockout phase18-observability phase19-mfa
+  phase12-digest phase13-sso phase15-password-reset phase16-health
+  phase17-login-lockout phase18-observability phase19-mfa
   phase20-employee-import phase21-notifications phase22-search
   phase23-invitations phase24-v1-write employee-hardening tenant-empty-state tenant-isolation
+  phase14-ratelimit
 )
 
 total_pass=0

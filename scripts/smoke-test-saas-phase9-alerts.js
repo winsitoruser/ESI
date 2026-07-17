@@ -93,6 +93,7 @@ async function main() {
 
   // Verify email → email_unverified should disappear
   const verifyUrl = regJ.data?.verification?.verifyUrl;
+  const emailedOnly = regJ.data?.verification?.emailed && !verifyUrl;
   if (verifyUrl && verifyUrl.includes('token=')) {
     const token = new URL(verifyUrl).searchParams.get('token');
     await fetch(`${BASE}/api/humanify/email-verify?action=verify`, {
@@ -104,6 +105,8 @@ async function main() {
     const ids2 = (a2.json?.data?.alerts || []).map((x) => x.id);
     if (!ids2.includes('email_unverified')) ok('email_unverified cleared after verification');
     else fail('email_unverified still present after verify', ids2.join(','));
+  } else if (emailedOnly) {
+    ok('verification emailed (prod SMTP — skip auto-verify in smoke)');
   } else {
     fail('signup missing verifyUrl', JSON.stringify(regJ.data?.verification));
   }

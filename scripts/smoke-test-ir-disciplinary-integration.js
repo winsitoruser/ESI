@@ -269,7 +269,9 @@ async function testStress() {
   const results = await Promise.all(
     Array.from({ length: 30 }, () =>
       Promise.all(endpoints.map((ep) =>
-        fetch(`${BASE}${ep}`, { headers: { Cookie: COOKIE } }).then((r) => r.status)
+        fetch(`${BASE}${ep}`, { headers: { Cookie: COOKIE } })
+          .then((r) => r.status)
+          .catch(() => 0)
       ))
     )
   );

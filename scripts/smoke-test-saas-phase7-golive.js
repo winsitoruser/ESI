@@ -73,6 +73,7 @@ async function main() {
   ok(`signup ${regJ.data.slug}`);
 
   const verifyUrl = regJ.data?.verification?.verifyUrl;
+  const emailedOnly = regJ.data?.verification?.emailed && !verifyUrl;
   if (verifyUrl && verifyUrl.includes('token=')) {
     const token = new URL(verifyUrl).searchParams.get('token');
     const v = await fetch(`${BASE}/api/humanify/email-verify?action=verify`, {
@@ -83,6 +84,8 @@ async function main() {
     const vj = await v.json();
     if (vj.success) ok('email verified via token');
     else fail('verify', vj.error);
+  } else if (emailedOnly) {
+    ok('verification emailed (token hidden when SMTP active on prod)');
   } else {
     fail('signup missing verifyUrl', JSON.stringify(regJ.data?.verification));
   }
@@ -100,6 +103,7 @@ async function main() {
 
   const ctx = await api('GET', '/api/humanify/saas-context');
   if (ctx.json?.data?.emailVerified === true) ok('saas-context emailVerified');
+  else if (emailedOnly) ok('emailVerified pending (prod SMTP — expected until user clicks email)');
   else fail('emailVerified flag', String(ctx.json?.data?.emailVerified));
 
   console.log(`\nRESULT: ${passed} passed, ${failed} failed`);

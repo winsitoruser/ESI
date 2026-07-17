@@ -13,7 +13,14 @@ const { loadWebhookSecrets } = require('./lib/humanify-qa-secrets');
 
 const BASE = process.env.SMOKE_BASE_URL || 'https://humanify.id';
 loadWebhookSecrets(BASE);
-const env = { ...process.env, SMOKE_BASE_URL: BASE };
+const env = {
+  ...process.env,
+  SMOKE_BASE_URL: BASE,
+  // Allow smoke harness to complete e2e flows on production (tokens not exposed to end users)
+  HUMANIFY_EMAIL_VERIFY_RETURN_TOKEN: process.env.HUMANIFY_EMAIL_VERIFY_RETURN_TOKEN || 'true',
+  HUMANIFY_INVITE_RETURN_TOKEN: process.env.HUMANIFY_INVITE_RETURN_TOKEN || 'true',
+  HUMANIFY_PASSWORD_RESET_RETURN_TOKEN: process.env.HUMANIFY_PASSWORD_RESET_RETURN_TOKEN || 'true',
+};
 
 const suites = [
   { name: 'Comprehensive VPS Smoke', script: 'smoke-test-humanify-vps.js' },

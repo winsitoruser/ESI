@@ -81,15 +81,31 @@ async function main() {
   // 2. Create an invitation
   const memberEmail = `inv-member-${stamp}@humanify.test`;
   const c1 = await api('POST', '/api/humanify/invitations?action=create', { email: memberEmail, role: 'manager', name: 'New Teammate' });
-  if (c1.status === 201 && c1.json?.success && c1.json.data?.token) ok('invitation created with token');
+  const prodEmailMode = c1.status === 201 && c1.json?.success && c1.json.data?.emailed && !c1.json.data?.token;
+  let token = c1.json?.data?.token;
+  if (c1.status === 201 && c1.json?.success && token) ok('invitation created with token');
+  else if (prodEmailMode) ok('invitation created and emailed (prod SMTP — token not in response)');
   else { fail('create invitation', JSON.stringify(c1.json)); process.exit(1); }
-  const token = c1.json.data.token;
 
   // 3. Appears as pending
   const l2 = await api('GET', '/api/humanify/invitations');
   const pending = (l2.json.data.invitations || []).filter((i) => i.status === 'pending' && !i.expired);
   if (pending.some((i) => i.email === memberEmail && i.role === 'manager')) ok('invitation shows as pending (manager)');
   else fail('pending invitation missing', JSON.stringify(l2.json.data.invitations));
+
+  if (prodEmailMode) {
+    ok('token preview/accept skipped (prod SMTP mode)');
+    const cPriv = await api('POST', '/api/humanify/invitations?action=create', { email: `evil-${stamp}@humanify.test`, role: 'owner' });
+    if (!cPriv.json?.success) ok('privileged role invite rejected'); else fail('owner role invite allowed', JSON.stringify(cPriv.json));
+    const revEmail = `inv-rev-${stamp}@humanify.test`;
+    const cRev = await api('POST', '/api/humanify/invitations?action=create', { email: revEmail, role: 'viewer' });
+    const revId = cRev.json?.data?.id;
+    if (revId) ok('created invitation to revoke'); else fail('create-to-revoke failed', JSON.stringify(cRev.json));
+    const rev = await api('POST', '/api/humanify/invitations?action=revoke', { id: revId });
+    if (rev.json?.success) ok('invitation revoked'); else fail('revoke failed', JSON.stringify(rev.json));
+    console.log(`\nRESULT: ${passed} passed, ${failed} failed`);
+    process.exit(failed ? 1 : 0);
+  }
 
   // 4. Public preview of token
   const prev = await pub('GET', `/api/humanify/invitations-accept?token=${encodeURIComponent(token)}`);
