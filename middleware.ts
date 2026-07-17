@@ -104,6 +104,16 @@ export async function middleware(request: NextRequest) {
     ) {
       return NextResponse.redirect(new URL('/humanify/setup', request.url));
     }
+
+    // H3 — tenant wajib 2FA: paksa enrol di /humanify/security
+    if (
+      !bypassSetup &&
+      token.mfaSetupRequired === true &&
+      !pathname.startsWith('/humanify/security') &&
+      !pathname.startsWith('/api/')
+    ) {
+      return NextResponse.redirect(new URL('/humanify/security', request.url));
+    }
   }
 
   // Root & auth — no landing page; login only

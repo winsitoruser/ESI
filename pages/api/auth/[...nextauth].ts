@@ -260,15 +260,32 @@ export const authOptions: NextAuthOptions = {
           }
 
           // Phase 19 — MFA/2FA enforcement (opt-in; fail-open on infra errors)
-          if (await isMfaEnabled(user.id)) {
-            const totp = String((credentials as any).totp || '').trim();
-            if (!totp) {
-              throw new Error('MFA_REQUIRED');
+          // H3 — tenant policy: if requireMfa && user belum enroll → allow login
+          // but flag mfaSetupRequired so middleware forces /humanify/security.
+          let mfaSetupRequired = false;
+          try {
+            const { isTenantMfaRequired } = await import('../../../lib/saas/mfa-policy');
+            const tenantRequires = user.tenantId
+              ? await isTenantMfaRequired(user.tenantId)
+              : false;
+            const userMfaOn = await isMfaEnabled(user.id);
+            if (userMfaOn) {
+              const totp = String((credentials as any).totp || '').trim();
+              if (!totp) {
+                throw new Error('MFA_REQUIRED');
+              }
+              const totpOk = await verifyMfaCode(user.id, totp);
+              if (!totpOk) {
+                throw new Error('Kode 2FA salah atau kedaluwarsa');
+              }
+            } else if (tenantRequires) {
+              mfaSetupRequired = true;
             }
-            const totpOk = await verifyMfaCode(user.id, totp);
-            if (!totpOk) {
-              throw new Error('Kode 2FA salah atau kedaluwarsa');
+          } catch (mfaErr: any) {
+            if (mfaErr?.message === 'MFA_REQUIRED' || /Kode 2FA/.test(String(mfaErr?.message))) {
+              throw mfaErr;
             }
+            // fail-open on infra errors
           }
 
           // Successful credential check — clear brute-force counter
@@ -296,6 +313,9 @@ export const authOptions: NextAuthOptions = {
           } else if (['hr_staff', 'hris_staff'].includes(normalizedRole)) {
             redirectUrl = '/humanify';
           }
+          if (mfaSetupRequired) {
+            redirectUrl = '/humanify/security';
+          }
 
           // Return user object (without password)
           return {
@@ -317,6 +337,7 @@ export const authOptions: NextAuthOptions = {
             businessStructure: null,
             setupCompleted,
             redirectUrl,
+            mfaSetupRequired,
           };
         } catch (error) {
           console.error('Auth error:', error);
@@ -360,6 +381,7 @@ export const authOptions: NextAuthOptions = {
         token.businessStructure = user.businessStructure;
         token.setupCompleted = user.setupCompleted;
         token.redirectUrl = user.redirectUrl;
+        token.mfaSetupRequired = Boolean((user as any).mfaSetupRequired);
         
         // Set token timestamps for sliding session
         token.iat = now; // Issued at
@@ -368,6 +390,12 @@ export const authOptions: NextAuthOptions = {
 
       // Manual session update (triggered by client)
       if (trigger === 'update' && session) {
+        if (session.mfaSetupRequired === false) {
+          token.mfaSetupRequired = false;
+        }
+        if (session.mfaSetupRequired === true) {
+          token.mfaSetupRequired = true;
+        }
         const roleNow = String(token.role || token.originalRole || '').toLowerCase();
         const canImpersonate =
           ['super_admin', 'superadmin', 'platform_admin'].includes(roleNow) ||
@@ -514,6 +542,16 @@ export const authOptions: NextAuthOptions = {
         }
       }
 
+      // Clear MFA setup gate once user has enrolled
+      if (token.mfaSetupRequired && token.id) {
+        try {
+          if (await isMfaEnabled(token.id as string)) {
+            token.mfaSetupRequired = false;
+            if (!token.redirectUrl) token.redirectUrl = '/humanify';
+          }
+        } catch { /* keep */ }
+      }
+
       return token;
     },
     async session({ session, token }) {
@@ -536,6 +574,7 @@ export const authOptions: NextAuthOptions = {
         session.user.redirectUrl = token.redirectUrl as string;
         (session.user as any).impersonating = Boolean(token.impersonating);
         (session.user as any).impersonatedTenantSlug = token.impersonatedTenantSlug as string | undefined;
+        (session.user as any).mfaSetupRequired = Boolean(token.mfaSetupRequired);
       }
       
       // Add token expiry info to session for client-side awareness

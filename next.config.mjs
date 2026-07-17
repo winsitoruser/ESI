@@ -30,7 +30,7 @@ const nextConfig = {
   // Enable standalone output for Docker deployment (only in production)
   ...(process.env.NODE_ENV === 'production' ? { output: 'standalone' } : {}),
   // Keep Node-only packages out of the client/webpack graph
-  serverExternalPackages: ['ioredis', 'samlify', '@xmldom/xmldom'],
+  serverExternalPackages: ['ioredis', 'samlify', '@xmldom/xmldom', 'qrcode'],
   experimental: {
     workerThreads: false,
     cpus: 1,

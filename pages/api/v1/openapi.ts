@@ -32,6 +32,12 @@ const SPEC = {
         responses: { '200': { description: 'Employee list' }, '401': { description: 'Unauthorized' } },
       },
     },
+    '/departments': {
+      get: {
+        summary: 'List departments with employee headcount',
+        responses: { '200': { description: 'Department list' }, '401': { description: 'Unauthorized' } },
+      },
+    },
     '/leaves': {
       get: {
         summary: 'List leave requests',

@@ -67,6 +67,48 @@ function roleForUserModel(role?: string | null): string {
   return r === 'viewer' ? 'staff' : r;
 }
 
+/** Resolve RBAC roles.id for an invite/legacy role code (best-effort). */
+async function resolveRoleIdForInvite(roleCode: string): Promise<string | null> {
+  if (!sequelize) return null;
+  try {
+    const [cols] = await sequelize.query(`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'roles'
+    `);
+    const colSet = new Set((cols || []).map((c: any) => c.column_name));
+    if (!colSet.has('id') || !colSet.has('code')) return null;
+
+    const aliases: Record<string, string[]> = {
+      hq_admin: ['hq_admin', 'HQ_ADMIN', 'admin', 'ADMIN'],
+      manager: ['manager', 'MANAGER'],
+      staff: ['staff', 'STAFF', 'employee', 'EMPLOYEE'],
+      viewer: ['viewer', 'VIEWER', 'staff', 'STAFF'],
+    };
+    const candidates = aliases[roleCode] || [roleCode];
+    for (const code of candidates) {
+      const [rows] = await sequelize.query(
+        `SELECT id FROM roles WHERE LOWER(code) = LOWER(:code) LIMIT 1`,
+        { replacements: { code } },
+      );
+      if (rows?.[0]?.id) return String(rows[0].id);
+    }
+  } catch (e: any) {
+    console.warn('[invitations] resolveRoleId:', e?.message);
+  }
+  return null;
+}
+
+async function assignUserRoleId(userId: string | number, roleCode: string) {
+  const roleId = await resolveRoleIdForInvite(roleCode);
+  if (!roleId) return;
+  try {
+    const db = getDb();
+    await db.User.update({ roleId }, { where: { id: userId } });
+  } catch (e: any) {
+    console.warn('[invitations] assign role_id:', e?.message);
+  }
+}
+
 export async function updateMemberRole(opts: {
   tenantId: string;
   memberId: string | number;
@@ -87,6 +129,7 @@ export async function updateMemberRole(opts: {
     throw new Error('Tidak dapat mengubah role akun sendiri');
   }
   await user.update({ role });
+  await assignUserRoleId(user.id, normalizeRole(opts.role));
   try {
     const { logAdminAction } = await import('./admin-audit');
     await logAdminAction({
@@ -256,6 +299,18 @@ export async function createInvitation(opts: {
     || process.env.HUMANIFY_INVITE_RETURN_TOKEN === 'true'
     || !emailed;
 
+  try {
+    const { logAdminAction } = await import('./admin-audit');
+    await logAdminAction({
+      tenantId: opts.tenantId,
+      actorUserId: opts.invitedBy != null ? String(opts.invitedBy) : null,
+      action: 'invite.create',
+      resourceType: 'invitation',
+      resourceId: id,
+      meta: { email, role, emailed },
+    });
+  } catch { /* ignore */ }
+
   return { id, emailed, inviteUrl: expose ? inviteUrl : undefined, token: expose ? token : undefined };
 }
 
@@ -332,11 +387,15 @@ export async function listTenantMembers(tenantId: string): Promise<MemberRow[]> 
   }
 }
 
-export async function revokeInvitation(tenantId: string, id: string): Promise<boolean> {
+export async function revokeInvitation(
+  tenantId: string,
+  id: string,
+  actorUserId?: string | number | null,
+): Promise<boolean> {
   if (!sequelize || !tenantId || !id) return false;
   await ensureInvitationsTable();
   const [rows] = await sequelize.query(
-    `SELECT id FROM saas_invitations
+    `SELECT id, email, role FROM saas_invitations
      WHERE tenant_id = :tid AND id = :id AND status = 'pending' LIMIT 1`,
     { replacements: { tid: tenantId, id } },
   );
@@ -345,6 +404,17 @@ export async function revokeInvitation(tenantId: string, id: string): Promise<bo
     `UPDATE saas_invitations SET status = 'revoked' WHERE id = :id`,
     { replacements: { id } },
   );
+  try {
+    const { logAdminAction } = await import('./admin-audit');
+    await logAdminAction({
+      tenantId,
+      actorUserId: actorUserId != null ? String(actorUserId) : null,
+      action: 'invite.revoke',
+      resourceType: 'invitation',
+      resourceId: id,
+      meta: { email: rows[0].email, role: rows[0].role },
+    });
+  } catch { /* ignore */ }
   return true;
 }
 
@@ -352,11 +422,12 @@ export async function resendInvitation(
   tenantId: string,
   id: string,
   baseUrl?: string,
+  actorUserId?: string | number | null,
 ): Promise<CreateInviteResult> {
   if (!sequelize || !tenantId || !id) throw new Error('Undangan tidak ditemukan');
   await ensureInvitationsTable();
   const [rows] = await sequelize.query(
-    `SELECT id, email FROM saas_invitations
+    `SELECT id, email, role FROM saas_invitations
      WHERE tenant_id = :tid AND id = :id AND status = 'pending' LIMIT 1`,
     { replacements: { tid: tenantId, id } },
   );
@@ -385,6 +456,17 @@ export async function resendInvitation(
       });
     } catch { /* */ }
   }
+  try {
+    const { logAdminAction } = await import('./admin-audit');
+    await logAdminAction({
+      tenantId,
+      actorUserId: actorUserId != null ? String(actorUserId) : null,
+      action: 'invite.resend',
+      resourceType: 'invitation',
+      resourceId: id,
+      meta: { email: row.email, role: row.role, emailed },
+    });
+  } catch { /* ignore */ }
   const expose = process.env.NODE_ENV !== 'production'
     || process.env.HUMANIFY_INVITE_RETURN_TOKEN === 'true'
     || !emailed;
@@ -462,19 +544,34 @@ export async function acceptInvitation(opts: {
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
+  const legacyRole = roleForUserModel(inv.role);
   const user = await db.User.create({
     name,
     email,
     password: hashedPassword,
     tenantId: inv.tenant_id,
-    role: roleForUserModel(inv.role),
+    role: legacyRole,
     isActive: true,
   });
+
+  await assignUserRoleId(user.id, normalizeRole(inv.role));
 
   await sequelize.query(
     `UPDATE saas_invitations SET status = 'accepted', accepted_at = NOW() WHERE id = :id`,
     { replacements: { id: inv.id } },
   );
+
+  try {
+    const { logAdminAction } = await import('./admin-audit');
+    await logAdminAction({
+      tenantId: inv.tenant_id,
+      actorUserId: inv.invited_by ? String(inv.invited_by) : null,
+      action: 'invite.accept',
+      resourceType: 'user',
+      resourceId: String(user.id),
+      meta: { email, role: legacyRole, invitationId: inv.id },
+    });
+  } catch { /* ignore */ }
 
   return { email, tenantId: inv.tenant_id, userId: user.id };
 }

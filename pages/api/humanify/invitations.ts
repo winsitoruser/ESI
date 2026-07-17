@@ -85,14 +85,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (action === 'revoke') {
         const id = String(req.body?.id || '');
         if (!id) return res.status(400).json({ success: false, error: 'id wajib diisi' });
-        const ok = await revokeInvitation(tenantId, id);
+        const ok = await revokeInvitation(tenantId, id, userId);
         return res.json({ success: ok, data: { revoked: ok } });
       }
 
       if (action === 'resend') {
         const id = String(req.body?.id || '');
         if (!id) return res.status(400).json({ success: false, error: 'id wajib diisi' });
-        const result = await resendInvitation(tenantId, id, origin);
+        const result = await resendInvitation(tenantId, id, origin, userId);
         return res.json({ success: true, data: result });
       }
 

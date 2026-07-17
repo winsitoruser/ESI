@@ -238,7 +238,7 @@ export async function beginEnrollment(opts: {
   userId: string | number;
   tenantId?: string | null;
   email: string;
-}): Promise<{ secret: string; otpauthUrl: string }> {
+}): Promise<{ secret: string; otpauthUrl: string; qrDataUrl: string | null }> {
   if (!sequelize) throw new Error('Database unavailable');
   await ensureMfaTable();
   const secret = base32Encode(crypto.randomBytes(20));
@@ -256,7 +256,22 @@ export async function beginEnrollment(opts: {
       secret,
     },
   });
-  return { secret, otpauthUrl: otpauthUrl(opts.email, secret) };
+  const url = otpauthUrl(opts.email, secret);
+  let qrDataUrl: string | null = null;
+  try {
+    // Server-only — avoid client bundling of qrcode
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const QRCode = require('qrcode') as typeof import('qrcode');
+    qrDataUrl = await QRCode.toDataURL(url, {
+      errorCorrectionLevel: 'M',
+      margin: 2,
+      width: 220,
+      color: { dark: '#0f172a', light: '#ffffff' },
+    });
+  } catch (e: any) {
+    console.warn('[mfa] QR generation failed:', e?.message || e);
+  }
+  return { secret, otpauthUrl: url, qrDataUrl };
 }
 
 export async function confirmEnrollment(userId: string | number, code: string): Promise<{ ok: boolean; recoveryCodes?: string[] }> {
