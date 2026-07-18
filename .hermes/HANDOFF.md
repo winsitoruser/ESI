@@ -10,7 +10,7 @@
 | w7-2 | `lib/humanify/api-error.ts` + HumanifyErrorBoundary | Done |
 | w7-3 | Payslip view → `payroll_audit_events` (`payslip_view`) | Done |
 | w7-4 | Playwright invite/docs/payroll soft UI | Done |
-| w7-5 | Deploy + verify | Pending |
+| w7-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:api-error` · `npm run test:e2e:humanify:invite-docs:prod`  
 Docs: `docs/humanify-ga-scope.md`
