@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import HrisEmptyState from '@/components/humanify/HrisEmptyState';
 import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import EmployeePicker, { type PickedEmployee } from '@/components/humanify/EmployeePicker';
@@ -336,11 +337,12 @@ export default function IndustrialRelationsPage() {
                         </div>
                       </div>
                     ))}
-                    {regulations.length === 0 && (
-                      <div className="text-center py-12 text-slate-400">
-                        <FileText className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                        <p>Belum ada peraturan perusahaan</p>
-                      </div>
+                    {!loading && regulations.length === 0 && (
+                      <HrisEmptyState
+                        source={dataSource}
+                        title="Belum ada peraturan perusahaan"
+                        description="Tambahkan peraturan perusahaan dan kebijakan HR yang berlaku."
+                      />
                     )}
                   </div>
                 </div>
@@ -382,11 +384,12 @@ export default function IndustrialRelationsPage() {
                       </div>
                     </div>
                   ))}
-                  {checklists.length === 0 && (
-                    <div className="text-center py-12 text-slate-400">
-                      <CheckSquare className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                      <p>Belum ada checklist kepatuhan</p>
-                    </div>
+                  {!loading && checklists.length === 0 && (
+                    <HrisEmptyState
+                      source={dataSource}
+                      title="Belum ada checklist kepatuhan"
+                      description="Buat checklist kepatuhan untuk memantau regulasi dan audit internal."
+                    />
                   )}
                 </div>
               )}

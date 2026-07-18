@@ -56,6 +56,18 @@ fi
 set_kv_if_empty "OBS_ALERT_ERROR_THRESHOLD" "10"
 set_kv_if_empty "OBS_ALERT_WINDOW_MIN" "15"
 
+# Optional webhook from deploy env (do not invent URL)
+if [ -n "${OBS_ALERT_WEBHOOK_URL:-}" ]; then
+  if grep -q '^OBS_ALERT_WEBHOOK_URL=' "$ENV_FILE" 2>/dev/null; then
+    esc="$(printf '%s' "$OBS_ALERT_WEBHOOK_URL" | sed 's/[&|]/\\&/g')"
+    sed -i.bak "s|^OBS_ALERT_WEBHOOK_URL=.*|OBS_ALERT_WEBHOOK_URL=${esc}|" "$ENV_FILE" || true
+    echo "  ✓ OBS_ALERT_WEBHOOK_URL from deploy env"
+  else
+    echo "OBS_ALERT_WEBHOOK_URL=${OBS_ALERT_WEBHOOK_URL}" >> "$ENV_FILE"
+    echo "  + OBS_ALERT_WEBHOOK_URL added from deploy env"
+  fi
+fi
+
 # Default alert email to SMTP_FROM / ops mailbox if unset
 if ! grep -q '^OBS_ALERT_EMAIL=' "$ENV_FILE" 2>/dev/null || [ -z "$(grep '^OBS_ALERT_EMAIL=' "$ENV_FILE" | cut -d= -f2- | tr -d '"' | xargs || true)" ]; then
   from="$(grep '^SMTP_FROM=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' | tr -d "'" | xargs || true)"
@@ -75,5 +87,7 @@ else
 fi
 
 echo "  → Optional: OBS_ALERT_WEBHOOK_URL=https://hooks.slack.com/..."
+echo "  → Set webhook: bash scripts/set-humanify-obs-webhook.sh"
+echo "  → Docs: docs/humanify-ops-alerts.md"
 echo "  → Cron: */10 * * * * node scripts/check-humanify-obs-alerts.js"
 echo "  → UI: /platform/observability"

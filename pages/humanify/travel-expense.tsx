@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import HrisEmptyState from '@/components/humanify/HrisEmptyState';
 import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import { Plane, Receipt, Wallet, Plus, Edit, Trash2, X, Check, Eye, Search, MapPin, Calendar, DollarSign } from 'lucide-react';
@@ -225,7 +226,13 @@ export default function TravelExpensePage() {
                 </div>
               </div>
             ))}
-            {requests.length === 0 && <p className="text-center text-gray-400 py-8">Belum ada pengajuan perjalanan dinas</p>}
+            {!loading && requests.length === 0 && (
+              <HrisEmptyState
+                source={dataSource}
+                title="Belum ada pengajuan perjalanan dinas"
+                description="Ajukan perjalanan dinas untuk memulai proses persetujuan dan klaim biaya."
+              />
+            )}
           </div>
         </div>
       )}
@@ -308,7 +315,13 @@ export default function TravelExpensePage() {
                 ))}
               </tbody>
             </table>
-            {expenses.length === 0 && <p className="text-center text-gray-400 py-8">Belum ada klaim biaya</p>}
+            {!loading && expenses.length === 0 && (
+              <HrisEmptyState
+                source={dataSource}
+                title="Belum ada klaim biaya"
+                description="Klaim biaya perjalanan dinas akan muncul setelah pengajuan disetujui."
+              />
+            )}
           </div>
         </div>
       )}
@@ -349,7 +362,15 @@ export default function TravelExpensePage() {
                 </div>
               );
             })}
-            {budgets.length === 0 && <p className="text-center text-gray-400 py-8 col-span-3">Belum ada anggaran</p>}
+            {!loading && budgets.length === 0 && (
+              <div className="col-span-3">
+                <HrisEmptyState
+                  source={dataSource}
+                  title="Belum ada anggaran"
+                  description="Tetapkan anggaran perjalanan dinas per kategori untuk kontrol biaya."
+                />
+              </div>
+            )}
           </div>
         </div>
       )}

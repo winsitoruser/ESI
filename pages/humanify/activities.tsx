@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import HrisEmptyState from '@/components/humanify/HrisEmptyState';
 import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import {
   Activity, RefreshCw, Filter, UserPlus, Target, DollarSign, Calendar,
@@ -228,6 +229,12 @@ export default function HRISActivitiesPage() {
             <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
             <p className="text-sm">Memuat aktivitas...</p>
           </div>
+        ) : activities.length === 0 ? (
+          <HrisEmptyState
+            source={dataSource}
+            title="Belum ada aktivitas"
+            description="Log aktivitas HRIS akan muncul saat ada transaksi kepegawaian."
+          />
         ) : filtered.length === 0 ? (
           <div className="bg-white border rounded-xl p-16 text-center text-gray-400">
             <Activity className="w-12 h-12 mx-auto mb-3 opacity-25" />

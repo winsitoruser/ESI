@@ -3,15 +3,16 @@
  * Schema-safe: prod `employees` may lack `nik` — use employee_code fallback.
  */
 import type { BPJSExportRow, PPh21ExportRow } from '@/lib/hris/tax-bpjs-export';
+import { calculatePPh21Annual, getPTKP } from '@/lib/hris/pph21-calc';
 
 const ACTIVE_EMPLOYEE_FILTER = `(LOWER(COALESCE(e.status, 'active')) = 'active' OR e.is_active = true)`;
 
 const ALLOWANCE_SUBQUERY = `COALESCE((
-  SELECT SUM(COALESCE(esc.amount, pc.default_amount, 0))
-  FROM employee_salary_components esc
-  JOIN payroll_components pc ON esc.component_id = pc.id
-  WHERE esc.employee_salary_id = es.id AND esc.is_active = true
-    AND pc.type = 'earning' AND pc.code NOT IN ('BASIC', 'OVERTIME')
+    SELECT SUM(COALESCE(esc.amount, pc.default_amount, 0))
+    FROM employee_salary_components esc
+    JOIN payroll_components pc ON esc.component_id = pc.id
+    WHERE esc.employee_salary_id = es.id AND esc.is_active = true
+      AND pc.type = 'earning' AND pc.code NOT IN ('BASIC', 'OVERTIME')
 ), 0)`;
 
 /** Prefer nik when present; else employee_code / empty. */
@@ -20,35 +21,8 @@ const NIK_EXPR = `COALESCE(
   ''
 )`;
 
-function getPTKP(status: string): number {
-  const map: Record<string, number> = {
-    'TK/0': 54000000, 'TK/1': 58500000, 'TK/2': 63000000, 'TK/3': 67500000,
-    'K/0': 58500000, 'K/1': 63000000, 'K/2': 67500000, 'K/3': 72000000,
-  };
-  return map[status] || 54000000;
-}
-
 function calculatePPh21(pkp: number): number {
-  if (pkp <= 0) return 0;
-  const brackets = [
-    { limit: 60000000, rate: 0.05 },
-    { limit: 250000000, rate: 0.15 },
-    { limit: 500000000, rate: 0.25 },
-    { limit: 5000000000, rate: 0.30 },
-    { limit: Infinity, rate: 0.35 },
-  ];
-  let tax = 0;
-  let remaining = pkp;
-  let prev = 0;
-  for (const b of brackets) {
-    const band = Math.min(remaining, b.limit - prev);
-    if (band <= 0) break;
-    tax += band * b.rate;
-    remaining -= band;
-    prev = b.limit;
-    if (remaining <= 0) break;
-  }
-  return Math.round(tax);
+  return calculatePPh21Annual(pkp);
 }
 
 async function hasEmployeeColumn(sequelize: any, col: string): Promise<boolean> {

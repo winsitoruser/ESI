@@ -24,7 +24,6 @@ export default function LmsHubPage() {
   const { t } = useTranslation();
   const router = useRouter();
   const labGated = router.query.lab === 'gated';
-  const showLab = isLmsLabEnabled();
   const [stats, setStats] = useState<any>({});
   const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
 
@@ -103,12 +102,6 @@ export default function LmsHubPage() {
               title="LMS siap dipakai"
               description="Mulai dari Kursus atau Tes & Ujian. Data statistik akan muncul setelah ada konten."
             />
-          )}
-
-          {showLab && (
-            <p className="text-xs text-slate-400">
-              Lab LMS aktif (HUMANIFY_LMS_LAB=true) — URL advanced dapat diakses.
-            </p>
           )}
         </div>
       </HumanifyLayout>

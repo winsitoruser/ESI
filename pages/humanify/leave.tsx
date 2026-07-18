@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { HRIS_DEPARTMENTS } from '@/lib/hris/master-data';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import HrisEmptyState from '@/components/humanify/HrisEmptyState';
 import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 
 
@@ -654,9 +655,12 @@ export default function LeaveManagementPage() {
                 ))}
 
                 {approvalConfigs.length === 0 && (
-                  <div className="col-span-2 text-center py-12 text-gray-500">
-                    <Shield className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                    <p>Belum ada konfigurasi persetujuan</p>
+                  <div className="col-span-2">
+                    <HrisEmptyState
+                      source={dataSource}
+                      title="Belum ada konfigurasi persetujuan"
+                      description="Tambahkan alur persetujuan cuti sesuai kebijakan perusahaan."
+                    />
                   </div>
                 )}
               </div>
@@ -782,11 +786,11 @@ export default function LeaveManagementPage() {
               </div>
 
               {balances.length === 0 ? (
-                <div className="text-center py-12">
-                  <Database className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500">Belum ada data saldo cuti</p>
-                  <p className="text-xs text-gray-400 mt-1">Klik &quot;Inisialisasi Saldo&quot; untuk membuat saldo cuti semua karyawan aktif</p>
-                </div>
+                <HrisEmptyState
+                  source={dataSource}
+                  title="Belum ada data saldo cuti"
+                  description='Klik "Inisialisasi Saldo" untuk membuat saldo cuti semua karyawan aktif.'
+                />
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">

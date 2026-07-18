@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import HrisEmptyState from '@/components/humanify/HrisEmptyState';
 import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import {
@@ -531,9 +532,12 @@ export default function AttendanceManagementPage() {
                 ))}
 
                 {rotations.length === 0 && (
-                  <div className="col-span-2 text-center py-12 text-gray-500">
-                    <RotateCcw className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                    <p>Belum ada pola rotasi</p>
+                  <div className="col-span-2">
+                    <HrisEmptyState
+                      source={dataSource}
+                      title="Belum ada pola rotasi"
+                      description="Buat pola rotasi shift untuk mengatur jadwal kerja karyawan."
+                    />
                   </div>
                 )}
               </div>

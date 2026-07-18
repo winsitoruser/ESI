@@ -6,6 +6,7 @@ import { getDepartmentLabel } from '@/lib/hris/master-data';
 import { useTranslation } from '@/lib/i18n';
 import { UserPlus, Search, Filter, Plus, Eye, Edit, Trash2, X, Check, ChevronRight, Briefcase, MapPin, Clock, Users, Star, FileText, Download, Upload, Calendar, DollarSign, BarChart3, TrendingUp, CheckCircle2, XCircle, AlertCircle, Loader2, Link2, MessageCircle, Globe } from 'lucide-react';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import HrisEmptyState from '@/components/humanify/HrisEmptyState';
 import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 
 
@@ -420,7 +421,18 @@ export default function RecruitmentPage() {
                   </div>
                 </div>
               ))}
-              {filteredOpenings.length === 0 && <p className="text-center text-gray-400 py-8 col-span-2">Tidak ada lowongan ditemukan</p>}
+              {!loading && openings.length === 0 && (
+                <div className="col-span-2">
+                  <HrisEmptyState
+                    source={dataSource}
+                    title="Belum ada lowongan"
+                    description="Buat lowongan kerja pertama untuk memulai proses rekrutmen."
+                  />
+                </div>
+              )}
+              {!loading && openings.length > 0 && filteredOpenings.length === 0 && (
+                <p className="text-center text-gray-400 py-8 col-span-2">Tidak ada lowongan ditemukan</p>
+              )}
             </div>
           </div>
         )}
@@ -466,7 +478,16 @@ export default function RecruitmentPage() {
                   })}
                 </tbody>
               </table>
-              {filteredCandidates.length === 0 && <p className="text-center text-gray-400 py-8">Tidak ada kandidat ditemukan</p>}
+              {!loading && candidates.length === 0 && (
+                <HrisEmptyState
+                  source={dataSource}
+                  title="Belum ada kandidat"
+                  description="Kandidat akan muncul setelah ada lamaran masuk ke lowongan terbuka."
+                />
+              )}
+              {!loading && candidates.length > 0 && filteredCandidates.length === 0 && (
+                <p className="text-center text-gray-400 py-8">Tidak ada kandidat ditemukan</p>
+              )}
             </div>
           </div>
         )}

@@ -128,6 +128,11 @@ export default function PlatformObservabilityPage() {
               · email {alertInfo.configured?.email ? 'on' : 'off'}
               · webhook {alertInfo.configured?.webhook ? 'on' : 'off'}
             </p>
+            {!alertInfo.configured?.webhook && (
+              <p className="text-[11px] mt-1 opacity-70">
+                Webhook belum di-set — lihat docs/humanify-ops-alerts.md (Slack Incoming Webhook).
+              </p>
+            )}
           </div>
         )}
 

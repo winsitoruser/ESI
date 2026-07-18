@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import HrisEmptyState from '@/components/humanify/HrisEmptyState';
 import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import DocumentExportButton from '@/components/documents/DocumentExportButton';
@@ -127,6 +128,12 @@ export default function SlipGajiPage() {
           {/* Table */}
           {loading ? (
             <div className="p-12 text-center text-gray-400"><Clock className="w-8 h-8 mx-auto mb-2 animate-spin" /><p>Memuat data...</p></div>
+          ) : payslips.length === 0 ? (
+            <HrisEmptyState
+              source={dataSource}
+              title="Belum ada slip gaji"
+              description="Slip gaji akan muncul setelah proses penggajian periode ini selesai."
+            />
           ) : filtered.length === 0 ? (
             <div className="p-12 text-center text-gray-400"><FileText className="w-12 h-12 mx-auto mb-3" /><p>Tidak ada slip gaji ditemukan</p></div>
           ) : (

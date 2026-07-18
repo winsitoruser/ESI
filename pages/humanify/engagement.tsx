@@ -5,6 +5,7 @@ import PerformanceModuleChrome, { EnterpriseTabBar } from '@/components/humanify
 import { useTranslation } from '@/lib/i18n';
 import { MessageCircle, Award, Bell, Plus, Edit, Trash2, X, Heart, Star, Send, Eye, BarChart3, Users, RefreshCw } from 'lucide-react';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import HrisEmptyState from '@/components/humanify/HrisEmptyState';
 import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 
 
@@ -223,7 +224,15 @@ export default function EngagementPage() {
                 </div>
               </div>
             ))}
-            {surveys.length === 0 && <p className="text-center text-gray-400 py-8 col-span-2">Belum ada survey</p>}
+            {!loading && surveys.length === 0 && (
+              <div className="col-span-2">
+                <HrisEmptyState
+                  source={dataSource}
+                  title="Belum ada survey"
+                  description="Buat survey kepuasan karyawan untuk mengukur engagement tim."
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -309,7 +318,13 @@ export default function EngagementPage() {
                 </div>
               </div>
             ))}
-            {recognitions.length === 0 && <p className="text-center text-gray-400 py-8">Belum ada penghargaan. Mulai apresiasi rekan kerja!</p>}
+            {!loading && recognitions.length === 0 && (
+              <HrisEmptyState
+                source={dataSource}
+                title="Belum ada penghargaan"
+                description="Mulai apresiasi rekan kerja untuk membangun budaya positif."
+              />
+            )}
           </div>
         </div>
       )}
@@ -351,7 +366,13 @@ export default function EngagementPage() {
                 </div>
               </div>
             ))}
-            {announcements.length === 0 && <p className="text-center text-gray-400 py-8">Belum ada pengumuman</p>}
+            {!loading && announcements.length === 0 && (
+              <HrisEmptyState
+                source={dataSource}
+                title="Belum ada pengumuman"
+                description="Buat pengumuman untuk menyampaikan informasi penting ke karyawan."
+              />
+            )}
           </div>
         </div>
       )}

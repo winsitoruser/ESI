@@ -11,6 +11,13 @@
   - Login init: `https://humanify.id/api/humanify/sso/login?slug=<tenant-slug>`
 - Synthetic e2e gate (CI/regression): `npm run smoke:sso-acs`
 
+## Synthetic gate (no customer IdP)
+
+```bash
+npm run smoke:sso-acs
+SMOKE_BASE_URL=https://humanify.id npm run smoke:sso-idp-checklist
+```
+
 ## Customer setup (Okta / Azure AD / Google Workspace)
 
 1. Customer opens **Humanify → SSO** (`/humanify/sso`) and copies **SP Entity ID**, **ACS URL**, **Metadata URL**.

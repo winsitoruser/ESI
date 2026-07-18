@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DepartmentSelect from '@/components/humanify/DepartmentSelect';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import HrisEmptyState from '@/components/humanify/HrisEmptyState';
 import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import {
   Megaphone, Plus, Search, Filter, Pin, Eye, Edit, Trash2, X, CheckCircle,
@@ -254,10 +255,11 @@ export default function HRISAnnouncementsPage() {
         <div className="space-y-3">
           {loading && <div className="text-center py-8 text-gray-500 text-sm">Memuat...</div>}
           {!loading && filtered.length === 0 && (
-            <div className="bg-white rounded-xl border p-12 text-center text-gray-500">
-              <Megaphone className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-              <p>Belum ada pengumuman</p>
-            </div>
+            <HrisEmptyState
+              source={dataSource}
+              title="Belum ada pengumuman"
+              description="Buat pengumuman pertama untuk menyampaikan informasi ke seluruh karyawan."
+            />
           )}
           {filtered.map((a) => {
             const catConf = CATEGORY_CONF[a.category] || CATEGORY_CONF.general;

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import HrisEmptyState from '@/components/humanify/HrisEmptyState';
 import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import { GraduationCap, Search, Plus, Eye, Edit, X, Calendar, Clock, Users, MapPin, Star, Award, BookOpen, CheckCircle2, BarChart3, TrendingUp, FileText, Download, Filter, ChevronRight, Target, Bookmark, Video, Monitor, Loader2, Trash2 } from 'lucide-react';
@@ -268,7 +269,18 @@ export default function TrainingPage() {
                   </div>
                 );
               })}
-              {filtered.length === 0 && <p className="text-center text-gray-400 py-8 col-span-2">Tidak ada program ditemukan</p>}
+              {!loading && programs.length === 0 && (
+                <div className="col-span-2">
+                  <HrisEmptyState
+                    source={dataSource}
+                    title="Belum ada program pelatihan"
+                    description="Tambahkan program pelatihan untuk mengembangkan kompetensi karyawan."
+                  />
+                </div>
+              )}
+              {!loading && programs.length > 0 && filtered.length === 0 && (
+                <p className="text-center text-gray-400 py-8 col-span-2">Tidak ada program ditemukan</p>
+              )}
             </div>
           </div>
         )}
@@ -366,7 +378,13 @@ export default function TrainingPage() {
                     </div>
                   );
                 })}
-                {categories.length === 0 && <p className="text-sm text-gray-400">Belum ada data</p>}
+                {categories.length === 0 && (
+                  <HrisEmptyState
+                    source={dataSource}
+                    title="Belum ada data"
+                    description="Data kategori pelatihan akan muncul setelah ada program terdaftar."
+                  />
+                )}
               </div>
             </div>
             <div className="bg-white border rounded-xl p-5">

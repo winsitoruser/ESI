@@ -46,6 +46,7 @@ export async function evaluateObsErrorSpike(): Promise<ObsAlertResult> {
 
   const body = {
     text: `[Humanify] Observability alert: ${base.message}`,
+    content: `[Humanify] Observability alert: ${base.message}`, // Discord webhooks
     errors,
     threshold: thr,
     windowMin: win,

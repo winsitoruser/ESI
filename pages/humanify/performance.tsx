@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import NineBoxMatrix from '@/components/humanify/NineBoxMatrix';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import HrisEmptyState from '@/components/humanify/HrisEmptyState';
 import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import { HRIS_DEPARTMENTS, getDepartmentLabel } from '@/lib/hris/master-data';
 
@@ -677,7 +678,11 @@ export default function PerformancePage() {
             )}
             <div className="bg-white border rounded-xl divide-y">
               {feedback360.length === 0 ? (
-                <div className="p-12 text-center text-gray-400">Belum ada feedback 360°</div>
+                <HrisEmptyState
+                  source={performanceDataSource}
+                  title="Belum ada feedback 360°"
+                  description="Feedback 360° akan muncul setelah evaluasi multi-rater dibuat."
+                />
               ) : feedback360.map((fb: any) => (
                 <div key={fb.id} className="p-4 flex items-start gap-4">
                   <div className="p-2 bg-purple-100 rounded-full"><Star className="w-4 h-4 text-purple-600" /></div>
@@ -732,10 +737,11 @@ export default function PerformancePage() {
             )}
             </>
             ) : (
-              <div className="bg-white rounded-xl border p-12 text-center text-gray-500">
-                <Grid3X3 className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                <p>Belum ada data nine-box. Lengkapi evaluasi kinerja terlebih dahulu.</p>
-              </div>
+              <HrisEmptyState
+                source={nineBoxDataSource}
+                title="Belum ada data nine-box"
+                description="Lengkapi evaluasi kinerja terlebih dahulu untuk memetakan talent pool."
+              />
             )}
           </div>
         )}
@@ -744,11 +750,14 @@ export default function PerformancePage() {
         {pageTab === 'reviews' && (loading ? (
           <div className="flex items-center justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-violet-600" /></div>
         ) : filteredReviews.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-xl border">
-            <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">Belum ada evaluasi kinerja</p>
-            <button onClick={openCreate} className="mt-3 text-violet-600 hover:text-violet-700 text-sm">+ Buat Evaluasi Baru</button>
-          </div>
+          <HrisEmptyState
+            source={performanceDataSource}
+            title="Belum ada evaluasi kinerja"
+            description="Buat evaluasi pertama untuk memulai siklus penilaian kinerja."
+            action={
+              <button onClick={openCreate} className="text-violet-600 hover:text-violet-700 text-sm">+ Buat Evaluasi Baru</button>
+            }
+          />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredReviews.map((review) => (

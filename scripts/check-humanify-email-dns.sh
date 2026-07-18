@@ -24,4 +24,5 @@ check_txt "_dmarc.$DOMAIN" "v=DMARC1"
 
 echo ""
 echo "→ SumoPod dashboard: click Verify until status Verified"
-echo "→ SMTP probe (app): node -e \"require('dotenv').config(); const n=require('nodemailer'); ...\""
+echo "→ SMTP probe: node scripts/probe-humanify-smtp.js"
+echo "→ Ops alerts: docs/humanify-ops-alerts.md"

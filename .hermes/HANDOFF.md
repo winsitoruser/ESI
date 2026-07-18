@@ -1,6 +1,16 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 18 Juli 2026 — **P3 sprint**: obs alert wiring · observability UI · LMS lab smoke
+> Diperbarui: 18 Juli 2026 — **N4→N5→N3→N2→N1**: ops alerts · empty-state · uptime · fiscal · IdP checklist
+
+## Backlog sequential (18 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| N4 | Ops alerts | `docs/humanify-ops-alerts.md` · set/probe webhook · SMTP probe · SumoPod Verify = manual dashboard |
+| N5 | HrisEmptyState | 12 halaman USE_MOCK_UI diadopsi |
+| N3 | Uptime eksternal | `register-humanify-uptime-external.sh` (UptimeRobot API jika key) |
+| N2 | Payroll fiscal | `lib/hris/pph21-calc.ts` + `smoke:payroll-fiscal` golden PTKP/PPh21 |
+| N1 | SSO IdP | `smoke:sso-idp-checklist` + runbook; customer IdP tetap butuh kredensial |
 
 ## P3 sprint (18 Jul 2026)
 

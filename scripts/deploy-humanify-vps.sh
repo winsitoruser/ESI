@@ -246,6 +246,9 @@ ssh_cmd "APP_DIR=$APP_DIR bash -s" < "$SRC/scripts/ensure-humanify-crons.sh" || 
 echo "=== [3f/6] Uptime monitor probe ==="
 ssh_cmd "HEALTH_URL=https://${DOMAIN}/api/health?deep=1 STATE_FILE=/var/log/humanify-uptime-last.json bash -s" < "$SRC/scripts/ensure-humanify-uptime-monitor.sh" || true
 
+echo "=== [3g/6] External uptime (optional API key) ==="
+ssh_cmd "HEALTH_URL=https://${DOMAIN}/api/health?deep=1 UPTIMEROBOT_API_KEY='${UPTIMEROBOT_API_KEY:-}' BETTERSTACK_TOKEN='${BETTERSTACK_TOKEN:-}' bash -s" < "$SRC/scripts/register-humanify-uptime-external.sh" || true
+
 echo "=== [4/6] npm install + migrations ==="
 if [ "${DEPLOY_SKIP_MIGRATE:-false}" = true ]; then
   echo "  (skip migrations — DEPLOY_SKIP_MIGRATE=true)"

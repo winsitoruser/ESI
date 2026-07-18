@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import HrisEmptyState from '@/components/humanify/HrisEmptyState';
 import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import {
@@ -171,6 +172,13 @@ export default function THRPage() {
                 <div className="relative flex-1 min-w-[200px]"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" /><input type="text" placeholder="Cari karyawan..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm" /></div>
                 <button onClick={handleCalculate} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700"><Calculator className="w-4 h-4" /> Hitung Ulang</button>
               </div>
+              {!loading && items.length === 0 ? (
+                <HrisEmptyState
+                  source={dataSource}
+                  title="Belum ada data THR"
+                  description='Klik "Hitung THR" untuk menghitung tunjangan hari raya karyawan.'
+                />
+              ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50">
@@ -206,6 +214,7 @@ export default function THRPage() {
                   </tfoot>
                 </table>
               </div>
+              )}
             </div>
           )}
         </div>
