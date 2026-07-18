@@ -1,6 +1,15 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 18 Juli 2026 — **N4→N5→N3→N2→N1**: ops alerts · empty-state · uptime · fiscal · IdP checklist
+> Diperbarui: 18 Juli 2026 — **Discord live** · health→Discord · empty-state payroll wave-2
+
+## Ops live (18 Jul 2026)
+
+| Item | Status |
+|---|---|
+| Discord webhook | Live di VPS (`OBS_ALERT_WEBHOOK_URL`) — error spike + probe |
+| Health → Discord | Cron `*/5` → `check-humanify-health-alert.js` (cooldown 30m + recovery) |
+| Email alert | `ops@humanify.id` tetap aktif |
+| Empty-state wave-2 | payroll bpjs/pph21/lembur/laporan + employees mutasi |
 
 ## Backlog sequential (18 Jul 2026)
 

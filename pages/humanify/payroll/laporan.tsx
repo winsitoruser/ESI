@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import HrisEmptyState from '@/components/humanify/HrisEmptyState';
 import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import dynamic from 'next/dynamic';
 import {
@@ -155,6 +156,13 @@ export default function LaporanPage() {
           </div>
 
           {activeReport === 'monthly' && (
+            monthly.length === 0 ? (
+              <HrisEmptyState
+                source={dataSource}
+                title="Belum ada laporan bulanan"
+                description="Tren penggajian bulanan akan muncul setelah proses penggajian periode pertama selesai."
+              />
+            ) : (
             <div className="p-6 space-y-6">
               <div className="h-[350px]">
                 <Chart type="bar" height={350} options={{ chart: { id: 'payroll-trend', toolbar: { show: false } }, plotOptions: { bar: { borderRadius: 4, columnWidth: '60%' } }, dataLabels: { enabled: false }, xaxis: { categories: monthly.map(m => m.label) }, yaxis: { labels: { formatter: (v: number) => fmtShort(v) } }, colors: ['#3b82f6', '#ef4444', '#f59e0b', '#10b981'], legend: { position: 'top' }, tooltip: { y: { formatter: (v: number) => fmtCurrency(v) } } }} series={[
@@ -195,9 +203,17 @@ export default function LaporanPage() {
                 </tr></tfoot></table>
               </div>
             </div>
+            )
           )}
 
           {activeReport === 'department' && (
+            byDept.length === 0 ? (
+              <HrisEmptyState
+                source={dataSource}
+                title="Belum ada laporan per departemen"
+                description="Rekap gaji per departemen akan muncul setelah data penggajian karyawan tersedia."
+              />
+            ) : (
             <div className="p-6 space-y-6">
               <div className="h-[350px]">
                 <Chart type="bar" height={350} options={{ chart: { id: 'dept-payroll', toolbar: { show: false } }, plotOptions: { bar: { horizontal: true, borderRadius: 4 } }, dataLabels: { enabled: false }, xaxis: { labels: { formatter: (v: number) => fmtShort(v) } }, yaxis: { labels: { style: { fontSize: '11px' } } }, colors: ['#3b82f6', '#10b981'], legend: { position: 'top' }, tooltip: { y: { formatter: (v: number) => fmtCurrency(v) } } }} series={[
@@ -234,9 +250,17 @@ export default function LaporanPage() {
                 </tr></tfoot></table>
               </div>
             </div>
+            )
           )}
 
           {activeReport === 'distribution' && (
+            distribution.length === 0 ? (
+              <HrisEmptyState
+                source={dataSource}
+                title="Belum ada distribusi gaji"
+                description="Distribusi rentang gaji akan muncul setelah data gaji karyawan tersedia."
+              />
+            ) : (
             <div className="p-6 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="h-[300px]">
@@ -254,6 +278,7 @@ export default function LaporanPage() {
                 </div>
               </div>
             </div>
+            )
           )}
 
           {activeReport === 'ytd' && (

@@ -18,6 +18,7 @@ OBS_ALERT_WEBHOOK_URL='…' node scripts/probe-humanify-obs-webhook.js
 
 3. Cek channel Discord — harus muncul embed hijau “Webhook probe”.
 4. Cron `*/10` akan kirim embed merah saat error spike (+ email `ops@humanify.id`).
+5. Cron `*/5` health probe → Discord jika FAIL (cooldown 30 mnt) + recovery hijau.
 
 Tanpa webhook: alert tetap lewat **email** saja.
 

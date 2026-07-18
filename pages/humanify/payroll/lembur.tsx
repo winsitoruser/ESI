@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import HrisEmptyState from '@/components/humanify/HrisEmptyState';
 import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import {
   Clock, Users, DollarSign, CheckCircle, AlertCircle, Search, ArrowLeft,
@@ -224,6 +225,13 @@ export default function LemburPage() {
               {Object.entries(STATUS_MAP).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
             </select>
           </div>
+          {records.length === 0 ? (
+            <HrisEmptyState
+              source={dataSource}
+              title="Belum ada pengajuan lembur"
+              description="Pengajuan lembur akan muncul di sini setelah karyawan mengajukan atau Anda menambahkannya."
+            />
+          ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50"><tr>
@@ -266,6 +274,7 @@ export default function LemburPage() {
               </tr></tfoot>
             </table>
           </div>
+          )}
         </div>
       </div>
 

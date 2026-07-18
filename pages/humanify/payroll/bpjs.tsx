@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import HrisEmptyState from '@/components/humanify/HrisEmptyState';
 import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import {
   Shield, Users, DollarSign, CheckCircle, AlertCircle, Search, ArrowLeft,
@@ -168,6 +169,13 @@ export default function BPJSPage() {
               <div className="p-4 flex flex-wrap gap-3 border-b">
                 <div className="relative flex-1 min-w-[200px]"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" /><input type="text" placeholder="Cari karyawan..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm" /></div>
               </div>
+              {items.length === 0 ? (
+                <HrisEmptyState
+                  source={dataSource}
+                  title="Belum ada data BPJS Kesehatan"
+                  description="Data iuran BPJS Kesehatan akan muncul setelah konfigurasi gaji karyawan selesai."
+                />
+              ) : (
               <div className="overflow-x-auto">
                 <table className="w-full"><thead className="bg-gray-50"><tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Karyawan</th>
@@ -199,6 +207,7 @@ export default function BPJSPage() {
                   <td></td>
                 </tr></tfoot></table>
               </div>
+              )}
             </div>
           )}
 
@@ -207,6 +216,13 @@ export default function BPJSPage() {
               <div className="p-4 flex flex-wrap gap-3 border-b">
                 <div className="relative flex-1 min-w-[200px]"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" /><input type="text" placeholder="Cari karyawan..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm" /></div>
               </div>
+              {items.length === 0 ? (
+                <HrisEmptyState
+                  source={dataSource}
+                  title="Belum ada data BPJS Ketenagakerjaan"
+                  description="Data iuran JHT, JP, JKK, dan JKM akan muncul setelah konfigurasi gaji karyawan selesai."
+                />
+              ) : (
               <div className="overflow-x-auto">
                 <table className="w-full"><thead className="bg-gray-50"><tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Karyawan</th>
@@ -243,6 +259,7 @@ export default function BPJSPage() {
                   <td className="px-4 py-3 text-right">{fmtCurrency(totals.total_e + totals.total_c)}</td>
                 </tr></tfoot></table>
               </div>
+              )}
             </div>
           )}
 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import HrisEmptyState from '@/components/humanify/HrisEmptyState';
 import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import {
   FileText, Users, DollarSign, Calculator, CheckCircle, AlertCircle,
@@ -172,6 +173,13 @@ export default function PPh21Page() {
               <div className="p-4 flex flex-wrap gap-3 border-b">
                 <div className="relative flex-1 min-w-[200px]"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" /><input type="text" placeholder="Cari karyawan..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm" /></div>
               </div>
+              {!loading && items.length === 0 ? (
+                <HrisEmptyState
+                  source={dataSource}
+                  title="Belum ada data PPh 21"
+                  description="Rekap pajak penghasilan akan muncul setelah konfigurasi gaji dan status PTKP karyawan selesai."
+                />
+              ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50"><tr>
@@ -209,6 +217,7 @@ export default function PPh21Page() {
                   </tr></tfoot>
                 </table>
               </div>
+              )}
             </div>
           )}
 

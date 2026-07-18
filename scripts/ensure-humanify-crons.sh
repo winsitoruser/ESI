@@ -14,7 +14,14 @@ ensure_line() {
   local cmd="$3"
   local full="${schedule} cd ${APP_DIR} && ${cmd} # ${MARKER}:${tag}"
   if crontab -l 2>/dev/null | grep -Fq "${MARKER}:${tag}"; then
-    echo "  ✓ cron ${tag} already installed"
+    # Replace existing line for this tag (keeps schedule/cmd updates idempotent)
+    local tmp
+    tmp="$(mktemp)"
+    crontab -l 2>/dev/null | grep -Fv "${MARKER}:${tag}" > "$tmp" || true
+    echo "$full" >> "$tmp"
+    crontab "$tmp"
+    rm -f "$tmp"
+    echo "  ✓ cron ${tag} refreshed"
   else
     (crontab -l 2>/dev/null || true; echo "$full") | crontab -
     echo "  + cron ${tag} added"
@@ -31,11 +38,11 @@ ensure_line "purge" "0 21 * * *" \
 ensure_line "hard-delete" "30 22 * * 0" \
   "HARD_DELETE_CONFIRM=true node scripts/hard-delete-purged-tenants.js >> ${LOG_DIR}/humanify-hard-delete.log 2>&1"
 
-# Lightweight external health probe log (curl fail → append FAIL line)
+# Health probe → Discord on FAIL (cooldown 30m); also append log
 ensure_line "health" "*/5 * * * *" \
-  "curl -fsS -m 10 '${HEALTH_URL}' -o /dev/null >> ${LOG_DIR}/humanify-health.log 2>&1 || echo \"\$(date -Iseconds) health FAIL\" >> ${LOG_DIR}/humanify-health.log"
+  "HEALTH_URL='${HEALTH_URL}' node scripts/check-humanify-health-alert.js >> ${LOG_DIR}/humanify-health.log 2>&1 || true"
 
-# Internal observability alert (error spike → webhook/email)
+# Internal observability alert (error spike → Discord/email)
 ensure_line "obs-alert" "*/10 * * * *" \
   "node scripts/check-humanify-obs-alerts.js >> ${LOG_DIR}/humanify-obs-alert.log 2>&1"
 
