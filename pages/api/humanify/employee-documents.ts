@@ -69,6 +69,13 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     return res.json({ success: true, data: { documents, completeness: computeDocumentCompleteness(documents) } });
   }
 
+  if (req.method === 'GET' && action === 'compliance-summary') {
+    if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT', code: 'NO_TENANT' });
+    const { getTenantDocumentComplianceSummary } = await import('@/lib/hris/document-compliance-summary');
+    const data = await getTenantDocumentComplianceSummary(sequelize, String(tenantId));
+    return res.json({ success: true, data });
+  }
+
   if (req.method === 'GET' && action === 'download') {
     return handleDownload(req, res, tenantId);
   }

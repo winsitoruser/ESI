@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useSession } from 'next-auth/react';
-import { KeyRound, Loader2, ShieldCheck, Info } from 'lucide-react';
+import { KeyRound, Loader2, ShieldCheck, Info, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import HumanifyLayout from '@/components/humanify/HumanifyLayout';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
@@ -68,7 +68,8 @@ export default function HumanifySsoPage() {
       setForm((f) => ({ ...f, cert: '' }));
       toast.success(j.message || 'Konfigurasi tersimpan');
     } catch (e: any) {
-      toast.error(e.message || 'Gagal menyimpan');
+      const { formatApiErrorToast } = await import('@/lib/humanify/api-error');
+      toast.error(formatApiErrorToast({ error: e.message }).message || 'Gagal menyimpan');
     } finally {
       setSaving(false);
     }
@@ -84,7 +85,8 @@ export default function HumanifySsoPage() {
       setForm((f) => ({ ...f, enabled: false }));
       toast.success(j.message || 'SSO dinonaktifkan');
     } catch (e: any) {
-      toast.error(e.message || 'Gagal');
+      const { formatApiErrorToast } = await import('@/lib/humanify/api-error');
+      toast.error(formatApiErrorToast({ error: e.message }).message || 'Gagal');
     } finally {
       setSaving(false);
     }
@@ -168,6 +170,24 @@ export default function HumanifySsoPage() {
                 </div>
               ))}
             </div>
+            {sp?.metadataUrl && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                <a
+                  href={sp.metadataUrl}
+                  download="humanify-sp-metadata.xml"
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-violet-600 text-white text-sm font-medium hover:bg-violet-700"
+                >
+                  <Download className="w-4 h-4" /> Unduh SP metadata (XML)
+                </a>
+                <button
+                  type="button"
+                  onClick={() => copy(String(sp.metadataUrl))}
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-700 hover:bg-slate-50"
+                >
+                  Salin URL metadata
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">

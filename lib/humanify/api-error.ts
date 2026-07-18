@@ -54,3 +54,28 @@ export function withSupportHint(message: string, requestId?: string | null): str
   if (!requestId) return message;
   return `${message} · ref ${requestId}`;
 }
+
+/** Platform observability UI (internal). */
+export function observabilityDeepLink(requestId?: string | null): string {
+  const base = '/platform/observability';
+  if (!requestId) return base;
+  return `${base}?ref=${encodeURIComponent(String(requestId))}`;
+}
+
+/**
+ * Full toast message + optional observability path for support.
+ * Use: toast.error(formatApiErrorToast(json).message)
+ */
+export function formatApiErrorToast(
+  json: HumanifyApiErrorBody | null | undefined,
+  fallback = 'Terjadi kesalahan',
+): { message: string; obsUrl: string; requestId?: string } {
+  const requestId = json?.requestId ? String(json.requestId) : undefined;
+  const base = mapApiJsonError(json, fallback);
+  const message = withSupportHint(base, requestId);
+  return {
+    message,
+    obsUrl: observabilityDeepLink(requestId),
+    requestId,
+  };
+}

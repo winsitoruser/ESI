@@ -1,6 +1,18 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-12** · payslip employee email · Privy webhook · perf FK · inbox snooze
+> Diperbarui: 19 Juli 2026 — **Wave-13** · doc compliance · SSO metadata download · obs error link · mock audit
+
+## Wave-13 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w13-1 | Widget kelengkapan dokumen di `/humanify` + compliance-summary API | Done |
+| w13-2 | Unduh SP metadata XML di `/humanify/sso` | Done |
+| w13-3 | `formatApiErrorToast` + observability deep-link | Done |
+| w13-4 | `smoke:mock-audit` — USE_MOCK_UI harus lewat data-source | Done |
+| w13-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:mock-audit` · `npm run smoke:api-error`
 
 ## Wave-12 (19 Jul 2026)
 

@@ -340,6 +340,12 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       }
     } catch { /* snooze optional */ }
 
+    let documentCompliance = null;
+    try {
+      const { getTenantDocumentComplianceSummary } = await import('@/lib/hris/document-compliance-summary');
+      documentCompliance = await getTenantDocumentComplianceSummary(sequelize, String(tenantId));
+    } catch { /* optional */ }
+
     return res.status(200).json({
       success: true,
       dataSource: resolveDataSource(stats.total > 0, false),
@@ -369,6 +375,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           attendance: visibleApprovals.filter((p) => p.type === 'attendance').length,
         },
       },
+      documentCompliance,
       recentActivities: activities,
       upcoming,
       period,

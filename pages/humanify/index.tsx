@@ -172,6 +172,15 @@ export default function HRISDashboard() {
   const [upcoming, setUpcoming] = useState<any[]>(USE_MOCK_UI ? MOCK_UPCOMING : []);
   const [dataSource, setDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
   const [pendingSummary, setPendingSummary] = useState<{ total: number; overdue: number }>({ total: 0, overdue: 0 });
+  const [docCompliance, setDocCompliance] = useState<{
+    activeEmployees: number;
+    complete: number;
+    incomplete: number;
+    avgPercent: number;
+    expiredDocs: number;
+    expiringSoonDocs: number;
+    topMissing: { type: string; label: string; count: number }[];
+  } | null>(null);
   const [expandedCat, setExpandedCat] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<string>('');
@@ -191,6 +200,7 @@ export default function HRISDashboard() {
         if (dash.success) {
           if (dash.dataSource) setDataSource(dash.dataSource);
           if (dash.pendingSummary) setPendingSummary({ total: dash.pendingSummary.total, overdue: dash.pendingSummary.overdue || 0 });
+          if (dash.documentCompliance) setDocCompliance(dash.documentCompliance);
           if (dash.stats) setStats(dash.stats);
           if (dash.deptStats?.length) setDeptStats(dash.deptStats);
           if (dash.pendingApprovals) setPendingApprovals(dash.pendingApprovals);
@@ -513,6 +523,44 @@ export default function HRISDashboard() {
             </Link>
           ))}
         </div>
+
+        {docCompliance && docCompliance.activeEmployees > 0 && (
+          <div className="rounded-2xl border border-violet-100 bg-gradient-to-br from-white via-white to-amber-50/40 shadow-sm p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+              <div>
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                  <FolderOpen className="w-4 h-4 text-amber-600" /> Kelengkapan dokumen
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Rata-rata {docCompliance.avgPercent}% · {docCompliance.complete}/{docCompliance.activeEmployees} karyawan lengkap
+                </p>
+              </div>
+              <Link href="/humanify/employees" className="text-xs text-violet-600 hover:underline flex items-center gap-1">
+                Buka karyawan <ArrowRight className="w-3 h-3" />
+              </Link>
+            </div>
+            <div className="h-2 bg-slate-100 rounded-full overflow-hidden mb-3">
+              <div
+                className={`h-full rounded-full ${docCompliance.avgPercent >= 80 ? 'bg-emerald-500' : docCompliance.avgPercent >= 50 ? 'bg-amber-500' : 'bg-rose-500'}`}
+                style={{ width: `${Math.min(100, docCompliance.avgPercent)}%` }}
+              />
+            </div>
+            <div className="flex flex-wrap gap-3 text-xs text-slate-600">
+              <span className="px-2 py-1 rounded-lg bg-rose-50 text-rose-700">{docCompliance.incomplete} belum lengkap</span>
+              {docCompliance.expiredDocs > 0 && (
+                <span className="px-2 py-1 rounded-lg bg-red-50 text-red-700">{docCompliance.expiredDocs} file kedaluwarsa</span>
+              )}
+              {docCompliance.expiringSoonDocs > 0 && (
+                <span className="px-2 py-1 rounded-lg bg-amber-50 text-amber-800">{docCompliance.expiringSoonDocs} ≤30 hari</span>
+              )}
+              {docCompliance.topMissing?.slice(0, 3).map((m) => (
+                <span key={m.type} className="px-2 py-1 rounded-lg bg-slate-50 text-slate-600">
+                  Minus {m.label.split('(')[0].trim()}: {m.count}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── TWO COLUMN: PENDING APPROVALS + RECENT ACTIVITIES ── */}
         <div className="grid lg:grid-cols-2 gap-6">
