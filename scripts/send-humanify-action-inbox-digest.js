@@ -84,7 +84,7 @@ async function main() {
   });
   await sequelize.authenticate();
 
-  # Prefer tenants that already have pending leave / named demo seeds
+  // Prefer tenants that already have pending leave / named demo seeds
   const [tenants] = await sequelize.query(`
     SELECT t.id, t.name, t.slug, t.contact_email,
       (SELECT COUNT(*)::int FROM leave_requests lr WHERE lr.tenant_id = t.id AND lr.status = 'pending') AS pending_leave
