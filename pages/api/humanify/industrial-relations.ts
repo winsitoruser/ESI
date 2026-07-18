@@ -343,7 +343,8 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
   switch (action) {
     case 'regulation': {
       if (!CompanyRegulation) return res.json({ success: true, data: body, message: 'Created (mock)' });
-      const reg = await CompanyRegulation.create(body);
+      const tenantId = tenantIdFromSession(session);
+      const reg = await CompanyRegulation.create({ ...body, tenantId: body.tenantId || tenantId });
       await logAudit(session, 'create', 'company_regulation', reg.id, null, body);
       return res.json({ success: true, data: reg });
     }
