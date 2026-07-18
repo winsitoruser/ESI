@@ -1,6 +1,16 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-7** · safeQuery helper · error map · payslip view audit · GA freeze
+> Diperbarui: 19 Juli 2026 — **Wave-8** · CI unit gate · feature matrix · digest escalate · payroll snapshot
+
+## Wave-8 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w8-1 | CI `humanify-saas-gate` unit smokes wajib (no network) | Done |
+| w8-2 | Matriks fitur paket di `/humanify/billing` | Done |
+| w8-3 | Action digest escalate CC manajer (cuti ≥3) | Done |
+| w8-4 | Payroll approve → calc snapshot di audit | Done |
+| w8-5 | Deploy + verify | Pending |
 
 ## Wave-7 (19 Jul 2026)
 

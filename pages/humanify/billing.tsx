@@ -2,12 +2,18 @@ import { useCallback, useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useSession } from 'next-auth/react';
-import { Check, CreditCard, Loader2, Sparkles, Download, AlertTriangle } from 'lucide-react';
+import { Check, CreditCard, Loader2, Sparkles, Download, AlertTriangle, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import HumanifyLayout from '@/components/humanify/HumanifyLayout';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
 import { generatePDF } from '@/lib/documents';
 import { mapApiJsonError, humanifyErrorMessage } from '@/lib/humanify/api-error';
+import {
+  HUMANIFY_FEATURE_LABELS,
+  HUMANIFY_FEATURE_ORDER,
+  HUMANIFY_PLANS,
+  type HumanifyPlanId,
+} from '@/lib/saas/plan-entitlements';
 
 function formatIdr(n: number) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n || 0);
@@ -336,6 +342,40 @@ export default function HumanifyBillingPage() {
                 </div>
               );
             })}
+          </div>
+
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 overflow-x-auto">
+            <h3 className="font-semibold text-slate-900 mb-1">Matriks fitur paket</h3>
+            <p className="text-sm text-slate-500 mb-4">Perbandingan entitlement — sumber: plan matrix Humanify.</p>
+            <table className="w-full text-sm min-w-[560px]">
+              <thead>
+                <tr className="text-left text-slate-500 border-b">
+                  <th className="py-2 pr-3 font-medium">Fitur</th>
+                  {(['starter', 'growth', 'enterprise'] as HumanifyPlanId[]).map((pid) => (
+                    <th key={pid} className="py-2 px-2 font-medium capitalize text-center">{HUMANIFY_PLANS[pid].name}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {HUMANIFY_FEATURE_ORDER.map((feat) => (
+                  <tr key={feat} className="border-b border-slate-100">
+                    <td className="py-2 pr-3 text-slate-700">{HUMANIFY_FEATURE_LABELS[feat]}</td>
+                    {(['starter', 'growth', 'enterprise'] as HumanifyPlanId[]).map((pid) => {
+                      const on = HUMANIFY_PLANS[pid].features.includes(feat);
+                      return (
+                        <td key={pid} className="py-2 px-2 text-center">
+                          {on ? (
+                            <Check className="w-4 h-4 text-emerald-500 inline-block" />
+                          ) : (
+                            <X className="w-4 h-4 text-slate-300 inline-block" />
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
 
           {(current?.orders || []).length > 0 && (

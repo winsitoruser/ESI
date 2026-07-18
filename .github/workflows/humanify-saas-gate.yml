@@ -75,6 +75,17 @@ jobs:
           test -f components/humanify/HrisEmptyState.tsx
           echo "✓ Required SaaS files present (P2 LMS/obs/CI)"
 
+      - name: Unit smokes (no network — always required)
+        run: |
+          npm run smoke:api-error
+          npm run smoke:sidebar-persona
+          npm run smoke:payroll-fiscal
+          test -f lib/saas/tenant-request-bound.ts
+          test -f lib/hris/policy-ack.ts
+          test -f lib/saas/billing-webhook-idempotency.ts
+          test -f docs/humanify-ga-scope.md
+          echo "✓ Unit smokes + Wave artifacts present"
+
       - name: Install Playwright Chromium (for optional prod smoke)
         if: ${{ secrets.SMOKE_BASE_URL != '' }}
         run: npx playwright install --with-deps chromium

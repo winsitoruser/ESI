@@ -796,7 +796,27 @@ async function approvePayroll(req: NextApiRequest, res: NextApiResponse, session
     if ((meta as any)?.rowCount === 0) return res.status(404).json({ success: false, error: 'Payroll run not found' });
 
     try {
-      const { logPayrollAudit } = await import('@/lib/hris/payroll-audit');
+      const { logPayrollAudit, FISCAL_ENGINE } = await import('@/lib/hris/payroll-audit');
+      let snapshot: Record<string, unknown> = { status: 'approved' };
+      try {
+        const [agg] = await sequelize.query(
+          `SELECT COUNT(*)::int AS items,
+                  COALESCE(SUM(gross_salary),0)::float AS gross_total,
+                  COALESCE(SUM(net_salary),0)::float AS net_total,
+                  COALESCE(SUM(tax_amount),0)::float AS tax_total
+           FROM payroll_items WHERE payroll_run_id = :runId`,
+          { replacements: { runId } },
+        );
+        const a = (agg as any[])?.[0] || {};
+        snapshot = {
+          status: 'approved',
+          engineVersion: FISCAL_ENGINE.version,
+          items: a.items || 0,
+          grossTotal: a.gross_total || 0,
+          netTotal: a.net_total || 0,
+          taxTotal: a.tax_total || 0,
+        };
+      } catch { /* columns may vary — keep minimal snapshot */ }
       await logPayrollAudit({
         tenantId,
         runId,
@@ -804,7 +824,7 @@ async function approvePayroll(req: NextApiRequest, res: NextApiResponse, session
         actorId: session.user?.id,
         actorName: session.user?.name,
         actorEmail: session.user?.email,
-        details: { status: 'approved' },
+        details: snapshot,
         db: sequelize,
       });
     } catch { /* audit best-effort */ }

@@ -99,7 +99,7 @@ async function main() {
 
   // Lazy-load email — prefer nodemailer (always available on VPS)
   const nodemailer = require('nodemailer');
-  const sendEmail = async ({ to, subject, html, text }) => {
+  const sendEmail = async ({ to, subject, html, text, cc }) => {
     if (!process.env.SMTP_HOST || !process.env.SMTP_USER) {
       console.warn('SMTP not configured');
       return false;
@@ -112,7 +112,11 @@ async function main() {
     });
     await transporter.sendMail({
       from: `"${process.env.SMTP_FROM_NAME || 'Humanify'}" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
-      to, subject, html, text,
+      to,
+      ...(cc ? { cc } : {}),
+      subject,
+      html,
+      text,
     });
     return true;
   };
@@ -129,6 +133,29 @@ async function main() {
       console.log(`  · ${t.slug || t.name}: no DIGEST_TO/contact_email — skip`);
       continue;
     }
+
+    // Escalate: CC managers when leave backlog is material (HRM-2)
+    let ccList = [];
+    if (counts.leave >= 3) {
+      try {
+        const [mgrs] = await sequelize.query(
+          `SELECT DISTINCT u.email FROM users u
+           WHERE u.tenant_id = :tid
+             AND LOWER(COALESCE(u.role,'')) IN ('manager','branch_manager','hq_admin','owner')
+             AND COALESCE(u.is_active, true) = true
+             AND u.email IS NOT NULL AND u.email <> ''
+           LIMIT 8`,
+          { replacements: { tid: t.id } },
+        );
+        ccList = (mgrs || [])
+          .map((m) => String(m.email || '').toLowerCase())
+          .filter((e) => e && e !== String(to).toLowerCase());
+      } catch { /* optional */ }
+    }
+
+    const escalateNote = ccList.length
+      ? `<p style="color:#b45309;font-size:13px;">Escalation: cuti pending ≥3 — CC manajer/admin (${ccList.length}).</p>`
+      : '';
     const subject = `[Humanify] Digest mingguan — ${counts.total} aksi untuk ${t.name}`;
     const inboxUrl = `${BASE}/humanify`;
     const html = `
@@ -141,15 +168,22 @@ async function main() {
           <li>Dokumen belum lengkap: <strong>${counts.documents}</strong></li>
           <li>Absensi hari ini: <strong>${counts.attendance}</strong></li>
         </ul>
+        ${escalateNote}
         <p><a href="${inboxUrl}" style="display:inline-block;padding:10px 16px;background:#7c3aed;color:#fff;border-radius:8px;text-decoration:none;">Buka Action Inbox</a></p>
       </div>`;
     const text = `${subject}\nCuti:${counts.leave} Kontrak:${counts.contract} Docs:${counts.documents} Absen:${counts.attendance}\n${inboxUrl}`;
 
     if (DRY_RUN) {
-      console.log(`  [dry-run] → ${to} | ${subject}`);
+      console.log(`  [dry-run] → ${to}${ccList.length ? ` cc=${ccList.join(',')}` : ''} | ${subject}`);
     } else {
-      const ok = await sendEmail({ to, subject, html, text });
-      console.log(`  ${ok ? '✓' : '✗'} ${t.slug || t.name} → ${to} (total=${counts.total})`);
+      const ok = await sendEmail({
+        to,
+        subject,
+        html,
+        text,
+        ...(ccList.length ? { cc: ccList.join(',') } : {}),
+      });
+      console.log(`  ${ok ? '✓' : '✗'} ${t.slug || t.name} → ${to}${ccList.length ? ` +${ccList.length} cc` : ''} (total=${counts.total})`);
       if (ok) sent++;
     }
   }

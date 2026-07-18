@@ -141,6 +141,24 @@ export function planHasFeature(plan: string | null | undefined, feature: Humanif
   return def.features.includes(feature);
 }
 
+export const HUMANIFY_FEATURE_LABELS: Record<HumanifyFeature, string> = {
+  core: 'Karyawan & organisasi',
+  attendance: 'Absensi',
+  payroll: 'Payroll & PPh21',
+  recruitment: 'Rekrutmen',
+  lms: 'LMS / Training',
+  analytics: 'HR Analytics',
+  ai: 'AI Copilot',
+  api: 'API keys',
+  white_label: 'White-label',
+  sso: 'SSO SAML',
+};
+
+/** Display order for customer-facing comparison matrix. */
+export const HUMANIFY_FEATURE_ORDER: HumanifyFeature[] = [
+  'core', 'attendance', 'payroll', 'recruitment', 'analytics', 'lms', 'ai', 'api', 'sso', 'white_label',
+];
+
 export function featureForPath(pathname: string): HumanifyFeature {
   const path = pathname.split('?')[0];
   for (const rule of ROUTE_FEATURE_RULES) {
