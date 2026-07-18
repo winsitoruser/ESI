@@ -80,6 +80,7 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
   const [searchPages, setSearchPages] = useState<{ name: string; href: string }[]>([]);
   const [showSearch, setShowSearch] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [planId, setPlanId] = useState<string | null>(null);
   const [accountAlerts, setAccountAlerts] = useState<AccountAlertUi[]>([]);
   const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([]);
@@ -311,6 +312,21 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
     return () => { clearTimeout(timer); ctrl.abort(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery, isHumanify, filteredConfig]);
+
+  // ⌘K / Ctrl+K — command palette focus (Humanify)
+  useEffect(() => {
+    if (!isHumanify) return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && String(e.key).toLowerCase() === 'k') {
+        e.preventDefault();
+        setShowSearch(true);
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isHumanify]);
 
   const { t, language, setLanguage, currency, setCurrency } = useTranslation();
 
@@ -605,8 +621,9 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
+                  ref={searchInputRef}
                   type="text"
-                  placeholder={t('layout.searchPlaceholder')}
+                  placeholder={isHumanify ? `${t('layout.searchPlaceholder')} (⌘K)` : t('layout.searchPlaceholder')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onFocus={() => setShowSearch(true)}

@@ -1,6 +1,19 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-5** · CSV export · design tokens · security scorecard · backup runbook
+> Diperbarui: 19 Juli 2026 — **Wave-6** · policy ack · ⌘K · billing idempotency · positioning
+
+## Wave-6 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w6-1 | Policy library + ESS acknowledgment (`/api/humanify/policies`) | Done |
+| w6-2 | ⌘K / Ctrl+K command focus di search Humanify | Done |
+| w6-3 | Billing webhook idempotency (`saas_billing_webhook_events`) | Done |
+| w6-4 | Positioning one-pager + blurb di Billing | Done |
+| w6-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:policy-ack` · `npm run smoke:billing-idempotency`  
+Docs: `docs/humanify-positioning.md`
 
 ## Wave-5 (19 Jul 2026)
 
@@ -10,7 +23,7 @@
 | w5-2 | Design tokens `styles/humanify-tokens.css` + `.humanify-theme` di HQLayout | Done |
 | w5-3 | Weekly IDOR scorecard → Discord (`security:scorecard` + cron) | Done |
 | w5-4 | `docs/humanify-backup-restore-runbook.md` (RPO/RTO + drill) | Done |
-| w5-5 | Deploy + verify | Pending |
+| w5-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:employees-export` · `npm run security:scorecard`  
 Docs: `docs/humanify-backup-restore-runbook.md`

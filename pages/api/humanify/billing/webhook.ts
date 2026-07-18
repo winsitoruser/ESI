@@ -8,6 +8,7 @@ import {
   ensureBillingOrdersTable,
   verifyMidtransWebhook,
 } from '@/lib/saas/humanify-billing';
+import { claimBillingWebhookEvent } from '@/lib/saas/billing-webhook-idempotency';
 import { withObservability, logEvent } from '@/lib/observability';
 
 let sequelize: any;
@@ -21,6 +22,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
   try {
     await ensureBillingOrdersTable();
+
     const verified = await verifyMidtransWebhook(req.body || {});
     if (!verified) {
       logEvent({
@@ -30,6 +32,18 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         method: 'POST',
       });
       return res.status(200).json({ success: true, handled: false });
+    }
+
+    const claim = await claimBillingWebhookEvent({ body: req.body || {} });
+    if (claim.duplicate) {
+      logEvent({
+        level: 'info',
+        msg: 'Billing webhook duplicate skipped',
+        route: '/api/humanify/billing/webhook',
+        method: 'POST',
+        context: { key: claim.key },
+      });
+      return res.status(200).json({ success: true, handled: true, duplicate: true });
     }
 
     if (verified.paid) {

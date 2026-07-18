@@ -257,6 +257,18 @@ export default function HumanifyBillingPage() {
             </div>
           </div>
 
+          <div className="rounded-2xl border border-violet-100 bg-violet-50/60 px-5 py-4 text-sm text-slate-700">
+            <p className="font-semibold text-slate-900 mb-1">Kenapa Humanify?</p>
+            <p className="text-slate-600">
+              Multi-tenant SaaS + Action Inbox + payroll fiscal audit + SSO enterprise — bukan HRIS generik saja.
+              Ringkas positioning: lihat{' '}
+              <a className="text-violet-700 font-medium hover:underline" href="/humanify/pricing/roi-calculator">
+                ROI calculator
+              </a>
+              {' '}· docs <code className="text-xs bg-white/80 px-1 rounded">humanify-positioning.md</code>
+            </p>
+          </div>
+
           <div className="flex items-center justify-center gap-2">
             <button
               type="button"

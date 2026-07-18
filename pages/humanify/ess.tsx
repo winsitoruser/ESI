@@ -11,7 +11,7 @@ import {
   UploadCloud, Image, Paperclip, Trash2, Loader2, Smartphone, ExternalLink
 } from 'lucide-react';
 
-type ESSTab = 'overview' | 'profile' | 'leave' | 'claims' | 'documents' | 'reminders';
+type ESSTab = 'overview' | 'profile' | 'leave' | 'claims' | 'documents' | 'reminders' | 'policies';
 
 const EMPTY_WORKFLOW = { claims: { pending: 0, approved: 0, rejected: 0 }, mutations: { pending: 0, approved: 0 } };
 const EMPTY_REMINDER_SUMMARY = { contractExpiring30d: 0, certExpiring30d: 0, activeReminders: 0, overdueReminders: 0 };
@@ -29,6 +29,9 @@ export default function ESSPortalPage() {
   const [workflowSummary, setWorkflowSummary] = useState<any>(EMPTY_WORKFLOW);
   const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [reminderSummary, setReminderSummary] = useState<any>(EMPTY_REMINDER_SUMMARY);
+  const [policyPending, setPolicyPending] = useState<any[]>([]);
+  const [policyAcked, setPolicyAcked] = useState<any[]>([]);
+  const [policyLoading, setPolicyLoading] = useState(false);
 
   // Claim modal
   const [showClaimModal, setShowClaimModal] = useState(false);
@@ -80,6 +83,40 @@ export default function ESSPortalPage() {
       setReminders(rows);
       if (rows.length) setDataSource('live');
     } catch (e) { console.error(e); setReminders([]); }
+  };
+
+  const fetchPolicies = async () => {
+    setPolicyLoading(true);
+    try {
+      const res = await fetch('/api/humanify/policies?action=my');
+      const json = await res.json();
+      setPolicyPending(json.data?.pending || []);
+      setPolicyAcked(json.data?.acknowledged || []);
+      if ((json.data?.pending || []).length || (json.data?.acknowledged || []).length) setDataSource('live');
+    } catch (e) {
+      console.error(e);
+      setPolicyPending([]);
+      setPolicyAcked([]);
+    } finally {
+      setPolicyLoading(false);
+    }
+  };
+
+  const acknowledgePolicy = async (regulationId: string) => {
+    try {
+      const res = await fetch('/api/humanify/policies?action=acknowledge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ regulationId }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        showToast('success', json.message || 'Ditandai sudah dibaca');
+        fetchPolicies();
+      } else showToast('error', json.error || 'Gagal');
+    } catch {
+      showToast('error', 'Gagal acknowledge');
+    }
   };
 
   const fetchClaims = async () => {
@@ -137,6 +174,7 @@ export default function ESSPortalPage() {
 
   useEffect(() => {
     if (mounted && activeTab === 'claims') fetchClaims();
+    if (mounted && activeTab === 'policies') fetchPolicies();
   }, [activeTab]);
 
   const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
@@ -207,6 +245,7 @@ export default function ESSPortalPage() {
               {([
                 { key: 'overview', label: 'Ringkasan', icon: User },
                 { key: 'claims', label: 'Klaim Saya', icon: DollarSign },
+                { key: 'policies', label: 'Kebijakan', icon: Shield },
                 { key: 'reminders', label: 'Pengingat', icon: Bell },
               ] as { key: ESSTab; label: string; icon: any }[]).map(tab => (
                 <button key={tab.key} onClick={() => setActiveTab(tab.key)}
@@ -230,6 +269,7 @@ export default function ESSPortalPage() {
                     {[
                       { label: 'Ajukan Klaim', icon: DollarSign, color: 'bg-emerald-50 text-emerald-600 border-emerald-200', action: () => { setActiveTab('claims'); setShowClaimModal(true); } },
                       { label: 'Portal Karyawan', icon: ExternalLink, color: 'bg-violet-50 text-violet-600 border-violet-200', action: () => window.open('/employee', '_blank') },
+                      { label: 'Kebijakan', icon: Shield, color: 'bg-indigo-50 text-indigo-600 border-indigo-200', action: () => setActiveTab('policies') },
                       { label: 'Pengingat', icon: Bell, color: 'bg-orange-50 text-orange-600 border-orange-200', action: () => setActiveTab('reminders') },
                       { label: 'Reimbursement HR', icon: FileText, color: 'bg-purple-50 text-purple-600 border-purple-200', action: () => window.location.href = '/humanify/reimbursement' },
                     ].map((act, i) => (
@@ -340,6 +380,65 @@ export default function ESSPortalPage() {
                       </tbody>
                     </table>
                   </div>
+                )}
+              </div>
+            )}
+
+            {/* ===== POLICIES ===== */}
+            {activeTab === 'policies' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-gray-800">Tanda terima kebijakan perusahaan</h3>
+                  <button type="button" onClick={fetchPolicies} className="flex items-center gap-1 px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50">
+                    <RefreshCw className="w-3.5 h-3.5" /> Muat ulang
+                  </button>
+                </div>
+                {policyLoading ? (
+                  <p className="text-sm text-gray-400 flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Memuat…</p>
+                ) : (
+                  <>
+                    <div>
+                      <p className="text-xs font-semibold uppercase text-amber-700 mb-2">Menunggu tanda terima ({policyPending.length})</p>
+                      {policyPending.length === 0 ? (
+                        <p className="text-sm text-gray-500">Tidak ada kebijakan pending.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {policyPending.map((p: any) => (
+                            <div key={p.id} className="border rounded-xl p-4 flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                              <div>
+                                <p className="font-medium text-gray-800">{p.title}</p>
+                                <p className="text-xs text-gray-500 mt-0.5">{p.regulation_number || '—'} · {p.category}</p>
+                                {p.description && <p className="text-sm text-gray-600 mt-2 line-clamp-3">{p.description}</p>}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => acknowledgePolicy(p.id)}
+                                className="shrink-0 px-3 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700"
+                              >
+                                Saya sudah baca
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase text-gray-500 mb-2">Sudah ditandai ({policyAcked.length})</p>
+                      {policyAcked.length === 0 ? (
+                        <p className="text-sm text-gray-400">Belum ada.</p>
+                      ) : (
+                        <ul className="space-y-1 text-sm text-gray-600">
+                          {policyAcked.map((p: any) => (
+                            <li key={p.id} className="flex items-center gap-2">
+                              <CheckCircle className="w-4 h-4 text-emerald-500" />
+                              {p.title}
+                              <span className="text-xs text-gray-400">{p.acknowledged_at ? fmtDate(p.acknowledged_at) : ''}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </>
                 )}
               </div>
             )}
