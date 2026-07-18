@@ -230,6 +230,19 @@ async function createPerformanceReview(req: NextApiRequest, res: NextApiResponse
     );
   }
 
+  // Drop invalid reviewer_id to avoid FK failures (BE-2)
+  let safeReviewerId: string | null = null;
+  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (reviewerId && uuidRe.test(String(reviewerId)) && sequelize) {
+    try {
+      const [u] = await sequelize.query(
+        `SELECT id FROM users WHERE id = :id LIMIT 1`,
+        { replacements: { id: reviewerId } },
+      );
+      if (u?.[0]?.id) safeReviewerId = String(u[0].id);
+    } catch { /* no users table / skip */ }
+  }
+
   // Calculate overall rating from categories
   let totalWeight = 0, weightedSum = 0;
   if (categories && categories.length > 0) {
@@ -256,7 +269,7 @@ async function createPerformanceReview(req: NextApiRequest, res: NextApiResponse
           tid, employeeId: resolvedEmployeeId, employeeName, position: position || '',
           department: department || '', branchId: branchId || null, branchName: branchName || '',
           reviewPeriod, reviewType: reviewType || 'quarterly',
-          reviewerId: reviewerId || null, reviewerName: reviewerName || '',
+          reviewerId: safeReviewerId, reviewerName: reviewerName || '',
           overallRating,
           strengths: JSON.stringify(strengths || []),
           areasForImprovement: JSON.stringify(areasForImprovement || []),
@@ -294,6 +307,17 @@ async function createPerformanceReview(req: NextApiRequest, res: NextApiResponse
       );
     } catch (e: any) {
       console.warn('Performance create error:', e.message);
+      const code = e?.parent?.code || e?.original?.code || '';
+      if (code === '23505' || /unique|duplicate/i.test(String(e.message))) {
+        return res.status(HttpStatus.CONFLICT).json(
+          errorResponse('DUPLICATE_REVIEW', 'Evaluasi untuk karyawan & periode ini sudah ada')
+        );
+      }
+      if (code === '23503' || /foreign key|violates foreign/i.test(String(e.message))) {
+        return res.status(HttpStatus.BAD_REQUEST).json(
+          errorResponse('INVALID_REFERENCE', 'Referensi karyawan/reviewer tidak valid — pilih ulang dari daftar')
+        );
+      }
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(
         errorResponse(ErrorCodes.INTERNAL_SERVER_ERROR, 'Failed to create review: ' + e.message)
       );

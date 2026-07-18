@@ -84,12 +84,15 @@ jobs:
           npm run smoke:payslip-gate
           npm run smoke:device-sync-idempotency
           npm run smoke:letter-merge
+          npm run smoke:wave12
           test -f lib/saas/tenant-request-bound.ts
           test -f lib/hris/policy-ack.ts
           test -f lib/saas/billing-webhook-idempotency.ts
           test -f lib/hris/payslip-view-gate.ts
           test -f lib/hris/recruitment-webhook-idempotency.ts
           test -f lib/hris/letter-merge-fields.ts
+          test -f lib/hris/action-inbox-snooze.ts
+          test -f lib/hris/privy-webhook.ts
           test -f docs/humanify-ga-scope.md
           test -f docs/humanify-rls-strict-staging.md
           test -f docs/humanify-doc-retention.md

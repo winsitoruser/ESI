@@ -247,3 +247,29 @@ export function humanifyPayslipReleasedEmail(opts: {
   const text = `${subject}\n${opts.periodLabel}\n${opts.slipUrl}`;
   return { subject, html, text };
 }
+
+/** Per-employee notice when payslip is released/paid (HRS-3). */
+export function humanifyEmployeePayslipEmail(opts: {
+  employeeName: string;
+  periodLabel: string;
+  runCode: string;
+  status: string;
+  slipUrl: string;
+}): { subject: string; html: string; text: string } {
+  const subject = `Slip gaji Anda siap — ${opts.runCode}`;
+  const bodyHtml = `
+    <p style="margin:0 0 12px;">Halo <strong>${escapeHtml(opts.employeeName || 'Karyawan')}</strong>,</p>
+    <p style="margin:0 0 12px;">Slip gaji periode <strong>${escapeHtml(opts.periodLabel || '-')}</strong> sudah <strong>${escapeHtml(opts.status)}</strong> dan siap dilihat.</p>
+    ${emailCallout('Jaga kerahasiaan slip gaji Anda. Jangan bagikan tautan ke pihak yang tidak berwenang.', 'warn')}
+    <p style="margin:0;font-size:13px;color:#6b7280;">Buka portal karyawan atau halaman Slip Gaji Humanify untuk melihat rincian.</p>`;
+  const html = wrapHumanifyEmail({
+    preheader: subject,
+    eyebrow: 'Slip gaji',
+    title: 'Slip gaji Anda tersedia',
+    bodyHtml,
+    cta: { label: 'Lihat slip gaji', href: opts.slipUrl },
+    footerNote: `Run ${opts.runCode}`,
+  });
+  const text = `${subject}\nHalo ${opts.employeeName},\nPeriode: ${opts.periodLabel}\n${opts.slipUrl}`;
+  return { subject, html, text };
+}

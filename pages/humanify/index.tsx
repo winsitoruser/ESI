@@ -386,6 +386,22 @@ export default function HRISDashboard() {
     }
   }
 
+  async function handleSnooze(item: { id: string; type?: string }) {
+    try {
+      const res = await fetch('/api/humanify/action-inbox-snooze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemType: item.type || 'leave', itemId: item.id, hours: 24 }),
+      });
+      const data = await res.json();
+      if (data.success || res.ok) {
+        setPendingApprovals((prev) => prev.filter((p) => p.id !== item.id));
+      }
+    } catch (err) {
+      console.warn('Snooze failed:', err);
+    }
+  }
+
   if (!mounted) {
     return (
       <HQLayout title="Humanify" subtitle={t('hris.subtitle')}>
@@ -533,6 +549,13 @@ export default function HRISDashboard() {
                           <Eye className="w-4 h-4" />
                         </Link>
                       )}
+                      <button
+                        onClick={() => handleSnooze(item)}
+                        className="p-1.5 rounded-lg bg-slate-50 text-slate-500 hover:bg-slate-100 transition-colors"
+                        title="Snooze 24 jam"
+                      >
+                        <Timer className="w-4 h-4" />
+                      </button>
                       {item.actionable !== false && !['contract', 'documents', 'attendance'].includes(item.type) && (
                         <>
                           <button onClick={() => handleApproval(item, 'approved')} className="p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors" title={t('hris.approve')}>

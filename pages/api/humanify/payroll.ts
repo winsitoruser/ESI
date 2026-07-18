@@ -880,22 +880,70 @@ async function updateRunStatus(req: NextApiRequest, res: NextApiResponse, sessio
       });
     } catch { /* audit best-effort */ }
 
-    // Optional branded notice to ops when payslips released/paid
-    if (notifyEmployees && (status === 'paid' || status === 'released')) {
+    // Optional branded notice when payslips released/paid
+    const shouldNotify =
+      notifyEmployees === true ||
+      String(process.env.PAYROLL_NOTIFY_EMPLOYEES || '').toLowerCase() === 'true';
+    if (shouldNotify && (status === 'paid' || status === 'released')) {
       try {
-        const to = process.env.PAYROLL_RELEASE_NOTIFY_EMAIL || process.env.OBS_ALERT_EMAIL;
-        if (to) {
-          const { humanifyPayslipReleasedEmail } = await import('@/lib/email/humanify-mails');
-          const { sendEmail } = await import('@/lib/email/sender');
-          const base = (process.env.NEXTAUTH_URL || 'https://humanify.id').replace(/\/$/, '');
+        const { humanifyPayslipReleasedEmail, humanifyEmployeePayslipEmail } = await import('@/lib/email/humanify-mails');
+        const { sendEmail } = await import('@/lib/email/sender');
+        const base = (process.env.NEXTAUTH_URL || 'https://humanify.id').replace(/\/$/, '');
+        const periodLabel = `${before.period_start || ''} s/d ${before.period_end || ''}`;
+        const slipUrl = `${base}/employee`;
+        const opsSlipUrl = `${base}/humanify/payroll/slip-gaji`;
+
+        // Ops / payroll alias
+        const opsTo = process.env.PAYROLL_RELEASE_NOTIFY_EMAIL || process.env.OBS_ALERT_EMAIL;
+        if (opsTo) {
           const mail = humanifyPayslipReleasedEmail({
-            periodLabel: `${before.period_start || ''} s/d ${before.period_end || ''}`,
+            periodLabel,
             runCode: before.run_code || runId,
             status,
-            slipUrl: `${base}/humanify/payroll/slip-gaji`,
+            slipUrl: opsSlipUrl,
           });
-          await sendEmail({ to, subject: mail.subject, html: mail.html, text: mail.text });
+          await sendEmail({ to: opsTo, subject: mail.subject, html: mail.html, text: mail.text });
         }
+
+        // Employees on this run (cap 200)
+        const [emps] = await sequelize.query(
+          `SELECT DISTINCT e.email AS email, COALESCE(e.name, pi.employee_name) AS name
+           FROM payroll_items pi
+           LEFT JOIN employees e ON pi.employee_id::text = e.id::text
+           WHERE pi.payroll_run_id = :runId
+             AND e.email IS NOT NULL AND e.email <> ''
+           LIMIT 200`,
+          { replacements: { runId } },
+        );
+        let sent = 0;
+        for (const row of emps || []) {
+          const to = String(row.email || '').trim();
+          if (!to || !to.includes('@')) continue;
+          const mail = humanifyEmployeePayslipEmail({
+            employeeName: row.name || 'Karyawan',
+            periodLabel,
+            runCode: before.run_code || runId,
+            status,
+            slipUrl,
+          });
+          try {
+            await sendEmail({ to, subject: mail.subject, html: mail.html, text: mail.text });
+            sent++;
+          } catch { /* per-recipient best-effort */ }
+        }
+        try {
+          const { logPayrollAudit } = await import('@/lib/hris/payroll-audit');
+          await logPayrollAudit({
+            tenantId,
+            runId,
+            eventType: 'status_change',
+            actorId: session.user?.id,
+            actorName: session.user?.name,
+            actorEmail: session.user?.email,
+            details: { notify: true, employeeEmailsSent: sent, status },
+            db: sequelize,
+          });
+        } catch { /* */ }
       } catch { /* email best-effort */ }
     }
 

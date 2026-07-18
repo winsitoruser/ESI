@@ -328,6 +328,18 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       },
     ].slice(0, 6);
 
+    // Filter snoozed inbox items
+    let visibleApprovals = pendingApprovals;
+    try {
+      const { listActiveSnoozeKeys, inboxItemKey } = await import('@/lib/hris/action-inbox-snooze');
+      const snoozed = await listActiveSnoozeKeys({ tenantId: String(tenantId), db: sequelize });
+      if (snoozed.size) {
+        visibleApprovals = pendingApprovals.filter(
+          (p) => !snoozed.has(inboxItemKey(p.type || 'item', p.id)),
+        );
+      }
+    } catch { /* snooze optional */ }
+
     return res.status(200).json({
       success: true,
       dataSource: resolveDataSource(stats.total > 0, false),
@@ -342,19 +354,19 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         attendanceToday,
       },
       deptStats,
-      pendingApprovals: pendingApprovals.slice(0, 16),
+      pendingApprovals: visibleApprovals.slice(0, 16),
       pendingSummary: {
-        total: pendingApprovals.length,
+        total: visibleApprovals.length,
         overdue: overdueCount,
         byType: {
-          leave: pendingApprovals.filter((p) => p.type === 'leave').length,
-          overtime: pendingApprovals.filter((p) => p.type === 'overtime').length,
-          claim: pendingApprovals.filter((p) => p.type === 'claim').length,
-          travel: pendingApprovals.filter((p) => p.type === 'travel').length,
-          mutation: pendingApprovals.filter((p) => p.type === 'mutation').length,
-          contract: pendingApprovals.filter((p) => p.type === 'contract').length,
-          documents: pendingApprovals.filter((p) => p.type === 'documents').length,
-          attendance: pendingApprovals.filter((p) => p.type === 'attendance').length,
+          leave: visibleApprovals.filter((p) => p.type === 'leave').length,
+          overtime: visibleApprovals.filter((p) => p.type === 'overtime').length,
+          claim: visibleApprovals.filter((p) => p.type === 'claim').length,
+          travel: visibleApprovals.filter((p) => p.type === 'travel').length,
+          mutation: visibleApprovals.filter((p) => p.type === 'mutation').length,
+          contract: visibleApprovals.filter((p) => p.type === 'contract').length,
+          documents: visibleApprovals.filter((p) => p.type === 'documents').length,
+          attendance: visibleApprovals.filter((p) => p.type === 'attendance').length,
         },
       },
       recentActivities: activities,

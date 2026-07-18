@@ -1,6 +1,19 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-11** · doc-expiry digest · letter merge fields · e-sign GA · docs upload E2E
+> Diperbarui: 19 Juli 2026 — **Wave-12** · payslip employee email · Privy webhook · perf FK · inbox snooze
+
+## Wave-12 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w12-1 | Email slip ke karyawan saat release/paid (+ ops) | Done |
+| w12-2 | Privy webhook `/api/humanify/webhooks/privy` + idempotency | Done |
+| w12-3 | Performance review create FK/unique → 4xx jelas | Done |
+| w12-4 | Action Inbox snooze 24 jam (persist DB) | Done |
+| w12-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:wave12`  
+Env: `PAYROLL_NOTIFY_EMPLOYEES=true`, `PRIVY_WEBHOOK_SECRET=…`
 
 ## Wave-11 (19 Jul 2026)
 

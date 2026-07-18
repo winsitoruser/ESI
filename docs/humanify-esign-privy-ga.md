@@ -49,4 +49,14 @@ Preview digabung di `GET /api/humanify/disciplinary-letters?action=letter-data&i
 
 - Belum ada UI template editor visual (pakai draft existing).  
 - PDF generate tetap lewat `DocumentExportButton` / lib documents.  
-- Privy webhook callback status sync — kandidat wave berikutnya.
+
+## Webhook Privy (Wave-12)
+
+```
+POST https://humanify.id/api/humanify/webhooks/privy
+Headers: x-webhook-secret: <PRIVY_WEBHOOK_SECRET>   # opsional jika unset = open
+         Idempotency-Key: <unique>
+Body: { "doc_token": "...", "status": "completed", "signer_email": "a@b.com" }
+```
+
+Status dipetakan ke `hris_esign_documents.status`. Duplikat event diabaikan (idempotent).
