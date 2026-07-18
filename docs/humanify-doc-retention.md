@@ -29,8 +29,19 @@ Output: ringkasan jumlah expired / soon-expire, lalu daftar sample (max 50 baris
 ## Yang belum otomatis
 
 - **Hard-delete file** dari disk/S3 — sengaja manual (hindari kehilangan bukti).
-- **Email reminder** kedaluwarsa — kandidat Wave berikutnya (`digest:doc-expiry`).
 - **Strict purge** pasca offboarding — ikuti `tenant-offboarding` retention.
+
+## Digest email (Wave-11)
+
+```bash
+# Dry-run
+DRY_RUN=true DIGEST_TO=ops@example.com npm run digest:doc-expiry
+
+# Live (SMTP + DIGEST_TO / tenant contact_email)
+npm run digest:doc-expiry
+```
+
+Cron VPS (via `ensure-humanify-crons.sh`): Senin 01:30 UTC — `doc-expiry-digest`.
 
 ## Cron contoh (VPS)
 

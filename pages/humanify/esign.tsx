@@ -82,6 +82,11 @@ export default function ESignPage() {
                   </span>
                 )}
               </p>
+              <p className="text-xs text-gray-400 mt-1">
+                Template teks mendukung merge fields{' '}
+                <code className="bg-gray-100 px-1 rounded">{'{{employee_name}}'}</code>
+                {' '}· GA path: docs/humanify-esign-privy-ga.md
+              </p>
             </div>
             <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700">
               <Plus className="w-4 h-4" /> Buat Dokumen

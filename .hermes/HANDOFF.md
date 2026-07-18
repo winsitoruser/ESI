@@ -1,6 +1,18 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-10** · payslip password gate · recruitment idempotency · doc expiry report
+> Diperbarui: 19 Juli 2026 — **Wave-11** · doc-expiry digest · letter merge fields · e-sign GA · docs upload E2E
+
+## Wave-11 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w11-1 | Digest email kedaluwarsa dokumen + cron | Done |
+| w11-2 | Merge fields surat HR + `docs/humanify-esign-privy-ga.md` | Done |
+| w11-3 | Playwright soft upload/esign/slip (`e2e/humanify-docs-upload-ui.spec.ts`) | Done |
+| w11-4 | letter-data API → `mergedTexts` + CI smoke | Done |
+| w11-5 | Deploy + verify | Pending |
+
+Scripts: `npm run digest:doc-expiry` · `npm run smoke:letter-merge` · `npm run test:e2e:humanify:docs-upload:prod`
 
 ## Wave-10 (19 Jul 2026)
 

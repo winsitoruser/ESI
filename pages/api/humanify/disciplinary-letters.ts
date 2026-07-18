@@ -316,11 +316,33 @@ async function getLetterData(req: NextApiRequest, res: NextApiResponse) {
   const dc = parseDraftContent(letter.draft_content);
   if (dc.body) letterData.body = dc.body;
   if (dc.closing) letterData.closing = dc.closing;
+
+  const { buildMergeContext, mergeLetterTexts, LETTER_MERGE_FIELDS } = await import('@/lib/hris/letter-merge-fields');
+  const mergeContext = buildMergeContext({
+    letterData: letterData as Record<string, unknown>,
+    meta: {
+      documentNumber: letter.letter_number || letter.reference_number,
+      documentDate: letter.effective_date || letter.incident_date || new Date().toISOString().split('T')[0],
+    },
+  });
+  const mergedTexts = mergeLetterTexts(
+    {
+      body: letterData.body as string | undefined,
+      closing: letterData.closing as string | undefined,
+      subject: (dc as any).subject || letterData.subject,
+      salutation: (dc as any).salutation || letterData.salutation,
+    },
+    mergeContext,
+  );
+
   return res.json({
     success: true,
     data: {
       letterData,
       draftContent: dc,
+      mergeContext,
+      mergedTexts,
+      mergeFields: LETTER_MERGE_FIELDS,
       meta: {
         documentNumber: letter.letter_number || letter.reference_number,
         documentDate: letter.effective_date || letter.incident_date || new Date().toISOString().split('T')[0],
