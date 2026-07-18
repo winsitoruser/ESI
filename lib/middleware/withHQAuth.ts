@@ -159,14 +159,12 @@ export function withHQAuth(
 
       let requestBound = false;
       try {
-        const { isTenantRequestBoundEnabled, tenantRequestAls } = require('../saas/tenant-request-bound');
+        const { isTenantRequestBoundEnabled } = require('../saas/tenant-request-bound');
         requestBound = isTenantRequestBoundEnabled();
         if (requestBound) {
           usedRequestBound = true;
           const sequelize = require('../sequelize');
-          return await tenantRequestAls.run({ bound: true }, () =>
-            sequelize.transaction(async () => runAuthed()),
-          );
+          return await sequelize.transaction(async () => runAuthed());
         }
       } catch {
         /* fall through to unbound */
