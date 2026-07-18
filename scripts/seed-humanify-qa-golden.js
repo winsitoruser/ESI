@@ -187,10 +187,11 @@ async function run() {
   console.log(`🌱 Seeding QA golden tenant (${SLUG})...\n`);
 
   const tenant = await ensureTenant();
+  const mailDomain = `${SLUG.replace(/[^a-z0-9-]/gi, '')}.humanify.test`;
   const employees = [
-    { name: 'QA Golden Manager', email: 'manager.qa-golden@humanify.test', position: 'HR Manager', department: 'HR', code: 'QG-001' },
-    { name: 'QA Golden Staff', email: 'staff.qa-golden@humanify.test', position: 'Staff', department: 'Operations', code: 'QG-002' },
-    { name: 'QA Golden Analyst', email: 'analyst.qa-golden@humanify.test', position: 'Analyst', department: 'Finance', code: 'QG-003' },
+    { name: `${COMPANY} Manager`, email: `manager@${mailDomain}`, position: 'HR Manager', department: 'HR', code: '001' },
+    { name: `${COMPANY} Staff`, email: `staff@${mailDomain}`, position: 'Staff', department: 'Operations', code: '002' },
+    { name: `${COMPANY} Analyst`, email: `analyst@${mailDomain}`, position: 'Analyst', department: 'Finance', code: '003' },
   ];
 
   const ids = [];
