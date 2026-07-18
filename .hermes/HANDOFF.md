@@ -10,7 +10,7 @@
 | w12-2 | Privy webhook `/api/humanify/webhooks/privy` + idempotency | Done |
 | w12-3 | Performance review create FK/unique → 4xx jelas | Done |
 | w12-4 | Action Inbox snooze 24 jam (persist DB) | Done |
-| w12-5 | Deploy + verify | Pending |
+| w12-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave12`  
 Env: `PAYROLL_NOTIFY_EMPLOYEES=true`, `PRIVY_WEBHOOK_SECRET=…`
