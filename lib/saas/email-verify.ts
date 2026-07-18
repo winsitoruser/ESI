@@ -68,15 +68,13 @@ export async function createEmailVerification(opts: {
   if (process.env.SMTP_USER && process.env.SMTP_PASSWORD) {
     try {
       const { sendEmail } = await import('../email/sender');
+      const { humanifyVerifyEmail } = await import('../email/humanify-mails');
+      const mail = humanifyVerifyEmail({ verifyUrl });
       emailed = await sendEmail({
         to: opts.email,
-        subject: 'Verifikasi email Humanify',
-        html: `
-          <p>Selamat datang di Humanify.</p>
-          <p><a href="${verifyUrl}">Klik di sini untuk verifikasi email</a></p>
-          <p>Link berlaku 48 jam.</p>
-        `,
-        text: `Verifikasi email Humanify: ${verifyUrl}`,
+        subject: mail.subject,
+        html: mail.html,
+        text: mail.text,
       });
     } catch (e: any) {
       console.warn('[email-verify] SMTP send failed:', e?.message);

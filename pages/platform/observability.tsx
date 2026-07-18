@@ -107,6 +107,12 @@ export default function PlatformObservabilityPage() {
             >
               <AlertTriangle className={`w-4 h-4 ${alertBusy ? 'animate-pulse' : ''}`} /> Cek alert
             </button>
+            <Link
+              href="/platform/email-preview"
+              className="flex items-center gap-2 text-sm px-3 py-2 border rounded-lg hover:bg-violet-50 text-violet-800 border-violet-200"
+            >
+              Preview email
+            </Link>
             <button onClick={load} className="flex items-center gap-2 text-sm px-3 py-2 border rounded-lg hover:bg-slate-50 text-slate-700">
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
             </button>

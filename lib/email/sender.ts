@@ -9,7 +9,7 @@ interface EmailOptions {
   to: string;
   subject: string;
   html: string;
-  text: string;
+  text?: string;
 }
 
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
@@ -32,7 +32,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
       from: `"${fromName}" <${fromAddress}>`,
       to: options.to,
       subject: options.subject,
-      text: options.text,
+      text: options.text || options.subject,
       html: options.html
     });
 
@@ -53,9 +53,10 @@ export async function sendWelcomeEmail(data: {
 }): Promise<boolean> {
   const { generateWelcomeEmail } = await import('./templates');
   
+  const loginUrl = `${process.env.NEXTAUTH_URL || 'https://humanify.id'}/humanify/login`;
   const emailContent = generateWelcomeEmail({
     ...data,
-    loginUrl: `${process.env.NEXTAUTH_URL || 'http://localhost:3001'}/auth/login`
+    loginUrl,
   });
 
   return sendEmail({
@@ -77,7 +78,7 @@ export async function sendOnboardingReminder(data: {
   
   const emailContent = generateOnboardingReminder({
     ...data,
-    continueUrl: `${process.env.NEXTAUTH_URL || 'http://localhost:3001'}/onboarding`
+    continueUrl: `${process.env.NEXTAUTH_URL || 'https://humanify.id'}/humanify/setup`
   });
 
   return sendEmail({

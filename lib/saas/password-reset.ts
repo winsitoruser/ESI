@@ -106,15 +106,13 @@ export async function requestPasswordReset(opts: {
   if (process.env.SMTP_USER && process.env.SMTP_PASSWORD) {
     try {
       const { sendEmail } = await import('../email/sender');
+      const { humanifyResetPasswordEmail } = await import('../email/humanify-mails');
+      const mail = humanifyResetPasswordEmail({ resetUrl });
       emailed = await sendEmail({
         to: email,
-        subject: 'Reset password Humanify',
-        html: `
-          <p>Kami menerima permintaan reset password untuk akun Humanify Anda.</p>
-          <p><a href="${resetUrl}">Klik di sini untuk membuat password baru</a></p>
-          <p>Link berlaku 1 jam. Abaikan email ini jika Anda tidak meminta reset.</p>
-        `,
-        text: `Reset password Humanify: ${resetUrl} (berlaku 1 jam)`,
+        subject: mail.subject,
+        html: mail.html,
+        text: mail.text,
       });
     } catch (e: any) {
       console.warn('[password-reset] SMTP send failed:', e?.message);

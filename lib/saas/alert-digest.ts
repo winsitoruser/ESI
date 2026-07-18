@@ -67,19 +67,19 @@ async function ownerEmailForTenant(tenantId: string): Promise<string | null> {
 }
 
 function renderDigestEmail(t: DigestTenant): { subject: string; html: string; text: string } {
-  const subject = `Humanify — ${t.counts.critical} kritikal, ${t.counts.warning} peringatan untuk ${t.name || 'akun Anda'}`;
-  const items = t.alerts
+  const { humanifyDigestEmail } = require('../email/humanify-mails') as typeof import('../email/humanify-mails');
+  const itemsHtml = t.alerts
     .map((a) => `<li><strong>[${a.severity.toUpperCase()}] ${a.title}</strong> — ${a.message}` +
       (a.actionHref ? ` (<a href="https://humanify.id${a.actionHref}">${a.actionLabel || 'buka'}</a>)` : '') + `</li>`)
     .join('');
-  const html = `
-    <p>Halo,</p>
-    <p>Ada beberapa hal yang perlu perhatian pada akun Humanify Anda:</p>
-    <ul>${items}</ul>
-    <p>Kelola di <a href="https://humanify.id/humanify/billing">Billing</a> atau <a href="https://humanify.id/humanify/go-live">Go-live checklist</a>.</p>
-  `;
-  const text = t.alerts.map((a) => `[${a.severity.toUpperCase()}] ${a.title} — ${a.message}`).join('\n');
-  return { subject, html, text };
+  return humanifyDigestEmail({
+    tenantName: t.name || 'akun Anda',
+    critical: t.counts.critical,
+    warning: t.counts.warning,
+    itemsHtml,
+    billingUrl: 'https://humanify.id/humanify/billing',
+    goLiveUrl: 'https://humanify.id/humanify/go-live',
+  });
 }
 
 export async function runAlertDigest(opts?: {

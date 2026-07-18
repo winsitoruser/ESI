@@ -346,15 +346,13 @@ export async function createInvitation(opts: {
   if (process.env.SMTP_USER && process.env.SMTP_PASSWORD) {
     try {
       const { sendEmail } = await import('../email/sender');
+      const { humanifyInviteEmail } = await import('../email/humanify-mails');
+      const mail = humanifyInviteEmail({ inviteUrl });
       emailed = await sendEmail({
         to: email,
-        subject: 'Undangan bergabung di Humanify',
-        html: `
-          <p>Anda diundang bergabung ke tim di Humanify.</p>
-          <p><a href="${inviteUrl}">Klik di sini untuk menerima undangan &amp; membuat akun</a></p>
-          <p>Link berlaku 7 hari.</p>
-        `,
-        text: `Undangan Humanify: ${inviteUrl} (berlaku 7 hari)`,
+        subject: mail.subject,
+        html: mail.html,
+        text: mail.text,
       });
     } catch (e: any) {
       console.warn('[invitations] SMTP send failed:', e?.message);
@@ -514,11 +512,13 @@ export async function resendInvitation(
   if (process.env.SMTP_USER && process.env.SMTP_PASSWORD) {
     try {
       const { sendEmail } = await import('../email/sender');
+      const { humanifyInviteEmail } = await import('../email/humanify-mails');
+      const mail = humanifyInviteEmail({ inviteUrl, resend: true });
       emailed = await sendEmail({
         to: row.email,
-        subject: 'Undangan bergabung di Humanify (dikirim ulang)',
-        html: `<p>Undangan bergabung ke Humanify.</p><p><a href="${inviteUrl}">Terima undangan</a> (berlaku 7 hari).</p>`,
-        text: `Undangan Humanify: ${inviteUrl} (berlaku 7 hari)`,
+        subject: mail.subject,
+        html: mail.html,
+        text: mail.text,
       });
     } catch { /* */ }
   }

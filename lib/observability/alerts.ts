@@ -97,11 +97,18 @@ export async function evaluateObsErrorSpike(): Promise<ObsAlertResult> {
   if (to && process.env.SMTP_USER && process.env.SMTP_PASSWORD) {
     try {
       const { sendEmail } = await import('@/lib/email/sender');
+      const { humanifyObsAlertEmail } = await import('@/lib/email/humanify-mails');
+      const mail = humanifyObsAlertEmail({
+        message: base.message,
+        uiUrl: body.ui,
+        errors,
+        windowMin: win,
+      });
       base.emailed = await sendEmail({
         to,
-        subject: `[Humanify] Alert: ${errors} errors / ${win}m`,
-        text: `${body.text}\nOpen: ${body.ui}`,
-        html: `<p>${body.text}</p><p><a href="${body.ui}">Open observability</a></p>`,
+        subject: mail.subject,
+        text: mail.text,
+        html: mail.html,
       });
     } catch {
       base.emailed = false;
