@@ -84,9 +84,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       if (action === 'create-module') {
         const b = req.body;
+        if (!tenantId) return res.status(403).json({ error: 'NO_TENANT' });
+        const [owned] = await sequelize.query(
+          'SELECT id FROM hris_training_curricula WHERE id = :cid AND tenant_id = :tid LIMIT 1',
+          { replacements: { cid: b.curriculum_id, tid: tenantId } },
+        );
+        if (!owned?.length) return res.status(404).json({ error: 'Curriculum not found' });
         const [mx] = await sequelize.query(
-          'SELECT COALESCE(MAX(order_index),0)::int as mx FROM hris_training_modules WHERE curriculum_id = :cid',
-          { replacements: { cid: b.curriculum_id } },
+          'SELECT COALESCE(MAX(order_index),0)::int as mx FROM hris_training_modules WHERE curriculum_id = :cid AND tenant_id = :tid',
+          { replacements: { cid: b.curriculum_id, tid: tenantId } },
         );
         const materials = parseMaterials(b.materials || []);
         const [rows] = await sequelize.query(`
@@ -114,7 +120,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       if (action === 'add-material') {
         const { module_id, material } = req.body;
-        const [mods] = await sequelize.query('SELECT materials FROM hris_training_modules WHERE id = :id', { replacements: { id: module_id } });
+        if (!tenantId) return res.status(403).json({ error: 'NO_TENANT' });
+        const [mods] = await sequelize.query(
+          'SELECT materials FROM hris_training_modules WHERE id = :id AND tenant_id = :tid',
+          { replacements: { id: module_id, tid: tenantId } },
+        );
         if (!mods.length) return res.status(404).json({ error: 'Modul tidak ditemukan' });
         const list = parseMaterials(mods[0].materials);
         const newMat = {
@@ -128,8 +138,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         };
         list.push(newMat);
         await sequelize.query(
-          'UPDATE hris_training_modules SET materials = :mat::jsonb, updated_at = NOW() WHERE id = :id',
-          { replacements: { mat: JSON.stringify(list), id: module_id } },
+          'UPDATE hris_training_modules SET materials = :mat::jsonb, updated_at = NOW() WHERE id = :id AND tenant_id = :tid',
+          { replacements: { mat: JSON.stringify(list), id: module_id, tid: tenantId } },
         );
         return res.json({ success: true, data: newMat });
       }
@@ -139,16 +149,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (!curriculum_id || !Array.isArray(employee_ids)) {
           return res.status(400).json({ error: 'curriculum_id dan employee_ids diperlukan' });
         }
+        if (!tenantId) return res.status(403).json({ error: 'NO_TENANT' });
+        const [curOwned] = await sequelize.query(
+          'SELECT id, title FROM hris_training_curricula WHERE id = :id AND tenant_id = :tid LIMIT 1',
+          { replacements: { id: curriculum_id, tid: tenantId } },
+        );
+        if (!curOwned?.length) return res.status(404).json({ error: 'Curriculum not found' });
         let count = 0;
         for (const eid of employee_ids) {
           const [emp] = await sequelize.query(
-            'SELECT name FROM employees WHERE id = :id LIMIT 1',
-            { replacements: { id: eid } },
+            'SELECT name FROM employees WHERE id = :id AND tenant_id = :tid LIMIT 1',
+            { replacements: { id: eid, tid: tenantId } },
           );
+          if (!emp?.length) continue;
           const [r] = await sequelize.query(`
             INSERT INTO hris_lms_enrollments (id, tenant_id, curriculum_id, employee_id, employee_name, mandatory, due_date, status)
             SELECT gen_random_uuid(), :tid, :cid, :eid, :name, :mand, :due, 'enrolled'
-            WHERE NOT EXISTS (SELECT 1 FROM hris_lms_enrollments WHERE curriculum_id = :cid AND employee_id = :eid)
+            WHERE NOT EXISTS (SELECT 1 FROM hris_lms_enrollments WHERE curriculum_id = :cid AND employee_id = :eid AND tenant_id = :tid)
             RETURNING id
           `, {
             replacements: {
@@ -159,16 +176,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           if (r.length) {
             count++;
             try {
-              const [cur] = await sequelize.query(
-                'SELECT title FROM hris_training_curricula WHERE id = :id LIMIT 1',
-                { replacements: { id: curriculum_id } },
-              );
               const { notifyLmsEnrolled } = await import('../../../../lib/hris/lms/notifications');
               const { triggerLmsWebhook } = await import('../../../../lib/hris/lms/integrations');
               await notifyLmsEnrolled({
                 tenantId,
                 employeeId: eid,
-                curriculumTitle: cur[0]?.title || 'Kursus',
+                curriculumTitle: curOwned[0]?.title || 'Kursus',
                 curriculumId: curriculum_id,
                 dueDate: due_date || null,
               });
@@ -195,19 +208,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (method === 'PUT' && action === 'update-module') {
       const { id, title, description, materials } = req.body;
-      await sequelize.query(`
+      if (!tenantId) return res.status(403).json({ error: 'NO_TENANT' });
+      const [, meta] = await sequelize.query(`
         UPDATE hris_training_modules SET
           title = COALESCE(:title, title),
-          description = COALESCE(:desc, description),
-          materials = COALESCE(:mat::jsonb, materials),
+          description = COALESCE(:moduledesc, description),
+          materials = COALESCE(CAST(:mat AS jsonb), materials),
           updated_at = NOW()
-        WHERE id = :id
+        WHERE id = :id AND tenant_id = :tid
       `, {
         replacements: {
-          id, title, desc: description,
-          mat: materials ? JSON.stringify(parseMaterials(materials)) : null,
+          id,
+          tid: tenantId,
+          title: title ?? null,
+          moduledesc: description ?? null,
+          mat: materials != null ? JSON.stringify(parseMaterials(materials)) : null,
         },
       });
+      if ((meta as any)?.rowCount === 0) return res.status(404).json({ error: 'Modul tidak ditemukan' });
       return res.json({ success: true });
     }
 

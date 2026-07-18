@@ -26,7 +26,9 @@ export type PortalAttendanceRow = {
 };
 
 function employeeIdSubquery() {
-  return `SELECT id FROM employees WHERE user_id = :userId OR email = (SELECT email FROM users WHERE id = :userId)`;
+  return `SELECT id FROM employees
+    WHERE (:tenantId::uuid IS NULL OR tenant_id = :tenantId::uuid)
+      AND (user_id = :userId OR email = (SELECT email FROM users WHERE id = :userId))`;
 }
 
 export function mapCanonicalToPortal(row: any): PortalAttendanceRow | null {
@@ -50,8 +52,12 @@ export function mapCanonicalToPortal(row: any): PortalAttendanceRow | null {
   };
 }
 
-export async function resolveEmployeeId(sequelize: any, userId: string): Promise<string | null> {
-  const ctx = await resolveEmployeeContext(sequelize, userId);
+export async function resolveEmployeeId(
+  sequelize: any,
+  userId: string,
+  tenantId?: string | null,
+): Promise<string | null> {
+  const ctx = await resolveEmployeeContext(sequelize, userId, tenantId);
   return ctx.employeeId || null;
 }
 
@@ -59,6 +65,7 @@ export async function getTodayAttendance(
   sequelize: any,
   userId: string,
   today: string,
+  tenantId?: string | null,
 ): Promise<PortalAttendanceRow | null> {
   const [rows] = await sequelize.query(`
     SELECT date, clock_in, clock_out, status, clock_in_location, clock_out_location, notes, work_hours, late_minutes
@@ -66,7 +73,7 @@ export async function getTodayAttendance(
     WHERE employee_id IN (${employeeIdSubquery()}) AND date = :today
     ORDER BY clock_in DESC NULLS LAST
     LIMIT 1
-  `, { replacements: { userId, today } });
+  `, { replacements: { userId, today, tenantId: tenantId || null } });
   return mapCanonicalToPortal((rows as any[])?.[0]);
 }
 
@@ -75,6 +82,7 @@ export async function getMonthStatusSummary(
   userId: string,
   monthStart: string,
   today: string,
+  tenantId?: string | null,
 ): Promise<Record<string, number>> {
   const [rows] = await sequelize.query(`
     SELECT status, COUNT(*)::int AS count
@@ -82,7 +90,7 @@ export async function getMonthStatusSummary(
     WHERE employee_id IN (${employeeIdSubquery()})
       AND date >= :monthStart AND date <= :today
     GROUP BY status
-  `, { replacements: { userId, monthStart, today } });
+  `, { replacements: { userId, monthStart, today, tenantId: tenantId || null } });
   const summary: Record<string, number> = {};
   (rows as any[] || []).forEach((r) => { summary[r.status] = r.count; });
   return summary;
@@ -92,6 +100,7 @@ export async function getLastClockRow(
   sequelize: any,
   userId: string,
   type: 'in' | 'out',
+  tenantId?: string | null,
 ): Promise<any | null> {
   const col = type === 'in' ? 'clock_in' : 'clock_out';
   const [rows] = await sequelize.query(`
@@ -100,7 +109,7 @@ export async function getLastClockRow(
     WHERE employee_id IN (${employeeIdSubquery()}) AND ${col} IS NOT NULL
     ORDER BY ${col} DESC NULLS LAST
     LIMIT 1
-  `, { replacements: { userId } });
+  `, { replacements: { userId, tenantId: tenantId || null } });
   const row = (rows as any[])?.[0];
   if (!row) return null;
   return {
@@ -120,6 +129,7 @@ export async function getAttendanceHistoryRows(
   userId: string,
   monthStart: string,
   monthEnd: string,
+  tenantId?: string | null,
 ): Promise<PortalAttendanceRow[]> {
   const [rows] = await sequelize.query(`
     SELECT date, clock_in, clock_out, status, notes, work_hours, late_minutes, clock_in_location, clock_out_location
@@ -127,7 +137,7 @@ export async function getAttendanceHistoryRows(
     WHERE employee_id IN (${employeeIdSubquery()})
       AND date >= :monthStart AND date < :monthEnd
     ORDER BY date DESC
-  `, { replacements: { userId, monthStart, monthEnd } });
+  `, { replacements: { userId, monthStart, monthEnd, tenantId: tenantId || null } });
   return (rows as any[]).map((r) => {
     const mapped = mapCanonicalToPortal(r)!;
     if (mapped.work_hours == null && r.clock_in && r.clock_out) {
@@ -159,7 +169,7 @@ export async function portalClockIn(
   await ensureAttendancePhotoColumns(sequelize);
   const today = new Date().toISOString().split('T')[0];
   const now = new Date().toISOString();
-  const ctx = await resolveEmployeeContext(sequelize, userId);
+  const ctx = await resolveEmployeeContext(sequelize, userId, tenantId);
   if (!ctx.employeeId) throw new Error('Employee record not found');
 
   await sequelize.query(`
@@ -205,7 +215,7 @@ export async function portalClockOut(
   await ensureAttendancePhotoColumns(sequelize);
   const today = new Date().toISOString().split('T')[0];
   const now = new Date().toISOString();
-  const ctx = await resolveEmployeeContext(sequelize, userId);
+  const ctx = await resolveEmployeeContext(sequelize, userId, tenantId);
   if (!ctx.employeeId) throw new Error('Employee record not found');
 
   const [updated] = await sequelize.query(`

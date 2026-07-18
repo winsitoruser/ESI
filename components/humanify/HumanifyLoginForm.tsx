@@ -277,15 +277,17 @@ export default function HumanifyLoginForm({
                 </p>
               </div>
 
-              {/* Quick Login for Dev/Boss */}
-              <button
-                type="button"
-                onClick={() => setFormData({ ...formData, email: 'superadmin@humanify.id', password: 'superadmin123' })}
-                className="w-full mb-6 flex items-center justify-center gap-2 p-3 rounded-xl border border-dashed border-violet-400/30 bg-violet-500/10 hover:bg-violet-500/20 text-violet-200 text-sm font-medium transition-all"
-              >
-                <Sparkles className="w-4 h-4 text-violet-300" />
-                Isi Cepat Login Super Admin (Dev)
-              </button>
+              {/* Quick Login — only in non-production builds */}
+              {process.env.NODE_ENV !== 'production' && (
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, email: 'superadmin@humanify.id', password: 'superadmin123' })}
+                  className="w-full mb-6 flex items-center justify-center gap-2 p-3 rounded-xl border border-dashed border-violet-400/30 bg-violet-500/10 hover:bg-violet-500/20 text-violet-200 text-sm font-medium transition-all"
+                >
+                  <Sparkles className="w-4 h-4 text-violet-300" />
+                  Isi Cepat Login Super Admin (Dev)
+                </button>
+              )}
 
               <form onSubmit={handleSubmit} className="space-y-5">
                 <input type="hidden" name="csrfToken" value={csrfToken} />

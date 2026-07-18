@@ -381,6 +381,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // ── Create Exam Question ──
       if (action === 'create-question') {
         if (!body.exam_id || !body.question_text) return res.status(400).json({ error: 'exam_id and question_text required' });
+        if (!tenantId) return res.status(403).json({ error: 'NO_TENANT' });
+        const [owned] = await sequelize.query(
+          'SELECT id FROM hris_training_exams WHERE id = :eid AND tenant_id = :tid LIMIT 1',
+          { replacements: { eid: body.exam_id, tid: tenantId } },
+        );
+        if (!owned?.length) return res.status(404).json({ error: 'Exam not found' });
         const [rows] = await sequelize.query(`
           INSERT INTO hris_training_exam_questions (exam_id, question_number, question_text, question_type, options, correct_answer, score, explanation, difficulty)
           VALUES (:eid, :num, :text, :type, :opts::jsonb, :answer, :score, :expl, :diff)
@@ -397,15 +403,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Update exam total_questions
         await sequelize.query(`
           UPDATE hris_training_exams SET total_questions = (SELECT COUNT(*) FROM hris_training_exam_questions WHERE exam_id = :eid), updated_at = NOW()
-          WHERE id = :eid
-        `, { replacements: { eid: body.exam_id } });
+          WHERE id = :eid AND tenant_id = :tid
+        `, { replacements: { eid: body.exam_id, tid: tenantId } });
         return res.status(201).json({ success: true, data: rows[0] });
       }
 
       // ── Submit Exam Result ──
       if (action === 'submit-result') {
         if (!body.exam_id || !body.employee_id) return res.status(400).json({ error: 'exam_id and employee_id required' });
-        const [exam] = await sequelize.query('SELECT passing_score FROM hris_training_exams WHERE id = :eid', { replacements: { eid: body.exam_id } });
+        if (!tenantId) return res.status(403).json({ error: 'NO_TENANT' });
+        const [exam] = await sequelize.query(
+          'SELECT passing_score FROM hris_training_exams WHERE id = :eid AND tenant_id = :tid',
+          { replacements: { eid: body.exam_id, tid: tenantId } },
+        );
+        if (!exam?.length) return res.status(404).json({ error: 'Exam not found' });
         const passingScore = exam[0]?.passing_score || 70;
         const isPassed = (body.score || 0) >= passingScore;
         const [rows] = await sequelize.query(`
@@ -428,7 +439,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // ── Enroll to Batch (Create Graduation record) ──
       if (action === 'enroll-batch') {
         if (!body.batch_id || !body.employee_id) return res.status(400).json({ error: 'batch_id and employee_id required' });
-        const [batch] = await sequelize.query('SELECT curriculum_id FROM hris_training_batches WHERE id = :bid', { replacements: { bid: body.batch_id } });
+        if (!tenantId) return res.status(403).json({ error: 'NO_TENANT' });
+        const [batch] = await sequelize.query(
+          'SELECT curriculum_id FROM hris_training_batches WHERE id = :bid AND tenant_id = :tid',
+          { replacements: { bid: body.batch_id, tid: tenantId } },
+        );
         if (!batch[0]) return res.status(404).json({ error: 'Batch not found' });
         const [rows] = await sequelize.query(`
           INSERT INTO hris_training_graduations (tenant_id, batch_id, employee_id, employee_name, curriculum_id, graduation_status, created_by)
@@ -444,8 +459,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Update batch participant count
         await sequelize.query(`
           UPDATE hris_training_batches SET current_participants = (SELECT COUNT(*) FROM hris_training_graduations WHERE batch_id = :bid), updated_at = NOW()
-          WHERE id = :bid
-        `, { replacements: { bid: body.batch_id } });
+          WHERE id = :bid AND tenant_id = :tid
+        `, { replacements: { bid: body.batch_id, tid: tenantId } });
         return res.status(201).json({ success: true, data: rows[0] || { message: 'Already enrolled' } });
       }
 
@@ -659,11 +674,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const table = tableMap[action as string];
       if (!table) return res.status(400).json({ error: `Unknown DELETE action: ${action}` });
 
-      // For questions table, no tenant_id column
+      // For questions table, no tenant_id column — scope via exam ownership
       if (table === 'hris_training_exam_questions') {
-        await sequelize.query(`DELETE FROM ${table} WHERE id = :id`, { replacements: { id } });
+        if (!tenantId) return res.status(403).json({ error: 'NO_TENANT' });
+        const [, meta] = await sequelize.query(`
+          DELETE FROM hris_training_exam_questions q
+          USING hris_training_exams e
+          WHERE q.id = :id AND q.exam_id = e.id AND e.tenant_id = :tid
+        `, { replacements: { id, tid: tenantId } });
+        if ((meta as any)?.rowCount === 0) return res.status(404).json({ error: 'Question not found' });
       } else {
-        await sequelize.query(`DELETE FROM ${table} WHERE id = :id AND tenant_id = :tid`, { replacements: { id, tid: tenantId } });
+        if (!tenantId) return res.status(403).json({ error: 'NO_TENANT' });
+        const [, meta] = await sequelize.query(
+          `DELETE FROM ${table} WHERE id = :id AND tenant_id = :tid`,
+          { replacements: { id, tid: tenantId } },
+        );
+        if ((meta as any)?.rowCount === 0) return res.status(404).json({ error: 'Not found' });
       }
       return res.json({ success: true, message: 'Deleted successfully' });
     }

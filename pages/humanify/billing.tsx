@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useSession } from 'next-auth/react';
@@ -235,6 +235,7 @@ export default function HumanifyBillingPage() {
     <>
       <Head>
         <title>Billing — {HUMANIFY_BRAND.name}</title>
+        <meta name="robots" content="noindex, nofollow" />
       </Head>
       <HumanifyLayout title="Billing & Upgrade" subtitle="Pilih paket Humanify sesuai kebutuhan HR Anda">
         <div className="max-w-5xl mx-auto space-y-8">

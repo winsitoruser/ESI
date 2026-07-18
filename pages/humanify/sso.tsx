@@ -122,7 +122,10 @@ export default function HumanifySsoPage() {
 
   return (
     <>
-      <Head><title>SSO — {HUMANIFY_BRAND.name}</title></Head>
+      <Head>
+        <title>SSO — {HUMANIFY_BRAND.name}</title>
+        <meta name="robots" content="noindex, nofollow" />
+      </Head>
       <HumanifyLayout title="Single Sign-On (SAML)" subtitle="Konfigurasi Identity Provider enterprise Anda">
         <div className="max-w-3xl mx-auto space-y-6">
           <div className="flex items-start gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900">

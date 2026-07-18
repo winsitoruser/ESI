@@ -11,9 +11,12 @@ import {
   forecastHeadcount,
   forecastLeaveDemand,
   buildPredictiveInsights,
+  enhancePredictiveWithSumopod,
   type PredictiveOverview,
 } from '@/lib/hris/predictive-analytics';
 import { allowHrMockFallback } from '@/lib/hris/data-source';
+import { getSumopodConfig } from '@/lib/hris/sumopod-config';
+import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch {}
@@ -35,8 +38,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const period = (req.query.period as string) || new Date().toISOString().substring(0, 7);
   const action = (req.query.action as string) || 'overview';
-  const tenantId = (session.user as any)?.tenantId || null;
-  const tf = tenantId ? 'AND e.tenant_id = :tenantId' : '';
+  const tenantId = tenantIdFromSession(session);
+  const tf = tenantId ? 'AND e.tenant_id = :tenantId' : 'AND 1=0';
+  const attTf = tenantId ? 'AND tenant_id = :tenantId' : 'AND 1=0';
   const r = { tenantId, period };
 
   let dataSource: PredictiveOverview['dataSource'] = 'live';
@@ -55,38 +59,46 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         COUNT(*) FILTER (WHERE status IN ('late','terlambat'))::int as late,
         COUNT(*) FILTER (WHERE status IN ('absent','alpha','tidak_hadir'))::int as absent
       FROM employee_attendance
-      WHERE date >= CURRENT_DATE - INTERVAL '90 days'
+      WHERE date >= CURRENT_DATE - INTERVAL '90 days' ${attTf}
       GROUP BY employee_id
     `, r);
 
     const kpiSignals = await safeQuery(`
-      SELECT employee_id,
-        ROUND(AVG(CASE WHEN target > 0 THEN actual/target*100 ELSE 0 END)::numeric, 1) as achievement
-      FROM employee_kpis WHERE period = :period GROUP BY employee_id
+      SELECT ek.employee_id,
+        ROUND(AVG(CASE WHEN ek.target > 0 THEN ek.actual/ek.target*100 ELSE 0 END)::numeric, 1) as achievement
+      FROM employee_kpis ek
+      JOIN employees e ON ek.employee_id = e.id
+      WHERE ek.period = :period ${tf}
+      GROUP BY ek.employee_id
     `, r);
 
     const disciplinarySignals = await safeQuery(`
-      SELECT employee_id, COUNT(*)::int AS cnt
-      FROM disciplinary_letters
-      WHERE status IN ('issued', 'active') AND created_at >= CURRENT_DATE - INTERVAL '12 months'
-      GROUP BY employee_id
+      SELECT dl.employee_id, COUNT(*)::int AS cnt
+      FROM hr_disciplinary_letters dl
+      JOIN employees e ON dl.employee_id::text = e.id::text
+      WHERE dl.status IN ('issued', 'active', 'acknowledged') AND dl.created_at >= CURRENT_DATE - INTERVAL '12 months'
+        ${tenantId ? 'AND dl.tenant_id = :tenantId' : 'AND 1=0'}
+      GROUP BY dl.employee_id
     `, r);
 
     const perfSignals = await safeQuery(`
-      SELECT employee_id, ROUND(AVG(overall_rating)::numeric, 1) AS avg_rating
-      FROM performance_reviews
-      WHERE status IN ('submitted', 'reviewed', 'acknowledged')
-      GROUP BY employee_id
+      SELECT pr.employee_id, ROUND(AVG(pr.overall_rating)::numeric, 1) AS avg_rating
+      FROM performance_reviews pr
+      JOIN employees e ON pr.employee_id = e.id
+      WHERE pr.status IN ('submitted', 'reviewed', 'acknowledged') ${tf}
+      GROUP BY pr.employee_id
     `, r);
 
     const [engRow] = await safeQuery(`
       SELECT ROUND(AVG((elem->>'answer')::numeric), 1) AS score
       FROM survey_responses sr
+      JOIN surveys s ON sr.survey_id = s.id
       CROSS JOIN LATERAL jsonb_array_elements(
         CASE WHEN jsonb_typeof(sr.answers) = 'array' THEN sr.answers ELSE '[]'::jsonb END
       ) AS elem
       WHERE (elem->>'answer') ~ '^[0-9]+\\.?[0-9]*$'
         AND sr.submitted_at >= CURRENT_DATE - INTERVAL '6 months'
+        ${tenantId ? 'AND s.tenant_id = :tenantId' : 'AND 1=0'}
     `, r);
 
     const attMap = new Map(attSignals.map((a: any) => [String(a.employee_id), a]));
@@ -175,7 +187,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       dataSource: employees.length > 0 ? dataSource : (allowHrMockFallback() ? 'demo' : 'partial'),
     };
 
-    return res.json({ success: true, data: overview, dataSource: overview.dataSource });
+    const enhanced = await enhancePredictiveWithSumopod(overview);
+    const sumopod = getSumopodConfig();
+    return res.json({
+      success: true,
+      data: enhanced,
+      dataSource: enhanced.dataSource,
+      llmSource: enhanced.llmSource,
+      llmModel: enhanced.llmModel || sumopod.chatModel,
+      llmEnabled: sumopod.llmEnabled,
+    });
   }
 
   if (action === 'absenteeism') {

@@ -156,41 +156,51 @@ export async function createOnboarding(entry: any) {
   return mapOnboardingRow(result[0]);
 }
 
-export async function getOnboardingById(id: string) {
+export async function getOnboardingById(id: string, tenantId?: string | null) {
   if (!sequelize) return null;
   await ensureLifecycleTables();
-  const [rows] = await sequelize.query('SELECT * FROM employee_onboarding_processes WHERE id = :id', { replacements: { id } });
+  const [rows] = await sequelize.query(
+    `SELECT * FROM employee_onboarding_processes WHERE id = :id${tenantId ? ' AND tenant_id = :tenantId' : ''}`,
+    { replacements: { id, tenantId } },
+  );
   return rows[0] ? mapOnboardingRow(rows[0]) : null;
 }
 
-export async function getOffboardingById(id: string) {
+export async function getOffboardingById(id: string, tenantId?: string | null) {
   if (!sequelize) return null;
   await ensureLifecycleTables();
-  const [rows] = await sequelize.query('SELECT * FROM employee_offboarding_processes WHERE id = :id', { replacements: { id } });
+  const [rows] = await sequelize.query(
+    `SELECT * FROM employee_offboarding_processes WHERE id = :id${tenantId ? ' AND tenant_id = :tenantId' : ''}`,
+    { replacements: { id, tenantId } },
+  );
   return rows[0] ? mapOffboardingRow(rows[0]) : null;
 }
 
-export async function updateOnboarding(id: string, body: any) {
+export async function updateOnboarding(id: string, body: any, tenantId?: string | null) {
   if (!sequelize) return null;
   await ensureLifecycleTables();
   const fields: string[] = ['updated_at = NOW()'];
-  const rep: any = { id };
+  const rep: any = { id, tenantId };
   if (body.status !== undefined) { fields.push('status = :status'); rep.status = body.status; }
   if (body.notes !== undefined) { fields.push('notes = :notes'); rep.notes = body.notes; }
   if (body.tasks !== undefined) { fields.push('tasks = :tasks::jsonb'); rep.tasks = JSON.stringify(body.tasks); }
   if (body.buddyId !== undefined) { fields.push('buddy_id = :buddyId'); rep.buddyId = body.buddyId; }
   if (body.buddyName !== undefined) { fields.push('buddy_name = :buddyName'); rep.buddyName = body.buddyName; }
   const [result] = await sequelize.query(
-    `UPDATE employee_onboarding_processes SET ${fields.join(', ')} WHERE id = :id RETURNING *`,
-    { replacements: rep }
+    `UPDATE employee_onboarding_processes SET ${fields.join(', ')}
+     WHERE id = :id${tenantId ? ' AND tenant_id = :tenantId' : ''} RETURNING *`,
+    { replacements: rep },
   );
   return result[0] ? mapOnboardingRow(result[0]) : null;
 }
 
-export async function deleteOnboarding(id: string) {
+export async function deleteOnboarding(id: string, tenantId?: string | null) {
   if (!sequelize) return;
   await ensureLifecycleTables();
-  await sequelize.query('DELETE FROM employee_onboarding_processes WHERE id = :id', { replacements: { id } });
+  await sequelize.query(
+    `DELETE FROM employee_onboarding_processes WHERE id = :id${tenantId ? ' AND tenant_id = :tenantId' : ''}`,
+    { replacements: { id, tenantId } },
+  );
 }
 
 export async function listOffboarding(opts: { tenantId?: string | null; employeeId?: string }) {
@@ -243,11 +253,11 @@ export async function createOffboarding(entry: any) {
   return mapOffboardingRow(result[0]);
 }
 
-export async function updateOffboarding(id: string, body: any) {
+export async function updateOffboarding(id: string, body: any, tenantId?: string | null) {
   if (!sequelize) return null;
   await ensureLifecycleTables();
   const fields: string[] = ['updated_at = NOW()'];
-  const rep: any = { id };
+  const rep: any = { id, tenantId };
   if (body.status !== undefined) { fields.push('status = :status'); rep.status = body.status; }
   if (body.reason !== undefined) { fields.push('reason = :reason'); rep.reason = body.reason; }
   if (body.exitInterviewNotes !== undefined) { fields.push('exit_interview_notes = :exitInterviewNotes'); rep.exitInterviewNotes = body.exitInterviewNotes; }
@@ -255,14 +265,18 @@ export async function updateOffboarding(id: string, body: any) {
   if (body.tasks !== undefined) { fields.push('tasks = :tasks::jsonb'); rep.tasks = JSON.stringify(body.tasks); }
   if (body.settlementData !== undefined) { fields.push('settlement_data = :settlementData::jsonb'); rep.settlementData = JSON.stringify(body.settlementData); }
   const [result] = await sequelize.query(
-    `UPDATE employee_offboarding_processes SET ${fields.join(', ')} WHERE id = :id RETURNING *`,
-    { replacements: rep }
+    `UPDATE employee_offboarding_processes SET ${fields.join(', ')}
+     WHERE id = :id${tenantId ? ' AND tenant_id = :tenantId' : ''} RETURNING *`,
+    { replacements: rep },
   );
   return result[0] ? mapOffboardingRow(result[0]) : null;
 }
 
-export async function deleteOffboarding(id: string) {
+export async function deleteOffboarding(id: string, tenantId?: string | null) {
   if (!sequelize) return;
   await ensureLifecycleTables();
-  await sequelize.query('DELETE FROM employee_offboarding_processes WHERE id = :id', { replacements: { id } });
+  await sequelize.query(
+    `DELETE FROM employee_offboarding_processes WHERE id = :id${tenantId ? ' AND tenant_id = :tenantId' : ''}`,
+    { replacements: { id, tenantId } },
+  );
 }

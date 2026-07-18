@@ -10,6 +10,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const session = await getServerSession(req, res, authOptions);
   if (!session) return res.status(401).json({ error: 'Unauthorized' });
 
+  const tenantId = (session.user as any)?.tenantId || null;
+  if (!tenantId) return res.status(403).json({ error: 'NO_TENANT' });
+
   const { id, action } = req.query;
 
   try {
@@ -25,7 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const settlement = calculateFinalSettlement(input);
       const payrollComponents = settlementToPayrollComponents(settlement);
 
-      const entry = await getOffboardingById(id as string);
+      const entry = await getOffboardingById(id as string, tenantId);
       if (!entry) return res.status(404).json({ error: 'Offboarding not found' });
 
       const tasks = (entry.tasks || []).map((t: any) =>
@@ -34,10 +37,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           : t
       );
 
-      await updateOffboarding(id as string, {
+      const updated = await updateOffboarding(id as string, {
         tasks,
         settlementData: { settlement, payrollComponents, appliedAt: new Date().toISOString() },
-      });
+      }, tenantId);
+      if (!updated) return res.status(404).json({ error: 'Offboarding not found' });
 
       return res.json({
         success: true,
@@ -46,7 +50,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === 'GET' && id) {
-      const entry = await getOffboardingById(id as string);
+      const entry = await getOffboardingById(id as string, tenantId);
       if (!entry) return res.status(404).json({ error: 'Not found' });
       return res.json({ success: true, data: entry });
     }

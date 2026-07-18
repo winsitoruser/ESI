@@ -1,18 +1,29 @@
-import Head from 'next/head';
 import { GetServerSideProps } from 'next';
 import { getServerSession } from 'next-auth/next';
 import HumanifyWelcomePage from '@/components/humanify/HumanifyWelcomePage';
+import HumanifySeoHead from '@/components/humanify/HumanifySeoHead';
 import { authOptions } from '../api/auth/[...nextauth]';
 import { HUMANIFY_BRAND, NAINCODE } from '@/lib/humanify/branding';
+import {
+  buildOrganizationJsonLd,
+  buildSoftwareApplicationJsonLd,
+  buildWebSiteJsonLd,
+} from '@/lib/humanify/seo';
 
 export default function WelcomePage() {
   return (
     <>
-      <Head>
-        <title>{HUMANIFY_BRAND.name} — {HUMANIFY_BRAND.productType} | {NAINCODE.name}</title>
-        <meta name="description" content={HUMANIFY_BRAND.description} />
-        <link rel="icon" href={HUMANIFY_BRAND.welcomeLogoPath} type="image/png" />
-      </Head>
+      <HumanifySeoHead
+        title={`${HUMANIFY_BRAND.name} — ${HUMANIFY_BRAND.productType} | ${NAINCODE.name}`}
+        description={HUMANIFY_BRAND.description}
+        path={HUMANIFY_BRAND.welcomePath}
+        keywords="HRIS Indonesia, software HR, payroll Indonesia, absensi GPS, sistem kehadiran, Humanify, Naincode"
+        jsonLd={[
+          buildWebSiteJsonLd(),
+          buildOrganizationJsonLd(),
+          buildSoftwareApplicationJsonLd(),
+        ]}
+      />
       <HumanifyWelcomePage />
     </>
   );

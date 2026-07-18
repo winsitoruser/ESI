@@ -2,6 +2,8 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 import { allowHrMockFallback, resolveDataSource } from '@/lib/hris/data-source';
+import { withObservability } from '@/lib/observability';
+import { ensureTenantDbContext } from '@/lib/saas/ensure-tenant-db-context';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch (e) {}
@@ -76,10 +78,13 @@ const ALLOWANCE_SUBQUERY = `COALESCE((
     AND pc.type = 'earning' AND pc.code NOT IN ('BASIC', 'OVERTIME')
 ), 0)`;
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
+  let ctxSet = false;
   try {
     const session = await getServerSession(req, res, authOptions);
     if (!session?.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
+    await ensureTenantDbContext(session);
+    ctxSet = true;
 
     const { assertHumanifyFeature } = await import('@/lib/saas/assert-feature');
     if (!(await assertHumanifyFeature(req, res, {
@@ -131,8 +136,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } catch (error: any) {
     console.warn('Payroll API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: 'Internal server error' });
+  } finally {
+    if (ctxSet) {
+      try {
+        const { releaseTenantDbContext } = await import('@/lib/saas/ensure-tenant-db-context');
+        await releaseTenantDbContext();
+      } catch { /* ignore */ }
+    }
   }
 }
+
+export default withObservability(handler, 'humanify/payroll');
 
 // ===== GET: Overview =====
 async function getOverview(req: NextApiRequest, res: NextApiResponse, session: any) {
@@ -421,10 +435,15 @@ async function calculatePayroll(req: NextApiRequest, res: NextApiResponse, sessi
   const { runId } = req.body;
   if (!runId) return res.status(400).json({ success: false, error: 'runId required' });
   if (!sequelize) return res.json({ success: true, message: 'Calculated (mock)' });
+  const tenantId = session?.user?.tenantId;
+  if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
 
   try {
-    // Get the run
-    const [runs] = await sequelize.query(`SELECT * FROM payroll_runs WHERE id = :id`, { replacements: { id: runId } });
+    // Get the run (tenant-scoped)
+    const [runs] = await sequelize.query(
+      `SELECT * FROM payroll_runs WHERE id = :id AND tenant_id = :tenantId`,
+      { replacements: { id: runId, tenantId } },
+    );
     const run = runs?.[0];
     if (!run) return res.status(404).json({ success: false, error: 'Payroll run not found' });
 
@@ -742,10 +761,10 @@ async function calculatePayroll(req: NextApiRequest, res: NextApiResponse, sessi
       UPDATE payroll_runs SET total_employees = :empCount, total_gross = :gross,
         total_deductions = :deductions, total_net = :net, total_tax = :tax,
         total_bpjs = :bpjs, status = 'calculated', updated_at = NOW()
-      WHERE id = :runId
+      WHERE id = :runId AND tenant_id = :tenantId
     `, {
       replacements: {
-        runId, empCount: (employees || []).length, gross: totalGross,
+        runId, tenantId, empCount: (employees || []).length, gross: totalGross,
         deductions: totalDeductions, net: totalNet, tax: totalTax, bpjs: totalBpjs
       }
     });
@@ -765,11 +784,14 @@ async function calculatePayroll(req: NextApiRequest, res: NextApiResponse, sessi
 async function approvePayroll(req: NextApiRequest, res: NextApiResponse, session: any) {
   const { runId } = req.body;
   if (!runId || !sequelize) return res.status(400).json({ error: 'runId required' });
+  const tenantId = session?.user?.tenantId;
+  if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
   try {
-    await sequelize.query(`
+    const [, meta] = await sequelize.query(`
       UPDATE payroll_runs SET status = 'approved', approved_by = :userId, approved_at = NOW(), updated_at = NOW()
-      WHERE id = :runId
-    `, { replacements: { runId, userId: isUuid(session.user.id) ? session.user.id : null } });
+      WHERE id = :runId AND tenant_id = :tenantId
+    `, { replacements: { runId, tenantId, userId: isUuid(session.user.id) ? session.user.id : null } });
+    if ((meta as any)?.rowCount === 0) return res.status(404).json({ success: false, error: 'Payroll run not found' });
     return res.json({ success: true, message: 'Payroll approved' });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: e.message });
@@ -780,14 +802,20 @@ async function approvePayroll(req: NextApiRequest, res: NextApiResponse, session
 async function updateRunStatus(req: NextApiRequest, res: NextApiResponse, session: any) {
   const { runId, status } = req.body;
   if (!runId || !status || !sequelize) return res.status(400).json({ error: 'runId and status required' });
+  const tenantId = session?.user?.tenantId;
+  if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
   try {
-    await sequelize.query(`
+    const [, meta] = await sequelize.query(`
       UPDATE payroll_runs SET status = :status, updated_at = NOW()
-      WHERE id = :runId
-    `, { replacements: { runId, status } });
+      WHERE id = :runId AND tenant_id = :tenantId
+    `, { replacements: { runId, status, tenantId } });
+    if ((meta as any)?.rowCount === 0) return res.status(404).json({ success: false, error: 'Payroll run not found' });
     if (status === 'paid') {
       try {
-        await sequelize.query(`UPDATE payroll_runs SET paid_at = NOW() WHERE id = :runId`, { replacements: { runId } });
+        await sequelize.query(
+          `UPDATE payroll_runs SET paid_at = NOW() WHERE id = :runId AND tenant_id = :tenantId`,
+          { replacements: { runId, tenantId } },
+        );
       } catch { /* paid_at column may not exist on older schemas */ }
     }
     return res.json({ success: true, message: `Status updated to ${status}` });
@@ -800,9 +828,11 @@ async function updateRunStatus(req: NextApiRequest, res: NextApiResponse, sessio
 async function getPayslip(req: NextApiRequest, res: NextApiResponse, session: any) {
   const { runId, employeeId } = req.query;
   if (!sequelize) return res.json({ success: true, data: [] });
+  const tenantId = session?.user?.tenantId;
+  if (!tenantId) return res.json({ success: true, data: [] });
   try {
-    let where = 'WHERE 1=1';
-    const replacements: any = {};
+    let where = 'WHERE pr.tenant_id = :tenantId';
+    const replacements: any = { tenantId };
     if (runId) { where += ' AND pi.payroll_run_id = :runId'; replacements.runId = runId; }
     if (employeeId) { where += ' AND pi.employee_id = :empId'; replacements.empId = employeeId; }
 
@@ -838,10 +868,12 @@ async function updateComponent(req: NextApiRequest, res: NextApiResponse, sessio
   const { id, ...data } = req.body;
   if (!id) return res.status(400).json({ success: false, error: 'id required' });
   if (!sequelize) return res.json({ success: true, message: 'Updated (mock)' });
+  const tenantId = session?.user?.tenantId;
+  if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
   try {
     // Use raw SQL to handle all fields including snake_case
     const fields: string[] = [];
-    const replacements: any = { id };
+    const replacements: any = { id, tenantId };
     const fieldMap: Record<string, string> = {
       code: 'code', name: 'name', description: 'description', type: 'type',
       category: 'category', calculationType: 'calculation_type', calculation_type: 'calculation_type',
@@ -869,9 +901,15 @@ async function updateComponent(req: NextApiRequest, res: NextApiResponse, sessio
     }
     if (fields.length === 0) return res.status(400).json({ success: false, error: 'No fields to update' });
     fields.push('updated_at = NOW()');
-    await sequelize.query(`UPDATE payroll_components SET ${fields.join(', ')} WHERE id = :id`, { replacements });
-    // Return updated row
-    const [rows] = await sequelize.query(`SELECT * FROM payroll_components WHERE id = :id`, { replacements: { id } });
+    const [, meta] = await sequelize.query(
+      `UPDATE payroll_components SET ${fields.join(', ')} WHERE id = :id AND tenant_id = :tenantId`,
+      { replacements },
+    );
+    if ((meta as any)?.rowCount === 0) return res.status(404).json({ success: false, error: 'Component not found' });
+    const [rows] = await sequelize.query(
+      `SELECT * FROM payroll_components WHERE id = :id AND tenant_id = :tenantId`,
+      { replacements: { id, tenantId } },
+    );
     return res.json({ success: true, data: rows?.[0] });
   } catch (e: any) {
     console.warn('updateComponent error: (table may not exist):', (e as any)?.message || e);
@@ -884,8 +922,14 @@ async function deleteComponent(req: NextApiRequest, res: NextApiResponse, sessio
   const { id } = req.query;
   if (!id) return res.status(400).json({ success: false, error: 'id required' });
   if (!sequelize) return res.json({ success: true, message: 'Deleted (mock)' });
+  const tenantId = session?.user?.tenantId;
+  if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
   try {
-    await sequelize.query(`DELETE FROM payroll_components WHERE id = :id`, { replacements: { id } });
+    const [, meta] = await sequelize.query(
+      `DELETE FROM payroll_components WHERE id = :id AND tenant_id = :tenantId`,
+      { replacements: { id, tenantId } },
+    );
+    if ((meta as any)?.rowCount === 0) return res.status(404).json({ success: false, error: 'Component not found' });
     return res.json({ success: true, message: 'Component deleted' });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: e.message });

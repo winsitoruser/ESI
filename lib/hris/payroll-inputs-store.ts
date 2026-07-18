@@ -2,6 +2,8 @@
  * Payroll input modules: Bonus, Cash Advance, Employee Loan
  * Feeds into payroll calculation engine.
  */
+import { allowHrMockFallback } from '@/lib/hris/data-source';
+
 let sequelize: any;
 try { sequelize = require('../sequelize'); } catch (_) {}
 
@@ -59,6 +61,7 @@ export async function ensurePayrollInputsTables(): Promise<boolean> {
     CREATE INDEX IF NOT EXISTS idx_hris_payroll_inputs_type ON hris_payroll_inputs(type);
     CREATE INDEX IF NOT EXISTS idx_hris_payroll_inputs_employee ON hris_payroll_inputs(employee_id);
     CREATE INDEX IF NOT EXISTS idx_hris_payroll_inputs_status ON hris_payroll_inputs(status);
+    CREATE INDEX IF NOT EXISTS idx_hris_payroll_inputs_tenant ON hris_payroll_inputs(tenant_id);
   `);
   return true;
 }
@@ -86,20 +89,27 @@ function mapRow(row: any): PayrollInputRecord {
   };
 }
 
-export async function listPayrollInputs(type?: PayrollInputType, status?: string): Promise<PayrollInputRecord[]> {
-  if (!sequelize) return getMockInputs(type);
+export async function listPayrollInputs(
+  type?: PayrollInputType,
+  status?: string,
+  tenantId?: string | null,
+): Promise<PayrollInputRecord[]> {
+  if (!sequelize) return allowHrMockFallback() ? getMockInputs(type) : [];
   await ensurePayrollInputsTables();
   let sql = 'SELECT * FROM hris_payroll_inputs WHERE 1=1';
   const params: any[] = [];
+  if (tenantId) { params.push(tenantId); sql += ` AND tenant_id = $${params.length}`; }
   if (type) { params.push(type); sql += ` AND type = $${params.length}`; }
   if (status) { params.push(status); sql += ` AND status = $${params.length}`; }
   sql += ' ORDER BY created_at DESC';
   const [rows] = await sequelize.query(sql, { bind: params });
-  if (!rows?.length) return getMockInputs(type);
+  if (!rows?.length) return tenantId || !allowHrMockFallback() ? [] : getMockInputs(type);
   return rows.map(mapRow);
 }
 
-export async function createPayrollInput(data: Partial<PayrollInputRecord>): Promise<PayrollInputRecord | null> {
+export async function createPayrollInput(
+  data: Partial<PayrollInputRecord> & { tenantId?: string | null },
+): Promise<PayrollInputRecord | null> {
   if (!sequelize) return null;
   await ensurePayrollInputsTables();
   const remaining = data.type === 'loan'
@@ -107,12 +117,13 @@ export async function createPayrollInput(data: Partial<PayrollInputRecord>): Pro
     : data.remainingAmount;
   const [rows] = await sequelize.query(`
     INSERT INTO hris_payroll_inputs
-      (type, employee_id, employee_uid, employee_name, department, amount, remaining_amount,
+      (tenant_id, type, employee_id, employee_uid, employee_name, department, amount, remaining_amount,
        installment_amount, installment_months, reason, category, status, payroll_period)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
     RETURNING *
   `, {
     bind: [
+      data.tenantId || null,
       data.type, data.employeeId, data.employeeUid || null, data.employeeName,
       data.department || null, data.amount, remaining ?? null,
       data.installmentAmount ?? null, data.installmentMonths ?? null,
@@ -124,19 +135,28 @@ export async function createPayrollInput(data: Partial<PayrollInputRecord>): Pro
 }
 
 export async function updatePayrollInputStatus(
-  id: string, status: string, approvedBy?: string
+  id: string,
+  status: string,
+  approvedBy?: string,
+  tenantId?: string | null,
 ): Promise<PayrollInputRecord | null> {
   if (!sequelize) return null;
+  const params: any[] = [id, status, approvedBy || null];
+  let where = 'WHERE id = $1';
+  if (tenantId) {
+    params.push(tenantId);
+    where += ` AND tenant_id = $${params.length}`;
+  }
   const [rows] = await sequelize.query(`
     UPDATE hris_payroll_inputs
     SET status = $2, approved_by = $3, approved_at = NOW(), updated_at = NOW()
-    WHERE id = $1 RETURNING *
-  `, { bind: [id, status, approvedBy || null] });
+    ${where} RETURNING *
+  `, { bind: params });
   return rows?.[0] ? mapRow(rows[0]) : null;
 }
 
-export async function getPayrollInputsSummary() {
-  const items = await listPayrollInputs();
+export async function getPayrollInputsSummary(tenantId?: string | null) {
+  const items = await listPayrollInputs(undefined, undefined, tenantId);
   const byType = (t: PayrollInputType) => items.filter(i => i.type === t);
   return {
     bonus: { total: byType('bonus').length, pending: byType('bonus').filter(i => i.status === 'pending').length, amount: byType('bonus').reduce((s, i) => s + i.amount, 0) },

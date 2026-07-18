@@ -120,23 +120,25 @@ export async function notifyManagersForEmployee(
       }
     }
 
-    // Department managers (role manager/branch_manager in same dept)
+    // Department managers (role manager/branch_manager in same dept + same tenant)
     if (emp.department) {
+      const tid = payload.tenantId ?? emp.tenant_id;
       const [mgrRows] = await sequelize.query(`
         SELECT DISTINCT u.id AS user_id
         FROM users u
-        LEFT JOIN employees e ON e.user_id = u.id
+        LEFT JOIN employees e ON e.user_id = u.id AND e.tenant_id = COALESCE(:tid::uuid, u.tenant_id)
         WHERE u.role IN ('manager', 'branch_manager', 'super_admin')
-          AND (e.department = :dept OR u.role = 'super_admin')
           AND u.is_active = true
+          AND (:tid::uuid IS NULL OR u.tenant_id = :tid::uuid)
+          AND (e.department = :dept OR u.role = 'super_admin')
         LIMIT 10
-      `, { replacements: { dept: emp.department } });
+      `, { replacements: { dept: emp.department, tid: tid || null } });
       for (const m of mgrRows || []) {
         if (m.user_id && !notified.has(String(m.user_id))) {
           notified.add(String(m.user_id));
           await insertEmployeeNotification(sequelize, {
             ...payload,
-            tenantId: payload.tenantId ?? emp.tenant_id,
+            tenantId: tid,
             userId: m.user_id,
           });
         }

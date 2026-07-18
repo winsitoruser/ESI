@@ -146,25 +146,54 @@ export async function resolveTenantById(id: string): Promise<ResolvedTenant | nu
   return rows?.[0] || null;
 }
 
-/** Set PostgreSQL session var for future RLS policies (ADR-001). */
-export async function setDbTenantContext(tenantId: string | null, isSuperAdmin = false) {
+/** Set PostgreSQL session vars for RLS (ADR-001).
+ * Default: session-level (is_local=false) + clear in finally (pool-safe soft RLS).
+ * When HUMANIFY_RLS_REQUEST_BOUND=true (and CLS transaction wrap): use is_local=true
+ * so values never leak across the pool after commit/rollback.
+ */
+export async function setDbTenantContext(
+  tenantId: string | null,
+  isSuperAdmin = false,
+  opts?: { isLocal?: boolean },
+) {
   if (!sequelize) return;
+  let isLocal = opts?.isLocal;
+  if (isLocal === undefined) {
+    try {
+      const { tenantConfigIsLocal } = require('./tenant-request-bound');
+      isLocal = tenantConfigIsLocal();
+    } catch {
+      isLocal = false;
+    }
+  }
+  const localFlag = isLocal ? 'true' : 'false';
   try {
     if (isSuperAdmin) {
-      await sequelize.query(`SELECT set_config('app.current_tenant', '', true)`);
-      await sequelize.query(`SELECT set_config('app.is_super_admin', 'true', true)`);
+      await sequelize.query(`SELECT set_config('app.current_tenant', '', ${localFlag})`);
+      await sequelize.query(`SELECT set_config('app.is_super_admin', 'true', ${localFlag})`);
       return;
     }
     if (!tenantId) {
-      await sequelize.query(`SELECT set_config('app.current_tenant', '', true)`);
-      await sequelize.query(`SELECT set_config('app.is_super_admin', 'false', true)`);
+      await sequelize.query(`SELECT set_config('app.current_tenant', '', ${localFlag})`);
+      await sequelize.query(`SELECT set_config('app.is_super_admin', 'false', ${localFlag})`);
       return;
     }
-    await sequelize.query(`SELECT set_config('app.current_tenant', :tid, true)`, {
+    await sequelize.query(`SELECT set_config('app.current_tenant', :tid, ${localFlag})`, {
       replacements: { tid: String(tenantId) },
     });
-    await sequelize.query(`SELECT set_config('app.is_super_admin', 'false', true)`);
+    await sequelize.query(`SELECT set_config('app.is_super_admin', 'false', ${localFlag})`);
   } catch {
     /* older PG / no permission — ignore until RLS migration live */
+  }
+}
+
+/** Clear tenant context on pooled connection after a request. */
+export async function clearDbTenantContext() {
+  if (!sequelize) return;
+  try {
+    await sequelize.query(`SELECT set_config('app.current_tenant', '', false)`);
+    await sequelize.query(`SELECT set_config('app.is_super_admin', 'false', false)`);
+  } catch {
+    /* ignore */
   }
 }

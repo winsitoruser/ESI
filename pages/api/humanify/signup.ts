@@ -6,10 +6,11 @@ import { provisionHumanifyTenant } from '@/lib/saas/humanify-provision';
 import { createEmailVerification } from '@/lib/saas/email-verify';
 import { attachPartnerToTenant } from '@/lib/saas/partners';
 import { checkLimit } from '@/lib/middleware/rateLimit';
+import { withObservability } from '@/lib/observability';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   }
@@ -110,3 +111,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(status).json({ success: false, error: msg });
   }
 }
+
+export default withObservability(handler, 'humanify/signup');

@@ -75,7 +75,14 @@ export default function TenantCareersPage() {
     <>
       <Head>
         <title>Karir — {companyName}{brand?.hidePoweredBy ? '' : ` · ${HUMANIFY_BRAND.name}`}</title>
-        <meta name="description" content={`Lowongan kerja di ${companyName}`} />
+        <meta name="description" content={`Lowongan kerja di ${companyName}. Lamar online via portal karir Humanify.`} />
+        <meta name="robots" content="index, follow" />
+        {tenantSlug ? <link rel="canonical" href={`https://humanify.id/c/${tenantSlug}/careers`} /> : null}
+        <meta property="og:title" content={`Karir — ${companyName}`} />
+        <meta property="og:description" content={`Lowongan kerja di ${companyName}`} />
+        <meta property="og:type" content="website" />
+        {tenantSlug ? <meta property="og:url" content={`https://humanify.id/c/${tenantSlug}/careers`} /> : null}
+        <link rel="icon" href={HUMANIFY_BRAND.welcomeLogoPath} type="image/png" />
       </Head>
       <div className="min-h-screen bg-slate-50 flex flex-col" style={{ ['--tenant-primary' as any]: primary }}>
         <header className="border-b bg-white">

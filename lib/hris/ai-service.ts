@@ -153,7 +153,7 @@ export async function generateAIInsights(req: AIInsightRequest): Promise<{
 
   const llmInsight: AIInsight = {
     module: req.module,
-    title: 'AI Advisor (SumoPod)',
+    title: 'AI Advisor (AIMAN)',
     summary: llmText,
     confidence: 75,
     priority: 'medium',
@@ -182,7 +182,7 @@ export async function generateModuleInsightsBatchAsync(
 
   const summaryContext = modules.map(m => ({ module: m.module, ...m.context }));
   const text = await sumopodChat({
-    system: 'Anda AI HR advisor Humanify (SumoPod). Berikan 2 insight singkat bahasa Indonesia dari data HR berikut. Format: [MODUL] judul: ringkasan',
+    system: 'Anda AI HR advisor Humanify (AIMAN). Berikan 2 insight singkat bahasa Indonesia dari data HR berikut. Format: [MODUL] judul: ringkasan',
     user: JSON.stringify(summaryContext),
     maxTokens: 400,
     model: cfg.chatModel,
@@ -193,7 +193,7 @@ export async function generateModuleInsightsBatchAsync(
 
   const llmInsight: AIInsight = {
     module: 'general',
-    title: 'AI Executive Summary (SumoPod)',
+    title: 'AI Executive Summary (AIMAN)',
     summary: text.split('\n').slice(0, 3).join(' '),
     confidence: 78,
     priority: 'medium',

@@ -9,8 +9,24 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
   const tenantId = (req as any).session?.user?.tenantId as string | undefined;
   const { sequelize } = await import('@/lib/sequelizeClient');
-  const tf = tenantId ? 'AND tenant_id = :tenantId' : '';
-  const etf = tenantId ? 'AND e.tenant_id = :tenantId' : '';
+
+  // Tenant customers must never see platform-wide rows. No tenant → empty module data.
+  if (!tenantId) {
+    return res.status(200).json({
+      success: true,
+      dataSource: 'empty',
+      stats: { total: 0, active: 0, onLeave: 0, inactive: 0, avgPerf: 0, avgKpi: 0, topPerformers: 0, attendanceToday: 0 },
+      deptStats: [],
+      pendingApprovals: [],
+      pendingSummary: { total: 0, overdue: 0, byType: { leave: 0, overtime: 0, claim: 0, travel: 0, mutation: 0 } },
+      recentActivities: [],
+      upcoming: [],
+      period: new Date().toISOString().substring(0, 7),
+    });
+  }
+
+  const tf = 'AND tenant_id = :tenantId';
+  const etf = 'AND e.tenant_id = :tenantId';
   const r: any = { tenantId };
 
   try {
@@ -85,7 +101,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
              e.name AS employee_name
       FROM leave_requests lr
       LEFT JOIN employees e ON lr.employee_id = e.id
-      WHERE lr.status = 'pending' ${tenantId ? 'AND lr.tenant_id = :tenantId' : ''}
+      WHERE lr.status = 'pending' AND lr.tenant_id = :tenantId
       ORDER BY lr.created_at DESC LIMIT 8
     `, { replacements: r });
 
@@ -106,7 +122,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         SELECT o.id, o.date, o.duration_hours, o.status, o.created_at, e.name AS employee_name
         FROM overtime_requests o
         LEFT JOIN employees e ON o.employee_id = e.id
-        WHERE o.status = 'pending' ${tenantId ? 'AND o.tenant_id = :tenantId' : ''}
+        WHERE o.status = 'pending' AND o.tenant_id = :tenantId
         ORDER BY o.created_at DESC LIMIT 5
       `, { replacements: r });
       pendingApprovals.push(...(pendingOt as any[]).map((o) => ({
@@ -127,7 +143,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         SELECT c.id, c.claim_type, c.amount, c.claim_date, c.status, c.created_at, e.name AS employee_name
         FROM employee_claims c
         LEFT JOIN employees e ON c.employee_id::text = e.id::text
-        WHERE c.status = 'pending'
+        WHERE c.status = 'pending' AND c.tenant_id = :tenantId
         ORDER BY c.created_at DESC LIMIT 5
       `, { replacements: r });
       pendingApprovals.push(...(pendingClaims as any[]).map((c) => ({
@@ -145,11 +161,13 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     try {
       const [pendingTravel] = await sequelize.query(`
-        SELECT tr.id, tr.destination, tr.departure_date, tr.return_date, tr.estimated_budget, tr.status, tr.created_at,
+        SELECT tr.id, tr.destination, COALESCE(tr.departure_date, tr.start_date) AS departure_date,
+               COALESCE(tr.return_date, tr.end_date) AS return_date,
+               tr.estimated_budget, tr.status, tr.created_at,
                e.name AS employee_name
         FROM travel_requests tr
         LEFT JOIN employees e ON tr.employee_id::text = e.id::text
-        WHERE tr.status = 'pending'
+        WHERE tr.status = 'pending' AND tr.tenant_id = :tenantId
         ORDER BY tr.created_at DESC LIMIT 5
       `, { replacements: r });
       pendingApprovals.push(...(pendingTravel as any[]).map((t) => ({
@@ -170,7 +188,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         SELECT m.id, m.mutation_type, m.effective_date, m.status, m.created_at, e.name AS employee_name
         FROM employee_mutations m
         LEFT JOIN employees e ON m.employee_id::text = e.id::text
-        WHERE m.status = 'pending'
+        WHERE m.status = 'pending' AND m.tenant_id = :tenantId
         ORDER BY m.created_at DESC LIMIT 5
       `, { replacements: r });
       pendingApprovals.push(...(pendingMutations as any[]).map((m) => ({
@@ -206,7 +224,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       FROM leave_requests lr
       LEFT JOIN employees e ON lr.employee_id = e.id
       WHERE lr.start_date >= CURRENT_DATE AND lr.status IN ('pending','approved')
-      ${tenantId ? 'AND lr.tenant_id = :tenantId' : ''}
+      AND lr.tenant_id = :tenantId
       ORDER BY lr.start_date LIMIT 5
     `, { replacements: r });
 

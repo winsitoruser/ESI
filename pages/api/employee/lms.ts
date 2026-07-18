@@ -15,14 +15,17 @@ const sequelize = require('../../../lib/sequelize');
 async function resolveEmployee(session: any) {
   const userId = session.user?.id;
   const tenantId = session.user?.tenantId || null;
+  if (!tenantId) return null;
   const [rows] = await sequelize.query(
-    `SELECT id, name AS full_name, email, department FROM employees WHERE user_id = :uid LIMIT 1`,
-    { replacements: { uid: userId } },
+    `SELECT id, name AS full_name, email, department FROM employees
+     WHERE user_id = :uid AND tenant_id = :tid LIMIT 1`,
+    { replacements: { uid: userId, tid: tenantId } },
   );
   if (rows.length) return { ...rows[0], tenantId };
   const [byEmail] = await sequelize.query(
-    `SELECT id, name AS full_name, email, department FROM employees WHERE email = :email LIMIT 1`,
-    { replacements: { email: session.user?.email } },
+    `SELECT id, name AS full_name, email, department FROM employees
+     WHERE email = :email AND tenant_id = :tid LIMIT 1`,
+    { replacements: { email: session.user?.email, tid: tenantId } },
   );
   return byEmail[0] ? { ...byEmail[0], tenantId } : null;
 }
@@ -89,8 +92,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (action === 'course-detail') {
         const { curriculum_id } = req.query;
         const [curricula] = await sequelize.query(
-          'SELECT * FROM hris_training_curricula WHERE id = :id AND status = :st',
-          { replacements: { id: curriculum_id, st: 'active' } },
+          'SELECT * FROM hris_training_curricula WHERE id = :id AND status = :st AND tenant_id = :tid',
+          { replacements: { id: curriculum_id, st: 'active', tid: tenantId } },
         );
         if (!curricula.length) return res.status(404).json({ error: 'Kursus tidak ditemukan' });
         const [modules] = await sequelize.query(
@@ -170,11 +173,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (req.method === 'POST') {
       if (action === 'start-exam') {
         const { exam_id, device_fingerprint } = req.body;
+        if (!exam_id) return res.status(400).json({ error: 'exam_id required' });
+        if (!tenantId) return res.status(403).json({ error: 'NO_TENANT' });
         const [attempts] = await sequelize.query(
-          'SELECT COUNT(*)::int as count FROM hris_training_exam_results WHERE exam_id = :eid AND employee_id = :empid',
-          { replacements: { eid: exam_id, empid: empId } },
+          'SELECT COUNT(*)::int as count FROM hris_training_exam_results WHERE exam_id = :eid AND employee_id = :empid AND tenant_id = :tid',
+          { replacements: { eid: exam_id, empid: empId, tid: tenantId } },
         );
-        const [exam] = await sequelize.query('SELECT * FROM hris_training_exams WHERE id = :eid', { replacements: { eid: exam_id } });
+        const [exam] = await sequelize.query(
+          `SELECT * FROM hris_training_exams WHERE id = :eid AND tenant_id = :tid AND status IN ('open','scheduled','in_progress')`,
+          { replacements: { eid: exam_id, tid: tenantId } },
+        );
         if (!exam.length) return res.status(404).json({ error: 'Ujian tidak ditemukan' });
         if ((attempts[0]?.count || 0) >= exam[0].max_attempts) {
           return res.status(400).json({ error: 'Batas percobaan sudah habis' });
@@ -259,15 +267,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       if (action === 'submit-exam') {
         const { result_id, answers } = req.body;
+        if (!tenantId) return res.status(403).json({ error: 'NO_TENANT' });
         const [results] = await sequelize.query(
-          'SELECT * FROM hris_training_exam_results WHERE id = :rid AND employee_id = :empid',
-          { replacements: { rid: result_id, empid: empId } },
+          'SELECT * FROM hris_training_exam_results WHERE id = :rid AND employee_id = :empid AND tenant_id = :tid',
+          { replacements: { rid: result_id, empid: empId, tid: tenantId } },
         );
         if (!results.length) return res.status(404).json({ error: 'Hasil ujian tidak ditemukan' });
         if (results[0].status !== 'in_progress') return res.status(400).json({ error: 'Ujian sudah dikumpulkan' });
 
         const examId = results[0].exam_id;
-        const [exam] = await sequelize.query('SELECT * FROM hris_training_exams WHERE id = :eid', { replacements: { eid: examId } });
+        const [exam] = await sequelize.query(
+          'SELECT * FROM hris_training_exams WHERE id = :eid AND tenant_id = :tid',
+          { replacements: { eid: examId, tid: tenantId } },
+        );
+        if (!exam.length) return res.status(404).json({ error: 'Ujian tidak ditemukan' });
         const [questions] = await sequelize.query(
           'SELECT * FROM hris_training_exam_questions WHERE exam_id = :eid ORDER BY question_number',
           { replacements: { eid: examId } },
@@ -310,12 +323,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             total_correct = :correct, total_answered = :answered, answers = :ans::jsonb,
             is_passed = :pass, status = :st, submitted_at = NOW(),
             metadata = :meta::jsonb
-          WHERE id = :rid
+          WHERE id = :rid AND employee_id = :empid AND tenant_id = :tid
         `, {
           replacements: {
             score: graded.pct,
             correct: graded.totalCorrect, answered: graded.totalAnswered,
             ans: JSON.stringify(graded.gradedAnswers), pass: isPassed, st: status, rid: result_id,
+            empid: empId, tid: tenantId,
             meta: JSON.stringify({
               needs_manual: graded.needsManual,
               integrity_score: integrityScore,

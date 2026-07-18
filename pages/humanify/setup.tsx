@@ -8,6 +8,7 @@ export default function HumanifySetupPage() {
       <Head>
         <title>Setup Workspace — {HUMANIFY_BRAND.name}</title>
         <meta name="description" content="Wizard setup awal workspace Humanify HRIS" />
+        <meta name="robots" content="noindex, nofollow" />
         <link rel="icon" href={HUMANIFY_BRAND.welcomeLogoPath} type="image/png" />
       </Head>
       <SaasSetupWizard />

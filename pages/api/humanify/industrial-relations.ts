@@ -2,7 +2,13 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]';
 import { rowsToSnake, rowToSnake } from '@/lib/hris/serialize-rows';
-import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
+import {
+  tenantIdFromSession,
+  findScopedById,
+  updateScoped,
+  destroyScoped,
+} from '@/lib/saas/tenant-scope';
+import { ensureTenantDbContext } from '@/lib/saas/ensure-tenant-db-context';
 
 let CompanyRegulation: any, WarningLetter: any, IrCase: any, TerminationRequest: any, ComplianceChecklist: any, AuditLog: any;
 try { CompanyRegulation = require('../../../models/CompanyRegulation'); } catch(e) {}
@@ -179,6 +185,7 @@ async function countPendingDisciplinaryTerminations(tenantId: string | null): Pr
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
   if (!session) return res.status(401).json({ error: 'Unauthorized' });
+  await ensureTenantDbContext(session);
 
   const { method } = req;
   const { action } = req.query;
@@ -188,7 +195,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       case 'GET': return handleGet(req, res, action as string, session);
       case 'POST': return handlePost(req, res, action as string, session);
       case 'PUT': return handlePut(req, res, action as string, session);
-      case 'DELETE': return handleDelete(req, res, action as string);
+      case 'DELETE': return handleDelete(req, res, action as string, session);
       default: return res.status(405).json({ error: 'Method not allowed' });
     }
   } catch (error: any) {
@@ -385,35 +392,62 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
     }
     case 'checklist': {
       if (!ComplianceChecklist) return res.json({ success: true, data: body, message: 'Created (mock)' });
-      const cl = await ComplianceChecklist.create(body);
-      return res.json({ success: true, data: cl });
+      const tid = tenantIdFromSession(session);
+      if (!tid) return res.status(403).json({ success: false, error: 'NO_TENANT' });
+      const { tenantId: _spoof, tenant_id: _spoof2, title, ...safeBody } = body || {};
+      try {
+        const cl = await ComplianceChecklist.create({
+          ...safeBody,
+          name: safeBody.name || title || 'Checklist',
+          tenantId: tid,
+        });
+        return res.json({ success: true, data: cl });
+      } catch (e: any) {
+        return res.status(400).json({ success: false, error: e.message || 'Failed to create checklist' });
+      }
     }
     case 'acknowledge-warning': {
       const { id } = body;
       if (!WarningLetter || !id) return res.json({ success: true, message: 'Acknowledged (mock)' });
-      await WarningLetter.update({ acknowledged: true, acknowledgedAt: new Date() }, { where: { id } });
+      const tid = tenantIdFromSession(session);
+      if (!tid) return res.status(403).json({ success: false, error: 'NO_TENANT' });
+      const [n] = await updateScoped(WarningLetter, id, tid, {
+        acknowledged: true,
+        acknowledgedAt: new Date(),
+      });
+      if (!n) return res.status(404).json({ success: false, error: 'Not found' });
       return res.json({ success: true, message: 'Warning acknowledged' });
     }
     case 'approve-termination': {
       const { id: tId } = body;
       if (!TerminationRequest || !tId) return res.json({ success: true, message: 'Approved (mock)' });
-      const old = await TerminationRequest.findByPk(tId);
-      await TerminationRequest.update({
-        status: 'approved', approvedBy: (session.user as any)?.id, approvedAt: new Date()
-      }, { where: { id: tId } });
-      await logAudit(session, 'approve', 'termination_request', tId, old?.toJSON(), { status: 'approved' });
+      const tid = tenantIdFromSession(session);
+      if (!tid) return res.status(403).json({ success: false, error: 'NO_TENANT' });
+      const old = await findScopedById(TerminationRequest, tId, tid);
+      if (!old) return res.status(404).json({ success: false, error: 'Not found' });
+      await updateScoped(TerminationRequest, tId, tid, {
+        status: 'approved',
+        approvedBy: (session.user as any)?.id,
+        approvedAt: new Date(),
+      });
+      await logAudit(session, 'approve', 'termination_request', tId, old?.toJSON?.() || old, { status: 'approved' });
       return res.json({ success: true, message: 'Termination approved' });
     }
     case 'update-clearance': {
       const { id: cId, clearanceStatus } = body;
       if (!TerminationRequest || !cId) return res.json({ success: true });
-      await TerminationRequest.update({ clearanceStatus }, { where: { id: cId } });
+      const tid = tenantIdFromSession(session);
+      if (!tid) return res.status(403).json({ success: false, error: 'NO_TENANT' });
+      const [n] = await updateScoped(TerminationRequest, cId, tid, { clearanceStatus });
+      if (!n) return res.status(404).json({ success: false, error: 'Not found' });
       return res.json({ success: true, message: 'Clearance updated' });
     }
     case 'update-checklist-item': {
       const { id: chId, itemIndex, status: itemStatus } = body;
       if (!ComplianceChecklist || !chId) return res.json({ success: true });
-      const checklist = await ComplianceChecklist.findByPk(chId);
+      const tid = tenantIdFromSession(session);
+      if (!tid) return res.status(403).json({ success: false, error: 'NO_TENANT' });
+      const checklist = await findScopedById(ComplianceChecklist, chId, tid);
       if (checklist) {
         const items = [...(checklist.items || [])];
         if (items[itemIndex]) {
@@ -423,11 +457,14 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
         const completedCount = items.filter((i: any) => i.status === 'completed').length;
         const percent = items.length > 0 ? (completedCount / items.length) * 100 : 0;
         const allDone = percent === 100;
-        await ComplianceChecklist.update({
-          items, completionPercent: percent,
+        await updateScoped(ComplianceChecklist, chId, tid, {
+          items,
+          completionPercent: percent,
           status: allDone ? 'completed' : 'in_progress',
-          completedAt: allDone ? new Date() : null
-        }, { where: { id: chId } });
+          completedAt: allDone ? new Date() : null,
+        });
+      } else {
+        return res.status(404).json({ success: false, error: 'Not found' });
       }
       return res.json({ success: true, message: 'Checklist item updated' });
     }
@@ -444,9 +481,12 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, action: stri
   switch (action) {
     case 'regulation': {
       if (!CompanyRegulation) return res.json({ success: true, message: 'Updated (mock)' });
-      const old = await CompanyRegulation.findByPk(id);
-      await CompanyRegulation.update(body, { where: { id } });
-      await logAudit(session, 'update', 'company_regulation', id as string, old?.toJSON(), body);
+      const tid = tenantIdFromSession(session);
+      if (!tid) return res.status(403).json({ success: false, error: 'NO_TENANT' });
+      const old = await findScopedById(CompanyRegulation, id as string, tid);
+      if (!old) return res.status(404).json({ success: false, error: 'Not found' });
+      await updateScoped(CompanyRegulation, id as string, tid, body);
+      await logAudit(session, 'update', 'company_regulation', id as string, old?.toJSON?.() || old, body);
       return res.json({ success: true, message: 'Regulation updated' });
     }
     case 'warning': {
@@ -458,7 +498,10 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, action: stri
     }
     case 'case': {
       if (!IrCase) return res.json({ success: true, message: 'Updated (mock)' });
-      const oldCase = await IrCase.findByPk(id);
+      const tid = tenantIdFromSession(session);
+      if (!tid) return res.status(403).json({ success: false, error: 'NO_TENANT' });
+      const oldCase = await findScopedById(IrCase, id as string, tid);
+      if (!oldCase) return res.status(404).json({ success: false, error: 'Not found' });
       const evidence = {
         ...((oldCase?.evidence as object) || {}),
         mitigation_plan: body.mitigationPlan ?? body.mitigation_plan,
@@ -466,7 +509,7 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, action: stri
         involved_employees: body.involvedEmployees ?? body.involved_employees,
         incident_location: body.incidentLocation ?? body.incident_location,
       };
-      await IrCase.update({
+      await updateScoped(IrCase, id as string, tid, {
         title: body.title,
         caseType: body.category || body.caseType,
         description: body.description,
@@ -478,8 +521,8 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, action: stri
         evidence,
         witnesses: body.involvedEmployees || body.witnesses,
         closedDate: ['resolved', 'closed'].includes(body.status) ? new Date().toISOString().split('T')[0] : null,
-      }, { where: { id } });
-      await logAudit(session, 'update', 'ir_case', id as string, oldCase?.toJSON(), body);
+      });
+      await logAudit(session, 'update', 'ir_case', id as string, oldCase?.toJSON?.() || oldCase, body);
       return res.json({ success: true, message: 'Case updated' });
     }
     case 'termination': {
@@ -491,7 +534,10 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, action: stri
     }
     case 'checklist': {
       if (!ComplianceChecklist) return res.json({ success: true, message: 'Updated (mock)' });
-      await ComplianceChecklist.update(body, { where: { id } });
+      const tid = tenantIdFromSession(session);
+      if (!tid) return res.status(403).json({ success: false, error: 'NO_TENANT' });
+      const [n] = await updateScoped(ComplianceChecklist, id as string, tid, body);
+      if (!n) return res.status(404).json({ success: false, error: 'Not found' });
       return res.json({ success: true, message: 'Checklist updated' });
     }
     default:
@@ -499,7 +545,7 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, action: stri
   }
 }
 
-async function handleDelete(req: NextApiRequest, res: NextApiResponse, action: string) {
+async function handleDelete(req: NextApiRequest, res: NextApiResponse, action: string, session: any) {
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: 'ID required' });
 
@@ -519,10 +565,14 @@ async function handleDelete(req: NextApiRequest, res: NextApiResponse, action: s
     });
   }
 
+  const tid = tenantIdFromSession(session);
+  if (!tid) return res.status(403).json({ success: false, error: 'NO_TENANT' });
+
   const models: any = { regulation: CompanyRegulation, case: IrCase, checklist: ComplianceChecklist };
   const model = models[action];
   if (!model) return res.status(400).json({ error: 'Invalid action' });
-  await model.destroy({ where: { id } });
+  const n = await destroyScoped(model, id as string, tid);
+  if (!n) return res.status(404).json({ success: false, error: 'Not found' });
   return res.json({ success: true, message: 'Deleted successfully' });
 }
 

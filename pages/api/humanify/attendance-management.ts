@@ -2,7 +2,8 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]';
 import { allowHrMockFallback, resolveDataSource } from '@/lib/hris/data-source';
-import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
+import { tenantIdFromSession, findScopedById, destroyScoped } from '@/lib/saas/tenant-scope';
+import { ensureTenantDbContext } from '@/lib/saas/ensure-tenant-db-context';
 
 let sequelize: any, Op: any;
 try { sequelize = require('../../../lib/sequelize'); Op = require('sequelize').Op; } catch (e) {}
@@ -21,6 +22,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const session = await getServerSession(req, res, authOptions);
     if (!session) return res.status(401).json({ error: 'Unauthorized' });
+    await ensureTenantDbContext(session);
 
     const { action } = req.query;
 
@@ -247,15 +249,33 @@ async function getSettings(req: NextApiRequest, res: NextApiResponse, session: a
 // ================= GET: Attendance Records =================
 async function getAttendanceRecords(req: NextApiRequest, res: NextApiResponse, session: any) {
   if (!EmployeeAttendance || !sequelize) return res.json({ success: true, data: [], summary: {} });
+  const tenantId = tenantIdFromSession(session);
+  if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
   const { startDate, endDate, employeeId, branchId, status } = req.query;
-  const where: any = {};
-  if (startDate && endDate && Op) where.date = { [Op.between]: [startDate, endDate] };
-  else { const d = new Date(); d.setMonth(d.getMonth() - 1); where.date = { [Op.gte]: d.toISOString().split('T')[0] }; }
-  if (employeeId) where.employeeId = employeeId;
-  if (branchId) where.branchId = branchId;
-  if (status && status !== 'all') where.status = status;
-  const data = await EmployeeAttendance.findAll({ where, order: [['date', 'DESC']], limit: 1000 });
-  return res.json({ success: true, data });
+  try {
+    let sql = `
+      SELECT ea.* FROM employee_attendance ea
+      INNER JOIN employees e ON ea.employee_id::text = e.id::text AND e.tenant_id = :tenantId
+      WHERE 1=1`;
+    const replacements: any = { tenantId };
+    if (startDate && endDate) {
+      sql += ' AND ea.date BETWEEN :startDate AND :endDate';
+      replacements.startDate = startDate;
+      replacements.endDate = endDate;
+    } else {
+      const d = new Date(); d.setMonth(d.getMonth() - 1);
+      sql += ' AND ea.date >= :startDate';
+      replacements.startDate = d.toISOString().split('T')[0];
+    }
+    if (employeeId) { sql += ' AND ea.employee_id = :employeeId'; replacements.employeeId = employeeId; }
+    if (branchId) { sql += ' AND ea.branch_id = :branchId'; replacements.branchId = branchId; }
+    if (status && status !== 'all') { sql += ' AND ea.status = :status'; replacements.status = status; }
+    sql += ' ORDER BY ea.date DESC LIMIT 1000';
+    const [data] = await sequelize.query(sql, { replacements });
+    return res.json({ success: true, data });
+  } catch (e: any) {
+    return res.json({ success: true, data: [], summary: {}, error: e.message });
+  }
 }
 
 // ================= GET: Today Live =================
@@ -305,8 +325,11 @@ async function updateWorkShift(req: NextApiRequest, res: NextApiResponse, sessio
   const { id, ...data } = req.body;
   if (!id || !WorkShift) return res.json({ success: true, message: 'Updated (mock)' });
   try {
-    const item = await WorkShift.findByPk(id);
+    const tenantId = tenantIdFromSession(session);
+    if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
+    const item = await findScopedById(WorkShift, id, tenantId);
     if (!item) return res.status(404).json({ error: 'Not found' });
+    delete (data as any).tenantId;
     await item.update(data);
     return res.json({ success: true, data: item });
   } catch (e: any) { return res.status(500).json({ success: false, error: e.message }); }
@@ -317,7 +340,10 @@ async function deleteWorkShift(req: NextApiRequest, res: NextApiResponse, sessio
   const { id } = req.query;
   if (!id || !WorkShift) return res.json({ success: true });
   try {
-    await WorkShift.destroy({ where: { id } });
+    const tenantId = tenantIdFromSession(session);
+    if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
+    const n = await destroyScoped(WorkShift, id as string, tenantId);
+    if (!n) return res.status(404).json({ error: 'Not found' });
     return res.json({ success: true, message: 'Deleted' });
   } catch (e: any) { return res.status(500).json({ success: false, error: e.message }); }
 }
@@ -334,11 +360,21 @@ async function createSchedule(req: NextApiRequest, res: NextApiResponse, session
 // ================= POST: Bulk Create Schedules =================
 async function bulkCreateSchedule(req: NextApiRequest, res: NextApiResponse, session: any) {
   if (!ShiftSchedule || !sequelize) return res.json({ success: true, message: 'Bulk created (mock)', count: 0 });
+  const tenantId = tenantIdFromSession(session);
+  if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
   const { employeeIds, workShiftId, startDate, endDate, days } = req.body;
   if (!employeeIds || !workShiftId || !startDate || !endDate) {
     return res.status(400).json({ success: false, error: 'Missing required fields' });
   }
   try {
+    const [owned] = await sequelize.query(
+      `SELECT id::text AS id FROM employees WHERE tenant_id = :tid AND id::text = ANY(:ids)`,
+      { replacements: { tid: tenantId, ids: employeeIds.map(String) } },
+    );
+    const ownedSet = new Set((owned || []).map((r: any) => String(r.id)));
+    const validIds = employeeIds.filter((id: string) => ownedSet.has(String(id)));
+    if (!validIds.length) return res.status(404).json({ success: false, error: 'No valid employees in tenant' });
+
     const start = new Date(startDate);
     const end = new Date(endDate);
     const applicableDays = days || [1, 2, 3, 4, 5];
@@ -349,13 +385,13 @@ async function bulkCreateSchedule(req: NextApiRequest, res: NextApiResponse, ses
       if (!applicableDays.includes(dayOfWeek)) continue;
       const dateStr = d.toISOString().split('T')[0];
       
-      for (const empId of employeeIds) {
+      for (const empId of validIds) {
         try {
           await sequelize.query(`
             INSERT INTO shift_schedules (id, tenant_id, employee_id, work_shift_id, schedule_date, status, assigned_by, created_at, updated_at)
             VALUES (uuid_generate_v4(), :tenantId, :empId, :shiftId, :date, 'scheduled', :assignedBy, NOW(), NOW())
             ON CONFLICT (employee_id, schedule_date) DO UPDATE SET work_shift_id = :shiftId, updated_at = NOW()
-          `, { replacements: { tenantId: session.user.tenantId, empId, shiftId: workShiftId, date: dateStr, assignedBy: session.user.id } });
+          `, { replacements: { tenantId, empId, shiftId: workShiftId, date: dateStr, assignedBy: session.user.id } });
           count++;
         } catch (e) {}
       }
@@ -368,8 +404,11 @@ async function bulkCreateSchedule(req: NextApiRequest, res: NextApiResponse, ses
 async function updateSchedule(req: NextApiRequest, res: NextApiResponse, session: any) {
   const { id, ...data } = req.body;
   if (!id || !ShiftSchedule) return res.json({ success: true });
-  const item = await ShiftSchedule.findByPk(id);
+  const tenantId = tenantIdFromSession(session);
+  if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
+  const item = await findScopedById(ShiftSchedule, id, tenantId);
   if (!item) return res.status(404).json({ error: 'Not found' });
+  delete (data as any).tenantId;
   await item.update(data);
   return res.json({ success: true, data: item });
 }
@@ -377,7 +416,10 @@ async function updateSchedule(req: NextApiRequest, res: NextApiResponse, session
 async function deleteSchedule(req: NextApiRequest, res: NextApiResponse, session: any) {
   const { id } = req.query;
   if (!id || !ShiftSchedule) return res.json({ success: true });
-  await ShiftSchedule.destroy({ where: { id } });
+  const tenantId = tenantIdFromSession(session);
+  if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
+  const n = await destroyScoped(ShiftSchedule, id as string, tenantId);
+  if (!n) return res.status(404).json({ error: 'Not found' });
   return res.json({ success: true });
 }
 
@@ -393,8 +435,11 @@ async function createRotation(req: NextApiRequest, res: NextApiResponse, session
 async function updateRotation(req: NextApiRequest, res: NextApiResponse, session: any) {
   const { id, ...data } = req.body;
   if (!id || !ShiftRotation) return res.json({ success: true });
-  const item = await ShiftRotation.findByPk(id);
+  const tenantId = tenantIdFromSession(session);
+  if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
+  const item = await findScopedById(ShiftRotation, id, tenantId);
   if (!item) return res.status(404).json({ error: 'Not found' });
+  delete (data as any).tenantId;
   await item.update(data);
   return res.json({ success: true, data: item });
 }
@@ -402,7 +447,10 @@ async function updateRotation(req: NextApiRequest, res: NextApiResponse, session
 async function deleteRotation(req: NextApiRequest, res: NextApiResponse, session: any) {
   const { id } = req.query;
   if (!id || !ShiftRotation) return res.json({ success: true });
-  await ShiftRotation.destroy({ where: { id } });
+  const tenantId = tenantIdFromSession(session);
+  if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
+  const n = await destroyScoped(ShiftRotation, id as string, tenantId);
+  if (!n) return res.status(404).json({ error: 'Not found' });
   return res.json({ success: true });
 }
 
@@ -413,7 +461,9 @@ async function generateRotationSchedules(req: NextApiRequest, res: NextApiRespon
   if (!rotationId) return res.status(400).json({ error: 'rotationId required' });
 
   try {
-    const rotation = await ShiftRotation.findByPk(rotationId);
+    const tenantId = tenantIdFromSession(session);
+    if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
+    const rotation = await findScopedById(ShiftRotation, rotationId, tenantId);
     if (!rotation) return res.status(404).json({ error: 'Rotation not found' });
 
     const pattern = rotation.rotationPattern || rotation.rotation_pattern || [];
@@ -424,7 +474,6 @@ async function generateRotationSchedules(req: NextApiRequest, res: NextApiRespon
 
     // Get employees if empIds empty, fall back to tenant's active employees
     let employees = empIds;
-    const tenantId = tenantIdFromSession(session) || session.user?.tenantId;
     if (employees.length === 0) {
       if (!tenantId) {
         return res.json({ success: true, message: 'No tenant employees to schedule', count: 0 });
@@ -485,8 +534,11 @@ async function createGeofence(req: NextApiRequest, res: NextApiResponse, session
 async function updateGeofence(req: NextApiRequest, res: NextApiResponse, session: any) {
   const { id, ...data } = req.body;
   if (!id || !GeofenceLocation) return res.json({ success: true });
-  const item = await GeofenceLocation.findByPk(id);
+  const tenantId = tenantIdFromSession(session);
+  if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
+  const item = await findScopedById(GeofenceLocation, id, tenantId);
   if (!item) return res.status(404).json({ error: 'Not found' });
+  delete (data as any).tenantId;
   await item.update(data);
   return res.json({ success: true, data: item });
 }
@@ -494,22 +546,38 @@ async function updateGeofence(req: NextApiRequest, res: NextApiResponse, session
 async function deleteGeofence(req: NextApiRequest, res: NextApiResponse, session: any) {
   const { id } = req.query;
   if (!id || !GeofenceLocation) return res.json({ success: true });
-  await GeofenceLocation.destroy({ where: { id } });
+  const tenantId = tenantIdFromSession(session);
+  if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
+  const n = await destroyScoped(GeofenceLocation, id as string, tenantId);
+  if (!n) return res.status(404).json({ error: 'Not found' });
   return res.json({ success: true });
 }
 
 // ================= POST: Clock In =================
 async function clockIn(req: NextApiRequest, res: NextApiResponse, session: any) {
   if (!EmployeeAttendance || !sequelize) return res.json({ success: true, message: 'Clocked in (mock)' });
+  const tenantId = tenantIdFromSession(session);
+  if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
   const { employeeId, branchId, method, location, photo, geofenceId, deviceId } = req.body;
   if (!employeeId) return res.status(400).json({ error: 'employeeId required' });
 
   try {
+    const [emp] = await sequelize.query(
+      'SELECT id FROM employees WHERE id = :empId AND tenant_id = :tid LIMIT 1',
+      { replacements: { empId: employeeId, tid: tenantId } },
+    );
+    if (!emp?.length) return res.status(404).json({ success: false, error: 'Employee not found' });
+
     const today = new Date().toISOString().split('T')[0];
     const now = new Date();
 
     // Check if already clocked in
-    const [existing] = await sequelize.query(`SELECT id, clock_in FROM employee_attendance WHERE employee_id = :empId AND date = :date`, { replacements: { empId: employeeId, date: today } });
+    const [existing] = await sequelize.query(
+      `SELECT ea.id, ea.clock_in FROM employee_attendance ea
+       INNER JOIN employees e ON ea.employee_id::text = e.id::text AND e.tenant_id = :tid
+       WHERE ea.employee_id = :empId AND ea.date = :date`,
+      { replacements: { empId: employeeId, date: today, tid: tenantId } },
+    );
     if (existing.length > 0 && existing[0].clock_in) {
       return res.status(400).json({ success: false, error: 'Sudah clock in hari ini' });
     }
@@ -520,8 +588,8 @@ async function clockIn(req: NextApiRequest, res: NextApiResponse, session: any) 
       SELECT ss.*, ws.start_time, ws.tolerance_late_minutes 
       FROM shift_schedules ss 
       LEFT JOIN work_shifts ws ON ss.work_shift_id = ws.id 
-      WHERE ss.employee_id = :empId AND ss.schedule_date = :date
-    `, { replacements: { empId: employeeId, date: today } });
+      WHERE ss.employee_id = :empId AND ss.schedule_date = :date AND ss.tenant_id = :tid
+    `, { replacements: { empId: employeeId, date: today, tid: tenantId } });
 
     let status = 'present';
     let lateMinutes = 0;
@@ -544,7 +612,7 @@ async function clockIn(req: NextApiRequest, res: NextApiResponse, session: any) 
     let verified = true;
     if (geofenceId && location && GeofenceLocation) {
       try {
-        const geo = await GeofenceLocation.findByPk(geofenceId);
+        const geo = await findScopedById(GeofenceLocation, geofenceId, tenantId);
         if (geo) {
           const dist = haversineDistance(location.lat, location.lng, parseFloat(geo.latitude), parseFloat(geo.longitude));
           verified = dist <= (geo.radiusMeters || geo.radius_meters || 100);
@@ -562,12 +630,12 @@ async function clockIn(req: NextApiRequest, res: NextApiResponse, session: any) 
       `, { replacements: { clockIn: now, status, late: lateMinutes, location: JSON.stringify(location || null), method: method || 'manual', photo: photo || null, geoId: geofenceId || null, deviceId: deviceId || null, verified, schedStart: scheduledStart, shiftId: schedule[0]?.work_shift_id || null, schedId: schedule[0]?.id || null, id: existing[0].id } });
     } else {
       await sequelize.query(`
-        INSERT INTO employee_attendance (id, employee_id, branch_id, date, clock_in, status, late_minutes, 
+        INSERT INTO employee_attendance (id, tenant_id, employee_id, branch_id, date, clock_in, status, late_minutes, 
         clock_in_location, clock_in_method, clock_in_photo, geofence_id, clock_in_device_id, clock_in_verified,
         scheduled_start, work_shift_id, schedule_id, created_at, updated_at)
-        VALUES (uuid_generate_v4(), :empId, :branchId, :date, :clockIn, :status, :late,
+        VALUES (uuid_generate_v4(), :tid, :empId, :branchId, :date, :clockIn, :status, :late,
         :location, :method, :photo, :geoId, :deviceId, :verified, :schedStart, :shiftId, :schedId, NOW(), NOW())
-      `, { replacements: { empId: employeeId, branchId: branchId || null, date: today, clockIn: now, status, late: lateMinutes, location: JSON.stringify(location || null), method: method || 'manual', photo: photo || null, geoId: geofenceId || null, deviceId: deviceId || null, verified, schedStart: scheduledStart, shiftId: schedule[0]?.work_shift_id || null, schedId: schedule[0]?.id || null } });
+      `, { replacements: { tid: tenantId, empId: employeeId, branchId: branchId || null, date: today, clockIn: now, status, late: lateMinutes, location: JSON.stringify(location || null), method: method || 'manual', photo: photo || null, geoId: geofenceId || null, deviceId: deviceId || null, verified, schedStart: scheduledStart, shiftId: schedule[0]?.work_shift_id || null, schedId: schedule[0]?.id || null } });
     }
 
     return res.json({ success: true, message: `Clock in berhasil${status === 'late' ? ` (terlambat ${lateMinutes} menit)` : ''}`, status, lateMinutes, verified });
@@ -577,14 +645,27 @@ async function clockIn(req: NextApiRequest, res: NextApiResponse, session: any) 
 // ================= POST: Clock Out =================
 async function clockOut(req: NextApiRequest, res: NextApiResponse, session: any) {
   if (!sequelize) return res.json({ success: true, message: 'Clocked out (mock)' });
+  const tenantId = tenantIdFromSession(session);
+  if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
   const { employeeId, method, location, photo, deviceId } = req.body;
   if (!employeeId) return res.status(400).json({ error: 'employeeId required' });
 
   try {
+    const [emp] = await sequelize.query(
+      'SELECT id FROM employees WHERE id = :empId AND tenant_id = :tid LIMIT 1',
+      { replacements: { empId: employeeId, tid: tenantId } },
+    );
+    if (!emp?.length) return res.status(404).json({ success: false, error: 'Employee not found' });
+
     const today = new Date().toISOString().split('T')[0];
     const now = new Date();
 
-    const [existing] = await sequelize.query(`SELECT * FROM employee_attendance WHERE employee_id = :empId AND date = :date`, { replacements: { empId: employeeId, date: today } });
+    const [existing] = await sequelize.query(
+      `SELECT ea.* FROM employee_attendance ea
+       INNER JOIN employees e ON ea.employee_id::text = e.id::text AND e.tenant_id = :tid
+       WHERE ea.employee_id = :empId AND ea.date = :date`,
+      { replacements: { empId: employeeId, date: today, tid: tenantId } },
+    );
     if (existing.length === 0 || !existing[0].clock_in) {
       return res.status(400).json({ success: false, error: 'Belum clock in hari ini' });
     }

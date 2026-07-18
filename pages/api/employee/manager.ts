@@ -121,7 +121,7 @@ async function getSummary(res: NextApiResponse, userId: string, tenantId: string
   `, base);
 
   const overtimePending = await safeCount(`
-    SELECT COUNT(*)::int as cnt FROM employee_overtime ot
+    SELECT COUNT(*)::int as cnt FROM overtime_requests ot
     JOIN employees e ON ot.employee_id::text = e.id::text
     WHERE ot.status = 'pending' ${otTenant} ${tf.sql}
   `, base);
@@ -174,10 +174,13 @@ async function getPendingApprovals(res: NextApiResponse, userId: string, tenantI
 
   const otTenant = tenantId ? 'AND ot.tenant_id = :tenantId' : '';
   const [overtime] = await sequelize.query(`
-    SELECT ot.id, ot.date, ot.start_time, ot.end_time, ot.duration_hours, ot.reason,
-      ot.overtime_type, ot.status, ot.created_at,
+    SELECT ot.id,
+      COALESCE(ot.date, ot.request_date) AS date,
+      ot.start_time, ot.end_time,
+      COALESCE(ot.duration_hours, ot.hours, 0) AS duration_hours,
+      ot.reason, ot.overtime_type, ot.status, ot.created_at,
       e.name AS employee_name, e.position, e.department, 'overtime' AS approval_type
-    FROM employee_overtime ot
+    FROM overtime_requests ot
     JOIN employees e ON ot.employee_id::text = e.id::text
     WHERE ot.status = 'pending' ${otTenant} ${tf.sql}
     ORDER BY ot.created_at ASC LIMIT 50
@@ -272,7 +275,7 @@ async function getTeam(res: NextApiResponse, userId: string, tenantId: string, i
   if (!sequelize) return res.json({ success: true, data: [] });
   const ctx = await resolveManagerContextLocal(userId);
   const tf = teamFilterClause(isSuperAdmin, ctx, userId);
-  const tenantClause = tenantId ? 'AND (e.tenant_id = :tenantId OR e.tenant_id IS NULL)' : '';
+  const tenantClause = tenantId ? 'AND e.tenant_id = :tenantId' : 'AND 1=0';
 
   const [rows] = await sequelize.query(`
     SELECT e.id, e.name, e.employee_code, e.position, e.department, e.email
@@ -310,23 +313,28 @@ async function getDisciplinaryLetters(res: NextApiResponse, userId: string, tena
 async function approveLeave(req: NextApiRequest, res: NextApiResponse, session: any) {
   const { id, comments } = req.body || {};
   if (!id) return res.status(400).json({ success: false, error: 'id required' });
+  const tenantId = String(session.user?.tenantId || '');
+  if (!tenantId) return res.status(403).json({ success: false, error: 'Tenant context required' });
 
   const result = await approveLeaveStep({
     leaveRequestId: String(id),
     approverId: session.user?.id,
     approverName: session.user?.name || session.user?.email,
     comments,
+    tenantId,
   });
 
   if (!result.success) return res.status(400).json(result);
 
   if (sequelize && result.finalized) {
-    const [lr] = await sequelize.query(`SELECT employee_id, leave_type, start_date, end_date FROM leave_requests WHERE id::text = :id`, {
-      replacements: { id: String(id) },
-    });
+    const [lr] = await sequelize.query(
+      `SELECT employee_id, leave_type, start_date, end_date FROM leave_requests WHERE id::text = :id AND tenant_id = :tenantId`,
+      { replacements: { id: String(id), tenantId } },
+    );
     const leave = lr?.[0];
     if (leave?.employee_id) {
       await notifyEmployeeByEmployeeId(sequelize, leave.employee_id, {
+        tenantId,
         title: 'Cuti Disetujui',
         message: `Pengajuan cuti ${leave.leave_type} (${leave.start_date} – ${leave.end_date}) telah disetujui.`,
         type: 'success',
@@ -342,16 +350,19 @@ async function approveLeave(req: NextApiRequest, res: NextApiResponse, session: 
 async function rejectLeave(req: NextApiRequest, res: NextApiResponse, session: any) {
   const { id, reason } = req.body || {};
   if (!id || !reason) return res.status(400).json({ success: false, error: 'id dan alasan wajib' });
+  const tenantId = String(session.user?.tenantId || '');
+  if (!tenantId) return res.status(403).json({ success: false, error: 'Tenant context required' });
 
   const [lrBefore] = sequelize ? await sequelize.query(
-    `SELECT employee_id, leave_type, start_date, end_date FROM leave_requests WHERE id::text = :id`,
-    { replacements: { id: String(id) } },
+    `SELECT employee_id, leave_type, start_date, end_date FROM leave_requests WHERE id::text = :id AND tenant_id = :tenantId`,
+    { replacements: { id: String(id), tenantId } },
   ) : [[]];
 
   const result = await rejectLeaveRequest({
     leaveRequestId: String(id),
     reason,
     approverId: session.user?.id,
+    tenantId,
   });
 
   if (!result.success) return res.status(400).json(result);
@@ -359,6 +370,7 @@ async function rejectLeave(req: NextApiRequest, res: NextApiResponse, session: a
   const leave = lrBefore?.[0];
   if (sequelize && leave?.employee_id) {
     await notifyEmployeeByEmployeeId(sequelize, leave.employee_id, {
+      tenantId,
       title: 'Cuti Ditolak',
       message: `Pengajuan cuti ditolak. Alasan: ${reason}`,
       type: 'warning',
@@ -373,25 +385,32 @@ async function rejectLeave(req: NextApiRequest, res: NextApiResponse, session: a
 async function approveClaim(req: NextApiRequest, res: NextApiResponse, session: any) {
   const { id, approved_amount, comments } = req.body || {};
   if (!id) return res.status(400).json({ success: false, error: 'id required' });
-  if (!sequelize) return res.json({ success: true, message: 'Klaim disetujui' });
+  if (!sequelize) return res.status(503).json({ success: false, error: 'Database tidak tersedia' });
+  const tenantId = String(session.user?.tenantId || '');
+  if (!tenantId) return res.status(403).json({ success: false, error: 'Tenant context required' });
 
   try {
-    const [claims] = await sequelize.query(`SELECT employee_id, amount FROM employee_claims WHERE id = :id`, { replacements: { id } });
+    const [claims] = await sequelize.query(
+      `SELECT employee_id, amount FROM employee_claims WHERE id = :id AND tenant_id = :tenantId AND status = 'pending'`,
+      { replacements: { id, tenantId } },
+    );
+    if (!claims?.[0]) {
+      return res.status(404).json({ success: false, error: 'Klaim tidak ditemukan' });
+    }
     await sequelize.query(`
       UPDATE employee_claims SET status = 'approved', approved_amount = COALESCE(:approved_amount, amount),
         notes = :comments, updated_at = NOW()
-      WHERE id = :id AND status = 'pending'
-    `, { replacements: { id, approved_amount: approved_amount || null, comments: comments || null } });
+      WHERE id = :id AND tenant_id = :tenantId AND status = 'pending'
+    `, { replacements: { id, tenantId, approved_amount: approved_amount || null, comments: comments || null } });
 
-    if (claims?.[0]?.employee_id) {
-      await notifyEmployeeByEmployeeId(sequelize, claims[0].employee_id, {
-        title: 'Klaim Disetujui',
-        message: `Klaim Anda sebesar Rp ${Number(approved_amount || claims[0].amount || 0).toLocaleString('id-ID')} telah disetujui.`,
-        type: 'success',
-        sourceType: 'employee_claim',
-        sourceId: String(id),
-      });
-    }
+    await notifyEmployeeByEmployeeId(sequelize, claims[0].employee_id, {
+      tenantId,
+      title: 'Klaim Disetujui',
+      message: `Klaim Anda sebesar Rp ${Number(approved_amount || claims[0].amount || 0).toLocaleString('id-ID')} telah disetujui.`,
+      type: 'success',
+      sourceType: 'employee_claim',
+      sourceId: String(id),
+    });
     return res.json({ success: true, message: 'Klaim disetujui' });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: e.message });
@@ -401,24 +420,31 @@ async function approveClaim(req: NextApiRequest, res: NextApiResponse, session: 
 async function rejectClaim(req: NextApiRequest, res: NextApiResponse, session: any) {
   const { id, reason } = req.body || {};
   if (!id || !reason) return res.status(400).json({ success: false, error: 'id dan alasan wajib' });
-  if (!sequelize) return res.json({ success: true, message: 'Klaim ditolak' });
+  if (!sequelize) return res.status(503).json({ success: false, error: 'Database tidak tersedia' });
+  const tenantId = String(session.user?.tenantId || '');
+  if (!tenantId) return res.status(403).json({ success: false, error: 'Tenant context required' });
 
   try {
-    const [claims] = await sequelize.query(`SELECT employee_id FROM employee_claims WHERE id = :id`, { replacements: { id } });
+    const [claims] = await sequelize.query(
+      `SELECT employee_id FROM employee_claims WHERE id = :id AND tenant_id = :tenantId AND status = 'pending'`,
+      { replacements: { id, tenantId } },
+    );
+    if (!claims?.[0]) {
+      return res.status(404).json({ success: false, error: 'Klaim tidak ditemukan' });
+    }
     await sequelize.query(`
       UPDATE employee_claims SET status = 'rejected', notes = :reason, updated_at = NOW()
-      WHERE id = :id AND status = 'pending'
-    `, { replacements: { id, reason } });
+      WHERE id = :id AND tenant_id = :tenantId AND status = 'pending'
+    `, { replacements: { id, tenantId, reason } });
 
-    if (claims?.[0]?.employee_id) {
-      await notifyEmployeeByEmployeeId(sequelize, claims[0].employee_id, {
-        title: 'Klaim Ditolak',
-        message: `Klaim Anda ditolak. Alasan: ${reason}`,
-        type: 'warning',
-        sourceType: 'employee_claim',
-        sourceId: String(id),
-      });
-    }
+    await notifyEmployeeByEmployeeId(sequelize, claims[0].employee_id, {
+      tenantId,
+      title: 'Klaim Ditolak',
+      message: `Klaim Anda ditolak. Alasan: ${reason}`,
+      type: 'warning',
+      sourceType: 'employee_claim',
+      sourceId: String(id),
+    });
     return res.json({ success: true, message: 'Klaim ditolak' });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: e.message });
@@ -431,23 +457,34 @@ async function approveOvertime(req: NextApiRequest, res: NextApiResponse, sessio
   if (!sequelize) return res.json({ success: true, message: 'Lembur disetujui' });
 
   const approverId = session.user?.id;
-  try {
-    const [rows] = await sequelize.query(`SELECT employee_id, date, duration_hours FROM employee_overtime WHERE id = :id`, { replacements: { id } });
-    await sequelize.query(`
-      UPDATE employee_overtime SET status = 'approved', approved_by = :approverId,
-        approved_at = NOW(), notes = COALESCE(:comments, notes), updated_at = NOW()
-      WHERE id = :id AND status = 'pending'
-    `, { replacements: { id, approverId, comments: comments || null } });
+  const tenantId = String(session.user?.tenantId || '');
+  if (!tenantId) return res.status(403).json({ success: false, error: 'Tenant context required' });
 
-    if (rows?.[0]?.employee_id) {
-      await notifyEmployeeByEmployeeId(sequelize, rows[0].employee_id, {
-        title: 'Lembur Disetujui',
-        message: `Pengajuan lembur ${rows[0].date} (${rows[0].duration_hours} jam) telah disetujui.`,
-        type: 'success',
-        sourceType: 'employee_overtime',
-        sourceId: String(id),
-      });
+  try {
+    const [rows] = await sequelize.query(`
+      SELECT employee_id, COALESCE(date, request_date) AS date,
+        COALESCE(duration_hours, hours, 0) AS duration_hours
+      FROM overtime_requests
+      WHERE id = :id AND tenant_id = :tenantId AND status = 'pending'
+    `, { replacements: { id, tenantId } });
+    if (!rows?.[0]) {
+      return res.status(404).json({ success: false, error: 'Pengajuan lembur tidak ditemukan' });
     }
+
+    await sequelize.query(`
+      UPDATE overtime_requests SET status = 'approved', approved_by = :approverId,
+        approved_at = NOW(), notes = COALESCE(:comments, notes), updated_at = NOW()
+      WHERE id = :id AND tenant_id = :tenantId AND status = 'pending'
+    `, { replacements: { id, approverId, comments: comments || null, tenantId } });
+
+    await notifyEmployeeByEmployeeId(sequelize, rows[0].employee_id, {
+      tenantId,
+      title: 'Lembur Disetujui',
+      message: `Pengajuan lembur ${rows[0].date} (${rows[0].duration_hours} jam) telah disetujui.`,
+      type: 'success',
+      sourceType: 'employee_overtime',
+      sourceId: String(id),
+    });
     return res.json({ success: true, message: 'Lembur disetujui' });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: e.message });
@@ -459,22 +496,31 @@ async function rejectOvertime(req: NextApiRequest, res: NextApiResponse, session
   if (!id || !reason) return res.status(400).json({ success: false, error: 'id dan alasan wajib' });
   if (!sequelize) return res.json({ success: true, message: 'Lembur ditolak' });
 
-  try {
-    const [rows] = await sequelize.query(`SELECT employee_id FROM employee_overtime WHERE id = :id`, { replacements: { id } });
-    await sequelize.query(`
-      UPDATE employee_overtime SET status = 'rejected', rejection_reason = :reason, updated_at = NOW()
-      WHERE id = :id AND status = 'pending'
-    `, { replacements: { id, reason } });
+  const tenantId = String(session.user?.tenantId || '');
+  if (!tenantId) return res.status(403).json({ success: false, error: 'Tenant context required' });
 
-    if (rows?.[0]?.employee_id) {
-      await notifyEmployeeByEmployeeId(sequelize, rows[0].employee_id, {
-        title: 'Lembur Ditolak',
-        message: `Pengajuan lembur ditolak. Alasan: ${reason}`,
-        type: 'warning',
-        sourceType: 'employee_overtime',
-        sourceId: String(id),
-      });
+  try {
+    const [rows] = await sequelize.query(`
+      SELECT employee_id FROM overtime_requests
+      WHERE id = :id AND tenant_id = :tenantId AND status = 'pending'
+    `, { replacements: { id, tenantId } });
+    if (!rows?.[0]) {
+      return res.status(404).json({ success: false, error: 'Pengajuan lembur tidak ditemukan' });
     }
+
+    await sequelize.query(`
+      UPDATE overtime_requests SET status = 'rejected', rejection_reason = :reason, updated_at = NOW()
+      WHERE id = :id AND tenant_id = :tenantId AND status = 'pending'
+    `, { replacements: { id, reason, tenantId } });
+
+    await notifyEmployeeByEmployeeId(sequelize, rows[0].employee_id, {
+      tenantId,
+      title: 'Lembur Ditolak',
+      message: `Pengajuan lembur ditolak. Alasan: ${reason}`,
+      type: 'warning',
+      sourceType: 'employee_overtime',
+      sourceId: String(id),
+    });
     return res.json({ success: true, message: 'Lembur ditolak' });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: e.message });

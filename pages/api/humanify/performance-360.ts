@@ -6,6 +6,8 @@ const COMPETENCIES = ['Komunikasi', 'Kolaborasi', 'Kepemimpinan', 'Inovasi', 'In
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   const tenantId = (req as any).session?.user?.tenantId as string | undefined;
+  if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
+
   const { reviewId, employeeId } = req.query;
 
   if (req.method === 'GET') {
@@ -21,14 +23,13 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function getFeedback(
-  req: NextApiRequest, res: NextApiResponse, tenantId?: string,
+  req: NextApiRequest, res: NextApiResponse, tenantId: string,
   reviewId?: string, employeeId?: string
 ) {
   const { sequelize } = await import('@/lib/sequelizeClient');
-  const tf = tenantId ? 'AND f.tenant_id = :tenantId' : '';
   const replacements: any = { tenantId };
 
-  let where = 'WHERE 1=1 ' + tf;
+  let where = 'WHERE f.tenant_id = :tenantId';
   if (reviewId) { where += ' AND f.review_id = :reviewId'; replacements.reviewId = reviewId; }
   if (employeeId) { where += ' AND f.employee_id = :employeeId'; replacements.employeeId = employeeId; }
 
@@ -74,7 +75,7 @@ async function getFeedback(
   }
 }
 
-async function createFeedback(req: NextApiRequest, res: NextApiResponse, tenantId?: string) {
+async function createFeedback(req: NextApiRequest, res: NextApiResponse, tenantId: string) {
   const {
     reviewId, employeeId, feedbackType, relationship, competency,
     rating, comments, isAnonymous, reviewerName,
@@ -90,6 +91,22 @@ async function createFeedback(req: NextApiRequest, res: NextApiResponse, tenantI
   const { sequelize } = await import('@/lib/sequelizeClient');
   const actorName = (req as any).session?.user?.name || reviewerName || 'Reviewer';
 
+  const [owned] = await sequelize.query(
+    'SELECT id FROM performance_reviews WHERE id = :reviewId AND tenant_id = :tenantId LIMIT 1',
+    { replacements: { reviewId, tenantId } },
+  );
+  if (!(owned as any[])?.length) {
+    return res.status(404).json({ success: false, error: 'Review tidak ditemukan' });
+  }
+
+  const [emp] = await sequelize.query(
+    'SELECT id FROM employees WHERE id = :employeeId AND tenant_id = :tenantId LIMIT 1',
+    { replacements: { employeeId, tenantId } },
+  );
+  if (!(emp as any[])?.length) {
+    return res.status(404).json({ success: false, error: 'Karyawan tidak ditemukan' });
+  }
+
   const [rows] = await sequelize.query(`
     INSERT INTO performance_review_feedback (
       tenant_id, review_id, employee_id, reviewer_name, feedback_type,
@@ -99,7 +116,7 @@ async function createFeedback(req: NextApiRequest, res: NextApiResponse, tenantI
     RETURNING *
   `, {
     replacements: {
-      tenantId: tenantId || null, reviewId, employeeId, reviewerName: actorName,
+      tenantId, reviewId, employeeId, reviewerName: actorName,
       feedbackType, relationship: relationship || feedbackType,
       competency: competency || 'Komunikasi', rating: parseFloat(rating),
       comments: comments || null, isAnonymous: !!isAnonymous,
@@ -107,22 +124,26 @@ async function createFeedback(req: NextApiRequest, res: NextApiResponse, tenantI
   });
 
   await sequelize.query(
-    `UPDATE performance_reviews SET review_type_360 = true, updated_at = NOW() WHERE id = :reviewId`,
-    { replacements: { reviewId } }
+    `UPDATE performance_reviews SET review_type_360 = true, updated_at = NOW()
+     WHERE id = :reviewId AND tenant_id = :tenantId`,
+    { replacements: { reviewId, tenantId } },
   );
 
   return res.status(201).json({ success: true, data: (rows as any[])[0] });
 }
 
-async function deleteFeedback(req: NextApiRequest, res: NextApiResponse, tenantId?: string) {
+async function deleteFeedback(req: NextApiRequest, res: NextApiResponse, tenantId: string) {
   const { id } = req.query;
   if (!id) return res.status(400).json({ success: false, error: 'id wajib' });
 
   const { sequelize } = await import('@/lib/sequelizeClient');
-  await sequelize.query(
-    `DELETE FROM performance_review_feedback WHERE id = :id ${tenantId ? 'AND tenant_id = :tenantId' : ''}`,
-    { replacements: { id, tenantId } }
+  const [, meta] = await sequelize.query(
+    `DELETE FROM performance_review_feedback WHERE id = :id AND tenant_id = :tenantId`,
+    { replacements: { id, tenantId } },
   );
+  if ((meta as any)?.rowCount === 0) {
+    return res.status(404).json({ success: false, error: 'Feedback tidak ditemukan' });
+  }
   return res.status(200).json({ success: true });
 }
 

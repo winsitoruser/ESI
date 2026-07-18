@@ -21,8 +21,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     switch (method) {
       case 'GET': return handleGet(req, res, action as string, session);
       case 'POST': return handlePost(req, res, action as string, session);
-      case 'PUT': return handlePut(req, res, action as string);
-      case 'DELETE': return handleDelete(req, res, action as string);
+      case 'PUT': return handlePut(req, res, action as string, session);
+      case 'DELETE': return handleDelete(req, res, action as string, session);
       default: return res.status(405).json({ error: 'Method not allowed' });
     }
   } catch (error: any) {
@@ -154,28 +154,46 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
 
 async function handlePost(req: NextApiRequest, res: NextApiResponse, action: string, session: any) {
   const body = req.body;
+  const tenantId = tenantIdFromSession(session);
+  if (!tenantId) return res.status(403).json({ error: 'NO_TENANT' });
+
   switch (action) {
     case 'project': {
       if (!Project) return res.json({ success: true, data: body });
-      const count = await Project.count();
-      body.projectCode = body.projectCode || `PRJ-${String(count + 1).padStart(4, '0')}`;
-      const project = await Project.create(body);
-      return res.json({ success: true, data: project });
+      const stamp = Date.now().toString(36).slice(-6).toUpperCase();
+      const count = await Project.count({ where: { tenantId } });
+      body.projectCode = body.projectCode || `PRJ-${String(tenantId).slice(0, 6)}-${String(count + 1).padStart(3, '0')}-${stamp}`;
+      delete body.tenantId;
+      try {
+        const project = await Project.create({ ...body, tenantId });
+        return res.json({ success: true, data: project });
+      } catch (e: any) {
+        if (e?.name === 'SequelizeUniqueConstraintError' || e?.parent?.code === '23505') {
+          body.projectCode = `PRJ-${String(tenantId).slice(0, 6)}-${stamp}-${Math.floor(Math.random() * 1e4)}`;
+          const project = await Project.create({ ...body, tenantId });
+          return res.json({ success: true, data: project });
+        }
+        throw e;
+      }
     }
     case 'worker': {
       if (!ProjectWorker) return res.json({ success: true, data: body });
       if (!body.projectId) return res.status(400).json({ success: false, error: 'Proyek wajib dipilih' });
       if (!body.employeeId) return res.status(400).json({ success: false, error: 'Karyawan wajib dipilih' });
-      const worker = await ProjectWorker.create(mapWorkerPayload(body));
+      const owned = await Project.findOne({ where: { id: body.projectId, tenantId }, attributes: ['id'] });
+      if (!owned) return res.status(404).json({ success: false, error: 'Project not found' });
+      const worker = await ProjectWorker.create({ ...mapWorkerPayload(body), tenantId });
       return res.json({ success: true, data: worker });
     }
     case 'workers-bulk': {
       const { projectId, workers } = body;
       if (!ProjectWorker || !projectId || !workers?.length) return res.json({ success: true });
+      const owned = await Project.findOne({ where: { id: projectId, tenantId }, attributes: ['id'] });
+      if (!owned) return res.status(404).json({ success: false, error: 'Project not found' });
       const created = [];
       for (const w of workers) {
         try {
-          const worker = await ProjectWorker.create(mapWorkerPayload({ ...w, projectId }));
+          const worker = await ProjectWorker.create({ ...mapWorkerPayload({ ...w, projectId }), tenantId });
           created.push(worker);
         } catch(e) { /* duplicate, skip */ }
       }
@@ -185,21 +203,26 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
       if (!ProjectTimesheet) return res.json({ success: true, data: body });
       if (!body.projectId) return res.status(400).json({ success: false, error: 'Proyek wajib dipilih' });
       if (!body.employeeId) return res.status(400).json({ success: false, error: 'Karyawan wajib dipilih' });
-      const ts = await ProjectTimesheet.create(mapTimesheetPayload(body));
+      const owned = await Project.findOne({ where: { id: body.projectId, tenantId }, attributes: ['id'] });
+      if (!owned) return res.status(404).json({ success: false, error: 'Project not found' });
+      const ts = await ProjectTimesheet.create({ ...mapTimesheetPayload(body), tenantId });
       return res.json({ success: true, data: ts });
     }
     case 'timesheets-bulk': {
       const { entries } = body;
       if (!ProjectTimesheet || !entries?.length) return res.json({ success: true });
-      const created = await ProjectTimesheet.bulkCreate(entries.map(mapTimesheetPayload));
+      const created = await ProjectTimesheet.bulkCreate(
+        entries.map((e: any) => ({ ...mapTimesheetPayload(e), tenantId })),
+      );
       return res.json({ success: true, data: created, count: created.length });
     }
     case 'approve-timesheet': {
       const { id } = body;
       if (!ProjectTimesheet || !id) return res.json({ success: true });
-      await ProjectTimesheet.update({
+      const [n] = await ProjectTimesheet.update({
         status: 'approved', approvedBy: (session.user as any)?.id, approvedAt: new Date()
-      }, { where: { id } });
+      }, { where: { id, tenantId } });
+      if (!n) return res.status(404).json({ success: false, error: 'Not found' });
       return res.json({ success: true, message: 'Timesheet approved' });
     }
     case 'calculate-payroll': {
@@ -207,17 +230,17 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
       if (!ProjectTimesheet || !ProjectPayroll || !prjId || !employeeId) {
         return res.status(400).json({ error: 'Missing required fields' });
       }
+      const owned = await Project.findOne({ where: { id: prjId, tenantId }, attributes: ['id'] });
+      if (!owned) return res.status(404).json({ success: false, error: 'Project not found' });
       const { Op } = require('sequelize');
-      // Get approved timesheets for the period
       const timesheets = await ProjectTimesheet.findAll({
         where: {
-          projectId: prjId, employeeId,
+          projectId: prjId, employeeId, tenantId,
           status: 'approved',
           workDate: { [Op.between]: [periodStart, periodEnd] }
         }
       });
-      // Get worker rate
-      const worker = await ProjectWorker.findOne({ where: { projectId: prjId, employeeId } });
+      const worker = await ProjectWorker.findOne({ where: { projectId: prjId, employeeId, tenantId } });
       const dailyRate = parseFloat(worker?.costPerHour || 0) * 8;
       const hourlyRate = parseFloat(worker?.costPerHour || 0);
 
@@ -230,7 +253,7 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
         : (regularHours * hourlyRate) + (overtimeHours * hourlyRate * 1.5);
 
       const payroll = await ProjectPayroll.create({
-        projectId: prjId, employeeId, periodStart, periodEnd,
+        projectId: prjId, employeeId, periodStart, periodEnd, tenantId,
         regularHours, overtimeHours, dailyRate, overtimeRate: dailyRate / 8 * 1.5,
         daysWorked, grossAmount, netAmount: grossAmount, status: 'calculated'
       });
@@ -239,17 +262,19 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
     case 'approve-payroll': {
       const { id: payId } = body;
       if (!ProjectPayroll || !payId) return res.json({ success: true });
-      await ProjectPayroll.update({
+      const [n] = await ProjectPayroll.update({
         status: 'approved', approvedBy: (session.user as any)?.id, approvedAt: new Date()
-      }, { where: { id: payId } });
+      }, { where: { id: payId, tenantId } });
+      if (!n) return res.status(404).json({ success: false, error: 'Not found' });
       return res.json({ success: true, message: 'Payroll approved' });
     }
     case 'pay-payroll': {
       const { id: ppId, paymentRef } = body;
       if (!ProjectPayroll || !ppId) return res.json({ success: true });
-      await ProjectPayroll.update({
+      const [n] = await ProjectPayroll.update({
         status: 'paid', paidAt: new Date(), paymentRef
-      }, { where: { id: ppId } });
+      }, { where: { id: ppId, tenantId } });
+      if (!n) return res.status(404).json({ success: false, error: 'Not found' });
       return res.json({ success: true, message: 'Payment recorded' });
     }
     case 'update-progress': {
@@ -260,7 +285,8 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
         statusUpdate.status = 'completed';
         statusUpdate.actualEndDate = new Date().toISOString().split('T')[0];
       }
-      await Project.update(statusUpdate, { where: { id: prId } });
+      const [n] = await Project.update(statusUpdate, { where: { id: prId, tenantId } });
+      if (!n) return res.status(404).json({ success: false, error: 'Not found' });
       return res.json({ success: true, message: 'Progress updated' });
     }
     default:
@@ -268,24 +294,31 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
   }
 }
 
-async function handlePut(req: NextApiRequest, res: NextApiResponse, action: string) {
+async function handlePut(req: NextApiRequest, res: NextApiResponse, action: string, session: any) {
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: 'ID required' });
+  const tenantId = tenantIdFromSession(session);
+  if (!tenantId) return res.status(403).json({ error: 'NO_TENANT' });
 
   switch (action) {
     case 'project': {
       if (!Project) return res.json({ success: true });
-      await Project.update(req.body, { where: { id } });
+      const payload = { ...req.body };
+      delete payload.tenantId;
+      const [n] = await Project.update(payload, { where: { id, tenantId } });
+      if (!n) return res.status(404).json({ success: false, error: 'Not found' });
       return res.json({ success: true, message: 'Project updated' });
     }
     case 'worker': {
       if (!ProjectWorker) return res.json({ success: true });
-      await ProjectWorker.update(mapWorkerPayload(req.body), { where: { id } });
+      const [n] = await ProjectWorker.update(mapWorkerPayload(req.body), { where: { id, tenantId } });
+      if (!n) return res.status(404).json({ success: false, error: 'Not found' });
       return res.json({ success: true, message: 'Worker updated' });
     }
     case 'timesheet': {
       if (!ProjectTimesheet) return res.json({ success: true });
-      await ProjectTimesheet.update(mapTimesheetPayload(req.body), { where: { id } });
+      const [n] = await ProjectTimesheet.update(mapTimesheetPayload(req.body), { where: { id, tenantId } });
+      if (!n) return res.status(404).json({ success: false, error: 'Not found' });
       return res.json({ success: true, message: 'Timesheet updated' });
     }
     default:
@@ -293,14 +326,17 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, action: stri
   }
 }
 
-async function handleDelete(req: NextApiRequest, res: NextApiResponse, action: string) {
+async function handleDelete(req: NextApiRequest, res: NextApiResponse, action: string, session: any) {
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: 'ID required' });
+  const tenantId = tenantIdFromSession(session);
+  if (!tenantId) return res.status(403).json({ error: 'NO_TENANT' });
 
   const models: any = { project: Project, worker: ProjectWorker, timesheet: ProjectTimesheet, payroll: ProjectPayroll };
   const model = models[action];
   if (!model) return res.status(400).json({ error: 'Invalid action' });
-  await model.destroy({ where: { id } });
+  const n = await model.destroy({ where: { id, tenantId } });
+  if (!n) return res.status(404).json({ success: false, error: 'Not found' });
   return res.json({ success: true, message: 'Deleted' });
 }
 

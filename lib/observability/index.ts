@@ -46,12 +46,60 @@ function pushRing(ev: ObsEvent) {
   if (ring.length > RING_SIZE) ring.splice(0, ring.length - RING_SIZE);
 }
 
+function resolveSentryDsn(): string | null {
+  const dsn = String(process.env.SENTRY_DSN || '').trim();
+  if (!dsn) return null;
+  if (!/^https:\/\/[^@\s]+@[^/\s]+\/\S+/.test(dsn)) return null;
+  return dsn;
+}
+
+function isInternalSentryMode(): boolean {
+  const mode = String(process.env.SENTRY_MODE || '').toLowerCase();
+  if (mode === 'internal') return true;
+  const dsn = resolveSentryDsn() || '';
+  return dsn.includes('@internal.humanify.local/') || dsn.includes('@127.0.0.1/');
+}
+
 let sentryTried = false;
 let sentry: any = null;
 async function getSentry(): Promise<any> {
   if (sentryTried) return sentry;
   sentryTried = true;
-  if (!process.env.SENTRY_DSN) return null;
+  const dsn = resolveSentryDsn();
+  if (!dsn) return null;
+
+  // Internal mode: capture into obs ring (no external Sentry account required)
+  if (isInternalSentryMode()) {
+    sentry = {
+      captureMessage(msg: string, level: string = 'info') {
+        const id = crypto.randomUUID();
+        pushRing({
+          id,
+          at: new Date().toISOString(),
+          level: level === 'error' ? 'error' : level === 'warning' ? 'warn' : 'info',
+          msg: `[sentry-internal] ${msg}`,
+          context: { transport: 'internal' },
+        });
+        return id;
+      },
+      captureException(err: Error, ctx?: any) {
+        const id = crypto.randomUUID();
+        pushRing({
+          id,
+          at: new Date().toISOString(),
+          level: 'error',
+          msg: err.message || 'exception',
+          error: { name: err.name, message: err.message, stack: err.stack },
+          context: { transport: 'internal', ...(ctx?.extra || {}) },
+        });
+        return id;
+      },
+      flush: async () => true,
+      __internal: true,
+    };
+    return sentry;
+  }
+
   try {
     // Optional peer — resolve at runtime only (avoid Next/webpack bundling).
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -60,7 +108,7 @@ async function getSentry(): Promise<any> {
     const mod = requireFromHere('@sentry/node');
     if (mod?.init) {
       mod.init({
-        dsn: process.env.SENTRY_DSN,
+        dsn,
         environment: process.env.NODE_ENV || 'development',
         tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE || 0),
       });
@@ -90,7 +138,7 @@ export function logEvent(input: Omit<ObsEvent, 'id' | 'at'> & { at?: string }): 
     pushRing(ev);
   }
 
-  if (ev.level === 'error' && process.env.SENTRY_DSN) {
+  if (ev.level === 'error' && resolveSentryDsn()) {
     getSentry().then((s) => {
       try {
         if (!s) return;
@@ -122,9 +170,13 @@ function buildObservabilitySnapshot() {
       heapTotalMb: +(mem.heapTotal / 1048576).toFixed(1),
     },
     counters: { ...counters, byStatus: { ...counters.byStatus } },
-    sentry: Boolean(process.env.SENTRY_DSN),
+    sentry: Boolean(resolveSentryDsn()),
     sentrySdk: Boolean(sentry),
+    sentryMode: isInternalSentryMode() ? 'internal' : (resolveSentryDsn() ? 'external' : 'off'),
+    sentryDsnConfigured: Boolean(resolveSentryDsn()),
+    sentryDsnPresentButInvalid: Boolean(String(process.env.SENTRY_DSN || '').trim()) && !resolveSentryDsn(),
     redisUrl: Boolean(process.env.REDIS_URL),
+    rlsRequestBound: String(process.env.HUMANIFY_RLS_REQUEST_BOUND || '').toLowerCase() === 'true',
     slowMs: SLOW_MS,
     recent: ring.slice(-50).reverse(),
   };

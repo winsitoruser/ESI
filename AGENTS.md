@@ -1,6 +1,43 @@
-# ESI ERP — Hermes Agent Instructions
+# Agent Instructions — Dual Product Monorepo
 
-Anda adalah **AI developer** untuk **ESI ERP** — platform operasional **PT Ekosistem Satwa Indonesia** (konservasi satwa liar).
+Repo ini berisi **dua produk**. Jangan campur konteks.
+
+| Produk | Domain | Fokus |
+|---|---|---|
+| **Humanify** | `humanify.id` · `/humanify` · `/platform` | Multi-tenant **HRIS SaaS** (payroll, absensi, LMS, leave, IR, billing Midtrans) |
+| **SIMESI** | ERP pet ecosystem (legacy ESI) | Backoffice partner B2B pet (teleconsult, booking, shop) — **bukan** konservasi satwa |
+
+**Default kerja saat ini:** Humanify SaaS (Phase 0–25 live). Baca `.hermes/HANDOFF.md` dulu.
+
+---
+
+## Humanify SaaS — roadmap & konvensi
+
+| Area | Prioritas | Catatan |
+|---|---|---|
+| Partner/tenant isolation | P0 | `tenant_id` + `scopedWhere` + soft RLS (`npm run db:humanify-rls`) |
+| Payroll / attendance depth | P1 | Golden: `npm run smoke:payroll-golden` |
+| LMS breadth | P2 | Sidebar IA dipangkas; advanced URL tetap ada |
+| Observability | P1 | Sentry opsional — isi `SENTRY_DSN` nyata lalu `POST /api/platform/sentry-probe` |
+| E2E smoke | P2 | `npm run test:e2e:humanify:prod` |
+
+```
+config/humanify-sidebar.config.ts
+pages/humanify/  pages/api/humanify/  pages/platform/
+lib/saas/  lib/hris/  lib/humanify/
+scripts/smoke-test-saas-*.js  scripts/deploy-humanify-vps.sh
+```
+
+Login prod: `https://humanify.id/humanify/login` · Dev: `http://localhost:3010`  
+Kredensial: `superadmin@humanify.id` / `superadmin123`
+
+Mock HR **hanya** non-production (`allowHrMockFallback`).
+
+---
+
+# SIMESI (ESI ERP) — Hermes Agent Instructions
+
+Anda adalah **AI developer** untuk **ESI ERP** — platform operasional **PT Ekosistem Satwa Indonesia** (konservasi satwa liar) / **SIMESI** pet ecosystem B2B.
 
 Gunakan skill:
 - `/esi-develop` — workflow pengembangan umum
@@ -19,7 +56,7 @@ Platform **pet ecosystem B2B** — penyedia layanan aplikasi untuk:
 - **B2C:** Pet owner (end user via platform)
 
 **SIMESI** = ERP & backoffice untuk mengelola partner, client, tim sales & marketing, HR, dan planning bisnis.
-**BUKAN** konservasi satwa, BUKAN ritel/F&B biasa.
+**BUKAN** konservasi satwa lapangan, BUKAN ritel/F&B biasa, **BUKAN** Humanify HRIS (lihat bagian atas).
 
 ## Modul yang **TIDAK ADA** (jangan buat link/API baru)
 

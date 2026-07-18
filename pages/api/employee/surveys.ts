@@ -47,7 +47,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     await ensureEngagementTables(sequelize);
 
     const userId = String(session.user.id || '');
-    const ctx = await resolveEmployeeContext(sequelize, userId);
+    const sessionTenantId = String((session.user as any).tenantId || '') || null;
+    const ctx = await resolveEmployeeContext(sequelize, userId, sessionTenantId);
     if (!ctx.employeeId) {
       return res.status(404).json({
         success: false,
@@ -56,7 +57,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const employeeId = Number(ctx.employeeId);
-    const tenantId = ctx.tenantId ? String(ctx.tenantId) : null;
+    const tenantId = sessionTenantId || (ctx.tenantId ? String(ctx.tenantId) : null);
+    if (!tenantId) {
+      return res.status(403).json({ success: false, error: 'Tenant context required' });
+    }
 
     if (req.method === 'GET') {
       const [surveys] = await sequelize.query(`
@@ -69,7 +73,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         WHERE s.status = 'active'
           AND (s.start_date IS NULL OR s.start_date <= NOW())
           AND (s.end_date IS NULL OR s.end_date >= NOW())
-          AND (:tenantId IS NULL OR s.tenant_id IS NULL OR s.tenant_id = :tenantId::uuid)
+          AND s.tenant_id = :tenantId::uuid
         ORDER BY s.is_mandatory DESC, s.created_at DESC
         LIMIT 50
       `, { replacements: { employeeId, tenantId } });
@@ -93,8 +97,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const [surveyRows] = await sequelize.query(
-        `SELECT id, status, is_anonymous FROM surveys WHERE id = :surveyId LIMIT 1`,
-        { replacements: { surveyId } }
+        `SELECT id, status, is_anonymous FROM surveys WHERE id = :surveyId AND tenant_id = :tenantId::uuid LIMIT 1`,
+        { replacements: { surveyId, tenantId } }
       );
       const survey = (surveyRows as any[])[0];
       if (!survey || survey.status !== 'active') {

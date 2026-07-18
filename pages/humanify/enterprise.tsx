@@ -156,6 +156,7 @@ export default function HumanifyEnterprisePage() {
     <HumanifyLayout title="Enterprise">
       <Head>
         <title>Enterprise · {HUMANIFY_BRAND.name}</title>
+        <meta name="robots" content="noindex, nofollow" />
       </Head>
       <div className="max-w-4xl mx-auto space-y-10 py-6">
         <div>

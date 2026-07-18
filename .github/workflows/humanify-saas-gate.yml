@@ -55,4 +55,27 @@ jobs:
           test -f pages/api/v1/openapi.ts
           test -f lib/saas/admin-audit.ts
           test -f lib/saas/humanify-billing.ts
+          test -f e2e/humanify-welcome-login.spec.ts
+          test -f playwright.config.ts
+          test -f scripts/smoke-test-payroll-golden.js
+          test -f scripts/smoke-test-saas-idor-hr-modules.js
+          test -f scripts/migrate-humanify-rls.js
           echo "✓ Required SaaS files present"
+
+      - name: Install Playwright Chromium (for optional prod smoke)
+        if: ${{ secrets.SMOKE_BASE_URL != '' }}
+        run: npx playwright install --with-deps chromium
+
+      - name: Playwright welcome→login (against SMOKE_BASE_URL)
+        if: ${{ secrets.SMOKE_BASE_URL != '' }}
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ secrets.SMOKE_BASE_URL }}
+        run: npx playwright test e2e/humanify-welcome-login.spec.ts
+
+      - name: Payroll golden smoke (against SMOKE_BASE_URL)
+        if: ${{ secrets.SMOKE_BASE_URL != '' }}
+        env:
+          SMOKE_BASE_URL: ${{ secrets.SMOKE_BASE_URL }}
+          SMOKE_EMAIL: ${{ secrets.SMOKE_EMAIL }}
+          SMOKE_PASSWORD: ${{ secrets.SMOKE_PASSWORD }}
+        run: node scripts/smoke-test-payroll-golden.js

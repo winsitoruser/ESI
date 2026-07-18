@@ -23,6 +23,11 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = request.headers.get('host');
 
+  // SEO crawl endpoints — always public
+  if (pathname === '/robots.txt' || pathname === '/sitemap.xml') {
+    return NextResponse.next();
+  }
+
   // Subdomain tenant: acme.humanify.id → /c/acme/careers (apex stays welcome)
   const hostSlug = extractTenantSlugFromHost(host);
   if (hostSlug && (pathname === '/' || pathname === '/careers' || pathname === '/careers/')) {
@@ -204,6 +209,6 @@ export const preferredRegion = 'auto';
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|images/|uploads/|api/|procurement).*)',
+    '/((?!_next/static|_next/image|favicon.ico|images/|uploads/|api/|procurement|robots\\.txt|sitemap\\.xml).*)',
   ],
 };

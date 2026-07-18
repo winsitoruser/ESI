@@ -56,13 +56,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         case 'leave-balance': return getLeaveBalance(res, userId, tenantId);
         case 'leave-requests': return getLeaveRequests(res, userId, tenantId);
         case 'claims': return getClaims(res, userId, tenantId);
-        case 'attendance-history': return getAttendanceHistory(req, res, userId);
+        case 'attendance-history': return getAttendanceHistory(req, res, userId, tenantId);
         case 'overtime-history':   return getOvertimeHistory(req, res, userId, tenantId);
         case 'travel': return getTravel(res, userId, tenantId);
-        case 'notifications': return getNotifications(res, userId);
+        case 'notifications': return getNotifications(res, userId, tenantId);
         case 'announcements': return getAnnouncements(res, userId, tenantId);
         case 'summary': return getSummary(res, userId, tenantId);
-        case 'payslip': return getPayslip(req, res, userId);
+        case 'payslip': return getPayslip(req, res, userId, tenantId);
         case 'disciplinary-letters': return getDisciplinaryLetters(res, userId, tenantId);
         default: return res.status(400).json({ error: 'Unknown action' });
       }
@@ -78,9 +78,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         case 'submit-overtime':  return submitOvertime(req, res, userId, tenantId);
         case 'cancel-overtime':  return cancelOvertime(req, res, userId, tenantId);
         case 'travel-request': return createTravelRequest(req, res, userId, tenantId);
-        case 'mark-notification-read': return markNotificationRead(req, res, userId);
-        case 'mark-all-notifications-read': return markAllNotificationsRead(res, userId);
-        case 'acknowledge-disciplinary': return acknowledgeDisciplinary(req, res, userId);
+        case 'mark-notification-read': return markNotificationRead(req, res, userId, tenantId);
+        case 'mark-all-notifications-read': return markAllNotificationsRead(res, userId, tenantId);
+        case 'acknowledge-disciplinary': return acknowledgeDisciplinary(req, res, userId, tenantId);
         default: return res.status(400).json({ error: 'Unknown action' });
       }
     }
@@ -105,10 +105,11 @@ async function getProfile(res: NextApiResponse, userId: string, tenantId: string
         e.employment_category, e.business_vertical, e.agent_type, e.territory,
         b.name as branch_name, b.code as branch_code
       FROM users u
-      LEFT JOIN employees e ON e.user_id = u.id OR e.email = u.email
+      LEFT JOIN employees e ON e.tenant_id = COALESCE(:tenantId::uuid, u.tenant_id)
+        AND (e.user_id = u.id OR e.email = u.email)
       LEFT JOIN branches b ON u.assigned_branch_id = b.id OR e.branch_id = b.id
       WHERE u.id = :userId LIMIT 1
-    `, { replacements: { userId } });
+    `, { replacements: { userId, tenantId: tenantId || null } });
     const profile = rows[0] || (allowHrMockFallback() ? mockProfile() : null);
     if (!profile) return res.json({ success: true, data: null });
     const mfCategories = ['account_officer', 'collector', 'surveyor', 'telemarketing', 'field_agent'];
@@ -130,20 +131,20 @@ const employeeAttendanceWhere = `(employee_id IN (
 
 // ─── Attendance ───
 async function getAttendance(res: NextApiResponse, userId: string, tenantId: string) {
-  if (!sequelize) return res.json({ success: true, data: mockAttendance() });
+  if (!sequelize) return res.json({ success: true, data: allowHrMockFallback() ? mockAttendance() : null });
   try {
     const today = new Date().toISOString().split('T')[0];
     const monthStart = today.substring(0, 7) + '-01';
 
-    const todayRow = await getTodayAttendance(sequelize, userId, today);
+    const todayRow = await getTodayAttendance(sequelize, userId, today, tenantId);
     const todayCheckIn = buildClockEvent('check_in', todayRow);
     const todayCheckOut = buildClockEvent('check_out', todayRow);
-    const monthSummary = await getMonthStatusSummary(sequelize, userId, monthStart, today);
+    const monthSummary = await getMonthStatusSummary(sequelize, userId, monthStart, today, tenantId);
 
     let lastCheckIn: any = todayCheckIn;
     let lastCheckOut: any = todayCheckOut;
-    if (!lastCheckIn) lastCheckIn = buildLastCheckIn(await getLastClockRow(sequelize, userId, 'in'));
-    if (!lastCheckOut) lastCheckOut = buildLastCheckOut(await getLastClockRow(sequelize, userId, 'out'));
+    if (!lastCheckIn) lastCheckIn = buildLastCheckIn(await getLastClockRow(sequelize, userId, 'in', tenantId));
+    if (!lastCheckOut) lastCheckOut = buildLastCheckOut(await getLastClockRow(sequelize, userId, 'out', tenantId));
 
     const lastClockEvent = pickLatestClockEvent(todayCheckOut, todayCheckIn, lastCheckOut, lastCheckIn);
 
@@ -166,11 +167,11 @@ async function getAttendance(res: NextApiResponse, userId: string, tenantId: str
         lastClockEvent,
       },
     });
-  } catch { return res.json({ success: true, data: mockAttendance() }); }
+  } catch { return res.json({ success: true, data: allowHrMockFallback() ? mockAttendance() : null }); }
 }
 
 // ─── Attendance History (for employee self-service) ───
-async function getAttendanceHistory(req: NextApiRequest, res: NextApiResponse, userId: string) {
+async function getAttendanceHistory(req: NextApiRequest, res: NextApiResponse, userId: string, tenantId: string) {
   const { month } = req.query; // format: YYYY-MM, default current month
   const targetMonth = (month as string) || new Date().toISOString().slice(0, 7);
   const monthStart = `${targetMonth}-01`;
@@ -178,10 +179,10 @@ async function getAttendanceHistory(req: NextApiRequest, res: NextApiResponse, u
   nextMonth.setMonth(nextMonth.getMonth() + 1);
   const monthEnd = nextMonth.toISOString().split('T')[0];
 
-  if (!sequelize) return res.json({ success: true, data: mockAttendanceHistory(targetMonth) });
+  if (!sequelize) return res.json({ success: true, data: allowHrMockFallback() ? mockAttendanceHistory(targetMonth) : [] });
 
   try {
-    const records = await getAttendanceHistoryRows(sequelize, userId, monthStart, monthEnd);
+    const records = await getAttendanceHistoryRows(sequelize, userId, monthStart, monthEnd, tenantId);
     const summary = {
       present: records.filter(r => r.status === 'present').length,
       late:    records.filter(r => r.status === 'late').length,
@@ -198,7 +199,7 @@ async function getAttendanceHistory(req: NextApiRequest, res: NextApiResponse, u
 
     return res.json({ success: true, data: { records, summary, totalWorkHours: Math.round(totalWorkHours * 10) / 10, workDaysInMonth, attendanceRate, month: targetMonth } });
   } catch {
-    return res.json({ success: true, data: mockAttendanceHistory(targetMonth) });
+    return res.json({ success: true, data: allowHrMockFallback() ? mockAttendanceHistory(targetMonth) : { records: [], summary: {}, totalWorkHours: 0, workDaysInMonth: 0, attendanceRate: 0, month: targetMonth } });
   }
 }
 
@@ -263,22 +264,46 @@ async function getOvertimeHistory(req: NextApiRequest, res: NextApiResponse, use
   ];
 
   const MOCK_RECAP = { total_sessions: 2, total_hours: 9, total_pay_approved: 960000, pending: 1, approved: 1, rejected: 1 };
+  const empty = {
+    records: [] as any[],
+    recap: { total_sessions: 0, total_hours: 0, total_pay_approved: 0, pending: 0, approved: 0, rejected: 0 },
+    month: targetMonth,
+  };
 
-  if (!sequelize) return res.json({ success: true, data: { records: MOCK_OT, recap: MOCK_RECAP, month: targetMonth } });
+  if (!sequelize) {
+    return res.json({
+      success: true,
+      data: allowHrMockFallback() ? { records: MOCK_OT, recap: MOCK_RECAP, month: targetMonth } : empty,
+    });
+  }
+  if (!tenantId) return res.json({ success: true, data: empty });
 
   try {
-    const [emp] = await sequelize.query(`SELECT id FROM employees WHERE user_id=:uid AND tenant_id=:tid LIMIT 1`, { replacements: { uid: userId, tid: tenantId } });
-    const empId = emp?.[0]?.id || userId;
+    const [emp] = await sequelize.query(
+      `SELECT id FROM employees WHERE user_id = :uid AND tenant_id = :tid LIMIT 1`,
+      { replacements: { uid: userId, tid: tenantId } },
+    );
+    const empId = emp?.[0]?.id;
+    if (!empId) return res.json({ success: true, data: empty });
 
     const [rows] = await sequelize.query(`
       SELECT o.*,
-        ROUND(EXTRACT(EPOCH FROM (o.end_time::time - o.start_time::time))/3600,2) AS duration_hours,
+        COALESCE(
+          o.duration_hours,
+          o.hours,
+          CASE
+            WHEN o.start_time IS NOT NULL AND o.end_time IS NOT NULL
+              THEN ROUND(EXTRACT(EPOCH FROM (o.end_time::time - o.start_time::time)) / 3600.0, 2)
+            ELSE 0
+          END
+        ) AS duration_hours,
         ap.name AS approved_by_name
       FROM overtime_requests o
-      LEFT JOIN users ap ON o.approved_by = ap.id
-      WHERE o.employee_id = :empId AND o.tenant_id = :tid
-        AND TO_CHAR(o.date,'YYYY-MM') = :month
-      ORDER BY o.date DESC, o.created_at DESC
+      LEFT JOIN users ap ON ap.id::text = o.approved_by::text
+      WHERE o.employee_id = :empId
+        AND o.tenant_id = :tid
+        AND TO_CHAR(COALESCE(o.date, o.request_date), 'YYYY-MM') = :month
+      ORDER BY COALESCE(o.date, o.request_date) DESC NULLS LAST, o.created_at DESC
     `, { replacements: { empId, tid: tenantId, month: targetMonth } });
 
     const recs = rows as any[];
@@ -291,7 +316,13 @@ async function getOvertimeHistory(req: NextApiRequest, res: NextApiResponse, use
       rejected: recs.filter(r => r.status === 'rejected').length,
     };
     return res.json({ success: true, data: { records: recs, recap, month: targetMonth } });
-  } catch { return res.json({ success: true, data: { records: MOCK_OT, recap: MOCK_RECAP, month: targetMonth } }); }
+  } catch (e: any) {
+    console.warn('getOvertimeHistory:', e?.message || e);
+    return res.json({
+      success: true,
+      data: allowHrMockFallback() ? { records: MOCK_OT, recap: MOCK_RECAP, month: targetMonth } : empty,
+    });
+  }
 }
 
 // ─── Submit Overtime ─────────────────────────────────────────────────────────
@@ -386,15 +417,23 @@ async function submitOvertime(req: NextApiRequest, res: NextApiResponse, userId:
 async function cancelOvertime(req: NextApiRequest, res: NextApiResponse, userId: string, tenantId: string) {
   const { id } = req.body || {};
   if (!id) return res.status(400).json({ success: false, error: 'id required' });
-  if (!sequelize) return res.json({ success: true, message: 'Pengajuan lembur dibatalkan' });
+  if (!sequelize) {
+    if (allowHrMockFallback()) return res.json({ success: true, message: 'Pengajuan lembur dibatalkan' });
+    return res.status(503).json({ success: false, error: 'Database tidak tersedia' });
+  }
+  if (!tenantId) return res.status(403).json({ success: false, error: 'Tenant context required' });
   try {
     const emp = await ensurePortalEmployee(sequelize, userId, tenantId);
     if (!emp?.id) return res.status(400).json({ success: false, error: 'Profil karyawan belum tersedia' });
-    await sequelize.query(
+    const [updated] = await sequelize.query(
       `UPDATE overtime_requests SET status='cancelled', updated_at=NOW()
-       WHERE id=:id AND employee_id=:empId AND tenant_id=:tid AND status='pending'`,
-      { replacements: { id, empId: emp.id, tid: tenantId || emp.tenantId } },
+       WHERE id=:id AND employee_id=:empId AND tenant_id=:tid AND status='pending'
+       RETURNING id`,
+      { replacements: { id, empId: emp.id, tid: tenantId } },
     );
+    if (!updated?.[0]) {
+      return res.status(404).json({ success: false, error: 'Pengajuan lembur tidak ditemukan atau sudah diproses' });
+    }
     return res.json({ success: true, message: 'Pengajuan lembur berhasil dibatalkan' });
   } catch {
     return res.status(500).json({ success: false, error: 'Gagal membatalkan' });
@@ -526,17 +565,20 @@ async function clockOut(req: NextApiRequest, res: NextApiResponse, userId: strin
 
 // ─── KPI ───
 async function getKPI(res: NextApiResponse, userId: string, tenantId: string) {
-  if (!sequelize) return res.json({ success: true, data: mockKPI() });
+  if (!sequelize) return res.json({ success: true, data: allowHrMockFallback() ? mockKPI() : null });
   try {
     const period = new Date().toISOString().substring(0, 7);
     const [rows] = await sequelize.query(`
       SELECT ek.* FROM employee_kpis ek
       LEFT JOIN employees e ON ek.employee_id = e.id
       WHERE (e.user_id = :userId OR e.email = (SELECT email FROM users WHERE id = :userId))
+      ${tenantId ? 'AND e.tenant_id = :tenantId' : 'AND 1=0'}
       AND ek.period = :period ORDER BY ek.category
-    `, { replacements: { userId, period } });
+    `, { replacements: { userId, period, tenantId } });
 
-    if (!rows || rows.length === 0) return res.json({ success: true, data: mockKPI() });
+    if (!rows || rows.length === 0) {
+      return res.json({ success: true, data: allowHrMockFallback() ? mockKPI() : null });
+    }
 
     const overallScore = Math.round(rows.reduce((s: number, r: any) => s + (r.achievement || 0), 0) / rows.length);
     const metrics = rows.map((r: any) => ({
@@ -548,7 +590,7 @@ async function getKPI(res: NextApiResponse, userId: string, tenantId: string) {
       trend: (r.actual_value || 0) >= (r.previous_value || 0) ? 'up' : 'down',
     }));
     return res.json({ success: true, data: { overallScore, metrics } });
-  } catch { return res.json({ success: true, data: mockKPI() }); }
+  } catch { return res.json({ success: true, data: allowHrMockFallback() ? mockKPI() : null }); }
 }
 
 // ─── Leave Balance & Requests ───
@@ -571,8 +613,9 @@ async function getLeaveBalance(res: NextApiResponse, userId: string, tenantId: s
         LEFT JOIN leave_types lt ON lb.leave_type_id = lt.id
         LEFT JOIN employees e ON lb.employee_id = e.id
         WHERE (e.user_id = :userId OR e.email = (SELECT email FROM users WHERE id = :userId))
+        ${tenantId ? 'AND e.tenant_id = :tenantId' : 'AND 1=0'}
         AND lb.year = :year
-      `, { replacements: { userId, year } });
+      `, { replacements: { userId, year, tenantId } });
       rows = r || [];
     } catch {
       const [r] = await sequelize.query(`
@@ -581,8 +624,9 @@ async function getLeaveBalance(res: NextApiResponse, userId: string, tenantId: s
         LEFT JOIN leave_types lt ON lb.leave_type_id = lt.id
         LEFT JOIN employees e ON lb.employee_id = e.id
         WHERE (e.user_id = :userId OR e.email = (SELECT email FROM users WHERE id = :userId))
+        ${tenantId ? 'AND e.tenant_id = :tenantId' : 'AND 1=0'}
         AND lb.year = :year
-      `, { replacements: { userId, year } });
+      `, { replacements: { userId, year, tenantId } });
       rows = r || [];
     }
     if (!rows.length) {
@@ -604,8 +648,9 @@ async function getLeaveRequests(res: NextApiResponse, userId: string, tenantId: 
       LEFT JOIN leave_types lt ON lr.leave_type = lt.code OR lr.leave_type_id = lt.id
       LEFT JOIN employees e ON lr.employee_id::text = e.id::text
       WHERE (e.user_id = :userId OR e.email = (SELECT email FROM users WHERE id = :userId))
+      ${tenantId ? 'AND e.tenant_id = :tenantId AND lr.tenant_id = :tenantId' : 'AND 1=0'}
       ORDER BY lr.created_at DESC LIMIT 20
-    `, { replacements: { userId } });
+    `, { replacements: { userId, tenantId } });
     if (!rows || rows.length === 0) {
       return res.json({ success: true, data: allowHrMockFallback() ? mockLeaveRequests() : [] });
     }
@@ -686,8 +731,9 @@ async function getClaims(res: NextApiResponse, userId: string, tenantId: string)
       FROM employee_claims c
       LEFT JOIN employees e ON c.employee_id = e.id
       WHERE (e.user_id = :userId OR e.email = (SELECT email FROM users WHERE id = :userId))
+      ${tenantId ? 'AND e.tenant_id = :tenantId AND c.tenant_id = :tenantId' : 'AND 1=0'}
       ORDER BY c.created_at DESC LIMIT 20
-    `, { replacements: { userId } });
+    `, { replacements: { userId, tenantId } });
     if (!rows || rows.length === 0) {
       return res.json({ success: true, data: allowHrMockFallback() ? mockClaims() : [] });
     }
@@ -762,13 +808,15 @@ async function resubmitClaim(req: NextApiRequest, res: NextApiResponse, userId: 
   }
   try {
     // Verify ownership — employee can only resubmit their own rejected claim
+    if (!tenantId) return res.status(403).json({ success: false, error: 'Tenant context required' });
     const [owned] = await sequelize.query(`
       SELECT c.id FROM employee_claims c
       LEFT JOIN employees e ON c.employee_id = e.id
-      WHERE c.id = :claimId AND c.status = 'rejected'
+      WHERE c.id = :claimId AND c.status = 'rejected' AND c.tenant_id = :tenantId
+        AND e.tenant_id = :tenantId
         AND (e.user_id = :userId OR e.email = (SELECT email FROM users WHERE id = :userId))
       LIMIT 1
-    `, { replacements: { claimId, userId } });
+    `, { replacements: { claimId, userId, tenantId } });
     if (!owned || (owned as any[]).length === 0) {
       return res.status(404).json({ success: false, error: 'Klaim tidak ditemukan atau tidak bisa diajukan ulang' });
     }
@@ -789,8 +837,8 @@ async function resubmitClaim(req: NextApiRequest, res: NextApiResponse, userId: 
           resubmitted_at = NOW(),
           resubmit_count = COALESCE(resubmit_count, 0) + 1,
           updated_at = NOW()
-      WHERE id = :claimId
-    `, { replacements: { claimId, amount: amount ? parseFloat(amount) : null, description: description || null, receiptDate: receiptDate || null, receiptUrl, attachmentsCount } });
+      WHERE id = :claimId AND tenant_id = :tenantId
+    `, { replacements: { claimId, tenantId, amount: amount ? parseFloat(amount) : null, description: description || null, receiptDate: receiptDate || null, receiptUrl, attachmentsCount } });
     return res.json({ success: true, message: 'Klaim berhasil diajukan ulang dan sedang menunggu persetujuan' });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: 'Gagal mengajukan ulang klaim', details: e.message });
@@ -807,8 +855,9 @@ async function getTravel(res: NextApiResponse, userId: string, tenantId: string)
       SELECT tr.* FROM travel_requests tr
       LEFT JOIN employees e ON tr.employee_id = e.id
       WHERE (e.user_id = :userId OR e.email = (SELECT email FROM users WHERE id = :userId))
+      ${tenantId ? 'AND e.tenant_id = :tenantId AND tr.tenant_id = :tenantId' : 'AND 1=0'}
       ORDER BY tr.created_at DESC LIMIT 20
-    `, { replacements: { userId } });
+    `, { replacements: { userId, tenantId } });
     if (!rows || rows.length === 0) {
       return res.json({ success: true, data: allowHrMockFallback() ? mockTravel() : [] });
     }
@@ -887,50 +936,67 @@ async function createTravelRequest(req: NextApiRequest, res: NextApiResponse, us
 }
 
 // ─── Notifications ───
-async function getNotifications(res: NextApiResponse, userId: string) {
-  if (!sequelize) return res.json({ success: true, data: mockNotifications() });
+async function getNotifications(res: NextApiResponse, userId: string, tenantId: string) {
+  if (!sequelize) {
+    return res.json({ success: true, data: allowHrMockFallback() ? mockNotifications() : [] });
+  }
+  if (!tenantId) return res.json({ success: true, data: [] });
   try {
     const [rows] = await sequelize.query(`
       SELECT id, title, message, type, read_at, created_at, source_type, source_id
       FROM employee_notifications
-      WHERE user_id = :userId OR employee_id IN (
-        SELECT id FROM employees WHERE user_id = :userId OR email = (SELECT email FROM users WHERE id = :userId)
-      )
+      WHERE tenant_id = :tenantId
+        AND (
+          user_id = :userId
+          OR employee_id IN (
+            SELECT id FROM employees
+            WHERE tenant_id = :tenantId
+              AND (user_id = :userId OR email = (SELECT email FROM users WHERE id = :userId))
+          )
+        )
       ORDER BY created_at DESC LIMIT 30
-    `, { replacements: { userId } });
-    if (rows?.length) {
-      return res.json({ success: true, data: (rows as any[]).map(normalizeNotification) });
-    }
-  } catch { /* fall through */ }
-  return res.json({ success: true, data: mockNotifications() });
+    `, { replacements: { userId, tenantId } });
+    return res.json({
+      success: true,
+      data: (rows as any[] || []).map(normalizeNotification),
+    });
+  } catch {
+    return res.json({ success: true, data: allowHrMockFallback() ? mockNotifications() : [] });
+  }
 }
 
-async function markNotificationRead(req: NextApiRequest, res: NextApiResponse, userId: string) {
+async function markNotificationRead(req: NextApiRequest, res: NextApiResponse, userId: string, tenantId: string) {
   const { id } = req.body || {};
   if (!id) return res.status(400).json({ success: false, error: 'id required' });
   if (!sequelize) return res.json({ success: true });
+  if (!tenantId) return res.status(403).json({ success: false, error: 'Tenant context required' });
   try {
     await sequelize.query(`
       UPDATE employee_notifications SET read_at = NOW()
-      WHERE id = :id AND (user_id = :userId OR employee_id IN (
-        SELECT id FROM employees WHERE user_id = :userId
-      ))
-    `, { replacements: { id, userId } });
+      WHERE id = :id
+        AND tenant_id = :tenantId
+        AND (user_id = :userId OR employee_id IN (
+          SELECT id FROM employees WHERE user_id = :userId AND tenant_id = :tenantId
+        ))
+    `, { replacements: { id, userId, tenantId } });
     return res.json({ success: true });
   } catch {
     return res.json({ success: true });
   }
 }
 
-async function markAllNotificationsRead(res: NextApiResponse, userId: string) {
+async function markAllNotificationsRead(res: NextApiResponse, userId: string, tenantId: string) {
   if (!sequelize) return res.json({ success: true });
+  if (!tenantId) return res.status(403).json({ success: false, error: 'Tenant context required' });
   try {
     await sequelize.query(`
       UPDATE employee_notifications SET read_at = NOW()
-      WHERE read_at IS NULL AND (user_id = :userId OR employee_id IN (
-        SELECT id FROM employees WHERE user_id = :userId
-      ))
-    `, { replacements: { userId } });
+      WHERE read_at IS NULL
+        AND tenant_id = :tenantId
+        AND (user_id = :userId OR employee_id IN (
+          SELECT id FROM employees WHERE user_id = :userId AND tenant_id = :tenantId
+        ))
+    `, { replacements: { userId, tenantId } });
     return res.json({ success: true });
   } catch {
     return res.json({ success: true });
@@ -939,17 +1005,20 @@ async function markAllNotificationsRead(res: NextApiResponse, userId: string) {
 
 // ─── Company Announcements ───
 async function getAnnouncements(res: NextApiResponse, userId: string, tenantId: string) {
-  if (!sequelize) return res.json({ success: true, data: mockAnnouncements() });
+  if (!sequelize) {
+    return res.json({ success: true, data: allowHrMockFallback() ? mockAnnouncements() : [] });
+  }
+  // Never show other tenants' or orphan (NULL tenant) announcements to a customer tenant
+  if (!tenantId) return res.json({ success: true, data: [] });
   try {
-    const ctx = await resolveEmployeeContext(sequelize, userId);
-    const tid = tenantId || ctx.tenantId || '';
+    const ctx = await resolveEmployeeContext(sequelize, userId, tenantId);
     const [rows] = await sequelize.query(`
       SELECT id, title, content, category, priority, is_pinned, status, target_audience,
         target_department, target_branch, published_at, expires_at, view_count, created_at
       FROM hris_announcements
       WHERE is_active = true
+        AND tenant_id = :tid
         AND (status = 'published' OR status IS NULL)
-        AND (tenant_id IS NULL OR tenant_id = :tid OR :tid = '')
         AND (published_at IS NULL OR published_at <= NOW())
         AND (expires_at IS NULL OR expires_at > NOW())
         AND (
@@ -959,12 +1028,14 @@ async function getAnnouncements(res: NextApiResponse, userId: string, tenantId: 
         )
       ORDER BY is_pinned DESC, published_at DESC NULLS LAST, created_at DESC
       LIMIT 15
-    `, { replacements: { tid, dept: ctx.department, branchId: ctx.branchId } });
-    if (rows?.length) {
-      return res.json({ success: true, data: (rows as any[]).map(normalizeAnnouncement) });
-    }
-  } catch { /* fall through */ }
-  return res.json({ success: true, data: mockAnnouncements() });
+    `, { replacements: { tid: tenantId, dept: ctx.department, branchId: ctx.branchId } });
+    return res.json({
+      success: true,
+      data: (rows as any[] || []).map(normalizeAnnouncement),
+    });
+  } catch {
+    return res.json({ success: true, data: allowHrMockFallback() ? mockAnnouncements() : [] });
+  }
 }
 
 // ─── Payslip (self-service) ───
@@ -989,15 +1060,20 @@ function mapPayslipRow(row: any) {
   };
 }
 
-async function getPayslip(req: NextApiRequest, res: NextApiResponse, userId: string) {
-  if (!sequelize) return res.json({ success: true, data: mockPayslips() });
+async function getPayslip(req: NextApiRequest, res: NextApiResponse, userId: string, tenantId: string) {
+  if (!sequelize) return res.json({ success: true, data: allowHrMockFallback() ? mockPayslips() : [] });
   try {
-    const ctx = await resolveEmployeeContext(sequelize, userId);
-    if (!ctx.employeeId) return res.json({ success: true, data: mockPayslips() });
+    const ctx = await resolveEmployeeContext(sequelize, userId, tenantId);
+    if (!ctx.employeeId) return res.json({ success: true, data: allowHrMockFallback() ? mockPayslips() : [] });
 
     const { month } = req.query;
     let where = 'WHERE pi.employee_id = :empId';
-    const replacements: any = { empId: ctx.employeeId };
+    const replacements: any = { empId: ctx.employeeId, tenantId };
+    if (tenantId) {
+      where += ' AND (pr.tenant_id = :tenantId OR e.tenant_id = :tenantId)';
+    } else {
+      where += ' AND 1=0';
+    }
     if (month) {
       where += ' AND to_char(pr.period_start, \'YYYY-MM\') = :month';
       replacements.month = month;
@@ -1016,15 +1092,15 @@ async function getPayslip(req: NextApiRequest, res: NextApiResponse, userId: str
 
     if (rows?.length) return res.json({ success: true, data: (rows as any[]).map(mapPayslipRow) });
   } catch { /* fall through */ }
-  return res.json({ success: true, data: mockPayslips() });
+  return res.json({ success: true, data: allowHrMockFallback() ? mockPayslips() : [] });
 }
 
 // ─── Disciplinary letters (employee view) ───
 async function getDisciplinaryLetters(res: NextApiResponse, userId: string, tenantId: string) {
-  if (!sequelize) return res.json({ success: true, data: mockDisciplinaryLetters() });
+  if (!sequelize) return res.json({ success: true, data: allowHrMockFallback() ? mockDisciplinaryLetters() : [] });
   try {
-    const ctx = await resolveEmployeeContext(sequelize, userId);
-    if (!ctx.employeeId) return res.json({ success: true, data: mockDisciplinaryLetters() });
+    const ctx = await resolveEmployeeContext(sequelize, userId, tenantId);
+    if (!ctx.employeeId) return res.json({ success: true, data: allowHrMockFallback() ? mockDisciplinaryLetters() : [] });
 
     const [rows] = await sequelize.query(`
       SELECT dl.id, dl.letter_type, dl.letter_number, dl.status, dl.violation_type,
@@ -1032,28 +1108,33 @@ async function getDisciplinaryLetters(res: NextApiResponse, userId: string, tena
         dl.acknowledged, dl.acknowledged_at, dl.issued_at, dl.created_at
       FROM hr_disciplinary_letters dl
       WHERE dl.employee_id::text = :empId
+        ${tenantId ? 'AND dl.tenant_id = :tenantId' : 'AND 1=0'}
         AND dl.status IN ('issued', 'acknowledged', 'pending_approval')
       ORDER BY dl.issued_at DESC NULLS LAST, dl.created_at DESC
       LIMIT 20
-    `, { replacements: { empId: String(ctx.employeeId) } });
+    `, { replacements: { empId: String(ctx.employeeId), tenantId } });
 
     if (rows?.length) return res.json({ success: true, data: rows });
   } catch { /* fall through */ }
-  return res.json({ success: true, data: mockDisciplinaryLetters() });
+  return res.json({ success: true, data: allowHrMockFallback() ? mockDisciplinaryLetters() : [] });
 }
 
-async function acknowledgeDisciplinary(req: NextApiRequest, res: NextApiResponse, userId: string) {
+async function acknowledgeDisciplinary(req: NextApiRequest, res: NextApiResponse, userId: string, tenantId: string) {
   const { id } = req.body || {};
   if (!id) return res.status(400).json({ success: false, error: 'id required' });
-  if (!sequelize) return res.json({ success: true, message: 'Surat peringatan telah diakui' });
+  if (!tenantId) return res.status(403).json({ success: false, error: 'Tenant context required' });
+  if (!sequelize) return res.status(503).json({ success: false, error: 'Database tidak tersedia' });
 
   try {
-    const ctx = await resolveEmployeeContext(sequelize, userId);
-    await sequelize.query(`
+    const ctx = await resolveEmployeeContext(sequelize, userId, tenantId);
+    if (!ctx.employeeId) return res.status(404).json({ success: false, error: 'Profil karyawan tidak ditemukan' });
+    const [upd] = await sequelize.query(`
       UPDATE hr_disciplinary_letters SET status = 'acknowledged', acknowledged = true,
         acknowledged_at = NOW(), current_phase = 'acknowledgment', updated_at = NOW()
-      WHERE id = :id AND employee_id::text = :empId AND status = 'issued'
-    `, { replacements: { id, empId: String(ctx.employeeId) } });
+      WHERE id = :id AND employee_id::text = :empId AND tenant_id = :tenantId AND status = 'issued'
+      RETURNING id
+    `, { replacements: { id, empId: String(ctx.employeeId), tenantId } });
+    if (!upd?.[0]) return res.status(404).json({ success: false, error: 'Surat peringatan tidak ditemukan' });
     return res.json({ success: true, message: 'Anda telah mengakui penerimaan surat peringatan' });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: e.message });
@@ -1062,35 +1143,39 @@ async function acknowledgeDisciplinary(req: NextApiRequest, res: NextApiResponse
 
 // ─── Summary ───
 async function getSummary(res: NextApiResponse, userId: string, tenantId: string) {
-  if (!sequelize) return res.json({ success: true, data: mockSummary() });
+  const empty = { pendingLeave: 0, pendingClaims: 0, pendingTravel: 0 };
+  if (!sequelize) return res.json({ success: true, data: allowHrMockFallback() ? mockSummary() : empty });
+  if (!tenantId) return res.json({ success: true, data: empty });
   try {
     const [pendingLeave] = await sequelize.query(`
       SELECT COUNT(*)::int as count FROM leave_requests lr
       LEFT JOIN employees e ON lr.employee_id = e.id
       WHERE (e.user_id = :userId OR e.email = (SELECT email FROM users WHERE id = :userId))
-      AND lr.status = 'pending'
-    `, { replacements: { userId } });
+      AND e.tenant_id = :tenantId AND lr.status = 'pending'
+    `, { replacements: { userId, tenantId } });
     const [pendingClaims] = await sequelize.query(`
       SELECT COUNT(*)::int as count FROM employee_claims c
       LEFT JOIN employees e ON c.employee_id = e.id
       WHERE (e.user_id = :userId OR e.email = (SELECT email FROM users WHERE id = :userId))
-      AND c.status = 'pending'
-    `, { replacements: { userId } });
+      AND c.tenant_id = :tenantId AND c.status = 'pending'
+    `, { replacements: { userId, tenantId } });
     const [pendingTravel] = await sequelize.query(`
       SELECT COUNT(*)::int as count FROM travel_requests tr
       LEFT JOIN employees e ON tr.employee_id = e.id
       WHERE (e.user_id = :userId OR e.email = (SELECT email FROM users WHERE id = :userId))
-      AND tr.status = 'pending'
-    `, { replacements: { userId } });
+      AND tr.tenant_id = :tenantId AND tr.status = 'pending'
+    `, { replacements: { userId, tenantId } });
     return res.json({
       success: true,
       data: {
         pendingLeave: pendingLeave?.[0]?.count || 0,
         pendingClaims: pendingClaims?.[0]?.count || 0,
         pendingTravel: pendingTravel?.[0]?.count || 0,
-      }
+      },
     });
-  } catch { return res.json({ success: true, data: mockSummary() }); }
+  } catch {
+    return res.json({ success: true, data: allowHrMockFallback() ? mockSummary() : empty });
+  }
 }
 
 // ─── Mock Data ───

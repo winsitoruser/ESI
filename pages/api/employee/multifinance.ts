@@ -12,6 +12,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 import { resolveEmployeeContext } from '../../../lib/employee-portal';
 import { calcCommission } from '../../../lib/hris/multifinance-types';
+import { allowHrMockFallback } from '@/lib/hris/data-source';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch {}
@@ -25,22 +26,23 @@ const q = async (sql: string, params: any = {}) => {
 };
 
 async function resolveAgent(userId: string, tenantId: string | null) {
-  const ctx = await resolveEmployeeContext(sequelize, userId);
+  const ctx = await resolveEmployeeContext(sequelize, userId, tenantId);
   if (!ctx.employeeId) return { ...ctx, agent: null, isMfAgent: false };
+  if (!tenantId) return { ...ctx, agent: null, isMfAgent: false };
 
   const [agent] = await q(`
     SELECT a.*, e.name AS employee_name, e.position, e.phone, e.email
     FROM mf_agents a
     JOIN employees e ON e.id = a.employee_id
     WHERE a.employee_id = :employeeId AND a.status = 'active'
-      AND (:tenantId IS NULL OR a.tenant_id = :tenantId OR a.tenant_id IS NULL)
+      AND a.tenant_id = :tenantId
     LIMIT 1
-  `, { employeeId: ctx.employeeId, tenantId: tenantId || null });
+  `, { employeeId: ctx.employeeId, tenantId });
 
   const [emp] = await q(`
     SELECT id, name, employment_category, business_vertical, agent_type, territory
-    FROM employees WHERE id = :employeeId LIMIT 1
-  `, { employeeId: ctx.employeeId });
+    FROM employees WHERE id = :employeeId AND tenant_id = :tenantId LIMIT 1
+  `, { employeeId: ctx.employeeId, tenantId });
 
   const isMfAgent = !!agent || emp?.business_vertical === 'multifinance'
     || MF_CATEGORIES.includes(emp?.employment_category || '')
@@ -95,7 +97,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const action = String(req.query.action || '');
 
     if (!sequelize) {
-      return res.json({ success: true, data: mockData(action) });
+      return res.json({
+        success: true,
+        data: allowHrMockFallback() ? mockData(action) : (action === 'profile' ? { isMfAgent: false, agent: null } : []),
+      });
+    }
+
+    if (!tenantId) {
+      return res.status(403).json({ success: false, error: 'Tenant context required' });
     }
 
     const agentCtx = await resolveAgent(userId, tenantId);
@@ -204,7 +213,7 @@ async function getOverview(res: NextApiResponse, ctx: any, tenantId: string | nu
       COUNT(*) FILTER (WHERE status = 'npl')::int AS npl,
       COUNT(*)::int AS total
     FROM mf_loan_contracts
-    WHERE assigned_employee_id = :employeeId OR assigned_employee_id IS NULL ${tf}
+    WHERE assigned_employee_id = :employeeId AND tenant_id = :tenantId
   `, { employeeId: ctx.employeeId, tenantId }).catch(() => [{ overdue: 0, npl: 0, total: 0 }]);
 
   const agent = ctx.agent;
@@ -237,8 +246,7 @@ async function getPortfolio(res: NextApiResponse, ctx: any, tenantId: string | n
   if (!ctx.employeeId) return res.json({ success: true, data: [] });
 
   const replacements: any = { employeeId: ctx.employeeId, tenantId };
-  let where = `WHERE (c.assigned_employee_id = :employeeId OR c.assigned_employee_id IS NULL)`;
-  if (tenantId) where += ' AND (c.tenant_id = :tenantId OR c.tenant_id IS NULL)';
+  let where = `WHERE c.assigned_employee_id = :employeeId AND c.tenant_id = :tenantId`;
   if (status) { where += ' AND c.status = :status'; replacements.status = status; }
   if (dpd_min) { where += ' AND c.dpd_days >= :dpdMin'; replacements.dpdMin = parseInt(dpd_min as string); }
   if (search) {
@@ -260,7 +268,7 @@ async function getContract(res: NextApiResponse, tenantId: string | null, req: N
   const num = req.query.contract_number || req.query.q;
   if (!num) return res.status(400).json({ success: false, error: 'contract_number required' });
 
-  const tf = tenantId ? 'AND (tenant_id = :tenantId OR tenant_id IS NULL)' : '';
+  const tf = 'AND tenant_id = :tenantId';
   const [row] = await q(`
     SELECT * FROM mf_loan_contracts
     WHERE contract_number ILIKE :num ${tf} LIMIT 1
@@ -318,7 +326,10 @@ async function createActivity(req: NextApiRequest, res: NextApiResponse, ctx: an
 
   let agentId = ctx.agent?.id || null;
   if (!agentId) {
-    const [ag] = await q(`SELECT id FROM mf_agents WHERE employee_id = :employeeId AND status = 'active' LIMIT 1`, { employeeId: ctx.employeeId });
+    const [ag] = await q(
+    `SELECT id FROM mf_agents WHERE employee_id = :employeeId AND status = 'active' AND tenant_id = :tenantId LIMIT 1`,
+    { employeeId: ctx.employeeId, tenantId },
+  );
     agentId = ag?.id || null;
   }
 
@@ -373,12 +384,13 @@ async function createActivity(req: NextApiRequest, res: NextApiResponse, ctx: an
         last_payment_date = :activityDate,
         outstanding_amount = GREATEST(0, outstanding_amount - :amountCollected),
         updated_at = NOW()
-      WHERE contract_number = :contractNumber
+      WHERE contract_number = :contractNumber AND tenant_id = :tenantId
     `, {
       visitOutcome: b.visitOutcome,
       activityDate: b.activityDate,
       amountCollected: b.amountCollected || 0,
       contractNumber: b.contractNumber,
+      tenantId,
     }).catch(() => {});
   }
 

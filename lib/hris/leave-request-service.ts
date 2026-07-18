@@ -228,20 +228,30 @@ export async function approveLeaveStep(params: {
   approverId: string | number;
   approverName?: string;
   comments?: string;
+  tenantId?: string | null;
 }) {
-  const { leaveRequestId, approverId, approverName, comments } = params;
+  const { leaveRequestId, approverId, approverName, comments, tenantId } = params;
   const requestId = String(leaveRequestId);
 
   if (!sequelize) return { success: true, message: 'Cuti disetujui (mock)', finalized: true };
+  if (!tenantId) return { success: false, error: 'Tenant context required' };
 
   if (!UUID_RE.test(requestId)) {
     // Legacy integer IDs — single-step approve
-    await sequelize.query(`
+    const [upd] = await sequelize.query(`
       UPDATE leave_requests SET status = 'approved', approved_by = :approverId, approved_at = NOW(), updated_at = NOW()
-      WHERE id::text = :id AND status = 'pending'
-    `, { replacements: { id: requestId, approverId } });
+      WHERE id::text = :id AND status = 'pending' AND tenant_id = :tenantId
+      RETURNING id
+    `, { replacements: { id: requestId, approverId, tenantId } });
+    if (!upd?.[0]) return { success: false, error: 'Pengajuan cuti tidak ditemukan' };
     return { success: true, message: 'Cuti disetujui', finalized: true };
   }
+
+  const [owned] = await sequelize.query(
+    `SELECT id FROM leave_requests WHERE id = :requestId AND tenant_id = :tenantId AND status = 'pending'`,
+    { replacements: { requestId, tenantId } },
+  );
+  if (!owned?.length) return { success: false, error: 'Pengajuan cuti tidak ditemukan' };
 
   await sequelize.query(`
     UPDATE leave_approval_steps SET status = 'approved',
@@ -263,8 +273,8 @@ export async function approveLeaveStep(params: {
 
   await sequelize.query(`
     UPDATE leave_requests SET current_approval_step = COALESCE(current_approval_step, 1) + 1, updated_at = NOW()
-    WHERE id = :requestId
-  `, { replacements: { requestId } });
+    WHERE id = :requestId AND tenant_id = :tenantId
+  `, { replacements: { requestId, tenantId } });
 
   const [nextSteps] = await sequelize.query(`
     SELECT id FROM leave_approval_steps
@@ -279,14 +289,17 @@ export async function approveLeaveStep(params: {
     return { success: true, message: 'Disetujui — menunggu persetujuan level berikutnya', finalized: false };
   }
 
-  const [lr] = await sequelize.query(`SELECT * FROM leave_requests WHERE id = :id`, { replacements: { id: requestId } });
+  const [lr] = await sequelize.query(
+    `SELECT * FROM leave_requests WHERE id = :id AND tenant_id = :tenantId`,
+    { replacements: { id: requestId, tenantId } },
+  );
   const leaveData = lr?.[0];
   if (!leaveData) return { success: false, error: 'Pengajuan cuti tidak ditemukan' };
 
   await sequelize.query(`
     UPDATE leave_requests SET status = 'approved', approved_by = :approverId, approved_at = NOW(), updated_at = NOW()
-    WHERE id = :requestId
-  `, { replacements: { requestId, approverId } });
+    WHERE id = :requestId AND tenant_id = :tenantId
+  `, { replacements: { requestId, approverId, tenantId } });
 
   await adjustLeaveBalancePending(
     String(leaveData.employee_id),
@@ -303,22 +316,25 @@ export async function rejectLeaveRequest(params: {
   leaveRequestId: string;
   reason: string;
   approverId?: string | number;
+  tenantId?: string | null;
 }) {
-  const { leaveRequestId, reason, approverId } = params;
+  const { leaveRequestId, reason, approverId, tenantId } = params;
   const requestId = String(leaveRequestId);
 
   if (!sequelize) return { success: true, message: 'Cuti ditolak (mock)' };
+  if (!tenantId) return { success: false, error: 'Tenant context required' };
 
-  const [lr] = await sequelize.query(`SELECT * FROM leave_requests WHERE id::text = :id`, {
-    replacements: { id: requestId },
-  });
+  const [lr] = await sequelize.query(
+    `SELECT * FROM leave_requests WHERE id::text = :id AND tenant_id = :tenantId`,
+    { replacements: { id: requestId, tenantId } },
+  );
   const leaveData = lr?.[0];
   if (!leaveData) return { success: false, error: 'Pengajuan tidak ditemukan' };
 
   await sequelize.query(`
     UPDATE leave_requests SET status = 'rejected', rejection_reason = :reason, updated_at = NOW()
-    WHERE id::text = :id AND status = 'pending'
-  `, { replacements: { id: requestId, reason } });
+    WHERE id::text = :id AND status = 'pending' AND tenant_id = :tenantId
+  `, { replacements: { id: requestId, reason, tenantId } });
 
   await sequelize.query(`
     UPDATE leave_approval_steps SET status = 'rejected', approver_id = :approverId,

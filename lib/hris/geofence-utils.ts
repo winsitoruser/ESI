@@ -66,7 +66,7 @@ export async function loadActiveGeofences(
       SELECT id, name, center_lat, center_lng, radius_meters, customer_id, reference_type
       FROM sfa_geofences
       WHERE is_active = true
-        ${tenantId ? 'AND (tenant_id IS NULL OR tenant_id = :tenantId::uuid)' : ''}
+        ${tenantId ? 'AND tenant_id = :tenantId::uuid' : 'AND 1=0'}
         ${customerClause}
       ORDER BY name ASC
       LIMIT 50

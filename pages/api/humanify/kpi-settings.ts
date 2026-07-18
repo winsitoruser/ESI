@@ -105,6 +105,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // ── POST ──
     if (method === 'POST') {
+      if (!tenantId) return res.status(403).json(errorResponse(ErrorCodes.FORBIDDEN, 'NO_TENANT'));
       const body = req.body;
 
       if (type === 'template') {
@@ -163,6 +164,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       if (type === 'level') {
         if (!body.scheme_id || !body.label) return res.status(400).json(errorResponse(ErrorCodes.MISSING_REQUIRED_FIELDS, 'scheme_id and label required'));
+        const [owned] = await sequelize.query(
+          'SELECT id FROM kpi_scoring_schemes WHERE id = :sid AND tenant_id = :tid LIMIT 1',
+          { replacements: { sid: body.scheme_id, tid: tenantId } },
+        );
+        if (!owned?.length) return res.status(404).json(errorResponse(ErrorCodes.NOT_FOUND, 'Scheme not found'));
         const [rows] = await sequelize.query(`
           INSERT INTO kpi_scoring_levels (scheme_id, level, label, min_percent, max_percent, score, color, multiplier, sort_order)
           VALUES (:sid, :level, :label, :minP, :maxP, :score, :color, :mult, :sort)
@@ -183,26 +189,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // ── PUT ──
     if (method === 'PUT') {
+      if (!tenantId) return res.status(403).json(errorResponse(ErrorCodes.FORBIDDEN, 'NO_TENANT'));
       const body = req.body;
       if (!body.id) return res.status(400).json(errorResponse(ErrorCodes.MISSING_REQUIRED_FIELDS, 'id is required'));
 
       if (type === 'template') {
         const [rows] = await sequelize.query(`
           UPDATE kpi_templates SET
-            name = COALESCE(:name, name), description = COALESCE(:desc, description),
+            name = COALESCE(:name, name), description = COALESCE(:moduledesc, description),
             category = COALESCE(:cat, category), unit = COALESCE(:unit, unit),
             data_type = COALESCE(:dataType, data_type), formula_type = COALESCE(:formulaType, formula_type),
             formula = COALESCE(:formula, formula), default_weight = COALESCE(:defaultWeight, default_weight),
             measurement_frequency = COALESCE(:freq, measurement_frequency),
             is_active = COALESCE(:isActive, is_active), updated_at = NOW()
-          WHERE id = :id RETURNING *
+          WHERE id = :id AND tenant_id = :tid RETURNING *
         `, {
           replacements: {
-            id: body.id, name: body.name || null, desc: body.description || null,
-            cat: body.category || null, unit: body.unit || null,
-            dataType: body.dataType || null, formulaType: body.formulaType || null,
-            formula: body.formula || null, defaultWeight: body.defaultWeight ?? body.weight ?? null,
-            freq: body.measurementFrequency || null, isActive: body.isActive ?? null,
+            id: body.id, tid: tenantId,
+            name: body.name ?? null, moduledesc: body.description ?? null,
+            cat: body.category ?? null, unit: body.unit ?? null,
+            dataType: body.dataType ?? null, formulaType: body.formulaType ?? null,
+            formula: body.formula ?? null, defaultWeight: body.defaultWeight ?? body.weight ?? null,
+            freq: body.measurementFrequency ?? null, isActive: body.isActive ?? null,
           }
         });
         if (rows.length === 0) return res.status(404).json(errorResponse(ErrorCodes.NOT_FOUND, 'Template not found'));
@@ -212,13 +220,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (type === 'scheme') {
         const [rows] = await sequelize.query(`
           UPDATE kpi_scoring_schemes SET
-            name = COALESCE(:name, name), description = COALESCE(:desc, description),
+            name = COALESCE(:name, name), description = COALESCE(:moduledesc, description),
             is_default = COALESCE(:isDefault, is_default), is_active = COALESCE(:isActive, is_active),
             updated_at = NOW()
-          WHERE id = :id RETURNING *
+          WHERE id = :id AND tenant_id = :tid RETURNING *
         `, {
           replacements: {
-            id: body.id, name: body.name || null, desc: body.description || null,
+            id: body.id, tid: tenantId,
+            name: body.name ?? null, moduledesc: body.description ?? null,
             isDefault: body.is_default ?? null, isActive: body.is_active ?? null
           }
         });
@@ -233,12 +242,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             max_percent = COALESCE(:maxP, max_percent), score = COALESCE(:score, score),
             color = COALESCE(:color, color), multiplier = COALESCE(:mult, multiplier),
             sort_order = COALESCE(:sort, sort_order)
-          WHERE id = :id RETURNING *
+          WHERE id = :id AND scheme_id IN (
+            SELECT id FROM kpi_scoring_schemes WHERE tenant_id = :tid
+          ) RETURNING *
         `, {
           replacements: {
-            id: body.id, label: body.label || null,
+            id: body.id, tid: tenantId, label: body.label ?? null,
             minP: body.min_percent ?? null, maxP: body.max_percent ?? null,
-            score: body.score ?? null, color: body.color || null,
+            score: body.score ?? null, color: body.color ?? null,
             mult: body.multiplier ?? null, sort: body.sort_order ?? null
           }
         });
@@ -251,20 +262,35 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // ── DELETE ──
     if (method === 'DELETE') {
+      if (!tenantId) return res.status(403).json(errorResponse(ErrorCodes.FORBIDDEN, 'NO_TENANT'));
       const { id } = req.query;
       if (!id) return res.status(400).json(errorResponse(ErrorCodes.MISSING_REQUIRED_FIELDS, 'id is required'));
 
       if (type === 'template') {
-        await sequelize.query('DELETE FROM kpi_templates WHERE id = :id', { replacements: { id } });
+        const [, meta] = await sequelize.query(
+          'DELETE FROM kpi_templates WHERE id = :id AND tenant_id = :tid',
+          { replacements: { id, tid: tenantId } },
+        );
+        if ((meta as any)?.rowCount === 0) return res.status(404).json(errorResponse(ErrorCodes.NOT_FOUND, 'Template not found'));
         return res.status(HttpStatus.OK).json(successResponse(null, undefined, 'Template deleted'));
       }
       if (type === 'scheme') {
+        const [owned] = await sequelize.query(
+          'SELECT id FROM kpi_scoring_schemes WHERE id = :id AND tenant_id = :tid LIMIT 1',
+          { replacements: { id, tid: tenantId } },
+        );
+        if (!owned?.length) return res.status(404).json(errorResponse(ErrorCodes.NOT_FOUND, 'Scheme not found'));
         await sequelize.query('DELETE FROM kpi_scoring_levels WHERE scheme_id = :id', { replacements: { id } });
-        await sequelize.query('DELETE FROM kpi_scoring_schemes WHERE id = :id', { replacements: { id } });
+        await sequelize.query('DELETE FROM kpi_scoring_schemes WHERE id = :id AND tenant_id = :tid', { replacements: { id, tid: tenantId } });
         return res.status(HttpStatus.OK).json(successResponse(null, undefined, 'Scheme deleted'));
       }
       if (type === 'level') {
-        await sequelize.query('DELETE FROM kpi_scoring_levels WHERE id = :id', { replacements: { id } });
+        const [, meta] = await sequelize.query(`
+          DELETE FROM kpi_scoring_levels WHERE id = :id AND scheme_id IN (
+            SELECT id FROM kpi_scoring_schemes WHERE tenant_id = :tid
+          )
+        `, { replacements: { id, tid: tenantId } });
+        if ((meta as any)?.rowCount === 0) return res.status(404).json(errorResponse(ErrorCodes.NOT_FOUND, 'Level not found'));
         return res.status(HttpStatus.OK).json(successResponse(null, undefined, 'Level deleted'));
       }
       return res.status(400).json(errorResponse(ErrorCodes.VALIDATION_ERROR, 'Unknown DELETE type'));

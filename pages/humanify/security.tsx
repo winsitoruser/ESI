@@ -177,7 +177,10 @@ export default function HumanifySecurityPage() {
 
   return (
     <>
-      <Head><title>Keamanan (2FA) — {HUMANIFY_BRAND.name}</title></Head>
+      <Head>
+        <title>Keamanan (2FA) — {HUMANIFY_BRAND.name}</title>
+        <meta name="robots" content="noindex, nofollow" />
+      </Head>
       <HumanifyLayout title="Keamanan Akun" subtitle="Autentikasi dua faktor (2FA / TOTP)">
         <div className="max-w-2xl mx-auto space-y-6">
           {mfaSetupRequired && (

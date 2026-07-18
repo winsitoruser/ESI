@@ -7,6 +7,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const session = await getServerSession(req, res, authOptions);
   if (!session) return res.status(401).json({ error: 'Unauthorized' });
 
+  const tenantId = (session.user as any)?.tenantId || null;
+  if (!tenantId) return res.status(403).json({ error: 'NO_TENANT' });
+
   try {
     if (req.method === 'GET') {
       const filters = {
@@ -14,7 +17,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         period: req.query.period as string | undefined,
         department: req.query.department as string | undefined,
       };
-      const { okrs, dataSource } = await listOkrs(filters);
+      const { okrs, dataSource } = await listOkrs(tenantId, filters);
       return res.json({ success: true, data: okrs, dataSource });
     }
 
@@ -23,7 +26,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (body.keyResults) {
         body.progress = calcProgress(body.keyResults);
       }
-      const record = await createOkr(body);
+      const record = await createOkr({ ...body, tenantId });
       return res.json({ success: true, data: record });
     }
 

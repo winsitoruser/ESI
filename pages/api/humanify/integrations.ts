@@ -167,13 +167,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === 'POST' && action === 'publish-job') {
+      if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
       const { job_opening_id, providers } = req.body || {};
       if (!job_opening_id) return res.status(400).json({ success: false, error: 'job_opening_id required' });
       if (!sequelize) return res.status(500).json({ success: false, error: 'Database unavailable' });
 
       const [rows] = await sequelize.query(
-        `SELECT * FROM hris_job_openings WHERE id = :id LIMIT 1`,
-        { replacements: { id: job_opening_id } },
+        `SELECT * FROM hris_job_openings WHERE id = :id AND tenant_id = :tid LIMIT 1`,
+        { replacements: { id: job_opening_id, tid: tenantId } },
       );
       const job = rows?.[0];
       if (!job) return res.status(404).json({ success: false, error: 'Lowongan tidak ditemukan' });

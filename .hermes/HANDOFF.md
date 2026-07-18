@@ -1,6 +1,101 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 16 Juli 2026 — **Humanify SaaS Phase 0–24 + tenant empty-state (no dummy for new tenants)**
+> Diperbarui: 18 Juli 2026 — **Ops close-out**: Sentry internal + RLS request-bound + SSO ACS e2e + IDOR Batch 5–10
+
+## Ops close-out (18 Jul 2026)
+
+| Item | Status |
+|---|---|
+| Sentry | `SENTRY_MODE=internal` + DSN shape valid → probe/ring buffer tanpa akun Sentry.io; ganti DSN nyata kapan saja |
+| RLS request-bound | `HUMANIFY_RLS_REQUEST_BOUND=true` + CLS transaction + `set_config(..., local)` di `withHQAuth` |
+| RLS strict | Masih opt-in (`db:humanify-rls:strict`) — soft tetap default (cron/job tanpa tenant aman) |
+| SSO ACS e2e | `scripts/smoke-test-saas-sso-acs-e2e.js` (self-signed IdP → ACS → ssoToken) |
+| IDOR Batch 5–10 | Live + smokes di regression |
+
+## Humanify Batch 10 (18 Jul 2026)
+
+| Item | Status |
+|---|---|
+| Candidate register | resolve tenant via `slug` / `job_opening_id` only (raw `tenant_id` ditolak kecuali env allow) |
+| Attendance mgmt | clock-in/out + schedule-bulk + list force employee∈tenant |
+| Leave create | employee + approval configs scoped by `tenantId` |
+| IR checklist | create force session `tenantId` (strip spoof) |
+| Employee LMS | start-exam / submit-exam scoped by `tenant_id` |
+| Training scoring | calculate/save-score config+graduation scoped |
+| Smoke | `scripts/smoke-test-saas-idor-batch10.js` — **11/11 prod** |
+
+## Humanify Batch 9 (18 Jul 2026)
+
+| Item | Status |
+|---|---|
+| Performance 360 | require tenant; review+employee ownership on create; DELETE scoped |
+| Training-dev | create-question/submit-result/enroll-batch scoped; delete-question via exam join |
+| Candidate portal | start-exam / submit-exam force `tenant_id` on exam+result |
+| OKR | list/create force `tenant_id` (no cross-tenant leak) |
+| Smoke | `scripts/smoke-test-saas-idor-batch9.js` — **15/15 prod** |
+
+## Humanify Batch 8 (18 Jul 2026)
+
+| Item | Status |
+|---|---|
+| Payroll inputs | list/create/approve force `tenant_id`; approve 404 cross-tenant |
+| KPI settings | PUT/DELETE template/scheme/level scoped; POST level verifies scheme ownership |
+| Offboarding settlement | GET/apply force `tenantId` on load+update |
+| E-sign | list/create/sign scoped by `tenant_id` |
+| Integrations publish-job | job opening load requires `tenant_id` |
+| Smoke | `scripts/smoke-test-saas-idor-batch8.js` — **13/13 prod** |
+
+## Humanify Batch 7 (18 Jul 2026)
+
+| Item | Status |
+|---|---|
+| Reminders | list/upcoming/summary/dismiss/generate scoped by `tenant_id` |
+| LMS courses | module create/update/add-material/enroll verify curriculum+employee tenant; update-module null-safe binds |
+| Team tasks | require `tenantId` (fail-closed); update/delete always scoped |
+| Smoke | `scripts/smoke-test-saas-idor-batch7.js` — **10/10 prod** |
+
+## Humanify Batch 6 (17 Jul 2026)
+
+| Item | Status |
+|---|---|
+| Organization | org unit + job grade update/delete scoped by `tenant_id` |
+| Performance | PUT/DELETE review scoped by `tenant_id` |
+| Workforce analytics | headcount plan + budget create/update/delete/approve force `tenantId` |
+| Smoke | `scripts/smoke-test-saas-idor-batch6.js` |
+
+## Humanify Batch 5 (17 Jul 2026)
+
+| Item | Status |
+|---|---|
+| Payroll mutations | approve / run-status / calculate / component update+delete / payslip scoped by `tenant_id` |
+| Workflow | resubmit claim + mutation approve/reject scoped |
+| Project management | create/update/delete + approve paths force `tenantId` |
+| Assets assign/return | require `tenant_id` match |
+| Disciplinary letters | load/select scoped by tenant |
+| Smoke | `scripts/smoke-test-saas-idor-batch5.js` (+ regression list) |
+
+## Humanify Batch 4 (17 Jul 2026)
+
+| Item | Status |
+|---|---|
+| `survey_responses.tenant_id` | migrate + backfill from surveys; insert scoped + owned-survey check |
+| Soft RLS | re-enable after migrate (survey_responses no longer skipped) |
+| Observability | `withObservability` on employees + signup |
+| Regression | `payroll-golden` in `run-saas-regression.sh` |
+| CI | `humanify-saas-gate.yml` static e2e/smoke files + optional Playwright/golden via secrets |
+
+## Humanify Batch 3 (17 Jul 2026)
+
+| Item | Status |
+|---|---|
+| Sentry | DSN di VPS **kosong** (key ada, value kosong) — ensure script + probe + obs menolak DSN invalid; isi DSN nyata lalu `sentry-probe` |
+| RLS | Soft tetap default prod; `HUMANIFY_RLS_MODE=strict` tersedia (`npm run db:humanify-rls:strict`) — **jangan** enable strict di pool multi-conn sampai request-bound connection |
+| Session vars | `set_config(..., false)` + `clearDbTenantContext` di `withHQAuth` finally |
+| Payroll golden | `npm run smoke:payroll-golden` |
+| AGENTS.md | Split Humanify SaaS vs SIMESI di atas dokumen |
+| IDOR leave smoke | Fix weekend date → weekdays |
+
+---
 
 ## Humanify SaaS (multi-tenant HRIS) — Phase 0–24 ✅ GA
 

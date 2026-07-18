@@ -99,11 +99,11 @@ export async function verifyEmployeeTenant(
   empId: string,
   tenantId: string | null
 ): Promise<boolean> {
-  if (!sequelize) return true;
-  if (!tenantId) return true;
+  if (!sequelize) return false;
+  if (!tenantId) return false;
   try {
     const [rows] = await sequelize.query(
-      `SELECT id FROM employees WHERE id = :empId AND (:tenantId IS NULL OR tenant_id = :tenantId OR tenant_id IS NULL)`,
+      `SELECT id FROM employees WHERE id = :empId AND tenant_id = :tenantId`,
       { replacements: { empId, tenantId } }
     );
     return rows && rows.length > 0;
@@ -117,11 +117,11 @@ export async function verifyDocumentTenant(
   docId: string,
   tenantId: string | null
 ): Promise<boolean> {
-  if (!sequelize) return true;
-  if (!tenantId) return true;
+  if (!sequelize) return false;
+  if (!tenantId) return false;
   try {
     const [rows] = await sequelize.query(
-      `SELECT id FROM employee_documents WHERE id = :id AND (:tenantId IS NULL OR tenant_id = :tenantId OR tenant_id IS NULL)`,
+      `SELECT id FROM employee_documents WHERE id = :id AND tenant_id = :tenantId`,
       { replacements: { id: docId, tenantId } }
     );
     return rows && rows.length > 0;
@@ -136,12 +136,11 @@ export async function verifyDocumentBelongsToEmployee(
   employeeId: string | number,
   tenantId: string | null
 ): Promise<boolean> {
-  if (!sequelize) return true;
+  if (!sequelize || !tenantId) return false;
   try {
     const [rows] = await sequelize.query(
       `SELECT id FROM employee_documents
-       WHERE id = :id AND employee_id = :employeeId
-       AND (:tenantId IS NULL OR tenant_id = :tenantId)`,
+       WHERE id = :id AND employee_id = :employeeId AND tenant_id = :tenantId`,
       { replacements: { id: docId, employeeId, tenantId } }
     );
     return rows && rows.length > 0;
@@ -221,7 +220,7 @@ export async function saveEmployeeDocument(input: SaveDocumentInput) {
     const [oldDocs]: any = await sequelize.query(
       `SELECT id, file_url FROM employee_documents
        WHERE employee_id = :employeeId AND document_type = :documentType
-       AND (:tenantId IS NULL OR tenant_id = :tenantId)`,
+       AND tenant_id = :tenantId`,
       { replacements: { employeeId, documentType, tenantId } }
     );
     for (const old of oldDocs || []) {
@@ -320,7 +319,7 @@ export async function listEmployeeDocuments(
   if (!sequelize) return [];
   const [rows] = await sequelize.query(
     `SELECT * FROM employee_documents
-     WHERE employee_id = :empId AND (:tenantId IS NULL OR tenant_id = :tenantId OR tenant_id IS NULL)
+     WHERE employee_id = :empId AND tenant_id = :tenantId
      ORDER BY created_at DESC`,
     { replacements: { empId: employeeId, tenantId } }
   );

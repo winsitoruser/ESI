@@ -1,8 +1,8 @@
-import Head from 'next/head';
 import { GetServerSideProps } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { getCsrfToken } from 'next-auth/react';
 import HumanifyLoginForm from '@/components/humanify/HumanifyLoginForm';
+import HumanifySeoHead from '@/components/humanify/HumanifySeoHead';
 import { authOptions } from '../api/auth/[...nextauth]';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
 
@@ -11,11 +11,12 @@ type Props = { csrfToken: string };
 export default function HumanifyLoginPage({ csrfToken }: Props) {
   return (
     <>
-      <Head>
-        <title>Masuk — {HUMANIFY_BRAND.name} {HUMANIFY_BRAND.productType}</title>
-        <meta name="description" content={`Login ${HUMANIFY_BRAND.name} — ${HUMANIFY_BRAND.productType} oleh ${HUMANIFY_BRAND.company}`} />
-        <link rel="icon" href={HUMANIFY_BRAND.welcomeLogoPath} type="image/png" />
-      </Head>
+      <HumanifySeoHead
+        title={`Masuk — ${HUMANIFY_BRAND.name} ${HUMANIFY_BRAND.productType}`}
+        description={`Login ${HUMANIFY_BRAND.name} — ${HUMANIFY_BRAND.productType} oleh ${HUMANIFY_BRAND.company}`}
+        path={HUMANIFY_BRAND.loginPath}
+        robots="index, follow"
+      />
       <HumanifyLoginForm csrfToken={csrfToken} defaultRedirect={HUMANIFY_BRAND.appPath} />
     </>
   );

@@ -4,6 +4,7 @@ import { authOptions } from '../auth/[...nextauth]';
 import { formatRelativeTime } from '../../../lib/employee-portal';
 import { ensureEngagementTables } from '../../../lib/hris/ensure-engagement-tables';
 import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
+import { ensureTenantDbContext } from '@/lib/saas/ensure-tenant-db-context';
 
 let Survey: any, SurveyResponse: any, Recognition: any, Announcement: any;
 let sequelize: any;
@@ -294,6 +295,7 @@ async function listHrisAnnouncements(filters: { status?: string; category?: stri
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
   if (!session) return res.status(401).json({ error: 'Unauthorized' });
+  await ensureTenantDbContext(session);
 
   const { method } = req;
   const { action } = req.query;
@@ -303,8 +305,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     switch (method) {
       case 'GET': return handleGet(req, res, action as string, session);
       case 'POST': return handlePost(req, res, action as string, session);
-      case 'PUT': return handlePut(req, res, action as string);
-      case 'DELETE': return handleDelete(req, res, action as string);
+      case 'PUT': return handlePut(req, res, action as string, session);
+      case 'DELETE': return handleDelete(req, res, action as string, session);
       default: return res.status(405).json({ error: 'Method not allowed' });
     }
   } catch (error: any) {
@@ -389,7 +391,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
         }
       }
       if (!Survey) return res.status(404).json({ error: 'Not found' });
-      const survey = await Survey.findByPk(id);
+      const survey = await Survey.findOne({ where: { id, tenantId } });
       if (!survey) return res.status(404).json({ error: 'Not found' });
       const responses = SurveyResponse ? await SurveyResponse.findAll({ where: { surveyId: id } }) : [];
       const results: any = {};
@@ -510,12 +512,21 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
       const employeeId = body.employeeId || body.employee_id || null;
       const answers = body.answers || [];
       if (!surveyId) return res.status(400).json({ error: 'surveyId required' });
+      const tenantId = tenantIdFromSession(session);
+      if (!tenantId) return res.status(403).json({ error: 'NO_TENANT' });
 
       if (sequelize) {
         try {
+          const [owned] = await sequelize.query(
+            `SELECT id FROM surveys WHERE id = :surveyId AND tenant_id = :tenantId LIMIT 1`,
+            { replacements: { surveyId, tenantId } },
+          );
+          if (!owned?.length) {
+            return res.status(404).json({ success: false, error: 'Survey not found' });
+          }
           const [rows] = await sequelize.query(`
-            INSERT INTO survey_responses (survey_id, employee_id, respondent_id, answers, is_anonymous, submitted_at)
-            VALUES (:surveyId, :employeeId, :employeeId, :answers::jsonb, :isAnonymous, NOW())
+            INSERT INTO survey_responses (survey_id, employee_id, respondent_id, answers, is_anonymous, submitted_at, tenant_id)
+            VALUES (:surveyId, :employeeId, :employeeId, :answers::jsonb, :isAnonymous, NOW(), :tenantId)
             RETURNING *
           `, {
             replacements: {
@@ -523,11 +534,13 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
               employeeId,
               answers: JSON.stringify(answers),
               isAnonymous: body.isAnonymous ?? body.is_anonymous ?? true,
+              tenantId,
             },
           });
           await sequelize.query(
-            `UPDATE surveys SET total_responses = COALESCE(total_responses, 0) + 1, updated_at = NOW() WHERE id = :surveyId`,
-            { replacements: { surveyId } }
+            `UPDATE surveys SET total_responses = COALESCE(total_responses, 0) + 1, updated_at = NOW()
+             WHERE id = :surveyId AND tenant_id = :tenantId`,
+            { replacements: { surveyId, tenantId } }
           );
           return res.json({ success: true, data: rows?.[0] });
         } catch (e: any) {
@@ -536,46 +549,60 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
       }
 
       if (!SurveyResponse) return res.json({ success: true });
-      const resp = await SurveyResponse.create(body);
+      const resp = await SurveyResponse.create({
+        ...body,
+        surveyId,
+        employeeId,
+        answers,
+        tenantId,
+      });
       if (Survey) {
-        await Survey.increment('totalResponses', { where: { id: surveyId } });
+        await Survey.increment('totalResponses', { where: { id: surveyId, tenantId } });
       }
       return res.json({ success: true, data: resp });
     }
     case 'publish-survey': {
       const { id } = body;
       if (!id) return res.status(400).json({ error: 'ID required' });
+      const tid = tenantIdFromSession(session);
+      if (!tid) return res.status(403).json({ error: 'NO_TENANT' });
       if (sequelize) {
         try {
           const [rows] = await sequelize.query(`
             UPDATE surveys SET status = 'active', start_date = COALESCE(start_date, NOW()), updated_at = NOW()
-            WHERE id = :id RETURNING id
-          `, { replacements: { id } });
+            WHERE id = :id AND tenant_id = :tid RETURNING id
+          `, { replacements: { id, tid } });
           if (rows?.length) return res.json({ success: true, message: 'Survey published' });
+          return res.status(404).json({ error: 'Not found' });
         } catch (e: any) {
           if (!isMissingTableError(e)) throw e;
         }
       }
       if (!Survey) return res.json({ success: true });
-      await Survey.update({ status: 'active', startDate: new Date() }, { where: { id } });
+      const [n] = await Survey.update({ status: 'active', startDate: new Date() }, { where: { id, tenantId: tid } });
+      if (!n) return res.status(404).json({ error: 'Not found' });
       return res.json({ success: true, message: 'Survey published' });
     }
     case 'close-survey': {
       const { id: sId } = body;
       if (!sId) return res.status(400).json({ error: 'ID required' });
+      const tid = tenantIdFromSession(session);
+      if (!tid) return res.status(403).json({ error: 'NO_TENANT' });
       if (sequelize) {
         try {
           const [rows] = await sequelize.query(`
             UPDATE surveys SET status = 'closed', end_date = COALESCE(end_date, NOW()), updated_at = NOW()
-            WHERE id = :sId RETURNING id
-          `, { replacements: { sId } });
+            WHERE id = :sId AND tenant_id = :tid RETURNING id
+          `, { replacements: { sId, tid } });
           if (rows?.length) return res.json({ success: true, message: 'Survey closed' });
+          return res.status(404).json({ error: 'Not found' });
         } catch (e: any) {
           if (!isMissingTableError(e)) throw e;
         }
       }
       if (!Survey) return res.json({ success: true });
-      await Survey.update({ status: 'closed', endDate: new Date() }, { where: { id: sId } });
+      const [n] = await Survey.update({ status: 'closed', endDate: new Date() }, { where: { id: sId, tenantId: tid } });
+      if (!n) return res.status(404).json({ error: 'Not found' });
       return res.json({ success: true, message: 'Survey closed' });
     }
     case 'recognition': {
@@ -623,12 +650,14 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
     case 'like-recognition': {
       const { id: rId, employeeId } = body;
       if (!Recognition || !rId) return res.json({ success: true });
-      const rec = await Recognition.findByPk(rId);
+      const tid = tenantIdFromSession(session);
+      if (!tid) return res.status(403).json({ error: 'NO_TENANT' });
+      const rec = await Recognition.findOne({ where: { id: rId, tenantId: tid } });
       if (rec) {
         const likedBy = [...(rec.likedBy || [])];
         if (!likedBy.includes(employeeId)) {
           likedBy.push(employeeId);
-          await Recognition.update({ likedBy, likesCount: likedBy.length }, { where: { id: rId } });
+          await Recognition.update({ likedBy, likesCount: likedBy.length }, { where: { id: rId, tenantId: tid } });
         }
       }
       return res.json({ success: true });
@@ -692,8 +721,8 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
           const [rows] = await sequelize.query(`
             UPDATE hris_announcements
             SET status = 'published', is_active = true, published_at = COALESCE(published_at, NOW()), updated_at = NOW()
-            WHERE id = :id RETURNING *
-          `, { replacements: { id: aId } });
+            WHERE id = :id AND tenant_id = :tid RETURNING *
+          `, { replacements: { id: aId, tid: (session.user as any)?.tenantId } });
           const ann = rows?.[0];
           if (ann) {
             await fanOutAnnouncementNotifications(ann, (session.user as any)?.tenantId);
@@ -702,18 +731,22 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
         } catch { /* fall through */ }
       }
       if (!Announcement || !aId) return res.json({ success: true });
-      await Announcement.update({ status: 'published', publishDate: new Date() }, { where: { id: aId } });
+      const pubTid = tenantIdFromSession(session);
+      if (!pubTid) return res.status(403).json({ error: 'NO_TENANT' });
+      await Announcement.update({ status: 'published', publishDate: new Date() }, { where: { id: aId, tenantId: pubTid } });
       return res.json({ success: true, message: 'Announcement published' });
     }
     case 'mark-read': {
       const { id: annId, employeeId: eId } = body;
       if (!Announcement || !annId) return res.json({ success: true });
-      const ann = await Announcement.findByPk(annId);
+      const readTid = tenantIdFromSession(session);
+      if (!readTid) return res.status(403).json({ error: 'NO_TENANT' });
+      const ann = await Announcement.findOne({ where: { id: annId, tenantId: readTid } });
       if (ann) {
         const readBy = [...(ann.readBy || [])];
         if (!readBy.includes(eId)) {
           readBy.push(eId);
-          await Announcement.update({ readBy, readCount: readBy.length }, { where: { id: annId } });
+          await Announcement.update({ readBy, readCount: readBy.length }, { where: { id: annId, tenantId: readTid } });
         }
       }
       return res.json({ success: true });
@@ -723,9 +756,11 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
   }
 }
 
-async function handlePut(req: NextApiRequest, res: NextApiResponse, action: string) {
+async function handlePut(req: NextApiRequest, res: NextApiResponse, action: string, session: any) {
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: 'ID required' });
+  const tid = tenantIdFromSession(session);
+  if (!tid) return res.status(403).json({ error: 'NO_TENANT' });
 
   switch (action) {
     case 'survey': {
@@ -741,10 +776,11 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, action: stri
               is_mandatory = COALESCE(:isMandatory, is_mandatory),
               questions = COALESCE(:questions::jsonb, questions),
               updated_at = NOW()
-            WHERE id = :id RETURNING *
+            WHERE id = :id AND tenant_id = :tid RETURNING *
           `, {
             replacements: {
               id,
+              tid,
               title: b.title || null,
               description: b.description ?? null,
               surveyType: b.surveyType || b.survey_type || null,
@@ -754,12 +790,14 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, action: stri
             },
           });
           if (rows?.[0]) return res.json({ success: true, data: mapSurveyRow(rows[0]), message: 'Survey updated' });
+          return res.status(404).json({ error: 'Not found' });
         } catch (e: any) {
           if (!isMissingTableError(e)) throw e;
         }
       }
       if (!Survey) return res.json({ success: true });
-      await Survey.update(req.body, { where: { id } });
+      const [n] = await Survey.update(req.body, { where: { id, tenantId: tid } });
+      if (!n) return res.status(404).json({ error: 'Not found' });
       return res.json({ success: true, message: 'Survey updated' });
     }
     case 'announcement': {
@@ -783,10 +821,11 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, action: stri
               published_at = CASE WHEN :status = 'published' THEN COALESCE(published_at, NOW()) ELSE published_at END,
               expires_at = COALESCE(:expiresAt, expires_at),
               updated_at = NOW()
-            WHERE id = :id RETURNING *
+            WHERE id = :id AND tenant_id = :tid RETURNING *
           `, {
             replacements: {
               id,
+              tid,
               title: b.title || null,
               content: b.content || null,
               category: b.category || null,
@@ -801,12 +840,14 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, action: stri
             },
           });
           if (rows?.[0]) return res.json({ success: true, data: mapAnnouncementRow(rows[0]), message: 'Announcement updated' });
+          return res.status(404).json({ error: 'Not found' });
         } catch (e: any) {
           console.warn('hris_announcements update:', e.message);
         }
       }
       if (!Announcement) return res.json({ success: true });
-      await Announcement.update(req.body, { where: { id } });
+      const [n] = await Announcement.update(req.body, { where: { id, tenantId: tid } });
+      if (!n) return res.status(404).json({ error: 'Not found' });
       return res.json({ success: true, message: 'Announcement updated' });
     }
     default:
@@ -814,16 +855,20 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, action: stri
   }
 }
 
-async function handleDelete(req: NextApiRequest, res: NextApiResponse, action: string) {
+async function handleDelete(req: NextApiRequest, res: NextApiResponse, action: string, session: any) {
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: 'ID required' });
+  const tid = tenantIdFromSession(session);
+  if (!tid) return res.status(403).json({ error: 'NO_TENANT' });
 
   if (action === 'announcement' && sequelize) {
     try {
-      await sequelize.query(
-        `UPDATE hris_announcements SET is_active = false, status = 'archived', updated_at = NOW() WHERE id = :id`,
-        { replacements: { id } }
+      const [rows] = await sequelize.query(
+        `UPDATE hris_announcements SET is_active = false, status = 'archived', updated_at = NOW()
+         WHERE id = :id AND tenant_id = :tid RETURNING id`,
+        { replacements: { id, tid } },
       );
+      if (!(rows as any[])?.length) return res.status(404).json({ error: 'Not found' });
       return res.json({ success: true, message: 'Deleted' });
     } catch { /* fall through */ }
   }
@@ -836,7 +881,11 @@ async function handleDelete(req: NextApiRequest, res: NextApiResponse, action: s
     const table = tableMap[action];
     if (table) {
       try {
-        await sequelize.query(`DELETE FROM ${table} WHERE id = :id`, { replacements: { id } });
+        const [rows] = await sequelize.query(
+          `DELETE FROM ${table} WHERE id = :id AND tenant_id = :tid RETURNING id`,
+          { replacements: { id, tid } },
+        );
+        if (!(rows as any[])?.length) return res.status(404).json({ error: 'Not found' });
         return res.json({ success: true, message: 'Deleted' });
       } catch (e: any) {
         if (!isMissingTableError(e)) throw e;
@@ -847,6 +896,7 @@ async function handleDelete(req: NextApiRequest, res: NextApiResponse, action: s
   const models: any = { survey: Survey, recognition: Recognition, announcement: Announcement };
   const model = models[action];
   if (!model) return res.status(400).json({ error: 'Invalid action' });
-  await model.destroy({ where: { id } });
+  const n = await model.destroy({ where: { id, tenantId: tid } });
+  if (!n) return res.status(404).json({ error: 'Not found' });
   return res.json({ success: true, message: 'Deleted' });
 }

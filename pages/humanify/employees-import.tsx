@@ -74,7 +74,10 @@ export default function EmployeesImportPage() {
 
   return (
     <>
-      <Head><title>Impor Karyawan — {HUMANIFY_BRAND.name}</title></Head>
+      <Head>
+        <title>Impor Karyawan — {HUMANIFY_BRAND.name}</title>
+        <meta name="robots" content="noindex, nofollow" />
+      </Head>
       <HumanifyLayout title="Impor Karyawan Massal" subtitle="Unggah CSV untuk menambahkan banyak karyawan sekaligus">
         <div className="max-w-4xl mx-auto space-y-6">
           <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">

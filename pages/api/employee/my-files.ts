@@ -32,7 +32,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const userId = String(session.user.id || '');
-    const ctx = await resolveEmployeeContext(sequelize, userId);
+    const sessionTenantId = String((session.user as any).tenantId || '') || null;
+    const ctx = await resolveEmployeeContext(sequelize, userId, sessionTenantId);
 
     if (!ctx.employeeId) {
       return res.status(404).json({
@@ -42,7 +43,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const employeeId = String(ctx.employeeId);
-    const tenantId = ctx.tenantId ? String(ctx.tenantId) : null;
+    const tenantId = sessionTenantId || (ctx.tenantId ? String(ctx.tenantId) : null);
 
     if (req.method === 'GET') {
       const documents = await listEmployeeDocuments(sequelize, employeeId, tenantId);

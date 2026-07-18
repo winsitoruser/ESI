@@ -87,6 +87,16 @@ function getTenantId(session: any): string | null {
   return tenantIdFromSession(session);
 }
 
+async function loadLetterScoped(id: string, session: any): Promise<any | null> {
+  const tenantId = getTenantId(session);
+  if (!tenantId || !sequelize) return null;
+  const [letters] = await sequelize.query(
+    `SELECT * FROM hr_disciplinary_letters WHERE id = :id AND tenant_id = :tenantId`,
+    { replacements: { id, tenantId } },
+  );
+  return letters?.[0] || null;
+}
+
 function getUserId(session: any): number | null {
   const id = (session.user as any)?.id;
   return id ? parseInt(String(id), 10) : null;
@@ -536,9 +546,9 @@ async function submitLetter(req: NextApiRequest, res: NextApiResponse, session: 
   if (!id) return res.status(400).json({ error: 'id required' });
   const userId = getUserId(session);
 
-  const [letters] = await sequelize.query(`SELECT * FROM hr_disciplinary_letters WHERE id = :id`, { replacements: { id } });
-  if (!letters[0]) return res.status(404).json({ success: false, error: 'Not found' });
-  if (!['draft', 'drafting'].includes(letters[0].status)) {
+  const letter = await loadLetterScoped(id, session);
+  if (!letter) return res.status(404).json({ success: false, error: 'Not found' });
+  if (!['draft', 'drafting'].includes(letter.status)) {
     return res.status(400).json({ success: false, error: 'Hanya draft yang dapat diajukan' });
   }
 
@@ -551,8 +561,8 @@ async function submitLetter(req: NextApiRequest, res: NextApiResponse, session: 
   await sequelize.query(`
     UPDATE hr_disciplinary_letters SET status = 'pending_approval', current_phase = 'approval',
       current_approval_step = 1, updated_at = NOW()
-    WHERE id = :id
-  `, { replacements: { id } });
+    WHERE id = :id AND tenant_id = :tenantId
+  `, { replacements: { id, tenantId: letter.tenant_id } });
 
   await appendAudit(id, { action: 'submitted', by: userId, at: new Date().toISOString() });
 
@@ -594,7 +604,7 @@ async function approveStep(req: NextApiRequest, res: NextApiResponse, session: a
   if (!id) return res.status(400).json({ error: 'id required' });
   const userId = getUserId(session);
 
-  const [letters] = await sequelize.query(`SELECT * FROM hr_disciplinary_letters WHERE id = :id`, { replacements: { id } });
+  const [letters] = await sequelize.query(`SELECT * FROM hr_disciplinary_letters WHERE id = :id AND tenant_id = :tenantId`, { replacements: { id, tenantId: getTenantId(session) } });
   const letter = letters[0];
   if (!letter) return res.status(404).json({ error: 'Not found' });
   if (!['pending_approval', 'review'].includes(letter.status)) {
@@ -648,7 +658,7 @@ async function issueLetter(req: NextApiRequest, res: NextApiResponse, session: a
   if (!id) return res.status(400).json({ error: 'id required' });
   const userId = getUserId(session);
 
-  const [letters] = await sequelize.query(`SELECT * FROM hr_disciplinary_letters WHERE id = :id`, { replacements: { id } });
+  const [letters] = await sequelize.query(`SELECT * FROM hr_disciplinary_letters WHERE id = :id AND tenant_id = :tenantId`, { replacements: { id, tenantId: getTenantId(session) } });
   const letter = letters[0];
   if (!letter) return res.status(404).json({ error: 'Not found' });
   if (letter.status !== 'approved') {
@@ -754,7 +764,7 @@ async function rejectLetter(req: NextApiRequest, res: NextApiResponse, session: 
   if (!id || !comments) return res.status(400).json({ error: 'id dan alasan penolakan wajib diisi' });
   const userId = getUserId(session);
 
-  const [letters] = await sequelize.query(`SELECT * FROM hr_disciplinary_letters WHERE id = :id`, { replacements: { id } });
+  const [letters] = await sequelize.query(`SELECT * FROM hr_disciplinary_letters WHERE id = :id AND tenant_id = :tenantId`, { replacements: { id, tenantId: getTenantId(session) } });
   const letter = letters[0];
   if (!letter) return res.status(404).json({ success: false, error: 'Not found' });
 
@@ -777,7 +787,7 @@ async function startInvestigation(req: NextApiRequest, res: NextApiResponse, ses
   const userId = getUserId(session);
   const investigatorName = (session.user as any)?.name || (session.user as any)?.email || 'HR';
 
-  const [letters] = await sequelize.query(`SELECT * FROM hr_disciplinary_letters WHERE id = :id`, { replacements: { id } });
+  const [letters] = await sequelize.query(`SELECT * FROM hr_disciplinary_letters WHERE id = :id AND tenant_id = :tenantId`, { replacements: { id, tenantId: getTenantId(session) } });
   const letter = letters[0];
   if (!letter) return res.status(404).json({ success: false, error: 'Surat tidak ditemukan' });
   if (!['submitted', 'draft'].includes(letter.status)) {

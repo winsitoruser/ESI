@@ -233,7 +233,8 @@ else
 fi
 
 echo "=== [3d/6] Ensure Sentry env keys ==="
-ssh_cmd "ENV_FILE=$APP_DIR/.env bash -s" < "$SRC/scripts/ensure-humanify-sentry.sh" || true
+ssh_cmd "ENV_FILE=$APP_DIR/.env HUMANIFY_SENTRY_INTERNAL=true bash -s" < "$SRC/scripts/ensure-humanify-sentry.sh" || true
+ssh_cmd "ENV_FILE=$APP_DIR/.env bash -s" < "$SRC/scripts/enable-humanify-rls-request-bound.sh" || true
 
 echo "=== [3e/6] Ensure platform crons (purge / hard-delete / health) ==="
 ssh_cmd "APP_DIR=$APP_DIR bash -s" < "$SRC/scripts/ensure-humanify-crons.sh" || true

@@ -13,6 +13,13 @@ export default function CareersIndexRedirect() {
     <>
       <Head>
         <title>Portal Karir — {HUMANIFY_BRAND.name}</title>
+        <meta
+          name="description"
+          content="Portal karir Humanify — setiap perusahaan memiliki URL karir sendiri di /c/{slug}/careers."
+        />
+        <meta name="robots" content="noindex, follow" />
+        <link rel="canonical" href="https://humanify.id/careers" />
+        <link rel="icon" href={HUMANIFY_BRAND.welcomeLogoPath} type="image/png" />
       </Head>
       <div className="min-h-screen bg-slate-50 flex flex-col">
         <header className="border-b bg-white">

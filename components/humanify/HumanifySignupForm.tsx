@@ -9,6 +9,7 @@ import {
 import toast from 'react-hot-toast';
 import { HUMANIFY_BRAND, NAINCODE } from '@/lib/humanify/branding';
 import { HumanifyLogo } from '@/components/humanify/HumanifyLogo';
+import HumanifyBrandLoader from '@/components/humanify/HumanifyBrandLoader';
 
 const INDUSTRIES = [
   { value: 'professional_services', label: 'Jasa Profesional' },
@@ -37,6 +38,7 @@ export default function HumanifySignupForm() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -113,6 +115,8 @@ export default function HumanifySignupForm() {
       });
 
       if (login?.ok) {
+        setRedirecting(true);
+        await new Promise((r) => setTimeout(r, 700));
         window.location.href = json.data?.redirectTo || HUMANIFY_BRAND.setupPath;
         return;
       }
@@ -120,10 +124,13 @@ export default function HumanifySignupForm() {
       router.push(HUMANIFY_BRAND.loginPath);
     } catch (err: any) {
       toast.error(err.message || 'Registrasi gagal');
-    } finally {
       setLoading(false);
     }
   };
+
+  if (redirecting) {
+    return <HumanifyBrandLoader variant="signup" />;
+  }
 
   const inputCls =
     'w-full pl-11 pr-4 py-3.5 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white placeholder:text-violet-200/30 outline-none focus:bg-white/[0.06] focus:border-violet-400/40 focus:ring-2 focus:ring-violet-500/20 transition-all';

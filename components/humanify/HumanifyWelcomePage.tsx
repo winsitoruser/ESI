@@ -11,6 +11,7 @@ import { HUMANIFY_BRAND, HUMANIFY_FEATURES, NAINCODE } from '@/lib/humanify/bran
 import Image from 'next/image';
 import { HumanifyLogo } from '@/components/humanify/HumanifyLogo';
 import { NaincodeFooter } from '@/components/humanify/NaincodeFooter';
+import AimanFloatingChat from '@/components/humanify/AimanFloatingChat';
 
 const ICONS = [Users, Clock, DollarSign, Target, GraduationCap, Smartphone, PieChart, Activity];
 const MODULE_ICON_BG = [
@@ -867,6 +868,7 @@ export default function HumanifyWelcomePage() {
       </main>
 
       <NaincodeFooter variant="dark" />
+      <AimanFloatingChat />
     </div>
   );
 }

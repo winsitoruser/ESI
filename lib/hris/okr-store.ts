@@ -62,6 +62,9 @@ export async function ensureOkrTables(): Promise<boolean> {
       updated_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS idx_hris_okr_objectives_tenant ON hris_okr_objectives(tenant_id);
+  `);
   return true;
 }
 
@@ -92,7 +95,10 @@ export interface OkrListResult {
   dataSource: HrisDataSource;
 }
 
-export async function listOkrs(filters?: { level?: OkrLevel; period?: string; department?: string }): Promise<OkrListResult> {
+export async function listOkrs(
+  tenantId: string | null | undefined,
+  filters?: { level?: OkrLevel; period?: string; department?: string },
+): Promise<OkrListResult> {
   if (!sequelize) {
     return {
       okrs: allowHrMockFallback() ? getMockOkrs(filters) : [],
@@ -100,33 +106,36 @@ export async function listOkrs(filters?: { level?: OkrLevel; period?: string; de
     };
   }
   await ensureOkrTables();
-  let sql = 'SELECT * FROM hris_okr_objectives WHERE 1=1';
-  const params: any[] = [];
+  if (!tenantId) {
+    return { okrs: [], dataSource: 'empty' };
+  }
+  let sql = 'SELECT * FROM hris_okr_objectives WHERE tenant_id = $1';
+  const params: any[] = [tenantId];
   if (filters?.level) { params.push(filters.level); sql += ` AND level = $${params.length}`; }
   if (filters?.period) { params.push(filters.period); sql += ` AND period = $${params.length}`; }
   if (filters?.department) { params.push(filters.department); sql += ` AND department = $${params.length}`; }
   sql += ' ORDER BY level ASC, created_at DESC';
   const [rows] = await sequelize.query(sql, { bind: params });
   if (!rows?.length) {
-    if (allowHrMockFallback()) {
-      return { okrs: getMockOkrs(filters), dataSource: 'demo' };
-    }
     return { okrs: [], dataSource: 'empty' };
   }
   return { okrs: rows.map(mapOkr), dataSource: 'live' };
 }
 
-export async function createOkr(data: Partial<OkrObjective>): Promise<OkrObjective | null> {
+export async function createOkr(
+  data: Partial<OkrObjective> & { tenantId?: string | null },
+): Promise<OkrObjective | null> {
   if (!sequelize) return null;
   await ensureOkrTables();
   const progress = calcProgress(data.keyResults || []);
   const [rows] = await sequelize.query(`
     INSERT INTO hris_okr_objectives
-      (title, description, level, owner_id, owner_name, department, parent_id, cycle, period, progress, status, key_results)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+      (tenant_id, title, description, level, owner_id, owner_name, department, parent_id, cycle, period, progress, status, key_results)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
     RETURNING *
   `, {
     bind: [
+      data.tenantId || null,
       data.title, data.description || null, data.level || 'individual',
       data.ownerId || null, data.ownerName || null, data.department || null,
       data.parentId || null, data.cycle || 'quarterly', data.period || 'Q1-2026',

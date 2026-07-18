@@ -1,8 +1,8 @@
-import Head from 'next/head';
 import { GetServerSideProps } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { getCsrfToken } from 'next-auth/react';
 import EmployeePortalLoginForm from '@/components/humanify/EmployeePortalLoginForm';
+import HumanifySeoHead from '@/components/humanify/HumanifySeoHead';
 import { authOptions } from '../api/auth/[...nextauth]';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
 
@@ -11,14 +11,11 @@ type Props = { csrfToken: string };
 export default function EmployeeLoginPage({ csrfToken }: Props) {
   return (
     <>
-      <Head>
-        <title>Portal Karyawan — {HUMANIFY_BRAND.name}</title>
-        <meta
-          name="description"
-          content={`Login Portal Karyawan ${HUMANIFY_BRAND.name} — absensi, cuti, slip gaji, dan klaim mandiri.`}
-        />
-        <link rel="icon" href={HUMANIFY_BRAND.welcomeLogoPath} type="image/png" />
-      </Head>
+      <HumanifySeoHead
+        title={`Portal Karyawan — ${HUMANIFY_BRAND.name}`}
+        description={`Login Portal Karyawan ${HUMANIFY_BRAND.name} — absensi, cuti, slip gaji, dan klaim mandiri.`}
+        path={HUMANIFY_BRAND.employeeLoginPath}
+      />
       <EmployeePortalLoginForm csrfToken={csrfToken} />
     </>
   );

@@ -62,20 +62,23 @@ function mapDoc(row: any): ESignDocument {
   };
 }
 
-export async function listESignDocuments(status?: ESignStatus): Promise<ESignDocument[]> {
+export async function listESignDocuments(status?: ESignStatus, tenantId?: string | null): Promise<ESignDocument[]> {
   if (!sequelize) return allowHrMockFallback() ? getMockDocuments() : [];
   await ensureESignTables();
-  let sql = 'SELECT * FROM hris_esign_documents ORDER BY created_at DESC LIMIT 100';
   const params: any[] = [];
-  if (status) { sql = 'SELECT * FROM hris_esign_documents WHERE status = $1 ORDER BY created_at DESC LIMIT 100'; params.push(status); }
+  let sql = 'SELECT * FROM hris_esign_documents WHERE 1=1';
+  if (tenantId) { params.push(tenantId); sql += ` AND tenant_id = $${params.length}`; }
+  if (status) { params.push(status); sql += ` AND status = $${params.length}`; }
+  sql += ' ORDER BY created_at DESC LIMIT 100';
   const [rows] = await sequelize.query(sql, { bind: params });
-  if (!rows?.length) return allowHrMockFallback() ? getMockDocuments() : [];
+  if (!rows?.length) return tenantId || !allowHrMockFallback() ? [] : getMockDocuments();
   return rows.map(mapDoc);
 }
 
 export async function createESignDocument(data: {
   docType: ESignDocType; title: string; employeeId?: string; employeeName?: string;
   signers: { name: string; email: string; role: string }[];
+  tenantId?: string | null;
 }): Promise<ESignDocument | null> {
   if (!sequelize) {
     return {
@@ -99,17 +102,21 @@ export async function createESignDocument(data: {
   }
 
   const [rows] = await sequelize.query(`
-    INSERT INTO hris_esign_documents (doc_type, title, employee_id, employee_name, status, signers, privy_doc_token)
-    VALUES ($1,$2,$3,$4,'pending',$5,$6) RETURNING *
-  `, { bind: [data.docType, data.title, data.employeeId || null, data.employeeName || null, JSON.stringify(signers), token] });
+    INSERT INTO hris_esign_documents (tenant_id, doc_type, title, employee_id, employee_name, status, signers, privy_doc_token)
+    VALUES ($1,$2,$3,$4,$5,'pending',$6,$7) RETURNING *
+  `, { bind: [data.tenantId || null, data.docType, data.title, data.employeeId || null, data.employeeName || null, JSON.stringify(signers), token] });
   return rows?.[0] ? mapDoc(rows[0]) : null;
 }
 
-export async function signDocument(id: string, signerEmail: string): Promise<ESignDocument | null> {
-  if (!sequelize) return simulateSignDocument(id, signerEmail);
+export async function signDocument(id: string, signerEmail: string, tenantId?: string | null): Promise<ESignDocument | null> {
+  if (!sequelize) return simulateSignDocument(id, signerEmail, tenantId);
 
   await ensureESignTables();
-  const [existing] = await sequelize.query('SELECT * FROM hris_esign_documents WHERE id = $1 LIMIT 1', { bind: [id] });
+  const params: any[] = [id];
+  let sql = 'SELECT * FROM hris_esign_documents WHERE id = $1';
+  if (tenantId) { params.push(tenantId); sql += ` AND tenant_id = $${params.length}`; }
+  sql += ' LIMIT 1';
+  const [existing] = await sequelize.query(sql, { bind: params });
   const row = existing?.[0];
   if (!row) return null;
 
@@ -117,7 +124,7 @@ export async function signDocument(id: string, signerEmail: string): Promise<ESi
     await notifyPrivySigner(row.privy_doc_token, signerEmail);
   }
 
-  return simulateSignDocument(id, signerEmail);
+  return simulateSignDocument(id, signerEmail, tenantId);
 }
 
 export function getESignIntegrationInfo() {
@@ -127,11 +134,15 @@ export function getESignIntegrationInfo() {
   };
 }
 
-export async function simulateSignDocument(id: string, signerEmail: string): Promise<ESignDocument | null> {
+export async function simulateSignDocument(id: string, signerEmail: string, tenantId?: string | null): Promise<ESignDocument | null> {
   let doc: ESignDocument | null = null;
   if (sequelize) {
     await ensureESignTables();
-    const [rows] = await sequelize.query('SELECT * FROM hris_esign_documents WHERE id = $1 LIMIT 1', { bind: [id] });
+    const params: any[] = [id];
+    let sql = 'SELECT * FROM hris_esign_documents WHERE id = $1';
+    if (tenantId) { params.push(tenantId); sql += ` AND tenant_id = $${params.length}`; }
+    sql += ' LIMIT 1';
+    const [rows] = await sequelize.query(sql, { bind: params });
     doc = rows?.[0] ? mapDoc(rows[0]) : null;
   } else {
     doc = getMockDocuments().find((d) => d.id === id) || null;
@@ -146,12 +157,18 @@ export async function simulateSignDocument(id: string, signerEmail: string): Pro
 
   if (sequelize) {
     await ensureESignTables();
+    const params: any[] = [id, JSON.stringify(signers), status];
+    let where = 'WHERE id = $1';
+    if (tenantId) {
+      params.push(tenantId);
+      where += ` AND tenant_id = $${params.length}`;
+    }
     const [rows] = await sequelize.query(`
       UPDATE hris_esign_documents SET signers = $2, status = $3,
         completed_at = CASE WHEN $3 = 'completed' THEN NOW() ELSE completed_at END,
         updated_at = NOW()
-      WHERE id = $1 RETURNING *
-    `, { bind: [id, JSON.stringify(signers), status] });
+      ${where} RETURNING *
+    `, { bind: params });
     const result = rows?.[0] ? mapDoc(rows[0]) : null;
     if (status === 'completed' && result?.employeeId) {
       try {

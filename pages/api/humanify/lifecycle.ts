@@ -9,6 +9,8 @@ import {
   listOffboarding, createOffboarding, updateOffboarding, deleteOffboarding,
   getOnboardingById, getOffboardingById,
 } from '../../../lib/hris/lifecycle-store';
+import { findScopedById, destroyScoped, updateScoped, tenantIdFromSession } from '@/lib/saas/tenant-scope';
+import { ensureTenantDbContext } from '@/lib/saas/ensure-tenant-db-context';
 
 let EmployeeContract: any, ContractReminder: any;
 try { EmployeeContract = require('../../../models/EmployeeContract'); } catch (e) { /* noop */ }
@@ -45,7 +47,7 @@ const DEFAULT_OFFBOARDING_TEMPLATE = [
 ];
 
 function getTenantId(session: any): string | null {
-  return session?.user?.tenantId || session?.user?.tenant_id || null;
+  return tenantIdFromSession(session) || session?.user?.tenantId || session?.user?.tenant_id || null;
 }
 
 function uuid() {
@@ -55,6 +57,7 @@ function uuid() {
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
   if (!session) return res.status(401).json({ error: 'Unauthorized' });
+  await ensureTenantDbContext(session);
 
   const { method } = req;
   const action = (req.query.action as string) || '';
@@ -250,10 +253,13 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
     case 'contract-send-esign': {
       if (!body.contractId && !body.id) return res.status(400).json({ error: 'contractId is required' });
       const contractId = body.contractId || body.id;
+      const tenantId = getTenantId(session);
+      if (!tenantId) return res.status(403).json({ error: 'NO_TENANT' });
       let contract: any = body;
       if (EmployeeContract) {
-        const row = await EmployeeContract.findByPk(contractId);
-        if (row) contract = row.toJSON ? row.toJSON() : row;
+        const row = await findScopedById(EmployeeContract, contractId, tenantId);
+        if (!row) return res.status(404).json({ error: 'Not found' });
+        contract = row.toJSON ? row.toJSON() : row;
       }
       const { sendContractToESign } = await import('@/lib/hris/lifecycle-automation');
       const esign = await sendContractToESign(contract, body.signers);
@@ -293,19 +299,22 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, action: stri
   const id = req.query.id as string;
   if (!id) return res.status(400).json({ error: 'id is required' });
   const body = req.body || {};
+  const tenantId = getTenantId(session);
+  if (!tenantId) return res.status(403).json({ error: 'NO_TENANT' });
 
   switch (action) {
     case 'contract': {
       if (!EmployeeContract) return res.json({ success: true });
-      await EmployeeContract.update(body, { where: { id } });
+      const [n] = await updateScoped(EmployeeContract, id, tenantId, body);
+      if (!n) return res.status(404).json({ error: 'Not found' });
       return res.json({ success: true, message: 'Contract updated' });
     }
 
     case 'contract-renew': {
       if (!EmployeeContract) return res.json({ success: true });
-      const old = await EmployeeContract.findByPk(id);
+      const old = await findScopedById(EmployeeContract, id, tenantId);
       if (!old) return res.status(404).json({ error: 'Not found' });
-      await EmployeeContract.update({ status: 'renewed' }, { where: { id } });
+      await updateScoped(EmployeeContract, id, tenantId, { status: 'renewed' });
       const payload: any = {
         tenantId: old.tenantId,
         employeeId: old.employeeId,
@@ -328,49 +337,50 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, action: stri
 
     case 'contract-terminate': {
       if (!EmployeeContract) return res.json({ success: true });
-      await EmployeeContract.update({
+      const [n] = await updateScoped(EmployeeContract, id, tenantId, {
         status: 'terminated',
         terminationDate: body.terminationDate || new Date().toISOString().slice(0, 10),
         terminationReason: body.terminationReason || '',
-      }, { where: { id } });
+      });
+      if (!n) return res.status(404).json({ error: 'Not found' });
       return res.json({ success: true });
     }
 
     case 'onboarding': {
-      const updated = await updateOnboarding(id, body);
+      const updated = await updateOnboarding(id, body, tenantId);
       if (!updated) return res.status(404).json({ error: 'Not found' });
       return res.json({ success: true, data: updated });
     }
 
     case 'onboarding-task': {
       const { taskKey, completed } = body;
-      const item = await getOnboardingById(id);
+      const item = await getOnboardingById(id, tenantId);
       if (!item) return res.status(404).json({ error: 'Not found' });
       const tasks = (item.tasks || []).map((t: any) =>
         t.key === taskKey ? { ...t, completed: !!completed, completedAt: completed ? new Date().toISOString() : null } : t
       );
       const allReq = tasks.filter((t: any) => t.required);
       const status = allReq.length > 0 && allReq.every((t: any) => t.completed) ? 'completed' : item.status;
-      const updated = await updateOnboarding(id, { tasks, status });
+      const updated = await updateOnboarding(id, { tasks, status }, tenantId);
       return res.json({ success: true, data: updated });
     }
 
     case 'offboarding': {
-      const updated = await updateOffboarding(id, body);
+      const updated = await updateOffboarding(id, body, tenantId);
       if (!updated) return res.status(404).json({ error: 'Not found' });
       return res.json({ success: true, data: updated });
     }
 
     case 'offboarding-task': {
       const { taskKey, completed } = body;
-      const item = await getOffboardingById(id);
+      const item = await getOffboardingById(id, tenantId);
       if (!item) return res.status(404).json({ error: 'Not found' });
       const tasks = (item.tasks || []).map((t: any) =>
         t.key === taskKey ? { ...t, completed: !!completed, completedAt: completed ? new Date().toISOString() : null } : t
       );
       const allReq = tasks.filter((t: any) => t.required);
       const status = allReq.length > 0 && allReq.every((t: any) => t.completed) ? 'completed' : item.status;
-      const updated = await updateOffboarding(id, { tasks, status });
+      const updated = await updateOffboarding(id, { tasks, status }, tenantId);
       return res.json({ success: true, data: updated });
     }
 
@@ -379,22 +389,29 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, action: stri
   }
 }
 
-async function handleDelete(req: NextApiRequest, res: NextApiResponse, action: string, _session: any) {
+async function handleDelete(req: NextApiRequest, res: NextApiResponse, action: string, session: any) {
   const id = req.query.id as string;
   if (!id) return res.status(400).json({ error: 'id is required' });
+  const tenantId = getTenantId(session);
+  if (!tenantId) return res.status(403).json({ error: 'NO_TENANT' });
 
   switch (action) {
     case 'contract': {
       if (!EmployeeContract) return res.json({ success: true });
-      await EmployeeContract.destroy({ where: { id } });
+      const n = await destroyScoped(EmployeeContract, id, tenantId);
+      if (!n) return res.status(404).json({ error: 'Not found' });
       return res.json({ success: true });
     }
     case 'onboarding': {
-      await deleteOnboarding(id);
+      const existing = await getOnboardingById(id, tenantId);
+      if (!existing) return res.status(404).json({ error: 'Not found' });
+      await deleteOnboarding(id, tenantId);
       return res.json({ success: true });
     }
     case 'offboarding': {
-      await deleteOffboarding(id);
+      const existing = await getOffboardingById(id, tenantId);
+      if (!existing) return res.status(404).json({ error: 'Not found' });
+      await deleteOffboarding(id, tenantId);
       return res.json({ success: true });
     }
     default:

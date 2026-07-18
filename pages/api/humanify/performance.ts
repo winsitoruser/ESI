@@ -38,9 +38,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
         return await createPerformanceReview(req, res, session);
       case 'PUT':
-        return await updatePerformanceReview(req, res);
+        return await updatePerformanceReview(req, res, session);
       case 'DELETE':
-        return await deletePerformanceReview(req, res);
+        return await deletePerformanceReview(req, res, session);
       default:
         res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE']);
         return res.status(HttpStatus.METHOD_NOT_ALLOWED).json(
@@ -299,8 +299,12 @@ async function createPerformanceReview(req: NextApiRequest, res: NextApiResponse
 }
 
 // ========== PUT: Update performance review ==========
-async function updatePerformanceReview(req: NextApiRequest, res: NextApiResponse) {
+async function updatePerformanceReview(req: NextApiRequest, res: NextApiResponse, session: any) {
   const { id, status, employeeComments, managerComments, hrComments, categories, strengths, areasForImprovement, goals } = req.body;
+  const tenantId = (session?.user as any)?.tenantId || null;
+  if (!tenantId) {
+    return res.status(HttpStatus.FORBIDDEN).json(errorResponse('NO_TENANT', 'Tenant context required'));
+  }
 
   if (!id) {
     return res.status(HttpStatus.BAD_REQUEST).json(
@@ -310,15 +314,18 @@ async function updatePerformanceReview(req: NextApiRequest, res: NextApiResponse
 
   if (sequelize) {
     try {
-      // Check exists
-      const [existing] = await sequelize.query('SELECT * FROM performance_reviews WHERE id = :id', { replacements: { id } });
+      // Check exists (tenant-scoped)
+      const [existing] = await sequelize.query(
+        'SELECT * FROM performance_reviews WHERE id = :id AND tenant_id = :tid',
+        { replacements: { id, tid: tenantId } },
+      );
       if (existing.length === 0) {
         return res.status(HttpStatus.NOT_FOUND).json(errorResponse('NOT_FOUND', 'Review not found'));
       }
 
       // Build dynamic update
       const sets: string[] = ['updated_at = NOW()'];
-      const repl: any = { id };
+      const repl: any = { id, tid: tenantId };
 
       if (status) {
         const validStatuses = ['draft', 'submitted', 'reviewed', 'acknowledged'];
@@ -340,7 +347,11 @@ async function updatePerformanceReview(req: NextApiRequest, res: NextApiResponse
 
       // Update categories and recalculate rating
       if (categories && categories.length > 0) {
-        await sequelize.query('DELETE FROM performance_review_categories WHERE review_id = :id', { replacements: { id } });
+        await sequelize.query(
+          `DELETE FROM performance_review_categories WHERE review_id = :id
+           AND EXISTS (SELECT 1 FROM performance_reviews pr WHERE pr.id = :id AND pr.tenant_id = :tid)`,
+          { replacements: { id, tid: tenantId } },
+        );
         let totalWeight = 0, weightedSum = 0;
         for (let i = 0; i < categories.length; i++) {
           const c = categories[i];
@@ -356,10 +367,16 @@ async function updatePerformanceReview(req: NextApiRequest, res: NextApiResponse
         repl.overallRating = newRating;
       }
 
-      await sequelize.query(`UPDATE performance_reviews SET ${sets.join(', ')} WHERE id = :id`, { replacements: repl });
+      await sequelize.query(
+        `UPDATE performance_reviews SET ${sets.join(', ')} WHERE id = :id AND tenant_id = :tid`,
+        { replacements: repl },
+      );
 
       // Fetch updated review
-      const [updated] = await sequelize.query('SELECT * FROM performance_reviews WHERE id = :id', { replacements: { id } });
+      const [updated] = await sequelize.query(
+        'SELECT * FROM performance_reviews WHERE id = :id AND tenant_id = :tid',
+        { replacements: { id, tid: tenantId } },
+      );
       const [cats] = await sequelize.query(
         'SELECT * FROM performance_review_categories WHERE review_id = :id ORDER BY sort_order',
         { replacements: { id } }
@@ -390,8 +407,12 @@ async function updatePerformanceReview(req: NextApiRequest, res: NextApiResponse
 }
 
 // ========== DELETE: Remove performance review ==========
-async function deletePerformanceReview(req: NextApiRequest, res: NextApiResponse) {
+async function deletePerformanceReview(req: NextApiRequest, res: NextApiResponse, session: any) {
   const { id } = req.query;
+  const tenantId = (session?.user as any)?.tenantId || null;
+  if (!tenantId) {
+    return res.status(HttpStatus.FORBIDDEN).json(errorResponse('NO_TENANT', 'Tenant context required'));
+  }
   if (!id) {
     return res.status(HttpStatus.BAD_REQUEST).json(errorResponse(ErrorCodes.MISSING_REQUIRED_FIELDS, 'Review ID is required'));
   }
@@ -399,7 +420,13 @@ async function deletePerformanceReview(req: NextApiRequest, res: NextApiResponse
   if (sequelize) {
     try {
       // Categories cascade delete due to ON DELETE CASCADE
-      await sequelize.query('DELETE FROM performance_reviews WHERE id = :id', { replacements: { id } });
+      const [, meta] = await sequelize.query(
+        'DELETE FROM performance_reviews WHERE id = :id AND tenant_id = :tid',
+        { replacements: { id, tid: tenantId } },
+      );
+      if ((meta as any)?.rowCount === 0) {
+        return res.status(HttpStatus.NOT_FOUND).json(errorResponse('NOT_FOUND', 'Review not found'));
+      }
       return res.status(HttpStatus.OK).json(successResponse(null, undefined, 'Review deleted'));
     } catch (e: any) {
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(

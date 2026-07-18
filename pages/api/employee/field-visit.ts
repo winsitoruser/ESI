@@ -16,6 +16,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 import { ensureVisitLinkedTask, syncTaskStatusFromVisit } from '../../../lib/sfa/visitTaskSync';
 import { loadActiveGeofences, matchGeofences, geofenceStatusLabel } from '../../../lib/hris/geofence-utils';
+import { allowHrMockFallback } from '@/lib/hris/data-source';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch {}
@@ -74,12 +75,12 @@ async function ensureSfaVisitsTable() {
 
 async function resolveSalesperson(userId: string, tenantId: string) {
   const uid = parseInt(userId, 10) || 0;
+  if (!tenantId) return { userId: uid, employeeId: null };
   const [emp] = await q(`
     SELECT id FROM employees
-    WHERE user_id = :uid
-      AND (:tid = '' OR tenant_id IS NULL OR tenant_id = :tid::uuid)
+    WHERE user_id = :uid AND tenant_id = :tid::uuid
     LIMIT 1
-  `, { uid, tid: tenantId || '' });
+  `, { uid, tid: tenantId });
   return { userId: uid, employeeId: emp?.id || null };
 }
 
@@ -136,13 +137,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 async function getVisits(res: NextApiResponse, userId: string, tenantId: string, req: NextApiRequest) {
   const { date, status } = req.query;
   const today = (date as string) || new Date().toISOString().split('T')[0];
+  const empty = { visits: [] as any[], stats: { total: 0, planned: 0, checked_in: 0, completed: 0, target: 5 } };
 
   if (!sequelize) {
+    if (!allowHrMockFallback()) return res.json({ success: true, data: empty });
     const MOCK_VISITS = [
       { id: 'v1', visit_number: 'VIS-001', customer_name: 'Toko Maju Jaya', customer_address: 'Jl. Sudirman No.10, Jakarta', visit_type: 'regular', purpose: 'Pengecekan stok & ambil pesanan', status: 'planned', visit_date: today, check_in_time: null, check_out_time: null, outcome: null, duration_minutes: 0, is_adhoc: false, evidence_photos: [] },
     ];
     return res.json({ success: true, data: { visits: MOCK_VISITS, stats: { total: 1, planned: 1, checked_in: 0, completed: 0, target: 5 } } });
   }
+  if (!tenantId) return res.json({ success: true, data: empty });
 
   await ensureSfaVisitsTable();
   try {
@@ -159,27 +163,29 @@ async function getVisits(res: NextApiResponse, userId: string, tenantId: string,
         v.check_in_geofence_status,
         v.check_in_geofence_distance_m
       FROM sfa_visits v
-      WHERE (v.tenant_id IS NULL OR v.tenant_id = :tid::uuid OR :tid = '')
+      WHERE v.tenant_id = :tid::uuid
         AND (v.salesperson_id = :sp OR v.employee_id IN (
-          SELECT id FROM employees WHERE user_id = :sp
+          SELECT id FROM employees WHERE user_id = :sp AND tenant_id = :tid::uuid
         ))
         AND v.visit_date = :date ${whereStatus}
       ORDER BY v.check_in_time ASC NULLS FIRST, v.created_at ASC
-    `, { tid: tenantId || null, sp: spId, date: today, ...(status ? { status } : {}) });
+    `, { tid: tenantId, sp: spId, date: today, ...(status ? { status } : {}) });
     const [stats] = await q(`
       SELECT COUNT(*)::int as total,
         COUNT(*) FILTER (WHERE status='planned')::int as planned,
         COUNT(*) FILTER (WHERE status='checked_in')::int as checked_in,
         COUNT(*) FILTER (WHERE status='completed')::int as completed
       FROM sfa_visits
-      WHERE (tenant_id IS NULL OR tenant_id = :tid::uuid OR :tid = '')
-        AND (salesperson_id = :sp OR employee_id IN (SELECT id FROM employees WHERE user_id = :sp))
+      WHERE tenant_id = :tid::uuid
+        AND (salesperson_id = :sp OR employee_id IN (
+          SELECT id FROM employees WHERE user_id = :sp AND tenant_id = :tid::uuid
+        ))
         AND visit_date = :date
-    `, { tid: tenantId || null, sp: spId, date: today });
+    `, { tid: tenantId, sp: spId, date: today });
     return res.json({ success: true, data: { visits, stats: { ...stats, target: 5 } } });
   } catch (e: any) {
     console.warn('[field-visit getVisits]', e.message);
-    return res.json({ success: true, data: { visits: [], stats: { total: 0, planned: 0, checked_in: 0, completed: 0, target: 5 } } });
+    return res.json({ success: true, data: empty });
   }
 }
 
@@ -192,33 +198,35 @@ async function searchCustomers(res: NextApiResponse, tenantId: string, req: Next
     { id: 'c2', name: 'Warung Bu Sari', phone: '082345678901', address: 'Jl. Kebon Jeruk No.5', type: 'customer' },
     { id: 'c3', name: 'PT Prospek Baru', phone: '083456789012', address: 'Jl. Gatot Subroto No.15', type: 'prospect' },
   ];
-  if (!sequelize) return res.json({ success: true, data: mock });
+  if (!sequelize) {
+    return res.json({ success: true, data: allowHrMockFallback() ? mock : [] });
+  }
+  if (!tenantId) return res.json({ success: true, data: [] });
 
   const like = `%${String(req.query.q || '').trim()}%`;
-  const tid = tenantId || null;
   try {
     const data = await q(`
       SELECT id::text, name, phone, address, 'customer' as type
       FROM crm_customers
-      WHERE (tenant_id IS NULL OR tenant_id = :tid::uuid OR :tid = '')
+      WHERE tenant_id = :tid::uuid
         AND (name ILIKE :q OR phone ILIKE :q OR address ILIKE :q)
         AND (is_active IS NULL OR is_active = true)
       ORDER BY name LIMIT 20
-    `, { tid, q: like });
+    `, { tid: tenantId, q: like });
     if (data?.length) return res.json({ success: true, data });
   } catch { /* try legacy tables */ }
 
   try {
     const data = await q(`
       SELECT id::text, name, phone, address, 'customer' as type FROM customers
-      WHERE (tenant_id IS NULL OR tenant_id = :tid::uuid OR :tid = '')
+      WHERE tenant_id = :tid::uuid
         AND (name ILIKE :q OR phone ILIKE :q) AND (is_active IS NULL OR is_active = true)
       UNION ALL
       SELECT id::text, name, phone, company as address, 'prospect' as type FROM sfa_leads
-      WHERE (tenant_id IS NULL OR tenant_id = :tid::uuid OR :tid = '')
+      WHERE tenant_id = :tid::uuid
         AND (name ILIKE :q OR company ILIKE :q) AND status != 'converted'
       ORDER BY name LIMIT 20
-    `, { tid, q: like });
+    `, { tid: tenantId, q: like });
     return res.json({ success: true, data: data || [] });
   } catch (e: any) {
     console.warn('[field-visit searchCustomers]', e.message);
@@ -231,11 +239,12 @@ async function searchCustomers(res: NextApiResponse, tenantId: string, req: Next
 // ─────────────────────────────────────────
 async function getRoutePlan(res: NextApiResponse, userId: string, tenantId: string) {
   if (!sequelize) return res.json({ success: true, data: null });
+  if (!tenantId) return res.json({ success: true, data: null });
   try {
     const dow = new Date().getDay();
     const [emp] = await q(`SELECT id FROM employees WHERE user_id=:uid AND tenant_id=:tid LIMIT 1`, { uid: userId, tid: tenantId });
-    const sid = emp?.id || userId;
-    const [plan] = await q(`SELECT rp.*, t.name as territory_name FROM sfa_route_plans rp LEFT JOIN sfa_territories t ON rp.territory_id=t.id WHERE rp.tenant_id=:tid AND rp.salesperson_id=:sid AND rp.day_of_week=:dow AND rp.is_active=true ORDER BY rp.created_at DESC LIMIT 1`, { tid: tenantId, sid, dow });
+    if (!emp?.id) return res.json({ success: true, data: null });
+    const [plan] = await q(`SELECT rp.*, t.name as territory_name FROM sfa_route_plans rp LEFT JOIN sfa_territories t ON rp.territory_id=t.id WHERE rp.tenant_id=:tid AND rp.salesperson_id=:sid AND rp.day_of_week=:dow AND rp.is_active=true ORDER BY rp.created_at DESC LIMIT 1`, { tid: tenantId, sid: emp.id, dow });
     return res.json({ success: true, data: plan || null });
   } catch { return res.json({ success: true, data: null }); }
 }
@@ -247,8 +256,10 @@ async function getRoutePlan(res: NextApiResponse, userId: string, tenantId: stri
 async function createVisit(req: NextApiRequest, res: NextApiResponse, userId: string, tenantId: string) {
   const { customer_name, customer_id, visit_type = 'regular', purpose, visit_date, lead_id, is_adhoc = false } = req.body;
   if (!customer_name) return res.status(400).json({ success: false, error: 'customer_name wajib diisi' });
+  if (!tenantId) return res.status(403).json({ success: false, error: 'Tenant context required' });
 
   if (!sequelize) {
+    if (!allowHrMockFallback()) return res.status(503).json({ success: false, error: 'Database tidak tersedia' });
     return res.json({ success: true, message: 'Kunjungan berhasil dibuat', data: { id: `v${Date.now()}`, visit_number: `VIS-${Date.now()}`, customer_name, visit_type, purpose, status: 'planned', visit_date: visit_date || new Date().toISOString().split('T')[0], customer_address: '', duration_minutes: 0, is_adhoc: true, evidence_photos: [] } });
   }
 
@@ -256,7 +267,7 @@ async function createVisit(req: NextApiRequest, res: NextApiResponse, userId: st
   try {
     const { userId: spId, employeeId } = await resolveSalesperson(userId, tenantId);
     const vDate = visit_date || new Date().toISOString().split('T')[0];
-    const [count] = await q(`SELECT COUNT(*)::int as c FROM sfa_visits WHERE tenant_id = :tid AND TO_CHAR(created_at,'YYYY-MM') = :m`, { tid: tenantId || null, m: vDate.slice(0, 7) });
+    const [count] = await q(`SELECT COUNT(*)::int as c FROM sfa_visits WHERE tenant_id = :tid AND TO_CHAR(created_at,'YYYY-MM') = :m`, { tid: tenantId, m: vDate.slice(0, 7) });
     const num = `VIS-${vDate.replace(/-/g, '')}-${String(Number(count?.c || 0) + 1).padStart(3, '0')}`;
 
     const [visitRows] = await sequelize.query(`
@@ -267,7 +278,7 @@ async function createVisit(req: NextApiRequest, res: NextApiResponse, userId: st
         :tid, :sp, :eid, :cid, :cname, :vtype, :purpose, :vdate, 'planned', :adhoc, :lid, NOW(), NOW()
       ) RETURNING *
     `, { replacements: {
-      tid: tenantId || null, sp: spId, eid: employeeId, cid: customer_id || null,
+      tid: tenantId, sp: spId, eid: employeeId, cid: customer_id || null,
       cname: customer_name, vtype: visit_type, purpose: purpose || '', vdate: vDate,
       adhoc: !!is_adhoc, lid: lead_id || null,
     } });
@@ -312,13 +323,21 @@ async function checkIn(req: NextApiRequest, res: NextApiResponse, userId: string
   const { visit_id, latitude, longitude, accuracy, address, photo_base64, notes } = req.body;
   if (!visit_id) return res.status(400).json({ success: false, error: 'visit_id wajib diisi' });
   if (typeof latitude !== 'number' || typeof longitude !== 'number') return res.status(400).json({ success: false, error: 'Koordinat GPS diperlukan' });
+  if (!tenantId) return res.status(403).json({ success: false, error: 'Tenant context required' });
 
-  if (!sequelize) return res.json({ success: true, message: 'Check-in berhasil', data: { visit_id, check_in_time: new Date().toISOString(), check_in_lat: latitude, check_in_lng: longitude } });
+  if (!sequelize) {
+    if (!allowHrMockFallback()) return res.status(503).json({ success: false, error: 'Database tidak tersedia' });
+    return res.json({ success: true, message: 'Check-in berhasil', data: { visit_id, check_in_time: new Date().toISOString(), check_in_lat: latitude, check_in_lng: longitude } });
+  }
 
   try {
-    const [visitRows] = await sequelize.query(`SELECT customer_id FROM sfa_visits WHERE id = :id LIMIT 1`, { replacements: { id: visit_id } });
-    const customerId = visitRows?.[0]?.customer_id || null;
-    const fences = await loadActiveGeofences(sequelize, tenantId || null, customerId);
+    const [visitRows] = await sequelize.query(
+      `SELECT customer_id FROM sfa_visits WHERE id = :id AND tenant_id = :tid::uuid LIMIT 1`,
+      { replacements: { id: visit_id, tid: tenantId } },
+    );
+    if (!visitRows?.[0]) return res.status(404).json({ success: false, error: 'Kunjungan tidak ditemukan' });
+    const customerId = visitRows[0].customer_id || null;
+    const fences = await loadActiveGeofences(sequelize, tenantId, customerId);
     const geofence = matchGeofences(latitude, longitude, fences);
     const photoUrl = photo_base64 && String(photo_base64).startsWith('data:')
       ? String(photo_base64).slice(0, 500000)
@@ -326,9 +345,9 @@ async function checkIn(req: NextApiRequest, res: NextApiResponse, userId: string
 
     await q(`UPDATE sfa_visits SET status='checked_in', check_in_time=NOW(), check_in_lat=:lat, check_in_lng=:lng, check_in_address=:addr, check_in_photo_url=:photo,
       check_in_geofence_name=:gfName, check_in_geofence_status=:gfStatus, check_in_geofence_distance_m=:gfDist, updated_at=NOW()
-      WHERE id=:id AND (tenant_id IS NULL OR tenant_id = :tid::uuid OR :tid = '')`,
+      WHERE id=:id AND tenant_id = :tid::uuid`,
       {
-        lat: latitude, lng: longitude, addr: address || null, photo: photoUrl, id: visit_id, tid: tenantId || null,
+        lat: latitude, lng: longitude, addr: address || null, photo: photoUrl, id: visit_id, tid: tenantId,
         gfName: geofence?.name || null,
         gfStatus: geofence ? (geofence.inside ? 'inside' : 'outside') : 'unknown',
         gfDist: geofence?.distanceM ?? null,
@@ -358,16 +377,24 @@ async function checkIn(req: NextApiRequest, res: NextApiResponse, userId: string
 async function checkOut(req: NextApiRequest, res: NextApiResponse, userId: string, tenantId: string) {
   const { visit_id, latitude, longitude, address, photo_base64, outcome, outcome_notes, order_taken, order_value, next_visit_date, products_discussed } = req.body;
   if (!visit_id || !outcome) return res.status(400).json({ success: false, error: 'visit_id dan outcome wajib diisi' });
+  if (!tenantId) return res.status(403).json({ success: false, error: 'Tenant context required' });
 
-  if (!sequelize) return res.json({ success: true, message: 'Check-out berhasil', data: { visit_id, check_out_time: new Date().toISOString(), outcome } });
+  if (!sequelize) {
+    if (!allowHrMockFallback()) return res.status(503).json({ success: false, error: 'Database tidak tersedia' });
+    return res.json({ success: true, message: 'Check-out berhasil', data: { visit_id, check_out_time: new Date().toISOString(), outcome } });
+  }
 
   try {
     const lat = latitude != null ? Number(latitude) : null;
     const lng = longitude != null ? Number(longitude) : null;
     let geofence = null;
+    const [visitRows] = await sequelize.query(
+      `SELECT customer_id FROM sfa_visits WHERE id = :id AND tenant_id = :tid::uuid LIMIT 1`,
+      { replacements: { id: visit_id, tid: tenantId } },
+    );
+    if (!visitRows?.[0]) return res.status(404).json({ success: false, error: 'Kunjungan tidak ditemukan' });
     if (lat != null && lng != null) {
-      const [visitRows] = await sequelize.query(`SELECT customer_id FROM sfa_visits WHERE id = :id LIMIT 1`, { replacements: { id: visit_id } });
-      const fences = await loadActiveGeofences(sequelize, tenantId || null, visitRows?.[0]?.customer_id || null);
+      const fences = await loadActiveGeofences(sequelize, tenantId, visitRows[0].customer_id || null);
       geofence = matchGeofences(lat, lng, fences);
     }
     const photoUrl = photo_base64 && String(photo_base64).startsWith('data:')
@@ -377,11 +404,11 @@ async function checkOut(req: NextApiRequest, res: NextApiResponse, userId: strin
       check_out_geofence_name=:gfName, check_out_geofence_status=:gfStatus,
       outcome=:outcome, outcome_notes=:notes, order_taken=:ot, order_value=:ov, next_visit_date=:nvd, products_discussed=:pd::jsonb,
       duration_minutes=EXTRACT(EPOCH FROM (NOW()-check_in_time))/60, updated_at=NOW()
-      WHERE id=:id AND (tenant_id IS NULL OR tenant_id = :tid::uuid OR :tid = '')`,
+      WHERE id=:id AND tenant_id = :tid::uuid`,
       {
         lat, lng, addr: address || null, photo: photoUrl, outcome, notes: outcome_notes || null,
         ot: !!order_taken, ov: order_value || 0, nvd: next_visit_date || null,
-        pd: JSON.stringify(products_discussed || []), id: visit_id, tid: tenantId || null,
+        pd: JSON.stringify(products_discussed || []), id: visit_id, tid: tenantId,
         gfName: geofence?.name || null,
         gfStatus: geofence ? (geofence.inside ? 'inside' : 'outside') : null,
       });
@@ -403,14 +430,20 @@ async function checkOut(req: NextApiRequest, res: NextApiResponse, userId: strin
 async function addEvidence(req: NextApiRequest, res: NextApiResponse, tenantId: string) {
   const { visit_id, photo_base64, caption } = req.body;
   if (!visit_id) return res.status(400).json({ success: false, error: 'visit_id wajib diisi' });
-  // In production: upload photo_base64 to cloud storage, store URL
+  if (!tenantId) return res.status(403).json({ success: false, error: 'Tenant context required' });
   const photoUrl = photo_base64 && String(photo_base64).startsWith('data:')
     ? String(photo_base64).slice(0, 500000)
     : (photo_base64 ? `visits/evidence/${visit_id}_${Date.now()}.jpg` : null);
-  if (!sequelize || !photoUrl) return res.json({ success: true, message: 'Evidence berhasil ditambahkan', data: { url: photoUrl, caption } });
+  if (!sequelize || !photoUrl) {
+    if (!sequelize && !allowHrMockFallback()) return res.status(503).json({ success: false, error: 'Database tidak tersedia' });
+    return res.json({ success: true, message: 'Evidence berhasil ditambahkan', data: { url: photoUrl, caption } });
+  }
   try {
-    await q(`UPDATE sfa_visits SET products_discussed = COALESCE(products_discussed,'[]'::jsonb) || :e::jsonb, updated_at=NOW() WHERE id=:id AND (tenant_id IS NULL OR tenant_id = :tid::uuid OR :tid = '')`,
-      { e: JSON.stringify([{ type: 'photo', url: photoUrl, caption: caption || '', ts: new Date().toISOString() }]), id: visit_id, tid: tenantId });
+    await q(
+      `UPDATE sfa_visits SET products_discussed = COALESCE(products_discussed,'[]'::jsonb) || :e::jsonb, updated_at=NOW()
+       WHERE id=:id AND tenant_id = :tid::uuid`,
+      { e: JSON.stringify([{ type: 'photo', url: photoUrl, caption: caption || '', ts: new Date().toISOString() }]), id: visit_id, tid: tenantId },
+    );
     return res.json({ success: true, message: 'Evidence berhasil ditambahkan', data: { url: photoUrl, caption } });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: 'Gagal menambah evidence' });
@@ -423,14 +456,18 @@ async function addEvidence(req: NextApiRequest, res: NextApiResponse, tenantId: 
 async function updateVisit(req: NextApiRequest, res: NextApiResponse, tenantId: string) {
   const { visit_id, outcome_notes, next_visit_date, status } = req.body;
   if (!visit_id) return res.status(400).json({ success: false, error: 'visit_id wajib diisi' });
-  if (!sequelize) return res.json({ success: true, message: 'Kunjungan diperbarui', data: req.body });
+  if (!tenantId) return res.status(403).json({ success: false, error: 'Tenant context required' });
+  if (!sequelize) {
+    if (!allowHrMockFallback()) return res.status(503).json({ success: false, error: 'Database tidak tersedia' });
+    return res.json({ success: true, message: 'Kunjungan diperbarui', data: req.body });
+  }
   try {
     const sets: string[] = ['updated_at=NOW()'];
     const params: any = { id: visit_id, tid: tenantId };
     if (outcome_notes !== undefined) { sets.push('outcome_notes=:notes'); params.notes = outcome_notes; }
     if (next_visit_date !== undefined) { sets.push('next_visit_date=:nvd'); params.nvd = next_visit_date; }
     if (status !== undefined) { sets.push('status=:status'); params.status = status; }
-    await q(`UPDATE sfa_visits SET ${sets.join(',')} WHERE id=:id AND tenant_id=:tid`, params);
+    await q(`UPDATE sfa_visits SET ${sets.join(',')} WHERE id=:id AND tenant_id=:tid::uuid`, params);
     if (status !== undefined) await syncTaskStatusFromVisit(tenantId, visit_id);
     return res.json({ success: true, message: 'Kunjungan berhasil diperbarui' });
   } catch (e: any) {

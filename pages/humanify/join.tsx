@@ -84,6 +84,8 @@ export default function JoinPage() {
     <>
       <Head>
         <title>Terima Undangan · {HUMANIFY_BRAND.name}</title>
+        <meta name="robots" content="noindex, nofollow" />
+        <link rel="icon" href={HUMANIFY_BRAND.welcomeLogoPath} type="image/png" />
       </Head>
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-4">
         <HumanifyLogo className="h-10 mb-8" />

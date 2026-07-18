@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
@@ -40,6 +40,10 @@ export default function HRAnalyticsPage() {
   const [predictive, setPredictive] = useState<any>(null);
   const [predictiveSource, setPredictiveSource] = useState<HrisDataSource>('empty');
   const [aiInsights, setAiInsights] = useState<any[]>([]);
+  const [aiSource, setAiSource] = useState<'rules' | 'llm' | 'hybrid'>('rules');
+  const [llmEnabled, setLlmEnabled] = useState(false);
+  const [llmModel, setLlmModel] = useState('deepseek-v4-flash');
+  const [aiLoading, setAiLoading] = useState(false);
 
   const fmtCur = (n: number) => `Rp ${(n || 0).toLocaleString('id-ID')}`;
 
@@ -57,11 +61,33 @@ export default function HRAnalyticsPage() {
       if (predJson.success) {
         setPredictive(predJson.data);
         setPredictiveSource(predJson.dataSource || predJson.data?.dataSource || 'live');
+        if (predJson.llmEnabled != null) setLlmEnabled(!!predJson.llmEnabled);
+        if (predJson.llmModel) setLlmModel(predJson.llmModel);
       }
       const aiJson = await aiRes.json();
-      if (aiJson.success) setAiInsights(aiJson.data || []);
+      if (aiJson.success) {
+        setAiInsights(aiJson.data || []);
+        setAiSource(aiJson.source || 'rules');
+        if (aiJson.llmEnabled != null) setLlmEnabled(!!aiJson.llmEnabled);
+        if (aiJson.llmModel) setLlmModel(aiJson.llmModel);
+      }
     } catch { /* keep empty */ }
     finally { setLoading(false); }
+  }, [period]);
+
+  const refreshAiAdvisor = useCallback(async () => {
+    setAiLoading(true);
+    try {
+      const aiRes = await fetch(`/api/humanify/ai-insights?batch=true&period=${period}`);
+      const aiJson = await aiRes.json();
+      if (aiJson.success) {
+        setAiInsights(aiJson.data || []);
+        setAiSource(aiJson.source || 'rules');
+        if (aiJson.llmEnabled != null) setLlmEnabled(!!aiJson.llmEnabled);
+        if (aiJson.llmModel) setLlmModel(aiJson.llmModel);
+      }
+    } catch { /* ignore */ }
+    finally { setAiLoading(false); }
   }, [period]);
 
   useEffect(() => { setMounted(true); load(); }, [load]);
@@ -332,8 +358,18 @@ export default function HRAnalyticsPage() {
 
         {!loading && tab === 'predictive' && predictive && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-500">Analitik prediktif dari data historis HRIS (absensi, KPI, disiplin, engagement)</p>
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-indigo-100 bg-gradient-to-r from-indigo-50 to-violet-50 p-4">
+              <div className="flex items-center gap-2 text-indigo-800">
+                <Brain className="h-5 w-5" />
+                <div>
+                  <p className="font-semibold">Prediktif + AIMAN</p>
+                  <p className="text-xs text-indigo-600">
+                    {llmEnabled
+                      ? `LLM aktif · ${llmModel} · sumber ${predictive.llmSource || 'rules'}`
+                      : 'Mode rules — aktifkan AIMAN di pengaturan AI'}
+                  </p>
+                </div>
+              </div>
               <DataSourceBadge source={predictiveSource} />
             </div>
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
@@ -423,11 +459,27 @@ export default function HRAnalyticsPage() {
         {!loading && tab === 'ai' && (
           <div className="space-y-4">
             <div className="rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-indigo-50 p-5">
-              <div className="flex items-center gap-2 text-violet-800">
-                <Zap className="h-5 w-5" />
-                <span className="font-semibold">Humanify AI Advisor</span>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2 text-violet-800">
+                    <Zap className="h-5 w-5" />
+                    <span className="font-semibold">Humanify AI Advisor · AIMAN</span>
+                  </div>
+                  <p className="mt-1 text-sm text-violet-700">
+                    {llmEnabled
+                      ? `Terhubung ke AIMAN (${llmModel}) · sumber insight: ${aiSource}`
+                      : 'Fallback rule-based — aktifkan AIMAN di pengaturan AI untuk LLM'}
+                  </p>
+                </div>
+                <button
+                  onClick={refreshAiAdvisor}
+                  disabled={aiLoading}
+                  className="flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50"
+                >
+                  <RefreshCw className={`h-4 w-4 ${aiLoading ? 'animate-spin' : ''}`} />
+                  {aiLoading ? 'Memanggil AIMAN…' : 'Generate ulang'}
+                </button>
               </div>
-              <p className="mt-1 text-sm text-violet-700">Insight otomatis per modul HR — rule-based intelligence dengan opsi LLM (set HRIS_AI_LLM=true)</p>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               {aiInsights.map((ins: any, i: number) => (
@@ -446,7 +498,9 @@ export default function HRAnalyticsPage() {
                 </div>
               ))}
               {aiInsights.length === 0 && (
-                <div className="col-span-2 py-12 text-center text-gray-400">Memuat AI insights...</div>
+                <div className="col-span-2 py-12 text-center text-gray-400">
+                  {aiLoading ? 'Memanggil AIMAN…' : 'Belum ada insight — klik Generate ulang'}
+                </div>
               )}
             </div>
           </div>

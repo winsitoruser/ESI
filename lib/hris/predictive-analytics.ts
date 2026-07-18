@@ -1,7 +1,9 @@
 /**
- * HR Predictive Analytics — rule-based scoring with extensible ML hook.
+ * HR Predictive Analytics — rule-based scoring with SumoPod LLM enhancement.
  * Computes attrition risk, absenteeism forecast, and headcount projections from HR data.
  */
+
+import { getSumopodConfig, sumopodChat } from './sumopod-config';
 
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
 
@@ -44,6 +46,7 @@ export interface PredictiveOverview {
   headcount: HeadcountForecast[];
   leaveForecast?: LeaveForecast;
   insights: { type: string; severity: RiskLevel; title: string; description: string; action: string }[];
+  engagementScore?: number | null;
   generatedAt: string;
   dataSource: 'live' | 'partial' | 'demo';
 }
@@ -308,4 +311,62 @@ export function buildPredictiveInsights(
   }
 
   return insights;
+}
+
+/** Enhance predictive overview with SumoPod narrative (graceful fallback to rules) */
+export async function enhancePredictiveWithSumopod(
+  overview: PredictiveOverview,
+): Promise<PredictiveOverview & { llmSource: 'rules' | 'llm' | 'hybrid'; llmModel?: string }> {
+  const cfg = getSumopodConfig();
+  if (!cfg.llmEnabled) {
+    return { ...overview, llmSource: 'rules' };
+  }
+
+  const payload = {
+    period: overview.absenteeism?.period,
+    attrition: {
+      highRisk: overview.attritionRisk.highRiskCount,
+      critical: overview.attritionRisk.criticalCount,
+      avgScore: overview.attritionRisk.avgRiskScore,
+      top: overview.attritionRisk.topRisks.slice(0, 5).map((e) => ({
+        name: e.employeeName,
+        dept: e.department,
+        score: e.riskScore,
+        level: e.riskLevel,
+      })),
+    },
+    absenteeism: overview.absenteeism,
+    leaveForecast: overview.leaveForecast,
+    headcountTail: overview.headcount.slice(-3),
+  };
+
+  const text = await sumopodChat({
+    system:
+      'Anda AI Predictive HR Advisor Humanify (AIMAN). Analisis data prediktif SDM berikut. ' +
+      'Berikan 2-3 insight actionable dalam bahasa Indonesia (masing-masing 1 kalimat). ' +
+      'Fokus pada risiko attrition, absensi, dan perencanaan headcount.',
+    user: JSON.stringify(payload),
+    maxTokens: 450,
+    model: cfg.chatModel,
+    timeoutMs: 12000,
+  });
+
+  if (!text) {
+    return { ...overview, llmSource: 'rules', llmModel: cfg.chatModel };
+  }
+
+  const llmInsight = {
+    type: 'ai_aiman',
+    severity: 'medium' as RiskLevel,
+    title: 'AI Predictive Advisor (AIMAN)',
+    description: text.replace(/\n+/g, ' ').trim(),
+    action: 'Diskusikan rekomendasi AI dengan tim HR & manajer terkait',
+  };
+
+  return {
+    ...overview,
+    insights: [llmInsight, ...overview.insights],
+    llmSource: 'hybrid',
+    llmModel: cfg.chatModel,
+  };
 }

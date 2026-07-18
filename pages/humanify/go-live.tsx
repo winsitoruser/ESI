@@ -3,9 +3,10 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useSession } from 'next-auth/react';
-import { CheckCircle2, Circle, Loader2, Rocket } from 'lucide-react';
+import { CheckCircle2, Circle, Rocket } from 'lucide-react';
 import toast from 'react-hot-toast';
 import HumanifyLayout from '@/components/humanify/HumanifyLayout';
+import HumanifyBrandLoader from '@/components/humanify/HumanifyBrandLoader';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
 
 export default function GoLivePage() {
@@ -46,19 +47,14 @@ export default function GoLivePage() {
   }
 
   if (status === 'loading' || loading) {
-    return (
-      <HumanifyLayout title="Go-live">
-        <div className="flex justify-center py-20 text-slate-500">
-          <Loader2 className="w-6 h-6 animate-spin mr-2" /> Memuat checklist…
-        </div>
-      </HumanifyLayout>
-    );
+    return <HumanifyBrandLoader variant="boot" message="Memuat checklist go-live…" />;
   }
 
   return (
     <HumanifyLayout title="Go-live Checklist">
       <Head>
         <title>Go-live · {HUMANIFY_BRAND.name}</title>
+        <meta name="robots" content="noindex, nofollow" />
       </Head>
       <div className="max-w-2xl mx-auto space-y-6 py-4">
         <div>

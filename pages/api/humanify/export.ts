@@ -8,6 +8,7 @@ import {
 } from '@/lib/hq/kpi-calculator';
 import { successResponse, errorResponse, ErrorCodes, HttpStatus } from '../../../lib/api/response';
 import { allowHrMockFallback } from '@/lib/hris/data-source';
+import { withObservability } from '@/lib/observability';
 
 let QueryTypes: any;
 let sequelize: any;
@@ -19,7 +20,7 @@ try { sequelize = require('../../../lib/sequelize'); } catch (e) {}
  * Export employee, attendance, KPI, and performance data
  */
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function exportHandler(req: NextApiRequest, res: NextApiResponse) {
   try {
     const session = await getServerSession(req, res, authOptions);
     if (!session?.user) {
@@ -387,3 +388,5 @@ function getMockPayrollExport(period: string) {
     }
   ];
 }
+
+export default withObservability(exportHandler, 'humanify/export');

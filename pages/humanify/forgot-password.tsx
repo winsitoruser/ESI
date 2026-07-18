@@ -41,6 +41,9 @@ export default function ForgotPasswordPage() {
     <>
       <Head>
         <title>Lupa Password · {HUMANIFY_BRAND.name}</title>
+        <meta name="robots" content="noindex, nofollow" />
+        <meta name="description" content={`Reset password akun ${HUMANIFY_BRAND.name} HRIS.`} />
+        <link rel="icon" href={HUMANIFY_BRAND.welcomeLogoPath} type="image/png" />
       </Head>
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-4">
         <HumanifyLogo className="h-10 mb-8" />

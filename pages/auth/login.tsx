@@ -142,6 +142,7 @@ const Login: React.FC<LoginProps> = ({ csrfToken }) => {
       <Head>
         <title>{t('auth.loginTitle')}</title>
         <meta name="description" content={t('auth.loginDesc')} />
+        <meta name="robots" content="noindex, nofollow" />
       </Head>
 
       <div className="min-h-screen bg-gradient-to-br from-sky-500 via-sky-400 to-blue-500 flex items-center justify-center p-4">

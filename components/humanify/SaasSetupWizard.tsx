@@ -1,14 +1,15 @@
-﻿import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
   Building2, Users, Calendar, Rocket, ArrowRight, ArrowLeft,
-  CheckCircle2, ExternalLink, Loader2,
+  CheckCircle2, ExternalLink,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { HumanifyLogo } from '@/components/humanify/HumanifyLogo';
+import HumanifyBrandLoader from '@/components/humanify/HumanifyBrandLoader';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
 
 const DEFAULT_DEPARTMENTS = ['HR', 'Finance', 'Operations', 'IT', 'Sales', 'Marketing'];
@@ -34,6 +35,7 @@ export default function SaasSetupWizard() {
   const { data: session, status, update } = useSession();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [launching, setLaunching] = useState(false);
   const [step, setStep] = useState(1);
   const [tenant, setTenant] = useState<any>(null);
   const [careersUrl, setCareersUrl] = useState<string | null>(null);
@@ -113,6 +115,7 @@ export default function SaasSetupWizard() {
 
   async function handleComplete() {
     setSaving(true);
+    setLaunching(true);
     try {
       const res = await fetch('/api/humanify/saas-onboarding', {
         method: 'POST',
@@ -121,12 +124,13 @@ export default function SaasSetupWizard() {
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
-      await update({ setupCompleted: true });
-      toast.success('Workspace siap digunakan!');
-      router.push(HUMANIFY_BRAND.appPath);
+      try { await update({ setupCompleted: true }); } catch { /* session refresh optional */ }
+      // Soft delay so brand loader finishes a beat before hard navigation
+      await new Promise((r) => setTimeout(r, 900));
+      window.location.href = HUMANIFY_BRAND.appPath;
     } catch (e: any) {
       toast.error(e.message || 'Gagal menyelesaikan setup');
-    } finally {
+      setLaunching(false);
       setSaving(false);
     }
   }
@@ -145,11 +149,11 @@ export default function SaasSetupWizard() {
   }
 
   if (status === 'loading' || loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
-      </div>
-    );
+    return <HumanifyBrandLoader variant="boot" />;
+  }
+
+  if (launching) {
+    return <HumanifyBrandLoader variant="launch" />;
   }
 
   const progress = Math.round((step / STEP_META.length) * 100);
@@ -281,12 +285,20 @@ export default function SaasSetupWizard() {
 
           {step === 4 && (
             <div className="space-y-4 text-center">
-              <div className="w-16 h-16 bg-violet-100 rounded-2xl flex items-center justify-center mx-auto">
-                <Rocket className="w-8 h-8 text-violet-600" />
+              <div className="relative mx-auto flex h-20 w-20 items-center justify-center">
+                <span className="absolute inset-0 animate-ping rounded-2xl bg-violet-400/20" />
+                <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-violet-100 ring-1 ring-violet-200">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={HUMANIFY_BRAND.logoPath}
+                    alt={HUMANIFY_BRAND.name}
+                    className="h-full w-full scale-[2.35] object-cover object-[22%_center]"
+                  />
+                </div>
               </div>
               <h2 className="text-xl font-bold text-slate-900">Workspace siap diluncurkan!</h2>
               <p className="text-slate-600 text-sm max-w-md mx-auto">
-                Trial 14 hari aktif. Anda bisa mulai menambah karyawan, mengatur absensi, dan membuka portal karir publik.
+                Trial 14 hari aktif. Klik Go Live untuk membuka dashboard Humanify dengan animasi peluncuran.
               </p>
               {careersUrl && (
                 <a
@@ -341,8 +353,8 @@ export default function SaasSetupWizard() {
                 onClick={handleComplete}
                 className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 disabled:opacity-50"
               >
-                {saving ? 'Memproses...' : 'Masuk ke Humanify'}
-                <ArrowRight className="w-4 h-4" />
+                {saving ? 'Meluncurkan…' : 'Go Live — Masuk ke Humanify'}
+                <Rocket className="w-4 h-4" />
               </button>
             )}
           </div>

@@ -105,23 +105,35 @@ export async function listAssets(filters?: {
   return rows.map(mapAsset);
 }
 
-export async function assignAsset(assetId: string, employeeId: string, employeeName: string, lifecycleRef?: string): Promise<HrAsset | null> {
+export async function assignAsset(
+  assetId: string,
+  employeeId: string,
+  employeeName: string,
+  lifecycleRef?: string,
+  tenantId?: string | null,
+): Promise<HrAsset | null> {
   if (!sequelize) return null;
+  if (!tenantId) return null;
   const [rows] = await sequelize.query(`
     UPDATE hris_assets SET status = 'assigned', assigned_to = $2, assigned_to_name = $3,
       assigned_at = NOW(), lifecycle_ref = $4, updated_at = NOW()
-    WHERE id = $1 RETURNING *
-  `, { bind: [assetId, employeeId, employeeName, lifecycleRef || null] });
+    WHERE id = $1 AND tenant_id = $5 RETURNING *
+  `, { bind: [assetId, employeeId, employeeName, lifecycleRef || null, tenantId] });
   return rows?.[0] ? mapAsset(rows[0]) : null;
 }
 
-export async function returnAsset(assetId: string, condition?: string): Promise<HrAsset | null> {
+export async function returnAsset(
+  assetId: string,
+  condition?: string,
+  tenantId?: string | null,
+): Promise<HrAsset | null> {
   if (!sequelize) return null;
+  if (!tenantId) return null;
   const [rows] = await sequelize.query(`
     UPDATE hris_assets SET status = 'returned', returned_at = NOW(), condition = $2,
       assigned_to = NULL, assigned_to_name = NULL, updated_at = NOW()
-    WHERE id = $1 RETURNING *
-  `, { bind: [assetId, condition || 'good'] });
+    WHERE id = $1 AND tenant_id = $3 RETURNING *
+  `, { bind: [assetId, condition || 'good', tenantId] });
   return rows?.[0] ? mapAsset(rows[0]) : null;
 }
 

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
@@ -476,10 +476,6 @@ export default function EmployeeManagementPage() {
                         className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm" />
                     </div>
                   </div>
-                  <button onClick={() => setShowCreateModal(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700 whitespace-nowrap">
-                    <Plus className="w-4 h-4" /> Tambah Karyawan
-                  </button>
                 </div>
                 <div className="flex flex-wrap gap-3">
                   <select value={filterDept} onChange={e => { setFilterDept(e.target.value); setPage(1); }}

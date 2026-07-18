@@ -206,11 +206,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       // ── Calculate weighted scores for all participants in a batch ──
       if (action === 'calculate-scores') {
+        if (!tenantId) return res.status(403).json({ error: 'NO_TENANT' });
         const { batch_id, scoring_config_id } = body;
         if (!batch_id || !scoring_config_id) return res.status(400).json({ error: 'batch_id and scoring_config_id required' });
 
         // Get scoring config
-        const [configs] = await sequelize.query('SELECT * FROM hris_training_scoring_configs WHERE id = :id', { replacements: { id: scoring_config_id } });
+        const [configs] = await sequelize.query(
+          'SELECT * FROM hris_training_scoring_configs WHERE id = :id AND tenant_id = :tid',
+          { replacements: { id: scoring_config_id, tid: tenantId } },
+        );
         if (!configs.length) return res.status(404).json({ error: 'Scoring config not found' });
         const cfg = configs[0];
         const gradeScale = Array.isArray(cfg.grade_scale) ? cfg.grade_scale : JSON.parse(cfg.grade_scale || '[]');
@@ -236,8 +240,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
           // Check if participant score already exists
           const [existing] = await sequelize.query(
-            'SELECT id FROM hris_training_participant_scores WHERE graduation_id = :gid AND employee_id = :eid',
-            { replacements: { gid: grad.id, eid: grad.employee_id } }
+            'SELECT id FROM hris_training_participant_scores WHERE graduation_id = :gid AND employee_id = :eid AND tenant_id = :tid',
+            { replacements: { gid: grad.id, eid: grad.employee_id, tid: tenantId } }
           );
 
           // Get existing assignment/attitude scores if available
@@ -324,10 +328,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               final_score = :score, exam_score_avg = :examAvg,
               graduation_status = CASE WHEN :passed THEN 'passed' ELSE 'failed' END,
               ready_for_placement = :passed, updated_by = :uid, updated_at = NOW()
-            WHERE id = :gid
+            WHERE id = :gid AND tenant_id = :tid
           `, {
             replacements: {
-              gid: grad.id, score: Math.round(weightedScore * 100) / 100,
+              gid: grad.id, tid: tenantId, score: Math.round(weightedScore * 100) / 100,
               examAvg: examScore, passed: isPassed, uid: userId
             }
           });
@@ -339,11 +343,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       if (action === 'save-score') {
+        if (!tenantId) return res.status(403).json({ error: 'NO_TENANT' });
         if (!body.graduation_id || !body.employee_id) return res.status(400).json({ error: 'graduation_id and employee_id required' });
 
+        const [gradOwned] = await sequelize.query(
+          'SELECT id FROM hris_training_graduations WHERE id = :gid AND tenant_id = :tid LIMIT 1',
+          { replacements: { gid: body.graduation_id, tid: tenantId } },
+        );
+        if (!gradOwned?.length) return res.status(404).json({ error: 'Graduation not found' });
+
         const [existing] = await sequelize.query(
-          'SELECT id FROM hris_training_participant_scores WHERE graduation_id = :gid AND employee_id = :eid',
-          { replacements: { gid: body.graduation_id, eid: body.employee_id } }
+          'SELECT id FROM hris_training_participant_scores WHERE graduation_id = :gid AND employee_id = :eid AND tenant_id = :tid',
+          { replacements: { gid: body.graduation_id, eid: body.employee_id, tid: tenantId } }
         );
 
         if (existing.length) {
@@ -354,10 +365,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               attitude_score = COALESCE(:attitude, attitude_score), remarks = COALESCE(:remarks, remarks),
               competency_scores = COALESCE(:compScores::jsonb, competency_scores),
               graded_by = :uid, graded_at = NOW(), updated_at = NOW()
-            WHERE id = :id RETURNING *
+            WHERE id = :id AND tenant_id = :tid RETURNING *
           `, {
             replacements: {
-              id: existing[0].id, exam: body.exam_score ?? null, att: body.attendance_score ?? null,
+              id: existing[0].id, tid: tenantId, exam: body.exam_score ?? null, att: body.attendance_score ?? null,
               pract: body.practical_score ?? null, assign: body.assignment_score ?? null,
               attitude: body.attitude_score ?? null, remarks: body.remarks || null,
               compScores: body.competency_scores ? JSON.stringify(body.competency_scores) : null,

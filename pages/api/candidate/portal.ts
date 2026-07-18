@@ -290,13 +290,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (action === 'start-exam') {
         const { exam_id } = req.body;
         if (!exam_id) return res.status(400).json({ error: 'exam_id required' });
+        if (!tenantId) return res.status(403).json({ error: 'NO_TENANT' });
 
-        // Check attempt limit
+        // Check attempt limit (tenant-scoped)
         const [attempts] = await sequelize.query(
-          'SELECT COUNT(*)::int as count FROM hris_training_exam_results WHERE exam_id = :eid AND employee_id = :empid',
-          { replacements: { eid: exam_id, empid: empId } }
+          'SELECT COUNT(*)::int as count FROM hris_training_exam_results WHERE exam_id = :eid AND employee_id = :empid AND tenant_id = :tid',
+          { replacements: { eid: exam_id, empid: empId, tid: tenantId } }
         );
-        const [exam] = await sequelize.query('SELECT max_attempts, batch_id FROM hris_training_exams WHERE id = :eid', { replacements: { eid: exam_id } });
+        const [exam] = await sequelize.query(
+          `SELECT max_attempts, batch_id FROM hris_training_exams
+           WHERE id = :eid AND tenant_id = :tid AND status IN ('open','scheduled','in_progress')`,
+          { replacements: { eid: exam_id, tid: tenantId } },
+        );
         if (!exam.length) return res.status(404).json({ error: 'Ujian tidak ditemukan' });
         if ((attempts[0]?.count || 0) >= exam[0].max_attempts) {
           return res.status(400).json({ error: 'Batas percobaan sudah habis' });
@@ -328,18 +333,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (action === 'submit-exam') {
         const { result_id, answers } = req.body;
         if (!result_id || !answers) return res.status(400).json({ error: 'result_id dan answers diperlukan' });
+        if (!tenantId) return res.status(403).json({ error: 'NO_TENANT' });
 
         // Get the result record
         const [results] = await sequelize.query(
-          'SELECT * FROM hris_training_exam_results WHERE id = :rid AND employee_id = :empid',
-          { replacements: { rid: result_id, empid: empId } }
+          'SELECT * FROM hris_training_exam_results WHERE id = :rid AND employee_id = :empid AND tenant_id = :tid',
+          { replacements: { rid: result_id, empid: empId, tid: tenantId } }
         );
         if (!results.length) return res.status(404).json({ error: 'Hasil ujian tidak ditemukan' });
         if (results[0].status !== 'in_progress') return res.status(400).json({ error: 'Ujian sudah dikumpulkan' });
 
         // Get exam and questions for grading
         const examId = results[0].exam_id;
-        const [exam] = await sequelize.query('SELECT * FROM hris_training_exams WHERE id = :eid', { replacements: { eid: examId } });
+        const [exam] = await sequelize.query(
+          'SELECT * FROM hris_training_exams WHERE id = :eid AND tenant_id = :tid',
+          { replacements: { eid: examId, tid: tenantId } },
+        );
+        if (!exam.length) return res.status(404).json({ error: 'Ujian tidak ditemukan' });
         const [questions] = await sequelize.query(
           'SELECT * FROM hris_training_exam_questions WHERE exam_id = :eid ORDER BY question_number',
           { replacements: { eid: examId } }
@@ -395,10 +405,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             score = :score, total_correct = :correct, total_answered = :answered,
             is_passed = :passed, submitted_at = NOW(), graded_at = ${hasEssay ? 'NULL' : 'NOW()'},
             answers = :answers::jsonb, status = :status, updated_at = NOW()
-          WHERE id = :rid RETURNING *
+          WHERE id = :rid AND employee_id = :empid AND tenant_id = :tid RETURNING *
         `, {
           replacements: {
-            rid: result_id, score: Math.round(percentScore * 100) / 100,
+            rid: result_id, empid: empId, tid: tenantId,
+            score: Math.round(percentScore * 100) / 100,
             correct: totalCorrect, answered: totalAnswered, passed: isPassed,
             answers: JSON.stringify(gradedAnswers), status: finalStatus
           }

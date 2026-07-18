@@ -98,11 +98,38 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // ── POST: Register ──
     if (method === 'POST' && action === 'register') {
-      const { email, password, name, phone, tenant_id, id_number, date_of_birth, gender, address, education } = req.body;
-      if (!email || !password || !name || !tenant_id) {
-        return res.status(400).json({ error: 'Email, password, nama, dan tenant_id wajib diisi' });
+      const { email, password, name, phone, tenant_id, slug, job_opening_id, id_number, date_of_birth, gender, address, education } = req.body;
+      if (!email || !password || !name) {
+        return res.status(400).json({ error: 'Email, password, dan nama wajib diisi' });
       }
       if (password.length < 6) return res.status(400).json({ error: 'Password minimal 6 karakter' });
+
+      // Resolve tenant without trusting raw tenant_id alone (anti join-any-tenant)
+      let resolvedTenantId: string | null = null;
+      if (slug) {
+        const { resolveTenantBySlug } = await import('../../../lib/saas/tenant-slug');
+        const t = await resolveTenantBySlug(String(slug));
+        resolvedTenantId = t?.id || null;
+      } else if (job_opening_id) {
+        const [jobs] = await sequelize.query(
+          'SELECT tenant_id FROM hris_job_openings WHERE id = :id LIMIT 1',
+          { replacements: { id: job_opening_id } },
+        );
+        resolvedTenantId = jobs?.[0]?.tenant_id || null;
+        if (tenant_id && resolvedTenantId && String(tenant_id) !== String(resolvedTenantId)) {
+          return res.status(403).json({ error: 'tenant_id tidak cocok dengan lowongan' });
+        }
+      } else if (tenant_id && process.env.HUMANIFY_CANDIDATE_ALLOW_TENANT_ID === 'true') {
+        const { resolveTenantById } = await import('../../../lib/saas/tenant-slug');
+        const t = await resolveTenantById(String(tenant_id));
+        resolvedTenantId = t?.id || null;
+      }
+
+      if (!resolvedTenantId) {
+        return res.status(400).json({
+          error: 'Registrasi kandidat membutuhkan slug perusahaan atau job_opening_id yang valid',
+        });
+      }
 
       // Check duplicate
       const [existing] = await sequelize.query(
@@ -119,7 +146,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         RETURNING id, tenant_id, email, name, phone, status, created_at
       `, {
         replacements: {
-          tid: tenant_id, email: email.toLowerCase().trim(), pwd: hashedPassword,
+          tid: resolvedTenantId, email: email.toLowerCase().trim(), pwd: hashedPassword,
           name, phone: phone || null, idNum: id_number || null,
           dob: date_of_birth || null, gender: gender || null,
           addr: address || null, edu: education || null

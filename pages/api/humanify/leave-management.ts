@@ -1,6 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withHQAuth } from '../../../lib/middleware/withHQAuth';
 import { allowHrMockFallback } from '../../../lib/hris/data-source';
+import { withObservability } from '@/lib/observability';
+import { ensureTenantDbContext } from '@/lib/saas/ensure-tenant-db-context';
 
 let sequelize: any, Op: any;
 try {
@@ -128,6 +130,7 @@ async function adjustLeaveBalancePending(empId: string, leaveTypeCode: string, y
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     const session = (req as any).session;
+    await ensureTenantDbContext(session);
     const tenantId = getTenantId(req);
 
     const { action } = req.query;
@@ -486,15 +489,17 @@ async function createLeaveRequest(req: NextApiRequest, res: NextApiResponse, ses
     let employee: any = null;
 
     // Get employee info
+    if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
     const [empRows] = await sequelize.query(
-      `SELECT id, name, department, branch_id, position FROM employees WHERE id = :empId LIMIT 1`,
-      { replacements: { empId: employeeId || session.user.id } }
+      `SELECT id, name, department, branch_id, position FROM employees WHERE id = :empId AND tenant_id = :tid LIMIT 1`,
+      { replacements: { empId: employeeId || session.user.id, tid: tenantId } }
     );
     employee = empRows?.[0];
+    if (!employee) return res.status(404).json({ success: false, error: 'Employee not found' });
 
     // Find best matching approval config
     if (LeaveApprovalConfig) {
-      const configs = await LeaveApprovalConfig.findAll({ where: { isActive: true }, order: [['priority', 'DESC']] });
+      const configs = await LeaveApprovalConfig.findAll({ where: { isActive: true, tenantId }, order: [['priority', 'DESC']] });
       for (const cfg of configs) {
         const c = cfg.toJSON();
         // Match by department
@@ -593,22 +598,37 @@ async function approveStep(req: NextApiRequest, res: NextApiResponse, session: a
   }
   if (!sequelize) return res.json({ success: true, message: 'Approved (mock)' });
 
+  const tenantId = session.user?.tenantId || getTenantId(req);
+  if (!tenantId) {
+    return res.status(403).json({ success: false, error: 'NO_TENANT', message: 'Tenant context required' });
+  }
+
   const approverUuid = asUuidOrNull(session.user?.id);
   const approverLabel = session.user?.name || session.user?.email || 'Approver';
 
   try {
+    const [owned] = await sequelize.query(
+      `SELECT id FROM leave_requests WHERE id = :requestId AND tenant_id = :tenantId AND status = 'pending'`,
+      { replacements: { requestId, tenantId } },
+    );
+    if (!(owned as any[])?.length) {
+      return res.status(404).json({ success: false, error: 'Pengajuan cuti tidak ditemukan' });
+    }
+
     // Update the current step (schema: acted_at, no approver_name/action_date)
     await sequelize.query(`
       UPDATE leave_approval_steps SET status = 'approved',
         approver_id = :approverUuid,
         comments = COALESCE(:comments, comments),
         acted_at = NOW(), updated_at = NOW()
-      WHERE ${stepId ? 'id = :stepId' : 'leave_request_id = :requestId AND status = \'pending\''}
+      WHERE leave_request_id IN (SELECT id FROM leave_requests WHERE id = :requestId AND tenant_id = :tenantId)
+        AND ${stepId ? 'id = :stepId' : "status = 'pending'"}
       ${!stepId ? 'AND step_order = (SELECT MIN(step_order) FROM leave_approval_steps WHERE leave_request_id = :requestId AND status = \'pending\')' : ''}
     `, {
       replacements: {
         stepId,
         requestId,
+        tenantId,
         approverUuid,
         comments: comments || `Disetujui oleh ${approverLabel}`,
       },
@@ -617,8 +637,8 @@ async function approveStep(req: NextApiRequest, res: NextApiResponse, session: a
     // Update current step number
     await sequelize.query(`
       UPDATE leave_requests SET current_approval_step = COALESCE(current_approval_step, 1) + 1, updated_at = NOW()
-      WHERE id = :requestId
-    `, { replacements: { requestId } });
+      WHERE id = :requestId AND tenant_id = :tenantId
+    `, { replacements: { requestId, tenantId } });
 
     // Activate next step
     const [nextSteps] = await sequelize.query(`
@@ -634,7 +654,10 @@ async function approveStep(req: NextApiRequest, res: NextApiResponse, session: a
     }
 
     // All steps approved — finalize
-    const [lr] = await sequelize.query(`SELECT * FROM leave_requests WHERE id = :id`, { replacements: { id: requestId } });
+    const [lr] = await sequelize.query(
+      `SELECT * FROM leave_requests WHERE id = :id AND tenant_id = :tenantId`,
+      { replacements: { id: requestId, tenantId } },
+    );
     const leaveData = (lr as any[])?.[0];
     if (!leaveData) {
       return res.status(404).json({ success: false, error: 'Pengajuan cuti tidak ditemukan' });
@@ -655,8 +678,8 @@ async function approveStep(req: NextApiRequest, res: NextApiResponse, session: a
 
     await sequelize.query(`
       UPDATE leave_requests SET status = 'approved', approved_by = :approverUuid, approved_at = NOW(), updated_at = NOW()
-      WHERE id = :requestId
-    `, { replacements: { requestId, approverUuid } });
+      WHERE id = :requestId AND tenant_id = :tenantId
+    `, { replacements: { requestId, approverUuid, tenantId } });
 
     try {
       await adjustLeaveBalancePending(
@@ -687,14 +710,27 @@ async function rejectRequest(req: NextApiRequest, res: NextApiResponse, session:
   if (!reason) return res.status(400).json({ success: false, error: 'Rejection reason required' });
   if (!sequelize) return res.json({ success: true, message: 'Rejected (mock)' });
 
+  const tenantId = session.user?.tenantId || getTenantId(req);
+  if (!tenantId) {
+    return res.status(403).json({ success: false, error: 'NO_TENANT', message: 'Tenant context required' });
+  }
+
   const approverUuid = asUuidOrNull(session.user?.id);
   const approverLabel = session.user?.name || session.user?.email || 'Approver';
 
   try {
+    const [owned] = await sequelize.query(
+      `SELECT * FROM leave_requests WHERE id = :id AND tenant_id = :tenantId`,
+      { replacements: { id: requestId, tenantId } },
+    );
+    if (!(owned as any[])?.length) {
+      return res.status(404).json({ success: false, error: 'Pengajuan cuti tidak ditemukan' });
+    }
+
     await sequelize.query(`
       UPDATE leave_requests SET status = 'rejected', rejection_reason = :reason, updated_at = NOW()
-      WHERE id = :id
-    `, { replacements: { id: requestId, reason } });
+      WHERE id = :id AND tenant_id = :tenantId
+    `, { replacements: { id: requestId, reason, tenantId } });
 
     await sequelize.query(`
       UPDATE leave_approval_steps SET status = 'rejected',
@@ -703,13 +739,10 @@ async function rejectRequest(req: NextApiRequest, res: NextApiResponse, session:
       WHERE leave_request_id = :id AND status IN ('pending', 'waiting')
     `, { replacements: { id: requestId, approverUuid, reason: `${reason} (${approverLabel})` } });
 
-    const [lr] = await sequelize.query(`SELECT * FROM leave_requests WHERE id = :id`, { replacements: { id: requestId } });
-    if ((lr as any[])?.[0]) {
-      const row = (lr as any[])[0];
-      try {
-        await adjustLeaveBalancePending(row.employee_id, row.leave_type, new Date().getFullYear(), row.total_days, 'remove');
-      } catch (e) {}
-    }
+    const row = (owned as any[])[0];
+    try {
+      await adjustLeaveBalancePending(row.employee_id, row.leave_type, new Date().getFullYear(), row.total_days, 'remove');
+    } catch (e) {}
 
     return res.json({ success: true, message: 'Cuti ditolak' });
   } catch (e: any) {
@@ -747,8 +780,13 @@ async function updateApprovalConfig(req: NextApiRequest, res: NextApiResponse, s
   if (!LeaveApprovalConfig) return res.json({ success: true, message: 'Updated (mock)' });
 
   try {
-    const config = await LeaveApprovalConfig.findByPk(id);
+    const tenantId = session.user?.tenantId || getTenantId(req);
+    if (!tenantId) {
+      return res.status(403).json({ success: false, error: 'NO_TENANT' });
+    }
+    const config = await LeaveApprovalConfig.findOne({ where: { id, tenantId } });
     if (!config) return res.status(404).json({ success: false, error: 'Not found' });
+    delete (data as any).tenantId;
     await config.update(data);
     return res.json({ success: true, data: config });
   } catch (e: any) {
@@ -763,7 +801,12 @@ async function deleteApprovalConfig(req: NextApiRequest, res: NextApiResponse, s
   if (!LeaveApprovalConfig) return res.json({ success: true, message: 'Deleted (mock)' });
 
   try {
-    await LeaveApprovalConfig.destroy({ where: { id } });
+    const tenantId = session.user?.tenantId || getTenantId(req);
+    if (!tenantId) {
+      return res.status(403).json({ success: false, error: 'NO_TENANT' });
+    }
+    const n = await LeaveApprovalConfig.destroy({ where: { id, tenantId } });
+    if (!n) return res.status(404).json({ success: false, error: 'Not found' });
     return res.json({ success: true, message: 'Deleted' });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: e.message });
@@ -785,8 +828,11 @@ async function updateLeaveType(req: NextApiRequest, res: NextApiResponse, sessio
   const { id, ...data } = req.body;
   if (!id || !LeaveType) return res.json({ success: true, message: 'Updated (mock)' });
   try {
-    const lt = await LeaveType.findByPk(id);
+    const tenantId = session.user?.tenantId || getTenantId(req);
+    if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
+    const lt = await LeaveType.findOne({ where: { id, tenantId } });
     if (!lt) return res.status(404).json({ error: 'Not found' });
+    delete (data as any).tenantId;
     await lt.update(data);
     return res.json({ success: true, data: lt });
   } catch (e: any) {
@@ -799,7 +845,10 @@ async function deleteLeaveType(req: NextApiRequest, res: NextApiResponse, sessio
   const { id } = req.query;
   if (!id || !LeaveType) return res.json({ success: true, message: 'Deleted (mock)' });
   try {
-    await LeaveType.destroy({ where: { id } });
+    const tenantId = session.user?.tenantId || getTenantId(req);
+    if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
+    const n = await LeaveType.destroy({ where: { id, tenantId } });
+    if (!n) return res.status(404).json({ error: 'Not found' });
     return res.json({ success: true, message: 'Leave type deleted' });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: e.message });
@@ -883,4 +932,4 @@ function getMockRequests() {
 }
 
 // 🔒 Wrap handler with HQ Auth middleware - requires HRIS module
-export default withHQAuth(handler, { module: 'hris' });
+export default withObservability(withHQAuth(handler, { module: 'hris' }), 'humanify/leave-management');

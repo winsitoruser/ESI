@@ -26,7 +26,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (action === 'mutation-detail') return getMutationDetail(req, res);
       if (action === 'mutation-letter-data') return getMutationLetterData(req, res);
       if (action === 'approval-config') return getApprovalConfig(req, res, session);
-      if (action === 'summary') return getWorkflowSummary(req, res);
+      if (action === 'summary') return getWorkflowSummary(req, res, session);
       return res.status(400).json({ error: 'Unknown action' });
     }
 
@@ -55,9 +55,11 @@ function getTenantId(session: any): string | null {
 // ===== CLAIMS (unchanged) =====
 async function getClaims(req: NextApiRequest, res: NextApiResponse, session: any) {
   if (!sequelize) return res.json({ success: true, data: [] });
+  const tenantId = getTenantId(session);
+  if (!tenantId) return res.json({ success: true, data: [] });
   const { status, employee_id } = req.query;
-  let where = 'WHERE 1=1';
-  const replacements: any = {};
+  let where = 'WHERE c.tenant_id = :tenantId';
+  const replacements: any = { tenantId };
   if (status) { where += ' AND c.status = :status'; replacements.status = status; }
   if (employee_id) { where += ' AND c.employee_id = :employee_id'; replacements.employee_id = employee_id; }
 
@@ -96,10 +98,14 @@ async function getClaimDetail(req: NextApiRequest, res: NextApiResponse) {
 async function createClaim(req: NextApiRequest, res: NextApiResponse, session: any) {
   if (!sequelize) return res.json({ success: true });
   const tenantId = getTenantId(session);
+  if (!tenantId) return res.status(403).json({ error: 'Tenant context required' });
   const { employee_id, claim_type, amount, claim_date, description, receipt_url, receipt_number } = req.body;
   if (!employee_id || !claim_type || !amount) return res.status(400).json({ error: 'employee_id, claim_type, amount required' });
 
-  const [countRes] = await sequelize.query(`SELECT COUNT(*) as cnt FROM employee_claims`);
+  const [countRes] = await sequelize.query(
+    `SELECT COUNT(*) as cnt FROM employee_claims WHERE tenant_id = :tenantId`,
+    { replacements: { tenantId } },
+  );
   const claimNumber = `CLM-${String(parseInt(countRes[0].cnt) + 1).padStart(5, '0')}`;
 
   const [result] = await sequelize.query(`
@@ -117,22 +123,32 @@ async function createClaim(req: NextApiRequest, res: NextApiResponse, session: a
 
 async function approveClaim(req: NextApiRequest, res: NextApiResponse, session: any) {
   if (!sequelize) return res.json({ success: true });
+  const tenantId = getTenantId(session);
   const { id, approved_amount, comments } = req.body;
   if (!id) return res.status(400).json({ error: 'id required' });
-  await sequelize.query(`
-    UPDATE employee_claims SET status = 'approved', approved_amount = :approved_amount, notes = :comments, updated_at = NOW() WHERE id = :id
-  `, { replacements: { id, approved_amount: approved_amount || null, comments: comments || null } });
+  if (!tenantId) return res.status(403).json({ error: 'Tenant context required' });
+  const [updated] = await sequelize.query(`
+    UPDATE employee_claims SET status = 'approved', approved_amount = :approved_amount, notes = :comments, updated_at = NOW()
+    WHERE id = :id AND tenant_id = :tenantId
+    RETURNING id
+  `, { replacements: { id, approved_amount: approved_amount || null, comments: comments || null, tenantId } });
+  if (!updated?.length) return res.status(404).json({ error: 'Claim not found' });
   return res.json({ success: true, message: 'Claim approved' });
 }
 
 async function rejectClaim(req: NextApiRequest, res: NextApiResponse, session: any) {
   if (!sequelize) return res.json({ success: true, message: 'Claim rejected' });
+  const tenantId = getTenantId(session);
   const { id, comments, rejection_reason } = req.body;
   if (!id) return res.status(400).json({ error: 'id required' });
+  if (!tenantId) return res.status(403).json({ error: 'Tenant context required' });
   const reason = rejection_reason || comments || 'Ditolak';
-  await sequelize.query(`
-    UPDATE employee_claims SET status = 'rejected', notes = :reason, updated_at = NOW() WHERE id = :id
-  `, { replacements: { id, reason } });
+  const [updated] = await sequelize.query(`
+    UPDATE employee_claims SET status = 'rejected', notes = :reason, updated_at = NOW()
+    WHERE id = :id AND tenant_id = :tenantId
+    RETURNING id
+  `, { replacements: { id, reason, tenantId } });
+  if (!updated?.length) return res.status(404).json({ error: 'Claim not found' });
   return res.json({ success: true, message: 'Klaim berhasil ditolak' });
 }
 
@@ -140,10 +156,14 @@ async function resubmitClaim(req: NextApiRequest, res: NextApiResponse, session:
   if (!sequelize) return res.json({ success: true, message: 'Klaim berhasil diajukan ulang' });
   const { id, amount, description } = req.body;
   if (!id) return res.status(400).json({ error: 'id required' });
-  await sequelize.query(`
+  const tenantId = getTenantId(session);
+  if (!tenantId) return res.status(403).json({ error: 'Tenant context required' });
+  const [, meta] = await sequelize.query(`
     UPDATE employee_claims SET status = 'pending', amount = COALESCE(:amount, amount),
-      description = COALESCE(:description, description), updated_at = NOW() WHERE id = :id
-  `, { replacements: { id, amount: amount ? parseFloat(amount) : null, description: description || null } });
+      description = COALESCE(:description, description), updated_at = NOW()
+    WHERE id = :id AND tenant_id = :tenantId
+  `, { replacements: { id, amount: amount ? parseFloat(amount) : null, description: description || null, tenantId } });
+  if ((meta as any)?.rowCount === 0) return res.status(404).json({ error: 'Claim not found' });
   return res.json({ success: true, message: 'Klaim berhasil diajukan ulang' });
 }
 
@@ -163,10 +183,10 @@ const MUTATION_SELECT = `
 async function getMutations(req: NextApiRequest, res: NextApiResponse, session: any) {
   if (!sequelize) return res.json({ success: true, data: [] });
   const tenantId = getTenantId(session);
+  if (!tenantId) return res.json({ success: true, data: [] });
   const { status, employee_id, mutation_type } = req.query;
-  let where = 'WHERE 1=1';
-  const replacements: any = {};
-  if (tenantId) { where += ' AND m.tenant_id = :tenantId'; replacements.tenantId = tenantId; }
+  let where = 'WHERE m.tenant_id = :tenantId';
+  const replacements: any = { tenantId };
   if (status) { where += ' AND m.status = :status'; replacements.status = status; }
   if (employee_id) { where += ' AND m.employee_id = :employee_id'; replacements.employee_id = employee_id; }
   if (mutation_type) { where += ' AND m.mutation_type = :mutation_type'; replacements.mutation_type = mutation_type; }
@@ -338,9 +358,14 @@ async function approveMutationStep(req: NextApiRequest, res: NextApiResponse, se
   if (!sequelize) return res.json({ success: true });
   const { id, step_id, comments } = req.body;
   if (!id) return res.status(400).json({ error: 'id required' });
+  const tenantId = getTenantId(session);
+  if (!tenantId) return res.status(403).json({ error: 'Tenant context required' });
 
   const userId = (session.user as any)?.id;
-  const [mutations] = await sequelize.query(`SELECT * FROM employee_mutations WHERE id = :id`, { replacements: { id } });
+  const [mutations] = await sequelize.query(
+    `SELECT * FROM employee_mutations WHERE id = :id AND tenant_id = :tenantId`,
+    { replacements: { id, tenantId } },
+  );
   const mut = mutations[0];
   if (!mut) return res.status(404).json({ error: 'Not found' });
   if (mut.status !== 'pending') return res.status(400).json({ success: false, error: 'Mutasi tidak dalam status pending' });
@@ -363,8 +388,9 @@ async function approveMutationStep(req: NextApiRequest, res: NextApiResponse, se
   if (waiting[0]) {
     await sequelize.query(`UPDATE mutation_approval_steps SET status = 'pending' WHERE id = :sid`, { replacements: { sid: waiting[0].id } });
     await sequelize.query(`
-      UPDATE employee_mutations SET current_approval_step = :step, notes = COALESCE(:comments, notes), updated_at = NOW() WHERE id = :id
-    `, { replacements: { id, step: waiting[0].step_order, comments: comments || null } });
+      UPDATE employee_mutations SET current_approval_step = :step, notes = COALESCE(:comments, notes), updated_at = NOW()
+      WHERE id = :id AND tenant_id = :tenantId
+    `, { replacements: { id, tenantId, step: waiting[0].step_order, comments: comments || null } });
     return res.json({ success: true, message: `Disetujui — menunggu persetujuan tahap ${waiting[0].step_order}` });
   }
 
@@ -382,10 +408,11 @@ async function approveMutationStep(req: NextApiRequest, res: NextApiResponse, se
 
   await sequelize.query(`
     UPDATE employee_mutations SET status = :finalStatus, e_file_id = :eFileId,
-      document_url = :docUrl, notes = COALESCE(:comments, notes), updated_at = NOW() WHERE id = :id
+      document_url = :docUrl, notes = COALESCE(:comments, notes), updated_at = NOW()
+    WHERE id = :id AND tenant_id = :tenantId
   `, {
     replacements: {
-      id, finalStatus, eFileId,
+      id, tenantId, finalStatus, eFileId,
       docUrl: `/humanify/mutations?highlight=${id}`,
       comments: comments || null,
     },
@@ -440,6 +467,14 @@ async function rejectMutation(req: NextApiRequest, res: NextApiResponse, session
   const { id, comments } = req.body;
   if (!id) return res.status(400).json({ error: 'id required' });
   if (!comments) return res.status(400).json({ success: false, error: 'Alasan penolakan wajib diisi' });
+  const tenantId = getTenantId(session);
+  if (!tenantId) return res.status(403).json({ error: 'Tenant context required' });
+
+  const [mutations] = await sequelize.query(
+    `SELECT id FROM employee_mutations WHERE id = :id AND tenant_id = :tenantId`,
+    { replacements: { id, tenantId } },
+  );
+  if (!mutations?.[0]) return res.status(404).json({ error: 'Not found' });
 
   await sequelize.query(`
     UPDATE mutation_approval_steps SET status = 'rejected', comments = :comments, acted_at = NOW()
@@ -447,28 +482,44 @@ async function rejectMutation(req: NextApiRequest, res: NextApiResponse, session
   `, { replacements: { id, comments } });
 
   await sequelize.query(`
-    UPDATE employee_mutations SET status = 'rejected', notes = :comments, updated_at = NOW() WHERE id = :id
-  `, { replacements: { id, comments } });
+    UPDATE employee_mutations SET status = 'rejected', notes = :comments, updated_at = NOW()
+    WHERE id = :id AND tenant_id = :tenantId
+  `, { replacements: { id, tenantId, comments } });
 
   return res.json({ success: true, message: 'Mutasi ditolak' });
 }
 
-async function getWorkflowSummary(req: NextApiRequest, res: NextApiResponse) {
+async function getWorkflowSummary(req: NextApiRequest, res: NextApiResponse, session: any) {
   if (!sequelize) return res.json({ success: true, data: {} });
-  const safeCount = async (sql: string) => {
+  const tenantId = getTenantId(session);
+  if (!tenantId) {
+    return res.json({
+      success: true,
+      data: {
+        claims: { pending: 0, approved: 0, rejected: 0 },
+        mutations: { pending: 0, approved: 0 },
+        overtime: { pending: 0, approved: 0 },
+        pendingClaims: 0, approvedClaims: 0, rejectedClaims: 0,
+        pendingMutations: 0, approvedMutations: 0,
+        pendingOvertime: 0, approvedOvertime: 0,
+      },
+    });
+  }
+  const safeCount = async (sql: string, replacements: Record<string, unknown>) => {
     try {
-      const [r] = await sequelize.query(sql);
+      const [r] = await sequelize.query(sql, { replacements });
       return parseInt(r[0]?.cnt || 0, 10);
     } catch { return 0; }
   };
+  const tid = { tenantId };
 
-  const claimsPending = await safeCount(`SELECT COUNT(*) as cnt FROM employee_claims WHERE status = 'pending'`);
-  const claimsApproved = await safeCount(`SELECT COUNT(*) as cnt FROM employee_claims WHERE status = 'approved'`);
-  const claimsRejected = await safeCount(`SELECT COUNT(*) as cnt FROM employee_claims WHERE status = 'rejected'`);
-  const mutationsPending = await safeCount(`SELECT COUNT(*) as cnt FROM employee_mutations WHERE status = 'pending'`);
-  const mutationsApproved = await safeCount(`SELECT COUNT(*) as cnt FROM employee_mutations WHERE status IN ('approved','executed')`);
-  const overtimePending = await safeCount(`SELECT COUNT(*) as cnt FROM employee_overtime WHERE status = 'pending'`);
-  const overtimeApproved = await safeCount(`SELECT COUNT(*) as cnt FROM employee_overtime WHERE status = 'approved'`);
+  const claimsPending = await safeCount(`SELECT COUNT(*) as cnt FROM employee_claims WHERE status = 'pending' AND tenant_id = :tenantId`, tid);
+  const claimsApproved = await safeCount(`SELECT COUNT(*) as cnt FROM employee_claims WHERE status = 'approved' AND tenant_id = :tenantId`, tid);
+  const claimsRejected = await safeCount(`SELECT COUNT(*) as cnt FROM employee_claims WHERE status = 'rejected' AND tenant_id = :tenantId`, tid);
+  const mutationsPending = await safeCount(`SELECT COUNT(*) as cnt FROM employee_mutations WHERE status = 'pending' AND tenant_id = :tenantId`, tid);
+  const mutationsApproved = await safeCount(`SELECT COUNT(*) as cnt FROM employee_mutations WHERE status IN ('approved','executed') AND tenant_id = :tenantId`, tid);
+  const overtimePending = await safeCount(`SELECT COUNT(*) as cnt FROM overtime_requests WHERE status = 'pending' AND tenant_id = :tenantId`, tid);
+  const overtimeApproved = await safeCount(`SELECT COUNT(*) as cnt FROM overtime_requests WHERE status = 'approved' AND tenant_id = :tenantId`, tid);
 
   return res.json({
     success: true,
@@ -476,7 +527,6 @@ async function getWorkflowSummary(req: NextApiRequest, res: NextApiResponse) {
       claims: { pending: claimsPending, approved: claimsApproved, rejected: claimsRejected },
       mutations: { pending: mutationsPending, approved: mutationsApproved },
       overtime: { pending: overtimePending, approved: overtimeApproved },
-      // flat aliases for legacy UI
       pendingClaims: claimsPending,
       approvedClaims: claimsApproved,
       rejectedClaims: claimsRejected,

@@ -57,6 +57,19 @@ export default function TenantCareerDetailPage() {
     <>
       <Head>
         <title>{job?.title ? `${job.title} — ${companyName}` : 'Karir'} · {HUMANIFY_BRAND.name}</title>
+        {job ? (
+          <meta
+            name="description"
+            content={`${job.title} di ${companyName}${job.location ? ` — ${job.location}` : ''}. Lamar sekarang.`}
+          />
+        ) : null}
+        <meta name="robots" content="index, follow" />
+        {tenantSlug && jobSlug ? (
+          <link rel="canonical" href={`https://humanify.id/c/${tenantSlug}/careers/${jobSlug}`} />
+        ) : null}
+        <meta property="og:type" content="article" />
+        {job ? <meta property="og:title" content={`${job.title} — ${companyName}`} /> : null}
+        <link rel="icon" href={HUMANIFY_BRAND.welcomeLogoPath} type="image/png" />
         {job && (
           <script
             type="application/ld+json"

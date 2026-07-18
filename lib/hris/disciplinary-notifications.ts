@@ -38,7 +38,7 @@ export async function notifyHRStaff(
       FROM users u
       WHERE u.is_active = true
         AND u.role IN ('super_admin', 'admin', 'hr_staff', 'hris_staff', 'owner')
-        ${tenantId ? 'AND (u.tenant_id = :tenantId OR u.tenant_id IS NULL)' : ''}
+        ${tenantId ? 'AND u.tenant_id = :tenantId' : 'AND 1=0'}
       LIMIT 20
     `, { replacements: { tenantId } });
 

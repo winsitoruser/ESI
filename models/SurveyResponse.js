@@ -10,7 +10,8 @@ const SurveyResponse = sequelize.define('SurveyResponse', {
   submittedAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW, field: 'submitted_at' },
   isAnonymous: { type: DataTypes.BOOLEAN, defaultValue: true, field: 'is_anonymous' },
   completionTimeMinutes: { type: DataTypes.INTEGER, allowNull: true, field: 'completion_time_minutes' },
-  feedback: { type: DataTypes.TEXT, allowNull: true }
+  feedback: { type: DataTypes.TEXT, allowNull: true },
+  tenantId: { type: DataTypes.UUID, allowNull: true, field: 'tenant_id' },
 }, {
   tableName: 'survey_responses',
   timestamps: true,

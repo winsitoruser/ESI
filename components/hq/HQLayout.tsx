@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useSession, signOut } from 'next-auth/react';
@@ -476,8 +477,22 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
 
   const LogoIcon = filteredConfig.logo.icon;
 
+  const pageTitle = title
+    ? `${title} | ${isHumanify ? HUMANIFY_BRAND.name : 'ESI ERP'}`
+    : isHumanify
+      ? `${HUMANIFY_BRAND.name} — ${HUMANIFY_BRAND.productType}`
+      : 'ESI ERP';
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
+      <Head>
+        <title>{pageTitle}</title>
+        <meta name="robots" content="noindex, nofollow" />
+        <meta name="googlebot" content="noindex, nofollow" />
+        {isHumanify ? (
+          <link rel="icon" href={HUMANIFY_BRAND.welcomeLogoPath} type="image/png" />
+        ) : null}
+      </Head>
       {/* Mobile Overlay */}
       <div
         className={`fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden transition-opacity ${

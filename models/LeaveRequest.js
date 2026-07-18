@@ -26,7 +26,7 @@ const LeaveRequest = sequelize.define('LeaveRequest', {
     }
   },
   leaveType: {
-    type: DataTypes.ENUM('annual', 'sick', 'maternity', 'paternity', 'unpaid', 'personal', 'bereavement', 'marriage', 'religious'),
+    type: DataTypes.STRING(50),
     allowNull: false
   },
   startDate: {
@@ -46,13 +46,8 @@ const LeaveRequest = sequelize.define('LeaveRequest', {
     type: DataTypes.TEXT,
     allowNull: true
   },
-  attachmentUrl: {
-    type: DataTypes.STRING,
-    allowNull: true,
-    comment: 'URL to supporting document (e.g. medical certificate)'
-  },
   status: {
-    type: DataTypes.ENUM('pending', 'approved', 'rejected', 'cancelled'),
+    type: DataTypes.STRING(30),
     allowNull: false,
     defaultValue: 'pending'
   },
@@ -72,15 +67,6 @@ const LeaveRequest = sequelize.define('LeaveRequest', {
     type: DataTypes.TEXT,
     allowNull: true
   },
-  delegateTo: {
-    type: DataTypes.UUID,
-    allowNull: true,
-    references: {
-      model: 'employees',
-      key: 'id'
-    },
-    comment: 'Employee who covers during leave'
-  },
   tenantId: {
     type: DataTypes.UUID,
     allowNull: true
@@ -88,14 +74,15 @@ const LeaveRequest = sequelize.define('LeaveRequest', {
 }, {
   tableName: 'leave_requests',
   timestamps: true,
+  underscored: true,
   indexes: [
-    { fields: ['employeeId'] },
-    { fields: ['branchId'] },
-    { fields: ['leaveType'] },
+    { fields: ['employee_id'] },
+    { fields: ['branch_id'] },
+    { fields: ['leave_type'] },
     { fields: ['status'] },
-    { fields: ['startDate'] },
-    { fields: ['tenantId'] },
-    { fields: ['approvedBy'] }
+    { fields: ['start_date'] },
+    { fields: ['tenant_id'] },
+    { fields: ['approved_by'] }
   ]
 });
 

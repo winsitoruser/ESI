@@ -3,6 +3,7 @@ import { successResponse, errorResponse, ErrorCodes, HttpStatus } from '../../..
 import { getPaginationParams, getPaginationMeta } from '../../../lib/api/pagination';
 import { validateRequiredFields } from '../../../lib/api/validation';
 import { withHQAuth } from '../../../lib/middleware/withHQAuth';
+import { withObservability } from '@/lib/observability';
 
 let Op: any;
 try { Op = require('sequelize').Op; } catch (e) {}
@@ -591,4 +592,4 @@ async function deleteEmployee(req: NextApiRequest, res: NextApiResponse) {
 }
 
 // Wrap handler with HQ Auth middleware - requires HRIS module
-export default withHQAuth(handler, { module: 'hris' });
+export default withObservability(withHQAuth(handler, { module: 'hris' }), 'humanify/employees');

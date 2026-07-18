@@ -30,14 +30,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === 'POST' && action === 'assign' && id) {
+      if (!tenantId) return res.status(403).json({ error: 'NO_TENANT' });
       const { employeeId, employeeName, lifecycleRef } = req.body;
-      const data = await assignAsset(id as string, employeeId, employeeName, lifecycleRef);
+      const data = await assignAsset(id as string, employeeId, employeeName, lifecycleRef, tenantId);
+      if (!data) return res.status(404).json({ success: false, error: 'Asset not found' });
       return res.json({ success: true, data });
     }
 
     if (req.method === 'POST' && action === 'return' && id) {
+      if (!tenantId) return res.status(403).json({ error: 'NO_TENANT' });
       const { condition } = req.body;
-      const data = await returnAsset(id as string, condition);
+      const data = await returnAsset(id as string, condition, tenantId);
+      if (!data) return res.status(404).json({ success: false, error: 'Asset not found' });
       return res.json({ success: true, data });
     }
 

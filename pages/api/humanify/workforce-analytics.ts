@@ -112,9 +112,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     switch (method) {
       case 'GET': return handleGet(req, res, action as string, session);
-      case 'POST': return handlePost(req, res, action as string);
-      case 'PUT': return handlePut(req, res, action as string);
-      case 'DELETE': return handleDelete(req, res, action as string);
+      case 'POST': return handlePost(req, res, action as string, session);
+      case 'PUT': return handlePut(req, res, action as string, session);
+      case 'DELETE': return handleDelete(req, res, action as string, session);
       default: return res.status(405).json({ error: 'Method not allowed' });
     }
   } catch (error: any) {
@@ -257,14 +257,18 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
   }
 }
 
-async function handlePost(req: NextApiRequest, res: NextApiResponse, action: string) {
+async function handlePost(req: NextApiRequest, res: NextApiResponse, action: string, session: any) {
   const body = req.body || {};
+  const tenantId = tenantIdFromSession(session);
+  if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
+
   switch (action) {
     case 'headcount-plan': {
       if (!HeadcountPlan) return res.status(503).json({ success: false, error: 'HeadcountPlan model unavailable' });
       if (!body.name?.trim()) return res.status(400).json({ success: false, error: 'Nama rencana wajib diisi' });
       if (!body.periodStart || !body.periodEnd) return res.status(400).json({ success: false, error: 'Periode wajib diisi' });
       const plan = await HeadcountPlan.create({
+        tenantId,
         name: body.name.trim(),
         periodStart: body.periodStart,
         periodEnd: body.periodEnd,
@@ -282,6 +286,7 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
       const planned = parseFloat(body.plannedAmount) || 0;
       const actual = parseFloat(body.actualAmount) || 0;
       const budget = await ManpowerBudget.create({
+        tenantId,
         fiscalYear: parseInt(body.fiscalYear, 10) || new Date().getFullYear(),
         department: body.department || null,
         budgetCategory: body.budgetCategory || 'salary',
@@ -296,11 +301,12 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
     case 'approve-plan': {
       const { id } = body;
       if (!HeadcountPlan || !id) return res.status(400).json({ success: false, error: 'ID required' });
-      await HeadcountPlan.update({
+      const [n] = await HeadcountPlan.update({
         status: 'approved',
         approvedHeadcount: body.approvedHeadcount,
         approvedAt: new Date(),
-      }, { where: { id } });
+      }, { where: { id, tenantId } });
+      if (!n) return res.status(404).json({ success: false, error: 'Not found' });
       return res.json({ success: true, message: 'Plan approved' });
     }
     default:
@@ -308,15 +314,17 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
   }
 }
 
-async function handlePut(req: NextApiRequest, res: NextApiResponse, action: string) {
+async function handlePut(req: NextApiRequest, res: NextApiResponse, action: string, session: any) {
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: 'ID required' });
+  const tenantId = tenantIdFromSession(session);
+  if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
 
   switch (action) {
     case 'headcount-plan': {
       if (!HeadcountPlan) return res.status(503).json({ success: false, error: 'HeadcountPlan model unavailable' });
       const body = req.body || {};
-      await HeadcountPlan.update({
+      const [n] = await HeadcountPlan.update({
         name: body.name,
         periodStart: body.periodStart,
         periodEnd: body.periodEnd,
@@ -326,7 +334,8 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, action: stri
         budgetAmount: parseFloat(body.budgetAmount) || 0,
         justification: body.justification,
         status: body.status,
-      }, { where: { id } });
+      }, { where: { id, tenantId } });
+      if (!n) return res.status(404).json({ success: false, error: 'Not found' });
       return res.json({ success: true, message: 'Plan updated' });
     }
     case 'budget': {
@@ -334,7 +343,7 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, action: stri
       const body = req.body || {};
       const planned = parseFloat(body.plannedAmount) || 0;
       const actual = parseFloat(body.actualAmount) || 0;
-      await ManpowerBudget.update({
+      const [n] = await ManpowerBudget.update({
         fiscalYear: parseInt(body.fiscalYear, 10) || new Date().getFullYear(),
         department: body.department,
         budgetCategory: body.budgetCategory || 'salary',
@@ -343,7 +352,8 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, action: stri
         variance: planned - actual,
         notes: body.notes,
         status: body.status,
-      }, { where: { id } });
+      }, { where: { id, tenantId } });
+      if (!n) return res.status(404).json({ success: false, error: 'Not found' });
       return res.json({ success: true, message: 'Budget updated' });
     }
     default:
@@ -351,14 +361,16 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, action: stri
   }
 }
 
-async function handleDelete(req: NextApiRequest, res: NextApiResponse, action: string) {
+async function handleDelete(req: NextApiRequest, res: NextApiResponse, action: string, session: any) {
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: 'ID required' });
+  const tenantId = tenantIdFromSession(session);
+  if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
 
   const models: any = { 'headcount-plan': HeadcountPlan, budget: ManpowerBudget };
   const model = models[action];
   if (!model) return res.status(400).json({ error: 'Invalid action' });
-  const deleted = await model.destroy({ where: { id } });
+  const deleted = await model.destroy({ where: { id, tenantId } });
   if (!deleted) return res.status(404).json({ success: false, error: 'Not found' });
   return res.json({ success: true, message: 'Deleted' });
 }

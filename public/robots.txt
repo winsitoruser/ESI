@@ -1,0 +1,33 @@
+# Humanify — https://humanify.id
+User-agent: *
+Allow: /
+Allow: /humanify/welcome
+Allow: /humanify/signup
+Allow: /humanify/login
+Allow: /humanify/pricing/
+Allow: /employee/login
+Allow: /images/
+Allow: /careers
+Allow: /c/
+
+Disallow: /humanify/setup
+Disallow: /humanify/go-live
+Disallow: /humanify/security
+Disallow: /humanify/billing
+Disallow: /humanify/enterprise
+Disallow: /humanify/sso
+Disallow: /humanify/join
+Disallow: /humanify/forgot-password
+Disallow: /humanify/reset-password
+Disallow: /humanify/verify-email
+Disallow: /api/
+Disallow: /hq/
+Disallow: /admin/
+Disallow: /platform/
+Disallow: /employee/
+Disallow: /onboarding
+Disallow: /auth/
+
+Allow: /employee/login
+
+Sitemap: https://humanify.id/sitemap.xml

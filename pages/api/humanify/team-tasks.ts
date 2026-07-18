@@ -11,6 +11,17 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     const actorId = isUuid(userId) ? String(userId) : null;
     const { id } = req.query;
 
+    if (!tenantId) {
+      if (req.method === 'GET') {
+        return res.status(200).json({
+          success: true,
+          data: [],
+          pagination: { total: 0, page: 1, limit: 50, totalPages: 0 },
+        });
+      }
+      return res.status(403).json({ success: false, error: 'NO_TENANT' });
+    }
+
     if (id && typeof id === 'string' && req.method !== 'GET') {
       return await handleSingleTask(id, req, res, tenantId, actorId);
     }
@@ -43,8 +54,7 @@ async function handleSingleTask(id: string, req: NextApiRequest, res: NextApiRes
 async function handleGetTasks(req: NextApiRequest, res: NextApiResponse, tenantId: string) {
   const { page = '1', limit = '50', status, priority, assigneeId, taskType, category, relatedTo, relatedId, search, sortBy = 'createdAt', sortOrder = 'DESC' } = req.query;
 
-  const where: any = {};
-  if (tenantId) where.tenantId = tenantId;
+  const where: any = { tenantId };
   if (status) where.status = status;
   if (priority) where.priority = priority;
   if (assigneeId) where.assigneeId = assigneeId;
@@ -128,10 +138,7 @@ async function handleUpdateTask(id: string, req: NextApiRequest, res: NextApiRes
   const { title, description, priority, status, assigneeId, dueDate, completedAt, taskType, targetValue, targetUnit, category } = req.body;
 
   try {
-    const where: any = { id };
-    if (tenantId) where.tenantId = tenantId;
-
-    const task = await Task.findOne({ where });
+    const task = await Task.findOne({ where: { id, tenantId } });
     if (!task) return res.status(404).json({ success: false, error: 'Task not found' });
 
     const updateData: any = {};
@@ -161,10 +168,7 @@ async function handleUpdateTask(id: string, req: NextApiRequest, res: NextApiRes
 
 async function handleDeleteTask(id: string, res: NextApiResponse, tenantId: string) {
   try {
-    const where: any = { id };
-    if (tenantId) where.tenantId = tenantId;
-
-    const task = await Task.findOne({ where });
+    const task = await Task.findOne({ where: { id, tenantId } });
     if (!task) return res.status(404).json({ success: false, error: 'Task not found' });
 
     await task.destroy();

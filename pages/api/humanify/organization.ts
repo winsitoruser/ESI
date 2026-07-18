@@ -81,8 +81,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === 'DELETE') {
-      if (action === 'org') return deleteOrg(req, res);
-      if (action === 'job-grade') return deleteJobGrade(req, res);
+      if (action === 'org') return deleteOrg(req, res, session);
+      if (action === 'job-grade') return deleteJobGrade(req, res, session);
       return res.status(400).json({ success: false, error: 'Unknown action' });
     }
 
@@ -251,6 +251,7 @@ async function upsertOrg(req: NextApiRequest, res: NextApiResponse, session: any
 
   const { id, name, code, parent_id, level, sort_order, head_employee_id, description } = req.body;
   const tenantId = (session.user as any).tenantId || null;
+  if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
 
   if (!name?.trim()) return res.status(400).json({ success: false, error: 'Nama unit wajib diisi' });
 
@@ -267,8 +268,8 @@ async function upsertOrg(req: NextApiRequest, res: NextApiResponse, session: any
 
     if (cleanParentId) {
       const [[parentRow]] = await sequelize.query(
-        `SELECT id, level FROM org_structures WHERE id = :parentId AND is_active = true LIMIT 1`,
-        { replacements: { parentId: cleanParentId } }
+        `SELECT id, level FROM org_structures WHERE id = :parentId AND is_active = true AND tenant_id = :tenantId LIMIT 1`,
+        { replacements: { parentId: cleanParentId, tenantId } }
       );
       if (!parentRow?.id) {
         return res.status(400).json({ success: false, error: 'Unit induk tidak ditemukan' });
@@ -276,21 +277,22 @@ async function upsertOrg(req: NextApiRequest, res: NextApiResponse, session: any
     }
 
     if (isUpdate) {
-      await sequelize.query(`
+      const [, meta] = await sequelize.query(`
         UPDATE org_structures SET
           name = :name, code = :code, parent_id = :parent_id,
           level = :level, sort_order = :sort_order, head_employee_id = :head_employee_id,
           description = :description,
           metadata = COALESCE(metadata, '{}'::jsonb) || '{"source":"user","customized":true}'::jsonb,
           updated_at = NOW()
-        WHERE id = :id
+        WHERE id = :id AND tenant_id = :tenantId
       `, {
         replacements: {
-          id, name: name.trim(), code: code?.trim() || null,
+          id, tenantId, name: name.trim(), code: code?.trim() || null,
           parent_id: cleanParentId, level: level ?? 0, sort_order: sort_order ?? 0,
           head_employee_id: cleanHeadId, description: description?.trim() || null,
         },
       });
+      if ((meta as any)?.rowCount === 0) return res.status(404).json({ success: false, error: 'Unit tidak ditemukan' });
       return res.json({ success: true, message: 'Unit organisasi diperbarui' });
     }
 
@@ -319,6 +321,7 @@ async function upsertJobGrade(req: NextApiRequest, res: NextApiResponse, session
 
   const { id, code, name, level, min_salary, max_salary, salary_min, salary_max, benefits, leave_quota, description } = req.body;
   const tenantId = (session.user as any).tenantId || null;
+  if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
   const minSal = min_salary ?? salary_min ?? 0;
   const maxSal = max_salary ?? salary_max ?? 0;
 
@@ -332,20 +335,21 @@ async function upsertJobGrade(req: NextApiRequest, res: NextApiResponse, session
     await ensureOrgTables();
 
     if (isUpdate) {
-      await sequelize.query(`
+      const [, meta] = await sequelize.query(`
         UPDATE job_grades SET code = :code, name = :name, level = :level,
           min_salary = :min_salary, max_salary = :max_salary, benefits = :benefits::jsonb,
           leave_quota = :leave_quota::jsonb, description = :description, updated_at = NOW()
-        WHERE id = :id
+        WHERE id = :id AND tenant_id = :tenantId
       `, {
         replacements: {
-          id, code: code.trim(), name: name.trim(), level: level || 1,
+          id, tenantId, code: code.trim(), name: name.trim(), level: level || 1,
           min_salary: minSal, max_salary: maxSal,
           benefits: JSON.stringify(benefits || []),
           leave_quota: JSON.stringify(leave_quota || {}),
           description: description?.trim() || null,
         },
       });
+      if ((meta as any)?.rowCount === 0) return res.status(404).json({ success: false, error: 'Golongan tidak ditemukan' });
       return res.json({ success: true, message: 'Golongan jabatan diperbarui' });
     }
 
@@ -371,14 +375,21 @@ async function upsertJobGrade(req: NextApiRequest, res: NextApiResponse, session
 }
 
 // ===== DELETE: Org =====
-async function deleteOrg(req: NextApiRequest, res: NextApiResponse) {
+async function deleteOrg(req: NextApiRequest, res: NextApiResponse, session: any) {
   if (!sequelize) return res.status(503).json({ success: false, error: 'Database tidak tersedia' });
   const id = String(req.query.id || req.body?.id || '').trim();
   if (!id || !UUID_RE.test(id)) return res.status(400).json({ success: false, error: 'ID tidak valid' });
+  const tenantId = (session.user as any)?.tenantId || null;
+  if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
 
   try {
     await ensureOrgTables();
-    await sequelize.query(`UPDATE org_structures SET is_active = false, metadata = COALESCE(metadata, '{}'::jsonb) || '{"deleted":true}'::jsonb, updated_at = NOW() WHERE id = :id`, { replacements: { id } });
+    const [, meta] = await sequelize.query(
+      `UPDATE org_structures SET is_active = false, metadata = COALESCE(metadata, '{}'::jsonb) || '{"deleted":true}'::jsonb, updated_at = NOW()
+       WHERE id = :id AND tenant_id = :tenantId`,
+      { replacements: { id, tenantId } },
+    );
+    if ((meta as any)?.rowCount === 0) return res.status(404).json({ success: false, error: 'Unit tidak ditemukan' });
     return res.json({ success: true, message: 'Unit organisasi dihapus' });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: e.message });
@@ -386,14 +397,20 @@ async function deleteOrg(req: NextApiRequest, res: NextApiResponse) {
 }
 
 // ===== DELETE: Job Grade =====
-async function deleteJobGrade(req: NextApiRequest, res: NextApiResponse) {
+async function deleteJobGrade(req: NextApiRequest, res: NextApiResponse, session: any) {
   if (!sequelize) return res.status(503).json({ success: false, error: 'Database tidak tersedia' });
   const id = String(req.query.id || req.body?.id || '').trim();
   if (!id || !UUID_RE.test(id)) return res.status(400).json({ success: false, error: 'ID tidak valid' });
+  const tenantId = (session.user as any)?.tenantId || null;
+  if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
 
   try {
     await ensureOrgTables();
-    await sequelize.query(`UPDATE job_grades SET is_active = false, updated_at = NOW() WHERE id = :id`, { replacements: { id } });
+    const [, meta] = await sequelize.query(
+      `UPDATE job_grades SET is_active = false, updated_at = NOW() WHERE id = :id AND tenant_id = :tenantId`,
+      { replacements: { id, tenantId } },
+    );
+    if ((meta as any)?.rowCount === 0) return res.status(404).json({ success: false, error: 'Golongan tidak ditemukan' });
     return res.json({ success: true, message: 'Golongan jabatan dihapus' });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: e.message });

@@ -145,17 +145,29 @@ export function normalizeNotification(r: any) {
   };
 }
 
-export async function resolveEmployeeContext(sequelize: any, userId: string) {
+export async function resolveEmployeeContext(
+  sequelize: any,
+  userId: string,
+  sessionTenantId?: string | null,
+) {
+  if (!sequelize) {
+    return {
+      employeeId: null, employeeName: null, department: null, branchId: null, email: null,
+      tenantId: sessionTenantId || null, employmentCategory: null, businessVertical: null,
+      agentType: null, territory: null,
+    };
+  }
   const uid = parseInt(userId, 10) || userId;
   const [rows] = await sequelize.query(`
     SELECT e.id AS employee_id, e.name AS employee_name, e.department, e.branch_id, e.email,
       e.tenant_id, e.employment_category, e.business_vertical, e.agent_type, e.territory,
       u.tenant_id AS user_tenant_id, u.name AS user_name
     FROM users u
-    LEFT JOIN employees e ON e.user_id = u.id OR e.email = u.email
+    LEFT JOIN employees e ON e.tenant_id = COALESCE(:sessionTenantId::uuid, u.tenant_id)
+      AND (e.user_id = u.id OR e.email = u.email)
     WHERE u.id = :uid
     LIMIT 1
-  `, { replacements: { uid } });
+  `, { replacements: { uid, sessionTenantId: sessionTenantId || null } });
   const row = rows?.[0];
   return {
     employeeId: row?.employee_id || null,
@@ -163,7 +175,7 @@ export async function resolveEmployeeContext(sequelize: any, userId: string) {
     department: row?.department || null,
     branchId: row?.branch_id || null,
     email: row?.email || null,
-    tenantId: row?.tenant_id || row?.user_tenant_id || null,
+    tenantId: sessionTenantId || row?.tenant_id || row?.user_tenant_id || null,
     employmentCategory: row?.employment_category || null,
     businessVertical: row?.business_vertical || null,
     agentType: row?.agent_type || null,

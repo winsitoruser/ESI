@@ -10,28 +10,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const session = await getServerSession(req, res, authOptions);
   if (!session) return res.status(401).json({ error: 'Unauthorized' });
 
+  const tenantId = (session.user as any)?.tenantId || null;
+  if (!tenantId) return res.status(403).json({ error: 'NO_TENANT' });
+
   const { action, type, id } = req.query;
 
   try {
     if (req.method === 'GET') {
       if (action === 'summary') {
-        const summary = await getPayrollInputsSummary();
+        const summary = await getPayrollInputsSummary(tenantId);
         return res.json({ success: true, data: summary });
       }
       const inputType = (type as PayrollInputType) || undefined;
       const status = req.query.status as string | undefined;
-      const data = await listPayrollInputs(inputType, status);
+      const data = await listPayrollInputs(inputType, status, tenantId);
       return res.json({ success: true, data });
     }
 
     if (req.method === 'POST') {
-      const record = await createPayrollInput(req.body);
+      const record = await createPayrollInput({ ...req.body, tenantId });
       return res.json({ success: true, data: record });
     }
 
     if (req.method === 'PUT' && id) {
       const { status, approvedBy } = req.body;
-      const record = await updatePayrollInputStatus(id as string, status, approvedBy);
+      const record = await updatePayrollInputStatus(id as string, status, approvedBy, tenantId);
+      if (!record) return res.status(404).json({ error: 'Payroll input not found' });
       return res.json({ success: true, data: record });
     }
 

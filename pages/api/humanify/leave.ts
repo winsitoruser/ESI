@@ -2,6 +2,9 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 import { allowHrMockFallback } from '@/lib/hris/data-source';
+import { findScopedById, tenantIdFromSession } from '@/lib/saas/tenant-scope';
+import { withObservability } from '@/lib/observability';
+import { ensureTenantDbContext } from '@/lib/saas/ensure-tenant-db-context';
 
 let LeaveRequest: any, Employee: any;
 try {
@@ -20,12 +23,13 @@ try {
   triggerHRISWebhook = async () => {};
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function leaveHandler(req: NextApiRequest, res: NextApiResponse) {
   try {
     const session = await getServerSession(req, res, authOptions);
     if (!session?.user) {
       return res.status(401).json({ success: false, error: 'Unauthorized' });
     }
+    await ensureTenantDbContext(session);
 
     switch (req.method) {
       case 'GET': return await getLeaveRequests(req, res, session);
@@ -39,6 +43,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
+
+export default withObservability(leaveHandler, 'humanify/leave');
 
 async function getLeaveRequests(req: NextApiRequest, res: NextApiResponse, session: any) {
   const { employeeId, status, leaveType, startDate, endDate } = req.query;
@@ -147,24 +153,59 @@ async function createLeaveRequest(req: NextApiRequest, res: NextApiResponse, ses
   }
 
   try {
-    const leave = await LeaveRequest.create({
-      employeeId: employeeId || session.user.id,
-      branchId: branchId || null,
-      leaveType,
-      startDate,
-      endDate,
-      totalDays,
-      reason,
-      attachmentUrl,
-      delegateTo: delegateTo || null,
-      status: 'pending',
-      tenantId
+    const sequelize = require('../../../lib/sequelize');
+    const empId = employeeId || session.user.id;
+    const [inserted] = await sequelize.query(
+      `INSERT INTO leave_requests (
+         id, employee_id, branch_id, leave_type, start_date, end_date, total_days,
+         reason, status, tenant_id, created_at, updated_at
+       ) VALUES (
+         gen_random_uuid(), :empId, :branchId, :leaveType, :startDate, :endDate, :totalDays,
+         :reason, 'pending', :tenantId, NOW(), NOW()
+       )
+       RETURNING *`,
+      {
+        replacements: {
+          empId,
+          branchId: branchId || null,
+          leaveType,
+          startDate,
+          endDate,
+          totalDays,
+          reason: reason || null,
+          tenantId,
+        },
+      },
+    );
+    const leave = inserted?.[0] || null;
+    if (!leave) {
+      return res.status(500).json({ success: false, error: 'Failed to create leave request' });
+    }
+
+    try {
+      if (typeof triggerHRISWebhook === 'function') {
+        await triggerHRISWebhook('leave.requested', empId, session.user.name || 'Employee', leave);
+      }
+    } catch (whErr) {
+      console.warn('leave webhook skipped:', (whErr as any)?.message || whErr);
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: 'Pengajuan cuti berhasil',
+      data: {
+        id: leave.id,
+        employeeId: leave.employee_id,
+        leaveType: leave.leave_type,
+        startDate: leave.start_date,
+        endDate: leave.end_date,
+        totalDays: leave.total_days,
+        status: leave.status,
+        tenantId: leave.tenant_id,
+      },
     });
-
-    await triggerHRISWebhook('leave.requested', employeeId || session.user.id, session.user.name || 'Employee', leave);
-
-    return res.status(201).json({ success: true, message: 'Pengajuan cuti berhasil', data: leave });
   } catch (e: any) {
+    console.warn('createLeaveRequest failed:', e?.message || e);
     return res.status(500).json({ success: false, error: 'Failed to create leave request', details: e.message });
   }
 }
@@ -182,7 +223,11 @@ async function updateLeaveRequest(req: NextApiRequest, res: NextApiResponse, ses
   }
 
   try {
-    const leave = await LeaveRequest.findByPk(id);
+    const tenantId = tenantIdFromSession(session);
+    if (!tenantId) {
+      return res.status(403).json({ success: false, error: 'NO_TENANT', message: 'Tenant context required' });
+    }
+    const leave = await findScopedById(LeaveRequest, id, tenantId);
     if (!leave) return res.status(404).json({ success: false, error: 'Leave request not found' });
 
     const updateData: any = { status };
