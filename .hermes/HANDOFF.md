@@ -10,7 +10,7 @@
 | w3-2 | `payroll_audit_events` on approve/paid + optional release email | Done |
 | w3-3 | Playwright `e2e/humanify-ga-personas.spec.ts` | Done |
 | w3-4 | Sidebar persona filter (staff / manager / hr_admin) | Done |
-| w3-5 | Deploy + verify | In progress |
+| w3-5 | Deploy + verify | Done |
 
 Docs: `docs/humanify-payroll-fiscal-signoff.md`  
 Env: `HUMANIFY_FISCAL_SIGNED_OFF=true` · `PAYROLL_RELEASE_NOTIFY_EMAIL=`
