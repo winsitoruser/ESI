@@ -1,6 +1,19 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-6** · policy ack · ⌘K · billing idempotency · positioning
+> Diperbarui: 19 Juli 2026 — **Wave-7** · safeQuery helper · error map · payslip view audit · GA freeze
+
+## Wave-7 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w7-1 | `safeQueryWithSavepoint` shared + employee-profile | Done |
+| w7-2 | `lib/humanify/api-error.ts` + HumanifyErrorBoundary | Done |
+| w7-3 | Payslip view → `payroll_audit_events` (`payslip_view`) | Done |
+| w7-4 | Playwright invite/docs/payroll soft UI | Done |
+| w7-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:api-error` · `npm run test:e2e:humanify:invite-docs:prod`  
+Docs: `docs/humanify-ga-scope.md`
 
 ## Wave-6 (19 Jul 2026)
 
@@ -10,7 +23,7 @@
 | w6-2 | ⌘K / Ctrl+K command focus di search Humanify | Done |
 | w6-3 | Billing webhook idempotency (`saas_billing_webhook_events`) | Done |
 | w6-4 | Positioning one-pager + blurb di Billing | Done |
-| w6-5 | Deploy + verify | Pending |
+| w6-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:policy-ack` · `npm run smoke:billing-idempotency`  
 Docs: `docs/humanify-positioning.md`

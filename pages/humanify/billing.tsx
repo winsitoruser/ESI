@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import HumanifyLayout from '@/components/humanify/HumanifyLayout';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
 import { generatePDF } from '@/lib/documents';
+import { mapApiJsonError, humanifyErrorMessage } from '@/lib/humanify/api-error';
 
 function formatIdr(n: number) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n || 0);
@@ -70,7 +71,7 @@ export default function HumanifyBillingPage() {
         body: JSON.stringify({ plan: planId, interval }),
       });
       const j = await res.json();
-      if (!j.success) throw new Error(j.error || 'Checkout gagal');
+      if (!j.success) throw new Error(mapApiJsonError(j, 'Checkout gagal'));
 
       const data = j.data;
       if (data.provider === 'midtrans' && data.redirectUrl) {
@@ -90,7 +91,7 @@ export default function HumanifyBillingPage() {
       toast.success(`Paket ${planId} aktif`);
       load();
     } catch (e: any) {
-      toast.error(e.message || 'Checkout gagal');
+      toast.error(humanifyErrorMessage(e, 'Checkout gagal'));
     } finally {
       setActing(null);
     }

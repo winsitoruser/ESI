@@ -905,7 +905,27 @@ async function getPayslip(req: NextApiRequest, res: NextApiResponse, session: an
       ORDER BY pr.period_start DESC, COALESCE(pi.employee_name, e.name)
     `, { replacements });
 
-    return res.json({ success: true, data: (rows || []).map(mapPayslipRow) });
+    const data = (rows || []).map(mapPayslipRow);
+    // Audit payslip opens when scoped to a run or employee (HRS-3)
+    if (data.length && (runId || employeeId)) {
+      try {
+        const { logPayrollAudit } = await import('@/lib/hris/payroll-audit');
+        await logPayrollAudit({
+          tenantId: String(tenantId),
+          runId: String(runId || data[0]?.payroll_run_id || data[0]?.payrollRunId || 'unknown'),
+          eventType: 'payslip_view',
+          actorId: session?.user?.id != null ? String(session.user.id) : null,
+          actorName: session?.user?.name || null,
+          actorEmail: session?.user?.email || null,
+          details: {
+            employeeId: employeeId || null,
+            count: data.length,
+          },
+        });
+      } catch { /* non-blocking */ }
+    }
+
+    return res.json({ success: true, data });
   } catch (e: any) {
     return res.json({ success: true, data: [] });
   }

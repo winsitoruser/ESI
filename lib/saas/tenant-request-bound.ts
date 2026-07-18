@@ -48,3 +48,25 @@ export async function withDbSavepoint<T>(
     return null;
   }
 }
+
+/**
+ * Run a SELECT (or any query) inside a SAVEPOINT and return rows[].
+ * On failure: roll back to savepoint and return [] (never abort outer TX).
+ */
+export async function safeQueryWithSavepoint(
+  sequelize: { query: (sql: string, opts?: any) => Promise<any> } | null | undefined,
+  sql: string,
+  replacements: Record<string, unknown> = {},
+  label = 'query',
+): Promise<any[]> {
+  if (!sequelize) return [];
+  const rows = await withDbSavepoint(
+    sequelize,
+    async () => {
+      const [r] = await sequelize.query(sql, { replacements });
+      return Array.isArray(r) ? r : [];
+    },
+    label,
+  );
+  return rows || [];
+}

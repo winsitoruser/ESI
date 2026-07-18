@@ -1,4 +1,5 @@
 import HQLayout from '@/components/hq/HQLayout';
+import HumanifyErrorBoundary from '@/components/humanify/HumanifyErrorBoundary';
 
 type HumanifyLayoutProps = {
   children: React.ReactNode;
@@ -9,5 +10,9 @@ type HumanifyLayoutProps = {
 
 /** Layout platform Humanify — HRIS System by Naincode */
 export default function HumanifyLayout(props: HumanifyLayoutProps) {
-  return <HQLayout {...props} platform="humanify" />;
+  return (
+    <HumanifyErrorBoundary>
+      <HQLayout {...props} platform="humanify" />
+    </HumanifyErrorBoundary>
+  );
 }
