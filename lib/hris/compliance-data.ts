@@ -1,9 +1,10 @@
 /**
  * Fetch PPh21 & BPJS export rows from live payroll / employee salary data.
+ * Schema-safe: prod `employees` may lack `nik` — use employee_code fallback.
  */
 import type { BPJSExportRow, PPh21ExportRow } from '@/lib/hris/tax-bpjs-export';
 
-const ACTIVE_EMPLOYEE_FILTER = `(e.is_active = true AND (e.status = 'active' OR e.status IS NULL))`;
+const ACTIVE_EMPLOYEE_FILTER = `(LOWER(COALESCE(e.status, 'active')) = 'active' OR e.is_active = true)`;
 
 const ALLOWANCE_SUBQUERY = `COALESCE((
   SELECT SUM(COALESCE(esc.amount, pc.default_amount, 0))
@@ -12,6 +13,12 @@ const ALLOWANCE_SUBQUERY = `COALESCE((
   WHERE esc.employee_salary_id = es.id AND esc.is_active = true
     AND pc.type = 'earning' AND pc.code NOT IN ('BASIC', 'OVERTIME')
 ), 0)`;
+
+/** Prefer nik when present; else employee_code / empty. */
+const NIK_EXPR = `COALESCE(
+  NULLIF(TRIM(e.employee_code), ''),
+  ''
+)`;
 
 function getPTKP(status: string): number {
   const map: Record<string, number> = {
@@ -44,6 +51,29 @@ function calculatePPh21(pkp: number): number {
   return Math.round(tax);
 }
 
+async function hasEmployeeColumn(sequelize: any, col: string): Promise<boolean> {
+  try {
+    const [rows] = await sequelize.query(
+      `SELECT 1 FROM information_schema.columns
+       WHERE table_name = 'employees' AND column_name = :col LIMIT 1`,
+      { replacements: { col } },
+    );
+    return Boolean(rows?.length);
+  } catch {
+    return false;
+  }
+}
+
+async function nikSelectExpr(sequelize: any): Promise<string> {
+  if (await hasEmployeeColumn(sequelize, 'nik')) {
+    return `COALESCE(NULLIF(TRIM(e.nik), ''), NULLIF(TRIM(e.employee_code), ''), '')`;
+  }
+  if (await hasEmployeeColumn(sequelize, 'national_id')) {
+    return `COALESCE(NULLIF(TRIM(e.national_id), ''), NULLIF(TRIM(e.employee_code), ''), '')`;
+  }
+  return NIK_EXPR;
+}
+
 export async function fetchPPh21ExportRows(
   sequelize: any,
   period: string,
@@ -51,11 +81,12 @@ export async function fetchPPh21ExportRows(
 ): Promise<PPh21ExportRow[]> {
   const [yr, mo] = period.split('-').map((x) => parseInt(x, 10));
   const tenantClause = tenantId ? 'AND e.tenant_id = :tenantId' : '';
+  const nikExpr = await nikSelectExpr(sequelize);
 
   // Prefer payroll run items for the period
   try {
     const [payrollRows] = await sequelize.query(`
-      SELECT e.name AS employee_name, e.nik, es.npwp, e.position, es.tax_status,
+      SELECT e.name AS employee_name, (${nikExpr}) AS nik, es.npwp, e.position, es.tax_status,
              pi.gross_salary, pi.total_tax AS pph21_monthly
       FROM payroll_items pi
       JOIN payroll_runs pr ON pi.payroll_run_id = pr.id
@@ -91,34 +122,38 @@ export async function fetchPPh21ExportRows(
     }
   } catch { /* fall through to salary-based */ }
 
-  const [rows] = await sequelize.query(`
-    SELECT e.name, e.nik, e.position, es.npwp, es.tax_status,
-           es.base_salary, ${ALLOWANCE_SUBQUERY} AS total_allowances
-    FROM employees e
-    LEFT JOIN employee_salaries es ON es.employee_id = e.id AND es.is_active = true
-    WHERE ${ACTIVE_EMPLOYEE_FILTER} ${tenantClause}
-    ORDER BY e.name
-  `, { replacements: { tenantId } });
+  try {
+    const [rows] = await sequelize.query(`
+      SELECT e.name, (${nikExpr}) AS nik, e.position, es.npwp, es.tax_status,
+             es.base_salary, ${ALLOWANCE_SUBQUERY} AS total_allowances
+      FROM employees e
+      LEFT JOIN employee_salaries es ON es.employee_id = e.id AND es.is_active = true
+      WHERE ${ACTIVE_EMPLOYEE_FILTER} ${tenantClause}
+      ORDER BY e.name
+    `, { replacements: { tenantId } });
 
-  return ((rows as any[]) || []).map((r) => {
-    const grossAnnual = (Number(r.base_salary || 0) + Number(r.total_allowances || 0)) * 12;
-    const status = r.tax_status || 'TK/0';
-    const ptkp = getPTKP(status);
-    const taxableIncome = Math.max(0, grossAnnual - ptkp);
-    const pph21 = calculatePPh21(taxableIncome);
-    return {
-      npwp: r.npwp || '',
-      nik: r.nik || '',
-      employeeName: r.name,
-      position: r.position || '',
-      taxStatus: status,
-      grossIncome: grossAnnual,
-      ptkp,
-      taxableIncome,
-      pph21,
-      period,
-    };
-  });
+    return ((rows as any[]) || []).map((r) => {
+      const grossAnnual = (Number(r.base_salary || 0) + Number(r.total_allowances || 0)) * 12;
+      const status = r.tax_status || 'TK/0';
+      const ptkp = getPTKP(status);
+      const taxableIncome = Math.max(0, grossAnnual - ptkp);
+      const pph21 = calculatePPh21(taxableIncome);
+      return {
+        npwp: r.npwp || '',
+        nik: r.nik || '',
+        employeeName: r.name,
+        position: r.position || '',
+        taxStatus: status,
+        grossIncome: grossAnnual,
+        ptkp,
+        taxableIncome,
+        pph21,
+        period,
+      };
+    });
+  } catch {
+    return [];
+  }
 }
 
 export async function fetchBPJSExportRows(
@@ -129,35 +164,40 @@ export async function fetchBPJSExportRows(
   const tenantClause = tenantId ? 'AND e.tenant_id = :tenantId' : '';
   const CAP_KESEHATAN = 12000000;
   const CAP_JP = 10547400;
+  const nikExpr = await nikSelectExpr(sequelize);
 
-  const [rows] = await sequelize.query(`
-    SELECT e.name, e.nik, es.base_salary,
-           es.bpjs_kesehatan_number, es.bpjs_ketenagakerjaan_number
-    FROM employees e
-    LEFT JOIN employee_salaries es ON es.employee_id = e.id AND es.is_active = true
-    WHERE ${ACTIVE_EMPLOYEE_FILTER} ${tenantClause}
-    ORDER BY e.name
-  `, { replacements: { tenantId } });
+  try {
+    const [rows] = await sequelize.query(`
+      SELECT e.name, (${nikExpr}) AS nik, es.base_salary,
+             es.bpjs_kesehatan_number, es.bpjs_ketenagakerjaan_number
+      FROM employees e
+      LEFT JOIN employee_salaries es ON es.employee_id = e.id AND es.is_active = true
+      WHERE ${ACTIVE_EMPLOYEE_FILTER} ${tenantClause}
+      ORDER BY e.name
+    `, { replacements: { tenantId } });
 
-  return ((rows as any[]) || []).map((r) => {
-    const base = Number(r.base_salary || 0);
-    return {
-      nik: r.nik || '',
-      employeeName: r.name,
-      bpjsKesNumber: r.bpjs_kesehatan_number || undefined,
-      bpjsTkNumber: r.bpjs_ketenagakerjaan_number || undefined,
-      baseSalary: base,
-      bpjsKesEmployee: Math.round(Math.min(base, CAP_KESEHATAN) * 0.01),
-      bpjsKesEmployer: Math.round(Math.min(base, CAP_KESEHATAN) * 0.04),
-      jhtEmployee: Math.round(base * 0.02),
-      jhtEmployer: Math.round(base * 0.037),
-      jpEmployee: Math.round(Math.min(base, CAP_JP) * 0.01),
-      jpEmployer: Math.round(Math.min(base, CAP_JP) * 0.02),
-      jkkEmployer: Math.round(base * 0.0024),
-      jkmEmployer: Math.round(base * 0.003),
-      period,
-    };
-  });
+    return ((rows as any[]) || []).map((r) => {
+      const base = Number(r.base_salary || 0);
+      return {
+        nik: r.nik || '',
+        employeeName: r.name,
+        bpjsKesNumber: r.bpjs_kesehatan_number || undefined,
+        bpjsTkNumber: r.bpjs_ketenagakerjaan_number || undefined,
+        baseSalary: base,
+        bpjsKesEmployee: Math.round(Math.min(base, CAP_KESEHATAN) * 0.01),
+        bpjsKesEmployer: Math.round(Math.min(base, CAP_KESEHATAN) * 0.04),
+        jhtEmployee: Math.round(base * 0.02),
+        jhtEmployer: Math.round(base * 0.037),
+        jpEmployee: Math.round(Math.min(base, CAP_JP) * 0.01),
+        jpEmployer: Math.round(Math.min(base, CAP_JP) * 0.02),
+        jkkEmployer: Math.round(base * 0.0024),
+        jkmEmployer: Math.round(base * 0.003),
+        period,
+      };
+    });
+  } catch {
+    return [];
+  }
 }
 
 export interface PayrollPreflightIssue {
@@ -172,38 +212,43 @@ export async function runPayrollPreflight(
   tenantId?: string | null,
 ): Promise<{ ready: boolean; totalActive: number; issues: PayrollPreflightIssue[] }> {
   const tenantClause = tenantId ? 'AND e.tenant_id = :tenantId' : '';
-  const [rows] = await sequelize.query(`
-    SELECT e.id, e.name, e.department, e.nik,
-           es.base_salary, es.bank_account_number, es.bank_name,
-           es.npwp, es.tax_status, es.bpjs_kesehatan_number, es.bpjs_ketenagakerjaan_number
-    FROM employees e
-    LEFT JOIN employee_salaries es ON es.employee_id = e.id AND es.is_active = true
-    WHERE ${ACTIVE_EMPLOYEE_FILTER} ${tenantClause}
-    ORDER BY e.name
-  `, { replacements: { tenantId } });
+  const nikExpr = await nikSelectExpr(sequelize);
+  try {
+    const [rows] = await sequelize.query(`
+      SELECT e.id, e.name, e.department, (${nikExpr}) AS nik,
+             es.base_salary, es.bank_account_number, es.bank_name,
+             es.npwp, es.tax_status, es.bpjs_kesehatan_number, es.bpjs_ketenagakerjaan_number
+      FROM employees e
+      LEFT JOIN employee_salaries es ON es.employee_id = e.id AND es.is_active = true
+      WHERE ${ACTIVE_EMPLOYEE_FILTER} ${tenantClause}
+      ORDER BY e.name
+    `, { replacements: { tenantId } });
 
-  const issues: PayrollPreflightIssue[] = [];
-  for (const r of (rows as any[]) || []) {
-    const missing: string[] = [];
-    if (!r.base_salary || Number(r.base_salary) <= 0) missing.push('Gaji pokok');
-    if (!r.bank_account_number) missing.push('Rekening bank');
-    if (!r.nik) missing.push('NIK');
-    if (!r.npwp) missing.push('NPWP');
-    if (!r.tax_status) missing.push('Status PTKP');
-    if (!r.bpjs_kesehatan_number && !r.bpjs_ketenagakerjaan_number) missing.push('Nomor BPJS');
-    if (missing.length) {
-      issues.push({
-        employeeId: r.id,
-        employeeName: r.name,
-        department: r.department,
-        missing,
-      });
+    const issues: PayrollPreflightIssue[] = [];
+    for (const r of (rows as any[]) || []) {
+      const missing: string[] = [];
+      if (!r.base_salary || Number(r.base_salary) <= 0) missing.push('Gaji pokok');
+      if (!r.bank_account_number) missing.push('Rekening bank');
+      if (!r.nik) missing.push('NIK/kode karyawan');
+      if (!r.npwp) missing.push('NPWP');
+      if (!r.tax_status) missing.push('Status PTKP');
+      if (!r.bpjs_kesehatan_number && !r.bpjs_ketenagakerjaan_number) missing.push('Nomor BPJS');
+      if (missing.length) {
+        issues.push({
+          employeeId: r.id,
+          employeeName: r.name,
+          department: r.department,
+          missing,
+        });
+      }
     }
-  }
 
-  return {
-    ready: issues.length === 0,
-    totalActive: (rows as any[])?.length || 0,
-    issues,
-  };
+    return {
+      ready: issues.length === 0,
+      totalActive: (rows as any[])?.length || 0,
+      issues,
+    };
+  } catch {
+    return { ready: false, totalActive: 0, issues: [] };
+  }
 }
