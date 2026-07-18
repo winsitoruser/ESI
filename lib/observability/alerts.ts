@@ -23,6 +23,37 @@ function windowMin(): number {
   return Math.max(1, Number(process.env.OBS_ALERT_WINDOW_MIN || 15));
 }
 
+function isDiscordWebhook(url: string): boolean {
+  return /discord(?:app)?\.com\/api\/webhooks\//i.test(url);
+}
+
+function buildWebhookBody(message: string, errors: number, thr: number, win: number) {
+  const ui = 'https://humanify.id/platform/observability';
+  const line = `[Humanify] Observability alert: ${message}`;
+  return {
+    text: line, // Slack
+    content: line, // Discord
+    username: 'Humanify Alerts',
+    embeds: [
+      {
+        title: 'Observability alert',
+        description: message,
+        color: 0xdc2626,
+        fields: [
+          { name: 'Errors', value: String(errors), inline: true },
+          { name: 'Threshold', value: String(thr), inline: true },
+          { name: 'Window', value: `${win}m`, inline: true },
+        ],
+        url: ui,
+      },
+    ],
+    errors,
+    threshold: thr,
+    windowMin: win,
+    ui,
+  };
+}
+
 export async function evaluateObsErrorSpike(): Promise<ObsAlertResult> {
   const win = windowMin();
   const thr = threshold();
@@ -44,24 +75,19 @@ export async function evaluateObsErrorSpike(): Promise<ObsAlertResult> {
 
   if (!base.triggered) return base;
 
-  const body = {
-    text: `[Humanify] Observability alert: ${base.message}`,
-    content: `[Humanify] Observability alert: ${base.message}`, // Discord webhooks
-    errors,
-    threshold: thr,
-    windowMin: win,
-    ui: 'https://humanify.id/platform/observability',
-  };
-
+  const body = buildWebhookBody(base.message, errors, thr, win);
   const webhook = String(process.env.OBS_ALERT_WEBHOOK_URL || '').trim();
   if (webhook) {
     try {
+      const payload = isDiscordWebhook(webhook)
+        ? { content: body.content, username: body.username, embeds: body.embeds }
+        : body;
       const r = await fetch(webhook, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify(payload),
       });
-      base.webhooked = r.ok;
+      base.webhooked = r.ok || r.status === 204;
     } catch {
       base.webhooked = false;
     }
@@ -90,6 +116,7 @@ export async function evaluateObsErrorSpike(): Promise<ObsAlertResult> {
       alert: true,
       emailed: base.emailed,
       webhooked: base.webhooked,
+      channel: webhook && isDiscordWebhook(webhook) ? 'discord' : webhook ? 'webhook' : 'none',
     },
   });
 

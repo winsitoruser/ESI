@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
  * Dry-run POST to OBS_ALERT_WEBHOOK_URL (does not require error spike).
+ * Discord: https://discord.com/api/webhooks/...
  * Usage: OBS_ALERT_WEBHOOK_URL=... node scripts/probe-humanify-obs-webhook.js
- *        # or loads from .env via dotenv if present
  */
 try { require('dotenv').config(); } catch { /* optional */ }
 
@@ -12,12 +12,24 @@ if (!url) {
   process.exit(1);
 }
 
-const body = {
-  text: `[Humanify] Webhook probe OK @ ${new Date().toISOString()}`,
-  content: `[Humanify] Webhook probe OK @ ${new Date().toISOString()}`, // Discord
-  probe: true,
-  ui: 'https://humanify.id/platform/observability',
-};
+const isDiscord = /discord(?:app)?\.com\/api\/webhooks\//i.test(url);
+const at = new Date().toISOString();
+const line = `[Humanify] Webhook probe OK @ ${at}`;
+
+const body = isDiscord
+  ? {
+      content: line,
+      username: 'Humanify Alerts',
+      embeds: [
+        {
+          title: 'Webhook probe',
+          description: 'Discord alert channel connected.',
+          color: 0x22c55e,
+          url: 'https://humanify.id/platform/observability',
+        },
+      ],
+    }
+  : { text: line, content: line, probe: true };
 
 (async () => {
   const r = await fetch(url, {
@@ -26,9 +38,10 @@ const body = {
     body: JSON.stringify(body),
   });
   const t = await r.text().catch(() => '');
-  console.log(`HTTP ${r.status} ${r.statusText}`);
+  console.log(`channel=${isDiscord ? 'discord' : 'generic'} HTTP ${r.status} ${r.statusText}`);
   if (t) console.log(t.slice(0, 200));
-  process.exit(r.ok ? 0 : 1);
+  // Discord returns 204 No Content on success
+  process.exit(r.ok || r.status === 204 ? 0 : 1);
 })().catch((e) => {
   console.error(e);
   process.exit(1);

@@ -8,10 +8,10 @@ ENV_FILE="${ENV_FILE:-.env}"
 URL="${OBS_ALERT_WEBHOOK_URL:-}"
 
 if [ -z "$URL" ]; then
-  echo "Usage: OBS_ALERT_WEBHOOK_URL='https://hooks.slack.com/services/XXX/YYY/ZZZ' bash $0"
+  echo "Usage: OBS_ALERT_WEBHOOK_URL='https://discord.com/api/webhooks/ID/TOKEN' bash $0"
   echo ""
-  echo "Slack: Incoming Webhooks → Create → copy URL"
-  echo "Discord: Channel → Integrations → Webhooks → copy URL (JSON {content|text} supported via text field)"
+  echo "Discord (recommended): Channel → Integrations → Webhooks → New Webhook → copy URL"
+  echo "Slack (optional): Incoming Webhooks → copy URL"
   echo "Docs: docs/humanify-ops-alerts.md"
   exit 1
 fi
