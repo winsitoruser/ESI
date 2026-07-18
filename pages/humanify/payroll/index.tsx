@@ -54,6 +54,7 @@ export default function PayrollIndexPage() {
   const [mounted, setMounted] = useState(false);
   const [stats, setStats] = useState(USE_MOCK_UI ? MOCK_STATS : EMPTY_STATS);
   const [dataSource, setDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
+  const [fiscal, setFiscal] = useState<any>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -62,6 +63,9 @@ export default function PayrollIndexPage() {
         setStats({ ...(USE_MOCK_UI ? MOCK_STATS : EMPTY_STATS), ...json.stats });
         setDataSource(json.stats.totalEmployees > 0 ? 'live' : 'empty');
       }
+    }).catch(() => {});
+    fetch('/api/humanify/payroll?action=fiscal-signoff').then(r => r.json()).then(json => {
+      if (json.success) setFiscal(json.data);
     }).catch(() => {});
   }, []);
 
@@ -84,6 +88,32 @@ export default function PayrollIndexPage() {
           </div>
           <DataSourceBadge source={dataSource} />
         </div>
+
+        {fiscal && (
+          <div className={`rounded-xl border px-4 py-3 text-sm flex flex-wrap items-center justify-between gap-3 ${
+            fiscal.signedOff ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-amber-50 border-amber-200 text-amber-900'
+          }`}>
+            <div>
+              <p className="font-semibold">
+                Fiscal engine {fiscal.engine?.version || '1.x'}
+                {fiscal.signedOff ? ' · signed off' : ' · menunggu tanda tangan finance'}
+              </p>
+              <p className="text-xs mt-0.5 opacity-80">
+                Audit events: {fiscal.auditEventCount ?? 0}
+                {fiscal.lastApprovedRun?.run_code ? ` · last run ${fiscal.lastApprovedRun.run_code} (${fiscal.lastApprovedRun.status})` : ''}
+                {' · '}sample PKP 100jt → Rp {(fiscal.sample?.pkp100MTax || 0).toLocaleString('id-ID')}
+              </p>
+            </div>
+            <a
+              href="https://github.com/winsitoruser/ESI/blob/main/docs/humanify-payroll-fiscal-signoff.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-medium underline shrink-0"
+            >
+              Checklist sign-off →
+            </a>
+          </div>
+        )}
 
         {/* Summary Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

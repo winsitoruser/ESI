@@ -36,6 +36,7 @@ import { humanifySidebarConfig } from '@/config/humanify-sidebar.config';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
 import { useTranslation, Language, Currency, languageNames, languageFlags, currencySymbols, currencyNames, currencyFlags } from '@/lib/i18n';
 import { filterSidebarGroupsByPlan } from '@/lib/saas/plan-entitlements';
+import { filterHumanifySidebarByPersona } from '@/lib/humanify/sidebar-persona';
 
 export type HQPlatform = 'simesi' | 'humanify';
 
@@ -89,16 +90,17 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
     String(userRole || '').toLowerCase(),
   );
 
-  // Filter sidebar: role first, then Humanify plan features (Phase 2)
+  // Filter sidebar: role first, then Humanify plan features (Phase 2), then persona IA
   const filteredConfig = useMemo(() => {
     const byRole = filterSidebarConfig(baseSidebarConfig, userRole);
     if (!isHumanify) return byRole;
-    return {
+    const byPlan = {
       ...byRole,
       groups: filterSidebarGroupsByPlan(byRole.groups, planId || 'enterprise', {
         bypass: isPlatformOp,
       }),
     };
+    return filterHumanifySidebarByPersona(byPlan, userRole);
   }, [userRole, baseSidebarConfig, isHumanify, planId, isPlatformOp]);
 
   useEffect(() => {

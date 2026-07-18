@@ -1,6 +1,19 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-2 n1–n5** · doc upload UX · GA journey · DB backup · action digest · sales demo
+> Diperbarui: 19 Juli 2026 — **Wave-3** · fiscal sign-off · payslip audit · sidebar persona · Playwright GA
+
+## Wave-3 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w3-1 | Fiscal sign-off checklist + `?action=fiscal-signoff` banner | Done |
+| w3-2 | `payroll_audit_events` on approve/paid + optional release email | Done |
+| w3-3 | Playwright `e2e/humanify-ga-personas.spec.ts` | Done |
+| w3-4 | Sidebar persona filter (staff / manager / hr_admin) | Done |
+| w3-5 | Deploy + verify | In progress |
+
+Docs: `docs/humanify-payroll-fiscal-signoff.md`  
+Env: `HUMANIFY_FISCAL_SIGNED_OFF=true` · `PAYROLL_RELEASE_NOTIFY_EMAIL=`
 
 ## Wave-2 (19 Jul 2026)
 

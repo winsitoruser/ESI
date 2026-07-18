@@ -223,3 +223,27 @@ export function humanifyOnboardingReminderEmail(data: {
   const text = `${subject}\n\nLangkah ${data.currentStep}/${data.totalSteps}\n${data.continueUrl}`;
   return { subject, html, text };
 }
+
+export function humanifyPayslipReleasedEmail(opts: {
+  periodLabel: string;
+  runCode: string;
+  status: string;
+  slipUrl: string;
+}): { subject: string; html: string; text: string } {
+  const subject = `Humanify — Slip gaji ${opts.runCode} (${opts.status})`;
+  const bodyHtml = `
+    <p style="margin:0 0 12px;">Payroll run <strong>${escapeHtml(opts.runCode)}</strong> berstatus <strong>${escapeHtml(opts.status)}</strong>.</p>
+    ${emailInfoCard(`
+      <p style="margin:0;">Periode: ${escapeHtml(opts.periodLabel || '-')}</p>
+    `)}
+    <p style="margin:0;font-size:13px;color:#6b7280;">Karyawan dapat membuka slip di portal / halaman Slip Gaji.</p>`;
+  const html = wrapHumanifyEmail({
+    preheader: subject,
+    eyebrow: 'Payroll',
+    title: 'Slip gaji dirilis',
+    bodyHtml,
+    cta: { label: 'Buka Slip Gaji', href: opts.slipUrl },
+  });
+  const text = `${subject}\n${opts.periodLabel}\n${opts.slipUrl}`;
+  return { subject, html, text };
+}

@@ -113,6 +113,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         if (action === 'frequency') return getFrequencyOptions(req, res);
         if (action === 'preflight') return getPayrollPreflight(req, res, session);
         if (action === 'disbursement-preview') return res.json({ success: true, redirect: '/api/humanify/disbursement?action=preview' });
+        if (action === 'fiscal-signoff') return getFiscalSignoff(req, res, session);
+        if (action === 'payroll-audit') return getPayrollAudit(req, res, session);
         return getOverview(req, res, session);
       case 'POST':
         if (action === 'employee-salary') return upsertEmployeeSalary(req, res, session);
@@ -792,6 +794,21 @@ async function approvePayroll(req: NextApiRequest, res: NextApiResponse, session
       WHERE id = :runId AND tenant_id = :tenantId
     `, { replacements: { runId, tenantId, userId: isUuid(session.user.id) ? session.user.id : null } });
     if ((meta as any)?.rowCount === 0) return res.status(404).json({ success: false, error: 'Payroll run not found' });
+
+    try {
+      const { logPayrollAudit } = await import('@/lib/hris/payroll-audit');
+      await logPayrollAudit({
+        tenantId,
+        runId,
+        eventType: 'approved',
+        actorId: session.user?.id,
+        actorName: session.user?.name,
+        actorEmail: session.user?.email,
+        details: { status: 'approved' },
+        db: sequelize,
+      });
+    } catch { /* audit best-effort */ }
+
     return res.json({ success: true, message: 'Payroll approved' });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: e.message });
@@ -800,11 +817,18 @@ async function approvePayroll(req: NextApiRequest, res: NextApiResponse, session
 
 // ===== PUT: Update Run Status =====
 async function updateRunStatus(req: NextApiRequest, res: NextApiResponse, session: any) {
-  const { runId, status } = req.body;
+  const { runId, status, notifyEmployees } = req.body;
   if (!runId || !status || !sequelize) return res.status(400).json({ error: 'runId and status required' });
   const tenantId = session?.user?.tenantId;
   if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
   try {
+    const [beforeRows] = await sequelize.query(
+      `SELECT id, status, run_code, period_start, period_end FROM payroll_runs WHERE id = :runId AND tenant_id = :tenantId`,
+      { replacements: { runId, tenantId } }
+    );
+    const before = (beforeRows as any[])?.[0];
+    if (!before) return res.status(404).json({ success: false, error: 'Payroll run not found' });
+
     const [, meta] = await sequelize.query(`
       UPDATE payroll_runs SET status = :status, updated_at = NOW()
       WHERE id = :runId AND tenant_id = :tenantId
@@ -818,6 +842,41 @@ async function updateRunStatus(req: NextApiRequest, res: NextApiResponse, sessio
         );
       } catch { /* paid_at column may not exist on older schemas */ }
     }
+
+    try {
+      const { logPayrollAudit } = await import('@/lib/hris/payroll-audit');
+      const eventType = status === 'paid' ? 'paid' : status === 'released' ? 'released' : 'status_change';
+      await logPayrollAudit({
+        tenantId,
+        runId,
+        eventType: eventType as any,
+        actorId: session.user?.id,
+        actorName: session.user?.name,
+        actorEmail: session.user?.email,
+        details: { from: before.status, to: status, run_code: before.run_code },
+        db: sequelize,
+      });
+    } catch { /* audit best-effort */ }
+
+    // Optional branded notice to ops when payslips released/paid
+    if (notifyEmployees && (status === 'paid' || status === 'released')) {
+      try {
+        const to = process.env.PAYROLL_RELEASE_NOTIFY_EMAIL || process.env.OBS_ALERT_EMAIL;
+        if (to) {
+          const { humanifyPayslipReleasedEmail } = await import('@/lib/email/humanify-mails');
+          const { sendEmail } = await import('@/lib/email/sender');
+          const base = (process.env.NEXTAUTH_URL || 'https://humanify.id').replace(/\/$/, '');
+          const mail = humanifyPayslipReleasedEmail({
+            periodLabel: `${before.period_start || ''} s/d ${before.period_end || ''}`,
+            runCode: before.run_code || runId,
+            status,
+            slipUrl: `${base}/humanify/payroll/slip-gaji`,
+          });
+          await sendEmail({ to, subject: mail.subject, html: mail.html, text: mail.text });
+        }
+      } catch { /* email best-effort */ }
+    }
+
     return res.json({ success: true, message: `Status updated to ${status}` });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: e.message });
@@ -1670,4 +1729,69 @@ function getMockComponents() {
     { id: '6', code: 'BPJS_KES', name: 'BPJS Kesehatan', type: 'deduction', category: 'calculated', calculation_type: 'percentage', default_amount: 0, is_mandatory: true },
     { id: '7', code: 'BPJS_JHT', name: 'BPJS JHT', type: 'deduction', category: 'calculated', calculation_type: 'percentage', default_amount: 0, is_mandatory: true },
   ];
+}
+
+async function getFiscalSignoff(_req: NextApiRequest, res: NextApiResponse, session: any) {
+  const { FISCAL_ENGINE, ensurePayrollAuditTable } = await import('@/lib/hris/payroll-audit');
+  const { getPTKP, calculatePPh21Annual } = await import('@/lib/hris/pph21-calc');
+  const tenantId = session?.user?.tenantId || null;
+  await ensurePayrollAuditTable(sequelize);
+
+  let lastApproved: any = null;
+  let auditCount = 0;
+  if (sequelize && tenantId) {
+    try {
+      const [runs] = await sequelize.query(
+        `SELECT id, run_code, status, approved_at, paid_at, period_start, period_end
+         FROM payroll_runs WHERE tenant_id = :tid AND status IN ('approved','paid','released')
+         ORDER BY COALESCE(approved_at, updated_at) DESC NULLS LAST LIMIT 1`,
+        { replacements: { tid: tenantId } }
+      );
+      lastApproved = (runs as any[])?.[0] || null;
+    } catch { /* */ }
+    try {
+      const [c] = await sequelize.query(
+        `SELECT COUNT(*)::int AS c FROM payroll_audit_events WHERE tenant_id = :tid`,
+        { replacements: { tid: tenantId } }
+      );
+      auditCount = (c as any[])?.[0]?.c || 0;
+    } catch { /* */ }
+  }
+
+  const sampleTax = calculatePPh21Annual(100_000_000);
+  const signedOff = String(process.env.HUMANIFY_FISCAL_SIGNED_OFF || '').toLowerCase() === 'true';
+
+  return res.json({
+    success: true,
+    data: {
+      engine: FISCAL_ENGINE,
+      signedOff,
+      sample: { ptkpTK0: getPTKP('TK/0'), pkp100MTax: sampleTax },
+      lastApprovedRun: lastApproved,
+      auditEventCount: auditCount,
+      checklistPath: 'docs/humanify-payroll-fiscal-signoff.md',
+    },
+  });
+}
+
+async function getPayrollAudit(req: NextApiRequest, res: NextApiResponse, session: any) {
+  const tenantId = session?.user?.tenantId;
+  if (!tenantId || !sequelize) return res.json({ success: true, data: [] });
+  const { ensurePayrollAuditTable } = await import('@/lib/hris/payroll-audit');
+  await ensurePayrollAuditTable(sequelize);
+  const limit = Math.min(100, parseInt(String(req.query.limit || '30'), 10) || 30);
+  const runId = req.query.runId as string | undefined;
+  try {
+    let sql = `SELECT * FROM payroll_audit_events WHERE tenant_id = :tid`;
+    const replacements: any = { tid: tenantId, lim: limit };
+    if (runId) {
+      sql += ` AND payroll_run_id = :runId`;
+      replacements.runId = runId;
+    }
+    sql += ` ORDER BY created_at DESC LIMIT :lim`;
+    const [rows] = await sequelize.query(sql, { replacements });
+    return res.json({ success: true, data: rows || [] });
+  } catch (e: any) {
+    return res.json({ success: true, data: [], warning: e.message });
+  }
 }
