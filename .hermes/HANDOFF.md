@@ -1,6 +1,20 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-3** · fiscal sign-off · payslip audit · sidebar persona · Playwright GA
+> Diperbarui: 19 Juli 2026 — **Wave-4** · SSO IdP QC · multi-role login · bulk employee edit
+
+## Wave-4 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w4-1 | SSO IdP QC report (`smoke:sso-idp-checklist` + QC panel di `/humanify/sso`) | Done |
+| w4-2 | Multi-role invite smoke + Playwright (`smoke:multi-role`, `test:e2e:humanify:multi-role`) | Done |
+| w4-3 | Bulk edit karyawan API + UI checkbox bar | Done |
+| w4-4 | Undo window 24 jam (`employee_bulk_edit_batches`) | Done |
+| w4-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:multi-role` · `npm run smoke:employees-bulk` · `npm run smoke:sso-idp-checklist`  
+API: `POST /api/humanify/employees-bulk?action=update|undo`  
+Env (ops): `HUMANIFY_INVITE_RETURN_TOKEN=true` (agar smoke/e2e dapat token saat SMTP aktif) · `HUMANIFY_SSO_IDP_QC_DONE=okta,azure` (informasional)
 
 ## Wave-3 (19 Jul 2026)
 

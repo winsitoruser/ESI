@@ -89,6 +89,12 @@ export default function EmployeeManagementPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
 
+  // ── Bulk edit ──────────────────────────────────────────────────────────────
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkPatch, setBulkPatch] = useState({ department: '', position: '', status: '' });
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [lastBulkBatchId, setLastBulkBatchId] = useState<string | null>(null);
+
   // Toast
   const [toast, setToast] = useState<any>(null);
   const fmtDate = (d: any) => d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
@@ -204,6 +210,7 @@ export default function EmployeeManagementPage() {
     if (mounted && typeof q === 'string' && q) { setSearch(q); setPage(1); }
   }, [mounted, router.query.search]);
   useEffect(() => { if (mounted) fetchEmployees(); }, [mounted, search, filterDept, filterStatus, page]);
+  useEffect(() => { setSelectedIds(new Set()); }, [page, search, filterDept, filterStatus]);
 
   useEffect(() => {
     if (!selectedEmployee?.id) return;
@@ -211,6 +218,82 @@ export default function EmployeeManagementPage() {
       fetchTabExtra(detailTab, selectedEmployee.id);
     }
   }, [detailTab, selectedEmployee?.id, fetchTabExtra]);
+
+  const toggleSelect = (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === employees.length) setSelectedIds(new Set());
+    else setSelectedIds(new Set(employees.map((e: any) => String(e.id))));
+  };
+
+  const applyBulkEdit = async () => {
+    const patch: Record<string, string> = {};
+    if (bulkPatch.department.trim()) patch.department = bulkPatch.department.trim();
+    if (bulkPatch.position.trim()) patch.position = bulkPatch.position.trim();
+    if (bulkPatch.status.trim()) patch.status = bulkPatch.status.trim();
+    if (!Object.keys(patch).length) {
+      showToast('error', 'Isi minimal satu field (departemen / jabatan / status)');
+      return;
+    }
+    if (!selectedIds.size) {
+      showToast('error', 'Pilih minimal satu karyawan');
+      return;
+    }
+    setBulkLoading(true);
+    try {
+      const res = await fetch('/api/humanify/employees-bulk?action=update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [...selectedIds], patch }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        showToast('success', json.message || 'Bulk update berhasil');
+        setLastBulkBatchId(json.data?.batchId || null);
+        setSelectedIds(new Set());
+        setBulkPatch({ department: '', position: '', status: '' });
+        fetchEmployees();
+      } else {
+        showToast('error', json.error || 'Bulk update gagal');
+      }
+    } catch {
+      showToast('error', 'Bulk update gagal');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const undoBulkEdit = async () => {
+    if (!lastBulkBatchId) return;
+    setBulkLoading(true);
+    try {
+      const res = await fetch('/api/humanify/employees-bulk?action=undo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ batchId: lastBulkBatchId }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        showToast('success', json.message || 'Undo berhasil');
+        setLastBulkBatchId(null);
+        fetchEmployees();
+      } else {
+        showToast('error', json.error || 'Undo gagal');
+      }
+    } catch {
+      showToast('error', 'Undo gagal');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
 
   const fetchEmployees = async () => {
     setLoading(true);
@@ -329,6 +412,28 @@ export default function EmployeeManagementPage() {
   // Kolom "Gaji" & "NIK" hanya tampil jika punya permission yg sesuai.
   // ==============================
   const columnDefs: Array<PermissionAwareColumn & { render: (emp: any) => React.ReactNode; align?: 'left' | 'center' | 'right' }> = [
+    {
+      key: 'select',
+      header: (
+        <input
+          type="checkbox"
+          aria-label="Pilih semua"
+          checked={employees.length > 0 && selectedIds.size === employees.length}
+          onChange={toggleSelectAll}
+          onClick={(e) => e.stopPropagation()}
+        />
+      ) as any,
+      align: 'center',
+      render: (emp) => (
+        <input
+          type="checkbox"
+          aria-label={`Pilih ${emp.name || ''}`}
+          checked={selectedIds.has(String(emp.id))}
+          onChange={() => toggleSelect(String(emp.id))}
+          onClick={(e) => e.stopPropagation()}
+        />
+      ),
+    },
     {
       key: 'employee',
       header: t('hris.employee'),
@@ -522,6 +627,75 @@ export default function EmployeeManagementPage() {
               </div>
             ) : (
             <>
+            {(selectedIds.size > 0 || lastBulkBatchId) && (
+              <div className="bg-violet-50 border border-violet-200 rounded-xl p-3 flex flex-wrap items-end gap-3">
+                <p className="text-sm text-violet-900 font-medium w-full md:w-auto">
+                  {selectedIds.size > 0 ? `${selectedIds.size} dipilih` : 'Undo tersedia'}
+                </p>
+                {selectedIds.size > 0 && (
+                  <>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Departemen</label>
+                      <input
+                        className="border rounded-lg px-2 py-1.5 text-sm w-36"
+                        value={bulkPatch.department}
+                        onChange={(e) => setBulkPatch((p) => ({ ...p, department: e.target.value }))}
+                        placeholder="opsional"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Jabatan</label>
+                      <input
+                        className="border rounded-lg px-2 py-1.5 text-sm w-36"
+                        value={bulkPatch.position}
+                        onChange={(e) => setBulkPatch((p) => ({ ...p, position: e.target.value }))}
+                        placeholder="opsional"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Status</label>
+                      <select
+                        className="border rounded-lg px-2 py-1.5 text-sm w-36"
+                        value={bulkPatch.status}
+                        onChange={(e) => setBulkPatch((p) => ({ ...p, status: e.target.value }))}
+                      >
+                        <option value="">—</option>
+                        <option value="ACTIVE">ACTIVE</option>
+                        <option value="INACTIVE">INACTIVE</option>
+                        <option value="ON_LEAVE">ON_LEAVE</option>
+                      </select>
+                    </div>
+                    <CanAccess anyPermission={['employees.update', 'employees.edit', 'employees.*', 'hris.*']}>
+                      <button
+                        type="button"
+                        disabled={bulkLoading}
+                        onClick={applyBulkEdit}
+                        className="px-3 py-1.5 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 disabled:opacity-50"
+                      >
+                        Terapkan
+                      </button>
+                    </CanAccess>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedIds(new Set())}
+                      className="px-3 py-1.5 border rounded-lg text-sm text-gray-600 hover:bg-white"
+                    >
+                      Batal
+                    </button>
+                  </>
+                )}
+                {lastBulkBatchId && (
+                  <button
+                    type="button"
+                    disabled={bulkLoading}
+                    onClick={undoBulkEdit}
+                    className="px-3 py-1.5 border border-amber-300 bg-amber-50 text-amber-900 rounded-lg text-sm font-medium disabled:opacity-50"
+                  >
+                    Undo batch (24 jam)
+                  </button>
+                )}
+              </div>
+            )}
             {/* Employee Table — kolom Gaji/NIK otomatis disembunyikan via useFilteredColumns */}
             <div className="bg-white rounded-xl border overflow-hidden">
               <div className="overflow-x-auto">

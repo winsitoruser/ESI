@@ -58,4 +58,12 @@ SMOKE_BASE_URL=https://humanify.id npm run smoke:sso-idp-checklist
 
 - Do **not** require customer IdP for every release — `smoke:sso-acs` (self-signed) is the gate.
 - Real IdP QC: one staging/QC tenant per major IdP family before GA enterprise deals.
+- After completing real IdP QC for a family, record on VPS: `HUMANIFY_SSO_IDP_QC_DONE=okta,azure` (comma list) — informational only, not a hard gate.
 - Disable: uncheck Enabled on `/humanify/sso` (credentials login remains).
+
+## Synthetic QC report
+
+```bash
+SMOKE_BASE_URL=https://humanify.id npm run smoke:sso-idp-checklist
+# prints QC_REPORT_JSON=… with metadata/ACS/login/health/runbook checks
+```

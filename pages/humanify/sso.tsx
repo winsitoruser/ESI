@@ -136,6 +136,18 @@ export default function HumanifySsoPage() {
             </span>
           </div>
 
+          <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+            <p className="font-semibold text-slate-900 mb-1">QC IdP (internal)</p>
+            <p className="text-slate-500 mb-2">
+              Gate rilis pakai synthetic ACS — tidak butuh kredensial customer.
+              QC Okta / Azure / Google Workspace: satu tenant staging per keluarga IdP (lihat runbook).
+            </p>
+            <ul className="list-disc pl-5 text-xs text-slate-600 space-y-1">
+              <li>Synthetic: <code className="bg-slate-100 px-1 rounded">npm run smoke:sso-acs</code> + <code className="bg-slate-100 px-1 rounded">smoke:sso-idp-checklist</code></li>
+              <li>Runbook: <a className="text-violet-600 hover:underline" href="/docs/humanify-sso-idp-runbook.md" target="_blank" rel="noreferrer">humanify-sso-idp-runbook.md</a></li>
+            </ul>
+          </div>
+
           <div className="bg-white border border-slate-200 rounded-2xl p-6">
             <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-emerald-600" /> Detail Service Provider (SP)
