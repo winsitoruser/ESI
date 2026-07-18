@@ -6,13 +6,15 @@ import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import DocumentExportButton from '@/components/documents/DocumentExportButton';
 import {
-  Search, FileText, Download, Eye, X, Calendar, Users, DollarSign,
-  ChevronRight, Filter, Printer, CheckCircle, AlertCircle, Clock,
-  Building2, CreditCard, TrendingUp, ArrowLeft
+  Search, FileText, Download, Eye, X, Users, DollarSign,
+  CheckCircle, AlertCircle, Clock, Lock, CreditCard, TrendingUp, ArrowLeft
 } from 'lucide-react';
 import Link from 'next/link';
 
-const fmtCurrency = (n: number) => `Rp ${(n || 0).toLocaleString('id-ID')}`;
+const UNLOCK_STORAGE_KEY = 'humanify_payslip_unlock';
+
+const fmtCurrency = (n: number | null | undefined) =>
+  n == null || Number.isNaN(Number(n)) ? '••••' : `Rp ${Number(n).toLocaleString('id-ID')}`;
 const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
 
 interface PayslipItem {
@@ -45,25 +47,72 @@ export default function SlipGajiPage() {
   const [filterPeriod, setFilterPeriod] = useState('');
   const [selectedPayslip, setSelectedPayslip] = useState<PayslipItem | null>(null);
   const [toast, setToast] = useState<{ type: string; message: string } | null>(null);
+  const [locked, setLocked] = useState(false);
+  const [gateRequired, setGateRequired] = useState(false);
+  const [unlockPassword, setUnlockPassword] = useState('');
+  const [unlocking, setUnlocking] = useState(false);
 
   useEffect(() => { setMounted(true); fetchPayslips(); }, []);
 
-  const fetchPayslips = async () => {
+  const fetchPayslips = async (tokenOverride?: string | null) => {
     setLoading(true);
     try {
-      const res = await fetch('/api/humanify/payroll?action=payslip');
+      const token = tokenOverride !== undefined
+        ? tokenOverride
+        : (typeof window !== 'undefined' ? sessionStorage.getItem(UNLOCK_STORAGE_KEY) : null);
+      const headers: Record<string, string> = {};
+      if (token) headers['X-Payslip-Unlock'] = token;
+      const res = await fetch('/api/humanify/payroll?action=payslip', { headers });
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         setPayslips(json.data);
         setDataSource(json.data.length ? 'live' : 'empty');
+        setLocked(Boolean(json.locked));
+        setGateRequired(Boolean(json.gateRequired));
       } else {
         setPayslips(USE_MOCK_UI ? MOCK_PAYSLIPS : []);
         if (USE_MOCK_UI) setDataSource('demo');
+        setLocked(false);
       }
     } catch {
       setPayslips(USE_MOCK_UI ? MOCK_PAYSLIPS : []);
       if (USE_MOCK_UI) setDataSource('demo');
     } finally { setLoading(false); }
+  };
+
+  const handleUnlock = async () => {
+    if (!unlockPassword.trim()) {
+      setToast({ type: 'error', message: 'Masukkan password akun Anda' });
+      return;
+    }
+    setUnlocking(true);
+    try {
+      const res = await fetch('/api/humanify/payroll?action=payslip-unlock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: unlockPassword }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        setToast({ type: 'error', message: json.error || 'Unlock gagal' });
+        return;
+      }
+      const token = json.data?.unlockToken;
+      if (token) {
+        sessionStorage.setItem(UNLOCK_STORAGE_KEY, token);
+        setUnlockPassword('');
+        setToast({ type: 'success', message: 'Slip gaji terbuka sementara' });
+        await fetchPayslips(token);
+      } else {
+        setLocked(false);
+        setGateRequired(false);
+        await fetchPayslips(null);
+      }
+    } catch {
+      setToast({ type: 'error', message: 'Gagal menghubungi server' });
+    } finally {
+      setUnlocking(false);
+    }
   };
 
   const filtered = useMemo(() => {
@@ -94,6 +143,38 @@ export default function SlipGajiPage() {
           <DataSourceBadge source={dataSource} />
           <a href="/api/humanify/payroll?action=export&type=payslip" download className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700"><Download className="w-4 h-4" /> Export CSV</a>
         </div>
+
+        {(locked || gateRequired) && locked && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-end gap-3">
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-amber-900 flex items-center gap-2">
+                <Lock className="w-4 h-4" /> Angka slip gaji terkunci
+              </p>
+              <p className="text-xs text-amber-800 mt-1">
+                Masukkan password akun Anda untuk membuka nominal (sesi sementara).
+              </p>
+            </div>
+            <div className="flex gap-2 items-center">
+              <input
+                type="password"
+                autoComplete="current-password"
+                placeholder="Password"
+                value={unlockPassword}
+                onChange={(e) => setUnlockPassword(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleUnlock(); }}
+                className="px-3 py-2 border border-amber-300 rounded-lg text-sm bg-white min-w-[180px]"
+              />
+              <button
+                type="button"
+                disabled={unlocking}
+                onClick={handleUnlock}
+                className="px-4 py-2 bg-amber-700 text-white rounded-lg text-sm hover:bg-amber-800 disabled:opacity-60"
+              >
+                {unlocking ? 'Membuka…' : 'Buka'}
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
@@ -162,7 +243,19 @@ export default function SlipGajiPage() {
                       <td className="px-4 py-3 text-right text-sm font-bold text-green-600">{fmtCurrency(p.net_salary)}</td>
                       <td className="px-4 py-3 text-center"><span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${p.run_status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-violet-100 text-violet-700'}`}>{p.run_status === 'paid' ? 'Dibayar' : 'Proses'}</span></td>
                       <td className="px-4 py-3 text-center">
-                        <button onClick={() => setSelectedPayslip(p)} className="p-1.5 text-violet-600 hover:bg-violet-50 rounded" title="Detail"><Eye className="w-4 h-4" /></button>
+                        <button
+                          onClick={() => {
+                            if (locked) {
+                              setToast({ type: 'error', message: 'Buka kunci slip gaji dulu' });
+                              return;
+                            }
+                            setSelectedPayslip(p);
+                          }}
+                          className="p-1.5 text-violet-600 hover:bg-violet-50 rounded"
+                          title="Detail"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
                       </td>
                     </tr>
                   ))}

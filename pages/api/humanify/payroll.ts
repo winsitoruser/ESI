@@ -103,6 +103,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         if (action === 'employee-salaries') return getEmployeeSalaries(req, res, session);
         if (action === 'runs') return getPayrollRuns(req, res, session);
         if (action === 'payslip') return getPayslip(req, res, session);
+        if (action === 'payslip-gate') return getPayslipGate(req, res);
         if (action === 'thr') return getTHR(req, res, session);
         if (action === 'bpjs') return getBPJS(req, res, session);
         if (action === 'pph21') return getPPh21Report(req, res, session);
@@ -124,6 +125,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         if (action === 'component') return createComponent(req, res, session);
         if (action === 'generate-from-attendance') return generatePayrollFromAttendance(req, res, session);
         if (action === 'sync-overtime') return syncOvertimeToAttendance(req, res, session);
+        if (action === 'payslip-unlock') return unlockPayslip(req, res, session);
         return res.status(400).json({ error: 'Unknown action' });
       case 'PUT':
         if (action === 'component') return updateComponent(req, res, session);
@@ -903,6 +905,70 @@ async function updateRunStatus(req: NextApiRequest, res: NextApiResponse, sessio
   }
 }
 
+// ===== GET: Payslip gate status =====
+async function getPayslipGate(_req: NextApiRequest, res: NextApiResponse) {
+  const { isPayslipPasswordGateEnabled, getPayslipUnlockTtlMs } = await import('@/lib/hris/payslip-view-gate');
+  return res.json({
+    success: true,
+    data: {
+      required: isPayslipPasswordGateEnabled(),
+      ttlMinutes: Math.round(getPayslipUnlockTtlMs() / 60_000),
+    },
+  });
+}
+
+// ===== POST: Unlock payslip amounts (password re-auth) =====
+async function unlockPayslip(req: NextApiRequest, res: NextApiResponse, session: any) {
+  const { isPayslipPasswordGateEnabled, mintPayslipUnlockToken, getPayslipUnlockTtlMs } = await import('@/lib/hris/payslip-view-gate');
+  if (!isPayslipPasswordGateEnabled()) {
+    return res.json({ success: true, data: { required: false, unlockToken: null } });
+  }
+  const password = String(req.body?.password || '').trim();
+  if (!password) return res.status(400).json({ success: false, error: 'password required', code: 'PAYSLIP_PASSWORD_REQUIRED' });
+
+  const tenantId = session?.user?.tenantId;
+  const userId = session?.user?.id;
+  const email = session?.user?.email;
+  if (!tenantId || !userId) return res.status(403).json({ success: false, error: 'NO_TENANT', code: 'NO_TENANT' });
+
+  try {
+    const bcrypt = await import('bcryptjs');
+    let User: any;
+    try { User = require('../../../models/User'); } catch { /* */ }
+    if (!User) return res.status(500).json({ success: false, error: 'User model unavailable' });
+
+    const user = await User.findOne({ where: email ? { email } : { id: userId } });
+    if (!user?.password) return res.status(400).json({ success: false, error: 'Akun tidak mendukung unlock password', code: 'PAYSLIP_UNLOCK_UNAVAILABLE' });
+
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) return res.status(401).json({ success: false, error: 'Password salah', code: 'PAYSLIP_PASSWORD_INVALID' });
+
+    const unlockToken = mintPayslipUnlockToken({ userId: String(userId), tenantId: String(tenantId) });
+    try {
+      const { logPayrollAudit } = await import('@/lib/hris/payroll-audit');
+      await logPayrollAudit({
+        tenantId: String(tenantId),
+        runId: 'payslip-unlock',
+        eventType: 'payslip_unlock',
+        actorId: String(userId),
+        actorName: session?.user?.name || null,
+        actorEmail: email || null,
+        details: { ttlMinutes: Math.round(getPayslipUnlockTtlMs() / 60_000) },
+      });
+    } catch { /* non-blocking */ }
+
+    return res.json({
+      success: true,
+      data: {
+        unlockToken,
+        expiresInMs: getPayslipUnlockTtlMs(),
+      },
+    });
+  } catch (e: any) {
+    return res.status(500).json({ success: false, error: e.message || 'Unlock failed' });
+  }
+}
+
 // ===== GET: Payslip =====
 async function getPayslip(req: NextApiRequest, res: NextApiResponse, session: any) {
   const { runId, employeeId } = req.query;
@@ -910,6 +976,19 @@ async function getPayslip(req: NextApiRequest, res: NextApiResponse, session: an
   const tenantId = session?.user?.tenantId;
   if (!tenantId) return res.json({ success: true, data: [] });
   try {
+    const {
+      isPayslipPasswordGateEnabled,
+      verifyPayslipUnlockToken,
+      maskPayslipRow,
+    } = await import('@/lib/hris/payslip-view-gate');
+
+    const gateOn = isPayslipPasswordGateEnabled();
+    const unlockHeader = String(req.headers['x-payslip-unlock'] || req.query.unlock || '').trim();
+    const unlocked = !gateOn || verifyPayslipUnlockToken(unlockHeader, {
+      userId: String(session?.user?.id || ''),
+      tenantId: String(tenantId),
+    });
+
     let where = 'WHERE pr.tenant_id = :tenantId';
     const replacements: any = { tenantId };
     if (runId) { where += ' AND pi.payroll_run_id = :runId'; replacements.runId = runId; }
@@ -925,9 +1004,13 @@ async function getPayslip(req: NextApiRequest, res: NextApiResponse, session: an
       ORDER BY pr.period_start DESC, COALESCE(pi.employee_name, e.name)
     `, { replacements });
 
-    const data = (rows || []).map(mapPayslipRow);
-    // Audit payslip opens when scoped to a run or employee (HRS-3)
-    if (data.length && (runId || employeeId)) {
+    let data = (rows || []).map(mapPayslipRow);
+    if (!unlocked) {
+      data = data.map((row: any) => maskPayslipRow(row));
+    }
+
+    // Audit payslip opens when scoped to a run or employee (HRS-3) — only when unlocked
+    if (unlocked && data.length && (runId || employeeId)) {
       try {
         const { logPayrollAudit } = await import('@/lib/hris/payroll-audit');
         await logPayrollAudit({
@@ -945,7 +1028,12 @@ async function getPayslip(req: NextApiRequest, res: NextApiResponse, session: an
       } catch { /* non-blocking */ }
     }
 
-    return res.json({ success: true, data });
+    return res.json({
+      success: true,
+      data,
+      locked: gateOn && !unlocked,
+      gateRequired: gateOn,
+    });
   } catch (e: any) {
     return res.json({ success: true, data: [] });
   }

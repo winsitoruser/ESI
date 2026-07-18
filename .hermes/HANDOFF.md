@@ -1,6 +1,20 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-9** · mock guard · GA checklist · device-sync idempotency · RLS lab docs
+> Diperbarui: 19 Juli 2026 — **Wave-10** · payslip password gate · recruitment idempotency · doc expiry report
+
+## Wave-10 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w10-1 | Payslip password gate (`HUMANIFY_PAYSLIP_REQUIRE_PASSWORD` + unlock token) | Done |
+| w10-2 | Recruitment webhook Idempotency-Key | Done |
+| w10-3 | Smoke device-sync / recruitment idempotency | Done |
+| w10-4 | Doc expiry report + `docs/humanify-doc-retention.md` | Done |
+| w10-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:payslip-gate` · `npm run smoke:device-sync-idempotency` · `npm run report:doc-expiry`
+
+Env (ops, opsional): `HUMANIFY_PAYSLIP_REQUIRE_PASSWORD=true`, `HUMANIFY_PAYSLIP_UNLOCK_TTL_MIN=15`
 
 ## Wave-9 (19 Jul 2026)
 
@@ -10,7 +24,7 @@
 | w9-2 | Checklist hari pertama HR di `/humanify` | Done |
 | w9-3 | Device-sync Idempotency-Key | Done |
 | w9-4 | `docs/humanify-rls-strict-staging.md` | Done |
-| w9-5 | Deploy + verify | Pending |
+| w9-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:mock-guard`
 

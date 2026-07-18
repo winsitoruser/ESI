@@ -1,11 +1,16 @@
 /**
  * Public recruitment webhook — Dealls, LinkedIn, Indeed, etc.
  * POST /api/humanify/webhooks/recruitment
- * Headers: x-webhook-signature (optional in dev)
- * Body: { provider, event, payload, signature? }
+ * Headers: x-webhook-signature (optional in dev), Idempotency-Key (recommended)
+ * Body: { provider, event, payload, signature?, tenant_id? }
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { upsertCandidateFromWebhook, validateWebhookSignature } from '@/lib/hris/webhook-candidate-sync';
+import {
+  buildRecruitmentIdempotencyKey,
+  claimRecruitmentWebhookEvent,
+  storeRecruitmentWebhookResult,
+} from '@/lib/hris/recruitment-webhook-idempotency';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed' });
@@ -27,9 +32,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ success: false, error: 'candidate.full_name required' });
     }
 
+    const idemKey = buildRecruitmentIdempotencyKey({
+      headerKey: String(req.headers['idempotency-key'] || '').trim(),
+      provider,
+      event,
+      body: req.body || {},
+    });
+
+    const claim = await claimRecruitmentWebhookEvent({
+      key: idemKey,
+      provider: provider || 'unknown',
+      tenantId,
+    });
+    if (claim.duplicate) {
+      return res.status(200).json({
+        success: true,
+        duplicate: true,
+        ...(claim.prior && typeof claim.prior === 'object' ? claim.prior : {}),
+      });
+    }
+
     const syncResult = await upsertCandidateFromWebhook(provider || 'unknown', candidatePayload, tenantId);
 
-    return res.json({
+    const responseBody = {
       success: true,
       data: {
         id: `wh-${Date.now()}`,
@@ -37,9 +62,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         event: event || 'candidate.applied',
         receivedAt: new Date().toISOString(),
         syncResult,
+        idempotencyKey: idemKey,
       },
       message: `Kandidat ${syncResult.candidateName} ${syncResult.action === 'created' ? 'ditambahkan' : 'diperbarui'}`,
-    });
+    };
+
+    await storeRecruitmentWebhookResult({ key: idemKey, result: responseBody });
+
+    return res.json(responseBody);
   } catch (error: any) {
     console.warn('[recruitment webhook]', error?.message);
     return res.status(500).json({ success: false, error: error.message || 'Webhook processing failed' });

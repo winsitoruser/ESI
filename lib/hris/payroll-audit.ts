@@ -37,7 +37,7 @@ export async function ensurePayrollAuditTable(db?: any): Promise<boolean> {
 export async function logPayrollAudit(opts: {
   tenantId: string | null;
   runId: string;
-  eventType: 'approved' | 'status_change' | 'released' | 'paid' | 'payslip_view' | 'fiscal_note';
+  eventType: 'approved' | 'status_change' | 'released' | 'paid' | 'payslip_view' | 'payslip_unlock' | 'fiscal_note';
   actorId?: string | null;
   actorName?: string | null;
   actorEmail?: string | null;
