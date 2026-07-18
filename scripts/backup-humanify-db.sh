@@ -43,10 +43,23 @@ if ! command -v pg_dump >/dev/null 2>&1; then
   exit 1
 fi
 
-pg_dump \
-  -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" \
-  --no-owner --no-acl --format=plain \
-  | gzip -c > "$DUMP_FILE"
+# Prefer postgres superuser so FORCE RLS tables (e.g. company_regulations) dump cleanly.
+DUMP_OK=0
+if sudo -u postgres pg_dump -d "$DB_NAME" --no-owner --no-acl --format=plain 2>/tmp/humanify-pgdump.err | gzip -c > "$DUMP_FILE"; then
+  if [[ -s "$DUMP_FILE" ]]; then
+    DUMP_OK=1
+  fi
+fi
+
+if [[ "$DUMP_OK" -ne 1 ]]; then
+  echo "[!!] postgres dump failed — fallback as ${DB_USER} (may hit RLS)"
+  cat /tmp/humanify-pgdump.err 2>/dev/null | tail -5 || true
+  export PGPASSWORD="${DB_PASSWORD:-${POSTGRES_PASSWORD:-}}"
+  PGOPTIONS='-c row_security=off' pg_dump \
+    -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" \
+    --no-owner --no-acl --format=plain \
+    | gzip -c > "$DUMP_FILE"
+fi
 
 SIZE="$(du -h "$DUMP_FILE" | awk '{print $1}')"
 ln -sfn "$DUMP_FILE" "$LATEST_LINK"
