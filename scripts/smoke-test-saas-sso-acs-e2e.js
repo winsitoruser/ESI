@@ -139,7 +139,29 @@ async function main() {
   const ssoEmail = `acs-user-${stamp}@${domain}`;
   let loginResp;
   try {
-    loginResp = await idp.createLoginResponse(spEntity, {}, 'post', ssoEmail);
+    loginResp = await idp.createLoginResponse(spEntity, {}, 'post', ssoEmail, (template) => {
+      const id = `_${crypto.randomBytes(10).toString('hex')}`;
+      const now = new Date();
+      const later = new Date(now.getTime() + 5 * 60 * 1000);
+      const context = saml.SamlLib.replaceTagsByValue(template, {
+        ID: id,
+        AssertionID: `_${crypto.randomBytes(10).toString('hex')}`,
+        Destination: spMeta.acsUrl,
+        Audience: spMeta.entityId,
+        SubjectRecipient: spMeta.acsUrl,
+        NameIDFormat: 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress',
+        NameID: ssoEmail,
+        Issuer: idpEntityId,
+        IssueInstant: now.toISOString(),
+        ConditionsNotBefore: now.toISOString(),
+        ConditionsNotOnOrAfter: later.toISOString(),
+        SubjectConfirmationDataNotOnOrAfter: later.toISOString(),
+        AuthnInstant: now.toISOString(),
+        SessionIndex: `_${crypto.randomBytes(8).toString('hex')}`,
+        StatusCode: 'urn:oasis:names:tc:SAML:2.0:status:Success',
+      });
+      return { id, context };
+    });
   } catch (e) {
     fail('createLoginResponse', e.message);
     keys.cleanup();
