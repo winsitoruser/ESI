@@ -30,6 +30,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   try {
+    const session = (req as any).session;
+    const sessionTenantId = (session?.user as any)?.tenantId || null;
+    const role = String((session?.user as any)?.role || '').toLowerCase();
+    const isPlatformOps = ['super_admin', 'superadmin', 'platform_admin'].includes(role);
+
     const { deviceId, secretKey, records, format, mode } = req.body;
 
     if (!deviceId) {
@@ -40,8 +45,13 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     const isManual = mode === 'manual' || mode === 'heartbeat';
     let recordList = Array.isArray(records) ? records : [];
 
+    const deviceWhere: Record<string, unknown> = { id: deviceId, status: 'active' };
+    if (sessionTenantId && !isPlatformOps) {
+      deviceWhere.tenantId = sessionTenantId;
+    }
+
     if (isZktecoPull && AttendanceDevice) {
-      const deviceForPull = await AttendanceDevice.findOne({ where: { id: deviceId, status: 'active' } });
+      const deviceForPull = await AttendanceDevice.findOne({ where: deviceWhere });
       if (deviceForPull) {
         const pull = await pullZktecoAttendance({
           id: deviceForPull.id,
@@ -87,11 +97,18 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     let device: any;
     try {
       device = await AttendanceDevice.findOne({
-        where: { id: deviceId, status: 'active' }
+        where: deviceWhere,
       });
     } catch (error: any) {
       const msg = String(error?.message || error?.original?.message || '');
       if (msg.includes('does not exist') || error?.original?.code === '42P01') {
+        if (!allowHrMockFallback()) {
+          return res.status(503).json({
+            success: false,
+            error: 'Attendance device tables missing',
+            dataSource: 'empty',
+          });
+        }
         return res.status(200).json({
           success: true,
           message: isManual ? 'Manual sync requested (mock)' : `Mock: processed ${recordList.length} records`,
@@ -104,6 +121,18 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 
     if (!device) {
+      return res.status(404).json({ success: false, error: 'Device not found or inactive' });
+    }
+
+    // Webhook secret required when configured; session-bound calls still must match tenant
+    if (device.webhookSecret) {
+      if (!secretKey || device.webhookSecret !== secretKey) {
+        // Allow authenticated HQ user of owning tenant without webhook secret for manual/dashboard sync
+        if (!(isManual && sessionTenantId && (isPlatformOps || String(device.tenantId) === String(sessionTenantId)))) {
+          return res.status(403).json({ success: false, error: 'Invalid secret key' });
+        }
+      }
+    } else if (sessionTenantId && !isPlatformOps && String(device.tenantId) !== String(sessionTenantId)) {
       return res.status(404).json({ success: false, error: 'Device not found or inactive' });
     }
 
@@ -122,11 +151,6 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         duplicates: 0,
         failed: 0,
       });
-    }
-
-    // Verify webhook secret if configured
-    if (device.webhookSecret && device.webhookSecret !== secretKey) {
-      return res.status(403).json({ success: false, error: 'Invalid secret key' });
     }
 
     const batchId = `SYNC-${Date.now()}-${uuidv4().substring(0, 8)}`;

@@ -11,11 +11,15 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { SignJWT, jwtVerify } from 'jose';
 import bcrypt from 'bcryptjs';
+import { candidateJwtConfigured, resolveCandidateJwtSecretBytes } from '@/lib/saas/candidate-jwt';
 
 const sequelize = require('../../../lib/sequelize');
 
-const JWT_SECRET = new TextEncoder().encode(process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'candidate-portal-secret-key');
 const TOKEN_EXPIRY = '7d';
+
+function jwtSecret(): Uint8Array {
+  return resolveCandidateJwtSecretBytes();
+}
 
 // Helper: extract candidate from JWT
 async function getCandidateFromToken(req: NextApiRequest): Promise<any | null> {
@@ -23,7 +27,7 @@ async function getCandidateFromToken(req: NextApiRequest): Promise<any | null> {
   if (!authHeader?.startsWith('Bearer ')) return null;
   try {
     const token = authHeader.substring(7);
-    const { payload } = await jwtVerify(token, JWT_SECRET);
+    const { payload } = await jwtVerify(token, jwtSecret());
     return payload;
   } catch { return null; }
 }
@@ -34,11 +38,17 @@ async function createToken(payload: Record<string, any>): Promise<string> {
     .setProtectedHeader({ alg: 'HS256' })
     .setExpirationTime(TOKEN_EXPIRY)
     .setIssuedAt()
-    .sign(JWT_SECRET);
+    .sign(jwtSecret());
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
+    if (!candidateJwtConfigured()) {
+      return res.status(503).json({
+        error: 'Candidate portal misconfigured',
+        code: 'NEXTAUTH_SECRET_REQUIRED',
+      });
+    }
     const { action } = req.query;
     const method = req.method;
 

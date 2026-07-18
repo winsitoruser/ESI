@@ -5,6 +5,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../auth/[...nextauth]';
 import { parseMaterials } from '../../../../lib/hris/lms/course-service';
+import { enforceHumanifyPlanFeature } from '@/lib/saas/assert-feature';
 
 const sequelize = require('../../../../lib/sequelize');
 
@@ -18,6 +19,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const session = await getServerSession(req, res, authOptions);
     if (!session?.user) return res.status(401).json({ error: 'Unauthorized' });
+    if (!(await enforceHumanifyPlanFeature(req, res, session))) return;
 
     const tenantId = (session.user as any).tenantId || null;
     const userId = asUuid((session.user as any).id);

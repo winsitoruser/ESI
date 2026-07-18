@@ -32,6 +32,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const session = await getServerSession(req, res, authOptions);
     if (!session?.user) return res.status(401).json({ error: 'Unauthorized' });
+    const { enforceHumanifyPlanFeature } = await import('@/lib/saas/assert-feature');
+    if (!(await enforceHumanifyPlanFeature(req, res, session))) return;
 
     const tenantId = (session.user as any).tenantId || null;
     const userId = asUuid((session.user as any).id);

@@ -154,6 +154,19 @@ export function withHQAuth(
           }
         }
 
+        // Plan entitlement (API path → feature). Platform ops / super_admin bypass inside assert.
+        try {
+          const { assertHumanifyFeature } = require('../saas/assert-feature');
+          const ok = await assertHumanifyFeature(req, res, {
+            tenantId,
+            role: userRole,
+            path: req.url || '',
+          });
+          if (!ok) return;
+        } catch {
+          /* entitlement module unavailable — fail open for legacy */
+        }
+
         return await handler(req, res);
       };
 

@@ -34,6 +34,8 @@ async function safeQuery(sql: string, replacements: Record<string, unknown> = {}
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
   if (!session) return res.status(401).json({ success: false, error: 'Unauthorized' });
+  const { enforceHumanifyPlanFeature } = await import('@/lib/saas/assert-feature');
+  if (!(await enforceHumanifyPlanFeature(req, res, session))) return;
   if (req.method !== 'GET') return res.status(405).json({ success: false, error: 'Method not allowed' });
 
   const period = (req.query.period as string) || new Date().toISOString().substring(0, 7);

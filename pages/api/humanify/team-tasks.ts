@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withHQAuth } from '../../../lib/middleware/withHQAuth';
+import { allowHrMockFallback } from '@/lib/hris/data-source';
 const { Op } = require('sequelize');
 const { Task } = require('../../../models/HR');
 
@@ -86,6 +87,14 @@ async function handleGetTasks(req: NextApiRequest, res: NextApiResponse, tenantI
       pagination: { total: count, page: pageNum, limit: limitNum, totalPages: Math.ceil(count / limitNum) },
     });
   } catch (dbError) {
+    if (!allowHrMockFallback()) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+        pagination: { total: 0, page: pageNum, limit: limitNum, totalPages: 0 },
+        meta: { isMock: false, dataSource: 'empty' },
+      });
+    }
     const mockTasks = generateMockTasks(tenantId, assigneeId as string, relatedTo as string, relatedId as string);
     const filtered = mockTasks.filter(t => {
       if (status && t.status !== status) return false;
@@ -97,7 +106,7 @@ async function handleGetTasks(req: NextApiRequest, res: NextApiResponse, tenantI
       success: true,
       data: filtered.slice(0, limitNum),
       pagination: { total: filtered.length, page: 1, limit: limitNum, totalPages: 1 },
-      meta: { isMock: true },
+      meta: { isMock: true, dataSource: 'demo' },
     });
   }
 }

@@ -4,6 +4,7 @@ import { getToken } from 'next-auth/jwt';
 import { isHumanifyHost } from '@/lib/humanify/host';
 import { HUMANIFY_WELCOME } from '@/lib/humanify/paths';
 import { extractTenantSlugFromHost } from '@/lib/saas/tenant-host';
+import { featureForPath, isPathAllowedForPlan } from '@/lib/saas/plan-entitlements';
 
 const authSecret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET;
 
@@ -118,6 +119,29 @@ export async function middleware(request: NextRequest) {
       !pathname.startsWith('/api/')
     ) {
       return NextResponse.redirect(new URL('/humanify/security', request.url));
+    }
+
+    // Plan entitlement — block deep links to features not in plan
+    const alwaysAllow = [
+      '/humanify/billing',
+      '/humanify/security',
+      '/humanify/setup',
+      '/humanify/welcome',
+    ];
+    const allowCoreNav =
+      pathname === '/humanify' ||
+      pathname === '/humanify/' ||
+      alwaysAllow.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+    if (
+      !bypassSetup &&
+      !allowCoreNav &&
+      token.subscriptionPlan != null &&
+      !isPathAllowedForPlan(pathname, token.subscriptionPlan as string)
+    ) {
+      const feat = featureForPath(pathname);
+      const url = new URL('/humanify/billing', request.url);
+      url.searchParams.set('upgrade', feat);
+      return NextResponse.redirect(url);
     }
   }
 

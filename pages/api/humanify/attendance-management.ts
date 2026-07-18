@@ -22,6 +22,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const session = await getServerSession(req, res, authOptions);
     if (!session) return res.status(401).json({ error: 'Unauthorized' });
+    const { enforceHumanifyPlanFeature } = await import('@/lib/saas/assert-feature');
+    if (!(await enforceHumanifyPlanFeature(req, res, session))) return;
     await ensureTenantDbContext(session);
 
     const { action } = req.query;

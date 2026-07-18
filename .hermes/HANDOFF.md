@@ -1,6 +1,17 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 18 Juli 2026 — **Keputusan CTO**: monitoring internal only · RLS soft+bound · SSO ACS e2e gate
+> Diperbarui: 18 Juli 2026 — **P0 hardening sprint**: mock gate · candidate JWT · device-sync IDOR · plan entitlement API+middleware · Batch 11
+
+## P0 sprint (18 Jul 2026)
+
+| Item | Status |
+|---|---|
+| team-tasks mock | Prod → empty (bukan fake data); mock hanya non-prod |
+| Candidate JWT | Wajib `NEXTAUTH_SECRET`/`JWT_SECRET` — no hardcoded fallback |
+| device-sync | Lookup scoped by session `tenantId` + webhook secret rules |
+| Plan entitlement API | `API_FEATURE_RULES` diperluas + `withHQAuth` auto-assert + LMS/recruitment/analytics/training |
+| Middleware path gate | JWT `subscriptionPlan` → redirect `/humanify/billing?upgrade=` |
+| Smoke | `scripts/smoke-test-saas-idor-batch11.js` |
 
 ## Keputusan arsitektur (18 Jul 2026) — D-010 / D-011 / D-012
 

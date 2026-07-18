@@ -54,3 +54,20 @@ export async function assertHumanifyFeature(
   });
   return false;
 }
+
+/** After session is known — enforce plan feature for this API path. */
+export async function enforceHumanifyPlanFeature(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  session: { user?: { tenantId?: string | null; role?: string | null } } | null | undefined,
+): Promise<boolean> {
+  if (!session?.user) {
+    res.status(401).json({ success: false, error: 'Unauthorized' });
+    return false;
+  }
+  return assertHumanifyFeature(req, res, {
+    tenantId: (session.user as any).tenantId,
+    role: (session.user as any).role,
+    path: req.url || '',
+  });
+}

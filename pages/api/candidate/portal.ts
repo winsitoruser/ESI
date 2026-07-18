@@ -18,23 +18,28 @@
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { jwtVerify } from 'jose';
+import { candidateJwtConfigured, resolveCandidateJwtSecretBytes } from '@/lib/saas/candidate-jwt';
 
 const sequelize = require('../../../lib/sequelize');
-
-const JWT_SECRET = new TextEncoder().encode(process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'candidate-portal-secret-key');
 
 async function getCandidateFromToken(req: NextApiRequest): Promise<any | null> {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) return null;
   try {
     const token = authHeader.substring(7);
-    const { payload } = await jwtVerify(token, JWT_SECRET);
+    const { payload } = await jwtVerify(token, resolveCandidateJwtSecretBytes());
     return payload;
   } catch { return null; }
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
+    if (!candidateJwtConfigured()) {
+      return res.status(503).json({
+        error: 'Candidate portal misconfigured',
+        code: 'NEXTAUTH_SECRET_REQUIRED',
+      });
+    }
     const candidate = await getCandidateFromToken(req);
     if (!candidate) return res.status(401).json({ error: 'Silakan login terlebih dahulu' });
 

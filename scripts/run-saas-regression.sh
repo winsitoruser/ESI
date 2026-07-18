@@ -14,7 +14,7 @@ SCRIPTS=(
   phase12-digest phase13-sso phase15-password-reset phase16-health
   phase17-login-lockout phase18-observability phase19-mfa
   phase20-employee-import phase21-notifications phase22-search
-  phase23-invitations phase24-v1-write employee-hardening idor-hr-modules idor-batch5 idor-batch6 idor-batch7 idor-batch8 idor-batch9 idor-batch10 tenant-empty-state tenant-isolation
+  phase23-invitations phase24-v1-write employee-hardening idor-hr-modules idor-batch5 idor-batch6 idor-batch7 idor-batch8 idor-batch9 idor-batch10 idor-batch11 tenant-empty-state tenant-isolation
   phase14-ratelimit
 )
 

@@ -382,10 +382,32 @@ export const authOptions: NextAuthOptions = {
         token.setupCompleted = user.setupCompleted;
         token.redirectUrl = user.redirectUrl;
         token.mfaSetupRequired = Boolean((user as any).mfaSetupRequired);
+        // Plan for middleware entitlement gate
+        if (user.tenantId) {
+          try {
+            const { resolveTenantPlan } = await import('../../../lib/saas/assert-feature');
+            token.subscriptionPlan = await resolveTenantPlan(user.tenantId);
+            token.planCheckedAt = now;
+          } catch {
+            token.subscriptionPlan = null;
+          }
+        }
         
         // Set token timestamps for sliding session
         token.iat = now; // Issued at
         token.exp = now + ACCESS_TOKEN_EXPIRY; // Access token expiry
+      }
+
+      // Refresh subscription plan periodically (5 min) or after impersonation
+      if (token.tenantId) {
+        const checked = Number(token.planCheckedAt || 0);
+        if (!token.subscriptionPlan || now - checked > 300) {
+          try {
+            const { resolveTenantPlan } = await import('../../../lib/saas/assert-feature');
+            token.subscriptionPlan = await resolveTenantPlan(token.tenantId as string);
+            token.planCheckedAt = now;
+          } catch { /* keep */ }
+        }
       }
 
       // Manual session update (triggered by client)
@@ -415,6 +437,8 @@ export const authOptions: NextAuthOptions = {
               token.tenantName = t.name;
               token.impersonatedTenantSlug = t.slug;
               token.setupCompleted = true;
+              token.planCheckedAt = 0;
+              delete token.subscriptionPlan;
               try {
                 const { logSupportAction } = await import('../../../lib/saas/support-audit');
                 await logSupportAction({
@@ -575,6 +599,7 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).impersonating = Boolean(token.impersonating);
         (session.user as any).impersonatedTenantSlug = token.impersonatedTenantSlug as string | undefined;
         (session.user as any).mfaSetupRequired = Boolean(token.mfaSetupRequired);
+        (session.user as any).subscriptionPlan = token.subscriptionPlan as string | null | undefined;
       }
       
       // Add token expiry info to session for client-side awareness

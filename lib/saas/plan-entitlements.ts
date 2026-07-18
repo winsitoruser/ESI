@@ -105,8 +105,18 @@ const ROUTE_FEATURE_RULES: Array<{ test: RegExp; feature: HumanifyFeature }> = [
 /** API action prefixes → feature */
 const API_FEATURE_RULES: Array<{ test: RegExp; feature: HumanifyFeature }> = [
   { test: /\/api\/humanify\/payroll/, feature: 'payroll' },
+  { test: /\/api\/humanify\/reimbursement/, feature: 'payroll' },
+  { test: /\/api\/humanify\/casual-workforce/, feature: 'payroll' },
+  { test: /\/api\/humanify\/travel-expense/, feature: 'payroll' },
   { test: /\/api\/humanify\/lms/, feature: 'lms' },
+  { test: /\/api\/humanify\/training/, feature: 'lms' },
+  { test: /\/api\/humanify\/certificates/, feature: 'lms' },
   { test: /\/api\/humanify\/recruitment/, feature: 'recruitment' },
+  { test: /\/api\/humanify\/attendance/, feature: 'attendance' },
+  { test: /\/api\/humanify\/leave/, feature: 'attendance' },
+  { test: /\/api\/humanify\/workforce-analytics/, feature: 'analytics' },
+  { test: /\/api\/humanify\/predictive-analytics/, feature: 'analytics' },
+  { test: /\/api\/humanify\/hr-analytics/, feature: 'analytics' },
   { test: /\/api\/humanify\/ai/, feature: 'ai' },
   { test: /\/api\/humanify\/ai-hub/, feature: 'ai' },
   { test: /\/api\/humanify\/enterprise/, feature: 'api' },
