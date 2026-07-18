@@ -10,7 +10,7 @@
 | w13-2 | Unduh SP metadata XML di `/humanify/sso` | Done |
 | w13-3 | `formatApiErrorToast` + observability deep-link | Done |
 | w13-4 | `smoke:mock-audit` — USE_MOCK_UI harus lewat data-source | Done |
-| w13-5 | Deploy + verify | Pending |
+| w13-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:mock-audit` · `npm run smoke:api-error`
 
