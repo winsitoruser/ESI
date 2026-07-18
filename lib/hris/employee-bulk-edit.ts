@@ -113,11 +113,12 @@ export async function bulkUpdateEmployees(opts: {
     .filter((c) => c === 'id' || has(c));
 
   const tidClause = opts.tenantId && has('tenant_id') ? 'AND tenant_id = :tid' : '';
+  const idsLiteral = `{${ids.join(',')}}`;
   const [rows] = await seq.query(
     `SELECT ${selectCols.join(', ')}
      FROM employees
-     WHERE id = ANY(:ids::uuid[]) ${tidClause}`,
-    { replacements: { ids, tid: opts.tenantId } },
+     WHERE id = ANY(CAST(:ids AS uuid[])) ${tidClause}`,
+    { replacements: { ids: idsLiteral, tid: opts.tenantId } },
   );
 
   if (!rows?.length) throw new Error('Karyawan tidak ditemukan di tenant ini');
@@ -133,7 +134,7 @@ export async function bulkUpdateEmployees(opts: {
 
   const setParts: string[] = [];
   const replacements: Record<string, unknown> = {
-    ids: snapshots.map((s) => s.id),
+    ids: `{${snapshots.map((s) => s.id).join(',')}}`,
     tid: opts.tenantId,
   };
   for (const [key, val] of Object.entries(patch)) {
@@ -147,7 +148,7 @@ export async function bulkUpdateEmployees(opts: {
 
   await seq.query(
     `UPDATE employees SET ${setParts.join(', ')}
-     WHERE id = ANY(:ids::uuid[]) ${tidClause}`,
+     WHERE id = ANY(CAST(:ids AS uuid[])) ${tidClause}`,
     { replacements },
   );
 
@@ -158,7 +159,7 @@ export async function bulkUpdateEmployees(opts: {
       `INSERT INTO employee_bulk_edit_batches
         (id, tenant_id, actor_id, actor_email, patch, snapshots, employee_ids, expires_at)
        VALUES
-        (:id, :tid, :aid, :aemail, :patch::jsonb, :snapshots::jsonb, :eids::uuid[], :exp)`,
+        (:id, :tid, :aid, :aemail, CAST(:patch AS jsonb), CAST(:snapshots AS jsonb), CAST(:eids AS uuid[]), :exp)`,
       {
         replacements: {
           id: batchId,
@@ -167,7 +168,7 @@ export async function bulkUpdateEmployees(opts: {
           aemail: opts.actorEmail || null,
           patch: JSON.stringify(patch),
           snapshots: JSON.stringify(snapshots),
-          eids: snapshots.map((s) => s.id),
+          eids: `{${snapshots.map((s) => s.id).join(',')}}`,
           exp: expiresAt.toISOString(),
         },
       },

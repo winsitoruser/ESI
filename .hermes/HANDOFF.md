@@ -10,7 +10,7 @@
 | w4-2 | Multi-role invite smoke + Playwright (`smoke:multi-role`, `test:e2e:humanify:multi-role`) | Done |
 | w4-3 | Bulk edit karyawan API + UI checkbox bar | Done |
 | w4-4 | Undo window 24 jam (`employee_bulk_edit_batches`) | Done |
-| w4-5 | Deploy + verify | Pending |
+| w4-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:multi-role` · `npm run smoke:employees-bulk` · `npm run smoke:sso-idp-checklist`  
 API: `POST /api/humanify/employees-bulk?action=update|undo`  
