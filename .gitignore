@@ -24,6 +24,7 @@
 .DS_Store
 humanify-repo/
 public/uploads/
+storage/
 
 # cursor IDE (local agent rules)
 .cursor/

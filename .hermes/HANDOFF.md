@@ -1,8 +1,28 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 18 Juli 2026 — **Employee docs fix** · rsync protect uploads · full QA suite
+> Diperbarui: 19 Juli 2026 — **30-day board t1–t5** · durable docs · action inbox · employee SAVEPOINT · QA golden seed
 
-## Hotfix — employee documents (18 Jul 2026)
+## Hot fix — employee create silent rollback (19 Jul 2026)
+
+| Bug | Root cause | Fix |
+|---|---|---|
+| Create employee 201 tapi row hilang; performance review FK fail | Request-bound txn + onboarding `joinDate` = `String(Date)` invalid → PG abort → rollback INSERT | `toDateOnly()` + `withDbSavepoint()` around onboarding |
+| Docs wiped on deploy | files under `public/uploads` | durable `storage/employee-documents` + rsync exclude/protect |
+
+## 30-day board (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| t1 | Document storage (local durable + optional S3/R2) + signed download token | Done |
+| t2 | Action inbox on `/humanify` (leave + contracts + docs + attendance) | Done |
+| t3 | performance_reviews FK / IDOR batch 6&9 (root: employee rollback) | Done |
+| t4 | `seed:qa-golden` + `seed:demo-tenant` | Done |
+| t5 | package.json + HANDOFF + deploy + re-smoke | In progress |
+
+Scripts: `npm run seed:qa-golden` · `npm run seed:demo-tenant`  
+Env (optional): `HUMANIFY_DOC_STORAGE_DIR`, `HUMANIFY_DOC_S3_BUCKET`, `HUMANIFY_DOC_S3_ENDPOINT`
+
+## Hot fix — employee documents (18 Jul 2026)
 
 | Bug | Root cause | Fix |
 |---|---|---|

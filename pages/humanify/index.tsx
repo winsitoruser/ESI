@@ -504,7 +504,7 @@ export default function HRISDashboard() {
             <div className="flex items-center justify-between border-b border-violet-100/60 px-5 py-4">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                <h3 className="font-semibold text-gray-900">Pusat Persetujuan</h3>
+                <h3 className="font-semibold text-gray-900">Action Inbox</h3>
                 <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">{pendingApprovals.length}</span>
                 {pendingSummary.overdue > 0 && (
                   <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-medium">{pendingSummary.overdue} overdue</span>
@@ -514,7 +514,7 @@ export default function HRISDashboard() {
             </div>
             <div className="divide-y max-h-80 overflow-y-auto">
               {pendingApprovals.length === 0 && (
-                <p className="px-5 py-8 text-center text-sm text-slate-400">Tidak ada persetujuan tertunda</p>
+                <p className="px-5 py-8 text-center text-sm text-slate-400">Tidak ada aksi tertunda</p>
               )}
               {pendingApprovals.map((item) => (
                 <div key={item.id} className="px-5 py-3 hover:bg-gray-50 transition-colors">
@@ -532,12 +532,16 @@ export default function HRISDashboard() {
                           <Eye className="w-4 h-4" />
                         </Link>
                       )}
-                      <button onClick={() => handleApproval(item, 'approved')} className="p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors" title={t('hris.approve')}>
-                        <CheckCircle2 className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => handleApproval(item, 'rejected')} className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title={t('hris.reject')}>
-                        <XCircle className="w-4 h-4" />
-                      </button>
+                      {item.actionable !== false && !['contract', 'documents', 'attendance'].includes(item.type) && (
+                        <>
+                          <button onClick={() => handleApproval(item, 'approved')} className="p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors" title={t('hris.approve')}>
+                            <CheckCircle2 className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => handleApproval(item, 'rejected')} className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title={t('hris.reject')}>
+                            <XCircle className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                   <p className="text-[10px] text-gray-400 mt-1">{item.date}</p>

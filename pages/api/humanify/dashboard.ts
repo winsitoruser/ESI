@@ -204,6 +204,88 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       })));
     } catch { /* mutations table may not exist */ }
 
+    // ── Action inbox extras: contracts / docs / attendance ──
+    try {
+      const [expiringContracts] = await sequelize.query(`
+        SELECT ec.id, ec.end_date, ec.contract_type, e.name AS employee_name, e.id AS employee_id
+        FROM employee_contracts ec
+        LEFT JOIN employees e ON ec.employee_id::text = e.id::text
+        WHERE ec.tenant_id = :tenantId
+          AND LOWER(COALESCE(ec.status, 'active')) IN ('active', 'expiring_soon')
+          AND ec.end_date IS NOT NULL
+          AND ec.end_date::date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days'
+        ORDER BY ec.end_date ASC LIMIT 5
+      `, { replacements: r });
+      pendingApprovals.push(...(expiringContracts as any[]).map((c) => ({
+        id: `contract-${c.id}`,
+        type: 'contract',
+        title: `Kontrak segera berakhir - ${c.employee_name || 'Karyawan'}`,
+        subtitle: `${c.contract_type || 'Kontrak'} · berakhir ${c.end_date}`,
+        status: 'action',
+        date: c.end_date,
+        createdAt: c.end_date,
+        href: '/humanify/contracts',
+        color: 'orange',
+        actionable: false,
+      })));
+    } catch { /* contracts may not exist */ }
+
+    try {
+      const [incompleteDocs] = await sequelize.query(`
+        SELECT e.id, e.name,
+          COUNT(ed.id) FILTER (WHERE UPPER(ed.document_type) IN ('KTP','NPWP','CONTRACT','KK'))::int AS have_core,
+          COUNT(DISTINCT UPPER(ed.document_type)) FILTER (WHERE UPPER(ed.document_type) IN ('KTP','NPWP','CONTRACT','KK'))::int AS distinct_core
+        FROM employees e
+        LEFT JOIN employee_documents ed ON ed.employee_id = e.id AND ed.tenant_id = e.tenant_id AND COALESCE(ed.is_active, true) = true
+        WHERE e.tenant_id = :tenantId AND COALESCE(e.is_active, true) = true
+        GROUP BY e.id, e.name
+        HAVING COUNT(DISTINCT UPPER(ed.document_type)) FILTER (WHERE UPPER(ed.document_type) IN ('KTP','NPWP','CONTRACT','KK')) < 3
+        ORDER BY distinct_core ASC, e.name ASC
+        LIMIT 5
+      `, { replacements: r });
+      pendingApprovals.push(...(incompleteDocs as any[]).map((e) => ({
+        id: `docs-${e.id}`,
+        type: 'documents',
+        title: `Dokumen belum lengkap - ${e.name}`,
+        subtitle: `${e.distinct_core || 0}/3 dokumen inti (KTP/NPWP/Kontrak)`,
+        status: 'action',
+        date: today,
+        createdAt: new Date().toISOString(),
+        href: `/humanify/employees?id=${e.id}`,
+        color: 'amber',
+        actionable: false,
+      })));
+    } catch { /* employee_documents may not exist */ }
+
+    try {
+      const [absentToday] = await sequelize.query(`
+        SELECT e.id, e.name, ea.status
+        FROM employees e
+        LEFT JOIN employee_attendance ea ON ea.employee_id = e.id AND ea.date = :today AND ea.tenant_id = e.tenant_id
+        LEFT JOIN leave_requests lr ON lr.employee_id = e.id AND lr.tenant_id = e.tenant_id
+          AND lr.status = 'approved' AND :today::date BETWEEN lr.start_date AND lr.end_date
+        WHERE e.tenant_id = :tenantId
+          AND COALESCE(e.is_active, true) = true
+          AND LOWER(COALESCE(e.status, 'active')) IN ('active', 'ACTIVE')
+          AND lr.id IS NULL
+          AND (ea.id IS NULL OR LOWER(COALESCE(ea.status, '')) IN ('absent', 'alpha', 'tidak_hadir'))
+        ORDER BY e.name ASC
+        LIMIT 5
+      `, { replacements: { ...r, today } });
+      pendingApprovals.push(...(absentToday as any[]).map((a) => ({
+        id: `att-${a.id}`,
+        type: 'attendance',
+        title: `Belum absen hari ini - ${a.name}`,
+        subtitle: a.status ? `Status: ${a.status}` : 'Belum ada clock-in',
+        status: 'action',
+        date: today,
+        createdAt: new Date().toISOString(),
+        href: '/humanify/attendance',
+        color: 'red',
+        actionable: false,
+      })));
+    } catch { /* attendance may not exist */ }
+
     pendingApprovals.sort((a, b) => new Date(b.createdAt || b.date).getTime() - new Date(a.createdAt || a.date).getTime());
 
     const overdueCount = pendingApprovals.filter((p) => {
@@ -260,7 +342,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         attendanceToday,
       },
       deptStats,
-      pendingApprovals: pendingApprovals.slice(0, 12),
+      pendingApprovals: pendingApprovals.slice(0, 16),
       pendingSummary: {
         total: pendingApprovals.length,
         overdue: overdueCount,
@@ -270,6 +352,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           claim: pendingApprovals.filter((p) => p.type === 'claim').length,
           travel: pendingApprovals.filter((p) => p.type === 'travel').length,
           mutation: pendingApprovals.filter((p) => p.type === 'mutation').length,
+          contract: pendingApprovals.filter((p) => p.type === 'contract').length,
+          documents: pendingApprovals.filter((p) => p.type === 'documents').length,
+          attendance: pendingApprovals.filter((p) => p.type === 'attendance').length,
         },
       },
       recentActivities: activities,

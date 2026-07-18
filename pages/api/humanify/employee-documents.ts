@@ -93,13 +93,25 @@ async function handleDownload(req: NextApiRequest, res: NextApiResponse, tenantI
   if (!docId) return res.status(400).json({ success: false, error: 'id dokumen wajib diisi' });
 
   try {
+    const { verifyDownloadToken } = await import('../../../lib/hris/document-storage');
+    const token = typeof req.query.token === 'string' ? req.query.token : '';
+    if (token && tenantId && !verifyDownloadToken(token, docId, tenantId)) {
+      return res.status(403).json({ success: false, error: 'Token unduhan tidak valid atau kedaluwarsa' });
+    }
+
     const file = await resolveEmployeeDocumentFile(sequelize, docId, tenantId);
     if (!file) return res.status(404).json({ success: false, error: 'File dokumen tidak ditemukan' });
 
     const disposition = req.query.disposition === 'attachment' ? 'attachment' : 'inline';
     res.setHeader('Content-Type', file.mimeType);
     res.setHeader('Content-Disposition', `${disposition}; filename="${encodeURIComponent(file.fileName)}"`);
-    fs.createReadStream(file.fullPath).pipe(res);
+    if (file.fullPath && fs.existsSync(file.fullPath)) {
+      fs.createReadStream(file.fullPath).pipe(res);
+    } else if (file.buffer) {
+      res.send(file.buffer);
+    } else {
+      return res.status(404).json({ success: false, error: 'File dokumen tidak ditemukan' });
+    }
   } catch (error: any) {
     return res.status(500).json({ success: false, error: error?.message || 'Gagal mengunduh dokumen' });
   }

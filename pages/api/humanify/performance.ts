@@ -166,9 +166,17 @@ async function getPerformanceReviews(req: NextApiRequest, res: NextApiResponse, 
 
 // ========== POST: Create performance review ==========
 async function resolveEmployeeId(employeeId: string | null | undefined, employeeName: string, tenantId: string | null) {
-  if (employeeId) return employeeId;
-  if (!sequelize || !employeeName?.trim() || !tenantId) return null;
+  if (!sequelize) return employeeId || null;
   try {
+    if (employeeId) {
+      const [byId] = await sequelize.query(
+        `SELECT id FROM employees WHERE id = :id ${tenantId ? 'AND tenant_id = :tid' : ''} LIMIT 1`,
+        { replacements: tenantId ? { id: employeeId, tid: tenantId } : { id: employeeId } }
+      );
+      if ((byId as any[])[0]?.id) return (byId as any[])[0].id;
+      // Stale client id (e.g. rolled-back create) — fall through to name lookup
+    }
+    if (!employeeName?.trim() || !tenantId) return null;
     const [rows] = await sequelize.query(
       `SELECT id FROM employees WHERE name ILIKE :name AND tenant_id = :tid LIMIT 1`,
       { replacements: { name: employeeName.trim(), tid: tenantId } }

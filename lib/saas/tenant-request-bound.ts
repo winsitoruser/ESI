@@ -15,3 +15,36 @@ export function isTenantRequestBoundEnabled(): boolean {
 export function tenantConfigIsLocal(): boolean {
   return isTenantRequestBoundEnabled();
 }
+
+/**
+ * Run side-work inside a SAVEPOINT so a failure cannot abort the
+ * request-bound outer transaction (and silently roll back earlier INSERTs).
+ */
+export async function withDbSavepoint<T>(
+  sequelize: { query: (sql: string, opts?: any) => Promise<any> },
+  fn: () => Promise<T>,
+  label = 'side'
+): Promise<T | null> {
+  if (!sequelize) {
+    try {
+      return await fn();
+    } catch {
+      return null;
+    }
+  }
+  const sp = `sp_${label}_${Math.random().toString(36).slice(2, 10)}`.replace(/[^a-zA-Z0-9_]/g, '_');
+  try {
+    await sequelize.query(`SAVEPOINT ${sp}`);
+    const result = await fn();
+    await sequelize.query(`RELEASE SAVEPOINT ${sp}`);
+    return result;
+  } catch (err: any) {
+    try {
+      await sequelize.query(`ROLLBACK TO SAVEPOINT ${sp}`);
+    } catch {
+      /* ignore */
+    }
+    console.warn(`[withDbSavepoint:${label}]`, err?.message || err);
+    return null;
+  }
+}

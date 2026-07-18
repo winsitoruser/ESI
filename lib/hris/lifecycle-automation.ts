@@ -48,6 +48,19 @@ export type LifecycleAutomationResult = {
   skipped?: string;
 };
 
+/** Normalize Date / ISO / locale strings to YYYY-MM-DD for Postgres date columns. */
+export function toDateOnly(value: unknown): string {
+  if (!value) return new Date().toISOString().slice(0, 10);
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+  const s = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const parsed = new Date(s);
+  if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
+  return new Date().toISOString().slice(0, 10);
+}
+
 function mapEmployeeRow(emp: any) {
   const row = emp?.toJSON ? emp.toJSON() : emp;
   return {
@@ -60,7 +73,7 @@ function mapEmployeeRow(emp: any) {
     department: row.department || '',
     branchName: row.branchName || row.branch_name || '',
     workLocation: row.workLocation || row.work_location || '',
-    joinDate: row.joinDate || row.join_date,
+    joinDate: row.joinDate || row.join_date || row.hire_date,
   };
 }
 
@@ -83,7 +96,7 @@ export async function startOnboardingForEmployee(
     departmentLabel: getDepartmentLabel(employee.department),
     branchName: employee.branchName,
     workLocation: employee.workLocation,
-    joinDate: employee.joinDate ? String(employee.joinDate).split('T')[0] : new Date().toISOString().slice(0, 10),
+    joinDate: toDateOnly(employee.joinDate),
     status: 'in_progress',
     tasks: ONBOARDING_TEMPLATE.map((t) => ({ ...t, completed: false })),
     notes: 'Dibuat otomatis saat karyawan terdaftar',

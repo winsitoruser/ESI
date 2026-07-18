@@ -361,7 +361,7 @@ async function createEmployee(req: NextApiRequest, res: NextApiResponse) {
       department: department || 'ADMINISTRATION',
       workLocation: workLocation || 'ADMIN_OFFICE',
       status: 'ACTIVE',
-      joinDate: now,
+      joinDate: now.toISOString(),
       employmentCategory: employmentCategory || 'permanent',
       tenantId: tenantId || null,
     };
@@ -382,21 +382,24 @@ async function createEmployee(req: NextApiRequest, res: NextApiResponse) {
       }
     }
 
-    // P4: auto-start onboarding checklist
+    // P4: auto-start onboarding checklist (SAVEPOINT — must not abort request-bound txn)
     try {
-      const { startOnboardingForEmployee } = await import('@/lib/hris/lifecycle-automation');
-      await startOnboardingForEmployee({
-        id: employee.id,
-        employeeId: employee.employeeId,
-        employeeUid: employee.employeeId,
-        name: employee.name,
-        email: employee.email,
-        position: employee.position,
-        department: employee.department,
-        branchName: branchName || '',
-        workLocation: workLocation || '',
-        joinDate: employee.joinDate,
-      }, tenantId);
+      const { withDbSavepoint } = await import('@/lib/saas/tenant-request-bound');
+      const { startOnboardingForEmployee, toDateOnly } = await import('@/lib/hris/lifecycle-automation');
+      await withDbSavepoint(sequelize, async () => {
+        await startOnboardingForEmployee({
+          id: employee.id,
+          employeeId: employee.employeeId,
+          employeeUid: employee.employeeId,
+          name: employee.name,
+          email: employee.email,
+          position: employee.position,
+          department: employee.department,
+          branchName: branchName || '',
+          workLocation: workLocation || '',
+          joinDate: toDateOnly(employee.joinDate),
+        }, tenantId);
+      }, 'onboarding');
     } catch (autoErr) {
       console.warn('Onboarding automation failed:', (autoErr as Error).message);
     }

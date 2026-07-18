@@ -2,19 +2,28 @@ import formidable from 'formidable';
 import fs from 'fs';
 import path from 'path';
 import {
-  ACCEPTED_DOCUMENT_MIME,
   MAX_DOCUMENT_SIZE_MB,
   getExpiryState,
   isAcceptedFile,
 } from './employee-document-types';
+import {
+  deleteStoredFile,
+  ensureLocalStorageDir,
+  getLocalStorageRoot,
+  LEGACY_PUBLIC_PREFIX,
+  persistUploadedFile,
+  readDocumentBytes,
+  STORAGE_KEY_PREFIX,
+} from './document-storage';
 
-export const EMPLOYEE_DOC_UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads', 'employee-documents');
+/** @deprecated Prefer getLocalStorageRoot(); kept for formidable temp dir. */
+export const EMPLOYEE_DOC_UPLOAD_DIR = getLocalStorageRoot();
 
 export async function resolveEmployeeDocumentFile(
   sequelize: any,
   docId: string,
   tenantId: string | null
-): Promise<{ fullPath: string; fileName: string; mimeType: string } | null> {
+): Promise<{ fullPath?: string; buffer?: Buffer; fileName: string; mimeType: string } | null> {
   if (!sequelize) return null;
   const allowed = await verifyDocumentTenant(sequelize, docId, tenantId);
   if (!allowed) return null;
@@ -24,24 +33,29 @@ export async function resolveEmployeeDocumentFile(
     { replacements: { id: docId } }
   );
   const doc = rows?.[0];
-  if (!doc?.file_url || !String(doc.file_url).startsWith('/uploads/employee-documents/')) {
+  if (!doc?.file_url) return null;
+  const fileUrl = String(doc.file_url);
+  if (
+    !fileUrl.startsWith(LEGACY_PUBLIC_PREFIX) &&
+    !fileUrl.startsWith('/uploads/') &&
+    !fileUrl.startsWith(STORAGE_KEY_PREFIX)
+  ) {
     return null;
   }
 
-  const fullPath = path.join(process.cwd(), 'public', doc.file_url);
-  if (!fs.existsSync(fullPath)) return null;
+  const loaded = await readDocumentBytes(fileUrl);
+  if (!loaded) return null;
 
   return {
-    fullPath,
-    fileName: doc.file_name || path.basename(doc.file_url),
+    fullPath: loaded.fullPath,
+    buffer: loaded.buffer,
+    fileName: doc.file_name || path.basename(fileUrl.replace(STORAGE_KEY_PREFIX, '')),
     mimeType: doc.mime_type || 'application/octet-stream',
   };
 }
 
 export function ensureDocUploadDir() {
-  if (!fs.existsSync(EMPLOYEE_DOC_UPLOAD_DIR)) {
-    fs.mkdirSync(EMPLOYEE_DOC_UPLOAD_DIR, { recursive: true });
-  }
+  ensureLocalStorageDir();
 }
 
 export function fieldVal(fields: formidable.Fields, key: string): string {
@@ -63,26 +77,19 @@ export function resolveDocStatus(expiryDate: string | null, verificationStatus =
 }
 
 export function deletePhysicalFile(fileUrl?: string | null) {
-  if (!fileUrl || !fileUrl.startsWith('/uploads/')) return;
-  const fullPath = path.join(process.cwd(), 'public', fileUrl);
-  if (fs.existsSync(fullPath)) {
-    try {
-      fs.unlinkSync(fullPath);
-    } catch {
-      /* ignore */
-    }
-  }
+  // Fire-and-forget async delete (legacy sync callers)
+  void deleteStoredFile(fileUrl);
 }
 
 export async function parseDocumentUpload(req: any): Promise<[formidable.Fields, formidable.Files]> {
-  ensureDocUploadDir();
+  const uploadDir = ensureLocalStorageDir();
   const form = formidable({
-    uploadDir: EMPLOYEE_DOC_UPLOAD_DIR,
+    uploadDir,
     keepExtensions: true,
     maxFileSize: MAX_DOCUMENT_SIZE_MB * 1024 * 1024,
     filename: (_name, ext) => {
       const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-      return `emp-doc-${unique}${ext}`;
+      return `emp-doc-tmp-${unique}${ext}`;
     },
   });
 
@@ -193,10 +200,11 @@ export async function saveEmployeeDocument(input: SaveDocumentInput) {
   if (hasNewFile && uploadedFile) {
     const originalName = uploadedFile.originalFilename || path.basename(uploadedFile.filepath);
     if (!isAcceptedFile({ name: originalName, type: uploadedFile.mimetype || '' })) {
-      deletePhysicalFile(`/uploads/employee-documents/${path.basename(uploadedFile.filepath)}`);
+      try { fs.unlinkSync(uploadedFile.filepath); } catch { /* ignore */ }
       throw Object.assign(new Error('Format file tidak didukung. Gunakan PDF, JPG, PNG, atau DOC/DOCX'), { code: 'INVALID_FILE' });
     }
-    fileUrl = `/uploads/employee-documents/${path.basename(uploadedFile.filepath)}`;
+    const stored = await persistUploadedFile(uploadedFile.filepath, originalName);
+    fileUrl = stored.fileUrl;
     fileName = originalName;
     fileSize = uploadedFile.size || null;
     mimeType = uploadedFile.mimetype || null;

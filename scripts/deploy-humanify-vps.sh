@@ -85,11 +85,14 @@ ssh_cmd "mkdir -p $APP_DIR"
 sshpass -p "$VPS_PASS" rsync -az --delete \
   --exclude .env --exclude .env.local --exclude .env.*.local \
   --exclude 'public/uploads/' \
+  --exclude 'storage/' \
   --filter='protect public/uploads/' \
+  --filter='protect storage/' \
   --filter='protect node_modules/' \
   --exclude node_modules --exclude .next --exclude .git \
   -e "ssh ${SSH_OPTS[*]}" \
   "$APP_SRC/" "$VPS_USER@$VPS_HOST:$APP_DIR/"
+ssh_cmd "mkdir -p $APP_DIR/storage/employee-documents $APP_DIR/public/uploads/employee-documents"
 fi
 
 echo "=== [2/6] Install system packages ==="
