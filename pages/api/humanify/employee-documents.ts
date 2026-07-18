@@ -110,7 +110,7 @@ async function handleUpload(req: NextApiRequest, res: NextApiResponse, tenantId:
     const [fields, files] = await parseDocumentUpload(req);
 
     const employeeId = fieldVal(fields, 'employee_id');
-    const documentType = fieldVal(fields, 'document_type');
+    const documentType = String(fieldVal(fields, 'document_type') || '').trim().toUpperCase();
     const title = fieldVal(fields, 'title');
     const existingId = fieldVal(fields, 'id') || null;
 

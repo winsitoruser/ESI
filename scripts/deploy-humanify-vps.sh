@@ -84,6 +84,8 @@ else
 ssh_cmd "mkdir -p $APP_DIR"
 sshpass -p "$VPS_PASS" rsync -az --delete \
   --exclude .env --exclude .env.local --exclude .env.*.local \
+  --exclude 'public/uploads/' \
+  --filter='protect public/uploads/' \
   --filter='protect node_modules/' \
   --exclude node_modules --exclude .next --exclude .git \
   -e "ssh ${SSH_OPTS[*]}" \

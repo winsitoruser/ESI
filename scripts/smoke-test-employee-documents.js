@@ -6,8 +6,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const BASE = process.env.SMOKE_BASE_URL || 'http://103.92.215.37';
-const EMAIL = process.env.SMOKE_EMAIL || 'superadmin@bedagang.com';
+const BASE = process.env.SMOKE_BASE_URL || 'https://humanify.id';
+const EMAIL = process.env.SMOKE_EMAIL || 'superadmin@humanify.id';
 const PASSWORDS = [...new Set([process.env.SMOKE_PASSWORD, 'superadmin123', 'MasterAdmin2026!'].filter(Boolean))];
 
 let COOKIE = '';
@@ -62,7 +62,7 @@ async function uploadDocument(employeeId, extra = {}) {
   const { body, contentType } = buildMultipart(
     {
       employee_id: String(employeeId),
-      document_type: extra.document_type || 'ktp',
+      document_type: extra.document_type || 'KTP',
       title: extra.title || `Smoke KTP ${stamp}`,
       document_number: extra.document_number || `SMOKE-${stamp}`,
       ...extra.fields,
@@ -93,7 +93,7 @@ async function main() {
   if ([200, 307, 308].includes(pageRes.status)) ok('page /humanify/employees');
   else fail('page /humanify/employees', `HTTP ${pageRes.status}`);
 
-  const empRes = await fetch(`${BASE}/api/humanify/employees?action=list&limit=5`, { headers: { Cookie: COOKIE } });
+  const empRes = await fetch(`${BASE}/api/humanify/employee-profile?action=list&limit=5`, { headers: { Cookie: COOKIE } });
   const empJson = await empRes.json();
   const employees = Array.isArray(empJson.data) ? empJson.data : (empJson.data?.employees || empJson.employees || []);
   if (employees.length) ok(`employees list (${employees.length})`);

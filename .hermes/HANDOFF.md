@@ -1,6 +1,16 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 18 Juli 2026 — **Discord live** · health→Discord · empty-state payroll wave-2
+> Diperbarui: 18 Juli 2026 — **Employee docs fix** · rsync protect uploads · full QA suite
+
+## Hotfix — employee documents (18 Jul 2026)
+
+| Bug | Root cause | Fix |
+|---|---|---|
+| Detail karyawan `documents: []` setelah upload sukses | `safeQuery` menelan error → transaksi RLS abort → query berikutnya kosong | SAVEPOINT per sub-query di `employee-profile` detail |
+| File hilang setelah deploy | `rsync --delete` menghapus `public/uploads/` | Exclude + protect `public/uploads/` |
+| Tipe dokumen case mismatch | smoke `ktp` vs UI `KTP` | Normalize uppercase + completeness case-insensitive |
+
+Suite: `npm run qa:humanify-full` (`scripts/run-humanify-full-qa.sh`)
 
 ## Ops live (18 Jul 2026)
 

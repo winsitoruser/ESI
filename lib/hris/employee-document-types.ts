@@ -165,9 +165,10 @@ export interface DocumentCompleteness {
 export function computeDocumentCompleteness(documents: any[]): DocumentCompleteness {
   const byType = new Map<string, any[]>();
   (documents || []).forEach((d) => {
-    const list = byType.get(d.document_type) || [];
+    const key = String(d.document_type || '').toUpperCase();
+    const list = byType.get(key) || [];
     list.push(d);
-    byType.set(d.document_type, list);
+    byType.set(key, list);
   });
 
   const missing: EmployeeDocumentTypeOption[] = [];

@@ -373,12 +373,23 @@ async function getEmployeeDetail(req: NextApiRequest, res: NextApiResponse, tena
 
   const emp = employees[0];
 
-  // 🔒 Fetch sub-data (tables may not exist yet — return empty arrays on failure)
+  // 🔒 Fetch sub-data (tables may not exist yet — return empty arrays on failure).
+  // Use SAVEPOINT so a failed query does not abort the RLS-bound transaction
+  // (HUMANIFY_RLS_REQUEST_BOUND) and wipe later results such as documents.
   const safeQuery = async (sql: string, replacements: any) => {
+    const sp = `emp_detail_${Math.random().toString(36).slice(2, 10)}`;
     try {
+      await sequelize.query(`SAVEPOINT ${sp}`);
       const [rows] = await sequelize.query(sql, { replacements });
+      await sequelize.query(`RELEASE SAVEPOINT ${sp}`);
       return rows || [];
-    } catch {
+    } catch (err: any) {
+      try {
+        await sequelize.query(`ROLLBACK TO SAVEPOINT ${sp}`);
+      } catch {
+        /* ignore */
+      }
+      console.warn('[employee-profile detail] sub-query skipped:', err?.message || err);
       return [];
     }
   };
