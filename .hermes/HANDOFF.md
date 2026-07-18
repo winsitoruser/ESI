@@ -17,7 +17,7 @@
 | t2 | Action inbox on `/humanify` (leave + contracts + docs + attendance) | Done |
 | t3 | performance_reviews FK / IDOR batch 6&9 (root: employee rollback) | Done |
 | t4 | `seed:qa-golden` + `seed:demo-tenant` | Done |
-| t5 | package.json + HANDOFF + deploy + re-smoke | In progress |
+| t5 | package.json + HANDOFF + deploy + re-smoke | Done |
 
 Scripts: `npm run seed:qa-golden` · `npm run seed:demo-tenant`  
 Env (optional): `HUMANIFY_DOC_STORAGE_DIR`, `HUMANIFY_DOC_S3_BUCKET`, `HUMANIFY_DOC_S3_ENDPOINT`

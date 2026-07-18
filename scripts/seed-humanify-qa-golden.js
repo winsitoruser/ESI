@@ -54,9 +54,11 @@ async function ensureTenant() {
   (colRows || []).forEach((r) => cols.add(r.column_name));
 
   const fields = [['id', id], ['slug', SLUG], ['name', COMPANY]];
+  if (cols.has('code')) fields.push(['code', SLUG.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 20) || 'QAGOLDEN']);
   if (cols.has('company_name')) fields.push(['company_name', COMPANY]);
   if (cols.has('status')) fields.push(['status', 'active']);
   if (cols.has('plan')) fields.push(['plan', 'pro']);
+  if (cols.has('subscription_plan')) fields.push(['subscription_plan', 'pro']);
   if (cols.has('is_active')) fields.push(['is_active', true]);
   if (cols.has('created_at')) fields.push(['created_at', new Date()]);
   if (cols.has('updated_at')) fields.push(['updated_at', new Date()]);
@@ -71,11 +73,22 @@ async function ensureTenant() {
 }
 
 async function ensureEmployee(tenantId, emp) {
+  const code = `${SLUG.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8)}-${emp.code}`;
   const [exists] = await sequelize.query(
     `SELECT id FROM employees WHERE tenant_id = :tid AND (email = :email OR employee_code = :code) LIMIT 1`,
-    { replacements: { tid: tenantId, email: emp.email, code: emp.code } }
+    { replacements: { tid: tenantId, email: emp.email, code } }
   );
   if (exists[0]) return exists[0].id;
+
+  // Global unique on employee_code / email — skip if another tenant already owns them
+  const [globalHit] = await sequelize.query(
+    `SELECT id, tenant_id FROM employees WHERE email = :email OR employee_code = :code LIMIT 1`,
+    { replacements: { email: emp.email, code } }
+  );
+  if (globalHit[0]) {
+    console.warn(`  ⚠ skip ${emp.email} — already exists (tenant ${globalHit[0].tenant_id})`);
+    return globalHit[0].tenant_id === tenantId ? globalHit[0].id : null;
+  }
 
   const id = crypto.randomUUID();
   await sequelize.query(
@@ -90,7 +103,7 @@ async function ensureEmployee(tenantId, emp) {
       replacements: {
         id,
         tid: tenantId,
-        code: emp.code,
+        code,
         name: emp.name,
         email: emp.email,
         position: emp.position,
@@ -183,13 +196,14 @@ async function run() {
   const ids = [];
   for (const emp of employees) {
     const id = await ensureEmployee(tenant.id, emp);
+    if (!id) continue;
     ids.push({ id, ...emp });
     console.log(`  ✓ employee ${emp.code} ${emp.name}`);
   }
 
-  await ensurePendingLeave(tenant.id, ids[1].id, ids[1].name);
-  await ensureContract(tenant.id, ids[0].id);
-  await ensurePerformanceReview(tenant.id, ids[1].id, ids[1].name);
+  if (ids[1]) await ensurePendingLeave(tenant.id, ids[1].id, ids[1].name);
+  if (ids[0]) await ensureContract(tenant.id, ids[0].id);
+  if (ids[1]) await ensurePerformanceReview(tenant.id, ids[1].id, ids[1].name);
 
   console.log('\nDone.');
   console.log(`  Tenant: ${SLUG} (${tenant.id})`);
