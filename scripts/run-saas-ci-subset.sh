@@ -13,6 +13,7 @@ SCRIPTS=(
   "scripts/smoke-test-saas-idor-batch11.js|idor-batch11"
   "scripts/smoke-test-saas-payroll-depth.js|payroll-depth"
   "scripts/smoke-test-saas-sso-acs-e2e.js|sso-acs-e2e"
+  "scripts/smoke-test-saas-lms-lab-gate.js|lms-lab-gate"
 )
 
 fail=0

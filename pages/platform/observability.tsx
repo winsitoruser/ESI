@@ -20,6 +20,8 @@ export default function PlatformObservabilityPage() {
 
   const [obs, setObs] = useState<any>(null);
   const [health, setHealth] = useState<any>(null);
+  const [alertInfo, setAlertInfo] = useState<any>(null);
+  const [alertBusy, setAlertBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -27,17 +29,31 @@ export default function PlatformObservabilityPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [obsRes, healthRes] = await Promise.all([
+      const [obsRes, healthRes, alertRes] = await Promise.all([
         fetch('/api/platform/observability').then((r) => r.json()),
         fetch('/api/health?deep=1').then((r) => r.json()).catch(() => null),
+        fetch('/api/platform/obs-alerts').then((r) => r.json()).catch(() => null),
       ]);
       if (obsRes.success) setObs(obsRes.data);
       if (healthRes) setHealth(healthRes);
+      if (alertRes?.success) setAlertInfo(alertRes.data);
       setLastRefresh(new Date());
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const runAlertCheck = useCallback(async () => {
+    setAlertBusy(true);
+    try {
+      const r = await fetch('/api/platform/obs-alerts', { method: 'POST' });
+      const j = await r.json().catch(() => ({}));
+      if (j.success) setAlertInfo((prev: any) => ({ ...prev, alert: j.data }));
+      await load();
+    } finally {
+      setAlertBusy(false);
+    }
+  }, [load]);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -84,11 +100,36 @@ export default function PlatformObservabilityPage() {
           </Link>
           <div className="flex items-center gap-3 text-xs text-slate-400">
             {lastRefresh && <span>Update terakhir: {lastRefresh.toLocaleTimeString('id-ID')} · auto-refresh 30s</span>}
+            <button
+              onClick={runAlertCheck}
+              disabled={alertBusy}
+              className="flex items-center gap-2 text-sm px-3 py-2 border rounded-lg hover:bg-amber-50 text-amber-800 border-amber-200"
+            >
+              <AlertTriangle className={`w-4 h-4 ${alertBusy ? 'animate-pulse' : ''}`} /> Cek alert
+            </button>
             <button onClick={load} className="flex items-center gap-2 text-sm px-3 py-2 border rounded-lg hover:bg-slate-50 text-slate-700">
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
             </button>
           </div>
         </div>
+
+        {alertInfo?.alert && (
+          <div className={`rounded-xl border px-4 py-3 text-sm ${
+            alertInfo.alert.triggered
+              ? 'border-rose-200 bg-rose-50 text-rose-900'
+              : 'border-emerald-200 bg-emerald-50 text-emerald-900'
+          }`}>
+            <p className="font-semibold">
+              Alert: {alertInfo.alert.triggered ? 'SPIKE' : 'OK'} — {alertInfo.alert.message}
+            </p>
+            <p className="text-[11px] mt-1 opacity-80">
+              Threshold {alertInfo.configured?.threshold ?? alertInfo.alert.threshold} /
+              {alertInfo.configured?.windowMin ?? alertInfo.alert.windowMin}m
+              · email {alertInfo.configured?.email ? 'on' : 'off'}
+              · webhook {alertInfo.configured?.webhook ? 'on' : 'off'}
+            </p>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="bg-white border rounded-xl p-4">

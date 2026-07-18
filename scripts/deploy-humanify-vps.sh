@@ -238,6 +238,7 @@ ssh_cmd "ENV_FILE=$APP_DIR/.env bash -s" < "$SRC/scripts/enable-humanify-rls-req
 
 echo "=== [3d2/6] Ensure Redis (rate-limit + login-guard) ==="
 ssh_cmd "ENV_FILE=$APP_DIR/.env bash -s" < "$SRC/scripts/ensure-humanify-redis.sh" || true
+ssh_cmd "ENV_FILE=$APP_DIR/.env bash -s" < "$SRC/scripts/ensure-humanify-obs-alerts.sh" || true
 
 echo "=== [3e/6] Ensure platform crons (purge / hard-delete / health) ==="
 ssh_cmd "APP_DIR=$APP_DIR bash -s" < "$SRC/scripts/ensure-humanify-crons.sh" || true

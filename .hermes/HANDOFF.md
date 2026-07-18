@@ -1,6 +1,15 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 18 Juli 2026 — **P2 sprint**: LMS GA cut · shared USE_MOCK_UI · CI subset · obs alerts · email DNS check
+> Diperbarui: 18 Juli 2026 — **P3 sprint**: obs alert wiring · observability UI · LMS lab smoke
+
+## P3 sprint (18 Jul 2026)
+
+| Item | Status |
+|---|---|
+| Obs alert env | `ensure-humanify-obs-alerts.sh` — CRON_SECRET, local check URL, OBS_ALERT_EMAIL |
+| Cron check | Hits `127.0.0.1:3020` + loopback auth fallback |
+| Observability UI | Alert status + tombol "Cek alert" |
+| LMS lab smoke | `smoke-test-saas-lms-lab-gate.js` di CI subset + regression EXTRA |
 
 ## P2 sprint (18 Jul 2026)
 
