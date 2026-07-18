@@ -47,3 +47,22 @@ Hierarki agent AI mengikuti **Viking Division** untuk ERP Sobatpaws.
 - Roster: `hermes/team.yaml`
 - Orchestrator kanban: `esi-king` (legacy alias: `esi-cto`)
 - Budaya: No Silos, Data-Driven, Automate Everything, Shield Wall Loyalty
+
+## D-010: Internal monitoring only (no Sentry.io for now) — 18 Jul 2026
+**CTO + DevOps:** Humanify memakai **monitoring internal** saja.
+- Transport: ring buffer + Postgres `humanify_obs_events` + UI `/platform/observability`
+- Env: `SENTRY_MODE=internal`, DSN placeholder `https://humanify@internal.humanify.local/1`
+- Sentry.io **deferred** — opt-in nanti: `HUMANIFY_SENTRY_EXTERNAL=true` + `SENTRY_MODE=external` + DSN nyata
+- Probe: `POST /api/platform/sentry-probe` → mode `internal`
+
+## D-011: RLS soft + request-bound (prod standard) — 18 Jul 2026
+**CTO + Infra:** Isolasi tenant primer tetap app-level (`scopedWhere` / fail-closed).
+- **Prod:** soft RLS + `HUMANIFY_RLS_REQUEST_BOUND=true` (`set_config(..., is_local)` dalam transaksi `withHQAuth`)
+- **Strict RLS:** staging/lab only — jangan enable di pool prod (cron/job tanpa tenant akan fail-closed)
+- Apply policies: `npm run db:humanify-rls`
+
+## D-012: SSO ACS e2e sebagai release gate — 18 Jul 2026
+**PM + DevOps:** Path SAML ACS sudah product-ready untuk enterprise IdP.
+- Smoke wajib di regression EXTRA: `scripts/smoke-test-saas-sso-acs-e2e.js` (`npm run smoke:sso-acs`)
+- CI gate: file presence di `humanify-saas-gate.yml`
+- Onboarding IdP nyata: konfigurasi per-tenant (Phase 13) + metadata `/api/humanify/sso/metadata`

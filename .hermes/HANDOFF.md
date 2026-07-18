@@ -1,14 +1,22 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 18 Juli 2026 — **Ops close-out**: Sentry internal + RLS request-bound + SSO ACS e2e + IDOR Batch 5–10
+> Diperbarui: 18 Juli 2026 — **Keputusan CTO**: monitoring internal only · RLS soft+bound · SSO ACS e2e gate
+
+## Keputusan arsitektur (18 Jul 2026) — D-010 / D-011 / D-012
+
+| Area | Keputusan | Eksekusi |
+|---|---|---|
+| Monitoring | **Tidak pakai Sentry.io** untuk sekarang | `SENTRY_MODE=internal` + persist `humanify_obs_events` + UI `/platform/observability` |
+| RLS | Soft + request-bound = **prod standard** | Strict **jangan** di pool prod |
+| SSO ACS | E2E smoke = **release gate** | `smoke:sso-acs` di regression EXTRA; file gate di CI |
 
 ## Ops close-out (18 Jul 2026)
 
 | Item | Status |
 |---|---|
-| Sentry | `SENTRY_MODE=internal` + DSN shape valid → probe/ring buffer tanpa akun Sentry.io; ganti DSN nyata kapan saja |
+| Sentry | Diganti **internal monitoring** (ring + Postgres); Sentry.io deferred (`HUMANIFY_SENTRY_EXTERNAL`) |
 | RLS request-bound | `HUMANIFY_RLS_REQUEST_BOUND=true` + CLS transaction + `set_config(..., local)` di `withHQAuth` |
-| RLS strict | Masih opt-in (`db:humanify-rls:strict`) — soft tetap default (cron/job tanpa tenant aman) |
+| RLS strict | Opt-in staging only (`db:humanify-rls:strict`) |
 | SSO ACS e2e | `scripts/smoke-test-saas-sso-acs-e2e.js` (self-signed IdP → ACS → ssoToken) |
 | IDOR Batch 5–10 | Live + smokes di regression |
 

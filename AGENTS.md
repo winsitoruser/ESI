@@ -18,7 +18,7 @@ Repo ini berisi **dua produk**. Jangan campur konteks.
 | Partner/tenant isolation | P0 | `tenant_id` + `scopedWhere` + soft RLS (`npm run db:humanify-rls`) |
 | Payroll / attendance depth | P1 | Golden: `npm run smoke:payroll-golden` |
 | LMS breadth | P2 | Sidebar IA dipangkas; advanced URL tetap ada |
-| Observability | P1 | Sentry opsional — isi `SENTRY_DSN` nyata lalu `POST /api/platform/sentry-probe` |
+| Observability | P1 | Internal monitoring (`/platform/observability`) — Sentry.io deferred |
 | E2E smoke | P2 | `npm run test:e2e:humanify:prod` |
 
 ```

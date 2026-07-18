@@ -57,6 +57,21 @@ async function main() {
   else fail('recent events');
   if (d.redis && typeof d.redis.configured === 'boolean') ok(`redis probe (configured=${d.redis.configured}, ok=${d.redis.ok})`);
   else fail('redis probe shape');
+  if (d.sentryMode === 'internal' || d.monitorMode === 'internal') ok(`monitor mode internal (sentryMode=${d.sentryMode})`);
+  else fail('monitor mode', `expected internal, got ${d.monitorMode || d.sentryMode}`);
+  if (typeof d.rlsRequestBound === 'boolean') ok(`rlsRequestBound=${d.rlsRequestBound}`);
+  else fail('rlsRequestBound missing');
+  if (d.persist && typeof d.persist.tableReady === 'boolean') ok(`persist tableReady=${d.persist.tableReady}`);
+  else fail('persist shape');
+
+  // Probe writes an internal event
+  const probe = await fetch(`${BASE}/api/platform/sentry-probe`, {
+    method: 'POST',
+    headers: { Cookie: COOKIE, 'Content-Type': 'application/json' },
+  });
+  const pj = await probe.json().catch(() => ({}));
+  if (probe.status === 200 && pj.success && pj.mode === 'internal') ok(`sentry-probe internal (${pj.eventId || 'ok'})`);
+  else fail('sentry-probe', `${probe.status} ${JSON.stringify(pj).slice(0, 120)}`);
 
   console.log(`\nRESULT: ${passed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);

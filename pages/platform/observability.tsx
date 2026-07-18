@@ -127,7 +127,7 @@ export default function PlatformObservabilityPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="bg-white border rounded-xl p-4">
             <div className="flex items-center gap-2 text-xs text-slate-500 mb-1"><Activity className="w-3.5 h-3.5 text-rose-600" /> Requests</div>
             <p className="text-lg font-bold text-slate-800">{obs?.counters?.requests ?? 0}</p>
@@ -136,11 +136,30 @@ export default function PlatformObservabilityPage() {
             </p>
           </div>
           <div className="bg-white border rounded-xl p-4">
-            <div className="flex items-center gap-2 text-xs text-slate-500 mb-1"><Database className="w-3.5 h-3.5 text-indigo-600" /> Integrations</div>
-            <p className="text-sm text-slate-700">
-              Sentry: {obs?.sentry ? (obs?.sentrySdk ? 'DSN + SDK aktif' : 'DSN diset, SDK belum load') : 'nonaktif'}
+            <div className="flex items-center gap-2 text-xs text-slate-500 mb-1"><Database className="w-3.5 h-3.5 text-emerald-600" /> Monitoring</div>
+            <p className="text-lg font-bold text-emerald-700">
+              {obs?.monitorMode === 'internal' || obs?.sentryMode === 'internal' ? 'Internal' : obs?.sentryMode || '—'}
             </p>
-            <p className="text-[11px] text-slate-400 mt-1">Redis URL: {obs?.redisUrl ? 'diset' : 'tidak diset'}</p>
+            <p className="text-[11px] text-slate-400 mt-1">
+              Persist: {obs?.persist?.tableReady
+                ? `${obs.persist.total ?? 0} rows · ${obs.persist.errors24h ?? 0} err/24h`
+                : 'ring only'}
+            </p>
+          </div>
+          <div className="bg-white border rounded-xl p-4">
+            <div className="flex items-center gap-2 text-xs text-slate-500 mb-1"><Database className="w-3.5 h-3.5 text-indigo-600" /> RLS</div>
+            <p className="text-lg font-bold text-slate-800">
+              {obs?.rlsMode === 'strict' ? 'Strict' : 'Soft'}
+              {obs?.rlsRequestBound ? ' + bound' : ''}
+            </p>
+            <p className="text-[11px] text-slate-400 mt-1">
+              Request-bound: {obs?.rlsRequestBound ? 'on' : 'off'}
+            </p>
+          </div>
+          <div className="bg-white border rounded-xl p-4">
+            <div className="flex items-center gap-2 text-xs text-slate-500 mb-1"><Database className="w-3.5 h-3.5 text-slate-500" /> Redis URL</div>
+            <p className="text-lg font-bold text-slate-800">{obs?.redisUrl ? 'Set' : '—'}</p>
+            <p className="text-[11px] text-slate-400 mt-1">Sentry.io: {obs?.sentryExternalAllowed ? 'opt-in' : 'disabled'}</p>
           </div>
         </div>
 
@@ -162,7 +181,7 @@ export default function PlatformObservabilityPage() {
         <div className="bg-white border rounded-xl overflow-hidden">
           <div className="px-4 py-3 border-b flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-amber-500" />
-            <p className="text-sm font-semibold text-slate-800">Event terbaru (error / slow request)</p>
+            <p className="text-sm font-semibold text-slate-800">Event terbaru (live ring + Postgres)</p>
           </div>
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-left">
