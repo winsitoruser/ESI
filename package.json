@@ -46,6 +46,7 @@
     "smoke:policy-ack": "node scripts/smoke-test-humanify-policy-ack.js",
     "smoke:billing-idempotency": "node scripts/smoke-test-humanify-billing-idempotency.js",
     "smoke:api-error": "node scripts/smoke-test-humanify-api-error.js",
+    "smoke:mock-guard": "NODE_ENV=production node scripts/smoke-test-humanify-mock-guard.js",
     "security:scorecard": "node scripts/run-humanify-security-scorecard.js",
     "test:e2e:humanify:personas": "playwright test e2e/humanify-ga-personas.spec.ts",
     "test:e2e:humanify:personas:prod": "PLAYWRIGHT_BASE_URL=https://humanify.id playwright test e2e/humanify-ga-personas.spec.ts",

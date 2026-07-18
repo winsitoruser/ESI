@@ -80,10 +80,12 @@ jobs:
           npm run smoke:api-error
           npm run smoke:sidebar-persona
           npm run smoke:payroll-fiscal
+          npm run smoke:mock-guard
           test -f lib/saas/tenant-request-bound.ts
           test -f lib/hris/policy-ack.ts
           test -f lib/saas/billing-webhook-idempotency.ts
           test -f docs/humanify-ga-scope.md
+          test -f docs/humanify-rls-strict-staging.md
           echo "✓ Unit smokes + Wave artifacts present"
 
       - name: Install Playwright Chromium (for optional prod smoke)

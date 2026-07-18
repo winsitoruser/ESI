@@ -1,6 +1,18 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-8** · CI unit gate · feature matrix · digest escalate · payroll snapshot
+> Diperbarui: 19 Juli 2026 — **Wave-9** · mock guard · GA checklist · device-sync idempotency · RLS lab docs
+
+## Wave-9 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w9-1 | Mock guard (`HUMANIFY_ALLOW_MOCK` + `smoke:mock-guard`) | Done |
+| w9-2 | Checklist hari pertama HR di `/humanify` | Done |
+| w9-3 | Device-sync Idempotency-Key | Done |
+| w9-4 | `docs/humanify-rls-strict-staging.md` | Done |
+| w9-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:mock-guard`
 
 ## Wave-8 (19 Jul 2026)
 
@@ -10,7 +22,7 @@
 | w8-2 | Matriks fitur paket di `/humanify/billing` | Done |
 | w8-3 | Action digest escalate CC manajer (cuti ≥3) | Done |
 | w8-4 | Payroll approve → calc snapshot di audit | Done |
-| w8-5 | Deploy + verify | Pending |
+| w8-5 | Deploy + verify | Done |
 
 ## Wave-7 (19 Jul 2026)
 

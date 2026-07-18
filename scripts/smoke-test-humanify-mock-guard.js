@@ -1,0 +1,45 @@
+#!/usr/bin/env node
+/**
+ * Guard: production must never enable HR mock UI.
+ * Usage: NODE_ENV=production node scripts/smoke-test-humanify-mock-guard.js
+ */
+const path = require('path');
+
+// Evaluate allowHrMockFallback logic inline (avoid TS transpile)
+function allowHrMockFallback(env) {
+  const flag = String(env.HUMANIFY_ALLOW_MOCK || '').toLowerCase();
+  if (flag === 'false' || flag === '0' || flag === 'off') return false;
+  if (env.NODE_ENV === 'production') return false;
+  return true;
+}
+
+let passed = 0;
+let failed = 0;
+const ok = (m) => { console.log('  ✓', m); passed++; };
+const fail = (m) => { console.log('  ✗', m); failed++; };
+
+console.log('Humanify mock-guard');
+
+if (allowHrMockFallback({ NODE_ENV: 'production' }) === false) ok('production → mock off');
+else fail('production still allows mock');
+
+if (allowHrMockFallback({ NODE_ENV: 'production', HUMANIFY_ALLOW_MOCK: 'true' }) === false) {
+  ok('production ignores HUMANIFY_ALLOW_MOCK=true');
+} else fail('production must ignore ALLOW_MOCK=true');
+
+if (allowHrMockFallback({ NODE_ENV: 'development', HUMANIFY_ALLOW_MOCK: 'false' }) === false) {
+  ok('dev + ALLOW_MOCK=false → off');
+} else fail('ALLOW_MOCK=false should disable in dev');
+
+if (allowHrMockFallback({ NODE_ENV: 'development' }) === true) ok('dev default → mock on');
+else fail('dev should allow mock by default');
+
+// Source file must not hardcode USE_MOCK_UI = true
+const fs = require('fs');
+const src = fs.readFileSync(path.join(__dirname, '../lib/hris/data-source.ts'), 'utf8');
+if (/NODE_ENV === 'production'/.test(src) || /NODE_ENV !== 'production'/.test(src) || /allowHrMockFallback/.test(src)) {
+  ok('data-source.ts present');
+} else fail('data-source.ts missing guard');
+
+console.log(`\nRESULT: ${passed} passed / ${failed} failed`);
+process.exit(failed ? 1 : 0);

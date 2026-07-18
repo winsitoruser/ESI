@@ -6,6 +6,7 @@ import HRStatCard from '@/components/humanify/HRStatCard';
 import EnterprisePageHeader from '@/components/humanify/EnterprisePageHeader';
 import DashboardModuleGrid from '@/components/humanify/DashboardModuleGrid';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import GaOnboardingChecklist from '@/components/humanify/GaOnboardingChecklist';
 import { useTranslation } from '@/lib/i18n';
 import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import {
@@ -550,6 +551,9 @@ export default function HRISDashboard() {
             </div>
           </div>
 
+          <div className="space-y-6">
+            <GaOnboardingChecklist />
+
           {/* Recent Activities */}
           <div className="rounded-2xl border border-violet-100 bg-gradient-to-br from-white via-white to-violet-50/50 shadow-sm">
             <div className="flex items-center justify-between border-b border-violet-100/60 px-5 py-4">
@@ -574,6 +578,7 @@ export default function HRISDashboard() {
                 </div>
               ))}
             </div>
+          </div>
           </div>
         </div>
 

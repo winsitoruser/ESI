@@ -3,6 +3,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { withHQAuth } from '../../../../lib/middleware/withHQAuth';
 import { allowHrMockFallback } from '@/lib/hris/data-source';
 import { pullZktecoAttendance } from '@/lib/hris/device-adapters/zkteco';
+import { claimDeviceSyncEvent, storeDeviceSyncResult } from '@/lib/hris/device-sync-idempotency';
+import crypto from 'crypto';
 
 let sequelize: any;
 try { sequelize = require('../../../../lib/sequelize'); } catch (_) {}
@@ -35,7 +37,28 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     const role = String((session?.user as any)?.role || '').toLowerCase();
     const isPlatformOps = ['super_admin', 'superadmin', 'platform_admin'].includes(role);
 
-    const { deviceId, secretKey, records, format, mode } = req.body;
+    const { deviceId, secretKey, records, format, mode, idempotencyKey } = req.body;
+    const headerKey = String(req.headers['idempotency-key'] || '').trim();
+    const syncKey = headerKey || String(idempotencyKey || '').trim()
+      || (Array.isArray(records) && records.length
+        ? `auto:${deviceId}:${crypto.createHash('sha256').update(JSON.stringify(records)).digest('hex').slice(0, 32)}`
+        : '');
+
+    if (syncKey) {
+      const claim = await claimDeviceSyncEvent({
+        key: syncKey,
+        deviceId: String(deviceId || ''),
+        tenantId: sessionTenantId,
+        db: sequelize,
+      });
+      if (claim.duplicate) {
+        return res.status(200).json({
+          success: true,
+          duplicate: true,
+          ...(claim.prior && typeof claim.prior === 'object' ? claim.prior : {}),
+        });
+      }
+    }
 
     if (!deviceId) {
       return res.status(400).json({ success: false, error: 'deviceId is required' });
@@ -244,14 +267,20 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       lastHeartbeatAt: new Date()
     });
 
-    return res.status(200).json({
+    const payload = {
       success: true,
       batchId,
       processed,
       duplicates,
       failed,
-      errors: errors.length > 0 ? errors.slice(0, 10) : undefined
-    });
+      errors: errors.length > 0 ? errors.slice(0, 10) : undefined,
+    };
+
+    if (syncKey) {
+      await storeDeviceSyncResult({ key: syncKey, result: payload, db: sequelize });
+    }
+
+    return res.status(200).json(payload);
 
   } catch (error: any) {
     console.warn('Device sync error: (table may not exist):', (error as any)?.message || error);
