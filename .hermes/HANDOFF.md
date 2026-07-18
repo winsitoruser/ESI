@@ -10,7 +10,7 @@
 | w11-2 | Merge fields surat HR + `docs/humanify-esign-privy-ga.md` | Done |
 | w11-3 | Playwright soft upload/esign/slip (`e2e/humanify-docs-upload-ui.spec.ts`) | Done |
 | w11-4 | letter-data API → `mergedTexts` + CI smoke | Done |
-| w11-5 | Deploy + verify | Pending |
+| w11-5 | Deploy + verify | Done |
 
 Scripts: `npm run digest:doc-expiry` · `npm run smoke:letter-merge` · `npm run test:e2e:humanify:docs-upload:prod`
 
