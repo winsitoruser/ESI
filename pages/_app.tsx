@@ -1,5 +1,6 @@
 import '../styles/global.scss';
 import '../styles/marquee.css';
+import '../styles/humanify-tokens.css';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import type { AppProps } from 'next/app';

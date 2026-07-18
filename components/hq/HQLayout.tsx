@@ -37,7 +37,6 @@ import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
 import { useTranslation, Language, Currency, languageNames, languageFlags, currencySymbols, currencyNames, currencyFlags } from '@/lib/i18n';
 import { filterSidebarGroupsByPlan } from '@/lib/saas/plan-entitlements';
 import { filterHumanifySidebarByPersona } from '@/lib/humanify/sidebar-persona';
-import '@/styles/humanify-tokens.css';
 
 export type HQPlatform = 'simesi' | 'humanify';
 
