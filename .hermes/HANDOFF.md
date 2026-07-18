@@ -10,7 +10,7 @@
 | w10-2 | Recruitment webhook Idempotency-Key | Done |
 | w10-3 | Smoke device-sync / recruitment idempotency | Done |
 | w10-4 | Doc expiry report + `docs/humanify-doc-retention.md` | Done |
-| w10-5 | Deploy + verify | Pending |
+| w10-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:payslip-gate` · `npm run smoke:device-sync-idempotency` · `npm run report:doc-expiry`
 
