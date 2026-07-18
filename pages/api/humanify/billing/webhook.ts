@@ -8,11 +8,12 @@ import {
   ensureBillingOrdersTable,
   verifyMidtransWebhook,
 } from '@/lib/saas/humanify-billing';
+import { withObservability, logEvent } from '@/lib/observability';
 
 let sequelize: any;
 try { sequelize = require('../../../../lib/sequelize'); } catch {}
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ success: false, error: 'Method not allowed' });
@@ -21,10 +22,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     await ensureBillingOrdersTable();
     const verified = await verifyMidtransWebhook(req.body || {});
-    if (!verified) return res.status(200).json({ success: true, handled: false });
+    if (!verified) {
+      logEvent({
+        level: 'warn',
+        msg: 'Billing webhook unverified',
+        route: '/api/humanify/billing/webhook',
+        method: 'POST',
+      });
+      return res.status(200).json({ success: true, handled: false });
+    }
 
     if (verified.paid) {
       const result = await activatePaidOrder(verified.orderCode, { raw: verified.raw });
+      logEvent({
+        level: 'info',
+        msg: 'Billing webhook paid',
+        route: '/api/humanify/billing/webhook',
+        method: 'POST',
+        context: { orderCode: verified.orderCode, activated: !result.alreadyPaid },
+      });
       return res.json({ success: true, handled: true, activated: !result.alreadyPaid, orderCode: verified.orderCode });
     }
 
@@ -44,3 +60,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ success: false, error: e.message });
   }
 }
+
+export default withObservability(handler, 'humanify/billing/webhook');

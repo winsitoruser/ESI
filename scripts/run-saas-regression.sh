@@ -22,6 +22,7 @@ SCRIPTS=(
 EXTRA=(
   "scripts/smoke-test-payroll-golden.js|payroll-golden"
   "scripts/smoke-test-saas-sso-acs-e2e.js|sso-acs-e2e"
+  "scripts/smoke-test-saas-payroll-depth.js|payroll-depth"
 )
 
 total_pass=0

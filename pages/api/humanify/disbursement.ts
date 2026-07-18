@@ -5,10 +5,13 @@ import {
   generateDisbursementFile, type BankFormat,
 } from '@/lib/hris/payroll-disbursement';
 import { loadDisbursementRows } from '@/lib/hris/disbursement-data';
+import { enforceHumanifyPlanFeature } from '@/lib/saas/assert-feature';
+import { withObservability } from '@/lib/observability';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
   if (!session) return res.status(401).json({ error: 'Unauthorized' });
+  if (!(await enforceHumanifyPlanFeature(req, res, session))) return;
 
   const tenantId = (session.user as any)?.tenantId || null;
 
@@ -53,3 +56,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   return res.status(405).json({ error: 'Method not allowed' });
 }
+
+export default withObservability(handler, 'humanify/disbursement');

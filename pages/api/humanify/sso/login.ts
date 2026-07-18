@@ -3,8 +3,9 @@
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { resolveTenantForSso, buildSpIdp } from '@/lib/saas/sso-saml';
+import { withObservability } from '@/lib/observability';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   }
@@ -31,3 +32,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ success: false, error: e?.message || 'SSO login error' });
   }
 }
+
+export default withObservability(handler, 'humanify/sso/login');

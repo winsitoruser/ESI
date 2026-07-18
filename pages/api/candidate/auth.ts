@@ -12,6 +12,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { SignJWT, jwtVerify } from 'jose';
 import bcrypt from 'bcryptjs';
 import { candidateJwtConfigured, resolveCandidateJwtSecretBytes } from '@/lib/saas/candidate-jwt';
+import { withObservability } from '@/lib/observability';
 
 const sequelize = require('../../../lib/sequelize');
 
@@ -41,7 +42,7 @@ async function createToken(payload: Record<string, any>): Promise<string> {
     .sign(jwtSecret());
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     if (!candidateJwtConfigured()) {
       return res.status(503).json({
@@ -223,3 +224,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: error.message || 'Internal server error' });
   }
 }
+
+export default withObservability(handler, 'candidate/auth');

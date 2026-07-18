@@ -108,6 +108,8 @@ const API_FEATURE_RULES: Array<{ test: RegExp; feature: HumanifyFeature }> = [
   { test: /\/api\/humanify\/reimbursement/, feature: 'payroll' },
   { test: /\/api\/humanify\/casual-workforce/, feature: 'payroll' },
   { test: /\/api\/humanify\/travel-expense/, feature: 'payroll' },
+  { test: /\/api\/humanify\/disbursement/, feature: 'payroll' },
+  { test: /\/api\/humanify\/compliance-export/, feature: 'payroll' },
   { test: /\/api\/humanify\/lms/, feature: 'lms' },
   { test: /\/api\/humanify\/training/, feature: 'lms' },
   { test: /\/api\/humanify\/certificates/, feature: 'lms' },

@@ -62,11 +62,14 @@ jobs:
           test -f scripts/migrate-humanify-rls.js
           test -f scripts/smoke-test-saas-sso-acs-e2e.js
           test -f scripts/smoke-test-saas-idor-batch11.js
+          test -f scripts/smoke-test-saas-payroll-depth.js
+          test -f scripts/ensure-humanify-redis.sh
+          test -f docs/humanify-sso-idp-runbook.md
           test -f scripts/enable-humanify-rls-request-bound.sh
           test -f lib/saas/candidate-jwt.ts
           test -f lib/observability/persist.ts
           test -f pages/api/humanify/sso/acs.ts
-          echo "✓ Required SaaS files present (incl. SSO ACS e2e + Batch 11 + internal monitor)"
+          echo "✓ Required SaaS files present (P1 redis/SSO/payroll-depth)"
 
       - name: Install Playwright Chromium (for optional prod smoke)
         if: ${{ secrets.SMOKE_BASE_URL != '' }}

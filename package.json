@@ -31,6 +31,7 @@
     "db:humanify-rls": "node scripts/migrate-humanify-rls.js",
     "db:humanify-rls:strict": "HUMANIFY_RLS_MODE=strict node scripts/migrate-humanify-rls.js",
     "smoke:sso-acs": "node scripts/smoke-test-saas-sso-acs-e2e.js",
+    "smoke:payroll-depth": "node scripts/smoke-test-saas-payroll-depth.js",
     "db:survey-responses-tenant": "node scripts/migrate-survey-responses-tenant.js",
     "netlify:dev": "netlify dev",
     "netlify:deploy": "netlify deploy",

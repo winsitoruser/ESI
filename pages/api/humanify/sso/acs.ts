@@ -4,14 +4,22 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { buildSpIdp, findOrProvisionSsoUser, resolveTenantForSso } from '@/lib/saas/sso-saml';
 import { mintSsoHandoff } from '@/lib/saas/sso-handoff';
+import { withObservability, logEvent } from '@/lib/observability';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).send('Method not allowed');
   }
 
   const base = (process.env.NEXTAUTH_URL || 'https://humanify.id').replace(/\/$/, '');
   const fail = (msg: string) => {
+    logEvent({
+      level: 'warn',
+      msg: `SSO ACS fail: ${msg}`,
+      route: '/api/humanify/sso/acs',
+      method: 'POST',
+      context: { reason: msg.slice(0, 120) },
+    });
     const q = new URLSearchParams({ error: msg.slice(0, 200) });
     return res.redirect(302, `${base}/humanify/login?${q.toString()}`);
   };
@@ -50,9 +58,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const dest = new URL(`${base}/humanify/login`);
     dest.searchParams.set('ssoToken', token);
     dest.searchParams.set('callbackUrl', '/humanify');
+    logEvent({
+      level: 'info',
+      msg: 'SSO ACS success',
+      route: '/api/humanify/sso/acs',
+      method: 'POST',
+      tenantId: resolved.tenant.id,
+      context: { slug, userId: user.id },
+    });
     return res.redirect(302, dest.toString());
   } catch (e: any) {
     console.error('[sso/acs]', e);
     return fail(e?.message || 'SSO assertion gagal divalidasi');
   }
 }
+
+export default withObservability(handler, 'humanify/sso/acs');

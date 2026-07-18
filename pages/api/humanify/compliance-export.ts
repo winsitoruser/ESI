@@ -7,10 +7,13 @@ import {
 } from '@/lib/hris/tax-bpjs-export';
 import { allowHrMockFallback } from '@/lib/hris/data-source';
 import { fetchBPJSExportRows, fetchPPh21ExportRows } from '@/lib/hris/compliance-data';
+import { enforceHumanifyPlanFeature } from '@/lib/saas/assert-feature';
+import { withObservability } from '@/lib/observability';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
   if (!session) return res.status(401).json({ error: 'Unauthorized' });
+  if (!(await enforceHumanifyPlanFeature(req, res, session))) return;
 
   const { action, format, period } = req.query;
 
@@ -102,3 +105,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: error.message });
   }
 }
+
+export default withObservability(handler, 'humanify/compliance-export');

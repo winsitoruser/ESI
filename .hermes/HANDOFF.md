@@ -1,6 +1,15 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 18 Juli 2026 — **P0 hardening sprint**: mock gate · candidate JWT · device-sync IDOR · plan entitlement API+middleware · Batch 11
+> Diperbarui: 18 Juli 2026 — **P1 sprint**: Redis ensure · obs wrap ACS/webhook/candidate · SSO IdP runbook · payroll depth smoke
+
+## P1 sprint (18 Jul 2026)
+
+| Item | Status |
+|---|---|
+| Redis | `ensure-humanify-redis.sh` di deploy; REDIS_URL sudah live (PONG); PM2 fork single |
+| Observability wrap | SSO ACS/login, billing webhook, candidate auth/portal, disbursement, compliance-export |
+| SSO IdP runbook | `docs/humanify-sso-idp-runbook.md` (Okta/Azure/Google QC) |
+| Payroll depth | `smoke:payroll-depth` — THR/BPJS/PPh21/disbursement/compliance |
 
 ## P0 sprint (18 Jul 2026)
 

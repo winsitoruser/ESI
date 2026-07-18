@@ -19,6 +19,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { jwtVerify } from 'jose';
 import { candidateJwtConfigured, resolveCandidateJwtSecretBytes } from '@/lib/saas/candidate-jwt';
+import { withObservability } from '@/lib/observability';
 
 const sequelize = require('../../../lib/sequelize');
 
@@ -32,7 +33,7 @@ async function getCandidateFromToken(req: NextApiRequest): Promise<any | null> {
   } catch { return null; }
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     if (!candidateJwtConfigured()) {
       return res.status(503).json({
@@ -448,3 +449,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: error.message || 'Internal server error' });
   }
 }
+
+export default withObservability(handler, 'candidate/portal');
