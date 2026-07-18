@@ -1,6 +1,16 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **30-day board t1–t5** · durable docs · action inbox · employee SAVEPOINT · QA golden seed
+> Diperbarui: 19 Juli 2026 — **Wave-2 n1–n5** · doc upload UX · GA journey · DB backup · action digest · sales demo
+
+## Wave-2 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| n1 | UX upload: progress bar, preview, badge file hilang, unggah ulang | Done |
+| n2 | Smoke GA journey (`smoke:ga-journey`) | Done |
+| n3 | `backup-humanify-db.sh` + cron harian + restore dry-run | Done |
+| n4 | Digest mingguan Action Inbox (`digest:action-inbox`) | Done |
+| n5 | `docs/humanify-sales-demo-15min.md` | Done |
 
 ## Hot fix — employee create silent rollback (19 Jul 2026)
 

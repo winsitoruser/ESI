@@ -118,6 +118,21 @@ export async function deleteStoredFile(fileUrl?: string | null) {
   }
 }
 
+/** Fast existence check without reading bytes (local) / HEAD-ish for S3. */
+export async function storedFileExists(fileUrl?: string | null): Promise<boolean> {
+  if (!fileUrl) return false;
+  if (fileUrl.startsWith(STORAGE_KEY_PREFIX) && isS3Enabled()) {
+    try {
+      const buf = await getS3Object(fileUrl.slice(STORAGE_KEY_PREFIX.length));
+      return Boolean(buf && buf.length >= 0);
+    } catch {
+      return false;
+    }
+  }
+  const fullPath = resolveLocalPathFromFileUrl(fileUrl);
+  return Boolean(fullPath && fs.existsSync(fullPath));
+}
+
 /** HMAC token for short-lived download links (optional clients). */
 export function signDownloadToken(docId: string, tenantId: string, ttlSec = 900): string {
   const secret = process.env.NEXTAUTH_SECRET || process.env.HUMANIFY_DOC_SIGN_SECRET || 'dev-doc-sign';

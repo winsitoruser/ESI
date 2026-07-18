@@ -415,10 +415,24 @@ async function getEmployeeDetail(req: NextApiRequest, res: NextApiResponse, tena
     { empId, tenantId }
   );
   await ensureEmployeeDocumentsTable(sequelize);
-  const documents = await safeQuery(
+  const documentsRaw = await safeQuery(
     `SELECT * FROM employee_documents WHERE employee_id = :empId AND tenant_id = :tenantId ORDER BY created_at DESC`,
     { empId, tenantId }
   );
+  let documents = documentsRaw;
+  try {
+    const { storedFileExists } = await import('@/lib/hris/document-storage');
+    documents = [];
+    for (const row of documentsRaw || []) {
+      let file_exists = false;
+      if (row.file_url) {
+        try { file_exists = await storedFileExists(row.file_url); } catch { file_exists = false; }
+      }
+      documents.push({ ...row, file_exists, file_missing: Boolean(row.file_url) && !file_exists });
+    }
+  } catch {
+    documents = documentsRaw;
+  }
   const contracts = await safeQuery(
     `SELECT * FROM employee_contracts WHERE employee_id = :empId AND tenant_id = :tenantId ORDER BY start_date DESC`,
     { empId, tenantId }

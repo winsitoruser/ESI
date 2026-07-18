@@ -247,9 +247,19 @@ export default function EmployeeDocumentsPanel({
                 doc={d}
                 fmtDate={fmtDate}
                 onEdit={() => { setForm({ ...d }); setShowModal(true); }}
+                onRetryUpload={() => { setForm({ ...d }); setShowModal(true); }}
                 onDelete={() => handleDelete(d.id)}
               />
-              {d.file_url && d.status === 'pending' && (
+              {d.file_missing && (
+                <button
+                  type="button"
+                  onClick={() => { setForm({ ...d }); setShowModal(true); }}
+                  className="mt-1 w-full text-[11px] px-2 py-1 bg-red-100 text-red-800 rounded hover:bg-red-200"
+                >
+                  ↻ Unggah ulang file hilang
+                </button>
+              )}
+              {d.file_url && !d.file_missing && d.status === 'pending' && (
                 <div className="flex gap-1 mt-1 px-1">
                   <button
                     type="button"

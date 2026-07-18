@@ -100,6 +100,38 @@ export function humanifyObsAlertEmail(opts: {
   return { subject, html, text };
 }
 
+export function humanifyActionInboxDigestEmail(opts: {
+  tenantName: string;
+  leave: number;
+  contract: number;
+  documents: number;
+  attendance: number;
+  inboxUrl: string;
+}): { subject: string; html: string; text: string } {
+  const total = opts.leave + opts.contract + opts.documents + opts.attendance;
+  const subject = `Humanify — ${total} aksi Action Inbox untuk ${opts.tenantName}`;
+  const bodyHtml = `
+    <p style="margin:0 0 12px;">Ringkasan mingguan Action Inbox untuk <strong>${escapeHtml(opts.tenantName)}</strong>:</p>
+    ${emailInfoCard(`
+      <ul style="margin:0;padding-left:18px;line-height:1.7;">
+        <li>Cuti pending: <strong>${opts.leave}</strong></li>
+        <li>Kontrak ≤30 hari: <strong>${opts.contract}</strong></li>
+        <li>Dokumen belum lengkap: <strong>${opts.documents}</strong></li>
+        <li>Absensi hari ini: <strong>${opts.attendance}</strong></li>
+      </ul>
+    `)}
+    <p style="margin:0;font-size:13px;color:#6b7280;">Tindaklanjuti dari dashboard HR agar tidak menumpuk.</p>`;
+  const html = wrapHumanifyEmail({
+    preheader: subject,
+    eyebrow: 'Action Inbox',
+    title: 'Digest mingguan HR',
+    bodyHtml,
+    cta: { label: 'Buka Action Inbox', href: opts.inboxUrl },
+  });
+  const text = `${subject}\nCuti:${opts.leave} Kontrak:${opts.contract} Docs:${opts.documents} Absen:${opts.attendance}\n${opts.inboxUrl}`;
+  return { subject, html, text };
+}
+
 export function humanifyDigestEmail(opts: {
   tenantName: string;
   critical: number;

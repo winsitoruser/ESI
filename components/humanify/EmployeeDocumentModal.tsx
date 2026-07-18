@@ -1,5 +1,5 @@
 ﻿import { useRef, useState } from 'react';
-import { X, Upload, FileText, Download, Eye, Edit, Trash2, AlertCircle } from 'lucide-react';
+import { X, Upload, FileText, Download, Eye, Edit, Trash2, AlertCircle, RefreshCw } from 'lucide-react';
 import {
   EMPLOYEE_DOCUMENT_CATEGORIES,
   EMPLOYEE_DOCUMENT_TYPES,
@@ -45,12 +45,15 @@ export default function EmployeeDocumentModal({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [replaceExisting, setReplaceExisting] = useState(true);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   if (!open) return null;
 
   const typeMeta = getDocumentTypeMeta(form.document_type || '');
   const isEdit = Boolean(form.id);
+  const fileMissing = Boolean(form.file_missing || (form.file_url && form.file_exists === false));
   const hasExistingType = !isEdit && form.document_type &&
     (existingDocuments || []).some((d) => d.document_type === form.document_type && d.file_url);
 
@@ -74,6 +77,9 @@ export default function EmployeeDocumentModal({
       return;
     }
     setSelectedFile(file);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    if (file.type.startsWith('image/')) setPreviewUrl(URL.createObjectURL(file));
+    else setPreviewUrl(null);
     if (!form.title && !form.id) {
       const base = getDocumentTypeLabel(form.document_type || '') || 'Dokumen';
       setForm((f) => ({ ...f, title: `${base} — ${file.name}` }));
@@ -95,6 +101,24 @@ export default function EmployeeDocumentModal({
     if (file) pickFile(file);
   };
 
+  const uploadWithProgress = (fd: FormData): Promise<{ ok: boolean; json: any }> =>
+    new Promise((resolve) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/humanify/employee-documents');
+      xhr.upload.onprogress = (ev) => {
+        if (ev.lengthComputable) setUploadProgress(Math.round((ev.loaded / ev.total) * 100));
+      };
+      xhr.onload = () => {
+        try {
+          resolve({ ok: xhr.status >= 200 && xhr.status < 300, json: JSON.parse(xhr.responseText || '{}') });
+        } catch {
+          resolve({ ok: false, json: { error: 'Respons tidak valid' } });
+        }
+      };
+      xhr.onerror = () => resolve({ ok: false, json: { error: 'Jaringan gagal' } });
+      xhr.send(fd);
+    });
+
   const handleSave = async () => {
     if (!form.document_type) {
       showToast('error', 'Pilih tipe dokumen');
@@ -104,12 +128,13 @@ export default function EmployeeDocumentModal({
       showToast('error', 'Judul dokumen wajib diisi');
       return;
     }
-    if (!isEdit && !selectedFile) {
-      showToast('error', 'Pilih file dokumen untuk diunggah');
+    if ((!isEdit || fileMissing) && !selectedFile) {
+      showToast('error', fileMissing ? 'File fisik hilang — unggah ulang dokumen' : 'Pilih file dokumen untuk diunggah');
       return;
     }
 
     setSaving(true);
+    setUploadProgress(selectedFile ? 0 : null);
     try {
       const fd = new FormData();
       fd.append('employee_id', String(employeeId));
@@ -124,11 +149,13 @@ export default function EmployeeDocumentModal({
       if (selectedFile) fd.append('file', selectedFile);
       if (hasExistingType && replaceExisting) fd.append('replace_existing', 'true');
 
-      const res = await fetch('/api/humanify/employee-documents', { method: 'POST', body: fd });
-      const json = await res.json();
-      if (json.success) {
+      const { ok, json } = await uploadWithProgress(fd);
+      if (ok && json.success) {
         showToast('success', json.message || 'Dokumen berhasil disimpan');
         setSelectedFile(null);
+        setUploadProgress(null);
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        setPreviewUrl(null);
         onSaved();
         onClose();
       } else {
@@ -138,10 +165,11 @@ export default function EmployeeDocumentModal({
       showToast('error', 'Gagal menyimpan dokumen');
     }
     setSaving(false);
+    setUploadProgress(null);
   };
 
-  const existingFileUrl = form.id && form.file_url ? getEmployeeDocumentDownloadUrl(form.id) : undefined;
-  const existingFileDownloadUrl = form.id && form.file_url ? getEmployeeDocumentDownloadUrl(form.id, true) : undefined;
+  const existingFileUrl = form.id && form.file_url && !fileMissing ? getEmployeeDocumentDownloadUrl(form.id) : undefined;
+  const existingFileDownloadUrl = form.id && form.file_url && !fileMissing ? getEmployeeDocumentDownloadUrl(form.id, true) : undefined;
   const existingFileName = (form.file_name as string) || 'Lihat dokumen';
 
   return (
@@ -152,7 +180,7 @@ export default function EmployeeDocumentModal({
       >
         <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white z-10">
           <h3 className="font-semibold text-gray-800">
-            {isEdit ? 'Edit Dokumen' : 'Upload Dokumen Karyawan'}
+            {fileMissing ? 'Unggah Ulang Dokumen' : isEdit ? 'Edit Dokumen' : 'Upload Dokumen Karyawan'}
           </h3>
           <button type="button" onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded">
             <X className="w-4 h-4" />
@@ -160,6 +188,16 @@ export default function EmployeeDocumentModal({
         </div>
 
         <div className="p-4 space-y-4">
+          {fileMissing && (
+            <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-100 rounded-lg text-xs text-red-800">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold">File fisik hilang di server</p>
+                <p className="mt-0.5">Metadata masih ada. Unggah ulang file untuk memulihkan akses unduhan.</p>
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="text-xs font-medium text-gray-500">Tipe Dokumen *</label>
             <select
@@ -246,7 +284,7 @@ export default function EmployeeDocumentModal({
 
           <div>
             <label className="text-xs font-medium text-gray-500">
-              File Dokumen {!isEdit && '*'}
+              File Dokumen {(!isEdit || fileMissing) && '*'}
             </label>
             {existingFileUrl && !selectedFile && (
               <div className="mt-1 mb-2 flex items-center gap-2 p-2 bg-violet-50 border border-violet-100 rounded-lg text-sm">
@@ -258,6 +296,11 @@ export default function EmployeeDocumentModal({
                 <a href={existingFileDownloadUrl || existingFileUrl} download className="p-1 text-violet-600 hover:bg-violet-100 rounded" title="Unduh">
                   <Download className="w-4 h-4" />
                 </a>
+              </div>
+            )}
+            {previewUrl && (
+              <div className="mt-1 mb-2">
+                <img src={previewUrl} alt="Preview" className="max-h-32 rounded-lg border object-contain mx-auto" />
               </div>
             )}
             <div
@@ -288,7 +331,12 @@ export default function EmployeeDocumentModal({
                   <p className="text-xs text-gray-400">{fmtSize(selectedFile.size)}</p>
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); setSelectedFile(null); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedFile(null);
+                      if (previewUrl) URL.revokeObjectURL(previewUrl);
+                      setPreviewUrl(null);
+                    }}
                     className="text-xs text-red-500 mt-1 hover:underline"
                   >
                     Hapus pilihan
@@ -296,7 +344,9 @@ export default function EmployeeDocumentModal({
                 </div>
               ) : (
                 <>
-                  <p className="text-sm font-medium text-gray-700">Drag & drop file di sini</p>
+                  <p className="text-sm font-medium text-gray-700">
+                    {fileMissing ? 'Pilih file untuk unggah ulang' : 'Drag & drop file di sini'}
+                  </p>
                   <p className="text-xs text-gray-500 mt-1">
                     atau <span className="text-violet-600">klik untuk pilih file</span>
                   </p>
@@ -306,6 +356,17 @@ export default function EmployeeDocumentModal({
                 </>
               )}
             </div>
+            {uploadProgress !== null && (
+              <div className="mt-2">
+                <div className="flex justify-between text-[11px] text-gray-500 mb-1">
+                  <span>Mengunggah…</span>
+                  <span>{uploadProgress}%</span>
+                </div>
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-violet-600 transition-all" style={{ width: `${uploadProgress}%` }} />
+                </div>
+              </div>
+            )}
           </div>
 
           <div>
@@ -344,12 +405,12 @@ export default function EmployeeDocumentModal({
             {saving ? (
               <>
                 <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Menyimpan...
+                {uploadProgress !== null ? `Mengunggah ${uploadProgress}%` : 'Menyimpan...'}
               </>
             ) : (
               <>
-                <Upload className="w-4 h-4" />
-                {isEdit ? 'Simpan Perubahan' : 'Upload Dokumen'}
+                {fileMissing ? <RefreshCw className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
+                {fileMissing ? 'Unggah Ulang' : isEdit ? 'Simpan Perubahan' : 'Upload Dokumen'}
               </>
             )}
           </button>
@@ -363,22 +424,26 @@ export function EmployeeDocumentCard({
   doc,
   onEdit,
   onDelete,
+  onRetryUpload,
   fmtDate,
 }: {
   doc: any;
   onEdit: () => void;
   onDelete: () => void;
+  onRetryUpload?: () => void;
   fmtDate: (d: any) => string;
 }) {
   const typeLabel = getDocumentTypeLabel(doc.document_type);
-  const fileAccessUrl = doc.id && doc.file_url ? getEmployeeDocumentDownloadUrl(doc.id) : null;
-  const fileDownloadUrl = doc.id && doc.file_url ? getEmployeeDocumentDownloadUrl(doc.id, true) : null;
+  const fileMissing = Boolean(doc.file_missing || (doc.file_url && doc.file_exists === false));
+  const fileAccessUrl = doc.id && doc.file_url && !fileMissing ? getEmployeeDocumentDownloadUrl(doc.id) : null;
+  const fileDownloadUrl = doc.id && doc.file_url && !fileMissing ? getEmployeeDocumentDownloadUrl(doc.id, true) : null;
   const isImage = doc.mime_type?.startsWith('image/') || /\.(jpe?g|png|webp)$/i.test(doc.file_url || '');
   const expiryState = getExpiryState(doc.expiry_date);
   const verLabel = getVerificationLabel(doc.status);
 
   return (
     <div className={`border rounded-lg p-4 hover:bg-gray-50 ${
+      fileMissing ? 'border-red-300 bg-red-50/40' :
       expiryState === 'expired' ? 'border-red-200 bg-red-50/30' :
       expiryState === 'expiring_soon' ? 'border-amber-200 bg-amber-50/30' : ''
     }`}>
@@ -387,8 +452,8 @@ export function EmployeeDocumentCard({
           {isImage && fileAccessUrl ? (
             <img src={fileAccessUrl} alt={doc.title} className="w-12 h-12 rounded-lg object-cover border shrink-0" />
           ) : (
-            <div className="p-2 bg-violet-50 rounded-lg shrink-0">
-              <FileText className="w-5 h-5 text-violet-600" />
+            <div className={`p-2 rounded-lg shrink-0 ${fileMissing ? 'bg-red-50' : 'bg-violet-50'}`}>
+              <FileText className={`w-5 h-5 ${fileMissing ? 'text-red-500' : 'text-violet-600'}`} />
             </div>
           )}
           <div className="min-w-0">
@@ -401,6 +466,9 @@ export function EmployeeDocumentCard({
                 doc.status === 'expired' ? 'bg-red-50 text-red-600' :
                 'bg-amber-50 text-amber-700'
               }`}>{verLabel}</span>
+              {fileMissing && (
+                <span className="inline-block px-2 py-0.5 bg-red-100 text-red-800 text-[10px] rounded font-semibold">File hilang</span>
+              )}
               {expiryState === 'expiring_soon' && (
                 <span className="inline-block px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] rounded">Segera kadaluarsa</span>
               )}
@@ -414,9 +482,17 @@ export function EmployeeDocumentCard({
             {!doc.file_url && (
               <p className="text-[10px] text-red-500 mt-1">⚠ Belum ada file terlampir</p>
             )}
+            {fileMissing && (
+              <p className="text-[10px] text-red-600 mt-1">File di disk tidak ditemukan — unggah ulang diperlukan</p>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">
+          {fileMissing && onRetryUpload && (
+            <button type="button" onClick={onRetryUpload} className="p-1.5 text-red-600 hover:bg-red-50 rounded" title="Unggah ulang">
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+          )}
           {fileAccessUrl && (
             <>
               <a href={fileAccessUrl} target="_blank" rel="noopener noreferrer" className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded" title="Lihat">

@@ -14,6 +14,7 @@ import {
   persistUploadedFile,
   readDocumentBytes,
   STORAGE_KEY_PREFIX,
+  storedFileExists,
 } from './document-storage';
 
 /** @deprecated Prefer getLocalStorageRoot(); kept for formidable temp dir. */
@@ -331,7 +332,21 @@ export async function listEmployeeDocuments(
      ORDER BY created_at DESC`,
     { replacements: { empId: employeeId, tenantId } }
   );
-  return rows || [];
+  const list = (rows || []) as any[];
+  // Enrich with physical file presence (legacy wipe / missing disk)
+  const out = [];
+  for (const row of list) {
+    let file_exists = false;
+    if (row.file_url) {
+      try {
+        file_exists = await storedFileExists(row.file_url);
+      } catch {
+        file_exists = false;
+      }
+    }
+    out.push({ ...row, file_exists, file_missing: Boolean(row.file_url) && !file_exists });
+  }
+  return out;
 }
 
 export async function deleteEmployeeDocumentRecord(

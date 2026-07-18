@@ -46,4 +46,12 @@ ensure_line "health" "*/5 * * * *" \
 ensure_line "obs-alert" "*/10 * * * *" \
   "node scripts/check-humanify-obs-alerts.js >> ${LOG_DIR}/humanify-obs-alert.log 2>&1"
 
+# Daily DB backup 02:30 UTC (09:30 WIB)
+ensure_line "db-backup" "30 2 * * *" \
+  "bash scripts/backup-humanify-db.sh >> ${LOG_DIR}/humanify-db-backup.log 2>&1"
+
+# Weekly Action Inbox digest — Mon 01:00 UTC (08:00 WIB)
+ensure_line "action-digest" "0 1 * * 1" \
+  "node scripts/send-humanify-action-inbox-digest.js >> ${LOG_DIR}/humanify-action-digest.log 2>&1"
+
 echo "Done — verify with: crontab -l | grep ${MARKER}"
