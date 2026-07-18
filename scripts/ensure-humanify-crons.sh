@@ -54,4 +54,8 @@ ensure_line "db-backup" "30 2 * * *" \
 ensure_line "action-digest" "0 1 * * 1" \
   "node scripts/send-humanify-action-inbox-digest.js >> ${LOG_DIR}/humanify-action-digest.log 2>&1"
 
+# Weekly IDOR security scorecard — Sun 23:00 UTC (Mon 06:00 WIB)
+ensure_line "security-scorecard" "0 23 * * 0" \
+  "SMOKE_BASE_URL='https://humanify.id' node scripts/run-humanify-security-scorecard.js >> ${LOG_DIR}/humanify-security-scorecard.log 2>&1 || true"
+
 echo "Done — verify with: crontab -l | grep ${MARKER}"

@@ -1,6 +1,19 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-4** · SSO IdP QC · multi-role login · bulk employee edit
+> Diperbarui: 19 Juli 2026 — **Wave-5** · CSV export · design tokens · security scorecard · backup runbook
+
+## Wave-5 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w5-1 | Employee CSV export (`/api/humanify/employees-export` + tombol Export) | Done |
+| w5-2 | Design tokens `styles/humanify-tokens.css` + `.humanify-theme` di HQLayout | Done |
+| w5-3 | Weekly IDOR scorecard → Discord (`security:scorecard` + cron) | Done |
+| w5-4 | `docs/humanify-backup-restore-runbook.md` (RPO/RTO + drill) | Done |
+| w5-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:employees-export` · `npm run security:scorecard`  
+Docs: `docs/humanify-backup-restore-runbook.md`
 
 ## Wave-4 (19 Jul 2026)
 
@@ -14,7 +27,7 @@
 
 Scripts: `npm run smoke:multi-role` · `npm run smoke:employees-bulk` · `npm run smoke:sso-idp-checklist`  
 API: `POST /api/humanify/employees-bulk?action=update|undo`  
-Env (ops): `HUMANIFY_INVITE_RETURN_TOKEN=true` (agar smoke/e2e dapat token saat SMTP aktif) · `HUMANIFY_SSO_IDP_QC_DONE=okta,azure` (informasional)
+Env (ops): `HUMANIFY_INVITE_RETURN_TOKEN=true` (VPS — smoke/e2e dapat token saat SMTP aktif) · `HUMANIFY_SSO_IDP_QC_DONE=okta,azure` (informasional)
 
 ## Wave-3 (19 Jul 2026)
 

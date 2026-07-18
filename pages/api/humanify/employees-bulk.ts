@@ -36,6 +36,18 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         actorId,
         actorEmail,
       });
+      try {
+        const { logAdminAction } = await import('@/lib/saas/admin-audit');
+        await logAdminAction({
+          tenantId,
+          actorUserId: actorId,
+          actorEmail,
+          action: 'employee.bulk_update',
+          resourceType: 'employees',
+          resourceId: result.batchId || undefined,
+          meta: { updated: result.updated, patch: result.patch },
+        });
+      } catch { /* non-blocking */ }
       return res.json({
         success: true,
         data: result,

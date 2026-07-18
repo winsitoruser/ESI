@@ -548,14 +548,47 @@ export default function EmployeeManagementPage() {
           <div className="flex items-center gap-2">
             <DataSourceBadge source={dataSource} />
             {activeTab === 'list' && (
-              <CanAccess permission="employees.create">
+              <>
+                <CanAccess permission="employees.create">
+                  <button
+                    onClick={() => setShowCreateModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 text-sm font-medium"
+                  >
+                    <Plus className="w-4 h-4" /> Tambah Karyawan
+                  </button>
+                </CanAccess>
                 <button
-                  onClick={() => setShowCreateModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 text-sm font-medium"
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const params = new URLSearchParams({ format: 'csv' });
+                      if (search) params.set('search', search);
+                      if (filterDept) params.set('department', filterDept);
+                      if (filterStatus) params.set('status', filterStatus);
+                      const res = await fetch(`/api/humanify/employees-export?${params}`);
+                      if (!res.ok) {
+                        const j = await res.json().catch(() => ({}));
+                        showToast('error', j.error || 'Export gagal');
+                        return;
+                      }
+                      const blob = await res.blob();
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `humanify-employees-${new Date().toISOString().slice(0, 10)}.csv`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                      showToast('success', 'CSV diekspor');
+                    } catch {
+                      showToast('error', 'Export gagal');
+                    }
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 border rounded-lg hover:bg-gray-50 text-sm text-gray-700"
+                  title="Export CSV"
                 >
-                  <Plus className="w-4 h-4" /> Tambah Karyawan
+                  <Download className="w-4 h-4" /> Export
                 </button>
-              </CanAccess>
+              </>
             )}
             {activeTab === 'detail' && (
               <button onClick={() => { setActiveTab('list'); setSelectedEmployee(null); }}

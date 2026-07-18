@@ -1,0 +1,45 @@
+/**
+ * Humanify design tokens — single source for HRIS surfaces.
+ * Import once from HQLayout when platform=humanify.
+ */
+:root,
+.humanify-theme {
+  --hf-brand: #5b21b6;
+  --hf-brand-600: #6d28d9;
+  --hf-brand-500: #7c3aed;
+  --hf-brand-100: #ede9fe;
+  --hf-brand-50: #f5f3ff;
+  --hf-ink: #0f172a;
+  --hf-ink-muted: #64748b;
+  --hf-surface: #ffffff;
+  --hf-surface-muted: #f8fafc;
+  --hf-border: #e2e8f0;
+  --hf-success: #059669;
+  --hf-warning: #d97706;
+  --hf-danger: #dc2626;
+  --hf-radius: 0.75rem;
+  --hf-radius-lg: 1rem;
+  --hf-shadow: 0 1px 2px rgb(15 23 42 / 0.06);
+  --hf-font: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+.humanify-theme {
+  font-family: var(--hf-font);
+  color: var(--hf-ink);
+}
+
+.humanify-theme .hf-card {
+  background: var(--hf-surface);
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-lg);
+  box-shadow: var(--hf-shadow);
+}
+
+.humanify-theme .hf-btn-primary {
+  background: var(--hf-brand-600);
+  color: #fff;
+  border-radius: var(--hf-radius);
+}
+.humanify-theme .hf-btn-primary:hover {
+  background: var(--hf-brand);
+}
