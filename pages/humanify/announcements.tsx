@@ -1,8 +1,8 @@
-﻿import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DepartmentSelect from '@/components/humanify/DepartmentSelect';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
-import type { HrisDataSource } from '@/lib/hris/data-source';
+import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import {
   Megaphone, Plus, Search, Filter, Pin, Eye, Edit, Trash2, X, CheckCircle,
   AlertCircle, Users, Calendar, Send, Clock, ArrowUp, ArrowDown, Bell
@@ -35,7 +35,6 @@ const CATEGORY_CONF: Record<string, { label: string; color: string }> = {
   training: { label: 'Training', color: 'bg-indigo-100 text-indigo-700' },
 };
 
-const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
 
 const MOCK_ANNOUNCEMENTS: Announcement[] = [
   { id: 'a1', title: 'Kebijakan Cuti Lebaran 2026', content: 'Diinformasikan kepada seluruh karyawan bahwa cuti bersama Idul Fitri 2026 adalah tanggal 29 Maret - 2 April 2026. Batas pengajuan cuti tambahan paling lambat 15 Maret 2026.', category: 'hr_policy', priority: 'high', targetAudience: 'all', isPinned: true, status: 'published', publishDate: '2026-03-01', viewCount: 142, createdBy: 'HR Admin', createdAt: '2026-03-01' },

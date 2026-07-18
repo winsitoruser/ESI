@@ -1,7 +1,7 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
-import type { HrisDataSource } from '@/lib/hris/data-source';
+import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import {
   Settings, Plus, Loader2, X, Target, BarChart3, Users, GraduationCap, Award,
@@ -26,7 +26,6 @@ const GRADE_COLORS: Record<string, string> = {
 
 type TabKey = 'configs' | 'scores' | 'competencies' | 'candidates';
 
-const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
 
 const MOCK_TS_CONFIGS = [{ id: 'sc1', name: 'Scoring Barista Standard', curriculum_id: 'cur1', passing_score: 70, max_score: 100, weight_theory: 30, weight_practical: 50, weight_attitude: 20, grading_scale: 'A-E', status: 'active' }];
 const MOCK_TS_COMPETENCIES = [

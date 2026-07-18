@@ -1,7 +1,7 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
-import type { HrisDataSource } from '@/lib/hris/data-source';
+import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import { Plane, Receipt, Wallet, Plus, Edit, Trash2, X, Check, Eye, Search, MapPin, Calendar, DollarSign } from 'lucide-react';
 
@@ -11,7 +11,6 @@ interface Budget { id: string; category: string; fiscal_year: number; monthly_li
 
 type TabKey = 'requests' | 'expenses' | 'budgets';
 
-const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
 
 const MOCK_TE_OVERVIEW = { totalRequests: 24, pendingRequests: 3, totalExpenses: 185000000, budgetUtilization: 62, avgTripCost: 7700000 };
 const MOCK_TE_REQUESTS: TravelReq[] = [

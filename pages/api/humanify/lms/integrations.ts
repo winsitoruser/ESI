@@ -4,6 +4,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../auth/[...nextauth]';
+import { assertLmsLabApi } from '@/lib/humanify/assert-lms-lab';
 import {
   getIntegrationRules,
   updateIntegrationRule,
@@ -18,6 +19,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const session = await getServerSession(req, res, authOptions);
     if (!session?.user) return res.status(401).json({ error: 'Unauthorized' });
+    if (!assertLmsLabApi(req, res)) return;
 
     const tenantId = (session.user as any).tenantId || null;
     const { action } = req.query;

@@ -1,7 +1,7 @@
-﻿import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
-import type { HrisDataSource } from '@/lib/hris/data-source';
+import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import {
   Clock, Users, DollarSign, CheckCircle, AlertCircle, Search, ArrowLeft,
   Plus, X, Save, Calendar, Eye, TrendingUp, FileText, Filter
@@ -48,7 +48,6 @@ function calcOTAmount(baseSalary: number, hours: number, type: string): number {
   return Math.round(total);
 }
 
-const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
 
 const MOCK_OT: OvertimeRecord[] = [
   { id: 'ot1', employee_id: '5', employee_name: 'Eko Prasetyo', position: 'Warehouse Supervisor', department: 'WAREHOUSE', date: '2026-03-10', start_time: '17:00', end_time: '20:00', hours: 3, type: 'workday', multiplier: 1.83, base_hourly: 69364, amount: calcOTAmount(12000000, 3, 'workday'), reason: 'Stok opname akhir bulan', status: 'approved', approved_by: 'Ahmad Wijaya' },

@@ -1,7 +1,7 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
-import type { HrisDataSource } from '@/lib/hris/data-source';
+import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import { GraduationCap, Search, Plus, Eye, Edit, X, Calendar, Clock, Users, MapPin, Star, Award, BookOpen, CheckCircle2, BarChart3, TrendingUp, FileText, Download, Filter, ChevronRight, Target, Bookmark, Video, Monitor, Loader2, Trash2 } from 'lucide-react';
 import TrainingLmsBridge from '@/components/humanify/TrainingLmsBridge';
@@ -15,7 +15,6 @@ const LEVEL_COLORS: Record<string, string> = { beginner: 'text-green-600', inter
 
 const emptyProgramForm = { title: '', category: 'technical', type: 'training', trainer: '', location: '', status: 'upcoming', start_date: '', end_date: '', max_participants: '30', cost_per_person: '0', description: '' };
 
-const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
 
 const MOCK_PROGRAMS = [
   { id: 'tp1', title: 'Food Safety & Hygiene', category: 'compliance', type: 'workshop', trainer: 'Dr. Andi Firmansyah', location: 'HQ Jakarta', status: 'active', start_date: '2026-03-01', end_date: '2026-03-15', max_participants: 30, enrolled: 24, completed: 12, rating: 4.5, cost_per_person: 500000 },

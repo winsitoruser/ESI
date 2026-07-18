@@ -1,7 +1,7 @@
-﻿import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
-import type { HrisDataSource } from '@/lib/hris/data-source';
+import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import HRStatCard from '@/components/humanify/HRStatCard';
 import PerformanceModuleChrome, { EnterpriseTabBar } from '@/components/humanify/PerformanceModuleChrome';
 import { useTranslation } from '@/lib/i18n';
@@ -91,7 +91,6 @@ const categoryColors: Record<string, string> = {
 
 type TabKey = 'templates' | 'scoring' | 'ai-analysis' | 'calculator' | 'presets';
 
-const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
 
 const DEFAULT_SCORING_SCHEMES = [
   { id: 'ss1', name: 'Standard 5-Level', isDefault: true, description: 'Skala penilaian standar 5 level', levels: STANDARD_SCORING_LEVELS },

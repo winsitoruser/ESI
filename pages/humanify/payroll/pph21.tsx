@@ -1,7 +1,7 @@
-﻿import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
-import type { HrisDataSource } from '@/lib/hris/data-source';
+import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import {
   FileText, Users, DollarSign, Calculator, CheckCircle, AlertCircle,
   Search, ArrowLeft, TrendingUp, Percent, Settings, Download, Eye, X
@@ -47,7 +47,6 @@ interface TaxItem {
   tax_method: string;
 }
 
-const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
 
 const MOCK_TAX: TaxItem[] = [
   { id: '1', employee_name: 'Ahmad Wijaya', position: 'General Manager', department: 'MANAGEMENT', tax_status: 'K/1', gross_annual: 327000000, deductible: 16350000, ptkp: 63000000, pkp: 247650000, annual_tax: 31147500, monthly_tax: 2595625, ytd_paid: 7786875, remaining: 23360625, tax_method: 'gross_up' },

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import HRStatCard from '@/components/humanify/HRStatCard';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';

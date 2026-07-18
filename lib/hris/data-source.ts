@@ -8,6 +8,13 @@ export function allowHrMockFallback(): boolean {
   return process.env.NODE_ENV !== 'production';
 }
 
+/** Shared flag for Humanify pages — prefer this over local NODE_ENV checks. */
+export const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
+
+export function initialDataSource(): HrisDataSource {
+  return allowHrMockFallback() ? 'demo' : 'empty';
+}
+
 export function isDemoRecordId(id: unknown): boolean {
   if (id == null) return true;
   const s = String(id);

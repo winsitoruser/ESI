@@ -1,7 +1,7 @@
-﻿import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
-import type { HrisDataSource } from '@/lib/hris/data-source';
+import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import {
   Shield, Users, DollarSign, CheckCircle, AlertCircle, Search, ArrowLeft,
   TrendingUp, Eye, X, Heart, Building2, FileText, Settings
@@ -43,7 +43,6 @@ function calcBPJS(salary: number) {
   return { kes_e, kes_c, jht_e, jht_c, jp_e, jp_c, jkk, jkm, total_e: kes_e + jht_e + jp_e, total_c: kes_c + jht_c + jp_c + jkk + jkm };
 }
 
-const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
 
 const MOCK_BPJS: BPJSItem[] = [
   { id: '1', employee_name: 'Ahmad Wijaya', position: 'General Manager', department: 'MANAGEMENT', base_salary: 25000000, bpjs_kes_no: '0001234567890', bpjs_tk_no: '19800115001', dependents: 2, status: 'active', ...(() => { const b = calcBPJS(25000000); return { kes_employee: b.kes_e, kes_company: b.kes_c, jht_employee: b.jht_e, jht_company: b.jht_c, jp_employee: b.jp_e, jp_company: b.jp_c, jkk: b.jkk, jkm: b.jkm, total_employee: b.total_e, total_company: b.total_c }; })() },

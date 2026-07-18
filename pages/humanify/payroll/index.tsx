@@ -1,7 +1,7 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
-import type { HrisDataSource } from '@/lib/hris/data-source';
+import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import Link from 'next/link';
 import { PageGuard } from '@/components/permissions';
@@ -48,7 +48,6 @@ const MOCK_STATS = {
   pendingOT: 3, nextPayDate: '2026-03-31', lastRunCode: 'PAY-2026-03',
 };
 
-const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
 
 export default function PayrollIndexPage() {
   const { t } = useTranslation();

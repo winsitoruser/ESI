@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import DepartmentSelect from '@/components/humanify/DepartmentSelect';
-import type { HrisDataSource } from '@/lib/hris/data-source';
+import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import {
   GraduationCap, Search, Plus, Eye, Edit, X, Calendar, Clock, Users, MapPin,
@@ -66,7 +66,6 @@ const DELIVERY_METHODS: Record<string, string> = {
 
 const API = '/api/humanify/training-development';
 
-const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
 
 const EMPTY_DASHBOARD = {
   totalCurricula: 0, totalModules: 0, totalBatches: 0, activeBatches: 0,

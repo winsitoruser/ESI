@@ -69,7 +69,11 @@ jobs:
           test -f lib/saas/candidate-jwt.ts
           test -f lib/observability/persist.ts
           test -f pages/api/humanify/sso/acs.ts
-          echo "✓ Required SaaS files present (P1 redis/SSO/payroll-depth)"
+          test -f scripts/run-saas-ci-subset.sh
+          test -f lib/humanify/lms-surface.ts
+          test -f pages/api/platform/obs-alerts.ts
+          test -f components/humanify/HrisEmptyState.tsx
+          echo "✓ Required SaaS files present (P2 LMS/obs/CI)"
 
       - name: Install Playwright Chromium (for optional prod smoke)
         if: ${{ secrets.SMOKE_BASE_URL != '' }}
@@ -88,3 +92,11 @@ jobs:
           SMOKE_EMAIL: ${{ secrets.SMOKE_EMAIL }}
           SMOKE_PASSWORD: ${{ secrets.SMOKE_PASSWORD }}
         run: node scripts/smoke-test-payroll-golden.js
+
+      - name: SaaS critical regression subset (against SMOKE_BASE_URL)
+        if: ${{ secrets.SMOKE_BASE_URL != '' }}
+        env:
+          SMOKE_BASE_URL: ${{ secrets.SMOKE_BASE_URL }}
+          SMOKE_EMAIL: ${{ secrets.SMOKE_EMAIL }}
+          SMOKE_PASSWORD: ${{ secrets.SMOKE_PASSWORD }}
+        run: bash scripts/run-saas-ci-subset.sh

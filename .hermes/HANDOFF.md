@@ -1,6 +1,16 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 18 Juli 2026 — **P1 sprint**: Redis ensure · obs wrap ACS/webhook/candidate · SSO IdP runbook · payroll depth smoke
+> Diperbarui: 18 Juli 2026 — **P2 sprint**: LMS GA cut · shared USE_MOCK_UI · CI subset · obs alerts · email DNS check
+
+## P2 sprint (18 Jul 2026)
+
+| Item | Status |
+|---|---|
+| LMS GA cut | Lab URLs → `/humanify/lms?lab=gated` unless `HUMANIFY_LMS_LAB=true`; lab APIs 403 |
+| Empty-state / mock | Shared `USE_MOCK_UI` + `HrisEmptyState`; pages import from `lib/hris/data-source` |
+| CI subset | `scripts/run-saas-ci-subset.sh` di `humanify-saas-gate.yml` saat `SMOKE_BASE_URL` |
+| Obs alerts | `POST /api/platform/obs-alerts` + cron 10 mnt; webhook/email via env |
+| Email DNS | `scripts/check-humanify-email-dns.sh` |
 
 ## P1 sprint (18 Jul 2026)
 

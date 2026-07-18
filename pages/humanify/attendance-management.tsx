@@ -1,8 +1,8 @@
-﻿import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
-import type { HrisDataSource } from '@/lib/hris/data-source';
+import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import {
   Clock, Users, UserCheck, UserX, MapPin, Shield, Settings, Calendar,
@@ -75,7 +75,6 @@ const MOCK_AM_RECORDS = [
   { id: 'r3', employee_name: 'Ahmad Wijaya', department: 'Operations', shift: 'PAGI', clock_in: '07:55', clock_out: null, status: 'present', method: 'fingerprint' },
 ];
 
-const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
 const EMPTY_AM_STATS = { total: 0, present: 0, late: 0, absent: 0, leave: 0, clockedIn: 0 };
 
 export default function AttendanceManagementPage() {

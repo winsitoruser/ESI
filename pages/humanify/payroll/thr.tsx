@@ -1,7 +1,7 @@
-﻿import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
-import type { HrisDataSource } from '@/lib/hris/data-source';
+import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import {
   Gift, Users, DollarSign, Calculator, Calendar, CheckCircle, AlertCircle,
@@ -32,7 +32,6 @@ const RELIGIOUS_DAYS = [
   { value: 'imlek', label: 'Imlek' },
 ];
 
-const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
 
 const MOCK_THR: THRItem[] = [
   { id: 't1', employee_id: '1', employee_name: 'Ahmad Wijaya', position: 'General Manager', department: 'MANAGEMENT', join_date: '2020-01-15', months_worked: 74, base_salary: 25000000, allowances: 2250000, thr_amount: 27250000, calculation: '1 bulan gaji (>12 bulan)', status: 'eligible' },

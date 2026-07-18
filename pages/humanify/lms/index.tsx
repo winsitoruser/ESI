@@ -1,38 +1,30 @@
 ﻿import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/router';
 import HumanifyLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import HrisEmptyState from '@/components/humanify/HrisEmptyState';
 import { PageGuard } from '@/components/permissions';
 import { LmsPageNav, lmsFetch } from '@/components/humanify/lms/shared';
 import type { HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import Link from 'next/link';
 import {
-  GraduationCap, BookOpen, ClipboardList, Brain, Calendar, PenTool,
-  BarChart3, Award, Users, ChevronRight,
+  GraduationCap, BookOpen, ClipboardList, BarChart3, Award, ChevronRight,
 } from 'lucide-react';
 import TrainingLmsBridge from '@/components/humanify/TrainingLmsBridge';
 
-const MODULES = [
-  { id: 'courses', href: '/humanify/lms/courses', icon: BookOpen, color: 'text-emerald-600 bg-emerald-50', label: 'Kursus & Learning Path', desc: 'Kurikulum, modul, materi video/PDF, progress belajar' },
-  { id: 'question-bank', href: '/humanify/lms/question-bank', icon: BookOpen, color: 'text-violet-600 bg-violet-50', label: 'Bank Soal', desc: 'Bank soal terpusat — MC, essay, likert, situational' },
+const GA_MODULES = [
+  { id: 'courses', href: '/humanify/lms/courses', icon: BookOpen, color: 'text-emerald-600 bg-emerald-50', label: 'Kursus & Learning Path', desc: 'Kurikulum, modul, materi, progress belajar' },
   { id: 'tests', href: '/humanify/lms/tests', icon: ClipboardList, color: 'text-indigo-600 bg-indigo-50', label: 'Tes & Ujian', desc: 'Buat & kelola tes/ujian online' },
-  { id: 'blueprints', href: '/humanify/lms/blueprints', icon: ClipboardList, color: 'text-amber-600 bg-amber-50', label: 'Blueprint Adaptif', desc: 'Randomisasi soal per kategori & tingkat kesulitan' },
-  { id: 'psychometric', href: '/humanify/lms/psychometric', icon: Brain, color: 'text-purple-600 bg-purple-50', label: 'Psikotes', desc: 'Psikotes kognitif, kepribadian, integritas' },
-  { id: 'psycho-reports', href: '/humanify/lms/psychometric-reports', icon: Brain, color: 'text-violet-600 bg-violet-50', label: 'Laporan Psikotes', desc: 'Interpretasi & rekomendasi hasil psikotes' },
-  { id: 'schedules', href: '/humanify/lms/schedules', icon: Calendar, color: 'text-amber-600 bg-amber-50', label: 'Penjadwalan', desc: 'Penjadwalan tes per departemen/role' },
-  { id: 'grading', href: '/humanify/lms/grading', icon: PenTool, color: 'text-teal-600 bg-teal-50', label: 'Penilaian', desc: 'Penilaian otomatis & manual grading' },
-  { id: 'reports', href: '/humanify/lms/reports', icon: BarChart3, color: 'text-rose-600 bg-rose-50', label: 'Laporan', desc: 'Laporan hasil ujian' },
+  { id: 'competency', href: '/humanify/lms/competency', icon: Award, color: 'text-green-600 bg-green-50', label: 'Kompetensi & Sertifikat', desc: 'Sertifikat & riwayat kompetensi' },
   { id: 'analytics', href: '/humanify/lms/analytics', icon: BarChart3, color: 'text-sky-600 bg-sky-50', label: 'Analytics L&D', desc: 'Heatmap departemen & skill gap' },
-  { id: 'proctoring', href: '/humanify/lms/proctoring', icon: Users, color: 'text-orange-600 bg-orange-50', label: 'Proctoring', desc: 'Review sesi anti-cheat & snapshot kamera' },
-  { id: 'integrations', href: '/humanify/lms/integrations', icon: Users, color: 'text-cyan-600 bg-cyan-50', label: 'Integrasi', desc: 'Rekrutmen, payroll, KPI, webhook' },
-  { id: 'academy', href: '/humanify/lms/academy', icon: GraduationCap, color: 'text-indigo-600 bg-indigo-50', label: 'Academy', desc: 'Branding & peserta eksternal' },
-  { id: 'ai-assistant', href: '/humanify/lms/ai-assistant', icon: GraduationCap, color: 'text-amber-600 bg-amber-50', label: 'AI Assistant', desc: 'Generate soal SOP & rekomendasi path' },
-  { id: 'competency', href: '/humanify/lms/competency', icon: Award, color: 'text-green-600 bg-green-50', label: 'Kompetensi', desc: 'Sertifikat & riwayat kompetensi' },
-  { id: 'access', href: '/humanify/lms/access', icon: Users, color: 'text-gray-600 bg-gray-50', label: 'Akses & Role', desc: 'Manajemen pengguna & role LMS' },
 ];
 
 export default function LmsHubPage() {
   const { t } = useTranslation();
+  const router = useRouter();
+  const labGated = router.query.lab === 'gated';
+  const showLab = isLmsLabEnabled();
   const [stats, setStats] = useState<any>({});
   const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
 
@@ -58,11 +50,18 @@ export default function LmsHubPage() {
             <DataSourceBadge source={dataSource} />
           </div>
 
+          {labGated && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              Modul LMS lanjutan (psikotes, proctoring, academy, AI, dll.) belum GA.
+              Hubungi support untuk mengaktifkan lab, atau gunakan modul di bawah.
+            </div>
+          )}
+
           <TrainingLmsBridge currentModule="lms" />
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: 'Bank Soal', value: stats.questionBank || 0 },
+              { label: 'Kursus / Path', value: stats.courses || stats.curricula || 0 },
               { label: 'Tes/Ujian', value: stats.exams || 0 },
               { label: 'Hasil Ujian', value: stats.results || 0 },
               { label: 'Pass Rate', value: `${stats.passRate || 0}%` },
@@ -78,12 +77,10 @@ export default function LmsHubPage() {
             <GraduationCap className="w-4 h-4" />
             <span>Portal Karyawan:</span>
             <Link href="/employee/training" className="text-indigo-600 hover:underline">/employee/training</Link>
-            <span className="text-gray-400">|</span>
-            <Link href="/humanify/training-development" className="text-indigo-600 hover:underline">Pelatihan & Pengembangan (legacy)</Link>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {MODULES.map((m) => {
+            {GA_MODULES.map((m) => {
               const Icon = m.icon;
               return (
                 <Link key={m.id} href={m.href} className="bg-white border rounded-xl p-5 hover:shadow-md transition-shadow group">
@@ -99,6 +96,20 @@ export default function LmsHubPage() {
               );
             })}
           </div>
+
+          {dataSource === 'empty' && (
+            <HrisEmptyState
+              source="empty"
+              title="LMS siap dipakai"
+              description="Mulai dari Kursus atau Tes & Ujian. Data statistik akan muncul setelah ada konten."
+            />
+          )}
+
+          {showLab && (
+            <p className="text-xs text-slate-400">
+              Lab LMS aktif (HUMANIFY_LMS_LAB=true) — URL advanced dapat diakses.
+            </p>
+          )}
         </div>
       </HumanifyLayout>
     </PageGuard>

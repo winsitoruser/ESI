@@ -1,8 +1,8 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
-import type { HrisDataSource } from '@/lib/hris/data-source';
+import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import EmployeePicker, { type PickedEmployee } from '@/components/humanify/EmployeePicker';
 import {
@@ -49,7 +49,6 @@ const INCIDENT_STATUS_LABELS: Record<string, string> = {
   investigating: 'Investigasi', mitigating: 'Mitigasi', resolved: 'Selesai', closed: 'Ditutup',
 };
 
-const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
 
 export default function IndustrialRelationsPage() {
   const { t } = useTranslation();

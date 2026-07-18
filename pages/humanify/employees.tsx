@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
-import type { HrisDataSource } from '@/lib/hris/data-source';
+import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import { useHrisMasterData } from '@/hooks/useHrisMasterData';
 import { useTranslation } from '@/lib/i18n';
 import { CanAccess, PageGuard, useFilteredColumns, type PermissionAwareColumn } from '@/components/permissions';
@@ -32,7 +32,6 @@ type DetailTab =
   | 'experience' | 'documents' | 'contracts' | 'genealogy'
   | 'skills' | 'payroll' | 'leave' | 'attendance' | 'overtime' | 'kpi' | 'mutations';
 
-const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
 
 export default function EmployeeManagementPage() {
   const { t } = useTranslation();

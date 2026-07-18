@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import { useTranslation } from '@/lib/i18n';
 import {
@@ -10,9 +10,8 @@ import {
 } from 'lucide-react';
 import { HRIS_DEPARTMENTS } from '@/lib/hris/master-data';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
-import type { HrisDataSource } from '@/lib/hris/data-source';
+import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 
-const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
 
 interface LeaveRequest {
   id: string;

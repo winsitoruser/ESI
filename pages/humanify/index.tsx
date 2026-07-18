@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import HQLayout from '@/components/humanify/HumanifyLayout';
@@ -7,7 +7,7 @@ import EnterprisePageHeader from '@/components/humanify/EnterprisePageHeader';
 import DashboardModuleGrid from '@/components/humanify/DashboardModuleGrid';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import { useTranslation } from '@/lib/i18n';
-import type { HrisDataSource } from '@/lib/hris/data-source';
+import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
@@ -126,7 +126,6 @@ function getQuickActions(t: (key: string) => string) {
 
 const EMPTY_HRIS_STATS = { total: 0, active: 0, onLeave: 0, inactive: 0, avgPerf: 0, avgKpi: 0, topPerformers: 0, attendanceToday: 0 };
 const MOCK_HRIS_STATS = { total: 162, active: 148, onLeave: 8, inactive: 6, avgPerf: 82, avgKpi: 78, topPerformers: 35, attendanceToday: 94 };
-const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
 
 const MOCK_PENDING_APPROVALS = [
   { id: 'lv1', type: 'leave', title: 'Cuti Tahunan - Siti Rahayu', subtitle: '15 Mar 2026 s/d 18 Mar 2026 (3 hari)', status: 'pending', date: '2026-03-15', color: 'yellow' },

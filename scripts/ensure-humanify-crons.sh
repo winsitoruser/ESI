@@ -35,4 +35,8 @@ ensure_line "hard-delete" "30 22 * * 0" \
 ensure_line "health" "*/5 * * * *" \
   "curl -fsS -m 10 '${HEALTH_URL}' -o /dev/null >> ${LOG_DIR}/humanify-health.log 2>&1 || echo \"\$(date -Iseconds) health FAIL\" >> ${LOG_DIR}/humanify-health.log"
 
+# Internal observability alert (error spike → webhook/email)
+ensure_line "obs-alert" "*/10 * * * *" \
+  "node scripts/check-humanify-obs-alerts.js >> ${LOG_DIR}/humanify-obs-alert.log 2>&1"
+
 echo "Done — verify with: crontab -l | grep ${MARKER}"

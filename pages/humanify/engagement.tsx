@@ -1,13 +1,12 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import HRStatCard from '@/components/humanify/HRStatCard';
 import PerformanceModuleChrome, { EnterpriseTabBar } from '@/components/humanify/PerformanceModuleChrome';
 import { useTranslation } from '@/lib/i18n';
 import { MessageCircle, Award, Bell, Plus, Edit, Trash2, X, Heart, Star, Send, Eye, BarChart3, Users, RefreshCw } from 'lucide-react';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
-import type { HrisDataSource } from '@/lib/hris/data-source';
+import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 
-const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
 
 interface SurveyItem { id: string; title: string; description: string; survey_type: string; status: string; start_date: string; end_date: string; is_anonymous: boolean; questions: any[]; total_responses: number; }
 interface RecognitionItem { id: string; from_employee_id: number; to_employee_id: number; recognition_type: string; title: string; message: string; points: number; badge: string; category: string; likes_count: number; created_at: string; }

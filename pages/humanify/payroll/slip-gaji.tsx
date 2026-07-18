@@ -1,7 +1,7 @@
-﻿import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
-import type { HrisDataSource } from '@/lib/hris/data-source';
+import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import DocumentExportButton from '@/components/documents/DocumentExportButton';
 import {
@@ -23,7 +23,6 @@ interface PayslipItem {
   run_code?: string; period_start?: string; period_end?: string; pay_date?: string; run_status?: string;
 }
 
-const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
 
 const MOCK_PAYSLIPS: PayslipItem[] = [
   { id: 'ps1', employee_id: '1', employee_name: 'Ahmad Wijaya', employee_position: 'General Manager', department: 'MANAGEMENT', pay_type: 'monthly', base_salary: 25000000, total_earnings: 27250000, total_deductions: 3725000, tax_amount: 2100000, net_salary: 23525000, earnings: [{ name: 'Gaji Pokok', amount: 25000000 }, { name: 'Tunj. Jabatan', amount: 1500000 }, { name: 'Tunj. Makan', amount: 750000 }], deductions: [{ name: 'BPJS Kesehatan', amount: 250000 }, { name: 'BPJS JHT', amount: 500000 }, { name: 'BPJS JP', amount: 95596 }, { name: 'PPh 21', amount: 2100000 }], working_days: 22, run_code: 'PAY-2026-03', period_start: '2026-03-01', period_end: '2026-03-31', pay_date: '2026-03-31', run_status: 'paid' },

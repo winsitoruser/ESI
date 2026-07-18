@@ -1,7 +1,7 @@
-﻿import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
-import type { HrisDataSource } from '@/lib/hris/data-source';
+import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import dynamic from 'next/dynamic';
 import {
   FileText, Users, DollarSign, TrendingUp, ArrowLeft, BarChart3, PieChart,
@@ -27,7 +27,6 @@ interface DeptData {
   department: string; employees: number; gross: number; net: number; avg_salary: number;
 }
 
-const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
 
 const MOCK_MONTHLY: MonthlyData[] = [
   { month: '2026-01', label: 'Jan', gross: 1790000000, deductions: 358000000, tax: 179000000, bpjs: 89500000, net: 1432000000, employees: 145 },

@@ -5,6 +5,7 @@ import { isHumanifyHost } from '@/lib/humanify/host';
 import { HUMANIFY_WELCOME } from '@/lib/humanify/paths';
 import { extractTenantSlugFromHost } from '@/lib/saas/tenant-host';
 import { featureForPath, isPathAllowedForPlan } from '@/lib/saas/plan-entitlements';
+import { isLmsLabEnabled, isLmsLabPath } from '@/lib/humanify/lms-surface';
 
 const authSecret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET;
 
@@ -141,6 +142,17 @@ export async function middleware(request: NextRequest) {
       const feat = featureForPath(pathname);
       const url = new URL('/humanify/billing', request.url);
       url.searchParams.set('upgrade', feat);
+      return NextResponse.redirect(url);
+    }
+
+    // LMS lab surface — redirect advanced URLs to GA hub unless HUMANIFY_LMS_LAB=true
+    if (
+      !bypassSetup &&
+      !isLmsLabEnabled() &&
+      isLmsLabPath(pathname)
+    ) {
+      const url = new URL('/humanify/lms', request.url);
+      url.searchParams.set('lab', 'gated');
       return NextResponse.redirect(url);
     }
   }

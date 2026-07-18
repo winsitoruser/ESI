@@ -1,7 +1,7 @@
-﻿import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
-import type { HrisDataSource } from '@/lib/hris/data-source';
+import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import {
   Activity, RefreshCw, Filter, UserPlus, Target, DollarSign, Calendar,
   Award, Clock, ChevronRight, Search, Bell, Loader2, FileText, Users,
@@ -102,7 +102,6 @@ function groupByDate(items: ActivityItem[]) {
   return groups.sort((a, b) => b.sortKey - a.sortKey);
 }
 
-const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
 
 export default function HRISActivitiesPage() {
   const [activities, setActivities] = useState<ActivityItem[]>([]);

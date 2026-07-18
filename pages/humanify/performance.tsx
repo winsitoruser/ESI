@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import HRStatCard from '@/components/humanify/HRStatCard';
 import PerformanceModuleChrome, { EnterpriseTabBar } from '@/components/humanify/PerformanceModuleChrome';
@@ -11,10 +11,9 @@ import {
 } from 'lucide-react';
 import NineBoxMatrix from '@/components/humanify/NineBoxMatrix';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
-import type { HrisDataSource } from '@/lib/hris/data-source';
+import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import { HRIS_DEPARTMENTS, getDepartmentLabel } from '@/lib/hris/master-data';
 
-const USE_MOCK_UI = process.env.NODE_ENV !== 'production';
 
 interface ReviewCategory {
   name: string;

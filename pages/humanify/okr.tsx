@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import { PageGuard } from '@/components/permissions';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
