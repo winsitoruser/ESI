@@ -112,16 +112,14 @@ function getHrisModules(t: (key: string) => string) {
 
 function getQuickActions(t: (key: string) => string) {
   return [
-    { label: t('hris.addEmployee'), href: '/humanify/employees?add=1', icon: UserPlus, color: 'bg-[var(--hf-brand-600)]' },
-    { label: t('hris.inputAttendance'), href: '/humanify/attendance', icon: Clock, color: 'bg-green-600' },
-    { label: t('hris.processPayroll'), href: '/humanify/payroll/main', icon: DollarSign, color: 'bg-emerald-600' },
+    { label: t('hris.addEmployee'), href: '/humanify/employees?add=1', icon: UserPlus, color: 'bg-slate-800' },
+    { label: t('hris.inputAttendance'), href: '/humanify/attendance', icon: Clock, color: 'bg-emerald-600' },
+    { label: t('hris.processPayroll'), href: '/humanify/payroll/main', icon: DollarSign, color: 'bg-teal-600' },
     { label: t('hris.openVacancy'), href: '/humanify/recruitment', icon: UserPlus, color: 'bg-orange-600' },
-    { label: t('hris.createKpi'), href: '/humanify/kpi', icon: Target, color: 'bg-purple-600' },
-    { label: 'Kirim Pengumuman', href: '/humanify/announcements', icon: Megaphone, color: 'bg-fuchsia-600' },
-    { label: 'Kalender HR', href: '/humanify/calendar', icon: Calendar, color: 'bg-[var(--hf-brand-600)]' },
-    { label: 'Laporan HRIS', href: '/humanify/reports', icon: BarChart3, color: 'bg-[var(--hf-brand)]' },
-    { label: 'Aktivitas HR', href: '/humanify/activities', icon: Activity, color: 'bg-[var(--hf-brand-600)]' },
-    { label: t('hris.scheduleTraining'), href: '/humanify/training', icon: GraduationCap, color: 'bg-red-600' },
+    { label: t('hris.createKpi'), href: '/humanify/kpi', icon: Target, color: 'bg-amber-600' },
+    { label: 'Kirim Pengumuman', href: '/humanify/announcements', icon: Megaphone, color: 'bg-rose-600' },
+    { label: 'Kalender HR', href: '/humanify/calendar', icon: Calendar, color: 'bg-sky-700' },
+    { label: 'Laporan HRIS', href: '/humanify/reports', icon: BarChart3, color: 'bg-slate-700' },
   ];
 }
 
@@ -545,24 +543,24 @@ export default function HRISDashboard() {
         </div>
 
         {/* ── QUICK ACTIONS ── */}
-        <div className="rounded-2xl border border-[var(--hf-brand-50)] bg-gradient-to-br from-white to-[var(--hf-brand)]/60 p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-slate-800">{t('hris.quickActions')}</h3>
+              <h3 className="text-lg font-semibold text-slate-900">{t('hris.quickActions')}</h3>
               <p className="text-sm text-slate-500">{t('hris.quickActionsDesc')}</p>
             </div>
-            <div className="rounded-xl bg-[var(--hf-brand-50)] p-2.5">
-              <Zap className="h-5 w-5 text-[color:var(--hf-brand-600)]" />
+            <div className="rounded-xl bg-slate-100 p-2.5">
+              <Zap className="h-5 w-5 text-slate-600" />
             </div>
           </div>
           <div className="grid grid-cols-4 gap-3 md:grid-cols-8">
             {QUICK_ACTIONS.map((a, i) => (
               <button key={i} onClick={() => router.push(a.href)}
-                className="group flex flex-col items-center gap-2 rounded-xl border border-[var(--hf-brand-50)]/80 bg-white/70 p-3 text-center transition hover:border-[var(--hf-brand-100)] hover:bg-[var(--hf-brand-50)]/80 hover:shadow-sm">
+                className="group flex flex-col items-center gap-2 rounded-xl border border-slate-100 bg-slate-50/80 p-3 text-center transition hover:border-slate-200 hover:bg-white hover:shadow-sm">
                 <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${a.color} text-white shadow-sm transition group-hover:scale-105`}>
                   <a.icon className="h-5 w-5" />
                 </div>
-                <span className="text-[11px] font-medium text-slate-600 group-hover:text-[color:var(--hf-brand)]">{a.label}</span>
+                <span className="text-[11px] font-medium text-slate-600 group-hover:text-slate-900">{a.label}</span>
               </button>
             ))}
           </div>
@@ -571,27 +569,27 @@ export default function HRISDashboard() {
         {/* ── MODULE NAVIGATION — overview shortcuts ── */}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
           {[
-            { label: 'Karyawan', href: '/humanify/employees', icon: Users, iconBg: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand-600)]' },
-            { label: 'Absensi', href: '/humanify/attendance', icon: Clock, iconBg: 'bg-emerald-50 text-emerald-600' },
-            { label: 'Payroll', href: '/humanify/payroll', icon: DollarSign, iconBg: 'bg-fuchsia-50 text-fuchsia-600' },
-            { label: 'KPI', href: '/humanify/kpi', icon: Target, iconBg: 'bg-amber-50 text-amber-600' },
-            { label: 'Rekrutmen', href: '/humanify/recruitment', icon: UserPlus, iconBg: 'bg-rose-50 text-rose-600' },
-            { label: 'Laporan', href: '/humanify/reports', icon: BarChart3, iconBg: 'bg-purple-50 text-purple-600' },
+            { label: 'Karyawan', href: '/humanify/employees', icon: Users, iconBg: 'bg-slate-100 text-slate-700' },
+            { label: 'Absensi', href: '/humanify/attendance', icon: Clock, iconBg: 'bg-emerald-50 text-emerald-700' },
+            { label: 'Payroll', href: '/humanify/payroll', icon: DollarSign, iconBg: 'bg-sky-50 text-sky-700' },
+            { label: 'KPI', href: '/humanify/kpi', icon: Target, iconBg: 'bg-amber-50 text-amber-700' },
+            { label: 'Rekrutmen', href: '/humanify/recruitment', icon: UserPlus, iconBg: 'bg-rose-50 text-rose-700' },
+            { label: 'Laporan', href: '/humanify/reports', icon: BarChart3, iconBg: 'bg-teal-50 text-teal-700' },
           ].map((item) => (
-            <Link key={item.href} href={item.href} className="flex items-center gap-3 rounded-xl border border-[var(--hf-brand-50)] bg-gradient-to-br from-white to-[var(--hf-brand)]/40 p-4 shadow-sm transition hover:border-[var(--hf-brand-100)] hover:shadow-md hover:to-[var(--hf-brand)]/60">
+            <Link key={item.href} href={item.href} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md">
               <div className={`rounded-xl p-2.5 ${item.iconBg}`}>
                 <item.icon className="h-5 w-5" />
               </div>
-              <span className="text-sm font-medium text-slate-700">{item.label}</span>
+              <span className="text-sm font-medium text-slate-800">{item.label}</span>
             </Link>
           ))}
         </div>
 
         {docCompliance && docCompliance.activeEmployees > 0 && (
-          <div className="rounded-2xl border border-[var(--hf-brand-50)] bg-gradient-to-br from-white via-white to-amber-50/40 shadow-sm p-5">
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
               <div>
-                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                <h3 className="font-semibold text-slate-900 flex items-center gap-2">
                   <FolderOpen className="w-4 h-4 text-amber-600" /> Kelengkapan dokumen
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -628,11 +626,11 @@ export default function HRISDashboard() {
         {/* ── TWO COLUMN: PENDING APPROVALS + RECENT ACTIVITIES ── */}
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Pending Approvals */}
-          <div className="rounded-2xl border border-[var(--hf-brand-50)] bg-gradient-to-br from-white via-white to-[var(--hf-brand)]/50 shadow-sm">
-            <div className="flex items-center justify-between border-b border-[var(--hf-brand-50)]/60 px-5 py-4">
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                <h3 className="font-semibold text-gray-900">Action Inbox</h3>
+                <h3 className="font-semibold text-slate-900">Action Inbox</h3>
                 <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">{pendingApprovals.length}</span>
                 {pendingSummary.overdue > 0 && (
                   <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-medium">{pendingSummary.overdue} overdue</span>
@@ -697,11 +695,11 @@ export default function HRISDashboard() {
             <GaOnboardingChecklist />
 
           {/* Recent Activities */}
-          <div className="rounded-2xl border border-[var(--hf-brand-50)] bg-gradient-to-br from-white via-white to-[var(--hf-brand)]/50 shadow-sm">
-            <div className="flex items-center justify-between border-b border-[var(--hf-brand-50)]/60 px-5 py-4">
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="flex items-center gap-2">
-                <Activity className="w-4 h-4 text-[color:var(--hf-brand-600)]" />
-                <h3 className="font-semibold text-gray-900">{t('hris.recentActivities')}</h3>
+                <Activity className="w-4 h-4 text-slate-500" />
+                <h3 className="font-semibold text-slate-900">{t('hris.recentActivities')}</h3>
               </div>
             </div>
             <div className="divide-y max-h-80 overflow-y-auto">
@@ -727,8 +725,8 @@ export default function HRISDashboard() {
         {/* ── TWO COLUMN: DEPT OVERVIEW + UPCOMING CALENDAR ── */}
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Department Overview */}
-          <div className="lg:col-span-2 rounded-2xl border border-[var(--hf-brand-50)] bg-gradient-to-br from-white to-[var(--hf-brand)]/40 shadow-sm">
-            <div className="border-b border-[var(--hf-brand-50)]/60 px-5 py-4">
+          <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-100 px-5 py-4">
               <h3 className="font-semibold text-slate-900">{t('hris.deptOverview')}</h3>
               <p className="text-xs text-slate-500">Headcount aktif per departemen</p>
             </div>
@@ -740,25 +738,25 @@ export default function HRISDashboard() {
                     <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={50} />
                     <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
                     <Tooltip />
-                    <Bar dataKey="active" fill="#a78bfa" name="Aktif" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="active" fill="#0d9488" name="Aktif" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {deptStats.map((d) => (
-                  <div key={d.department} className="border border-[var(--hf-brand-50)] rounded-xl p-4 bg-gradient-to-br from-white to-[var(--hf-brand)]/60 hover:shadow-md transition-all hover:border-[var(--hf-brand-100)] group">
+                  <div key={d.department} className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 hover:shadow-md transition-all hover:border-slate-300 hover:bg-white group">
                     <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-semibold text-gray-900 text-sm">{d.department}</h4>
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{d.active}/{d.total}</span>
+                      <h4 className="font-semibold text-slate-900 text-sm">{d.department}</h4>
+                      <span className="text-xs bg-white text-slate-600 border border-slate-200 px-2 py-0.5 rounded-full">{d.active}/{d.total}</span>
                     </div>
                     <div className="space-y-2.5">
                       <div>
-                        <div className="flex justify-between text-xs mb-1"><span className="text-gray-500">{t('hris.performance')}</span><span className={`font-medium ${d.perf >= 85 ? 'text-green-600' : d.perf >= 70 ? 'text-yellow-600' : 'text-red-600'}`}>{d.perf}%</span></div>
-                        <div className="w-full bg-gray-100 rounded-full h-1.5"><div className={`h-1.5 rounded-full ${d.perf >= 85 ? 'bg-green-500' : d.perf >= 70 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{ width: `${d.perf}%` }} /></div>
+                        <div className="flex justify-between text-xs mb-1"><span className="text-slate-500">{t('hris.performance')}</span><span className={`font-medium ${d.perf >= 85 ? 'text-green-600' : d.perf >= 70 ? 'text-yellow-600' : 'text-red-600'}`}>{d.perf}%</span></div>
+                        <div className="w-full bg-slate-200 rounded-full h-1.5"><div className={`h-1.5 rounded-full ${d.perf >= 85 ? 'bg-green-500' : d.perf >= 70 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{ width: `${d.perf}%` }} /></div>
                       </div>
                       <div>
-                        <div className="flex justify-between text-xs mb-1"><span className="text-gray-500">{t('hris.attendance')}</span><span className="font-medium">{d.attend}%</span></div>
-                        <div className="w-full bg-gray-100 rounded-full h-1.5"><div className="bg-[var(--hf-brand-500)] h-1.5 rounded-full" style={{ width: `${d.attend}%` }} /></div>
+                        <div className="flex justify-between text-xs mb-1"><span className="text-slate-500">{t('hris.attendance')}</span><span className="font-medium text-slate-700">{d.attend}%</span></div>
+                        <div className="w-full bg-slate-200 rounded-full h-1.5"><div className="bg-teal-600 h-1.5 rounded-full" style={{ width: `${d.attend}%` }} /></div>
                       </div>
                     </div>
                   </div>
@@ -766,11 +764,11 @@ export default function HRISDashboard() {
               </div>
             </div>
           </div>
-          <div className="rounded-2xl border border-[var(--hf-brand-50)] bg-gradient-to-br from-white via-white to-[var(--hf-brand)]/50 shadow-sm">
-            <div className="flex items-center justify-between border-b border-[var(--hf-brand-50)]/60 px-5 py-4">
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
               <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-[color:var(--hf-brand-600)]" />
-                <h3 className="font-semibold text-gray-900">{t('hris.upcomingAgenda')}</h3>
+                <Calendar className="w-4 h-4 text-slate-500" />
+                <h3 className="font-semibold text-slate-900">{t('hris.upcomingAgenda')}</h3>
               </div>
             </div>
             <div className="divide-y">
@@ -801,17 +799,17 @@ export default function HRISDashboard() {
         </div>
 
         {/* ── ANNOUNCEMENTS / INFO BANNER ── */}
-        <div className="rounded-2xl border border-[var(--hf-brand-100)] bg-gradient-to-r from-[var(--hf-brand-600)] to-purple-50/60 p-5">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-start gap-4">
-            <div className="flex-shrink-0 rounded-xl bg-[var(--hf-brand-100)] p-2.5">
-              <Bell className="h-5 w-5 text-[color:var(--hf-brand-600)]" />
+            <div className="flex-shrink-0 rounded-xl bg-amber-50 border border-amber-100 p-2.5">
+              <Bell className="h-5 w-5 text-amber-700" />
             </div>
             <div>
-              <h4 className="font-semibold text-slate-800">{t('hris.hrAnnouncement')}</h4>
-              <p className="mt-1 text-sm text-slate-600">Batas pengumpulan data lembur Februari 2026 adalah <strong>5 Maret 2026</strong>. Pastikan semua manajer cabang sudah menginput data timesheet dan lembur karyawan masing-masing melalui modul Timesheet atau Manager Self Service.</p>
+              <h4 className="font-semibold text-slate-900">{t('hris.hrAnnouncement')}</h4>
+              <p className="mt-1 text-sm leading-relaxed text-slate-600">Batas pengumpulan data lembur Februari 2026 adalah <strong className="text-slate-800">5 Maret 2026</strong>. Pastikan semua manajer cabang sudah menginput data timesheet dan lembur karyawan masing-masing melalui modul Timesheet atau Manager Self Service.</p>
               <div className="mt-3 flex gap-2">
-                <a href="/humanify/attendance-management" className="rounded-lg bg-[var(--hf-brand-600)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--hf-brand)]">{t('hris.manageAttendance')}</a>
-                <a href="/humanify/payroll" className="rounded-lg border border-[var(--hf-brand-100)] bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-[var(--hf-brand-50)]">{t('hris.processPayroll')}</a>
+                <a href="/humanify/attendance-management" className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800">{t('hris.manageAttendance')}</a>
+                <a href="/humanify/payroll" className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">{t('hris.processPayroll')}</a>
               </div>
             </div>
           </div>

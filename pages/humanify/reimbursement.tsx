@@ -294,8 +294,8 @@ export default function ReimbursementPage() {
             </table>
           </div>
 
-          <div className="rounded-2xl border border-[var(--hf-brand-100)] bg-gradient-to-r from-[var(--hf-brand-600)] to-[var(--hf-brand)] p-5 text-sm text-[color:var(--hf-brand-600)]">
-            <strong>Integrasi Payroll:</strong> Klaim yang disetujui otomatis masuk ke komponen payroll periode berjalan. Notifikasi real-time ke karyawan & HR saat status berubah.
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-700">
+            <strong className="text-slate-900">Integrasi Payroll:</strong> Klaim yang disetujui otomatis masuk ke komponen payroll periode berjalan. Notifikasi real-time ke karyawan &amp; HR saat status berubah.
           </div>
         </div>
 

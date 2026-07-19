@@ -32,18 +32,18 @@ export default function EnterprisePageHeader({
 
   if (isCorporate) {
     return (
-      <div className="relative overflow-hidden rounded-2xl border border-slate-200/90 bg-gradient-to-br from-white via-slate-50 to-violet-50/40 p-6 shadow-sm md:p-8">
-        <div className="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-violet-100/40" />
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-slate-100/80 p-6 shadow-sm md:p-8">
+        <div className="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-slate-200/40" />
         <div className="absolute bottom-0 left-1/3 h-24 w-24 rounded-full bg-slate-100/60" />
         <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             {badge && (
-              <div className="mb-2 flex items-center gap-2 text-violet-700">
+              <div className="mb-2 flex items-center gap-2 text-slate-600">
                 {Icon && <Icon className="h-4 w-4" />}
                 <span className="text-xs font-semibold uppercase tracking-wider">{badge}</span>
               </div>
             )}
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-800 md:text-3xl">{title}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl">{title}</h1>
             {subtitle && <p className="mt-2 max-w-2xl text-sm text-slate-500">{subtitle}</p>}
           </div>
           {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}

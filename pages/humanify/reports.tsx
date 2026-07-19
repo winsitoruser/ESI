@@ -196,8 +196,8 @@ export default function HRISReportsPage() {
         </div>
 
         {/* Quick links */}
-        <div className="bg-gradient-to-r from-[var(--hf-brand-600)] to-purple-50 border border-[var(--hf-brand-100)] rounded-xl p-5">
-          <h3 className="font-semibold text-gray-900 mb-3">Modul Terkait</h3>
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h3 className="font-semibold text-slate-900 mb-3">Modul Terkait</h3>
           <div className="flex flex-wrap gap-2">
             {[
               { label: 'KPI Dashboard', href: '/humanify/kpi' },

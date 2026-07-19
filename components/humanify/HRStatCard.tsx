@@ -13,14 +13,14 @@ interface HRStatCardProps {
 }
 
 const ACCENT = {
-  blue: { icon: 'bg-violet-50 text-violet-600', border: 'hover:border-violet-200' },
-  emerald: { icon: 'bg-emerald-50 text-emerald-600', border: 'hover:border-emerald-200' },
-  amber: { icon: 'bg-amber-50 text-amber-600', border: 'hover:border-amber-200' },
-  violet: { icon: 'bg-violet-50 text-violet-600', border: 'hover:border-violet-200' },
-  cyan: { icon: 'bg-purple-50 text-purple-600', border: 'hover:border-purple-200' },
-  rose: { icon: 'bg-rose-50 text-rose-600', border: 'hover:border-rose-200' },
-  orange: { icon: 'bg-orange-50 text-orange-600', border: 'hover:border-orange-200' },
-  indigo: { icon: 'bg-fuchsia-50 text-fuchsia-600', border: 'hover:border-fuchsia-200' },
+  blue: { icon: 'bg-sky-50 text-sky-700', border: 'hover:border-sky-200' },
+  emerald: { icon: 'bg-emerald-50 text-emerald-700', border: 'hover:border-emerald-200' },
+  amber: { icon: 'bg-amber-50 text-amber-700', border: 'hover:border-amber-200' },
+  violet: { icon: 'bg-slate-100 text-slate-700', border: 'hover:border-slate-300' },
+  cyan: { icon: 'bg-teal-50 text-teal-700', border: 'hover:border-teal-200' },
+  rose: { icon: 'bg-rose-50 text-rose-700', border: 'hover:border-rose-200' },
+  orange: { icon: 'bg-orange-50 text-orange-700', border: 'hover:border-orange-200' },
+  indigo: { icon: 'bg-slate-100 text-slate-700', border: 'hover:border-slate-300' },
 };
 
 export default function HRStatCard({
@@ -28,7 +28,7 @@ export default function HRStatCard({
   value,
   sub,
   icon: Icon,
-  gradient = 'from-indigo-500 to-indigo-700',
+  gradient = 'from-slate-700 to-slate-900',
   accent = 'blue',
   variant = 'bold',
   trend,
@@ -42,7 +42,7 @@ export default function HRStatCard({
       <Wrapper
         type={onClick ? 'button' : undefined}
         onClick={onClick}
-        className={`rounded-2xl border border-violet-100 bg-gradient-to-br from-white to-violet-50/60 p-4 text-left shadow-sm transition hover:shadow-md hover:to-violet-100/80 ${a.border} ${onClick ? 'cursor-pointer' : ''}`}
+        className={`rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:shadow-md hover:border-slate-300 ${a.border} ${onClick ? 'cursor-pointer' : ''}`}
       >
         <div className="flex items-start justify-between gap-2">
           <div className={`rounded-xl p-2.5 ${a.icon}`}>
@@ -54,7 +54,7 @@ export default function HRStatCard({
             </span>
           )}
         </div>
-        <p className="mt-3 text-2xl font-semibold tracking-tight text-slate-800">{value}</p>
+        <p className="mt-3 text-2xl font-semibold tracking-tight text-slate-900">{value}</p>
         <p className="mt-0.5 text-xs font-medium text-slate-500">{label}</p>
         {sub && <p className="mt-0.5 text-[11px] text-slate-400">{sub}</p>}
       </Wrapper>
@@ -78,9 +78,9 @@ export default function HRStatCard({
           </span>
         )}
       </div>
-      <p className="relative mt-4 text-3xl font-bold tracking-tight">{value}</p>
-      <p className="relative mt-1 text-sm font-medium text-white/85">{label}</p>
-      {sub && <p className="relative mt-0.5 text-xs text-white/65">{sub}</p>}
+      <p className="relative mt-4 text-2xl font-bold tracking-tight">{value}</p>
+      <p className="relative mt-0.5 text-sm text-white/80">{label}</p>
+      {sub && <p className="relative mt-0.5 text-xs text-white/60">{sub}</p>}
     </Wrapper>
   );
 }

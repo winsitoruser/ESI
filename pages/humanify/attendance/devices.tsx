@@ -35,11 +35,11 @@ interface Device {
 }
 
 const deviceTypeConfig: Record<string, { icon: any; label: string; color: string }> = {
-  fingerprint: { icon: Fingerprint, label: 'Fingerprint', color: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]' },
-  face_recognition: { icon: Eye, label: 'Face Recognition', color: 'bg-purple-100 text-purple-700' },
-  card: { icon: Monitor, label: 'Kartu RFID', color: 'bg-amber-100 text-amber-700' },
-  mobile_app: { icon: Smartphone, label: 'Mobile App', color: 'bg-green-100 text-green-700' },
-  manual: { icon: Edit, label: 'Manual', color: 'bg-gray-100 text-gray-700' },
+  fingerprint: { icon: Fingerprint, label: 'Fingerprint', color: 'bg-slate-100 text-slate-700' },
+  face_recognition: { icon: Eye, label: 'Face Recognition', color: 'bg-sky-50 text-sky-700' },
+  card: { icon: Monitor, label: 'Kartu RFID', color: 'bg-amber-50 text-amber-700' },
+  mobile_app: { icon: Smartphone, label: 'Mobile App', color: 'bg-emerald-50 text-emerald-700' },
+  manual: { icon: Edit, label: 'Manual', color: 'bg-slate-100 text-slate-600' },
 };
 
 export default function DeviceManagementPage() {
@@ -247,7 +247,7 @@ export default function DeviceManagementPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-white rounded-xl p-4 shadow-sm border">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-[var(--hf-brand-100)] rounded-lg"><Server className="w-5 h-5 text-[color:var(--hf-brand-600)]" /></div>
+              <div className="p-2 bg-slate-100 rounded-lg"><Server className="w-5 h-5 text-slate-600" /></div>
               <div>
                 <p className="text-sm text-gray-500">Total Device</p>
                 <p className="text-xl font-bold">{devices.length}</p>
@@ -265,7 +265,7 @@ export default function DeviceManagementPage() {
           </div>
           <div className="bg-white rounded-xl p-4 shadow-sm border">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-100 rounded-lg"><Users className="w-5 h-5 text-purple-600" /></div>
+              <div className="p-2 bg-sky-50 rounded-lg"><Users className="w-5 h-5 text-sky-700" /></div>
               <div>
                 <p className="text-sm text-gray-500">Total Enrolled</p>
                 <p className="text-xl font-bold">{totalRegistered}</p>
@@ -315,7 +315,7 @@ export default function DeviceManagementPage() {
                 <RefreshCw className="w-4 h-4" /> Refresh
               </button>
               <button onClick={openAdd}
-                className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]">
+                className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg text-sm hover:bg-slate-800">
                 <Plus className="w-4 h-4" /> Tambah Device
               </button>
             </div>
@@ -396,7 +396,7 @@ export default function DeviceManagementPage() {
                   <div className="flex border-t divide-x">
                     <button onClick={() => handleSync(device.id)}
                       disabled={syncing === device.id}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] transition disabled:opacity-50">
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition disabled:opacity-50">
                       <RefreshCw className={`w-4 h-4 ${syncing === device.id ? 'animate-spin' : ''}`} />
                       {syncing === device.id ? 'Syncing...' : 'Sync'}
                     </button>
@@ -416,30 +416,31 @@ export default function DeviceManagementPage() {
         </div>
 
         {/* Integration Guide */}
-        <div className="bg-gradient-to-r from-[var(--hf-brand-600)] to-[var(--hf-brand)] rounded-xl border border-[var(--hf-brand-100)] p-6">
-          <h3 className="text-lg font-semibold text-blue-900 mb-3">📡 Panduan Integrasi Device</h3>
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-slate-900 mb-1">Panduan Integrasi Device</h3>
+          <p className="text-sm text-slate-500 mb-4">Cara menghubungkan mesin absensi, mobile, dan webhook ke Humanify.</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-            <div className="bg-white/70 rounded-lg p-4">
-              <h4 className="font-semibold text-[color:var(--hf-brand-600)] mb-2">🔐 Fingerprint (ZKTeco)</h4>
-              <ul className="space-y-1 text-gray-600">
+            <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-4">
+              <h4 className="font-semibold text-slate-900 mb-2">Fingerprint (ZKTeco)</h4>
+              <ul className="space-y-1.5 text-slate-600">
                 <li>• Hubungkan via TCP/IP (port 4370)</li>
-                <li>• Masukkan IP address & comm key</li>
+                <li>• Masukkan IP address &amp; comm key</li>
                 <li>• Mode push: device kirim data otomatis</li>
                 <li>• Dukung ZKTeco K40, MB360, uFace</li>
               </ul>
             </div>
-            <div className="bg-white/70 rounded-lg p-4">
-              <h4 className="font-semibold text-purple-800 mb-2">📱 Mobile App</h4>
-              <ul className="space-y-1 text-gray-600">
+            <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-4">
+              <h4 className="font-semibold text-slate-900 mb-2">Mobile App</h4>
+              <ul className="space-y-1.5 text-slate-600">
                 <li>• GPS-based clock in/out</li>
                 <li>• Geofence radius per cabang</li>
                 <li>• Opsional: selfie wajib</li>
                 <li>• API: POST /api/employees/attendance/mobile</li>
               </ul>
             </div>
-            <div className="bg-white/70 rounded-lg p-4">
-              <h4 className="font-semibold text-green-800 mb-2">🔗 Webhook Sync</h4>
-              <ul className="space-y-1 text-gray-600">
+            <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-4">
+              <h4 className="font-semibold text-slate-900 mb-2">Webhook Sync</h4>
+              <ul className="space-y-1.5 text-slate-600">
                 <li>• Endpoint: POST /api/humanify/attendance/device-sync</li>
                 <li>• Kirim deviceId + secretKey + records[]</li>
                 <li>• Auto-proses ke attendance record</li>
@@ -567,7 +568,7 @@ export default function DeviceManagementPage() {
               <button onClick={() => { setShowAddModal(false); setEditDevice(null); }}
                 className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">Batal</button>
               <button onClick={handleSave}
-                className="px-6 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]">
+                className="px-6 py-2 bg-slate-900 text-white rounded-lg text-sm hover:bg-slate-800">
                 {editDevice ? 'Update' : 'Simpan'}
               </button>
             </div>
