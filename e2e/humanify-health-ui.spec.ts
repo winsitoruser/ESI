@@ -40,4 +40,15 @@ test.describe('Humanify health probe (soft)', () => {
     const blob = JSON.stringify(body);
     expect(blob).toMatch(/credentials/i);
   });
+
+  test('favicon and employee PWA manifest are public', async ({ request }) => {
+    const fav = await request.get('/favicon.ico');
+    expect(fav.status()).toBeLessThan(400);
+
+    const man = await request.get('/manifest-employee.json');
+    expect(man.status()).toBe(200);
+    const body = await man.json();
+    expect(body.name || body.short_name).toMatch(/Humanify/i);
+    expect(String(body.start_url || '')).toMatch(/\/employee/);
+  });
 });

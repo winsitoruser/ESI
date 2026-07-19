@@ -32,6 +32,8 @@ test.describe('Humanify join invite UI (soft)', () => {
     await expect(page.locator('body')).toContainText(/tidak valid|kedaluwarsa|tidak ditemukan|Gagal/i, {
       timeout: 15_000,
     });
+    await expect(page.locator('a[href*="/humanify/login"]').first()).toBeVisible({ timeout: 10_000 });
     expect(await page.getByRole('button', { name: /Buat akun|Terima undangan|Bergabung/i }).count()).toBeLessThan(2);
+    // Soft: invalid preview — no accept form submit
   });
 });

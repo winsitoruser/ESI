@@ -25,14 +25,16 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = request.headers.get('host');
 
-  // SEO crawl endpoints — always public
+  // SEO crawl + static public assets — always public
   if (
     pathname === '/robots.txt' ||
     pathname === '/sitemap.xml' ||
     pathname === '/llms.txt' ||
     pathname === '/humans.txt' ||
+    pathname === '/manifest-employee.json' ||
     pathname === '/.well-known/security.txt' ||
-    pathname.startsWith('/.well-known/')
+    pathname.startsWith('/.well-known/') ||
+    pathname.startsWith('/icons/')
   ) {
     return NextResponse.next();
   }
@@ -256,6 +258,6 @@ export const preferredRegion = 'auto';
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|images/|uploads/|api/|procurement|robots\\.txt|sitemap\\.xml|llms\\.txt|humans\\.txt|\\.well-known/).*)',
+    '/((?!_next/static|_next/image|favicon.ico|images/|icons/|uploads/|api/|procurement|robots\\.txt|sitemap\\.xml|llms\\.txt|humans\\.txt|manifest-employee\\.json|\\.well-known/).*)',
   ],
 };
