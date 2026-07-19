@@ -10,7 +10,7 @@
 | w23-2 | Soft Playwright signup `?ref=DEMO` | Done |
 | w23-3 | DEMO partner presence chip on `/platform` | Done |
 | w23-4 | CSV export `partnerCode` + sales demo docs | Done |
-| w23-5 | Deploy + verify | Pending |
+| w23-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave23` · `npm run test:e2e:humanify:signup-ref:prod`
 
