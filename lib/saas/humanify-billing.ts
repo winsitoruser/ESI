@@ -275,12 +275,27 @@ export async function getTenantBillingStatus(tenantId: string) {
   `, { replacements: { tid: tenantId } });
 
   const planId = normalizeHumanifyPlan(cols.has('subscription_plan') ? t.subscription_plan : 'trial');
+  const trialEndsAt = cols.has('trial_ends_at') ? (t.trial_ends_at || null) : null;
+  let trialDaysLeft: number | null = null;
+  if (trialEndsAt) {
+    const ms = new Date(trialEndsAt).getTime() - Date.now();
+    trialDaysLeft = Math.ceil(ms / 86400000);
+  }
+  const isTrial =
+    planId === 'trial' ||
+    String(t.status || '').toLowerCase() === 'trial' ||
+    (trialEndsAt && trialDaysLeft != null && trialDaysLeft >= 0 && planId === 'trial');
+
   return {
     plan: planId,
     planName: HUMANIFY_PLANS[planId].name,
     status: t.status,
     subscriptionStart: t.subscription_start || null,
     subscriptionEnd: t.subscription_end || null,
+    trialEndsAt,
+    trialDaysLeft,
+    trialExpiringSoon: Boolean(isTrial && trialDaysLeft != null && trialDaysLeft <= 7),
+    trialExpired: Boolean(trialEndsAt && trialDaysLeft != null && trialDaysLeft < 0),
     orders: orders || [],
     midtransConfigured: midtransConfigured(),
     clientKey: process.env.MIDTRANS_CLIENT_KEY || null,

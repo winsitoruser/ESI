@@ -35,8 +35,8 @@ Program mitra implementasi untuk konsultan payroll, BPJS, dan payroll outsourcin
 - Support: Discord/ops webhook + `/platform/observability`  
 - Kontak: `partners@humanify.id` (atau sales Naincode)
 
-## Checklist Wave-14
+## Checklist
 
 - [x] Dokumen channel + link di Billing  
-- [ ] Portal self-serve partner (lead form) — wave berikutnya  
+- [x] Portal self-serve partner (lead form) — `/humanify/partners`  
 - [ ] Revenue share otomatis di billing — wave berikutnya  

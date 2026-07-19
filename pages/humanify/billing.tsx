@@ -274,10 +274,27 @@ export default function HumanifyBillingPage() {
               </a>
               {' '}· docs <code className="text-xs bg-white/80 px-1 rounded">humanify-positioning.md</code>
               {' '}· partner channel{' '}
-              <code className="text-xs bg-white/80 px-1 rounded">humanify-partner-channel.md</code>
-              {' '}(konsultan gaji/BPJS / device absensi).
+              <a className="text-violet-700 font-medium hover:underline" href="/humanify/partners">
+                daftar mitra
+              </a>
+              {' '}(<code className="text-xs bg-white/80 px-1 rounded">humanify-partner-channel.md</code>).
             </p>
           </div>
+
+          {current && (current.trialExpired || current.trialExpiringSoon || (current.plan === 'trial' && current.trialDaysLeft != null && current.trialDaysLeft <= 14)) && (
+            <div className={`rounded-2xl border px-5 py-4 text-sm flex flex-wrap items-center justify-between gap-3 ${
+              current.trialExpired ? 'border-red-200 bg-red-50 text-red-900' : 'border-amber-200 bg-amber-50 text-amber-950'
+            }`}>
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4" />
+                <span>
+                  {current.trialExpired
+                    ? 'Trial berakhir — pilih paket di bawah untuk mengaktifkan kembali fitur penuh.'
+                    : `Trial berakhir dalam ${current.trialDaysLeft} hari (${current.trialEndsAt ? new Date(current.trialEndsAt).toLocaleDateString('id-ID') : '—'}).`}
+                </span>
+              </div>
+            </div>
+          )}
 
           <div className="flex items-center justify-center gap-2">
             <button

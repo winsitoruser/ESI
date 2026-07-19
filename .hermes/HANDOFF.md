@@ -1,6 +1,18 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-14** · attendance bulk correct · backup freshness · partner channel
+> Diperbarui: 19 Juli 2026 — **Wave-15** · partner lead form · bounded context · doc storage health · trial banner
+
+## Wave-15 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w15-1 | Partner lead form `/humanify/partners` + API | Done |
+| w15-2 | `docs/humanify-bounded-context.md` (CTO-2) | Done |
+| w15-3 | Doc storage health API + signed URL smoke | Done |
+| w15-4 | Trial expiry fields + banner Billing/Dashboard | Done |
+| w15-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:wave15`
 
 ## Wave-14 (19 Jul 2026)
 

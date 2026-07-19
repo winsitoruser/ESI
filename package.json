@@ -52,6 +52,7 @@
     "smoke:letter-merge": "node scripts/smoke-test-humanify-letter-merge.js",
     "smoke:wave12": "node scripts/smoke-test-humanify-wave12.js",
     "smoke:wave14": "node scripts/smoke-test-humanify-wave14.js",
+    "smoke:wave15": "node scripts/smoke-test-humanify-wave15.js",
     "smoke:mock-audit": "node scripts/audit-humanify-mock-paths.js",
     "check:backup-freshness": "node scripts/check-humanify-backup-freshness.js",
     "report:doc-expiry": "node scripts/run-humanify-doc-expiry-report.js",

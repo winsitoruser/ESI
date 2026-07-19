@@ -185,10 +185,29 @@ export default function HRISDashboard() {
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<string>('');
   const [viewTab, setViewTab] = useState<'overview' | 'modules'>('overview');
+  const [trialInfo, setTrialInfo] = useState<{
+    trialDaysLeft: number | null;
+    trialExpiringSoon?: boolean;
+    trialExpired?: boolean;
+    plan?: string;
+  } | null>(null);
 
   useEffect(() => {
     setMounted(true);
     fetchDashboardData();
+    fetch('/api/humanify/billing?action=current')
+      .then((r) => r.json())
+      .then((j) => {
+        if (j.success && j.data) {
+          setTrialInfo({
+            trialDaysLeft: j.data.trialDaysLeft,
+            trialExpiringSoon: j.data.trialExpiringSoon,
+            trialExpired: j.data.trialExpired,
+            plan: j.data.plan,
+          });
+        }
+      })
+      .catch(() => {});
   }, []);
 
   async function fetchDashboardData() {
@@ -463,6 +482,26 @@ export default function HRISDashboard() {
             </>
           }
         />
+
+        {trialInfo && (trialInfo.trialExpired || trialInfo.trialExpiringSoon || (trialInfo.plan === 'trial' && trialInfo.trialDaysLeft != null && trialInfo.trialDaysLeft <= 14)) && (
+          <div className={`rounded-xl border px-4 py-3 text-sm flex flex-wrap items-center justify-between gap-3 ${
+            trialInfo.trialExpired
+              ? 'border-red-200 bg-red-50 text-red-900'
+              : 'border-amber-200 bg-amber-50 text-amber-950'
+          }`}>
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+              <span>
+                {trialInfo.trialExpired
+                  ? 'Masa trial sudah berakhir — upgrade paket untuk lanjut memakai modul berbayar.'
+                  : `Trial tersisa ${trialInfo.trialDaysLeft} hari. Segera pilih paket agar layanan tidak terputus.`}
+              </span>
+            </div>
+            <Link href="/humanify/billing" className="font-semibold text-violet-700 hover:underline whitespace-nowrap">
+              Buka Billing →
+            </Link>
+          </div>
+        )}
 
         <div className="flex gap-2 rounded-xl border border-violet-100 bg-violet-50/60 p-1 w-fit">
           {(['overview', 'modules'] as const).map((tab) => (

@@ -158,6 +158,34 @@ export function verifyDownloadToken(token: string, docId: string, tenantId: stri
   }
 }
 
+/** Ops health for document storage (local dir + S3 flag). */
+export function getDocStorageHealth(): {
+  mode: 'local' | 's3';
+  localRoot: string;
+  localWritable: boolean;
+  s3Configured: boolean;
+  outsidePublic: boolean;
+} {
+  const localRoot = getLocalStorageRoot();
+  let localWritable = false;
+  try {
+    ensureLocalStorageDir();
+    fs.accessSync(localRoot, fs.constants.W_OK);
+    localWritable = true;
+  } catch {
+    localWritable = false;
+  }
+  const publicUploads = path.join(process.cwd(), 'public', 'uploads', 'employee-documents');
+  const outsidePublic = !localRoot.startsWith(path.join(process.cwd(), 'public'));
+  return {
+    mode: isS3Enabled() ? 's3' : 'local',
+    localRoot,
+    localWritable,
+    s3Configured: isS3Enabled(),
+    outsidePublic: outsidePublic || localRoot !== publicUploads,
+  };
+}
+
 function guessMime(name: string): string {
   const ext = path.extname(name).toLowerCase();
   const map: Record<string, string> = {
