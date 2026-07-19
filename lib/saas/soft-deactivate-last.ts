@@ -12,6 +12,7 @@ export type SoftDeactivateLastRun = {
   expiredActive: number | null;
   updated: number | null;
   dryRun: boolean;
+  seed: boolean;
   path: string;
   reason?: string;
 };
@@ -28,6 +29,7 @@ export function writeSoftDeactivateLast(summary: {
   expiredActive: number;
   updated: number;
   dryRun?: boolean;
+  seed?: boolean;
 }): void {
   const file = getSoftDeactivateLastPath();
   try {
@@ -40,6 +42,7 @@ export function writeSoftDeactivateLast(summary: {
           expiredActive: summary.expiredActive,
           updated: summary.updated,
           dryRun: Boolean(summary.dryRun),
+          ...(summary.seed ? { seed: true } : {}),
         },
         null,
         2,
@@ -62,6 +65,7 @@ export function getSoftDeactivateLastRun(): SoftDeactivateLastRun {
       expiredActive: null,
       updated: null,
       dryRun: false,
+      seed: false,
       path: file,
       reason: 'never',
     };
@@ -79,6 +83,7 @@ export function getSoftDeactivateLastRun(): SoftDeactivateLastRun {
       expiredActive: Number(raw.expiredActive ?? 0),
       updated: Number(raw.updated ?? 0),
       dryRun: Boolean(raw.dryRun),
+      seed: Boolean(raw.seed),
       path: file,
     };
   } catch {
@@ -90,6 +95,7 @@ export function getSoftDeactivateLastRun(): SoftDeactivateLastRun {
       expiredActive: null,
       updated: null,
       dryRun: false,
+      seed: false,
       path: file,
       reason: 'invalid_json',
     };

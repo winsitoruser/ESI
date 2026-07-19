@@ -72,6 +72,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         passedTotal: scorecard.passedTotal,
         failedTotal: scorecard.failedTotal,
         base: scorecard.base,
+        seed: scorecard.seed,
         reason: scorecard.reason,
       },
       actionDigest: {
@@ -91,6 +92,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         expiredActive: softDeactivate.expiredActive,
         updated: softDeactivate.updated,
         dryRun: softDeactivate.dryRun,
+        seed: softDeactivate.seed,
         reason: softDeactivate.reason,
       },
       privyWebhook: privy,

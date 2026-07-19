@@ -12,6 +12,7 @@ export type ScorecardLastRun = {
   passedTotal: number | null;
   failedTotal: number | null;
   base: string | null;
+  seed: boolean;
   path: string;
   reason?: string;
 };
@@ -28,11 +29,26 @@ export function writeScorecardLast(summary: {
   base: string;
   passedTotal: number;
   failedTotal: number;
+  seed?: boolean;
 }): void {
   const file = getScorecardLastPath();
   try {
     fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, JSON.stringify(summary, null, 2), 'utf8');
+    fs.writeFileSync(
+      file,
+      JSON.stringify(
+        {
+          at: summary.at,
+          base: summary.base,
+          passedTotal: summary.passedTotal,
+          failedTotal: summary.failedTotal,
+          ...(summary.seed ? { seed: true } : {}),
+        },
+        null,
+        2,
+      ),
+      'utf8',
+    );
   } catch (e: any) {
     console.warn('[scorecard] write last-run failed:', e?.message || e);
   }
@@ -49,6 +65,7 @@ export function getScorecardLastRun(): ScorecardLastRun {
       passedTotal: null,
       failedTotal: null,
       base: null,
+      seed: false,
       path: file,
       reason: 'never',
     };
@@ -59,14 +76,16 @@ export function getScorecardLastRun(): ScorecardLastRun {
     const ts = Date.parse(at);
     const ageHours = Number.isFinite(ts) ? Math.round(((Date.now() - ts) / 3600_000) * 10) / 10 : null;
     const failedTotal = Number(raw.failedTotal ?? 0);
+    const seed = Boolean(raw.seed);
     return {
       present: true,
-      ok: failedTotal === 0,
+      ok: !seed && failedTotal === 0,
       at: at || null,
       ageHours,
       passedTotal: Number(raw.passedTotal ?? 0),
       failedTotal,
       base: raw.base ? String(raw.base) : null,
+      seed,
       path: file,
     };
   } catch {
@@ -78,6 +97,7 @@ export function getScorecardLastRun(): ScorecardLastRun {
       passedTotal: null,
       failedTotal: null,
       base: null,
+      seed: false,
       path: file,
       reason: 'invalid_json',
     };

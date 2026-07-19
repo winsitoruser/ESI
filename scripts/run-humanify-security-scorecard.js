@@ -24,16 +24,14 @@ function writeLastRun(summary) {
     path.join(process.env.HUMANIFY_STATE_DIR || '/var/lib/humanify', 'scorecard-last.json');
   try {
     fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(
-      file,
-      JSON.stringify({
-        at: summary.at,
-        base: summary.base,
-        passedTotal: summary.passedTotal,
-        failedTotal: summary.failedTotal,
-      }, null, 2),
-      'utf8',
-    );
+    const payload = {
+      at: summary.at,
+      base: summary.base,
+      passedTotal: summary.passedTotal,
+      failedTotal: summary.failedTotal,
+    };
+    if (summary.seed) payload.seed = true;
+    fs.writeFileSync(file, JSON.stringify(payload, null, 2), 'utf8');
     console.log(`[scorecard] wrote ${file}`);
   } catch (e) {
     console.warn('[scorecard] write last-run failed:', e.message || e);

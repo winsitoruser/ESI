@@ -1,6 +1,18 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-27** · verify-email soft · soft-deactivate seed · SEO soft · signup no-ref
+> Diperbarui: 19 Juli 2026 — **Wave-28** · scorecard/soft seed chips · login soft · health soft · phase16 alias
+
+## Wave-28 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w28-1 | Scorecard `seed` persist + observability chip | Done |
+| w28-2 | Soft-deactivate `seed` in last-run + chip | Done |
+| w28-3 | Soft Playwright login cues (forgot/signup) | Done |
+| w28-4 | `smoke:phase16-health` + soft Playwright `/api/health` | Done |
+| w28-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:wave28` · `npm run smoke:phase16-health` · `npm run test:e2e:humanify:health:prod` · `npm run test:e2e:humanify:prod`
 
 ## Wave-27 (19 Jul 2026)
 

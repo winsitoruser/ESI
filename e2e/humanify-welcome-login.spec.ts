@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 /**
  * Smoke: marketing welcome loads and routes to Humanify login form.
- * Does not assert successful auth (credentials differ per env).
+ * Soft login cues (forgot / signup) — Wave-28. Does not submit credentials.
  */
 test.describe('Humanify welcome → login', () => {
   test('welcome page is reachable and links to login', async ({ page }) => {
@@ -21,5 +21,21 @@ test.describe('Humanify welcome → login', () => {
     await expect(page.locator('input[type="email"]').first()).toBeVisible({ timeout: 15_000 });
     await expect(page.locator('input[name="password"], input[type="password"]').first()).toBeVisible();
     await expect(page.getByRole('button', { name: /Masuk/i }).first()).toBeVisible();
+  });
+
+  test('login page shows forgot-password and signup cues (soft)', async ({ page }) => {
+    const res = await page.goto('/humanify/login', {
+      waitUntil: 'domcontentloaded',
+      timeout: 45_000,
+    });
+    expect((res?.status() ?? 0)).toBeLessThan(500);
+    await expect(page.locator('a[href*="/humanify/forgot-password"]').first()).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.locator('body')).toContainText(/Lupa password/i, { timeout: 10_000 });
+    await expect(page.locator('a[href*="/humanify/signup"]').first()).toBeVisible({
+      timeout: 10_000,
+    });
+    // Soft: do not submit login
   });
 });

@@ -315,14 +315,16 @@ export default function PlatformObservabilityPage() {
             </div>
             <p className={`text-lg font-bold ${
               !obs?.scorecard?.present ? 'text-slate-500'
-                : obs.scorecard.ok ? 'text-emerald-700' : 'text-rose-700'
+                : obs.scorecard.seed ? 'text-amber-700'
+                  : obs.scorecard.ok ? 'text-emerald-700' : 'text-rose-700'
             }`}>
               {!obs?.scorecard?.present ? 'Never'
-                : obs.scorecard.ok ? 'Green' : `Fail · ${obs.scorecard.failedTotal ?? '?'}`}
+                : obs.scorecard.seed ? 'Seed'
+                  : obs.scorecard.ok ? 'Green' : `Fail · ${obs.scorecard.failedTotal ?? '?'}`}
             </p>
             <p className="text-[11px] text-slate-400 mt-1">
               {obs?.scorecard?.ageHours != null
-                ? `${obs.scorecard.ageHours}h ago · ${obs.scorecard.passedTotal ?? 0} passed`
+                ? `${obs.scorecard.ageHours}h ago · ${obs.scorecard.seed ? 'deploy seed' : `${obs.scorecard.passedTotal ?? 0} passed`}`
                 : 'Run: npm run security:scorecard'}
             </p>
           </div>
@@ -353,12 +355,15 @@ export default function PlatformObservabilityPage() {
             </div>
             <p className={`text-lg font-bold ${
               !obs?.docExpirySoft?.present ? 'text-slate-500'
-                : obs.docExpirySoft.dryRun ? 'text-amber-700' : 'text-emerald-700'
+                : obs.docExpirySoft.seed ? 'text-amber-700'
+                  : obs.docExpirySoft.dryRun ? 'text-amber-700' : 'text-emerald-700'
             }`}>
               {!obs?.docExpirySoft?.present ? 'Never'
-                : obs.docExpirySoft.dryRun
-                  ? `Dry · ${obs.docExpirySoft.expiredActive ?? 0}`
-                  : `Updated ${obs.docExpirySoft.updated ?? 0}`}
+                : obs.docExpirySoft.seed
+                  ? 'Seed'
+                  : obs.docExpirySoft.dryRun
+                    ? `Dry · ${obs.docExpirySoft.expiredActive ?? 0}`
+                    : `Updated ${obs.docExpirySoft.updated ?? 0}`}
             </p>
             <p className="text-[11px] text-slate-400 mt-1">
               {obs?.docExpirySoft?.ageHours != null
