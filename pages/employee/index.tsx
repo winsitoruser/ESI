@@ -2509,13 +2509,13 @@ export default function EmployeeDashboard() {
         <meta name="format-detection" content="telephone=no" />
         <link rel="manifest" href="/manifest-employee.json" />
         <meta name="application-name" content="Humanify" />
-        <link rel="apple-touch-icon" href="/icons/credit-card.png" />
+        <link rel="apple-touch-icon" href="/icons/humanify-192.png" />
       </Head>
       <Toaster position="top-center" toastOptions={{ duration: 3000, style: { fontSize: '14px', maxWidth: '90vw' } }} />
 
       {/* Enterprise shell — mobile-first, refined frame on desktop */}
-      <div className="emp-portal-outer min-h-screen bg-[#0c0f1a] md:bg-gradient-to-br md:from-[#0c0f1a] md:via-[#12162a] md:to-[#1a1040] md:py-8">
-      <div className="emp-portal-root emp-portal-desktop-frame min-h-screen md:min-h-[calc(100vh-4rem)] bg-[#f8fafc] max-w-md mx-auto relative md:rounded-[2rem] md:shadow-[0_25px_80px_rgba(0,0,0,0.45)] md:ring-1 md:ring-white/10 md:overflow-hidden flex flex-col">
+      <div className="emp-portal-outer humanify-theme min-h-screen bg-[#0c0f1a] md:bg-gradient-to-br md:from-[#0c0f1a] md:via-[#12162a] md:to-[#1a1040] md:py-8">
+      <div className="emp-portal-root emp-portal-desktop-frame min-h-screen md:min-h-[calc(100vh-4rem)] bg-[#f8fafc] max-w-md mx-auto relative md:rounded-[2rem] md:shadow-[0_25px_80px_rgba(0,0,0,0.45)] md:ring-1 md:ring-white/10 md:overflow-hidden flex flex-col" style={{ background: 'var(--hf-surface-muted)' }}>
         <header className="sticky top-0 z-40 emp-portal-chrome border-b px-4 h-[3.25rem] flex items-center justify-between safe-area-pt flex-shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
             {activeTab !== 'home' ? (

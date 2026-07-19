@@ -27,19 +27,22 @@ export default function PayslipTab() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--hf-brand-600)' }} />
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 p-4 text-white">
+      <div
+        className="rounded-2xl p-4 text-white"
+        style={{ background: 'linear-gradient(135deg, var(--hf-brand-600), var(--hf-brand))' }}
+      >
         <div className="flex items-center gap-2 mb-1">
           <Wallet className="w-5 h-5" />
           <span className="font-bold text-sm">Slip Gaji</span>
         </div>
-        <p className="text-blue-100 text-xs">Akses payslip bulanan Anda secara aman</p>
+        <p className="text-xs opacity-90">Akses payslip bulanan Anda secara aman</p>
       </div>
 
       <div>
@@ -48,7 +51,8 @@ export default function PayslipTab() {
           type="month"
           value={selectedMonth}
           onChange={e => setSelectedMonth(e.target.value)}
-          className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-300 outline-none"
+          className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2"
+          style={{ ['--tw-ring-color' as string]: 'var(--hf-brand-100)' }}
         />
       </div>
 
@@ -132,7 +136,10 @@ export default function PayslipTab() {
                   </div>
                 )}
 
-                <div className="flex justify-between items-center bg-blue-600 text-white rounded-xl px-4 py-3">
+                <div
+                  className="flex justify-between items-center text-white rounded-xl px-4 py-3"
+                  style={{ background: 'var(--hf-brand-600)' }}
+                >
                   <span className="text-sm font-semibold">Gaji Bersih</span>
                   <span className="font-bold">{fmtCur(ps.net_salary)}</span>
                 </div>

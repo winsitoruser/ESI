@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import HrisEmptyState from '@/components/humanify/HrisEmptyState';
 import type { HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import AttendanceBulkImportModal from '@/components/humanify/AttendanceBulkImportModal';
@@ -335,7 +336,34 @@ export default function AttendancePage() {
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50"><tr><th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Karyawan</th><th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cabang</th><th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Masuk</th><th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Keluar</th><th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Jam Kerja</th><th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th><th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Sumber</th><th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Ket</th></tr></thead>
                   <tbody className="divide-y">
-                    {filteredDaily.length === 0 ? <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-500">Tidak ada data</td></tr> : filteredDaily.map(r => {
+                    {filteredDaily.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="p-4">
+                          <HrisEmptyState
+                            source={dataSource}
+                            title="Belum ada data absensi hari ini"
+                            description="Data muncul setelah karyawan clock-in via perangkat atau portal ESS."
+                            action={
+                              <div className="flex flex-wrap items-center justify-center gap-2">
+                                <a
+                                  href="/humanify/devices"
+                                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white"
+                                  style={{ background: 'var(--hf-brand-600)' }}
+                                >
+                                  Kelola perangkat
+                                </a>
+                                <a
+                                  href="/employee?tab=attendance"
+                                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium border border-slate-200 text-slate-700 hover:bg-white"
+                                >
+                                  Portal ESS
+                                </a>
+                              </div>
+                            }
+                          />
+                        </td>
+                      </tr>
+                    ) : filteredDaily.map(r => {
                       const sc = getStatusConfig(r.status); const StatusIcon = sc.icon; const si = getSourceIcon(r.source); const SourceIcon = si.icon;
                       return (
                         <tr key={r.id} className="hover:bg-gray-50">

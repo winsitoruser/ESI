@@ -502,7 +502,10 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
       : 'ESI ERP';
 
   return (
-    <div className={`min-h-screen bg-gray-50 flex ${isHumanify ? 'humanify-theme' : ''}`}>
+    <div
+      className={`min-h-screen flex ${isHumanify ? 'humanify-theme' : 'bg-gray-50'}`}
+      style={isHumanify ? { background: 'var(--hf-surface-muted)' } : undefined}
+    >
       <Head>
         <title>{pageTitle}</title>
         <meta name="robots" content="noindex, nofollow" />

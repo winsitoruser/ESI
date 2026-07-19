@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { ArrowLeft, CheckCircle2, Eye, EyeOff, Loader2, Lock, ShieldCheck } from 'lucide-react';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
-import { HumanifyLogo } from '@/components/humanify/HumanifyLogo';
+import PublicAuthShell from '@/components/humanify/PublicAuthShell';
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -59,9 +59,8 @@ export default function ResetPasswordPage() {
         <meta name="robots" content="noindex, nofollow" />
         <link rel="icon" href={HUMANIFY_BRAND.welcomeLogoPath} type="image/png" />
       </Head>
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-4">
-        <HumanifyLogo className="h-10 mb-8" />
-        <div className="w-full max-w-md rounded-2xl border bg-white p-8 shadow-sm">
+      <PublicAuthShell>
+        <div className="w-full max-w-md rounded-2xl border bg-white p-8 shadow-sm" style={{ borderColor: 'var(--hf-border)' }}>
           <div className="text-center">
             <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center mx-auto mb-3">
               <ShieldCheck className="w-6 h-6 text-indigo-600" />
@@ -152,7 +151,7 @@ export default function ResetPasswordPage() {
             </form>
           )}
         </div>
-      </div>
+      </PublicAuthShell>
     </>
   );
 }

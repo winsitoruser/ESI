@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { getCsrfToken } from 'next-auth/react';
 import HumanifyLoginForm from '@/components/humanify/HumanifyLoginForm';
 import HumanifySeoHead from '@/components/humanify/HumanifySeoHead';
+import PublicAuthShell from '@/components/humanify/PublicAuthShell';
 import { authOptions } from '../api/auth/[...nextauth]';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
 
@@ -17,7 +18,9 @@ export default function HumanifyLoginPage({ csrfToken }: Props) {
         path={HUMANIFY_BRAND.loginPath}
         robots="index, follow"
       />
-      <HumanifyLoginForm csrfToken={csrfToken} defaultRedirect={HUMANIFY_BRAND.appPath} />
+      <PublicAuthShell variant="dark">
+        <HumanifyLoginForm csrfToken={csrfToken} defaultRedirect={HUMANIFY_BRAND.appPath} />
+      </PublicAuthShell>
     </>
   );
 }

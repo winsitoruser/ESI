@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { CheckCircle2, Loader2, Mail } from 'lucide-react';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
-import { HumanifyLogo } from '@/components/humanify/HumanifyLogo';
+import PublicAuthShell from '@/components/humanify/PublicAuthShell';
 
 export default function VerifyEmailPage() {
   const router = useRouter();
@@ -60,9 +60,8 @@ export default function VerifyEmailPage() {
         <meta name="robots" content="noindex, nofollow" />
         <link rel="icon" href={HUMANIFY_BRAND.welcomeLogoPath} type="image/png" />
       </Head>
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-4">
-        <HumanifyLogo className="h-10 mb-8" />
-        <div className="w-full max-w-md rounded-2xl border bg-white p-8 shadow-sm text-center">
+      <PublicAuthShell>
+        <div className="w-full max-w-md rounded-2xl border bg-white p-8 shadow-sm text-center" style={{ borderColor: 'var(--hf-border)' }}>
           <Mail className="w-10 h-10 text-indigo-600 mx-auto mb-3" />
           <h1 className="text-xl font-semibold text-slate-900">Verifikasi email</h1>
           {status === 'loading' && (
@@ -103,7 +102,7 @@ export default function VerifyEmailPage() {
             </div>
           )}
         </div>
-      </div>
+      </PublicAuthShell>
     </>
   );
 }

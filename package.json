@@ -127,6 +127,7 @@
     "smoke:wave48": "node scripts/smoke-test-humanify-wave48.js",
     "smoke:wave49": "node scripts/smoke-test-humanify-wave49.js",
     "smoke:wave50": "node scripts/smoke-test-humanify-wave50.js",
+    "smoke:wave51": "node scripts/smoke-test-humanify-wave51.js",
     "ensure:demo-partner": "node scripts/ensure-humanify-demo-partner.js",
     "smoke:rls-lab": "node scripts/smoke-test-humanify-rls-strict-lab.js",
     "check:uptime-external": "node scripts/check-humanify-uptime-external.js",

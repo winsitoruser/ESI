@@ -2,6 +2,7 @@ import { GetServerSideProps } from 'next';
 import { getServerSession } from 'next-auth/next';
 import HumanifySignupForm from '@/components/humanify/HumanifySignupForm';
 import HumanifySeoHead from '@/components/humanify/HumanifySeoHead';
+import PublicAuthShell from '@/components/humanify/PublicAuthShell';
 import { authOptions } from '../api/auth/[...nextauth]';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
 
@@ -14,7 +15,9 @@ export default function HumanifySignupPage() {
         path={HUMANIFY_BRAND.signupPath}
         keywords="daftar HRIS, trial HRIS gratis, software HR Indonesia, Humanify signup"
       />
-      <HumanifySignupForm />
+      <PublicAuthShell variant="dark">
+        <HumanifySignupForm />
+      </PublicAuthShell>
     </>
   );
 }

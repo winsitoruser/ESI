@@ -1,6 +1,22 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-50** · ops soft auth-gate (billing/security/KPI/training)
+> Diperbarui: 19 Juli 2026 — **Wave-51** · Maturity Sprint-1 (PublicAuthShell, empty states, PWA, --hf chrome)
+
+## Wave-51 (19 Jul 2026) — Maturity S1
+
+| ID | Item | Status |
+|---|---|---|
+| UX-S1-1 | HQLayout chrome `--hf-surface-muted` | Done |
+| UX-S1-2 | `PublicAuthShell` → login/signup/forgot/join/reset/verify | Done |
+| UX-S1-3 | PayslipTab + ESS portal `--hf-brand*` | Done |
+| HR-S1-1 | Employees empty → `HrisEmptyState` + create/import CTA | Done |
+| HR-S1-2 | Leave + attendance empty → ESS/devices CTA | Done |
+| ESS-S1-1 | PWA icons humanify-192/512 + payslip shortcut | Done |
+| CP-S1-1 / SEC-S1-1 | Impersonation banner + mock CI (prior) | Done |
+
+Scripts: `npm run smoke:wave51`
+
+Baseline post-S1 (judgment): Control ~98 · Sec ~96 · HR ~95 · ESS ~88 · UX ~90. Next: **Sprint 2**.
 
 ## Wave-50 (19 Jul 2026)
 

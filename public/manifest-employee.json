@@ -7,25 +7,38 @@
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0c0f1a",
-  "theme_color": "#0c0f1a",
+  "theme_color": "#5b21b6",
   "lang": "id",
   "categories": ["business", "productivity"],
   "icons": [
     {
-      "src": "/icons/credit-card.png",
+      "src": "/icons/humanify-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "/icons/credit-card.png",
+      "src": "/icons/humanify-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/humanify-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/humanify-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "shortcuts": [
     { "name": "Absensi", "url": "/employee?tab=attendance", "description": "Check-in / Check-out" },
+    { "name": "Slip Gaji", "url": "/employee?tab=payslip", "description": "Lihat slip gaji" },
     { "name": "Klaim", "url": "/employee?tab=claims", "description": "Ajukan reimbursement" },
     { "name": "Cuti", "url": "/employee?tab=leave", "description": "Pengajuan cuti" },
     { "name": "Training", "url": "/employee/training", "description": "Kursus & ujian online" }

@@ -69,7 +69,7 @@ test.describe('Humanify health probe (soft)', () => {
   });
 
   test('PWA icon under /icons is public', async ({ request }) => {
-    const res = await request.get('/icons/credit-card.png');
+    const res = await request.get('/icons/humanify-192.png');
     expect(res.status()).toBe(200);
     const ctype = res.headers()['content-type'] || '';
     expect(ctype).toMatch(/image\//i);

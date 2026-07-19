@@ -524,7 +524,32 @@ export default function LeaveManagementPage() {
                     {loading ? (
                       <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500">Memuat...</td></tr>
                     ) : filtered.length === 0 ? (
-                      <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500">Tidak ada data cuti</td></tr>
+                      <tr>
+                        <td colSpan={7} className="p-4">
+                          <HrisEmptyState
+                            source={dataSource}
+                            title="Belum ada pengajuan cuti"
+                            description="Antrian cuti kosong. Karyawan dapat mengajukan lewat portal ESS, atau pastikan perangkat absensi/cuti terhubung."
+                            action={
+                              <div className="flex flex-wrap items-center justify-center gap-2">
+                                <a
+                                  href="/employee?tab=leave"
+                                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white"
+                                  style={{ background: 'var(--hf-brand-600)' }}
+                                >
+                                  Buka portal ESS
+                                </a>
+                                <a
+                                  href="/humanify/devices"
+                                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium border border-slate-200 text-slate-700 hover:bg-white"
+                                >
+                                  Kelola perangkat
+                                </a>
+                              </div>
+                            }
+                          />
+                        </td>
+                      </tr>
                     ) : (
                       filtered.map((leave) => {
                         const lt = getLeaveField(leave, 'type');

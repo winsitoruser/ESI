@@ -3,7 +3,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { ArrowLeft, CheckCircle2, KeyRound, Loader2, Mail } from 'lucide-react';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
-import { HumanifyLogo } from '@/components/humanify/HumanifyLogo';
+import PublicAuthShell from '@/components/humanify/PublicAuthShell';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -45,9 +45,8 @@ export default function ForgotPasswordPage() {
         <meta name="description" content={`Reset password akun ${HUMANIFY_BRAND.name} HRIS.`} />
         <link rel="icon" href={HUMANIFY_BRAND.welcomeLogoPath} type="image/png" />
       </Head>
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-4">
-        <HumanifyLogo className="h-10 mb-8" />
-        <div className="w-full max-w-md rounded-2xl border bg-white p-8 shadow-sm">
+      <PublicAuthShell>
+        <div className="w-full max-w-md rounded-2xl border bg-white p-8 shadow-sm" style={{ borderColor: 'var(--hf-border)' }}>
           <div className="text-center">
             <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center mx-auto mb-3">
               <KeyRound className="w-6 h-6 text-indigo-600" />
@@ -118,7 +117,7 @@ export default function ForgotPasswordPage() {
             </form>
           )}
         </div>
-      </div>
+      </PublicAuthShell>
     </>
   );
 }

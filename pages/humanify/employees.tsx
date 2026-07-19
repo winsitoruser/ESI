@@ -749,7 +749,35 @@ export default function EmployeeManagementPage() {
                     {loading ? (
                       <tr><td colSpan={visibleColumns.length} className="text-center py-8 text-gray-400">{t('hris.loadingData')}</td></tr>
                     ) : employees.length === 0 ? (
-                      <tr><td colSpan={visibleColumns.length} className="text-center py-8 text-gray-400">{t('hris.noEmployeeData')}</td></tr>
+                      <tr>
+                        <td colSpan={visibleColumns.length} className="p-4">
+                          <HrisEmptyState
+                            source={dataSource}
+                            title={t('hris.noEmployeeData')}
+                            description="Tambahkan karyawan manual atau impor massal dari CSV untuk mengisi database."
+                            action={
+                              <div className="flex flex-wrap items-center justify-center gap-2">
+                                <CanAccess permission="employees.create">
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowCreateModal(true)}
+                                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white"
+                                    style={{ background: 'var(--hf-brand-600)' }}
+                                  >
+                                    <Plus className="w-4 h-4" /> Tambah Karyawan
+                                  </button>
+                                </CanAccess>
+                                <a
+                                  href="/humanify/employees-import"
+                                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium border border-slate-200 text-slate-700 hover:bg-white"
+                                >
+                                  Impor CSV
+                                </a>
+                              </div>
+                            }
+                          />
+                        </td>
+                      </tr>
                     ) : employees.map((emp: any) => (
                       <tr key={emp.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => fetchDetail(emp.id)}>
                         {visibleColumns.map((col: any) => (
