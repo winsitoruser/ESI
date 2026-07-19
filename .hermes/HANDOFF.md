@@ -10,7 +10,7 @@
 | w18-2 | Partner lead CSV export | Done |
 | w18-3 | Doc expiry soft-deactivate (`report:doc-expiry:soft`) | Done |
 | w18-4 | IR overview `pendingPolicyAcks` KPI | Done |
-| w18-5 | Tenant detail commission display + deploy | Pending |
+| w18-5 | Tenant detail commission display + deploy | Done |
 
 Scripts: `npm run smoke:wave18` · `npm run report:doc-expiry:soft`
 
