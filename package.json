@@ -129,6 +129,8 @@
     "smoke:wave50": "node scripts/smoke-test-humanify-wave50.js",
     "smoke:wave51": "node scripts/smoke-test-humanify-wave51.js",
     "smoke:wave52": "node scripts/smoke-test-humanify-wave52.js",
+    "smoke:wave53": "node scripts/smoke-test-humanify-wave53.js",
+    "smoke:redis-shared": "node scripts/smoke-test-saas-redis-shared.js",
     "ensure:demo-partner": "node scripts/ensure-humanify-demo-partner.js",
     "smoke:rls-lab": "node scripts/smoke-test-humanify-rls-strict-lab.js",
     "check:uptime-external": "node scripts/check-humanify-uptime-external.js",

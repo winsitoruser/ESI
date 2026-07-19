@@ -1,7 +1,7 @@
 /**
  * Platform Control Plane API — Humanify SaaS ops
  * GET   ?action=overview|tenants|tenant|tenant-detail|billing-orders|expiring-trials|partners|partner-leads|partner-leads-export|partner-commission-export|partner-commission-summary|commission-preview
- * PATCH ?action=tenant-status|tenant-plan
+ * PATCH ?action=tenant-status|tenant-plan|tenant-mfa-policy
  * POST  ?action=dunning-scan|partner-create|partner-lead-status|cleanup-qa|archive-qa|impersonate|end-impersonate
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
@@ -27,8 +27,8 @@ import {
   QA_TENANT_SLUG_REGEX,
   resolvePartnerByCode,
 } from '@/lib/saas/partners';
-import { parseTenantSettings } from '@/lib/saas/tenant-schema';
-import { listPartnerLeads, updatePartnerLeadStatus, exportPartnerLeadsCsv } from '@/lib/hris/partner-leads';
+import { getSeatUsage } from '@/lib/saas/seat-metering';
+import { isTenantMfaRequired, setTenantMfaRequired } from '@/lib/saas/mfa-policy';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch {}
@@ -320,6 +320,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.json({ success: true, message: `Tenant plan → ${planNorm}` });
     }
 
+    if (req.method === 'PATCH' && action === 'tenant-mfa-policy') {
+      const id = String(req.body?.id || req.query.id || '');
+      if (!id) return res.status(400).json({ success: false, error: 'id required' });
+      const requireMfa = Boolean(req.body?.requireMfa);
+      try {
+        const result = await setTenantMfaRequired(id, requireMfa);
+        return res.json({
+          success: true,
+          data: result,
+          message: requireMfa ? 'MFA wajib diaktifkan untuk tenant' : 'Kebijakan MFA dinonaktifkan',
+        });
+      } catch (e: any) {
+        return res.status(400).json({ success: false, error: e?.message || 'Gagal update MFA policy' });
+      }
+    }
+
     if (req.method === 'POST' && action === 'dunning-scan') {
       const result = await runDunningScan();
       return res.json({ success: true, data: result, message: `Suspended ${result.suspended}, trials expired ${result.trialsExpired}` });
@@ -476,6 +492,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       }
 
+      const seats = await getSeatUsage(id, tenant.plan || tenant.subscription_plan).catch(() => null);
+      let requireMfa = false;
+      let mfaEnrolled = 0;
+      try {
+        requireMfa = await isTenantMfaRequired(id);
+        const [mfaRows] = await sequelize.query(`
+          SELECT COUNT(*)::int AS c FROM users u
+          WHERE u.tenant_id = :id
+            AND (
+              COALESCE((u.settings->>'mfaEnabled')::boolean, false) = true
+              OR COALESCE(u.mfa_enabled, false) = true
+            )
+        `, { replacements: { id } });
+        mfaEnrolled = mfaRows?.[0]?.c || 0;
+      } catch {
+        try {
+          requireMfa = await isTenantMfaRequired(id);
+        } catch { /* */ }
+      }
+
       return res.json({
         success: true,
         data: {
@@ -488,6 +524,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           partnerCommission,
           trialEndsAt,
           careersUrl: tenant.slug ? `/c/${tenant.slug}/careers` : null,
+          seats,
+          mfa: { requireMfa, enrolledUsers: mfaEnrolled },
         },
       });
     }

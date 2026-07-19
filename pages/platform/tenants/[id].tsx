@@ -236,11 +236,23 @@ export default function TenantDetailPage() {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <div className="bg-white border rounded-xl p-4">
                 <div className="flex items-center gap-2 text-xs text-slate-500 mb-1"><Users className="w-3.5 h-3.5" /> Users</div>
-                <p className="text-2xl font-bold">{tenant.user_count ?? 0}</p>
+                <p className="text-2xl font-bold">
+                  {tenant.seats ? `${tenant.seats.users}/${tenant.seats.maxUsers}` : (tenant.user_count ?? 0)}
+                </p>
+                {tenant.seats && (
+                  <p className={`text-[11px] mt-1 ${tenant.seats.overLimit ? 'text-red-600' : tenant.seats.nearLimit ? 'text-amber-600' : 'text-slate-400'}`}>
+                    {tenant.seats.usersPct}% kuota · {tenant.seats.planId}
+                  </p>
+                )}
               </div>
               <div className="bg-white border rounded-xl p-4">
                 <div className="flex items-center gap-2 text-xs text-slate-500 mb-1"><Briefcase className="w-3.5 h-3.5" /> Employees</div>
-                <p className="text-2xl font-bold">{tenant.employee_count ?? 0}</p>
+                <p className="text-2xl font-bold">
+                  {tenant.seats ? `${tenant.seats.employees}/${tenant.seats.maxEmployees}` : (tenant.employee_count ?? 0)}
+                </p>
+                {tenant.seats?.upgradeHint && (
+                  <p className="text-[11px] text-amber-600 mt-1">{tenant.seats.upgradeHint}</p>
+                )}
               </div>
               <div className="bg-white border rounded-xl p-4">
                 <div className="flex items-center gap-2 text-xs text-slate-500 mb-1"><HeartPulse className="w-3.5 h-3.5 text-[color:var(--hf-brand-600)]" /> Health</div>
@@ -284,6 +296,46 @@ export default function TenantDetailPage() {
                   )}
                 </p>
               )}
+            </div>
+
+            <div className="bg-white border rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-slate-800">Kebijakan MFA</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {tenant.mfa?.requireMfa ? 'Wajib 2FA untuk semua member' : '2FA opsional'}
+                  {' · '}{tenant.mfa?.enrolledUsers ?? 0} user sudah enroll
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={acting}
+                onClick={async () => {
+                  setActing(true);
+                  try {
+                    const next = !tenant.mfa?.requireMfa;
+                    const res = await fetch('/api/platform?action=tenant-mfa-policy', {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ id, requireMfa: next }),
+                    });
+                    const j = await res.json();
+                    if (j.success) {
+                      setToast(j.message || 'MFA policy updated');
+                      await load();
+                    } else setToast(j.error || 'Gagal update MFA');
+                  } catch {
+                    setToast('Gagal update MFA');
+                  } finally {
+                    setActing(false);
+                  }
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50 ${
+                  tenant.mfa?.requireMfa ? 'bg-slate-600 hover:bg-slate-700' : ''
+                }`}
+                style={!tenant.mfa?.requireMfa ? { background: 'var(--hf-brand-600)' } : undefined}
+              >
+                {tenant.mfa?.requireMfa ? 'Nonaktifkan wajib MFA' : 'Paksa MFA tenant'}
+              </button>
             </div>
 
             <div className="bg-white border rounded-xl overflow-hidden">

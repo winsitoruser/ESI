@@ -5,6 +5,11 @@ import { canAccessManagerPortal, isSuperAdminRole } from '@/lib/humanify/manager
 import { resolveManagerContext, buildTeamEmployeeFilter } from '@/lib/hris/manager-team-filter';
 import { approveLeaveStep, rejectLeaveRequest } from '@/lib/hris/leave-request-service';
 import {
+  assertCanApproveLeaveStep,
+  myPendingLeaveStepClause,
+  resolveEmployeeIdForUser,
+} from '@/lib/hris/leave-approver-auth';
+import {
   notifyEmployeeByEmployeeId,
 } from '@/lib/hris/employee-notifications';
 import { notifyHRStaff } from '@/lib/hris/disciplinary-notifications';
@@ -147,18 +152,25 @@ async function getPendingApprovals(res: NextApiResponse, userId: string, tenantI
   if (!sequelize) return res.json({ success: true, data: { leave: [], claims: [], overtime: [] } });
   const ctx = await resolveManagerContextLocal(userId);
   const tf = teamFilterClause(isSuperAdmin, ctx, userId);
-  const base = { tenantId, ...tf.replacements };
+  const myEmpId = ctx?.employee_id
+    ? String(ctx.employee_id)
+    : (tenantId ? await resolveEmployeeIdForUser({ tenantId, userId, email: null }) : null);
+  const base = { tenantId, myEmpId: myEmpId || null, ...tf.replacements };
 
   const tenantLeave = tenantId ? 'AND lr.tenant_id = :tenantId' : '';
+  const myStep = myEmpId && !isSuperAdmin
+    ? `AND las.id IS NOT NULL AND ${myPendingLeaveStepClause('las', 'e')}`
+    : '';
   const [leave] = await sequelize.query(`
     SELECT lr.id, lr.leave_type, lr.start_date, lr.end_date, lr.total_days, lr.reason, lr.status,
       lr.created_at, lr.current_approval_step, lr.total_approval_steps,
       e.name AS employee_name, e.position, e.department, 'leave' AS approval_type,
-      las.approver_role AS pending_approver_role, las.step_order AS pending_step_order
+      las.approver_role AS pending_approver_role, las.step_order AS pending_step_order,
+      las.approver_id::text AS pending_approver_id
     FROM leave_requests lr
     JOIN employees e ON lr.employee_id::text = e.id::text
     LEFT JOIN leave_approval_steps las ON las.leave_request_id = lr.id AND las.status = 'pending'
-    WHERE lr.status = 'pending' ${tenantLeave} ${tf.sql}
+    WHERE lr.status = 'pending' ${tenantLeave} ${tf.sql} ${myStep}
     ORDER BY lr.created_at ASC LIMIT 50
   `, { replacements: base }).catch(() => [[]]);
 
@@ -316,9 +328,18 @@ async function approveLeave(req: NextApiRequest, res: NextApiResponse, session: 
   const tenantId = String(session.user?.tenantId || '');
   if (!tenantId) return res.status(403).json({ success: false, error: 'Tenant context required' });
 
+  const authz = await assertCanApproveLeaveStep({
+    tenantId,
+    leaveRequestId: String(id),
+    userId: session.user?.id,
+    email: session.user?.email,
+    role: session.user?.role,
+  });
+  if (!authz.ok) return res.status(authz.status).json({ success: false, error: authz.error });
+
   const result = await approveLeaveStep({
     leaveRequestId: String(id),
-    approverId: session.user?.id,
+    approverId: authz.myEmpId || session.user?.id,
     approverName: session.user?.name || session.user?.email,
     comments,
     tenantId,

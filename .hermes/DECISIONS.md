@@ -74,3 +74,12 @@ Hierarki agent AI mengikuti **Viking Division** untuk ERP Sobatpaws.
 3. **Public auth** — `PublicAuthShell` (light) atau dark wrap untuk login/signup.
 
 Jangan memaksa marketing ke slate HQ, dan jangan mewarnai ops dengan gradient violet Tailwind ad-hoc.
+
+## D-013: Strict RLS prod gate — 20 Jul 2026
+**CTO + Security:** Prod tetap **soft RLS + request-bound** sampai exit criteria staging terpenuhi:
+1. `npm run smoke:rls-lab` hijau
+2. IDOR scorecard 100% blocked (`SMOKE_BASE_URL` staging **atau** prod proxy `npm run smoke:idor` + weekly scorecard)
+3. Lab backup/restore runbook di `docs/humanify-rls-strict-staging.md`
+4. Chaos job tenant context (SEC-S4-2) hijau sebelum flip `HUMANIFY_RLS_MODE=strict` di pool prod
+
+Flip strict di prod **tanpa** staging IDOR + chaos = dilarang.

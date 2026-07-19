@@ -142,6 +142,10 @@ export default function LeaveManagementPage() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [inboxScope, setInboxScope] = useState<'all' | 'me'>('all');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [lastBatchId, setLastBatchId] = useState<string | null>(null);
+  const [undoExpiresAt, setUndoExpiresAt] = useState<string | null>(null);
 
   // Modals
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -265,6 +269,69 @@ export default function LeaveManagementPage() {
       if (json.success) { showToast('success', json.message || 'Berhasil disetujui'); fetchData(); setShowDetailModal(false); }
       else showToast('error', json.error || 'Gagal');
     } catch { showToast('error', 'Gagal menyetujui'); }
+  };
+
+  const pendingSelectable = useMemo(
+    () => filtered.filter((l) => l.status === 'pending').map((l) => l.id).filter(Boolean),
+    [filtered],
+  );
+
+  const toggleSelectId = (id: string) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const toggleSelectAllPending = () => {
+    const allSelected = pendingSelectable.length > 0 && pendingSelectable.every((id) => selectedIds.includes(id));
+    setSelectedIds(allSelected ? [] : [...pendingSelectable]);
+  };
+
+  const handleBulkCancelPending = async () => {
+    if (!selectedIds.length) { showToast('error', 'Pilih minimal satu pengajuan pending'); return; }
+    setBulkBusy(true);
+    try {
+      const res = await fetch('/api/humanify/leave-bulk?action=cancel-pending', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) showToast('error', json.error || 'Batal massal gagal');
+      else {
+        setLastBatchId(json.data?.batchId || null);
+        setUndoExpiresAt(json.data?.undoExpiresAt || null);
+        setSelectedIds([]);
+        showToast('success', json.message || 'Dibatalkan');
+        fetchData();
+      }
+    } catch {
+      showToast('error', 'Batal massal gagal');
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const handleBulkUndo = async () => {
+    if (!lastBatchId) return;
+    setBulkBusy(true);
+    try {
+      const res = await fetch('/api/humanify/leave-bulk?action=undo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ batchId: lastBatchId }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) showToast('error', json.error || 'Undo gagal');
+      else {
+        showToast('success', json.message || 'Dikembalikan');
+        setLastBatchId(null);
+        setUndoExpiresAt(null);
+        fetchData();
+      }
+    } catch {
+      showToast('error', 'Undo gagal');
+    } finally {
+      setBulkBusy(false);
+    }
   };
 
   const handleReject = async (requestId: string) => {
@@ -542,16 +609,57 @@ export default function LeaveManagementPage() {
                   </select>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={fetchData} className="flex items-center gap-1.5 px-3 py-2 border rounded-lg text-sm hover:bg-gray-50">
+                  <button onClick={() => fetchData()} className="flex items-center gap-1.5 px-3 py-2 border rounded-lg text-sm hover:bg-gray-50">
                     <RefreshCw className="w-4 h-4" /> Segarkan
                   </button>
                 </div>
               </div>
 
+              {(selectedIds.length > 0 || lastBatchId) && (
+                <div className="mx-4 mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                  {selectedIds.length > 0 && (
+                    <>
+                      <span className="text-xs font-medium text-slate-600">{selectedIds.length} pending dipilih</span>
+                      <button
+                        type="button"
+                        disabled={bulkBusy}
+                        onClick={handleBulkCancelPending}
+                        className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50"
+                        style={{ background: 'var(--hf-danger, #dc2626)' }}
+                      >
+                        Batalkan terpilih
+                      </button>
+                      <button type="button" onClick={() => setSelectedIds([])} className="px-2 py-1.5 text-xs text-slate-500 hover:underline">
+                        Batal pilih
+                      </button>
+                    </>
+                  )}
+                  {lastBatchId && (
+                    <button
+                      type="button"
+                      disabled={bulkBusy}
+                      onClick={handleBulkUndo}
+                      className="ml-auto px-3 py-1.5 rounded-lg text-xs font-medium border border-amber-300 bg-amber-50 text-amber-800 disabled:opacity-50"
+                      title={undoExpiresAt || 'Undo 24 jam'}
+                    >
+                      Undo pembatalan (24 jam)
+                    </button>
+                  )}
+                </div>
+              )}
+
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
+                      <th className="px-3 py-3 text-center">
+                        <input
+                          type="checkbox"
+                          aria-label="Pilih semua pending"
+                          checked={pendingSelectable.length > 0 && pendingSelectable.every((id) => selectedIds.includes(id))}
+                          onChange={toggleSelectAllPending}
+                        />
+                      </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Karyawan</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipe Cuti</th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Tanggal</th>
@@ -563,10 +671,10 @@ export default function LeaveManagementPage() {
                   </thead>
                   <tbody className="divide-y">
                     {loading ? (
-                      <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500">Memuat...</td></tr>
+                      <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-500">Memuat...</td></tr>
                     ) : filtered.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="p-4">
+                        <td colSpan={8} className="p-4">
                           <HrisEmptyState
                             source={dataSource}
                             title="Belum ada pengajuan cuti"
@@ -602,6 +710,16 @@ export default function LeaveManagementPage() {
                         const totalSteps = leave.total_approval_steps || 1;
                         return (
                           <tr key={leave.id} className="hover:bg-gray-50">
+                            <td className="px-3 py-3 text-center">
+                              {leave.status === 'pending' ? (
+                                <input
+                                  type="checkbox"
+                                  aria-label={`Pilih ${getLeaveField(leave, 'name')}`}
+                                  checked={selectedIds.includes(leave.id)}
+                                  onChange={() => toggleSelectId(leave.id)}
+                                />
+                              ) : null}
+                            </td>
                             <td className="px-4 py-3">
                               <p className="font-medium text-gray-900">{getLeaveField(leave, 'name')}</p>
                               <p className="text-xs text-gray-500">{leave.position} · {leave.department}</p>

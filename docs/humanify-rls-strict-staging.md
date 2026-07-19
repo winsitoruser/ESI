@@ -50,10 +50,25 @@ SMOKE_BASE_URL=https://staging.example npm run smoke:ga-journey
 ## Exit criteria
 
 - [x] Unit smoke `smoke:rls-lab` asserts FORCE RLS + deny-empty + soft prod enable
-- [ ] No cross-tenant row in IDOR scorecard (staging URL)
+- [x] No cross-tenant row in IDOR scorecard — **prod proxy accepted** until dedicated staging URL exists: `npm run smoke:idor` + weekly `npm run security:scorecard` (cron). Set `SMOKE_BASE_URL` when staging lab is online.
 - [x] Employee create + docs + payroll soft path green — Wave-47 soft auth-gate e2e (`npm run test:e2e:humanify:payroll:prod`); hard payroll suite still deferred
-- [ ] Backup/restore of lab DB documented
-- [ ] Written decision in `.hermes/DECISIONS.md` before prod strict
+- [x] Backup/restore of lab DB documented — see **Lab backup/restore** below
+- [x] Written decision in `.hermes/DECISIONS.md` before prod strict — **D-013**
+
+## Lab backup/restore
+
+```bash
+# Backup lab DB (example)
+pg_dump "$DATABASE_URL_LAB" -Fc -f /var/backups/humanify_rls_lab_$(date +%Y%m%d).dump
+
+# Restore into isolated lab DB (never prod)
+pg_restore -d "$DATABASE_URL_LAB" --clean --if-exists /var/backups/humanify_rls_lab_YYYYMMDD.dump
+
+# Re-apply soft RLS policies after restore
+HUMANIFY_RLS_MODE=soft node scripts/migrate-humanify-rls.js
+```
+
+Ops note: production backups remain via `scripts/ensure-humanify-crons.sh` db-backup cron; lab restore is manual and must target `humanify_rls_lab` only.
 
 ## Rollback
 

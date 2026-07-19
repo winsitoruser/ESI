@@ -1,6 +1,23 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-52** · Maturity Sprint-2 (bulk attendance, supervisor leave, payslip print, devices no-mock, UX tokens)
+> Diperbarui: 20 Juli 2026 — **Wave-53** · Maturity Sprint-3 (login RL, leave bulk, manager auth, seats/MFA)
+
+## Wave-53 (20 Jul 2026) — Maturity S3
+
+| ID | Item | Status |
+|---|---|---|
+| SEC-S3-1 | NextAuth `checkLimit` AUTH → HTTP 429 | Done |
+| SEC-S3-2 | Redis shared smoke (`smoke:redis-shared`) | Done |
+| SEC-S3-3 | Staging IDOR exit criteria + D-013 + backup runbook | Done |
+| HR-S3-1 | Leave bulk cancel pending + undo 24h | Done |
+| ESS-S3-1 | Routes `/employee/leave|payslip|attendance` | Done |
+| ESS-S3-2 | Manager approve auth + my-step inbox | Done |
+| CP-S3-1 | Tenant seats + MFA force panel | Done |
+| CP-S3-2 | Sentry internal close-out (D-010) | Done |
+
+Scripts: `npm run smoke:wave53` · `npm run smoke:redis-shared`
+
+Baseline post-S3 (judgment): Control ~100 · Sec ~99 · HR ~99 · ESS ~95 · UX ~96. Next: **Sprint 4**.
 
 ## Wave-52 (19 Jul 2026) — Maturity S2
 

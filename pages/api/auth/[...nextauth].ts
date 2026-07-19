@@ -624,4 +624,26 @@ export const authOptions: NextAuthOptions = {
   debug: process.env.NODE_ENV === 'development',
 };
 
-export default NextAuth(authOptions);
+export default async function authHandler(req: any, res: any) {
+  // SEC-S3-1 — rate-limit credential login attempts (HTTP 429) before NextAuth
+  const pathParts = Array.isArray(req.query?.nextauth) ? req.query.nextauth : [];
+  const isCredentialsCallback =
+    req.method === 'POST'
+    && pathParts.includes('callback')
+    && (pathParts.includes('credentials') || String(req.url || '').includes('credentials'));
+
+  if (isCredentialsCallback) {
+    const { checkLimit, RateLimitTier } = await import('../../../lib/middleware/rateLimit');
+    const { normalizeIp: nip } = await import('../../../lib/saas/login-guard');
+    const ip = nip(req.headers?.['x-forwarded-for'] || req.headers?.['x-real-ip']);
+    const email = String(req.body?.email || req.body?.username || 'anon').toLowerCase().trim();
+    const limited = await checkLimit(req, res, {
+      ...RateLimitTier.AUTH,
+      keyGenerator: () => `rl:login:${ip}:${email}`,
+      message: 'Terlalu banyak percobaan login. Coba lagi dalam beberapa menit.',
+    });
+    if (!limited) return;
+  }
+
+  return NextAuth(authOptions)(req, res);
+}
