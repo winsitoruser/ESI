@@ -209,6 +209,12 @@ export default function AttendanceBulkImportModal({ open, onClose, onSuccess, sh
               Import selesai: <strong>{result.success}</strong> berhasil, <strong>{result.failed}</strong> gagal
             </div>
           )}
+
+          <p className="text-[11px] text-gray-400">
+            Koreksi massal status/jam (dengan undo 24 jam):{' '}
+            <code className="bg-gray-100 px-1 rounded">POST /api/humanify/attendance-bulk?action=correct</code>
+            {' '}· body <code className="bg-gray-100 px-1 rounded">{`{ ids, patch: { status } }`}</code>
+          </p>
         </div>
 
         <div className="p-5 border-t flex justify-end gap-3 sticky bottom-0 bg-white">

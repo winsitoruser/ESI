@@ -148,8 +148,9 @@ async function queryDailyRecords(
     extra += ' AND ea.employee_id::text = :employeeId';
     replacements.employeeId = employeeId;
   }
-  const [rows] = await sequelize.query(`
-    SELECT ea.id, ea.employee_id, ea.branch_id, ea.date, ea.clock_in, ea.clock_out, ea.status,
+  const rows = await (await import('@/lib/saas/tenant-request-bound')).safeQueryWithSavepoint(
+    sequelize,
+    `SELECT ea.id, ea.employee_id, ea.branch_id, ea.date, ea.clock_in, ea.clock_out, ea.status,
            ea.late_minutes, ea.early_leave_minutes, ea.overtime_minutes, ea.work_hours,
            e.name as employee_name, e.employee_code, e.position, e.department,
            COALESCE(b.name, 'HQ') as branch_name
@@ -157,8 +158,10 @@ async function queryDailyRecords(
     INNER JOIN employees e ON ea.employee_id::text = e.id::text AND e.tenant_id = :tenantId
     LEFT JOIN branches b ON ea.branch_id::text = b.id::text
     WHERE ea.date = :date ${extra}
-    ORDER BY ea.clock_in DESC NULLS LAST
-  `, { replacements });
+    ORDER BY ea.clock_in DESC NULLS LAST`,
+    replacements,
+    'att_daily',
+  );
   return rows.map(mapDailyRow);
 }
 

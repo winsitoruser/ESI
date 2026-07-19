@@ -85,7 +85,9 @@ jobs:
           npm run smoke:device-sync-idempotency
           npm run smoke:letter-merge
           npm run smoke:wave12
+          npm run smoke:wave14
           npm run smoke:mock-audit
+          SMOKE_ALLOW_MISSING_BACKUP=true npm run check:backup-freshness
           test -f lib/saas/tenant-request-bound.ts
           test -f lib/hris/policy-ack.ts
           test -f lib/saas/billing-webhook-idempotency.ts
@@ -95,10 +97,12 @@ jobs:
           test -f lib/hris/action-inbox-snooze.ts
           test -f lib/hris/privy-webhook.ts
           test -f lib/hris/document-compliance-summary.ts
+          test -f lib/hris/attendance-bulk-correct.ts
           test -f docs/humanify-ga-scope.md
           test -f docs/humanify-rls-strict-staging.md
           test -f docs/humanify-doc-retention.md
           test -f docs/humanify-esign-privy-ga.md
+          test -f docs/humanify-partner-channel.md
           echo "✓ Unit smokes + Wave artifacts present"
 
       - name: Install Playwright Chromium (for optional prod smoke)

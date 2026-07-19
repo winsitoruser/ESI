@@ -1,6 +1,18 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-13** · doc compliance · SSO metadata download · obs error link · mock audit
+> Diperbarui: 19 Juli 2026 — **Wave-14** · attendance bulk correct · backup freshness · partner channel
+
+## Wave-14 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w14-1 | Koreksi absensi massal + undo 24 jam (`?action=correct\|undo`) | Done |
+| w14-2 | `check:backup-freshness` + runbook checklist | Done |
+| w14-3 | `docs/humanify-partner-channel.md` + blurb Billing | Done |
+| w14-4 | `safeQueryWithSavepoint` pada query absensi harian | Done |
+| w14-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:wave14` · `npm run check:backup-freshness`
 
 ## Wave-13 (19 Jul 2026)
 

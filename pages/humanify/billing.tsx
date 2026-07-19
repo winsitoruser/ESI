@@ -273,6 +273,9 @@ export default function HumanifyBillingPage() {
                 ROI calculator
               </a>
               {' '}· docs <code className="text-xs bg-white/80 px-1 rounded">humanify-positioning.md</code>
+              {' '}· partner channel{' '}
+              <code className="text-xs bg-white/80 px-1 rounded">humanify-partner-channel.md</code>
+              {' '}(konsultan gaji/BPJS / device absensi).
             </p>
           </div>
 

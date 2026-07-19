@@ -1,5 +1,15 @@
+/**
+ * Attendance bulk import + correction with 24h undo.
+ *   POST ?action=import   { records: [...] }
+ *   POST ?action=correct  { ids: string[], patch: { status?, clockIn?, clockOut?, notes? } }
+ *   POST ?action=undo     { batchId: string }
+ */
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withHQAuth } from '@/lib/middleware/withHQAuth';
+import {
+  bulkCorrectAttendance,
+  undoAttendanceBulkCorrect,
+} from '@/lib/hris/attendance-bulk-correct';
 
 interface ImportRow {
   employeeCode: string;
@@ -45,7 +55,7 @@ async function bulkImport(req: NextApiRequest, res: NextApiResponse, tenantId?: 
         tenantId
           ? `SELECT id, branch_id FROM employees WHERE (employee_code = :code OR id::text = :code) AND tenant_id = :tenantId LIMIT 1`
           : `SELECT id, branch_id FROM employees WHERE employee_code = :code OR id::text = :code LIMIT 1`,
-        { replacements: { code: row.employeeCode, tenantId }, type: QueryTypes.SELECT }
+        { replacements: { code: row.employeeCode, tenantId }, type: QueryTypes.SELECT },
       ) as Array<{ id: string; branch_id: string | null }>;
       const emp = emps[0];
       if (!emp?.id) {
@@ -58,7 +68,7 @@ async function bulkImport(req: NextApiRequest, res: NextApiResponse, tenantId?: 
       if (row.branchName) {
         const branches = await sequelize.query(
           `SELECT id FROM branches WHERE name ILIKE :name LIMIT 1`,
-          { replacements: { name: row.branchName }, type: QueryTypes.SELECT }
+          { replacements: { name: row.branchName }, type: QueryTypes.SELECT },
         ) as Array<{ id: string }>;
         const br = branches[0];
         if (br?.id) branchId = br.id;
@@ -115,6 +125,44 @@ async function bulkImport(req: NextApiRequest, res: NextApiResponse, tenantId?: 
   });
 }
 
+async function bulkCorrect(req: NextApiRequest, res: NextApiResponse, session: any) {
+  const tenantId = session?.user?.tenantId || null;
+  const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
+  const patch = req.body?.patch || {};
+  try {
+    const result = await bulkCorrectAttendance({
+      tenantId,
+      ids,
+      patch,
+      actorId: session?.user?.id != null ? String(session.user.id) : null,
+      actorEmail: session?.user?.email || null,
+    });
+    return res.json({
+      success: true,
+      data: result,
+      message: `${result.updated} absensi dikoreksi${result.batchId ? ' (undo 24 jam tersedia)' : ''}`,
+    });
+  } catch (e: any) {
+    const msg = e?.message || 'Koreksi gagal';
+    const status = /tidak ditemukan|wajib|Maksimal|Tidak ada field|sudah|habis|Pilih/i.test(msg) ? 400 : 500;
+    return res.status(status).json({ success: false, error: msg });
+  }
+}
+
+async function bulkUndo(req: NextApiRequest, res: NextApiResponse, session: any) {
+  const tenantId = session?.user?.tenantId || null;
+  const batchId = String(req.body?.batchId || '');
+  if (!batchId) return res.status(400).json({ success: false, error: 'batchId wajib' });
+  try {
+    const result = await undoAttendanceBulkCorrect({ tenantId, batchId });
+    return res.json({ success: true, data: result, message: `${result.restored} baris dikembalikan` });
+  } catch (e: any) {
+    const msg = e?.message || 'Undo gagal';
+    const status = /tidak ditemukan|sudah|habis|Snapshot/i.test(msg) ? 400 : 500;
+    return res.status(status).json({ success: false, error: msg });
+  }
+}
+
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
@@ -122,13 +170,17 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   const { action } = req.query;
-  const tenantId = (req as any).session?.user?.tenantId as string | undefined;
+  const session = (req as any).session;
+  const tenantId = session?.user?.tenantId as string | undefined;
 
-  if (action === 'import') {
-    return bulkImport(req, res, tenantId);
-  }
+  if (action === 'import') return bulkImport(req, res, tenantId);
+  if (action === 'correct') return bulkCorrect(req, res, session);
+  if (action === 'undo') return bulkUndo(req, res, session);
 
-  return res.status(400).json({ success: false, error: 'Unknown action. Use ?action=import' });
+  return res.status(400).json({
+    success: false,
+    error: 'Unknown action. Use ?action=import|correct|undo',
+  });
 }
 
 export default withHQAuth(handler, { module: 'hris' });

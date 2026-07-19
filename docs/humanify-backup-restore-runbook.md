@@ -56,7 +56,15 @@ sudo -u postgres psql -d humanify_restore_test -c "SELECT COUNT(*) FROM tenants;
 
 ## Checklist bulanan
 
-- [ ] `latest.sql.gz` < 36 jam
+- [ ] `latest.sql.gz` < 36 jam — `node scripts/check-humanify-backup-freshness.js`
 - [ ] Restore drill ke DB scratch sukses
+- [ ] Catat hasil di channel ops / Discord
+
+```bash
+# Di VPS
+cd /root/humanify && node scripts/check-humanify-backup-freshness.js
+# Local/CI tanpa dump:
+SMOKE_ALLOW_MISSING_BACKUP=true node scripts/check-humanify-backup-freshness.js
+```
 - [ ] Ukuran dump tidak anjlok mendadak (>50% vs minggu lalu → investigasi)
 - [ ] Cron `db-backup` ada di `crontab -l | grep humanify`
