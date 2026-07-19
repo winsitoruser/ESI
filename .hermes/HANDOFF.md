@@ -1,6 +1,17 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-47** · payroll soft auth-gate (deferred Playwright slice)
+> Diperbarui: 19 Juli 2026 — **Wave-48** · payroll soft auth-gate full module set
+
+## Wave-48 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w48-1 | Soft auth-gate all payroll modules (bpjs/slip/thr/…) | Done |
+| w48-2 | Table-driven `PAYROLL_GATED` e2e | Done |
+| w48-3 | Unit smoke wave48 | Done |
+| w48-4 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:wave48` · `npm run test:e2e:humanify:payroll:prod`
 
 ## Wave-47 (19 Jul 2026)
 
