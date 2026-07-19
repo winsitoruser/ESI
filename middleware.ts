@@ -52,6 +52,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/humanify/welcome/') ||
     pathname === '/humanify/partners' ||
     pathname.startsWith('/humanify/partners/') ||
+    pathname === '/humanify/pricing/roi-calculator' ||
+    pathname.startsWith('/humanify/pricing/') ||
     pathname.startsWith('/c/') ||
     pathname === '/careers' ||
     pathname.startsWith('/careers/');

@@ -1,6 +1,18 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-25** · reset soft e2e · uptime cron · state dir · careers soft e2e
+> Diperbarui: 19 Juli 2026 — **Wave-26** · ROI public · careers global · join soft e2e · state continuity
+
+## Wave-26 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w26-1 | Soft Playwright ROI calculator (+ public whitelist) | Done |
+| w26-2 | Soft Playwright `/careers` global help page | Done |
+| w26-3 | Soft Playwright `/humanify/join` invite-accept | Done |
+| w26-4 | `HUMANIFY_STATE_DIR` templates + seed scorecard/digest on deploy | Done |
+| w26-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:wave26` · `npm run test:e2e:humanify:roi:prod` · `npm run test:e2e:humanify:join:prod`
 
 ## Wave-25 (19 Jul 2026)
 

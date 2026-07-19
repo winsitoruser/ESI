@@ -15,6 +15,7 @@ const fs = require('fs');
 
 const BASE = process.env.SMOKE_BASE_URL || process.env.NEXTAUTH_URL || 'https://humanify.id';
 const DRY_RUN = String(process.env.DRY_RUN || '').toLowerCase() === 'true';
+const SEED_ONLY = String(process.env.SEED_ONLY || '').toLowerCase() === 'true';
 const WEBHOOK = String(process.env.OBS_ALERT_WEBHOOK_URL || '').trim();
 
 function writeLastRun(summary) {
@@ -100,6 +101,19 @@ async function postDiscord(summary) {
 async function main() {
   console.log('Humanify security scorecard');
   console.log('Target:', BASE);
+  if (SEED_ONLY) {
+    const summary = {
+      at: new Date().toISOString(),
+      base: BASE,
+      passedTotal: 0,
+      failedTotal: 0,
+      results: [],
+      seed: true,
+    };
+    console.log('[scorecard] SEED_ONLY — write last-run without batches');
+    writeLastRun(summary);
+    process.exit(0);
+  }
   const results = [];
   for (const file of BATCHES) {
     console.log(`→ ${file}`);

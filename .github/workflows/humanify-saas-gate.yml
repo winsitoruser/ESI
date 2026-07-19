@@ -97,6 +97,7 @@ jobs:
           npm run smoke:wave23
           npm run smoke:wave24
           npm run smoke:wave25
+          npm run smoke:wave26
           npm run smoke:rls-lab
           npm run check:uptime-external
           npm run smoke:mock-audit
@@ -122,6 +123,8 @@ jobs:
           test -f e2e/humanify-forgot-password-ui.spec.ts
           test -f e2e/humanify-reset-password-ui.spec.ts
           test -f e2e/humanify-careers-ui.spec.ts
+          test -f e2e/humanify-roi-calculator-ui.spec.ts
+          test -f e2e/humanify-join-ui.spec.ts
           test -f scripts/check-humanify-uptime-external.js
           test -f scripts/run-humanify-doc-expiry-soft-deactivate.js
           test -f scripts/ensure-humanify-demo-partner.js
