@@ -10,7 +10,7 @@
 | w22-2 | Doc soft-deactivate last-run chip | Done |
 | w22-3 | Partner leads status filter on `/platform` | Done |
 | w22-4 | Soft Playwright MFA enrollment cues | Done |
-| w22-5 | Deploy + verify | Pending |
+| w22-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave22`
 
