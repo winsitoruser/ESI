@@ -23,4 +23,21 @@ test.describe('Humanify health probe (soft)', () => {
     expect(body.db).toBe(true);
     expect(typeof body.dbLatencyMs).toBe('number');
   });
+
+  test('auth csrf endpoint returns token', async ({ request }) => {
+    const res = await request.get('/api/auth/csrf');
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(typeof body.csrfToken).toBe('string');
+    expect(body.csrfToken.length).toBeGreaterThan(8);
+  });
+
+  test('auth providers lists credentials', async ({ request }) => {
+    const res = await request.get('/api/auth/providers');
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body).toBeTruthy();
+    const blob = JSON.stringify(body);
+    expect(blob).toMatch(/credentials/i);
+  });
 });

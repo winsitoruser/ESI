@@ -1,0 +1,12 @@
+/* TEAM */
+Naincode Inti Teknologi — Humanify product & platform ops
+Site: https://humanify.id
+Company: https://naincode.com
+
+/* CONTACT */
+ops@humanify.id
+Security: https://humanify.id/.well-known/security.txt
+
+/* SITE */
+Standards: Next.js, PostgreSQL, multi-tenant HRIS
+Location: Indonesia

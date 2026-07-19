@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 /**
- * Soft UI smoke: public partner lead form (Wave-17).
+ * Soft UI smoke: public partner lead form (Wave-17 / Wave-32).
  * Env: PLAYWRIGHT_BASE_URL=https://humanify.id
  * Does not submit a live lead unless E2E_PARTNER_SUBMIT=1.
  */
@@ -19,6 +19,12 @@ test.describe('Humanify partners UI (soft)', () => {
 
     // Should not bounce to login (public whitelist)
     expect(page.url()).not.toMatch(/\/humanify\/login/);
+
+    await expect(page.locator('a[href*="/humanify/login"]').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('a[href*="/humanify/welcome"]').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('body')).toContainText(/Jenis mitra/i, { timeout: 10_000 });
+    await expect(page.locator('select').first()).toBeVisible({ timeout: 10_000 });
+    // Soft: do not submit (avoids partner lead / rate-limit burn)
 
     if (process.env.E2E_PARTNER_SUBMIT === '1') {
       const stamp = Date.now().toString(36);

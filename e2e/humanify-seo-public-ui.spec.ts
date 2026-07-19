@@ -16,6 +16,7 @@ test.describe('Humanify SEO public surfaces (soft)', () => {
     expect(body).toMatch(/Disallow:\s*\/api\//i);
     expect(body).toMatch(/Allow:\s*\/\.well-known\/security\.txt/i);
     expect(body).toMatch(/Allow:\s*\/llms\.txt/i);
+    expect(body).toMatch(/Allow:\s*\/humans\.txt/i);
     expect(body).toMatch(/Sitemap:\s*https:\/\/humanify\.id\/sitemap\.xml/i);
   });
 
@@ -53,5 +54,16 @@ test.describe('Humanify SEO public surfaces (soft)', () => {
     expect(body).toMatch(/Humanify/i);
     expect(body).toMatch(/humanify\.id\/humanify\/welcome/i);
     expect(body).toMatch(/sitemap\.xml/i);
+  });
+
+  test('humans.txt is reachable with team contact', async ({ page }) => {
+    const res = await page.goto('/humans.txt', {
+      waitUntil: 'domcontentloaded',
+      timeout: 45_000,
+    });
+    expect((res?.status() ?? 0)).toBeLessThan(500);
+    const body = await page.locator('body').innerText();
+    expect(body).toMatch(/TEAM|Naincode/i);
+    expect(body).toMatch(/ops@humanify\.id|CONTACT/i);
   });
 });

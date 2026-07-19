@@ -1,6 +1,18 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-31** · login portal cue · careers links · llms.txt · phase14/15 aliases
+> Diperbarui: 19 Juli 2026 — **Wave-32** · partners soft · auth csrf soft · humans.txt · phase13/20 aliases
+
+## Wave-32 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w32-1 | Soft Playwright partners Masuk/welcome + jenis mitra | Done |
+| w32-2 | Soft Playwright `/api/auth/csrf` + providers | Done |
+| w32-3 | `humans.txt` + middleware/robots + soft SEO | Done |
+| w32-4 | `smoke:phase13-sso` + `smoke:phase20-employee-import` | Done |
+| w32-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:wave32` · `npm run test:e2e:humanify:partners:prod` · `npm run test:e2e:humanify:health:prod` · `npm run test:e2e:humanify:seo-public:prod`
 
 ## Wave-31 (19 Jul 2026)
 
