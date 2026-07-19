@@ -1,6 +1,18 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-35** · PWA manifest public · join/signup-ref soft · phase11/24 aliases
+> Diperbarui: 19 Juli 2026 — **Wave-36** · employee SW public · welcome Partner · llms/humans · phase8/9 aliases
+
+## Wave-36 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w36-1 | Whitelist `sw-employee.js` + `service-worker.js` | Done |
+| w36-2 | Soft Playwright SW public + welcome Partner nav | Done |
+| w36-3 | `llms.txt` cross-link `humans.txt` | Done |
+| w36-4 | `smoke:phase8-partners` + `smoke:phase9-alerts` | Done |
+| w36-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:wave36` · `npm run test:e2e:humanify:health:prod` · `npm run test:e2e:humanify:prod` · `npm run test:e2e:humanify:seo-public:prod`
 
 ## Wave-35 (19 Jul 2026)
 

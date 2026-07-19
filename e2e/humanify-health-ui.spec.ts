@@ -51,4 +51,12 @@ test.describe('Humanify health probe (soft)', () => {
     expect(body.name || body.short_name).toMatch(/Humanify/i);
     expect(String(body.start_url || '')).toMatch(/\/employee/);
   });
+
+  test('employee service worker script is public', async ({ request }) => {
+    const res = await request.get('/sw-employee.js');
+    expect(res.status()).toBe(200);
+    const text = await res.text();
+    expect(text.length).toBeGreaterThan(20);
+    expect(text).not.toMatch(/\/auth\/login/);
+  });
 });

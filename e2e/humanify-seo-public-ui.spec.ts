@@ -54,6 +54,7 @@ test.describe('Humanify SEO public surfaces (soft)', () => {
     expect(body).toMatch(/Humanify/i);
     expect(body).toMatch(/humanify\.id\/humanify\/welcome/i);
     expect(body).toMatch(/sitemap\.xml/i);
+    expect(body).toMatch(/humans\.txt/i);
   });
 
   test('humans.txt is reachable with team contact', async ({ page }) => {

@@ -417,6 +417,9 @@ export default function HumanifyWelcomePage() {
             <Link href={HUMANIFY_BRAND.roiCalculatorPath} className="hidden text-sm text-violet-200/60 transition hover:text-white md:inline">
               Kalkulator ROI
             </Link>
+            <Link href={HUMANIFY_BRAND.partnersPath} className="hidden text-sm text-violet-200/60 transition hover:text-white md:inline">
+              Partner
+            </Link>
             <a href={NAINCODE.website} target="_blank" rel="noopener noreferrer" className="hidden text-sm text-violet-200/60 transition hover:text-white md:inline">
               {NAINCODE.name}
             </a>

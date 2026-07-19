@@ -32,6 +32,8 @@ export async function middleware(request: NextRequest) {
     pathname === '/llms.txt' ||
     pathname === '/humans.txt' ||
     pathname === '/manifest-employee.json' ||
+    pathname === '/sw-employee.js' ||
+    pathname === '/service-worker.js' ||
     pathname === '/.well-known/security.txt' ||
     pathname.startsWith('/.well-known/') ||
     pathname.startsWith('/icons/')
@@ -258,6 +260,6 @@ export const preferredRegion = 'auto';
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|images/|icons/|uploads/|api/|procurement|robots\\.txt|sitemap\\.xml|llms\\.txt|humans\\.txt|manifest-employee\\.json|\\.well-known/).*)',
+    '/((?!_next/static|_next/image|favicon.ico|images/|icons/|uploads/|api/|procurement|robots\\.txt|sitemap\\.xml|llms\\.txt|humans\\.txt|manifest-employee\\.json|sw-employee\\.js|service-worker\\.js|\\.well-known/).*)',
   ],
 };

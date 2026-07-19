@@ -17,3 +17,6 @@
 
 ## Sitemap
 - https://humanify.id/sitemap.xml
+
+## Humans
+- https://humanify.id/humans.txt

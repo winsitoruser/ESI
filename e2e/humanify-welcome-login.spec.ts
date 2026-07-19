@@ -53,6 +53,9 @@ test.describe('Humanify welcome → login', () => {
     await expect(page.locator('a[href*="/humanify/pricing/roi-calculator"]').first()).toBeVisible({
       timeout: 15_000,
     });
+    await expect(page.locator('a[href*="/humanify/partners"]').first()).toBeVisible({
+      timeout: 10_000,
+    });
     await expect(page.locator('a[href*="/employee/login"]').first()).toBeVisible({
       timeout: 10_000,
     });

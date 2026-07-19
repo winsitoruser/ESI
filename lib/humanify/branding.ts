@@ -65,6 +65,7 @@ export const HUMANIFY_BRAND = {
   setupPath: '/humanify/setup',
   welcomePath: '/humanify/welcome',
   roiCalculatorPath: '/humanify/pricing/roi-calculator',
+  partnersPath: '/humanify/partners',
   appPath: '/humanify',
   employeePortalPath: '/employee',
   employeeLoginPath: '/employee/login',
