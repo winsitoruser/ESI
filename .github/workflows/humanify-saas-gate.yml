@@ -93,6 +93,7 @@ jobs:
           npm run smoke:wave19
           npm run smoke:wave20
           npm run smoke:wave21
+          npm run smoke:wave22
           npm run smoke:rls-lab
           npm run check:uptime-external
           npm run smoke:mock-audit
@@ -101,6 +102,7 @@ jobs:
           test -f lib/saas/backup-freshness.ts
           test -f lib/saas/scorecard-last.ts
           test -f lib/saas/digest-last.ts
+          test -f lib/saas/soft-deactivate-last.ts
           test -f lib/hris/policy-ack.ts
           test -f lib/saas/billing-webhook-idempotency.ts
           test -f lib/hris/payslip-view-gate.ts

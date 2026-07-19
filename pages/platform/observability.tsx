@@ -301,7 +301,7 @@ export default function PlatformObservabilityPage() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="bg-white border rounded-xl p-4">
             <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
               <p className="text-sm font-semibold text-slate-800">Security scorecard</p>
@@ -338,6 +338,26 @@ export default function PlatformObservabilityPage() {
               {obs?.actionDigest?.ageHours != null
                 ? `${obs.actionDigest.ageHours}h ago`
                 : 'Cron Mon 01:00 UTC'}
+            </p>
+          </div>
+          <div className="bg-white border rounded-xl p-4">
+            <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+              <p className="text-sm font-semibold text-slate-800">Doc soft-deactivate</p>
+              <span className="text-[11px] text-slate-400">last cron run</span>
+            </div>
+            <p className={`text-lg font-bold ${
+              !obs?.docExpirySoft?.present ? 'text-slate-500'
+                : obs.docExpirySoft.dryRun ? 'text-amber-700' : 'text-emerald-700'
+            }`}>
+              {!obs?.docExpirySoft?.present ? 'Never'
+                : obs.docExpirySoft.dryRun
+                  ? `Dry · ${obs.docExpirySoft.expiredActive ?? 0}`
+                  : `Updated ${obs.docExpirySoft.updated ?? 0}`}
+            </p>
+            <p className="text-[11px] text-slate-400 mt-1">
+              {obs?.docExpirySoft?.ageHours != null
+                ? `${obs.docExpirySoft.ageHours}h ago`
+                : 'Cron Mon 02:00 UTC'}
             </p>
           </div>
           <div className="bg-white border rounded-xl p-4">

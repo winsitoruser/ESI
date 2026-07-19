@@ -10,8 +10,24 @@
  */
 require('dotenv').config({ path: require('path').join(process.cwd(), '.env') });
 
+const fs = require('fs');
+const path = require('path');
+
 const APPLY = process.env.APPLY === 'true';
 const TENANT_ID = process.env.TENANT_ID || '';
+
+function writeSoftDeactivateLast(summary) {
+  const file =
+    process.env.SOFT_DEACTIVATE_LAST_PATH ||
+    path.join(process.env.HUMANIFY_STATE_DIR || '/var/lib/humanify', 'soft-deactivate-last.json');
+  try {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify(summary, null, 2), 'utf8');
+    console.log(`[soft-deactivate] wrote ${file}`);
+  } catch (e) {
+    console.warn('[soft-deactivate] write last-run failed:', e.message || e);
+  }
+}
 
 async function main() {
   let sequelize;
@@ -40,11 +56,23 @@ async function main() {
 
   if (!APPLY) {
     console.log('Set APPLY=true to set is_active=false on expired docs (files kept).');
+    writeSoftDeactivateLast({
+      at: new Date().toISOString(),
+      expiredActive: n,
+      updated: 0,
+      dryRun: true,
+    });
     process.exit(0);
   }
 
   if (!n) {
     console.log('Nothing to update.');
+    writeSoftDeactivateLast({
+      at: new Date().toISOString(),
+      expiredActive: 0,
+      updated: 0,
+      dryRun: false,
+    });
     process.exit(0);
   }
 
@@ -59,6 +87,12 @@ async function main() {
   );
   const updated = Number(meta?.rowCount ?? n);
   console.log(`Updated ${updated} rows → is_active=false`);
+  writeSoftDeactivateLast({
+    at: new Date().toISOString(),
+    expiredActive: n,
+    updated,
+    dryRun: false,
+  });
 
   const webhook = process.env.OBS_ALERT_WEBHOOK_URL;
   if (webhook) {

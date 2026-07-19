@@ -10,6 +10,7 @@ import { getObservabilitySnapshotAsync } from '@/lib/observability';
 import { getBackupFreshness } from '@/lib/saas/backup-freshness';
 import { getScorecardLastRun } from '@/lib/saas/scorecard-last';
 import { getDigestLastRun } from '@/lib/saas/digest-last';
+import { getSoftDeactivateLastRun } from '@/lib/saas/soft-deactivate-last';
 import { getPrivyWebhookHealth } from '@/lib/hris/privy-webhook';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -30,6 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const backup = getBackupFreshness();
   const scorecard = getScorecardLastRun();
   const digest = getDigestLastRun();
+  const softDeactivate = getSoftDeactivateLastRun();
   const privy = await getPrivyWebhookHealth().catch(() => null);
   return res.json({
     success: true,
@@ -70,6 +72,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         sent: digest.sent,
         dryRun: digest.dryRun,
         reason: digest.reason,
+      },
+      docExpirySoft: {
+        present: softDeactivate.present,
+        ok: softDeactivate.ok,
+        at: softDeactivate.at,
+        ageHours: softDeactivate.ageHours,
+        expiredActive: softDeactivate.expiredActive,
+        updated: softDeactivate.updated,
+        dryRun: softDeactivate.dryRun,
+        reason: softDeactivate.reason,
       },
       privyWebhook: privy,
     },

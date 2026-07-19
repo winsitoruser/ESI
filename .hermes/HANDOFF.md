@@ -1,6 +1,18 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-21** · deploy PM2 resilience · digest chip · DEMO partner · commission CSV dates
+> Diperbarui: 19 Juli 2026 — **Wave-22** · pm2 startup fix · soft-deactivate chip · lead filter · MFA soft e2e
+
+## Wave-22 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w22-1 | Deploy: fix pm2 startup `$:` noise | Done |
+| w22-2 | Doc soft-deactivate last-run chip | Done |
+| w22-3 | Partner leads status filter on `/platform` | Done |
+| w22-4 | Soft Playwright MFA enrollment cues | Done |
+| w22-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:wave22`
 
 ## Wave-21 (19 Jul 2026)
 

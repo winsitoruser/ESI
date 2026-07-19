@@ -29,6 +29,7 @@ export default function PlatformDashboardPage() {
   const [dunningBusy, setDunningBusy] = useState(false);
   const [partners, setPartners] = useState<any[]>([]);
   const [partnerLeads, setPartnerLeads] = useState<any[]>([]);
+  const [leadStatus, setLeadStatus] = useState('all');
   const [commissionMonths, setCommissionMonths] = useState<any[]>([]);
   const [commissionFrom, setCommissionFrom] = useState(() => {
     const d = new Date();
@@ -44,12 +45,14 @@ export default function PlatformDashboardPage() {
     setLoading(true);
     try {
       const q = new URLSearchParams({ action: 'tenants', status: filterStatus, search });
+      const leadQ = new URLSearchParams({ action: 'partner-leads', limit: '30' });
+      if (leadStatus && leadStatus !== 'all') leadQ.set('status', leadStatus);
       const [ov, tn, ex, pn, pl, cs] = await Promise.all([
         fetch('/api/platform?action=overview').then((r) => r.json()),
         fetch(`/api/platform?${q}`).then((r) => r.json()),
         fetch('/api/platform?action=expiring-trials&days=7').then((r) => r.json()),
         fetch('/api/platform?action=partners').then((r) => r.json()),
-        fetch('/api/platform?action=partner-leads&limit=30').then((r) => r.json()),
+        fetch(`/api/platform?${leadQ}`).then((r) => r.json()),
         fetch('/api/platform?action=partner-commission-summary').then((r) => r.json()),
       ]);
       if (ov.success) setOverview(ov.data);
@@ -63,7 +66,7 @@ export default function PlatformDashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [filterStatus, search]);
+  }, [filterStatus, search, leadStatus]);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -383,9 +386,20 @@ export default function PlatformDashboardPage() {
         <div className="bg-white border rounded-xl p-4 space-y-3">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <p className="text-sm font-semibold text-slate-900">Partner leads (form publik)</p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <select
+                value={leadStatus}
+                onChange={(e) => setLeadStatus(e.target.value)}
+                className="text-xs border rounded-lg px-2 py-1 text-slate-700"
+              >
+                <option value="all">Semua status</option>
+                <option value="new">new</option>
+                <option value="contacted">contacted</option>
+                <option value="qualified">qualified</option>
+                <option value="closed">closed</option>
+              </select>
               <a
-                href="/api/platform?action=partner-leads-export"
+                href={`/api/platform?action=partner-leads-export${leadStatus !== 'all' ? `&status=${encodeURIComponent(leadStatus)}` : ''}`}
                 className="text-xs px-2 py-1 border rounded-lg text-slate-700 hover:bg-slate-50"
               >
                 Export CSV

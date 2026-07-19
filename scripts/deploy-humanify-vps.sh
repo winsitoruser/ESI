@@ -249,9 +249,9 @@ echo "=== [3e/6] Ensure platform crons (purge / hard-delete / health) ==="
 ssh_cmd "APP_DIR=$APP_DIR bash -s" < "$SRC/scripts/ensure-humanify-crons.sh" || true
 
 echo "=== [3e2/6] Ensure DEMO partner (sales walkthrough) ==="
-ssh_cmd "bash -s" <<REMOTE_DEMO || true
+ssh_cmd "APP_DIR='$APP_DIR' bash -s" <<'REMOTE_DEMO' || true
 set -euo pipefail
-cd $APP_DIR
+cd "$APP_DIR"
 set -a
 [ -f .env ] && . ./.env
 set +a
@@ -479,7 +479,11 @@ sudo ufw --force enable 2>/dev/null || true
 sudo ufw allow OpenSSH 2>/dev/null || sudo ufw allow 22/tcp
 sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
-sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u "$VPS_USER" --hp "$(eval echo ~$VPS_USER)" 2>/dev/null | tail -1 | sudo bash || true
+# Wave-22: pm2 startup often prints a "$ sudo env ..." line — strip leading $ before bash
+_PM2_STARTUP="$(sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u "$VPS_USER" --hp "$(eval echo ~$VPS_USER)" 2>/dev/null | grep -E 'env PATH=|pm2 resurrect' | tail -1 | sed 's/^[[:space:]]*\$[[:space:]]*//' || true)"
+if [ -n "$_PM2_STARTUP" ]; then
+  eval "$_PM2_STARTUP" 2>/dev/null || true
+fi
 pm2 save
 sleep 3
 bash humanify-healthcheck.sh http://127.0.0.1:3020 || true

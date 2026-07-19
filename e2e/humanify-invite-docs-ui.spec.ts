@@ -63,4 +63,17 @@ test.describe('Humanify invite + docs UI (soft)', () => {
       await expect(checklist.first()).toBeVisible({ timeout: 8_000 });
     }
   });
+
+  test('security page MFA enrollment cues soft', async ({ page }) => {
+    const res = await page.goto('/humanify/security', { waitUntil: 'domcontentloaded', timeout: 45_000 });
+    expect((res?.status() ?? 0)).toBeLessThan(500);
+    await expect(page.locator('body')).toContainText(/Keamanan|2FA|TOTP|Aktifkan 2FA/i, {
+      timeout: 15_000,
+    });
+    // Soft: do not click enroll / confirm — read-only cue only
+    const enrollBtn = page.getByRole('button', { name: /Aktifkan 2FA/i });
+    if (await enrollBtn.count()) {
+      await expect(enrollBtn.first()).toBeVisible({ timeout: 8_000 });
+    }
+  });
 });
