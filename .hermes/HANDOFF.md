@@ -10,7 +10,7 @@
 | w26-2 | Soft Playwright `/careers` global help page | Done |
 | w26-3 | Soft Playwright `/humanify/join` invite-accept | Done |
 | w26-4 | `HUMANIFY_STATE_DIR` templates + seed scorecard/digest on deploy | Done |
-| w26-5 | Deploy + verify | Pending |
+| w26-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave26` · `npm run test:e2e:humanify:roi:prod` · `npm run test:e2e:humanify:join:prod`
 
