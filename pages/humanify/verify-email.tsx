@@ -93,8 +93,12 @@ export default function VerifyEmailPage() {
               >
                 Kirim ulang (perlu login)
               </button>
-              <p>
+              <p className="space-x-3">
                 <Link href="/humanify/login" className="text-indigo-600 underline">Login</Link>
+                <span className="text-slate-300">·</span>
+                <Link href={HUMANIFY_BRAND.welcomePath} className="text-indigo-600 underline">
+                  Pelajari Humanify
+                </Link>
               </p>
             </div>
           )}

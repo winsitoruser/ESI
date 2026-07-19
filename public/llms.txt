@@ -10,6 +10,7 @@
 - Employee portal login: https://humanify.id/employee/login
 - HR/admin login: https://humanify.id/humanify/login
 - Tenant careers portals: https://humanify.id/c/{slug}/careers
+- Careers help (per-company URL guide): https://humanify.id/careers
 
 ## Security
 - Security contact: https://humanify.id/.well-known/security.txt

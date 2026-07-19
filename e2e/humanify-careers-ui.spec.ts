@@ -76,5 +76,9 @@ test.describe('Humanify careers portal UI (soft)', () => {
     await expect(page.locator('a[href*="/humanify/welcome"]').first()).toBeVisible({
       timeout: 10_000,
     });
+    await expect(page.locator('a[href*="/humanify/signup"]').first()).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(page.locator('body')).toContainText(/Daftar/i, { timeout: 8_000 });
   });
 });

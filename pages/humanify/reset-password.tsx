@@ -76,6 +76,14 @@ export default function ResetPasswordPage() {
               <Link href="/humanify/forgot-password" className="text-indigo-600 underline">
                 Minta tautan reset baru
               </Link>
+              <p>
+                <Link
+                  href="/humanify/login"
+                  className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-indigo-600"
+                >
+                  <ArrowLeft className="w-4 h-4" /> Kembali ke login
+                </Link>
+              </p>
             </div>
           ) : status === 'ok' ? (
             <div className="mt-6 text-center space-y-3">

@@ -25,7 +25,12 @@ export default function CareersIndexRedirect() {
         <header className="border-b bg-white">
           <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
             <HumanifyLogo className="h-8 w-auto" />
-            <Link href="/humanify/login" className="text-sm text-blue-600 hover:underline">Masuk HR</Link>
+            <div className="flex items-center gap-4">
+              <Link href={HUMANIFY_BRAND.signupPath} className="text-sm text-slate-600 hover:underline">
+                Daftar
+              </Link>
+              <Link href="/humanify/login" className="text-sm text-blue-600 hover:underline">Masuk HR</Link>
+            </div>
           </div>
         </header>
         <main className="max-w-3xl mx-auto px-4 py-16 flex-1">
@@ -41,9 +46,14 @@ export default function CareersIndexRedirect() {
             <p className="text-xs text-slate-500">
               Tim HR: salin tautan dari modul Rekrutmen → Integrasi, atau dari Platform Admin.
             </p>
-            <Link href="/humanify/welcome" className="inline-block text-sm text-blue-600 hover:underline">
-              Pelajari Humanify →
-            </Link>
+            <div className="flex flex-wrap items-center justify-center gap-4 text-sm">
+              <Link href="/humanify/welcome" className="text-blue-600 hover:underline">
+                Pelajari Humanify →
+              </Link>
+              <Link href={HUMANIFY_BRAND.signupPath} className="text-blue-600 hover:underline">
+                Daftar trial
+              </Link>
+            </div>
           </div>
         </main>
         <NaincodeFooter />

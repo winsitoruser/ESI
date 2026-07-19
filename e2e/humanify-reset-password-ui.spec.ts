@@ -21,6 +21,10 @@ test.describe('Humanify reset-password UI (soft)', () => {
     await expect(page.locator('a[href*="/humanify/forgot-password"]').first()).toBeVisible({
       timeout: 10_000,
     });
+    await expect(page.locator('a[href*="/humanify/login"]').first()).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(page.locator('body')).toContainText(/Kembali ke login/i, { timeout: 8_000 });
     // Soft: no submit button when token missing
     expect(await page.getByRole('button', { name: /Simpan password baru/i }).count()).toBe(0);
   });

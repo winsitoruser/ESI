@@ -1,6 +1,18 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-39** · login Partner · forgot signup · sitemap ROI · phase5/5b aliases
+> Diperbarui: 19 Juli 2026 — **Wave-40** · careers Daftar · reset/verify cues · llms careers · tenant aliases
+
+## Wave-40 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w40-1 | Careers help Daftar soft cue + e2e | Done |
+| w40-2 | Reset no-token login + verify welcome soft | Done |
+| w40-3 | `llms.txt` careers help + robots/seo soft | Done |
+| w40-4 | `smoke:tenant-isolation` + `tenant-empty-state` | Done |
+| w40-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:wave40` · `npm run test:e2e:humanify:careers:prod` · `npm run test:e2e:humanify:reset-password:prod` · `npm run test:e2e:humanify:verify-email:prod` · `npm run test:e2e:humanify:seo-public:prod`
 
 ## Wave-39 (19 Jul 2026)
 

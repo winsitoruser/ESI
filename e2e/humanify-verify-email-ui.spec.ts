@@ -21,6 +21,10 @@ test.describe('Humanify verify-email UI (soft)', () => {
     await expect(page.getByRole('button', { name: /Kirim ulang/i }).first()).toBeVisible({
       timeout: 10_000,
     });
+    await expect(page.locator('a[href*="/humanify/welcome"]').first()).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(page.locator('body')).toContainText(/Pelajari Humanify/i, { timeout: 8_000 });
     // Soft: do not click Kirim ulang (needs session)
   });
 
