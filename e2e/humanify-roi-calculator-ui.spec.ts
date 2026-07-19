@@ -20,6 +20,7 @@ test.describe('Humanify ROI calculator UI (soft)', () => {
     });
     await expect(page.locator('a[href*="/humanify/login"]').first()).toBeVisible({ timeout: 10_000 });
     await expect(page.locator('a[href*="/humanify/welcome"]').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('a[href*="/humanify/partners"]').first()).toBeVisible({ timeout: 10_000 });
     await expect(page.locator('input[type="range"]').first()).toBeVisible({ timeout: 10_000 });
     // Soft: do not drive API-heavy recalculation loops
   });

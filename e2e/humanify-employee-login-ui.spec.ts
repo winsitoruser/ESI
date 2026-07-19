@@ -23,6 +23,10 @@ test.describe('Humanify employee login UI (soft)', () => {
     await expect(page.locator('body')).toContainText(/Login HR \/ Admin|HR \/ Admin/i, {
       timeout: 10_000,
     });
+    await expect(page.locator('a[href*="/humanify/welcome"]').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('body')).toContainText(/Kembali ke beranda|beranda Humanify/i, {
+      timeout: 8_000,
+    });
     // Soft: do not submit
   });
 });

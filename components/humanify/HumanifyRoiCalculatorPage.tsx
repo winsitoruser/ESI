@@ -72,6 +72,12 @@ export default function HumanifyRoiCalculatorPage() {
             >
               Beranda
             </Link>
+            <Link
+              href={HUMANIFY_BRAND.partnersPath}
+              className="hidden md:inline text-sm text-violet-300/60 hover:text-violet-200 transition"
+            >
+              Partner
+            </Link>
             <a
               href={NAINCODE.website}
               target="_blank"

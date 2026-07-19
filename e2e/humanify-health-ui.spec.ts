@@ -59,4 +59,11 @@ test.describe('Humanify health probe (soft)', () => {
     expect(text.length).toBeGreaterThan(20);
     expect(text).not.toMatch(/\/auth\/login/);
   });
+
+  test('PWA icon under /icons is public', async ({ request }) => {
+    const res = await request.get('/icons/credit-card.png');
+    expect(res.status()).toBe(200);
+    const ctype = res.headers()['content-type'] || '';
+    expect(ctype).toMatch(/image\//i);
+  });
 });
