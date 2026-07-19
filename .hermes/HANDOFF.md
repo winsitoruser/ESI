@@ -10,7 +10,7 @@
 | w35-2 | Soft Playwright signup `?ref=DEMO` Masuk cue | Done |
 | w35-3 | Whitelist `manifest-employee.json` + `/icons/` + soft e2e | Done |
 | w35-4 | `smoke:phase11-offboarding` + `smoke:phase24-v1-write` | Done |
-| w35-5 | Deploy + verify | Pending |
+| w35-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave35` · `npm run test:e2e:humanify:join:prod` · `npm run test:e2e:humanify:signup-ref:prod` · `npm run test:e2e:humanify:health:prod`
 
