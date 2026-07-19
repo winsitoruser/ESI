@@ -1,6 +1,17 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-48** · payroll soft auth-gate full module set
+> Diperbarui: 19 Juli 2026 — **Wave-49** · HR soft auth-gate (employees/attendance/leave/…)
+
+## Wave-49 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w49-1 | Soft auth-gate HR core (12 routes) | Done |
+| w49-2 | `test:e2e:humanify:hr-auth-gate` (+ prod) | Done |
+| w49-3 | Unit smoke wave49 | Done |
+| w49-4 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:wave49` · `npm run test:e2e:humanify:hr-auth-gate:prod`
 
 ## Wave-48 (19 Jul 2026)
 
