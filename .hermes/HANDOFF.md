@@ -10,7 +10,7 @@
 | w29-2 | `/.well-known/security.txt` + middleware public + soft SEO e2e | Done |
 | w29-3 | Soft Playwright `/employee/login` | Done |
 | w29-4 | `smoke:phase17-login-lockout` + `smoke:phase18-observability` | Done |
-| w29-5 | Deploy + verify | Pending |
+| w29-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave29` · `npm run test:e2e:humanify:employee-login:prod` · `npm run test:e2e:humanify:seo-public:prod`
 
