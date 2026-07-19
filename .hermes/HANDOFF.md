@@ -17,6 +17,8 @@
 
 Scripts: `npm run smoke:wave53` · `npm run smoke:redis-shared`
 
+Deploy verified 20 Jul 2026 — BUILD_OK · PM2 online · health checks passed.
+
 Baseline post-S3 (judgment): Control ~100 · Sec ~99 · HR ~99 · ESS ~95 · UX ~96. Next: **Sprint 4**.
 
 ## Wave-52 (19 Jul 2026) — Maturity S2
