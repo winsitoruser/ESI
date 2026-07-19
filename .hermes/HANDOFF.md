@@ -10,7 +10,7 @@
 | w20-2 | Partner commission monthly summary widget | Done |
 | w20-3 | Security scorecard last-run chip | Done |
 | w20-4 | MFA recovery UX (no prompt) + Privy webhook health | Done |
-| w20-5 | Deploy + verify | Pending |
+| w20-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave20`
 
