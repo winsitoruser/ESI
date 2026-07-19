@@ -16,6 +16,8 @@ Closes canvas **Humanify — prepare literal 100% (post Wave-54)** via shipped c
 
 Scripts: `npm run smoke:wave55` · `smoke:wave54` · `smoke:payroll-fiscal` · `smoke:rls-job-chaos`
 
+Deploy verified 20 Jul 2026 — BUILD_OK · PM2 online · health checks passed.
+
 **Maturity literal 100% (all domains):** Control · Security* · HR · Payroll · UX · Obs* · Market  
 \*Security: soft RLS + chaos + weekly IDOR (D-013b). Obs: internal monitoring ceiling (D-010b). Midtrans auto-payout tetap won't-do.
 
