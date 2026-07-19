@@ -17,8 +17,8 @@ Public soft Playwright + smoke aliases selesai. Aggregate:
 | w46-1 | Soft-hardening series close-out in HANDOFF | Done |
 | w46-2 | Unit smoke validates waves 43–45 + runners | Done |
 | w46-3 | Soft-public includes signup-ref (via W45) | Done |
-| w46-4 | Deploy + verify soft-public subset | Pending |
-| w46-5 | Docs mark W43–W46 verified | Pending |
+| w46-4 | Deploy + verify soft-public subset | Done |
+| w46-5 | Docs mark W43–W46 verified | Done |
 
 Scripts: `npm run smoke:wave46` · `npm run test:e2e:humanify:soft-public:prod`
 
@@ -30,7 +30,7 @@ Scripts: `npm run smoke:wave46` · `npm run test:e2e:humanify:soft-public:prod`
 | w45-2 | `smoke:saas-hardening` runner | Done |
 | w45-3 | soft-public includes signup-ref | Done |
 | w45-4 | Unit smoke wave45 | Done |
-| w45-5 | Deploy + verify | Pending |
+| w45-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave45` · `npm run smoke:idor` · `npm run smoke:saas-hardening`
 
@@ -42,7 +42,7 @@ Scripts: `npm run smoke:wave45` · `npm run smoke:idor` · `npm run smoke:saas-h
 | w44-2 | security.txt Preferred-Languages soft | Done |
 | w44-3 | Soft Playwright legacy `service-worker.js` | Done |
 | w44-4 | Unit smoke wave44 | Done |
-| w44-5 | Deploy + verify | Pending |
+| w44-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave44` · `npm run test:e2e:humanify:prod` · `npm run test:e2e:humanify:health:prod` · `npm run test:e2e:humanify:seo-public:prod`
 
@@ -54,7 +54,7 @@ Scripts: `npm run smoke:wave44` · `npm run test:e2e:humanify:prod` · `npm run 
 | w43-2 | Signup-ref soft partners + ROI cues | Done |
 | w43-3 | Robots soft Allow `/c/` | Done |
 | w43-4 | Unit smoke wave43 | Done |
-| w43-5 | Deploy + verify | Pending |
+| w43-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave43` · `npm run test:e2e:humanify:prod` · `npm run test:e2e:humanify:signup-ref:prod` · `npm run test:e2e:humanify:seo-public:prod`
 
