@@ -55,5 +55,12 @@ test.describe('Humanify invite + docs UI (soft)', () => {
   test('payroll page fiscal banner soft', async ({ page }) => {
     const res = await page.goto('/humanify/payroll', { waitUntil: 'domcontentloaded', timeout: 45_000 });
     expect((res?.status() ?? 0)).toBeLessThan(500);
+    await expect(page.locator('body')).toContainText(/Fiscal engine|payroll|gaji|sign-?off|tanda tangan/i, {
+      timeout: 15_000,
+    });
+    const checklist = page.getByRole('link', { name: /Checklist sign-off|sign-off|Fiscal/i });
+    if (await checklist.count()) {
+      await expect(checklist.first()).toBeVisible({ timeout: 8_000 });
+    }
   });
 });

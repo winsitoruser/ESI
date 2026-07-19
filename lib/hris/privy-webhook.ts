@@ -160,3 +160,41 @@ export function validatePrivyWebhookSecret(
   if (!expected) return true; // open in sandbox when unset
   return String(reqSecret || '').trim() === expected;
 }
+
+/** Ops health — no live Privy API calls. */
+export async function getPrivyWebhookHealth(db?: any): Promise<{
+  secretConfigured: boolean;
+  tableReady: boolean;
+  events24h: number;
+  lastEventAt: string | null;
+  mode: 'open' | 'signed';
+}> {
+  const secretConfigured = Boolean(process.env.PRIVY_WEBHOOK_SECRET?.trim());
+  const seq = db || sequelize;
+  const out = {
+    secretConfigured,
+    tableReady: false,
+    events24h: 0,
+    lastEventAt: null as string | null,
+    mode: (secretConfigured ? 'signed' : 'open') as 'open' | 'signed',
+  };
+  if (!seq) return out;
+  const ok = await ensurePrivyWebhookIdempotencyTable(seq);
+  out.tableReady = ok;
+  if (!ok) return out;
+  try {
+    const [rows] = await seq.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '24 hours')::int AS events24h,
+        MAX(created_at) AS last_event_at
+      FROM privy_webhook_events
+    `);
+    out.events24h = Number(rows?.[0]?.events24h || 0);
+    out.lastEventAt = rows?.[0]?.last_event_at
+      ? new Date(rows[0].last_event_at).toISOString()
+      : null;
+  } catch (e: any) {
+    console.warn('[privy-webhook] health:', e?.message || e);
+  }
+  return out;
+}

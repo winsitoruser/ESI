@@ -60,3 +60,5 @@ Body: { "doc_token": "...", "status": "completed", "signer_email": "a@b.com" }
 ```
 
 Status dipetakan ke `hris_esign_documents.status`. Duplikat event diabaikan (idempotent).
+
+Ops health (Wave-20): chip **Privy webhook** di `/platform/observability` — `mode` open|signed, events/24h (tanpa call Privy live).

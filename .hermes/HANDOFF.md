@@ -1,6 +1,18 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-19** · scorecard expand · commission CSV · backup chip · soft cron
+> Diperbarui: 19 Juli 2026 — **Wave-20** · fiscal e2e · commission summary · scorecard chip · MFA UX · Privy health
+
+## Wave-20 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w20-1 | Soft Playwright fiscal banner cues | Done |
+| w20-2 | Partner commission monthly summary widget | Done |
+| w20-3 | Security scorecard last-run chip | Done |
+| w20-4 | MFA recovery UX (no prompt) + Privy webhook health | Done |
+| w20-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:wave20`
 
 ## Wave-19 (19 Jul 2026)
 

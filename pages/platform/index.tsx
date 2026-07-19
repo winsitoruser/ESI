@@ -29,6 +29,7 @@ export default function PlatformDashboardPage() {
   const [dunningBusy, setDunningBusy] = useState(false);
   const [partners, setPartners] = useState<any[]>([]);
   const [partnerLeads, setPartnerLeads] = useState<any[]>([]);
+  const [commissionMonths, setCommissionMonths] = useState<any[]>([]);
   const [partnerForm, setPartnerForm] = useState({ code: '', name: '', contactEmail: '' });
   const [cleanupBusy, setCleanupBusy] = useState(false);
   const [archiveBusy, setArchiveBusy] = useState(false);
@@ -37,18 +38,20 @@ export default function PlatformDashboardPage() {
     setLoading(true);
     try {
       const q = new URLSearchParams({ action: 'tenants', status: filterStatus, search });
-      const [ov, tn, ex, pn, pl] = await Promise.all([
+      const [ov, tn, ex, pn, pl, cs] = await Promise.all([
         fetch('/api/platform?action=overview').then((r) => r.json()),
         fetch(`/api/platform?${q}`).then((r) => r.json()),
         fetch('/api/platform?action=expiring-trials&days=7').then((r) => r.json()),
         fetch('/api/platform?action=partners').then((r) => r.json()),
         fetch('/api/platform?action=partner-leads&limit=30').then((r) => r.json()),
+        fetch('/api/platform?action=partner-commission-summary').then((r) => r.json()),
       ]);
       if (ov.success) setOverview(ov.data);
       if (tn.success) setTenants(tn.data?.tenants || []);
       if (ex.success) setExpiring(ex.data || []);
       if (pn.success) setPartners(pn.data || []);
       if (pl.success) setPartnerLeads(pl.data || []);
+      if (cs.success) setCommissionMonths(cs.data?.months || []);
     } catch {
       setToast('Gagal memuat data platform');
     } finally {
@@ -333,6 +336,24 @@ export default function PlatformDashboardPage() {
               Order paid (JSON)
             </a>
           </div>
+          {commissionMonths.length > 0 && (
+            <div className="border-t pt-2 mt-1">
+              <p className="text-xs font-semibold text-slate-700 mb-1">Komisi paid (6 bulan, est.)</p>
+              <ul className="text-[11px] text-slate-600 divide-y max-h-28 overflow-y-auto">
+                {commissionMonths.slice(0, 12).map((row, i) => (
+                  <li key={`${row.month}-${row.partner_code}-${i}`} className="py-1 flex justify-between gap-2">
+                    <span>
+                      {row.month} · <code className="bg-slate-100 px-1 rounded">{row.partner_code}</code>
+                      {' '}· {row.orders} order
+                    </span>
+                    <span className="font-medium text-slate-800">
+                      Rp {Number(row.commission_idr || 0).toLocaleString('id-ID')}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
         <div className="bg-white border rounded-xl p-4 space-y-3">

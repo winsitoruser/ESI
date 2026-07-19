@@ -91,12 +91,14 @@ jobs:
           npm run smoke:wave17
           npm run smoke:wave18
           npm run smoke:wave19
+          npm run smoke:wave20
           npm run smoke:rls-lab
           npm run check:uptime-external
           npm run smoke:mock-audit
           SMOKE_ALLOW_MISSING_BACKUP=true npm run check:backup-freshness
           test -f lib/saas/tenant-request-bound.ts
           test -f lib/saas/backup-freshness.ts
+          test -f lib/saas/scorecard-last.ts
           test -f lib/hris/policy-ack.ts
           test -f lib/saas/billing-webhook-idempotency.ts
           test -f lib/hris/payslip-view-gate.ts

@@ -301,6 +301,45 @@ export default function PlatformObservabilityPage() {
           )}
         </div>
 
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <div className="bg-white border rounded-xl p-4">
+            <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+              <p className="text-sm font-semibold text-slate-800">Security scorecard</p>
+              <span className="text-[11px] text-slate-400">last cron run</span>
+            </div>
+            <p className={`text-lg font-bold ${
+              !obs?.scorecard?.present ? 'text-slate-500'
+                : obs.scorecard.ok ? 'text-emerald-700' : 'text-rose-700'
+            }`}>
+              {!obs?.scorecard?.present ? 'Never'
+                : obs.scorecard.ok ? 'Green' : `Fail · ${obs.scorecard.failedTotal ?? '?'}`}
+            </p>
+            <p className="text-[11px] text-slate-400 mt-1">
+              {obs?.scorecard?.ageHours != null
+                ? `${obs.scorecard.ageHours}h ago · ${obs.scorecard.passedTotal ?? 0} passed`
+                : 'Run: npm run security:scorecard'}
+            </p>
+          </div>
+          <div className="bg-white border rounded-xl p-4">
+            <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+              <p className="text-sm font-semibold text-slate-800">Privy webhook</p>
+              <span className="text-[11px] text-slate-400">sandbox health</span>
+            </div>
+            <p className={`text-lg font-bold ${
+              obs?.privyWebhook?.mode === 'signed' ? 'text-emerald-700' : 'text-amber-700'
+            }`}>
+              {obs?.privyWebhook?.mode === 'signed' ? 'Signed' : 'Open'}
+            </p>
+            <p className="text-[11px] text-slate-400 mt-1">
+              table {obs?.privyWebhook?.tableReady ? 'ready' : '—'}
+              {' · '}{obs?.privyWebhook?.events24h ?? 0} events/24h
+              {obs?.privyWebhook?.lastEventAt
+                ? ` · last ${new Date(obs.privyWebhook.lastEventAt).toLocaleString('id-ID')}`
+                : ''}
+            </p>
+          </div>
+        </div>
+
         <div className="bg-white border rounded-xl p-4">
           <p className="text-sm font-semibold text-slate-800 mb-2">Status kode respons</p>
           <div className="flex gap-4 text-sm text-slate-600 flex-wrap">

@@ -11,10 +11,33 @@
 require('dotenv').config();
 const { spawnSync } = require('child_process');
 const path = require('path');
+const fs = require('fs');
 
 const BASE = process.env.SMOKE_BASE_URL || process.env.NEXTAUTH_URL || 'https://humanify.id';
 const DRY_RUN = String(process.env.DRY_RUN || '').toLowerCase() === 'true';
 const WEBHOOK = String(process.env.OBS_ALERT_WEBHOOK_URL || '').trim();
+
+function writeLastRun(summary) {
+  const file =
+    process.env.SCORECARD_LAST_PATH ||
+    path.join(process.env.HUMANIFY_STATE_DIR || '/var/lib/humanify', 'scorecard-last.json');
+  try {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(
+      file,
+      JSON.stringify({
+        at: summary.at,
+        base: summary.base,
+        passedTotal: summary.passedTotal,
+        failedTotal: summary.failedTotal,
+      }, null, 2),
+      'utf8',
+    );
+    console.log(`[scorecard] wrote ${file}`);
+  } catch (e) {
+    console.warn('[scorecard] write last-run failed:', e.message || e);
+  }
+}
 
 const BATCHES = [
   'smoke-test-saas-idor-batch6.js',
@@ -89,6 +112,7 @@ async function main() {
   const failedTotal = results.reduce((a, r) => a + r.failed, 0);
   const summary = { at: new Date().toISOString(), base: BASE, passedTotal, failedTotal, results };
   console.log(`\nSCORECARD: ${passedTotal} passed / ${failedTotal} failed`);
+  writeLastRun(summary);
   await postDiscord(summary);
   process.exit(failedTotal > 0 ? 1 : 0);
 }

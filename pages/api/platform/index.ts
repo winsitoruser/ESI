@@ -1,6 +1,6 @@
 /**
  * Platform Control Plane API — Humanify SaaS ops
- * GET   ?action=overview|tenants|tenant|tenant-detail|billing-orders|expiring-trials|partners|partner-leads|partner-leads-export|partner-commission-export|commission-preview
+ * GET   ?action=overview|tenants|tenant|tenant-detail|billing-orders|expiring-trials|partners|partner-leads|partner-leads-export|partner-commission-export|partner-commission-summary|commission-preview
  * PATCH ?action=tenant-status|tenant-plan
  * POST  ?action=dunning-scan|partner-create|partner-lead-status|cleanup-qa|archive-qa|impersonate|end-impersonate
  */
@@ -553,6 +553,50 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       `, { replacements: repl });
 
       return res.json({ success: true, data: { orders: orders || [], available: true } });
+    }
+
+    if (req.method === 'GET' && action === 'partner-commission-summary') {
+      const [exists] = await sequelize.query(`
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'saas_billing_orders' LIMIT 1
+      `);
+      if (!exists?.length) {
+        return res.json({ success: true, data: { months: [], available: false } });
+      }
+      const [bColRows] = await sequelize.query(`
+        SELECT column_name FROM information_schema.columns
+        WHERE table_name = 'saas_billing_orders' AND table_schema = 'public'
+      `);
+      const bCols = new Set((bColRows || []).map((c: any) => c.column_name));
+      if (!bCols.has('commission_idr') || !bCols.has('partner_code')) {
+        return res.json({ success: true, data: { months: [], available: false } });
+      }
+      const partnerCode = String(req.query.partnerCode || req.query.code || '').trim().toUpperCase();
+      const conditions = [
+        `LOWER(status) = 'paid'`,
+        `partner_code IS NOT NULL`,
+        `partner_code <> ''`,
+        `paid_at >= NOW() - INTERVAL '6 months'`,
+      ];
+      const repl: Record<string, unknown> = {};
+      if (partnerCode) {
+        conditions.push('UPPER(partner_code) = :partnerCode');
+        repl.partnerCode = partnerCode;
+      }
+      const [rows] = await sequelize.query(
+        `SELECT to_char(date_trunc('month', paid_at), 'YYYY-MM') AS month,
+                partner_code,
+                COUNT(*)::int AS orders,
+                COALESCE(SUM(commission_idr), 0)::bigint AS commission_idr,
+                COALESCE(SUM(amount_idr), 0)::bigint AS amount_idr
+         FROM saas_billing_orders
+         WHERE ${conditions.join(' AND ')}
+         GROUP BY 1, 2
+         ORDER BY 1 DESC, 4 DESC
+         LIMIT 48`,
+        { replacements: repl },
+      );
+      return res.json({ success: true, data: { months: rows || [], available: true } });
     }
 
     if (req.method === 'GET' && action === 'partner-commission-export') {

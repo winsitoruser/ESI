@@ -8,6 +8,8 @@ import { authOptions } from '../auth/[...nextauth]';
 import { isPlatformOperator } from '@/lib/middleware/tenantIsolation';
 import { getObservabilitySnapshotAsync } from '@/lib/observability';
 import { getBackupFreshness } from '@/lib/saas/backup-freshness';
+import { getScorecardLastRun } from '@/lib/saas/scorecard-last';
+import { getPrivyWebhookHealth } from '@/lib/hris/privy-webhook';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -25,6 +27,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader('Cache-Control', 'no-store, max-age=0');
   const data = await getObservabilitySnapshotAsync();
   const backup = getBackupFreshness();
+  const scorecard = getScorecardLastRun();
+  const privy = await getPrivyWebhookHealth().catch(() => null);
   return res.json({
     success: true,
     data: {
@@ -46,6 +50,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         sizeMb: backup.sizeMb,
         reason: backup.reason,
       },
+      scorecard: {
+        present: scorecard.present,
+        ok: scorecard.ok,
+        at: scorecard.at,
+        ageHours: scorecard.ageHours,
+        passedTotal: scorecard.passedTotal,
+        failedTotal: scorecard.failedTotal,
+        base: scorecard.base,
+        reason: scorecard.reason,
+      },
+      privyWebhook: privy,
     },
   });
 }

@@ -23,6 +23,7 @@ export default function HumanifySecurityPage() {
   const [enroll, setEnroll] = useState<{ secret: string; otpauthUrl: string; qrDataUrl?: string | null } | null>(null);
   const [code, setCode] = useState('');
   const [disableCode, setDisableCode] = useState('');
+  const [regenCode, setRegenCode] = useState('');
   const [audit, setAudit] = useState<any[]>([]);
   const [tenantRequireMfa, setTenantRequireMfa] = useState(false);
   const [canManagePolicy, setCanManagePolicy] = useState(false);
@@ -106,17 +107,20 @@ export default function HumanifySecurityPage() {
   }
 
   async function regenerateRecovery() {
+    if (!regenCode.trim()) {
+      toast.error('Masukkan kode 2FA');
+      return;
+    }
     setBusy(true);
     try {
-      const codePrompt = window.prompt('Masukkan kode 2FA untuk menerbitkan ulang kode pemulihan:');
-      if (!codePrompt) return;
       const j = await (await fetch('/api/humanify/mfa?action=regenerate-recovery', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: codePrompt }),
+        body: JSON.stringify({ code: regenCode.trim() }),
       })).json();
       if (!j.success) throw new Error(j.error);
       setRecoveryCodes(j.data.recoveryCodes || []);
+      setRegenCode('');
       toast.success('Kode pemulihan baru diterbitkan');
       await load();
     } catch (e: any) {
@@ -124,6 +128,25 @@ export default function HumanifySecurityPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function copyAllRecovery() {
+    if (!recoveryCodes?.length) return;
+    copy(recoveryCodes.join('\n'));
+  }
+
+  function downloadRecovery() {
+    if (!recoveryCodes?.length) return;
+    const blob = new Blob(
+      [`Humanify 2FA recovery codes\n${new Date().toISOString()}\n\n${recoveryCodes.join('\n')}\n`],
+      { type: 'text/plain' },
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'humanify-2fa-recovery.txt';
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   async function disable() {
@@ -321,20 +344,45 @@ export default function HumanifySecurityPage() {
                 Sisa kode: <span className="font-semibold text-slate-800">{recoveryRemaining}</span>.
                 Satu kode = satu kali pakai jika authenticator hilang.
               </p>
-              <button
-                type="button"
-                onClick={regenerateRecovery}
-                disabled={busy}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 disabled:opacity-50"
-              >
-                {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
-                Terbitkan ulang kode pemulihan
-              </button>
+              {recoveryRemaining === 0 && (
+                <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                  Kode pemulihan habis — terbitkan ulang segera agar akun tidak terkunci.
+                </p>
+              )}
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={regenCode}
+                  onChange={(e) => setRegenCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="Kode 2FA"
+                  className="w-36 border border-slate-300 rounded-xl px-3 py-2 text-sm font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={regenerateRecovery}
+                  disabled={busy || regenCode.length < 6}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 disabled:opacity-50"
+                >
+                  {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                  Terbitkan ulang kode pemulihan
+                </button>
+              </div>
               {recoveryCodes && recoveryCodes.length > 0 && (
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  {recoveryCodes.map((c) => (
-                    <code key={c} className="bg-slate-100 rounded px-2 py-1 text-sm font-mono text-center">{c}</code>
-                  ))}
+                <div className="mt-3 space-y-2">
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={copyAllRecovery} className="text-xs px-2 py-1 border rounded-lg text-violet-700 hover:bg-violet-50">
+                      Salin semua
+                    </button>
+                    <button type="button" onClick={downloadRecovery} className="text-xs px-2 py-1 border rounded-lg text-slate-700 hover:bg-slate-50">
+                      Unduh .txt
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {recoveryCodes.map((c) => (
+                      <code key={c} className="bg-slate-100 rounded px-2 py-1 text-sm font-mono text-center">{c}</code>
+                    ))}
+                  </div>
                 </div>
               )}
 
