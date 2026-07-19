@@ -10,7 +10,7 @@
 | w21-2 | Action Inbox digest last-run chip | Done |
 | w21-3 | Seed/ensure DEMO partner (sales walkthrough) | Done |
 | w21-4 | Partner commission CSV `from`/`to` date filter | Done |
-| w21-5 | Deploy + verify | Pending |
+| w21-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave21` · `npm run ensure:demo-partner`
 
