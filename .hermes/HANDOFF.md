@@ -10,7 +10,7 @@
 | w32-2 | Soft Playwright `/api/auth/csrf` + providers | Done |
 | w32-3 | `humans.txt` + middleware/robots + soft SEO | Done |
 | w32-4 | `smoke:phase13-sso` + `smoke:phase20-employee-import` | Done |
-| w32-5 | Deploy + verify | Pending |
+| w32-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave32` · `npm run test:e2e:humanify:partners:prod` · `npm run test:e2e:humanify:health:prod` · `npm run test:e2e:humanify:seo-public:prod`
 
