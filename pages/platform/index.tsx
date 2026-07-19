@@ -324,9 +324,17 @@ export default function PlatformDashboardPage() {
         <div className="bg-white border rounded-xl p-4 space-y-3">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <p className="text-sm font-semibold text-slate-900">Partner leads (form publik)</p>
-            <a href="/humanify/partners" className="text-xs text-indigo-600 hover:underline" target="_blank" rel="noreferrer">
-              /humanify/partners
-            </a>
+            <div className="flex items-center gap-2">
+              <a
+                href="/api/platform?action=partner-leads-export"
+                className="text-xs px-2 py-1 border rounded-lg text-slate-700 hover:bg-slate-50"
+              >
+                Export CSV
+              </a>
+              <a href="/humanify/partners" className="text-xs text-indigo-600 hover:underline" target="_blank" rel="noreferrer">
+                /humanify/partners
+              </a>
+            </div>
           </div>
           <ul className="text-xs text-slate-600 divide-y max-h-48 overflow-y-auto">
             {partnerLeads.map((lead) => (

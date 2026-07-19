@@ -31,6 +31,17 @@ Output: ringkasan jumlah expired / soon-expire, lalu daftar sample (max 50 baris
 - **Hard-delete file** dari disk/S3 — sengaja manual (hindari kehilangan bukti).
 - **Strict purge** pasca offboarding — ikuti `tenant-offboarding` retention.
 
+## Soft-deactivate kedaluwarsa (Wave-18)
+
+```bash
+# Dry-run
+npm run report:doc-expiry:soft
+
+# Apply is_active=false (file tetap di storage)
+APPLY=true npm run report:doc-expiry:soft
+APPLY=true TENANT_ID=<uuid> npm run report:doc-expiry:soft
+```
+
 ## Digest email (Wave-11)
 
 ```bash

@@ -9,6 +9,7 @@ import {
   destroyScoped,
 } from '@/lib/saas/tenant-scope';
 import { ensureTenantDbContext } from '@/lib/saas/ensure-tenant-db-context';
+import { countTenantPolicyAckPending } from '@/lib/hris/policy-ack';
 
 let CompanyRegulation: any, WarningLetter: any, IrCase: any, TerminationRequest: any, ComplianceChecklist: any, AuditLog: any;
 try { CompanyRegulation = require('../../../models/CompanyRegulation'); } catch(e) {}
@@ -214,16 +215,17 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
           success: true,
           data: {
             activeRegulations: 0, openIncidents: 0, investigatingIncidents: 0,
-            pendingChecklists: 0, complianceScore: 0,
+            pendingChecklists: 0, complianceScore: 0, pendingPolicyAcks: 0,
           },
         });
       }
-      const [regs, openCases, investigatingCases, pendingChecklists, allChecklists] = await Promise.all([
+      const [regs, openCases, investigatingCases, pendingChecklists, allChecklists, pendingPolicyAcks] = await Promise.all([
         CompanyRegulation?.count({ where: { status: 'active', tenantId } }) || 0,
         IrCase?.count({ where: { status: ['open', 'reported', 'triage', 'investigating', 'mitigating'], tenantId } }).catch(() => 0) || 0,
         IrCase?.count({ where: { status: ['investigating', 'mitigating'], tenantId } }).catch(() => 0) || 0,
         ComplianceChecklist?.count({ where: { status: ['pending', 'in_progress'], tenantId } }).catch(() => 0) || 0,
         ComplianceChecklist?.findAll({ attributes: ['completionPercent'], where: { tenantId }, limit: 50 }).catch(() => []) || [],
+        countTenantPolicyAckPending(String(tenantId)).catch(() => 0),
       ]);
       const percents = (allChecklists as any[]).map((c) => Number(c.completionPercent ?? c.completion_percent ?? 0));
       const complianceScore = percents.length
@@ -237,6 +239,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
           investigatingIncidents: investigatingCases,
           pendingChecklists,
           complianceScore,
+          pendingPolicyAcks,
         },
       });
     }

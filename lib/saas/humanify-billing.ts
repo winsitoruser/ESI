@@ -8,7 +8,8 @@ import {
   normalizeHumanifyPlan,
   type HumanifyPlanId,
 } from './plan-entitlements';
-import { getTenantColumns } from './tenant-schema';
+import { getTenantColumns, parseTenantSettings } from './tenant-schema';
+import { estimatePartnerCommission, resolvePartnerByCode } from './partners';
 
 let sequelize: any;
 try { sequelize = require('../sequelize'); } catch {}
@@ -41,6 +42,15 @@ export async function ensureBillingOrdersTable() {
     CREATE INDEX IF NOT EXISTS idx_saas_billing_orders_tenant
     ON saas_billing_orders (tenant_id)
   `);
+  for (const col of [
+    'ADD COLUMN IF NOT EXISTS partner_code VARCHAR(32)',
+    'ADD COLUMN IF NOT EXISTS commission_pct NUMERIC(5,2)',
+    'ADD COLUMN IF NOT EXISTS commission_idr INTEGER',
+  ]) {
+    try {
+      await sequelize.query(`ALTER TABLE saas_billing_orders ${col}`);
+    } catch { /* already exists */ }
+  }
   ordersReady = true;
 }
 
@@ -99,6 +109,31 @@ export async function createHumanifyCheckout(opts: {
   const id = crypto.randomUUID();
   const orderCode = `HFY-${plan.slice(0, 3).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
 
+  let partnerCode: string | null = null;
+  let commissionPct: number | null = null;
+  let commissionIdr: number | null = null;
+  try {
+    const cols = await getTenantColumns();
+    if (cols.has('settings')) {
+      const [trows] = await sequelize.query(
+        `SELECT settings FROM tenants WHERE id = :id LIMIT 1`,
+        { replacements: { id: opts.tenantId } },
+      );
+      const settings = parseTenantSettings(trows?.[0]?.settings);
+      const code = String(settings.partner_code || settings.partner?.code || '').trim();
+      if (code) {
+        const partner = await resolvePartnerByCode(code);
+        if (partner) {
+          partnerCode = partner.code;
+          commissionPct = Number(partner.commission_pct ?? 10);
+          commissionIdr = estimatePartnerCommission(amount, commissionPct).commissionIdr;
+        }
+      }
+    }
+  } catch {
+    /* commission snapshot best-effort */
+  }
+
   let provider: 'midtrans' | 'manual' = 'manual';
   let snapToken: string | null = null;
   let redirectUrl: string | null = null;
@@ -145,9 +180,11 @@ export async function createHumanifyCheckout(opts: {
 
   await sequelize.query(`
     INSERT INTO saas_billing_orders
-      (id, tenant_id, order_code, plan, interval, amount_idr, status, provider, snap_token, redirect_url, raw)
+      (id, tenant_id, order_code, plan, interval, amount_idr, status, provider, snap_token, redirect_url, raw,
+       partner_code, commission_pct, commission_idr)
     VALUES
-      (:id, :tenantId, :orderCode, :plan, :interval, :amount, 'pending', :provider, :snapToken, :redirectUrl, CAST(:raw AS jsonb))
+      (:id, :tenantId, :orderCode, :plan, :interval, :amount, 'pending', :provider, :snapToken, :redirectUrl, CAST(:raw AS jsonb),
+       :partnerCode, :commissionPct, :commissionIdr)
   `, {
     replacements: {
       id,
@@ -160,6 +197,9 @@ export async function createHumanifyCheckout(opts: {
       snapToken,
       redirectUrl,
       raw: JSON.stringify(raw),
+      partnerCode,
+      commissionPct,
+      commissionIdr,
     },
   });
 
@@ -175,6 +215,9 @@ export async function createHumanifyCheckout(opts: {
     clientKey: process.env.MIDTRANS_CLIENT_KEY || null,
     isProduction: midtransIsProduction(),
     midtransConfigured: midtransConfigured(),
+    partnerCode,
+    commissionPct,
+    commissionIdr,
   };
 }
 

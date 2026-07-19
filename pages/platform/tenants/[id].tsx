@@ -274,7 +274,15 @@ export default function TenantDetailPage() {
                 <p className="text-sm text-slate-400">Belum ada user terdaftar.</p>
               )}
               {tenant.partnerCode && (
-                <p className="text-xs text-slate-500 mt-1">Partner ref: <code className="bg-slate-100 px-1 rounded">{tenant.partnerCode}</code></p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Partner ref: <code className="bg-slate-100 px-1 rounded">{tenant.partnerCode}</code>
+                  {tenant.partnerCommission && (
+                    <span>
+                      {' '}· {tenant.partnerCommission.commissionPct}% · est.{' '}
+                      {amountFmt(tenant.partnerCommission.sampleCommissionIdr)} / {amountFmt(tenant.partnerCommission.sampleAmountIdr)}
+                    </span>
+                  )}
+                </p>
               )}
             </div>
 
@@ -290,6 +298,7 @@ export default function TenantDetailPage() {
                     <th className="px-4 py-2">Plan</th>
                     <th className="px-4 py-2">Interval</th>
                     <th className="px-4 py-2 text-right">Amount</th>
+                    <th className="px-4 py-2 text-right">Komisi (est.)</th>
                     <th className="px-4 py-2">Status</th>
                     <th className="px-4 py-2">Dibayar</th>
                     <th className="px-4 py-2">Dibuat</th>
@@ -297,10 +306,10 @@ export default function TenantDetailPage() {
                 </thead>
                 <tbody className="divide-y">
                   {!ordersAvailable && (
-                    <tr><td colSpan={7} className="px-4 py-6 text-center text-slate-400">Tabel billing belum tersedia.</td></tr>
+                    <tr><td colSpan={8} className="px-4 py-6 text-center text-slate-400">Tabel billing belum tersedia.</td></tr>
                   )}
                   {ordersAvailable && orders.length === 0 && (
-                    <tr><td colSpan={7} className="px-4 py-6 text-center text-slate-400">Belum ada order.</td></tr>
+                    <tr><td colSpan={8} className="px-4 py-6 text-center text-slate-400">Belum ada order.</td></tr>
                   )}
                   {orders.map((o) => (
                     <tr key={o.id}>
@@ -308,6 +317,11 @@ export default function TenantDetailPage() {
                       <td className="px-4 py-2 capitalize">{o.plan || '—'}</td>
                       <td className="px-4 py-2">{o.interval || '—'}</td>
                       <td className="px-4 py-2 text-right">{amountFmt(o.amount_idr)}</td>
+                      <td className="px-4 py-2 text-right text-xs text-slate-600">
+                        {o.commission_idr != null
+                          ? `${amountFmt(o.commission_idr)}${o.partner_code ? ` (${o.partner_code})` : ''}`
+                          : '—'}
+                      </td>
                       <td className="px-4 py-2">
                         <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
                           o.status === 'paid' ? 'bg-emerald-100 text-emerald-700' :

@@ -179,3 +179,33 @@ export async function updatePartnerLeadStatus(opts: {
   if (!rows?.[0]) return { ok: false };
   return { ok: true, status };
 }
+
+function csvEscape(v: unknown): string {
+  const s = v == null ? '' : String(v);
+  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+export async function exportPartnerLeadsCsv(opts?: {
+  status?: string;
+  limit?: number;
+  db?: any;
+}): Promise<string> {
+  const rows = await listPartnerLeads({
+    status: opts?.status,
+    limit: Math.min(2000, Math.max(1, Number(opts?.limit) || 500)),
+    db: opts?.db,
+  });
+  const header = [
+    'created_at', 'company_name', 'contact_name', 'email', 'phone',
+    'partner_type', 'region', 'status', 'source', 'message_preview',
+  ];
+  const lines = [header.join(',')];
+  for (const r of rows) {
+    lines.push([
+      r.created_at, r.company_name, r.contact_name, r.email, r.phone,
+      r.partner_type, r.region, r.status, r.source, r.message_preview,
+    ].map(csvEscape).join(','));
+  }
+  return lines.join('\n');
+}

@@ -1,6 +1,18 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-17** · commission calc · lead triage · unsnooze · uptime check · partners e2e
+> Diperbarui: 19 Juli 2026 — **Wave-18** · billing commission snapshot · lead CSV · soft-deactivate · policy-ack KPI
+
+## Wave-18 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w18-1 | Persist `partner_code` / `commission_*` on billing orders | Done |
+| w18-2 | Partner lead CSV export | Done |
+| w18-3 | Doc expiry soft-deactivate (`report:doc-expiry:soft`) | Done |
+| w18-4 | IR overview `pendingPolicyAcks` KPI | Done |
+| w18-5 | Tenant detail commission display + deploy | Pending |
+
+Scripts: `npm run smoke:wave18` · `npm run report:doc-expiry:soft`
 
 ## Wave-17 (19 Jul 2026)
 

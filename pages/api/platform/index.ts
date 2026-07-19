@@ -1,6 +1,6 @@
 /**
  * Platform Control Plane API — Humanify SaaS ops
- * GET   ?action=overview|tenants|tenant|tenant-detail|billing-orders|expiring-trials|partners|partner-leads|commission-preview
+ * GET   ?action=overview|tenants|tenant|tenant-detail|billing-orders|expiring-trials|partners|partner-leads|partner-leads-export|commission-preview
  * PATCH ?action=tenant-status|tenant-plan
  * POST  ?action=dunning-scan|partner-create|partner-lead-status|cleanup-qa|archive-qa|impersonate|end-impersonate
  */
@@ -21,12 +21,14 @@ import {
   archiveSuspendedQaTenants,
   cleanupQaTenants,
   createPartner,
+  estimatePartnerCommission,
   listPartners,
   previewPartnerCommission,
   QA_TENANT_SLUG_REGEX,
+  resolvePartnerByCode,
 } from '@/lib/saas/partners';
 import { parseTenantSettings } from '@/lib/saas/tenant-schema';
-import { listPartnerLeads, updatePartnerLeadStatus } from '@/lib/hris/partner-leads';
+import { listPartnerLeads, updatePartnerLeadStatus, exportPartnerLeadsCsv } from '@/lib/hris/partner-leads';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch {}
@@ -341,6 +343,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.json({ success: true, data });
     }
 
+    if (req.method === 'GET' && action === 'partner-leads-export') {
+      const status = req.query.status ? String(req.query.status) : undefined;
+      const limit = Number(req.query.limit) || 500;
+      const csv = await exportPartnerLeadsCsv({ status, limit });
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="partner-leads.csv"');
+      return res.status(200).send(csv);
+    }
+
     if (req.method === 'GET' && action === 'commission-preview') {
       const partnerCode = String(req.query.partnerCode || req.query.code || '');
       const amountIdr = Number(req.query.amountIdr || req.query.amount || 0);
@@ -442,6 +453,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const settings = parseTenantSettings(tenant.settings);
       const health = computeTenantHealth(tenant);
       const trialEndsAt = cols.has('trial_ends_at') ? tenant.trial_ends_at : null;
+      const partnerCode = settings.partner_code || settings.partner?.code || null;
+      let partnerCommission: {
+        code: string;
+        name?: string;
+        commissionPct: number;
+        sampleAmountIdr: number;
+        sampleCommissionIdr: number;
+      } | null = null;
+      if (partnerCode) {
+        const partner = await resolvePartnerByCode(String(partnerCode));
+        if (partner) {
+          const pct = Number(partner.commission_pct ?? 10);
+          const sampleAmountIdr = 1_000_000;
+          partnerCommission = {
+            code: partner.code,
+            name: partner.name,
+            commissionPct: pct,
+            sampleAmountIdr,
+            sampleCommissionIdr: estimatePartnerCommission(sampleAmountIdr, pct).commissionIdr,
+          };
+        }
+      }
 
       return res.json({
         success: true,
@@ -451,7 +484,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           owner,
           leaveRequests30d,
           overtimeRequests30d,
-          partnerCode: settings.partner_code || settings.partner?.code || null,
+          partnerCode,
+          partnerCommission,
           trialEndsAt,
           careersUrl: tenant.slug ? `/c/${tenant.slug}/careers` : null,
         },
@@ -488,6 +522,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         bCols.has('midtrans_order_id') ? 'midtrans_order_id' : `NULL AS midtrans_order_id`,
         bCols.has('paid_at') ? 'paid_at' : `NULL AS paid_at`,
         bCols.has('created_at') ? 'created_at' : `NULL AS created_at`,
+        bCols.has('partner_code') ? 'partner_code' : `NULL AS partner_code`,
+        bCols.has('commission_pct') ? 'commission_pct' : `NULL AS commission_pct`,
+        bCols.has('commission_idr') ? 'commission_idr' : `NULL AS commission_idr`,
       ].join(', ');
 
       const conditions = ['1=1'];

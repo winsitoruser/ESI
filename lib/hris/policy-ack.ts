@@ -77,6 +77,35 @@ export async function listMyPolicyStatus(opts: {
   return { pending, acknowledged };
 }
 
+export async function countTenantPolicyAckPending(tenantId: string, db?: any): Promise<number> {
+  const seq = db || sequelize;
+  if (!seq || !tenantId) return 0;
+  await ensurePolicyAckTable(seq);
+  const policies = await listPublishedPolicies(tenantId, seq);
+  if (!policies.length) return 0;
+  try {
+    const [userRows] = await seq.query(
+      `SELECT COUNT(*)::int AS c FROM users
+       WHERE tenant_id = :tid
+         AND COALESCE(is_active, true) = true`,
+      { replacements: { tid: tenantId } },
+    );
+    const userCount = Number(userRows?.[0]?.c || 0);
+    if (!userCount) return 0;
+    const ids = (policies as any[]).map((p) => p.id);
+    const [ackRows] = await seq.query(
+      `SELECT COUNT(*)::int AS c FROM policy_acknowledgments
+       WHERE tenant_id = :tid AND regulation_id IN (:ids)`,
+      { replacements: { tid: tenantId, ids } },
+    );
+    const acks = Number(ackRows?.[0]?.c || 0);
+    return Math.max(0, policies.length * userCount - acks);
+  } catch (e: any) {
+    console.warn('[policy-ack] pending count:', e?.message || e);
+    return 0;
+  }
+}
+
 export async function acknowledgePolicy(opts: {
   tenantId: string;
   userId: string;

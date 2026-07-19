@@ -41,4 +41,6 @@ Program mitra implementasi untuk konsultan payroll, BPJS, dan payroll outsourcin
 - [x] Portal self-serve partner (lead form) — `/humanify/partners`  
 - [x] Inbox lead di `/platform` (`?action=partner-leads`) + triage status  
 - [x] Commission **calc stub** — `estimatePartnerCommission` / `?action=commission-preview`  
+- [x] Snapshot komisi di `saas_billing_orders` + kolom UI tenant detail  
+- [x] Export CSV partner leads (`?action=partner-leads-export`)  
 - [ ] Revenue share otomatis + payout di billing — wave berikutnya  

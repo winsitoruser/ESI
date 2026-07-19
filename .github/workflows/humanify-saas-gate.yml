@@ -89,6 +89,7 @@ jobs:
           npm run smoke:wave15
           npm run smoke:wave16
           npm run smoke:wave17
+          npm run smoke:wave18
           npm run smoke:rls-lab
           npm run check:uptime-external
           npm run smoke:mock-audit
@@ -106,6 +107,7 @@ jobs:
           test -f lib/hris/partner-leads.ts
           test -f e2e/humanify-partners-ui.spec.ts
           test -f scripts/check-humanify-uptime-external.js
+          test -f scripts/run-humanify-doc-expiry-soft-deactivate.js
           test -f docs/humanify-ga-scope.md
           test -f docs/humanify-rls-strict-staging.md
           test -f docs/humanify-doc-retention.md

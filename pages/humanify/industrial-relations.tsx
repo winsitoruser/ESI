@@ -32,7 +32,7 @@ type TabKey = 'governance' | 'compliance' | 'incidents';
 
 const MOCK_OVERVIEW = {
   activeRegulations: 3, openIncidents: 2, investigatingIncidents: 1,
-  pendingChecklists: 2, complianceScore: 58,
+  pendingChecklists: 2, complianceScore: 78, pendingPolicyAcks: 5,
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -240,6 +240,7 @@ export default function IndustrialRelationsPage() {
   const kpiCards = [
     { label: 'Peraturan Aktif', value: overview.activeRegulations, icon: FileText, color: 'from-indigo-500 to-indigo-600' },
     { label: 'Skor Kepatuhan', value: `${overview.complianceScore || 0}%`, icon: TrendingUp, color: 'from-emerald-500 to-teal-600' },
+    { label: 'Menunggu Tanda Terima', value: overview.pendingPolicyAcks || 0, icon: ClipboardCheck, color: 'from-sky-500 to-cyan-600' },
     { label: 'Insiden Terbuka', value: overview.openIncidents, icon: AlertCircle, color: 'from-amber-500 to-orange-600' },
     { label: 'Dalam Investigasi', value: overview.investigatingIncidents, icon: Shield, color: 'from-violet-500 to-purple-600' },
   ];
