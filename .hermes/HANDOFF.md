@@ -10,7 +10,7 @@
 | w47-2 | `test:e2e:humanify:payroll` (+ prod) | Done |
 | w47-3 | RLS lab doc — payroll soft path checkbox | Done |
 | w47-4 | Unit smoke wave47 | Done |
-| w47-5 | Deploy + verify | Pending |
+| w47-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave47` · `npm run test:e2e:humanify:payroll:prod` · `npm run smoke:rls-lab` · `npm run smoke:payroll-fiscal`
 
