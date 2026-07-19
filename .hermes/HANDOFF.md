@@ -10,7 +10,7 @@
 | w33-2 | Soft Playwright forgot-password Kembali ke login | Done |
 | w33-3 | Soft Playwright signup Masuk di sini | Done |
 | w33-4 | `smoke:phase21-notifications` + `smoke:phase22-search` | Done |
-| w33-5 | Deploy + verify | Pending |
+| w33-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave33` · `npm run test:e2e:humanify:roi:prod` · `npm run test:e2e:humanify:forgot-password:prod` · `npm run test:e2e:humanify:signup:prod`
 
