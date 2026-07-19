@@ -44,6 +44,10 @@ test.describe('Humanify welcome → login', () => {
       timeout: 10_000,
     });
     await expect(page.locator('body')).toContainText(/Partner/i, { timeout: 8_000 });
+    await expect(page.locator('a[href*="/humanify/pricing/roi-calculator"]').first()).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(page.locator('body')).toContainText(/ROI/i, { timeout: 8_000 });
     // Soft: do not submit login
   });
 
@@ -66,5 +70,9 @@ test.describe('Humanify welcome → login', () => {
     await expect(page.locator('a[href*="/humanify/signup"]').first()).toBeVisible({
       timeout: 10_000,
     });
+    await expect(page.locator('a[href="/careers"], a[href*="/careers"]').first()).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(page.locator('body')).toContainText(/Karir/i, { timeout: 8_000 });
   });
 });

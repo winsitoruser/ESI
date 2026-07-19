@@ -1,6 +1,62 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-42** · partners ROI · employee lupa · IDOR/hardening aliases
+> Diperbarui: 19 Juli 2026 — **Wave-46** · soft-hardening series close-out (W43–W46)
+
+## Soft-hardening series (Wave-27 → Wave-46)
+
+Public soft Playwright + smoke aliases selesai. Aggregate:
+- `npm run test:e2e:humanify:soft-public:prod`
+- `npm run smoke:idor` · `npm run smoke:saas-hardening` · `npm run smoke:ci-subset`
+
+**Deferred (bukan soft wave):** revenue-share payout automation · `packages/humanify-core` monorepo · hard Playwright payroll suite · prod **strict RLS** flip.
+
+## Wave-46 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w46-1 | Soft-hardening series close-out in HANDOFF | Done |
+| w46-2 | Unit smoke validates waves 43–45 + runners | Done |
+| w46-3 | Soft-public includes signup-ref (via W45) | Done |
+| w46-4 | Deploy + verify soft-public subset | Pending |
+| w46-5 | Docs mark W43–W46 verified | Pending |
+
+Scripts: `npm run smoke:wave46` · `npm run test:e2e:humanify:soft-public:prod`
+
+## Wave-45 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w45-1 | `smoke:idor` runner (batch5–11 + hr) | Done |
+| w45-2 | `smoke:saas-hardening` runner | Done |
+| w45-3 | soft-public includes signup-ref | Done |
+| w45-4 | Unit smoke wave45 | Done |
+| w45-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:wave45` · `npm run smoke:idor` · `npm run smoke:saas-hardening`
+
+## Wave-44 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w44-1 | Login footer ROI soft cue + e2e | Done |
+| w44-2 | security.txt Preferred-Languages soft | Done |
+| w44-3 | Soft Playwright legacy `service-worker.js` | Done |
+| w44-4 | Unit smoke wave44 | Done |
+| w44-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:wave44` · `npm run test:e2e:humanify:prod` · `npm run test:e2e:humanify:health:prod` · `npm run test:e2e:humanify:seo-public:prod`
+
+## Wave-43 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w43-1 | Welcome nav Karir → `/careers` + soft e2e | Done |
+| w43-2 | Signup-ref soft partners + ROI cues | Done |
+| w43-3 | Robots soft Allow `/c/` | Done |
+| w43-4 | Unit smoke wave43 | Done |
+| w43-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:wave43` · `npm run test:e2e:humanify:prod` · `npm run test:e2e:humanify:signup-ref:prod` · `npm run test:e2e:humanify:seo-public:prod`
 
 ## Wave-42 (19 Jul 2026)
 

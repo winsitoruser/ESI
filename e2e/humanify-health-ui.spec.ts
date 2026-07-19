@@ -60,6 +60,14 @@ test.describe('Humanify health probe (soft)', () => {
     expect(text).not.toMatch(/\/auth\/login/);
   });
 
+  test('legacy service-worker.js is public', async ({ request }) => {
+    const res = await request.get('/service-worker.js');
+    expect(res.status()).toBe(200);
+    const text = await res.text();
+    expect(text.length).toBeGreaterThan(10);
+    expect(text).not.toMatch(/\/auth\/login/);
+  });
+
   test('PWA icon under /icons is public', async ({ request }) => {
     const res = await request.get('/icons/credit-card.png');
     expect(res.status()).toBe(200);

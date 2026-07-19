@@ -420,6 +420,9 @@ export default function HumanifyWelcomePage() {
             <Link href={HUMANIFY_BRAND.partnersPath} className="hidden text-sm text-violet-200/60 transition hover:text-white md:inline">
               Partner
             </Link>
+            <Link href="/careers" className="hidden text-sm text-violet-200/60 transition hover:text-white md:inline">
+              Karir
+            </Link>
             <a href={NAINCODE.website} target="_blank" rel="noopener noreferrer" className="hidden text-sm text-violet-200/60 transition hover:text-white md:inline">
               {NAINCODE.name}
             </a>

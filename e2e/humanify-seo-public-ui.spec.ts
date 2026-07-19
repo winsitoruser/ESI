@@ -18,6 +18,7 @@ test.describe('Humanify SEO public surfaces (soft)', () => {
     expect(body).toMatch(/Allow:\s*\/llms\.txt/i);
     expect(body).toMatch(/Allow:\s*\/humans\.txt/i);
     expect(body).toMatch(/Allow:\s*\/careers/i);
+    expect(body).toMatch(/Allow:\s*\/c\//i);
     expect(body).toMatch(/Sitemap:\s*https:\/\/humanify\.id\/sitemap\.xml/i);
   });
 
@@ -45,6 +46,7 @@ test.describe('Humanify SEO public surfaces (soft)', () => {
     const body = await page.locator('body').innerText();
     expect(body).toMatch(/Contact:\s*mailto:ops@humanify\.id/i);
     expect(body).toMatch(/Expires:/i);
+    expect(body).toMatch(/Preferred-Languages:\s*en,\s*id/i);
     expect(body).toMatch(/Canonical:\s*https:\/\/humanify\.id\/\.well-known\/security\.txt/i);
   });
 

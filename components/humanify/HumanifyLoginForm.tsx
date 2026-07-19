@@ -441,6 +441,10 @@ export default function HumanifyLoginForm({
                     Partner
                   </Link>
                   <span className="mx-2">·</span>
+                  <Link href={HUMANIFY_BRAND.roiCalculatorPath} className="hover:text-violet-300/70 transition-colors">
+                    ROI
+                  </Link>
+                  <span className="mx-2">·</span>
                   © {new Date().getFullYear()} {NAINCODE.legalName}
                 </p>
               </div>

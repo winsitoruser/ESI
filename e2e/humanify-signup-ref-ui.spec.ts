@@ -33,6 +33,10 @@ test.describe('Humanify signup referral UI (soft)', () => {
     await expect(page.locator('body')).toContainText(/Sudah punya akun|Masuk di sini/i, {
       timeout: 10_000,
     });
+    await expect(page.locator('a[href*="/humanify/partners"]').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('a[href*="/humanify/pricing/roi-calculator"]').first()).toBeVisible({
+      timeout: 10_000,
+    });
     // Soft: do not submit signup
   });
 });
