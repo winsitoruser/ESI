@@ -10,7 +10,7 @@
 | w24-2 | DEMO commission-preview button on `/platform` | Done |
 | w24-3 | Soft Playwright forgot-password cues | Done |
 | w24-4 | External uptime-probe last-run chip | Done |
-| w24-5 | Deploy + verify | Pending |
+| w24-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave24` · `npm run test:e2e:humanify:forgot-password:prod`
 
