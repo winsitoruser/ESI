@@ -1,6 +1,18 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-24** · billing partnerCode · DEMO preview · forgot soft e2e · uptime probe chip
+> Diperbarui: 19 Juli 2026 — **Wave-25** · reset soft e2e · uptime cron · state dir · careers soft e2e
+
+## Wave-25 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w25-1 | Soft Playwright reset-password (no + invalid token) | Done |
+| w25-2 | Cron-wire `check:uptime-external` | Done |
+| w25-3 | Ensure `HUMANIFY_STATE_DIR` + one-shot probe on deploy | Done |
+| w25-4 | Soft Playwright `/c/demo/careers` | Done |
+| w25-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:wave25` · `npm run test:e2e:humanify:reset-password:prod` · `npm run test:e2e:humanify:careers:prod`
 
 ## Wave-24 (19 Jul 2026)
 

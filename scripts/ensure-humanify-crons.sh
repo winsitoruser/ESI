@@ -67,4 +67,8 @@ ensure_line "doc-expiry-soft" "0 2 * * 1" \
 ensure_line "security-scorecard" "0 23 * * 0" \
   "SMOKE_BASE_URL='https://humanify.id' node scripts/run-humanify-security-scorecard.js >> ${LOG_DIR}/humanify-security-scorecard.log 2>&1 || true"
 
+# External uptime probe last-run (Wave-25) — every 6h; writes /var/lib/humanify/uptime-last.json
+ensure_line "uptime-external" "15 */6 * * *" \
+  "node scripts/check-humanify-uptime-external.js >> ${LOG_DIR}/humanify-uptime-external.log 2>&1 || true"
+
 echo "Done — verify with: crontab -l | grep ${MARKER}"

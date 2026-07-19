@@ -248,6 +248,27 @@ ssh_cmd "ENV_FILE=$APP_DIR/.env bash -s" < "$SRC/scripts/ensure-humanify-obs-ale
 echo "=== [3e/6] Ensure platform crons (purge / hard-delete / health) ==="
 ssh_cmd "APP_DIR=$APP_DIR bash -s" < "$SRC/scripts/ensure-humanify-crons.sh" || true
 
+echo "=== [3e1/6] Ensure HUMANIFY_STATE_DIR (last-run artifacts) ==="
+ssh_cmd "APP_DIR='$APP_DIR' bash -s" <<'REMOTE_STATE' || true
+set -euo pipefail
+STATE_DIR="${HUMANIFY_STATE_DIR:-/var/lib/humanify}"
+mkdir -p "$STATE_DIR"
+chmod 755 "$STATE_DIR" || true
+APP_ENV="${APP_DIR:-/root/humanify}/.env"
+if [ -f "$APP_ENV" ] && ! grep -q '^HUMANIFY_STATE_DIR=' "$APP_ENV"; then
+  echo "HUMANIFY_STATE_DIR=$STATE_DIR" >> "$APP_ENV"
+  echo "  + HUMANIFY_STATE_DIR appended to .env"
+else
+  echo "  ✓ state dir $STATE_DIR ready"
+fi
+# One-shot uptime probe so observability chip is not Never after deploy
+cd "${APP_DIR:-/root/humanify}"
+set -a
+[ -f .env ] && . ./.env
+set +a
+HUMANIFY_STATE_DIR="$STATE_DIR" node scripts/check-humanify-uptime-external.js || true
+REMOTE_STATE
+
 echo "=== [3e2/6] Ensure DEMO partner (sales walkthrough) ==="
 ssh_cmd "APP_DIR='$APP_DIR' bash -s" <<'REMOTE_DEMO' || true
 set -euo pipefail
