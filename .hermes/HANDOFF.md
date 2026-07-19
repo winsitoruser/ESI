@@ -10,7 +10,7 @@
 | w17-2 | Partner lead status triage (`new→contacted→…`) | Done |
 | w17-3 | Action Inbox unsnooze + Batalkan toast | Done |
 | w17-4 | `check:uptime-external` + observability chip (N3) | Done |
-| w17-5 | Soft Playwright partners + deploy | Pending |
+| w17-5 | Soft Playwright partners + deploy | Done |
 
 Scripts: `npm run smoke:wave17` · `npm run check:uptime-external` · `npm run test:e2e:humanify:partners:prod`
 
