@@ -10,7 +10,7 @@
 | w41-2 | Signup Kalkulator ROI soft cue + e2e | Done |
 | w41-3 | Join welcome + humans↔llms soft | Done |
 | w41-4 | `test:e2e:humanify:soft-public` (+ prod) | Done |
-| w41-5 | Deploy + verify | Pending |
+| w41-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave41` · `npm run test:e2e:humanify:soft-public:prod` · `npm run test:e2e:humanify:roi:prod` · `npm run test:e2e:humanify:signup:prod` · `npm run test:e2e:humanify:join:prod`
 
