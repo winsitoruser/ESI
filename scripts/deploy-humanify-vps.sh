@@ -270,6 +270,7 @@ HUMANIFY_STATE_DIR="$STATE_DIR" node scripts/check-humanify-uptime-external.js |
 # Seed scorecard/digest last-run chips (no Discord, no email; scorecard skips IDOR batches)
 HUMANIFY_STATE_DIR="$STATE_DIR" SEED_ONLY=true node scripts/run-humanify-security-scorecard.js || true
 HUMANIFY_STATE_DIR="$STATE_DIR" DRY_RUN=true node scripts/send-humanify-action-inbox-digest.js || true
+HUMANIFY_STATE_DIR="$STATE_DIR" SEED_ONLY=true node scripts/run-humanify-doc-expiry-soft-deactivate.js || true
 REMOTE_STATE
 
 echo "=== [3e2/6] Ensure DEMO partner (sales walkthrough) ==="

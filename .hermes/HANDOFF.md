@@ -1,6 +1,18 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-26** · ROI public · careers global · join soft e2e · state continuity
+> Diperbarui: 19 Juli 2026 — **Wave-27** · verify-email soft · soft-deactivate seed · SEO soft · signup no-ref
+
+## Wave-27 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w27-1 | Soft Playwright verify-email (no + invalid token) | Done |
+| w27-2 | Soft-deactivate `SEED_ONLY` + deploy one-shot | Done |
+| w27-3 | Soft Playwright robots.txt + sitemap.xml | Done |
+| w27-4 | Soft Playwright signup without `?ref` | Done |
+| w27-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:wave27` · `npm run test:e2e:humanify:verify-email:prod` · `npm run test:e2e:humanify:seo-public:prod`
 
 ## Wave-26 (19 Jul 2026)
 

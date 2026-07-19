@@ -15,6 +15,7 @@ const path = require('path');
 
 const APPLY = process.env.APPLY === 'true';
 const TENANT_ID = process.env.TENANT_ID || '';
+const SEED_ONLY = String(process.env.SEED_ONLY || '').toLowerCase() === 'true';
 
 function writeSoftDeactivateLast(summary) {
   const file =
@@ -30,6 +31,18 @@ function writeSoftDeactivateLast(summary) {
 }
 
 async function main() {
+  if (SEED_ONLY) {
+    writeSoftDeactivateLast({
+      at: new Date().toISOString(),
+      expiredActive: 0,
+      updated: 0,
+      dryRun: true,
+      seed: true,
+    });
+    console.log('[soft-deactivate] SEED_ONLY — wrote last-run without DB');
+    process.exit(0);
+  }
+
   let sequelize;
   try {
     sequelize = require('../lib/sequelize');
