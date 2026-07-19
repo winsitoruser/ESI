@@ -269,6 +269,11 @@ export default function EmployeePortalLoginForm({ csrfToken }: Props) {
               </form>
 
               <div className="mt-8 pt-6 border-t border-white/[0.06] space-y-3">
+                <p className="text-center text-xs text-slate-500">
+                  <Link href="/humanify/forgot-password" className="hover:text-indigo-400 transition-colors">
+                    Lupa password?
+                  </Link>
+                </p>
                 <Link
                   href={HUMANIFY_BRAND.loginPath}
                   className="flex items-center justify-between p-3.5 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-indigo-500/20 transition-all group"

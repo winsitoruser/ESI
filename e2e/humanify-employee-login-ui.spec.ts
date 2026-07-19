@@ -27,6 +27,10 @@ test.describe('Humanify employee login UI (soft)', () => {
     await expect(page.locator('body')).toContainText(/Kembali ke beranda|beranda Humanify/i, {
       timeout: 8_000,
     });
+    await expect(page.locator('a[href*="/humanify/forgot-password"]').first()).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(page.locator('body')).toContainText(/Lupa password/i, { timeout: 8_000 });
     // Soft: do not submit
   });
 });

@@ -24,6 +24,10 @@ test.describe('Humanify partners UI (soft)', () => {
     await expect(page.locator('a[href*="/humanify/welcome"]').first()).toBeVisible({ timeout: 10_000 });
     await expect(page.locator('a[href*="/humanify/signup"]').first()).toBeVisible({ timeout: 10_000 });
     await expect(page.locator('body')).toContainText(/Daftar|Jenis mitra/i, { timeout: 10_000 });
+    await expect(page.locator('a[href*="/humanify/pricing/roi-calculator"]').first()).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(page.locator('body')).toContainText(/ROI|kalkulator/i, { timeout: 8_000 });
     await expect(page.locator('select').first()).toBeVisible({ timeout: 10_000 });
     // Soft: do not submit (avoids partner lead / rate-limit burn)
 

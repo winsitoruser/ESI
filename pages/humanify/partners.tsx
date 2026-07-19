@@ -60,6 +60,9 @@ export default function HumanifyPartnersPage() {
             <HumanifyLogo className="h-8 w-auto" />
           </Link>
           <div className="flex items-center gap-3">
+            <Link href={HUMANIFY_BRAND.roiCalculatorPath} className="hidden sm:inline text-sm text-slate-600 font-medium hover:text-violet-700 hover:underline">
+              ROI
+            </Link>
             <Link href={HUMANIFY_BRAND.signupPath} className="text-sm text-slate-600 font-medium hover:text-violet-700 hover:underline">
               Daftar
             </Link>

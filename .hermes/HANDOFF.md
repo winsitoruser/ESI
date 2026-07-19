@@ -1,6 +1,18 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-41** · ROI Daftar · signup ROI · join welcome · soft-public aggregate
+> Diperbarui: 19 Juli 2026 — **Wave-42** · partners ROI · employee lupa · IDOR/hardening aliases
+
+## Wave-42 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w42-1 | Partners header ROI soft cue + e2e | Done |
+| w42-2 | Employee login Lupa password soft + e2e | Done |
+| w42-3 | `smoke:employee-hardening` + `lms-lab-gate` + `idor-*` | Done |
+| w42-4 | Sitemap employee soft assert | Done |
+| w42-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:wave42` · `npm run test:e2e:humanify:partners:prod` · `npm run test:e2e:humanify:employee-login:prod` · `npm run test:e2e:humanify:seo-public:prod` · `npm run smoke:employee-hardening`
 
 ## Wave-41 (19 Jul 2026)
 
