@@ -167,6 +167,7 @@ export default function HRISDashboard() {
   const [mounted, setMounted] = useState(false);
   const [stats, setStats] = useState(USE_MOCK_UI ? MOCK_HRIS_STATS : EMPTY_HRIS_STATS);
   const [pendingApprovals, setPendingApprovals] = useState<any[]>(USE_MOCK_UI ? MOCK_PENDING_APPROVALS : []);
+  const [lastSnoozed, setLastSnoozed] = useState<{ id: string; type: string; title: string } | null>(null);
   const [recentActivities, setRecentActivities] = useState<any[]>(USE_MOCK_UI ? MOCK_RECENT_ACTIVITIES : []);
   const [deptStats, setDeptStats] = useState<any[]>(USE_MOCK_UI ? MOCK_DEPT_STATS : []);
   const [upcoming, setUpcoming] = useState<any[]>(USE_MOCK_UI ? MOCK_UPCOMING : []);
@@ -415,7 +416,7 @@ export default function HRISDashboard() {
     }
   }
 
-  async function handleSnooze(item: { id: string; type?: string }) {
+  async function handleSnooze(item: { id: string; type?: string; title?: string }) {
     try {
       const res = await fetch('/api/humanify/action-inbox-snooze', {
         method: 'POST',
@@ -425,9 +426,32 @@ export default function HRISDashboard() {
       const data = await res.json();
       if (data.success || res.ok) {
         setPendingApprovals((prev) => prev.filter((p) => p.id !== item.id));
+        setLastSnoozed({ id: item.id, type: item.type || 'leave', title: item.title || 'Item' });
       }
     } catch (err) {
       console.warn('Snooze failed:', err);
+    }
+  }
+
+  async function handleUnsnooze() {
+    if (!lastSnoozed) return;
+    try {
+      const res = await fetch('/api/humanify/action-inbox-snooze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'unsnooze',
+          itemType: lastSnoozed.type,
+          itemId: lastSnoozed.id,
+        }),
+      });
+      const data = await res.json();
+      if (data.success || res.ok) {
+        setLastSnoozed(null);
+        fetchDashboardData();
+      }
+    } catch (err) {
+      console.warn('Unsnooze failed:', err);
     }
   }
 
@@ -616,6 +640,14 @@ export default function HRISDashboard() {
               </div>
               <Link href="/humanify/mss" className="text-xs text-violet-600 hover:underline flex items-center gap-1">{t('hris.viewAll')} <ArrowRight className="w-3 h-3" /></Link>
             </div>
+            {lastSnoozed && (
+              <div className="mx-4 mt-3 flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                <span className="truncate">Ditunda 24 jam: {lastSnoozed.title}</span>
+                <button type="button" onClick={handleUnsnooze} className="shrink-0 font-semibold text-violet-700 hover:underline">
+                  Batalkan
+                </button>
+              </div>
+            )}
             <div className="divide-y max-h-80 overflow-y-auto">
               {pendingApprovals.length === 0 && (
                 <p className="px-5 py-8 text-center text-sm text-slate-400">Tidak ada aksi tertunda</p>

@@ -42,17 +42,58 @@ export async function resolvePartnerByCode(codeRaw: string): Promise<{
   id: string;
   code: string;
   name: string;
+  commission_pct?: number;
 } | null> {
   if (!sequelize) return null;
   const code = normalizePartnerCode(codeRaw);
   if (!code) return null;
   await ensurePartnersTable();
   const [rows] = await sequelize.query(`
-    SELECT id, code, name FROM saas_partners
+    SELECT id, code, name, commission_pct FROM saas_partners
     WHERE code = :code AND status = 'active'
     LIMIT 1
   `, { replacements: { code } });
   return rows?.[0] || null;
+}
+
+/** Pure calc — preview only; no payout / Midtrans. */
+export function estimatePartnerCommission(amountIdr: number, commissionPct: number): {
+  amountIdr: number;
+  commissionPct: number;
+  commissionIdr: number;
+} {
+  const pct = Math.max(0, Math.min(100, Number(commissionPct) || 0));
+  const amount = Math.max(0, Math.round(Number(amountIdr) || 0));
+  return {
+    amountIdr: amount,
+    commissionPct: pct,
+    commissionIdr: Math.round((amount * pct) / 100),
+  };
+}
+
+export async function previewPartnerCommission(opts: {
+  partnerCode: string;
+  amountIdr: number;
+}): Promise<{
+  partner: { id: string; code: string; name: string; commissionPct: number } | null;
+  estimate: ReturnType<typeof estimatePartnerCommission> | null;
+  error?: string;
+}> {
+  const partner = await resolvePartnerByCode(opts.partnerCode);
+  if (!partner) {
+    return { partner: null, estimate: null, error: 'Partner tidak ditemukan' };
+  }
+  const pct = Number(partner.commission_pct ?? 10);
+  const estimate = estimatePartnerCommission(opts.amountIdr, pct);
+  return {
+    partner: {
+      id: partner.id,
+      code: partner.code,
+      name: partner.name,
+      commissionPct: pct,
+    },
+    estimate,
+  };
 }
 
 export async function listPartners() {

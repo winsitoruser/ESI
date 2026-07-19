@@ -307,12 +307,18 @@ export default function PlatformDashboardPage() {
               <li key={p.id} className="py-1.5 flex justify-between gap-2">
                 <span>
                   <code className="bg-slate-100 px-1 rounded">{p.code}</code> · {p.name}
+                  {p.commission_pct != null && (
+                    <span className="text-slate-400"> · {Number(p.commission_pct)}%</span>
+                  )}
                 </span>
                 <span className="text-slate-400">{p.tenant_count || 0} tenants · signup ?ref={p.code}</span>
               </li>
             ))}
             {!partners.length && <li className="py-1 text-slate-400">Belum ada partner.</li>}
           </ul>
+          <p className="text-[11px] text-slate-400">
+            Preview komisi: GET /api/platform?action=commission-preview&amp;partnerCode=CODE&amp;amountIdr=1000000 (calc only — bukan payout)
+          </p>
         </div>
 
         <div className="bg-white border rounded-xl p-4 space-y-3">
@@ -322,9 +328,9 @@ export default function PlatformDashboardPage() {
               /humanify/partners
             </a>
           </div>
-          <ul className="text-xs text-slate-600 divide-y max-h-40 overflow-y-auto">
+          <ul className="text-xs text-slate-600 divide-y max-h-48 overflow-y-auto">
             {partnerLeads.map((lead) => (
-              <li key={lead.id} className="py-1.5 space-y-0.5">
+              <li key={lead.id} className="py-1.5 space-y-1">
                 <div className="flex justify-between gap-2">
                   <span className="font-medium text-slate-800">{lead.company_name}</span>
                   <span className="text-slate-400 shrink-0">
@@ -336,6 +342,39 @@ export default function PlatformDashboardPage() {
                   {lead.partner_type ? ` · ${lead.partner_type}` : ''}
                   {lead.region ? ` · ${lead.region}` : ''}
                 </p>
+                <div className="flex flex-wrap items-center gap-1">
+                  <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">{lead.status || 'new'}</span>
+                  {(['new', 'contacted', 'qualified', 'closed'] as const)
+                    .filter((s) => s !== (lead.status || 'new'))
+                    .map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        disabled={acting === `lead-${lead.id}`}
+                        onClick={async () => {
+                          setActing(`lead-${lead.id}`);
+                          try {
+                            const r = await fetch('/api/platform?action=partner-lead-status', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ id: lead.id, status: s }),
+                            });
+                            const j = await r.json();
+                            if (j.success) {
+                              setPartnerLeads((prev) =>
+                                prev.map((x) => (x.id === lead.id ? { ...x, status: s } : x)),
+                              );
+                            } else setToast(j.error || 'Gagal update lead');
+                          } finally {
+                            setActing(null);
+                          }
+                        }}
+                        className="px-1.5 py-0.5 rounded border text-[10px] text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
+                      >
+                        → {s}
+                      </button>
+                    ))}
+                </div>
               </li>
             ))}
             {!partnerLeads.length && <li className="py-1 text-slate-400">Belum ada lead dari form partner.</li>}

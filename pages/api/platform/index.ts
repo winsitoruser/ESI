@@ -1,8 +1,8 @@
 /**
  * Platform Control Plane API — Humanify SaaS ops
- * GET   ?action=overview|tenants|tenant|tenant-detail|billing-orders|expiring-trials|partners|partner-leads
+ * GET   ?action=overview|tenants|tenant|tenant-detail|billing-orders|expiring-trials|partners|partner-leads|commission-preview
  * PATCH ?action=tenant-status|tenant-plan
- * POST  ?action=dunning-scan|partner-create|cleanup-qa|archive-qa|impersonate|end-impersonate
+ * POST  ?action=dunning-scan|partner-create|partner-lead-status|cleanup-qa|archive-qa|impersonate|end-impersonate
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
@@ -22,10 +22,11 @@ import {
   cleanupQaTenants,
   createPartner,
   listPartners,
+  previewPartnerCommission,
   QA_TENANT_SLUG_REGEX,
 } from '@/lib/saas/partners';
 import { parseTenantSettings } from '@/lib/saas/tenant-schema';
-import { listPartnerLeads } from '@/lib/hris/partner-leads';
+import { listPartnerLeads, updatePartnerLeadStatus } from '@/lib/hris/partner-leads';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch {}
@@ -335,7 +336,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (req.method === 'GET' && action === 'partner-leads') {
       const limit = Number(req.query.limit) || 50;
-      const data = await listPartnerLeads({ limit });
+      const status = req.query.status ? String(req.query.status) : undefined;
+      const data = await listPartnerLeads({ limit, status });
+      return res.json({ success: true, data });
+    }
+
+    if (req.method === 'GET' && action === 'commission-preview') {
+      const partnerCode = String(req.query.partnerCode || req.query.code || '');
+      const amountIdr = Number(req.query.amountIdr || req.query.amount || 0);
+      const data = await previewPartnerCommission({ partnerCode, amountIdr });
+      if (data.error) return res.status(404).json({ success: false, error: data.error, data });
       return res.json({ success: true, data });
     }
 
@@ -348,6 +358,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         notes: req.body?.notes,
       });
       return res.status(201).json({ success: true, data: created });
+    }
+
+    if (req.method === 'POST' && action === 'partner-lead-status') {
+      const id = String(req.body?.id || '');
+      const status = String(req.body?.status || '');
+      if (!id || !status) {
+        return res.status(400).json({ success: false, error: 'id and status required' });
+      }
+      const result = await updatePartnerLeadStatus({ id, status });
+      if (!result.ok) return res.status(404).json({ success: false, error: 'Lead not found' });
+      return res.json({ success: true, data: result });
     }
 
     if (req.method === 'POST' && action === 'cleanup-qa') {

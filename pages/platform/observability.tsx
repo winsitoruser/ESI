@@ -172,6 +172,9 @@ export default function PlatformObservabilityPage() {
             <div className="flex items-center gap-2 text-xs text-slate-500 mb-1"><Clock className="w-3.5 h-3.5 text-indigo-600" /> Uptime</div>
             <p className="text-lg font-bold text-slate-800">{fmtUptime(obs?.uptimeSec)}</p>
             <p className="text-[11px] text-slate-400 mt-1">PID {obs?.pid ?? '—'} · Node {obs?.node ?? '—'}</p>
+            <p className={`text-[11px] mt-1 ${obs?.externalUptime?.configured ? 'text-emerald-700' : 'text-amber-700'}`}>
+              External: {obs?.externalUptime?.configured ? 'API key set' : 'manual checklist'}
+            </p>
           </div>
           <div className="bg-white border rounded-xl p-4">
             <div className="flex items-center gap-2 text-xs text-slate-500 mb-1"><Cpu className="w-3.5 h-3.5 text-amber-600" /> Memory (RSS)</div>

@@ -42,10 +42,20 @@ cd /root/humanify && node scripts/probe-humanify-smtp.js
 
 ## Observability UI
 
-`https://humanify.id/platform/observability` — banner email/webhook on|off.
+`https://humanify.id/platform/observability` — banner email/webhook on|off · chip **External uptime** (API key set / manual).
+
+## External uptime (N3)
+
+```bash
+npm run check:uptime-external
+# With key:
+UPTIMEROBOT_API_KEY=… npm run check:uptime-external
+UPTIMEROBOT_API_KEY=… bash scripts/register-humanify-uptime-external.sh
+```
 
 ## Related
 
 - `scripts/ensure-humanify-obs-alerts.sh`
 - `scripts/check-humanify-obs-alerts.js`
+- `scripts/check-humanify-uptime-external.js`
 - `docs/humanify-sso-idp-runbook.md`

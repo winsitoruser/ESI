@@ -99,3 +99,31 @@ export async function listActiveSnoozeKeys(opts: {
   }
   return out;
 }
+
+/** Clear snooze so item returns to Action Inbox. */
+export async function clearInboxSnooze(opts: {
+  tenantId: string;
+  itemKey: string;
+  db?: any;
+}): Promise<{ ok: boolean; cleared: boolean }> {
+  const seq = opts.db || sequelize;
+  if (!seq || !opts.tenantId || !opts.itemKey) return { ok: false, cleared: false };
+  await ensureActionInboxSnoozeTable(seq);
+  try {
+    const [, meta] = await seq.query(
+      `DELETE FROM hris_action_inbox_snoozes
+       WHERE tenant_id = :tid AND item_key = :key`,
+      {
+        replacements: {
+          tid: opts.tenantId,
+          key: String(opts.itemKey).slice(0, 200),
+        },
+      },
+    );
+    const cleared = Number((meta as any)?.rowCount ?? 0) > 0;
+    return { ok: true, cleared };
+  } catch (e: any) {
+    console.warn('[action-inbox-snooze] clear:', e?.message || e);
+    return { ok: false, cleared: false };
+  }
+}

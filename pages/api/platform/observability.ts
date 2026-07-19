@@ -23,5 +23,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   res.setHeader('Cache-Control', 'no-store, max-age=0');
   const data = await getObservabilitySnapshotAsync();
-  return res.json({ success: true, data });
+  return res.json({
+    success: true,
+    data: {
+      ...data,
+      externalUptime: {
+        uptimeRobotKey: Boolean(process.env.UPTIMEROBOT_API_KEY?.trim()),
+        betterStackToken: Boolean(process.env.BETTERSTACK_TOKEN?.trim()),
+        configured: Boolean(
+          process.env.UPTIMEROBOT_API_KEY?.trim() || process.env.BETTERSTACK_TOKEN?.trim(),
+        ),
+        healthUrl: 'https://humanify.id/api/health?deep=1',
+      },
+    },
+  });
 }

@@ -32,13 +32,27 @@ export async function ensurePartnerLeadsTable(db?: any): Promise<boolean> {
         region VARCHAR(120),
         message TEXT,
         source VARCHAR(80) DEFAULT 'web',
+        status VARCHAR(32) NOT NULL DEFAULT 'new',
         meta JSONB DEFAULT '{}'::jsonb,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
+    `);
+    await seq.query(`
+      ALTER TABLE humanify_partner_leads
+      ADD COLUMN IF NOT EXISTS status VARCHAR(32) NOT NULL DEFAULT 'new'
+    `);
+    await seq.query(`
+      ALTER TABLE humanify_partner_leads
+      ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     `);
     await seq.query(`
       CREATE INDEX IF NOT EXISTS idx_partner_leads_created
       ON humanify_partner_leads (created_at DESC)
+    `);
+    await seq.query(`
+      CREATE INDEX IF NOT EXISTS idx_partner_leads_status
+      ON humanify_partner_leads (status, created_at DESC)
     `);
     ready = true;
     return true;
@@ -112,21 +126,56 @@ export async function createPartnerLead(opts: {
   return { id };
 }
 
+export const PARTNER_LEAD_STATUSES = ['new', 'contacted', 'qualified', 'closed'] as const;
+export type PartnerLeadStatus = (typeof PARTNER_LEAD_STATUSES)[number];
+
+export function normalizePartnerLeadStatus(raw: unknown): PartnerLeadStatus {
+  const s = String(raw || 'new').trim().toLowerCase();
+  return (PARTNER_LEAD_STATUSES as readonly string[]).includes(s)
+    ? (s as PartnerLeadStatus)
+    : 'new';
+}
+
 export async function listPartnerLeads(opts?: {
   limit?: number;
+  status?: string;
   db?: any;
 }): Promise<Array<Record<string, unknown>>> {
   const seq = opts?.db || sequelize;
   if (!seq) return [];
   await ensurePartnerLeadsTable(seq);
   const limit = Math.min(100, Math.max(1, Number(opts?.limit) || 50));
+  const statusFilter = opts?.status && opts.status !== 'all'
+    ? normalizePartnerLeadStatus(opts.status)
+    : null;
   const [rows] = await seq.query(
     `SELECT id, company_name, contact_name, email, phone, partner_type, region,
-            LEFT(COALESCE(message,''), 200) AS message_preview, source, created_at
+            LEFT(COALESCE(message,''), 200) AS message_preview, source, status, created_at, updated_at
      FROM humanify_partner_leads
+     WHERE (:status::text IS NULL OR status = :status)
      ORDER BY created_at DESC
      LIMIT :limit`,
-    { replacements: { limit } },
+    { replacements: { limit, status: statusFilter } },
   );
   return (rows || []) as Array<Record<string, unknown>>;
+}
+
+export async function updatePartnerLeadStatus(opts: {
+  id: string;
+  status: string;
+  db?: any;
+}): Promise<{ ok: boolean; status?: PartnerLeadStatus }> {
+  const seq = opts.db || sequelize;
+  if (!seq || !opts.id) return { ok: false };
+  await ensurePartnerLeadsTable(seq);
+  const status = normalizePartnerLeadStatus(opts.status);
+  const [rows] = await seq.query(
+    `UPDATE humanify_partner_leads
+     SET status = :status, updated_at = NOW()
+     WHERE id = :id
+     RETURNING id, status`,
+    { replacements: { id: opts.id, status } },
+  );
+  if (!rows?.[0]) return { ok: false };
+  return { ok: true, status };
 }

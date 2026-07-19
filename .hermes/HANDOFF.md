@@ -1,6 +1,18 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-16** · S3 docs GA · partner lead inbox · policy publish · RLS lab smoke
+> Diperbarui: 19 Juli 2026 — **Wave-17** · commission calc · lead triage · unsnooze · uptime check · partners e2e
+
+## Wave-17 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w17-1 | Partner commission calc stub + `commission-preview` | Done |
+| w17-2 | Partner lead status triage (`new→contacted→…`) | Done |
+| w17-3 | Action Inbox unsnooze + Batalkan toast | Done |
+| w17-4 | `check:uptime-external` + observability chip (N3) | Done |
+| w17-5 | Soft Playwright partners + deploy | Pending |
+
+Scripts: `npm run smoke:wave17` · `npm run check:uptime-external` · `npm run test:e2e:humanify:partners:prod`
 
 ## Wave-16 (19 Jul 2026)
 
@@ -233,7 +245,7 @@ Suite: `npm run qa:humanify-full` (`scripts/run-humanify-full-qa.sh`)
 |---|---|---|
 | N4 | Ops alerts | `docs/humanify-ops-alerts.md` · set/probe webhook · SMTP probe · SumoPod Verify = manual dashboard |
 | N5 | HrisEmptyState | 12 halaman USE_MOCK_UI diadopsi |
-| N3 | Uptime eksternal | `register-humanify-uptime-external.sh` (UptimeRobot API jika key) |
+| N3 | Uptime eksternal | `check:uptime-external` + register script (UptimeRobot API jika key) |
 | N2 | Payroll fiscal | `lib/hris/pph21-calc.ts` + `smoke:payroll-fiscal` golden PTKP/PPh21 |
 | N1 | SSO IdP | `smoke:sso-idp-checklist` + runbook; customer IdP tetap butuh kredensial |
 

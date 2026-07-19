@@ -88,7 +88,9 @@ jobs:
           npm run smoke:wave14
           npm run smoke:wave15
           npm run smoke:wave16
+          npm run smoke:wave17
           npm run smoke:rls-lab
+          npm run check:uptime-external
           npm run smoke:mock-audit
           SMOKE_ALLOW_MISSING_BACKUP=true npm run check:backup-freshness
           test -f lib/saas/tenant-request-bound.ts
@@ -102,6 +104,8 @@ jobs:
           test -f lib/hris/document-compliance-summary.ts
           test -f lib/hris/attendance-bulk-correct.ts
           test -f lib/hris/partner-leads.ts
+          test -f e2e/humanify-partners-ui.spec.ts
+          test -f scripts/check-humanify-uptime-external.js
           test -f docs/humanify-ga-scope.md
           test -f docs/humanify-rls-strict-staging.md
           test -f docs/humanify-doc-retention.md
