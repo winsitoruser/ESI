@@ -10,7 +10,7 @@
 | w14-2 | `check:backup-freshness` + runbook checklist | Done |
 | w14-3 | `docs/humanify-partner-channel.md` + blurb Billing | Done |
 | w14-4 | `safeQueryWithSavepoint` pada query absensi harian | Done |
-| w14-5 | Deploy + verify | Pending |
+| w14-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave14` · `npm run check:backup-freshness`
 
