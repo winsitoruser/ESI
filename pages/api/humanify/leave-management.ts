@@ -3,6 +3,7 @@ import { withHQAuth } from '../../../lib/middleware/withHQAuth';
 import { allowHrMockFallback } from '../../../lib/hris/data-source';
 import { withObservability } from '@/lib/observability';
 import { ensureTenantDbContext } from '@/lib/saas/ensure-tenant-db-context';
+import { resolveLeaveApproverId } from '@/lib/hris/leave-request-service';
 
 let sequelize: any, Op: any;
 try {
@@ -430,18 +431,38 @@ async function getPendingApprovals(req: NextApiRequest, res: NextApiResponse, se
     if (!sequelize) return res.json({ success: true, data: [] });
     if (!tenantId) return res.json({ success: true, data: [] });
 
-    const replacements: any = { tenantId };
+    const scope = String(req.query.scope || 'all'); // all | me
+    const userId = session?.user?.id;
+    let myEmpId: string | null = null;
+    if (userId) {
+      const [empRows] = await sequelize.query(
+        `SELECT id::text AS id FROM employees
+         WHERE tenant_id = :tenantId
+           AND (user_id::text = :userId OR email = :email)
+         LIMIT 1`,
+        { replacements: { tenantId, userId: String(userId), email: session?.user?.email || '' } },
+      );
+      myEmpId = empRows?.[0]?.id || null;
+    }
+
+    const scopeMe = scope === 'me' && myEmpId;
+    const replacements: any = { tenantId, myEmpId: myEmpId || null };
 
     const [rows] = await sequelize.query(`
       SELECT las.*, lr.employee_id, lr.leave_type, lr.start_date, lr.end_date, lr.total_days,
-             lr.reason, lr.status as request_status, e.name as employee_name, e.position, e.department
+             lr.reason, lr.attachment_url, lr.status as request_status, e.name as employee_name, e.position, e.department
       FROM leave_approval_steps las
       JOIN leave_requests lr ON las.leave_request_id = lr.id
       LEFT JOIN employees e ON lr.employee_id = e.id
       WHERE las.status = 'pending' AND lr.status = 'pending' AND lr.tenant_id = :tenantId
+        ${scopeMe ? `AND (
+          las.approver_id::text = :myEmpId
+          OR (UPPER(COALESCE(las.approver_role,'')) IN ('SUPERVISOR','MANAGER','DIRECT_MANAGER','ATASAN')
+              AND e.supervisor_id::text = :myEmpId)
+        )` : ''}
       ORDER BY las.created_at ASC
     `, { replacements });
-    return res.json({ success: true, data: rows || [] });
+    return res.json({ success: true, data: rows || [], scope: scopeMe ? 'me' : 'all', myEmpId });
   } catch (e: any) {
     return res.json({ success: true, data: [] });
   }
@@ -491,7 +512,7 @@ async function createLeaveRequest(req: NextApiRequest, res: NextApiResponse, ses
     // Get employee info
     if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
     const [empRows] = await sequelize.query(
-      `SELECT id, name, department, branch_id, position FROM employees WHERE id = :empId AND tenant_id = :tid LIMIT 1`,
+      `SELECT id, name, department, branch_id, position, supervisor_id FROM employees WHERE id = :empId AND tenant_id = :tid LIMIT 1`,
       { replacements: { empId: employeeId || session.user.id, tid: tenantId } }
     );
     employee = empRows?.[0];
@@ -551,14 +572,16 @@ async function createLeaveRequest(req: NextApiRequest, res: NextApiResponse, ses
     // Create approval steps
     if (!autoApprove && approvalLevels.length > 0 && leaveRequest) {
       for (const level of approvalLevels) {
+        const approverId = await resolveLeaveApproverId(employee.id || employeeId || session.user.id, level.role);
         await sequelize.query(`
-          INSERT INTO leave_approval_steps (id, leave_request_id, step_order, approver_role, status, created_at, updated_at)
-          VALUES (uuid_generate_v4(), :requestId, :stepOrder, :role, :status, NOW(), NOW())
+          INSERT INTO leave_approval_steps (id, leave_request_id, step_order, approver_role, approver_id, status, created_at, updated_at)
+          VALUES (uuid_generate_v4(), :requestId, :stepOrder, :role, :approverId, :status, NOW(), NOW())
         `, {
           replacements: {
             requestId: leaveRequest.id,
             stepOrder: level.level,
             role: level.role,
+            approverId,
             status: level.level === 1 ? 'pending' : 'waiting'
           }
         });
@@ -613,6 +636,41 @@ async function approveStep(req: NextApiRequest, res: NextApiResponse, session: a
     );
     if (!(owned as any[])?.length) {
       return res.status(404).json({ success: false, error: 'Pengajuan cuti tidak ditemukan' });
+    }
+
+    const role = String(session.user?.role || '').toLowerCase();
+    const isHrAdmin = ['super_admin', 'hq_admin', 'admin', 'hr_staff', 'hris_staff', 'hr'].includes(role);
+    if (!isHrAdmin) {
+      const [empRows] = await sequelize.query(
+        `SELECT id::text AS id FROM employees
+         WHERE tenant_id = :tenantId AND (user_id::text = :userId OR email = :email) LIMIT 1`,
+        { replacements: { tenantId, userId: String(session.user?.id || ''), email: session.user?.email || '' } },
+      );
+      const myEmpId = empRows?.[0]?.id || null;
+      if (!myEmpId) {
+        return res.status(403).json({ success: false, error: 'Profil karyawan approver tidak ditemukan' });
+      }
+      const [stepRows] = await sequelize.query(
+        `SELECT las.id, las.approver_id::text AS approver_id, las.approver_role, e.supervisor_id::text AS supervisor_id
+         FROM leave_approval_steps las
+         JOIN leave_requests lr ON las.leave_request_id = lr.id
+         LEFT JOIN employees e ON lr.employee_id = e.id
+         WHERE las.leave_request_id = :requestId AND las.status = 'pending'
+           AND lr.tenant_id = :tenantId
+           ${stepId ? 'AND las.id = :stepId' : ''}
+         ORDER BY las.step_order ASC LIMIT 1`,
+        { replacements: { requestId, tenantId, stepId: stepId || null } },
+      );
+      const step = stepRows?.[0];
+      if (!step) {
+        return res.status(404).json({ success: false, error: 'Langkah persetujuan tidak ditemukan' });
+      }
+      const assigned = step.approver_id && step.approver_id === myEmpId;
+      const viaSupervisor = ['SUPERVISOR', 'MANAGER', 'DIRECT_MANAGER', 'ATASAN'].includes(String(step.approver_role || '').toUpperCase())
+        && step.supervisor_id === myEmpId;
+      if (!assigned && !viaSupervisor) {
+        return res.status(403).json({ success: false, error: 'Anda bukan approver untuk langkah ini' });
+      }
     }
 
     // Update the current step (schema: acted_at, no approver_name/action_date)

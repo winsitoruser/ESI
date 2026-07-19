@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import HQLayout from '@/components/hq/HQLayout';
+import HumanifyLayout from '@/components/humanify/HumanifyLayout';
 import {
   ArrowLeft, Activity, Database, Cpu, Clock, RefreshCw, Loader2,
   AlertTriangle, CheckCircle2, XCircle,
@@ -95,10 +95,10 @@ export default function PlatformObservabilityPage() {
   };
 
   return (
-    <HQLayout title="Observability" subtitle="Process health, memory & recent errors" platform="humanify">
+    <HumanifyLayout title="Observability" subtitle="Process health, memory & recent errors" >
       <div className="space-y-6">
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <Link href="/platform" className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:underline">
+          <Link href="/platform" className="inline-flex items-center gap-1 text-sm text-[color:var(--hf-brand-600)] hover:underline">
             <ArrowLeft className="w-4 h-4" /> Kembali ke Platform
           </Link>
           <div className="flex items-center gap-3 text-xs text-slate-400">
@@ -112,7 +112,7 @@ export default function PlatformObservabilityPage() {
             </button>
             <Link
               href="/platform/email-preview"
-              className="flex items-center gap-2 text-sm px-3 py-2 border rounded-lg hover:bg-violet-50 text-violet-800 border-violet-200"
+              className="flex items-center gap-2 text-sm px-3 py-2 border rounded-lg hover:bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)] border-[var(--hf-brand-100)]"
             >
               Preview email
             </Link>
@@ -169,7 +169,7 @@ export default function PlatformObservabilityPage() {
             </p>
           </div>
           <div className="bg-white border rounded-xl p-4">
-            <div className="flex items-center gap-2 text-xs text-slate-500 mb-1"><Clock className="w-3.5 h-3.5 text-indigo-600" /> Uptime</div>
+            <div className="flex items-center gap-2 text-xs text-slate-500 mb-1"><Clock className="w-3.5 h-3.5 text-[color:var(--hf-brand-600)]" /> Uptime</div>
             <p className="text-lg font-bold text-slate-800">{fmtUptime(obs?.uptimeSec)}</p>
             <p className="text-[11px] text-slate-400 mt-1">PID {obs?.pid ?? '—'} · Node {obs?.node ?? '—'}</p>
             <p className={`text-[11px] mt-1 ${obs?.externalUptime?.configured ? 'text-emerald-700' : 'text-amber-700'}`}>
@@ -211,7 +211,7 @@ export default function PlatformObservabilityPage() {
             </p>
           </div>
           <div className="bg-white border rounded-xl p-4">
-            <div className="flex items-center gap-2 text-xs text-slate-500 mb-1"><Database className="w-3.5 h-3.5 text-indigo-600" /> RLS</div>
+            <div className="flex items-center gap-2 text-xs text-slate-500 mb-1"><Database className="w-3.5 h-3.5 text-[color:var(--hf-brand-600)]" /> RLS</div>
             <p className="text-lg font-bold text-slate-800">
               {obs?.rlsMode === 'strict' ? 'Strict' : 'Soft'}
               {obs?.rlsRequestBound ? ' + bound' : ''}
@@ -446,6 +446,6 @@ export default function PlatformObservabilityPage() {
           </table>
         </div>
       </div>
-    </HQLayout>
+    </HumanifyLayout>
   );
 }

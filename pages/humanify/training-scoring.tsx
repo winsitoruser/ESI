@@ -19,7 +19,7 @@ const COMP_CATEGORIES: Record<string, string> = {
 };
 
 const GRADE_COLORS: Record<string, string> = {
-  A: 'bg-green-100 text-green-700', B: 'bg-violet-100 text-violet-700',
+  A: 'bg-green-100 text-green-700', B: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]',
   C: 'bg-yellow-100 text-yellow-700', D: 'bg-orange-100 text-orange-700',
   E: 'bg-red-100 text-red-700',
 };
@@ -206,13 +206,13 @@ export default function TrainingScoringPage() {
           {tabs.map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className={`px-3 py-2.5 text-sm font-medium border-b-2 flex items-center gap-1.5 transition whitespace-nowrap ${
-                tab === t.key ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                tab === t.key ? 'border-[var(--hf-brand-600)] text-[color:var(--hf-brand-600)]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
               <t.icon className="w-4 h-4" /> {t.label}
             </button>
           ))}
         </div>
 
-        {loading && <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-indigo-600" /><span className="ml-2 text-sm text-gray-500">Memuat...</span></div>}
+        {loading && <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-[color:var(--hf-brand-600)]" /><span className="ml-2 text-sm text-gray-500">Memuat...</span></div>}
 
         {/* ═══════════════════════════════ */}
         {/* CONFIGS TAB */}
@@ -222,7 +222,7 @@ export default function TrainingScoringPage() {
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-bold">Konfigurasi Bobot & Skala Penilaian</h2>
               <button onClick={() => { setForm({ weight_exam: 40, weight_attendance: 15, weight_practical: 25, weight_assignment: 10, weight_attitude: 10, passing_score: 70, min_attendance_rate: 80, max_remedial_attempts: 2, remedial_passing_score: 70 }); setShowModal('create-config'); }}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700"><Plus className="w-4 h-4" /> Buat Konfigurasi</button>
+                className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]"><Plus className="w-4 h-4" /> Buat Konfigurasi</button>
             </div>
 
             <div className="grid md:grid-cols-2 gap-4">
@@ -233,13 +233,13 @@ export default function TrainingScoringPage() {
                       <h3 className="font-semibold text-gray-900">{c.config_name}</h3>
                       <p className="text-xs text-gray-500">{c.curriculum_title || 'Default (Semua Kurikulum)'}</p>
                     </div>
-                    {c.is_default && <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">Default</span>}
+                    {c.is_default && <span className="text-xs bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)] px-2 py-0.5 rounded-full">Default</span>}
                   </div>
 
                   {/* Weight Bars */}
                   <div className="space-y-1.5 mb-3">
-                    <WeightBar label="Ujian" value={c.weight_exam} color="bg-indigo-500" />
-                    <WeightBar label="Kehadiran" value={c.weight_attendance} color="bg-violet-500" />
+                    <WeightBar label="Ujian" value={c.weight_exam} color="bg-[var(--hf-brand-500)]" />
+                    <WeightBar label="Kehadiran" value={c.weight_attendance} color="bg-[var(--hf-brand-500)]" />
                     <WeightBar label="Praktik" value={c.weight_practical} color="bg-purple-500" />
                     <WeightBar label="Tugas" value={c.weight_assignment} color="bg-teal-500" />
                     <WeightBar label="Sikap" value={c.weight_attitude} color="bg-orange-500" />
@@ -287,7 +287,7 @@ export default function TrainingScoringPage() {
                 </select>
               </div>
               <button onClick={handleCalculateScores} disabled={saving || !selectedBatch || !selectedConfig}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2 whitespace-nowrap">
+                className="px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)] disabled:opacity-50 flex items-center gap-2 whitespace-nowrap">
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calculator className="w-4 h-4" />} Hitung Skor
               </button>
             </div>
@@ -295,7 +295,7 @@ export default function TrainingScoringPage() {
             {/* Summary */}
             {scoreSummary?.summary && selectedBatch && (
               <div className="bg-white border rounded-xl p-5">
-                <h3 className="font-semibold mb-3 flex items-center gap-2"><TrendingUp className="w-5 h-5 text-indigo-600" /> Ringkasan Batch</h3>
+                <h3 className="font-semibold mb-3 flex items-center gap-2"><TrendingUp className="w-5 h-5 text-[color:var(--hf-brand-600)]" /> Ringkasan Batch</h3>
                 <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-4">
                   <MiniStat label="Total" value={scoreSummary.summary.total_participants} />
                   <MiniStat label="Lulus" value={scoreSummary.summary.passed} color="text-green-600" />
@@ -369,7 +369,7 @@ export default function TrainingScoringPage() {
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-bold">Kompetensi Penilaian</h2>
               <button onClick={() => { setForm({ passing_level: 3, weight: 1, category: 'technical' }); setShowModal('create-competency'); }}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700"><Plus className="w-4 h-4" /> Tambah Kompetensi</button>
+                className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]"><Plus className="w-4 h-4" /> Tambah Kompetensi</button>
             </div>
             <div className="bg-white border rounded-xl overflow-hidden">
               <table className="w-full text-sm">
@@ -385,7 +385,7 @@ export default function TrainingScoringPage() {
                 <tbody className="divide-y">
                   {competencies.map(c => (
                     <tr key={c.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-mono text-indigo-600 text-xs">{c.code}</td>
+                      <td className="px-4 py-3 font-mono text-[color:var(--hf-brand-600)] text-xs">{c.code}</td>
                       <td className="px-4 py-3"><p className="font-medium">{c.name}</p><p className="text-xs text-gray-400">{c.description}</p></td>
                       <td className="px-4 py-3 text-xs text-gray-500">{c.curriculum_title || '-'}</td>
                       <td className="px-4 py-3 text-center"><span className="text-xs bg-gray-100 px-2 py-0.5 rounded">{COMP_CATEGORIES[c.category] || c.category}</span></td>
@@ -415,7 +415,7 @@ export default function TrainingScoringPage() {
                   className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm" />
               </div>
               <button onClick={() => { setForm({}); setShowModal('create-candidate'); }}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700"><UserPlus className="w-4 h-4" /> Buat Akun Kandidat</button>
+                className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]"><UserPlus className="w-4 h-4" /> Buat Akun Kandidat</button>
             </div>
             <div className="bg-white border rounded-xl overflow-hidden">
               <table className="w-full text-sm">
@@ -460,8 +460,8 @@ export default function TrainingScoringPage() {
                 options={curricula.map(c => [c.id, `${c.code} - ${c.title}`])} placeholder="Default (semua kurikulum)" />
               <FField label="KKM (Passing Score)" type="number" value={form.passing_score || '70'} onChange={v => setForm({...form, passing_score: Number(v)})} />
 
-              <div className="p-4 bg-indigo-50 rounded-xl">
-                <h4 className="font-semibold text-sm text-indigo-900 mb-3">Bobot Penilaian (Total harus = 100%)</h4>
+              <div className="p-4 bg-[var(--hf-brand-50)] rounded-xl">
+                <h4 className="font-semibold text-sm text-[color:var(--hf-brand-600)] mb-3">Bobot Penilaian (Total harus = 100%)</h4>
                 <div className="space-y-2">
                   <WeightInput label="Ujian" value={form.weight_exam} onChange={v => setForm({...form, weight_exam: Number(v)})} color="indigo" />
                   <WeightInput label="Kehadiran" value={form.weight_attendance} onChange={v => setForm({...form, weight_attendance: Number(v)})} color="blue" />
@@ -498,11 +498,11 @@ export default function TrainingScoringPage() {
               <h3 className="text-lg font-bold">{selectedItem.config_name}</h3>
               <p className="text-sm text-gray-500">{selectedItem.curriculum_title || 'Default'}</p>
 
-              <div className="bg-indigo-50 rounded-xl p-4">
-                <h4 className="text-sm font-semibold text-indigo-900 mb-2">Bobot Penilaian</h4>
+              <div className="bg-[var(--hf-brand-50)] rounded-xl p-4">
+                <h4 className="text-sm font-semibold text-[color:var(--hf-brand-600)] mb-2">Bobot Penilaian</h4>
                 <div className="space-y-2">
-                  <WeightBar label="Ujian" value={selectedItem.weight_exam} color="bg-indigo-500" />
-                  <WeightBar label="Kehadiran" value={selectedItem.weight_attendance} color="bg-violet-500" />
+                  <WeightBar label="Ujian" value={selectedItem.weight_exam} color="bg-[var(--hf-brand-500)]" />
+                  <WeightBar label="Kehadiran" value={selectedItem.weight_attendance} color="bg-[var(--hf-brand-500)]" />
                   <WeightBar label="Praktik" value={selectedItem.weight_practical} color="bg-purple-500" />
                   <WeightBar label="Tugas" value={selectedItem.weight_assignment} color="bg-teal-500" />
                   <WeightBar label="Sikap" value={selectedItem.weight_attitude} color="bg-orange-500" />
@@ -569,7 +569,7 @@ export default function TrainingScoringPage() {
                 <FField label="No. KTP" value={form.id_number || ''} onChange={v => setForm({...form, id_number: v})} />
                 <FField label="Pendidikan" value={form.education || ''} onChange={v => setForm({...form, education: v})} />
               </div>
-              <div className="p-3 bg-violet-50 rounded-lg text-xs text-violet-700">
+              <div className="p-3 bg-[var(--hf-brand-50)] rounded-lg text-xs text-[color:var(--hf-brand)]">
                 <p className="font-medium mb-1">ℹ️ Info Login Portal</p>
                 <p>Kandidat dapat login di <strong>/candidate/login</strong> menggunakan email dan password yang dibuat.</p>
               </div>
@@ -600,7 +600,7 @@ function WeightBar({ label, value, color }: { label: string; value: number; colo
 
 function WeightInput({ label, value, onChange, color }: { label: string; value: number; onChange: (v: string) => void; color: string }) {
   const colorClasses: Record<string, string> = {
-    indigo: 'border-indigo-300', blue: 'border-violet-300', purple: 'border-purple-300',
+    indigo: 'border-[var(--hf-brand-100)]', blue: 'border-[var(--hf-brand-100)]', purple: 'border-purple-300',
     teal: 'border-teal-300', orange: 'border-orange-300',
   };
   return (
@@ -641,7 +641,7 @@ function FField({ label, value, onChange, type = 'text', placeholder, required }
     <div>
       <label className="text-sm font-medium text-gray-700">{label}</label>
       <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} required={required}
-        className="w-full mt-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+        className="w-full mt-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[var(--hf-brand-500)] focus:border-[var(--hf-brand-100)]" />
     </div>
   );
 }
@@ -651,7 +651,7 @@ function FTextarea({ label, value, onChange }: { label: string; value: string; o
     <div>
       <label className="text-sm font-medium text-gray-700">{label}</label>
       <textarea value={value} onChange={e => onChange(e.target.value)} rows={2}
-        className="w-full mt-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+        className="w-full mt-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[var(--hf-brand-500)] focus:border-[var(--hf-brand-100)]" />
     </div>
   );
 }
@@ -661,7 +661,7 @@ function FSelect({ label, value, onChange, options, placeholder, required }: { l
     <div>
       <label className="text-sm font-medium text-gray-700">{label}</label>
       <select value={value} onChange={e => onChange(e.target.value)} required={required}
-        className="w-full mt-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+        className="w-full mt-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[var(--hf-brand-500)] focus:border-[var(--hf-brand-100)]">
         {placeholder && <option value="">{placeholder}</option>}
         {options.map(([val, lbl]) => <option key={val} value={val}>{lbl}</option>)}
       </select>
@@ -682,7 +682,7 @@ function ModalActions({ saving, onCancel }: { saving: boolean; onCancel: () => v
   return (
     <div className="flex gap-2 pt-2">
       <button type="button" onClick={onCancel} className="flex-1 px-4 py-2 border rounded-lg text-sm">Batal</button>
-      <button type="submit" disabled={saving} className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2">
+      <button type="submit" disabled={saving} className="flex-1 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)] disabled:opacity-50 flex items-center justify-center gap-2">
         {saving && <Loader2 className="w-4 h-4 animate-spin" />} Simpan
       </button>
     </div>

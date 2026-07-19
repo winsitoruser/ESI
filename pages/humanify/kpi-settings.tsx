@@ -80,7 +80,7 @@ const categoryIcons: Record<string, any> = {
 };
 
 const categoryColors: Record<string, string> = {
-  sales: 'bg-violet-100 text-violet-700',
+  sales: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]',
   marketing: 'bg-rose-100 text-rose-700',
   operations: 'bg-green-100 text-green-700',
   customer: 'bg-yellow-100 text-yellow-700',
@@ -255,8 +255,8 @@ export default function KPISettings() {
         />
 
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <HRStatCard label="Template Aktif" value={templates.length} icon={Target} gradient="from-violet-500 to-indigo-600" />
-          <HRStatCard label="Skema Penilaian" value={scoringSchemes.length} icon={Award} gradient="from-violet-500 to-purple-600" />
+          <HRStatCard label="Template Aktif" value={templates.length} icon={Target} gradient="from-[var(--hf-brand-500)] to-[var(--hf-brand-600)]" />
+          <HRStatCard label="Skema Penilaian" value={scoringSchemes.length} icon={Award} gradient="from-[var(--hf-brand-500)] to-purple-600" />
           <HRStatCard label="Kategori KPI" value={Object.keys(categories).length} icon={Sliders} gradient="from-emerald-500 to-teal-600" />
           <HRStatCard label="Preset Role" value={Object.keys(ROLE_KPI_PRESETS).length} icon={Users} gradient="from-amber-500 to-orange-600" />
         </div>
@@ -278,7 +278,7 @@ export default function KPISettings() {
                   })}
                 </select>
                 <button onClick={() => { setEditingTemplate(null); setShowTemplateModal(true); }}
-                  className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 text-sm"><Plus className="w-4 h-4" /> Tambah Template</button>
+                  className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)] text-sm"><Plus className="w-4 h-4" /> Tambah Template</button>
               </div>
 
               {/* Category Summary */}
@@ -288,7 +288,7 @@ export default function KPISettings() {
                   const count = templates.filter(tp => tp.category === key).length;
                   return (
                     <button key={key} onClick={() => setSelectedCategory(key === selectedCategory ? 'all' : key)}
-                      className={`p-3 rounded-xl border text-center transition-all ${selectedCategory === key ? 'ring-2 ring-violet-500 border-violet-200 bg-violet-50' : 'hover:border-gray-300'}`}>
+                      className={`p-3 rounded-xl border text-center transition-all ${selectedCategory === key ? 'ring-2 ring-[var(--hf-brand-500)] border-[var(--hf-brand-100)] bg-[var(--hf-brand-50)]' : 'hover:border-gray-300'}`}>
                       <div className={`w-8 h-8 rounded-lg mx-auto mb-1.5 flex items-center justify-center ${categoryColors[key]}`}><Icon className="w-4 h-4" /></div>
                       <p className="text-xs font-medium text-gray-700">{val.name}</p>
                       <p className="text-lg font-bold" style={{ color: val.color }}>{count}</p>
@@ -322,11 +322,11 @@ export default function KPISettings() {
                       )}
                       <div className="mt-3 pt-3 border-t flex justify-between items-center">
                         <div className="flex flex-wrap gap-1">
-                          {template.applicableTo?.slice(0, 2).map((role, i) => <span key={i} className="px-2 py-0.5 bg-violet-50 text-violet-600 text-xs rounded">{role.replace(/_/g, ' ')}</span>)}
+                          {template.applicableTo?.slice(0, 2).map((role, i) => <span key={i} className="px-2 py-0.5 bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)] text-xs rounded">{role.replace(/_/g, ' ')}</span>)}
                           {(template.applicableTo?.length || 0) > 2 && <span className="text-xs text-gray-400">+{template.applicableTo.length - 2}</span>}
                         </div>
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => { setEditingTemplate(template); setShowTemplateModal(true); }} className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded"><Edit2 className="w-4 h-4" /></button>
+                          <button onClick={() => { setEditingTemplate(template); setShowTemplateModal(true); }} className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded"><Edit2 className="w-4 h-4" /></button>
                           <button className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded"><Copy className="w-4 h-4" /></button>
                         </div>
                       </div>
@@ -347,7 +347,7 @@ export default function KPISettings() {
                 </div>
                 <button 
                   onClick={() => setShowScoringModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700"
+                  className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)]"
                 >
                   <Plus className="w-4 h-4" />
                   Buat Skema Baru
@@ -356,18 +356,18 @@ export default function KPISettings() {
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {scoringSchemes.map((scheme) => (
-                  <div key={scheme.id} className={`border rounded-xl p-6 ${scheme.isDefault ? 'ring-2 ring-violet-500' : ''}`}>
+                  <div key={scheme.id} className={`border rounded-xl p-6 ${scheme.isDefault ? 'ring-2 ring-[var(--hf-brand-500)]' : ''}`}>
                     <div className="flex justify-between items-start mb-4">
                       <div>
                         <div className="flex items-center gap-2">
                           <h4 className="font-semibold">{scheme.name}</h4>
                           {scheme.isDefault && (
-                            <span className="px-2 py-0.5 bg-violet-100 text-violet-700 text-xs rounded-full">Default</span>
+                            <span className="px-2 py-0.5 bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)] text-xs rounded-full">Default</span>
                           )}
                         </div>
                         <p className="text-sm text-gray-500">{scheme.description}</p>
                       </div>
-                      <button className="p-2 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg">
+                      <button className="p-2 text-gray-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded-lg">
                         <Edit2 className="w-4 h-4" />
                       </button>
                     </div>
@@ -499,7 +499,7 @@ export default function KPISettings() {
                 {/* Input Section */}
                 <div className="space-y-6">
                   <div className="flex items-center gap-2 mb-4">
-                    <Calculator className="w-5 h-5 text-violet-600" />
+                    <Calculator className="w-5 h-5 text-[color:var(--hf-brand-600)]" />
                     <h3 className="font-semibold">Input KPI Metrics</h3>
                   </div>
 
@@ -515,7 +515,7 @@ export default function KPISettings() {
                               updated[index].name = e.target.value;
                               setCalcMetrics(updated);
                             }}
-                            className="font-medium bg-transparent border-b border-transparent hover:border-gray-300 focus:border-violet-500 focus:outline-none"
+                            className="font-medium bg-transparent border-b border-transparent hover:border-gray-300 focus:border-[var(--hf-brand-500)] focus:outline-none"
                           />
                           <div className="flex items-center gap-2">
                             <span className="text-sm text-gray-500">Weight:</span>
@@ -578,7 +578,7 @@ export default function KPISettings() {
                     </button>
                     <button
                       onClick={calculateScore}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700"
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)]"
                     >
                       <Calculator className="w-4 h-4" />
                       Hitung Score
@@ -614,7 +614,7 @@ export default function KPISettings() {
                   {calcResult ? (
                     <div className="space-y-4">
                       {/* Overall Score */}
-                      <div className="bg-gradient-to-br from-violet-50 to-indigo-100 rounded-xl p-6 text-center">
+                      <div className="bg-gradient-to-br from-[var(--hf-brand-600)] to-[var(--hf-brand)] rounded-xl p-6 text-center">
                         {typeof window !== 'undefined' && (
                           <Chart
                             type="radialBar"
@@ -683,13 +683,13 @@ export default function KPISettings() {
                       {calcResult.recommendations && (
                         <div className="border rounded-xl p-4">
                           <h4 className="font-medium mb-3 flex items-center gap-2">
-                            <Info className="w-4 h-4 text-violet-600" />
+                            <Info className="w-4 h-4 text-[color:var(--hf-brand-600)]" />
                             Rekomendasi
                           </h4>
                           <ul className="space-y-2">
                             {calcResult.recommendations.map((rec: string, i: number) => (
                               <li key={i} className="text-sm text-gray-600 flex items-start gap-2">
-                                <ChevronRight className="w-4 h-4 text-violet-500 flex-shrink-0 mt-0.5" />
+                                <ChevronRight className="w-4 h-4 text-[color:var(--hf-brand-500)] flex-shrink-0 mt-0.5" />
                                 {rec}
                               </li>
                             ))}
@@ -987,7 +987,7 @@ function TemplateModal({
                 <option value="percentage">Percentage</option>
                 <option value="currency">Currency</option>
               </select>
-              <button onClick={addParameter} className="px-3 py-1 bg-violet-600 text-white rounded text-sm">
+              <button onClick={addParameter} className="px-3 py-1 bg-[var(--hf-brand-600)] text-white rounded text-sm">
                 <Plus className="w-4 h-4" />
               </button>
             </div>
@@ -995,7 +995,7 @@ function TemplateModal({
         </div>
         <div className="p-6 border-t flex justify-end gap-2">
           <button onClick={onClose} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Batal</button>
-          <button onClick={handleSubmit} className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700">
+          <button onClick={handleSubmit} className="px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)]">
             <Save className="w-4 h-4 inline mr-2" />
             Simpan
           </button>

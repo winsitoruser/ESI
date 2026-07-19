@@ -34,14 +34,14 @@ interface TeamMember {
 
 const PRIORITY_CONFIG: Record<string, { label: string; color: string }> = {
   low: { label: 'Low', color: 'bg-gray-100 text-gray-600' },
-  medium: { label: 'Medium', color: 'bg-violet-100 text-violet-700' },
+  medium: { label: 'Medium', color: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]' },
   high: { label: 'High', color: 'bg-amber-100 text-amber-700' },
   urgent: { label: 'Urgent', color: 'bg-red-100 text-red-700' },
 };
 
 const TASK_TYPE_CONFIG: Record<string, { label: string; badge: string }> = {
   target: { label: 'Target', badge: 'bg-purple-100 text-purple-700' },
-  routine: { label: 'Rutin', badge: 'bg-violet-100 text-violet-700' },
+  routine: { label: 'Rutin', badge: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]' },
   sop: { label: 'SOP', badge: 'bg-teal-100 text-teal-700' },
   project: { label: 'Proyek', badge: 'bg-orange-100 text-orange-700' },
 };
@@ -209,7 +209,7 @@ export default function TeamTasksPage() {
               <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
             </button>
             <button onClick={() => setShowNew(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)] transition-colors">
               <Plus className="w-4 h-4" /> Tugas Baru
             </button>
           </div>
@@ -254,10 +254,10 @@ export default function TeamTasksPage() {
           <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
             <h3 className="font-medium text-gray-900">Tugas Baru</h3>
             <input type="text" value={newTask.title} onChange={e => setNewTask(p => ({ ...p, title: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--hf-brand-500)]"
               placeholder="Judul tugas *" />
             <textarea value={newTask.description} onChange={e => setNewTask(p => ({ ...p, description: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--hf-brand-500)]"
               rows={2} placeholder="Deskripsi (opsional)" />
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -327,7 +327,7 @@ export default function TeamTasksPage() {
             <div className="flex justify-end gap-2">
               <button onClick={() => setShowNew(false)} className="px-3 py-1.5 text-sm text-gray-600">Batal</button>
               <button onClick={handleCreateTask} disabled={saving || !newTask.title}
-                className="px-4 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                className="px-4 py-1.5 text-sm bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)] disabled:opacity-50">
                 {saving ? 'Menyimpan...' : 'Buat Tugas'}
               </button>
             </div>

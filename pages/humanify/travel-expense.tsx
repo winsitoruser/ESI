@@ -119,7 +119,7 @@ export default function TravelExpensePage() {
   };
 
   const statusColor = (s: string) => {
-    const m: any = { draft: 'bg-gray-100 text-gray-800', pending: 'bg-yellow-100 text-yellow-800', approved: 'bg-green-100 text-green-800', rejected: 'bg-red-100 text-red-800', in_progress: 'bg-violet-100 text-violet-800', completed: 'bg-green-100 text-green-800', cancelled: 'bg-gray-200 text-gray-600', reimbursed: 'bg-emerald-100 text-emerald-800', submitted: 'bg-violet-100 text-violet-800' };
+    const m: any = { draft: 'bg-gray-100 text-gray-800', pending: 'bg-yellow-100 text-yellow-800', approved: 'bg-green-100 text-green-800', rejected: 'bg-red-100 text-red-800', in_progress: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand-600)]', completed: 'bg-green-100 text-green-800', cancelled: 'bg-gray-200 text-gray-600', reimbursed: 'bg-emerald-100 text-emerald-800', submitted: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand-600)]' };
     return m[s] || 'bg-gray-100 text-gray-800';
   };
 
@@ -145,7 +145,7 @@ export default function TravelExpensePage() {
       {/* Overview Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white border rounded-xl p-4">
-          <Plane className="w-5 h-5 text-violet-600 mb-1" />
+          <Plane className="w-5 h-5 text-[color:var(--hf-brand-600)] mb-1" />
           <p className="text-2xl font-bold">{overview.totalRequests || 0}</p>
           <p className="text-xs text-gray-500">Total Perjalanan</p>
         </div>
@@ -170,7 +170,7 @@ export default function TravelExpensePage() {
       <div className="flex gap-1 border-b mb-6">
         {tabs.map(t => (
           <button key={t.key} onClick={() => { setTab(t.key); setDetailReq(null); }}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${tab === t.key ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${tab === t.key ? 'border-[var(--hf-brand-600)] text-[color:var(--hf-brand-600)]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
             <t.icon className="w-4 h-4" /> {t.label}
           </button>
         ))}
@@ -183,7 +183,7 @@ export default function TravelExpensePage() {
         <div>
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold">Pengajuan Perjalanan Dinas</h2>
-            <button onClick={() => openAdd('request')} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">
+            <button onClick={() => openAdd('request')} className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]">
               <Plus className="w-4 h-4" /> Ajukan Perjalanan
             </button>
           </div>
@@ -193,7 +193,7 @@ export default function TravelExpensePage() {
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-mono text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">{r.request_number}</span>
+                      <span className="text-xs font-mono text-[color:var(--hf-brand-600)] bg-[var(--hf-brand-50)] px-2 py-0.5 rounded">{r.request_number}</span>
                       <span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(r.status)}`}>{r.status}</span>
                       <span className="text-xs bg-gray-100 px-2 py-0.5 rounded capitalize">{r.travel_type}</span>
                     </div>
@@ -214,13 +214,13 @@ export default function TravelExpensePage() {
                   </div>
                 </div>
                 <div className="flex gap-1 mt-3 pt-3 border-t">
-                  <button onClick={async () => { const res = await api('request-detail', 'GET', null, `&id=${r.id}`); setDetailReq(res.data); }} className="text-xs px-2 py-1 text-indigo-600 hover:bg-indigo-50 rounded flex items-center gap-1"><Eye className="w-3 h-3" />Detail</button>
+                  <button onClick={async () => { const res = await api('request-detail', 'GET', null, `&id=${r.id}`); setDetailReq(res.data); }} className="text-xs px-2 py-1 text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded flex items-center gap-1"><Eye className="w-3 h-3" />Detail</button>
                   {r.status === 'pending' && (<>
                     <button onClick={async () => { await api('approve-request', 'POST', { id: r.id }); showToast('Disetujui'); loadData(); }} className="text-xs px-2 py-1 text-green-600 hover:bg-green-50 rounded flex items-center gap-1"><Check className="w-3 h-3" />Setujui</button>
                     <button onClick={async () => { await api('reject-request', 'POST', { id: r.id, reason: 'Ditolak' }); showToast('Ditolak'); loadData(); }} className="text-xs px-2 py-1 text-red-600 hover:bg-red-50 rounded">Tolak</button>
                   </>)}
                   {r.status === 'approved' && (
-                    <button onClick={async () => { await api('complete-travel', 'POST', { id: r.id }); showToast('Perjalanan selesai'); loadData(); }} className="text-xs px-2 py-1 text-violet-600 hover:bg-violet-50 rounded">Selesai</button>
+                    <button onClick={async () => { await api('complete-travel', 'POST', { id: r.id }); showToast('Perjalanan selesai'); loadData(); }} className="text-xs px-2 py-1 text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded">Selesai</button>
                   )}
                   <button onClick={() => handleDelete('request', r.id)} className="text-xs px-2 py-1 text-gray-400 hover:text-red-600 ml-auto"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
@@ -240,10 +240,10 @@ export default function TravelExpensePage() {
       {/* REQUEST DETAIL */}
       {!loading && tab === 'requests' && detailReq && (
         <div>
-          <button onClick={() => setDetailReq(null)} className="text-sm text-indigo-600 mb-4 hover:underline">← Kembali</button>
+          <button onClick={() => setDetailReq(null)} className="text-sm text-[color:var(--hf-brand-600)] mb-4 hover:underline">← Kembali</button>
           <div className="bg-white border rounded-xl p-6">
             <div className="flex items-center gap-2 mb-2">
-              <span className="font-mono text-indigo-600">{detailReq.request?.request_number}</span>
+              <span className="font-mono text-[color:var(--hf-brand-600)]">{detailReq.request?.request_number}</span>
               <span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(detailReq.request?.status)}`}>{detailReq.request?.status}</span>
             </div>
             <h2 className="text-xl font-bold">{detailReq.request?.destination}</h2>
@@ -264,7 +264,7 @@ export default function TravelExpensePage() {
                 </tbody>
               </table>
             ) : <p className="text-gray-400 text-sm">Belum ada klaim biaya</p>}
-            <button onClick={() => { setExpForm({ ...expForm, travelRequestId: detailReq.request?.id, employeeId: detailReq.request?.employee_id }); openAdd('expense'); }} className="mt-4 text-sm px-3 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 flex items-center gap-1"><Plus className="w-4 h-4" />Tambah Biaya</button>
+            <button onClick={() => { setExpForm({ ...expForm, travelRequestId: detailReq.request?.id, employeeId: detailReq.request?.employee_id }); openAdd('expense'); }} className="mt-4 text-sm px-3 py-2 bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)] rounded-lg hover:bg-[var(--hf-brand-100)] flex items-center gap-1"><Plus className="w-4 h-4" />Tambah Biaya</button>
           </div>
         </div>
       )}
@@ -306,7 +306,7 @@ export default function TravelExpensePage() {
                           <button onClick={async () => { await api('approve-expense', 'POST', { id: e.id }); showToast('Biaya disetujui'); loadData(); }} className="text-xs px-2 py-1 text-green-600 hover:bg-green-50 rounded">Setujui</button>
                         )}
                         {e.status === 'approved' && (
-                          <button onClick={async () => { await api('reimburse-expense', 'POST', { id: e.id }); showToast('Diganti'); loadData(); }} className="text-xs px-2 py-1 text-violet-600 hover:bg-violet-50 rounded">Ganti Biaya</button>
+                          <button onClick={async () => { await api('reimburse-expense', 'POST', { id: e.id }); showToast('Diganti'); loadData(); }} className="text-xs px-2 py-1 text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded">Ganti Biaya</button>
                         )}
                         <button onClick={() => handleDelete('expense', e.id)} className="p-1 text-gray-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
@@ -438,7 +438,7 @@ export default function TravelExpensePage() {
             </div>
             <div className="flex justify-end gap-2 p-5 border-t">
               <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-gray-700 border rounded-lg hover:bg-gray-50">Batal</button>
-              <button onClick={handleSave} className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Simpan</button>
+              <button onClick={handleSave} className="px-4 py-2 text-sm bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)]">Simpan</button>
             </div>
           </div>
         </div>

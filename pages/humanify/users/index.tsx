@@ -238,23 +238,23 @@ export default function TeamUsersPage() {
         )}
 
         {lastLink && (
-          <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm">
-            <p className="font-medium text-indigo-900 mb-1">Tautan undangan</p>
+          <div className="rounded-xl border border-[var(--hf-brand-100)] bg-[var(--hf-brand-50)] px-4 py-3 text-sm">
+            <p className="font-medium text-[color:var(--hf-brand-600)] mb-1">Tautan undangan</p>
             <div className="flex items-center gap-2">
               <input
                 readOnly
                 value={lastLink}
-                className="flex-1 px-3 py-1.5 rounded-lg border border-indigo-200 bg-white text-xs font-mono text-slate-700"
+                className="flex-1 px-3 py-1.5 rounded-lg border border-[var(--hf-brand-100)] bg-white text-xs font-mono text-slate-700"
               />
               <button
                 onClick={() => copy(lastLink, 'last')}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs hover:bg-indigo-700"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--hf-brand-600)] text-white text-xs hover:bg-[var(--hf-brand)]"
               >
                 {copied === 'last' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                 Salin
               </button>
             </div>
-            <p className="mt-1.5 text-xs text-indigo-700">Bagikan tautan ini jika email tidak terkirim otomatis.</p>
+            <p className="mt-1.5 text-xs text-[color:var(--hf-brand)]">Bagikan tautan ini jika email tidak terkirim otomatis.</p>
           </div>
         )}
 
@@ -262,7 +262,7 @@ export default function TeamUsersPage() {
         {canManage && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
             <h3 className="font-semibold text-gray-900 flex items-center gap-2 mb-4">
-              <UserPlus className="w-5 h-5 text-indigo-600" /> Undang Anggota Baru
+              <UserPlus className="w-5 h-5 text-[color:var(--hf-brand-600)]" /> Undang Anggota Baru
             </h3>
             {seatFull && (
               <div className="mb-4 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800 flex items-center gap-2">
@@ -281,7 +281,7 @@ export default function TeamUsersPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="rekan@perusahaan.com"
                     required
-                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[var(--hf-brand-500)]"
                   />
                 </div>
               </div>
@@ -292,7 +292,7 @@ export default function TeamUsersPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Nama rekan"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[var(--hf-brand-500)]"
                 />
               </div>
               <div className="md:col-span-2">
@@ -300,7 +300,7 @@ export default function TeamUsersPage() {
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[var(--hf-brand-500)]"
                 >
                   {(roles.length ? roles : [{ code: 'staff', label: 'Staf' }]).map((r) => (
                     <option key={r.code} value={r.code}>{r.label}</option>
@@ -311,7 +311,7 @@ export default function TeamUsersPage() {
                 <button
                   type="submit"
                   disabled={submitting || seatFull}
-                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-50"
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)] disabled:opacity-50"
                 >
                   {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                   Undang
@@ -332,7 +332,7 @@ export default function TeamUsersPage() {
             </button>
           </div>
           {loading ? (
-            <div className="flex items-center justify-center py-10"><RefreshCw className="w-6 h-6 animate-spin text-indigo-600" /></div>
+            <div className="flex items-center justify-center py-10"><RefreshCw className="w-6 h-6 animate-spin text-[color:var(--hf-brand-600)]" /></div>
           ) : pending.length === 0 ? (
             <div className="p-8 text-center text-gray-400 text-sm">
               <Mail className="w-10 h-10 mx-auto text-gray-200 mb-2" />
@@ -358,7 +358,7 @@ export default function TeamUsersPage() {
                         {inv.name && <div className="text-xs text-gray-500">{inv.name}</div>}
                       </td>
                       <td className="py-2.5 px-4">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-indigo-50 text-indigo-700 border border-indigo-100">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)] border border-[var(--hf-brand-100)]">
                           {roleLabel(inv.role)}
                         </span>
                       </td>
@@ -399,11 +399,11 @@ export default function TeamUsersPage() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200">
           <div className="p-4 border-b border-gray-200">
             <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-              <Users className="w-4 h-4 text-indigo-600" /> Anggota Tim ({members.length})
+              <Users className="w-4 h-4 text-[color:var(--hf-brand-600)]" /> Anggota Tim ({members.length})
             </h3>
           </div>
           {loading ? (
-            <div className="flex items-center justify-center py-10"><RefreshCw className="w-6 h-6 animate-spin text-indigo-600" /></div>
+            <div className="flex items-center justify-center py-10"><RefreshCw className="w-6 h-6 animate-spin text-[color:var(--hf-brand-600)]" /></div>
           ) : members.length === 0 ? (
             <div className="p-8 text-center text-gray-400 text-sm">Belum ada anggota.</div>
           ) : (
@@ -428,7 +428,7 @@ export default function TeamUsersPage() {
                       <tr key={m.id} className="hover:bg-gray-50">
                         <td className="py-2.5 px-4">
                           <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--hf-brand-600)] to-purple-500 flex items-center justify-center text-white text-xs font-bold">
                               {m.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?'}
                             </div>
                             <span className="font-medium text-gray-800">{m.name}</span>
@@ -552,10 +552,10 @@ export default function TeamUsersPage() {
 
 function StatCard({ icon: Icon, color, value, label }: { icon: any; color: string; value: React.ReactNode; label: string }) {
   const map: Record<string, string> = {
-    indigo: 'bg-indigo-100 text-indigo-600',
+    indigo: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand-600)]',
     amber: 'bg-amber-100 text-amber-600',
     emerald: 'bg-emerald-100 text-emerald-600',
-    blue: 'bg-violet-100 text-violet-600',
+    blue: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand-600)]',
   };
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">

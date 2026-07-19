@@ -183,7 +183,7 @@ export default function ESSPortalPage() {
   const statusBadge = (status: string) => {
     const colors: Record<string, string> = {
       pending: 'bg-yellow-100 text-yellow-700', approved: 'bg-green-100 text-green-700',
-      rejected: 'bg-red-100 text-red-700', paid: 'bg-violet-100 text-violet-700',
+      rejected: 'bg-red-100 text-red-700', paid: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]',
       active: 'bg-green-100 text-green-700', cancelled: 'bg-gray-100 text-gray-600'
     };
     return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${colors[status] || 'bg-gray-100 text-gray-600'}`}>{status}</span>;
@@ -268,8 +268,8 @@ export default function ESSPortalPage() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     {[
                       { label: 'Ajukan Klaim', icon: DollarSign, color: 'bg-emerald-50 text-emerald-600 border-emerald-200', action: () => { setActiveTab('claims'); setShowClaimModal(true); } },
-                      { label: 'Portal Karyawan', icon: ExternalLink, color: 'bg-violet-50 text-violet-600 border-violet-200', action: () => window.open('/employee', '_blank') },
-                      { label: 'Kebijakan', icon: Shield, color: 'bg-indigo-50 text-indigo-600 border-indigo-200', action: () => setActiveTab('policies') },
+                      { label: 'Portal Karyawan', icon: ExternalLink, color: 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)] border-[var(--hf-brand-100)]', action: () => window.open('/employee', '_blank') },
+                      { label: 'Kebijakan', icon: Shield, color: 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)] border-[var(--hf-brand-100)]', action: () => setActiveTab('policies') },
                       { label: 'Pengingat', icon: Bell, color: 'bg-orange-50 text-orange-600 border-orange-200', action: () => setActiveTab('reminders') },
                       { label: 'Reimbursement HR', icon: FileText, color: 'bg-purple-50 text-purple-600 border-purple-200', action: () => window.location.href = '/humanify/reimbursement' },
                     ].map((act, i) => (
@@ -302,7 +302,7 @@ export default function ESSPortalPage() {
                               </div>
                               <div className="text-right flex-shrink-0">
                                 <p className="text-xs font-medium text-gray-600">{fmtDate(r.due_date)}</p>
-                                <p className={`text-[10px] font-bold ${daysLeft <= 7 ? 'text-red-600' : daysLeft <= 14 ? 'text-orange-500' : 'text-violet-500'}`}>
+                                <p className={`text-[10px] font-bold ${daysLeft <= 7 ? 'text-red-600' : daysLeft <= 14 ? 'text-orange-500' : 'text-[color:var(--hf-brand-500)]'}`}>
                                   {daysLeft <= 0 ? 'LEWAT BATAS!' : `${daysLeft} hari lagi`}
                                 </p>
                               </div>
@@ -366,7 +366,7 @@ export default function ESSPortalPage() {
                                 <div className="flex gap-1">
                                   {attachments.map((url: string, i: number) => (
                                     <a key={i} href={url} target="_blank" rel="noopener noreferrer"
-                                      className="p-1 bg-violet-50 text-violet-600 rounded hover:bg-violet-100" title={url}>
+                                      className="p-1 bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)] rounded hover:bg-[var(--hf-brand-100)]" title={url}>
                                       {url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? <Image className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
                                     </a>
                                   ))}
@@ -482,7 +482,7 @@ export default function ESSPortalPage() {
                             </div>
                             <div className="text-right flex-shrink-0 ml-3">
                               <p className="text-xs font-medium text-gray-600">{fmtDate(r.due_date)}</p>
-                              <p className={`text-xs font-bold ${daysLeft <= 0 ? 'text-red-600' : daysLeft <= 7 ? 'text-red-500' : daysLeft <= 14 ? 'text-orange-500' : 'text-violet-500'}`}>
+                              <p className={`text-xs font-bold ${daysLeft <= 0 ? 'text-red-600' : daysLeft <= 7 ? 'text-red-500' : daysLeft <= 14 ? 'text-orange-500' : 'text-[color:var(--hf-brand-500)]'}`}>
                                 {daysLeft <= 0 ? 'OVERDUE!' : `${daysLeft} hari`}
                               </p>
                             </div>
@@ -548,13 +548,13 @@ export default function ESSPortalPage() {
                 <label className="text-xs font-medium text-gray-500 mb-1 block">Lampiran Bukti (Foto / PDF)</label>
                 <div
                   className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
-                    uploading ? 'border-violet-300 bg-violet-50' : 'border-gray-300 hover:border-emerald-400 hover:bg-emerald-50'
+                    uploading ? 'border-[var(--hf-brand-100)] bg-[var(--hf-brand-50)]' : 'border-gray-300 hover:border-emerald-400 hover:bg-emerald-50'
                   }`}
                   onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
                   onDrop={e => { e.preventDefault(); e.stopPropagation(); handleFileUpload(e.dataTransfer.files); }}
                 >
                   {uploading ? (
-                    <div className="flex items-center justify-center gap-2 text-violet-600">
+                    <div className="flex items-center justify-center gap-2 text-[color:var(--hf-brand-600)]">
                       <Loader2 className="w-5 h-5 animate-spin" />
                       <span className="text-sm">Mengupload...</span>
                     </div>
@@ -579,7 +579,7 @@ export default function ESSPortalPage() {
                       <div key={idx} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
                         <div className="flex items-center gap-2 min-w-0">
                           {file.mimetype?.startsWith('image/') ? (
-                            <Image className="w-4 h-4 text-violet-500 flex-shrink-0" />
+                            <Image className="w-4 h-4 text-[color:var(--hf-brand-500)] flex-shrink-0" />
                           ) : (
                             <FileText className="w-4 h-4 text-red-500 flex-shrink-0" />
                           )}
@@ -588,7 +588,7 @@ export default function ESSPortalPage() {
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
                           <a href={file.url} target="_blank" rel="noopener noreferrer"
-                            className="p-1 text-gray-400 hover:text-violet-600 rounded">
+                            className="p-1 text-gray-400 hover:text-[color:var(--hf-brand-600)] rounded">
                             <Eye className="w-3.5 h-3.5" />
                           </a>
                           <button onClick={() => removeUploadedFile(idx)}

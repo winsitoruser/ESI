@@ -346,7 +346,7 @@ export default function PerformancePage() {
   const getStatusBadge = (status: string) => {
     const cfg: Record<string, { label: string; cls: string; Icon: React.ElementType }> = {
       acknowledged: { label: 'Dikonfirmasi', cls: 'bg-green-100 text-green-700', Icon: CheckCircle },
-      reviewed: { label: 'Direview', cls: 'bg-violet-100 text-violet-700', Icon: Eye },
+      reviewed: { label: 'Direview', cls: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]', Icon: Eye },
       submitted: { label: 'Diajukan', cls: 'bg-yellow-100 text-yellow-700', Icon: Send },
       draft: { label: 'Draf', cls: 'bg-gray-100 text-gray-700', Icon: FileText },
     };
@@ -457,7 +457,7 @@ export default function PerformancePage() {
               <label className="text-sm font-medium text-gray-700">Kategori Penilaian</label>
               <button type="button" onClick={() => setForm(f => ({
                 ...f, categories: [...f.categories, { name: '', rating: 0, weight: 10, comments: '' }]
-              }))} className="text-xs text-violet-600 hover:text-violet-700">+ Tambah</button>
+              }))} className="text-xs text-[color:var(--hf-brand-600)] hover:text-[color:var(--hf-brand)]">+ Tambah</button>
             </div>
             <div className="space-y-3">
               {form.categories.map((cat, idx) => (
@@ -501,7 +501,7 @@ export default function PerformancePage() {
                   className="flex-1 px-2 py-1.5 border rounded text-sm" />
                 {idx === form.strengths.length - 1 && (
                   <button type="button" onClick={() => setForm(f => ({ ...f, strengths: [...f.strengths, ''] }))}
-                    className="text-xs text-violet-600">+</button>
+                    className="text-xs text-[color:var(--hf-brand-600)]">+</button>
                 )}
               </div>
             ))}
@@ -517,7 +517,7 @@ export default function PerformancePage() {
                   className="flex-1 px-2 py-1.5 border rounded text-sm" />
                 {idx === form.areasForImprovement.length - 1 && (
                   <button type="button" onClick={() => setForm(f => ({ ...f, areasForImprovement: [...f.areasForImprovement, ''] }))}
-                    className="text-xs text-violet-600">+</button>
+                    className="text-xs text-[color:var(--hf-brand-600)]">+</button>
                 )}
               </div>
             ))}
@@ -533,7 +533,7 @@ export default function PerformancePage() {
                   className="flex-1 px-2 py-1.5 border rounded text-sm" />
                 {idx === form.goals.length - 1 && (
                   <button type="button" onClick={() => setForm(f => ({ ...f, goals: [...f.goals, ''] }))}
-                    className="text-xs text-violet-600">+</button>
+                    className="text-xs text-[color:var(--hf-brand-600)]">+</button>
                 )}
               </div>
             ))}
@@ -550,7 +550,7 @@ export default function PerformancePage() {
             goals: form.goals.filter(g => g.trim()),
           }) : handleCreate}
             disabled={saving || !form.employeeName}
-            className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 disabled:opacity-50 text-sm">
+            className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)] disabled:opacity-50 text-sm">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             {saving ? 'Menyimpan...' : 'Simpan'}
           </button>
@@ -571,7 +571,7 @@ export default function PerformancePage() {
           actions={
             <>
               <DataSourceBadge source={pageTab === 'ninebox' ? nineBoxDataSource : performanceDataSource} className="!bg-white/90" />
-              <button onClick={openCreate} className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50">
+              <button onClick={openCreate} className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-medium text-[color:var(--hf-brand)] hover:bg-[var(--hf-brand-50)]">
                 <Plus className="h-4 w-4" /> Buat Evaluasi
               </button>
             </>
@@ -579,7 +579,7 @@ export default function PerformancePage() {
         />
 
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <HRStatCard label="Total Evaluasi" value={reviews.length} icon={Users} gradient="from-violet-500 to-indigo-600" />
+          <HRStatCard label="Total Evaluasi" value={reviews.length} icon={Users} gradient="from-[var(--hf-brand-500)] to-[var(--hf-brand-600)]" />
           <HRStatCard label="Rata-rata Rating" value={avgRating.toFixed(1)} sub="skala 1–5" icon={Star} gradient="from-amber-500 to-orange-600" />
           <HRStatCard label="Kinerja Sangat Baik" value={excellentPerformers} sub="rating ≥ 4.5" icon={Award} gradient="from-emerald-500 to-teal-600" />
           <HRStatCard label="Perlu Peningkatan" value={needsImprovement} sub="rating < 3.5" icon={TrendingDown} gradient="from-rose-500 to-red-600" />
@@ -600,11 +600,11 @@ export default function PerformancePage() {
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex gap-2">
               <button onClick={openCreate}
-                className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+                className="flex items-center gap-2 rounded-xl bg-[var(--hf-brand-600)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--hf-brand)]">
                 <Plus className="w-4 h-4" /> Buat Evaluasi Baru
               </button>
               <button onClick={handleLaunchCycle} disabled={launchingCycle}
-                className="flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-50">
+                className="flex items-center gap-2 rounded-xl border border-[var(--hf-brand-100)] bg-[var(--hf-brand-50)] px-4 py-2 text-sm font-medium text-[color:var(--hf-brand)] hover:bg-[var(--hf-brand-100)] disabled:opacity-50">
                 {launchingCycle ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calendar className="w-4 h-4" />}
                 {launchingCycle ? 'Meluncurkan...' : 'Luncurkan Siklus'}
               </button>
@@ -714,7 +714,7 @@ export default function PerformancePage() {
               {[
                 { label: 'Total Talent', value: nineBoxData.summary?.total || 0 },
                 { label: 'Stars & High Performers', value: nineBoxData.summary?.highPerformers || 0, color: 'text-green-600' },
-                { label: 'Develop Pool', value: nineBoxData.summary?.develop || 0, color: 'text-violet-600' },
+                { label: 'Develop Pool', value: nineBoxData.summary?.develop || 0, color: 'text-[color:var(--hf-brand-600)]' },
                 { label: 'At Risk', value: nineBoxData.summary?.risk || 0, color: 'text-red-600' },
               ].map(s => (
                 <div key={s.label} className="bg-white rounded-xl p-4 border shadow-sm">
@@ -730,7 +730,7 @@ export default function PerformancePage() {
               />
             </div>
             {selectedNineBox && (
-              <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 text-sm">
+              <div className="bg-[var(--hf-brand-50)] border border-[var(--hf-brand-100)] rounded-xl p-4 text-sm">
                 <strong>{selectedNineBox.employeeName}</strong> — {selectedNineBox.quadrantLabel}
                 <span className="text-gray-500 ml-2">| Kinerja: {selectedNineBox.performanceScore} | Potensial: {selectedNineBox.potentialScore}</span>
               </div>
@@ -748,14 +748,14 @@ export default function PerformancePage() {
 
         {/* Review Cards */}
         {pageTab === 'reviews' && (loading ? (
-          <div className="flex items-center justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-violet-600" /></div>
+          <div className="flex items-center justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-[color:var(--hf-brand-600)]" /></div>
         ) : filteredReviews.length === 0 ? (
           <HrisEmptyState
             source={performanceDataSource}
             title="Belum ada evaluasi kinerja"
             description="Buat evaluasi pertama untuk memulai siklus penilaian kinerja."
             action={
-              <button onClick={openCreate} className="text-violet-600 hover:text-violet-700 text-sm">+ Buat Evaluasi Baru</button>
+              <button onClick={openCreate} className="text-[color:var(--hf-brand-600)] hover:text-[color:var(--hf-brand)] text-sm">+ Buat Evaluasi Baru</button>
             }
           />
         ) : (
@@ -874,12 +874,12 @@ export default function PerformancePage() {
 
                 {/* Goals */}
                 {selectedReview.goals.length > 0 && (
-                  <div className="bg-violet-50 rounded-lg p-4">
-                    <h4 className="font-semibold text-violet-700 mb-2">Tujuan & Sasaran</h4>
+                  <div className="bg-[var(--hf-brand-50)] rounded-lg p-4">
+                    <h4 className="font-semibold text-[color:var(--hf-brand)] mb-2">Tujuan & Sasaran</h4>
                     <ul className="text-sm space-y-1">
                       {selectedReview.goals.map((g, i) => (
                         <li key={i} className="flex items-center gap-2">
-                          <Target className="w-4 h-4 text-violet-500 flex-shrink-0" />{g}
+                          <Target className="w-4 h-4 text-[color:var(--hf-brand-500)] flex-shrink-0" />{g}
                         </li>
                       ))}
                     </ul>
@@ -898,7 +898,7 @@ export default function PerformancePage() {
                   )}
                   {selectedReview.status === 'submitted' && (
                     <button onClick={() => handleStatusChange(selectedReview, 'reviewed')}
-                      className="flex items-center gap-1 px-3 py-2 bg-violet-500 text-white rounded-lg text-sm hover:bg-violet-600">
+                      className="flex items-center gap-1 px-3 py-2 bg-[var(--hf-brand-500)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand-600)]">
                       <Eye className="w-4 h-4" /> Tandai Direview
                     </button>
                   )}
@@ -915,7 +915,7 @@ export default function PerformancePage() {
                     <Trash2 className="w-4 h-4" /> Hapus
                   </button>
                   <button onClick={() => openEdit(selectedReview)}
-                    className="flex items-center gap-1 px-3 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700">
+                    className="flex items-center gap-1 px-3 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]">
                     <Edit className="w-4 h-4" /> Edit Evaluasi
                   </button>
                 </div>

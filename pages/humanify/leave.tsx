@@ -57,10 +57,10 @@ interface ApprovalConfig {
 }
 
 const leaveTypeConfig: Record<string, { label: string; icon: any; color: string }> = {
-  annual: { label: 'Cuti Tahunan', icon: CalendarDays, color: 'bg-violet-100 text-violet-700' },
+  annual: { label: 'Cuti Tahunan', icon: CalendarDays, color: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]' },
   sick: { label: 'Sakit', icon: Heart, color: 'bg-red-100 text-red-700' },
   maternity: { label: 'Melahirkan', icon: Baby, color: 'bg-pink-100 text-pink-700' },
-  paternity: { label: 'Cuti Ayah', icon: Baby, color: 'bg-indigo-100 text-indigo-700' },
+  paternity: { label: 'Cuti Ayah', icon: Baby, color: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]' },
   unpaid: { label: 'Tanpa Gaji', icon: UserX, color: 'bg-gray-100 text-gray-700' },
   personal: { label: 'Keperluan Pribadi', icon: Coffee, color: 'bg-amber-100 text-amber-700' },
   bereavement: { label: 'Duka Cita', icon: Heart, color: 'bg-purple-100 text-purple-700' },
@@ -141,6 +141,7 @@ export default function LeaveManagementPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [inboxScope, setInboxScope] = useState<'all' | 'me'>('all');
 
   // Modals
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -170,19 +171,49 @@ export default function LeaveManagementPage() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const fetchData = async () => {
+  const fetchData = async (scope: 'all' | 'me' = inboxScope) => {
     setLoading(true);
     try {
-      const res = await fetch('/api/humanify/leave-management');
-      if (!res.ok) { console.error('Fetch leave data failed:', res.status); setLoading(false); return; }
-      const json = await res.json();
-      if (json.success) {
-        setDataSource(json.dataSource || (json.requests?.length ? 'live' : 'empty'));
-        setRequests(json.requests || []);
-        setLeaveTypes(json.leaveTypes || []);
-        setApprovalConfigs(json.approvalConfigs || []);
-        setBalances(json.balances || []);
-        setSummary(json.summary || {});
+      if (scope === 'me') {
+        const res = await fetch('/api/humanify/leave-management?action=pending-approvals&scope=me');
+        const json = await res.json();
+        const pending = (json.data || []).map((row: any) => ({
+          id: row.leave_request_id || row.id,
+          employee_name: row.employee_name,
+          department: row.department,
+          position: row.position,
+          leave_type: row.leave_type,
+          start_date: row.start_date,
+          end_date: row.end_date,
+          total_days: row.total_days,
+          reason: row.reason,
+          attachment_url: row.attachment_url,
+          status: row.request_status || 'pending',
+          current_approval_step: row.step_order || 1,
+          total_approval_steps: 1,
+        }));
+        setDataSource(pending.length ? 'live' : 'empty');
+        setRequests(pending);
+        // still load types/configs for filters
+        const full = await fetch('/api/humanify/leave-management').then((r) => r.json()).catch(() => null);
+        if (full?.success) {
+          setLeaveTypes(full.leaveTypes || []);
+          setApprovalConfigs(full.approvalConfigs || []);
+          setBalances(full.balances || []);
+          setSummary(full.summary || {});
+        }
+      } else {
+        const res = await fetch('/api/humanify/leave-management');
+        if (!res.ok) { console.error('Fetch leave data failed:', res.status); setLoading(false); return; }
+        const json = await res.json();
+        if (json.success) {
+          setDataSource(json.dataSource || (json.requests?.length ? 'live' : 'empty'));
+          setRequests(json.requests || []);
+          setLeaveTypes(json.leaveTypes || []);
+          setApprovalConfigs(json.approvalConfigs || []);
+          setBalances(json.balances || []);
+          setSummary(json.summary || {});
+        }
       }
     } catch {
       if (USE_MOCK_UI) {
@@ -203,7 +234,8 @@ export default function LeaveManagementPage() {
     }
   };
 
-  useEffect(() => { setMounted(true); fetchData(); }, []);
+  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => { if (mounted) fetchData(inboxScope); }, [mounted, inboxScope]);
 
   const filtered = useMemo(() => {
     let list = requests;
@@ -443,7 +475,7 @@ export default function LeaveManagementPage() {
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {[
-            { label: 'Total', value: summary.total || 0, icon: CalendarDays, bg: 'bg-violet-100', color: 'text-violet-600' },
+            { label: 'Total', value: summary.total || 0, icon: CalendarDays, bg: 'bg-[var(--hf-brand-100)]', color: 'text-[color:var(--hf-brand-600)]' },
             { label: 'Menunggu Persetujuan', value: summary.pending || 0, icon: Clock, bg: 'bg-yellow-100', color: 'text-yellow-600' },
             { label: 'Disetujui', value: summary.approved || 0, icon: CheckCircle, bg: 'bg-green-100', color: 'text-green-600' },
             { label: 'Ditolak', value: summary.rejected || 0, icon: XCircle, bg: 'bg-red-100', color: 'text-red-600' },
@@ -472,7 +504,7 @@ export default function LeaveManagementPage() {
             ].map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key as any)}
                 className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
-                  activeTab === tab.key ? 'border-violet-600 text-violet-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                  activeTab === tab.key ? 'border-[var(--hf-brand-600)] text-[color:var(--hf-brand-600)]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
                 <tab.icon className="w-4 h-4" /> {tab.label}
               </button>
             ))}
@@ -498,6 +530,15 @@ export default function LeaveManagementPage() {
                   <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
                     <option value="all">Semua Tipe</option>
                     {leaveTypes.map(lt => <option key={lt.code} value={lt.code}>{lt.name}</option>)}
+                  </select>
+                  <select
+                    value={inboxScope}
+                    onChange={(e) => setInboxScope(e.target.value as 'all' | 'me')}
+                    className="px-3 py-2 border rounded-lg text-sm"
+                    title="Filter antrian persetujuan"
+                  >
+                    <option value="all">Semua antrian</option>
+                    <option value="me">Menunggu saya (supervisor)</option>
                   </select>
                 </div>
                 <div className="flex gap-2">
@@ -604,7 +645,7 @@ export default function LeaveManagementPage() {
                                 </div>
                               ) : (
                                 <button onClick={() => { setSelectedRequest(leave); setShowDetailModal(true); }}
-                                  className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded">
+                                  className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded">
                                   <Eye className="w-4 h-4" />
                                 </button>
                               )}
@@ -628,7 +669,7 @@ export default function LeaveManagementPage() {
                   <p className="text-sm text-gray-500">Atur alur persetujuan cuti per departemen, divisi, atau tipe cuti</p>
                 </div>
                 <button onClick={openNewConfig}
-                  className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700">
+                  className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]">
                   <Plus className="w-4 h-4" /> Tambah Konfigurasi
                 </button>
               </div>
@@ -639,12 +680,12 @@ export default function LeaveManagementPage() {
                     <div className="flex justify-between items-start mb-3">
                       <div>
                         <h4 className="font-semibold flex items-center gap-2">
-                          <Shield className="w-4 h-4 text-violet-600" /> {cfg.name}
+                          <Shield className="w-4 h-4 text-[color:var(--hf-brand-600)]" /> {cfg.name}
                         </h4>
                         <p className="text-xs text-gray-500 mt-0.5">{cfg.description}</p>
                       </div>
                       <div className="flex gap-1">
-                        <button onClick={() => openEditConfig(cfg)} className="p-1 text-gray-400 hover:text-violet-600 rounded">
+                        <button onClick={() => openEditConfig(cfg)} className="p-1 text-gray-400 hover:text-[color:var(--hf-brand-600)] rounded">
                           <Edit className="w-4 h-4" />
                         </button>
                         <button onClick={() => handleDeleteConfig(cfg.id)} className="p-1 text-gray-400 hover:text-red-600 rounded">
@@ -656,7 +697,7 @@ export default function LeaveManagementPage() {
                     {/* Tags */}
                     <div className="flex flex-wrap gap-1.5 mb-3">
                       {cfg.department && (
-                        <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs rounded-full">Dept: {cfg.department}</span>
+                        <span className="px-2 py-0.5 bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)] text-xs rounded-full">Dept: {cfg.department}</span>
                       )}
                       <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">Min {cfg.min_days_trigger} hari</span>
                       <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">Eskalasi: {cfg.escalation_hours}jam</span>
@@ -669,7 +710,7 @@ export default function LeaveManagementPage() {
                     <div className="flex items-center gap-1 flex-wrap">
                       {(cfg.approval_levels || []).map((lvl, i) => (
                         <div key={i} className="flex items-center gap-1">
-                          <div className={`px-2.5 py-1 rounded-lg text-xs font-medium ${lvl.required ? 'bg-violet-50 text-violet-700 border border-violet-200' : 'bg-gray-50 text-gray-600 border border-gray-200'}`}>
+                          <div className={`px-2.5 py-1 rounded-lg text-xs font-medium ${lvl.required ? 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)] border border-[var(--hf-brand-100)]' : 'bg-gray-50 text-gray-600 border border-gray-200'}`}>
                             <span className="font-bold">L{lvl.level}</span> {lvl.title}
                           </div>
                           {i < (cfg.approval_levels || []).length - 1 && <ArrowRight className="w-3 h-3 text-gray-400" />}
@@ -701,7 +742,7 @@ export default function LeaveManagementPage() {
                   <p className="text-sm text-gray-500">{leaveTypes.length} tipe cuti terdaftar &mdash; hover kartu untuk aksi</p>
                 </div>
                 <button onClick={openNewType}
-                  className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700">
+                  className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]">
                   <Plus className="w-4 h-4" /> Tambah Tipe Cuti
                 </button>
               </div>
@@ -715,10 +756,10 @@ export default function LeaveManagementPage() {
                     <div key={lt.id} className={`border rounded-xl p-4 hover:shadow-md transition-shadow group relative ${!active ? 'opacity-60' : ''}`}>
                       {/* Action buttons */}
                       <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => handleDuplicateType(lt)} className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded" title="Duplikat">
+                        <button onClick={() => handleDuplicateType(lt)} className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded" title="Duplikat">
                           <Copy className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={() => openEditType(lt)} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded" title="Edit">
+                        <button onClick={() => openEditType(lt)} className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded" title="Edit">
                           <Edit className="w-3.5 h-3.5" />
                         </button>
                         <button onClick={() => handleDeleteType(lt.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded" title="Hapus">
@@ -764,7 +805,7 @@ export default function LeaveManagementPage() {
                           </span>
                         )}
                         {lt.requires_attachment && (
-                          <span className="px-1.5 py-0.5 bg-violet-50 text-violet-600 text-[10px] rounded flex items-center gap-0.5">
+                          <span className="px-1.5 py-0.5 bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)] text-[10px] rounded flex items-center gap-0.5">
                             <FileText className="w-2.5 h-2.5" /> Lampiran
                           </span>
                         )}
@@ -774,7 +815,7 @@ export default function LeaveManagementPage() {
                           </span>
                         )}
                         {(lt.min_service_months || 0) > 0 && (
-                          <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 text-[10px] rounded">
+                          <span className="px-1.5 py-0.5 bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)] text-[10px] rounded">
                             Min {lt.min_service_months} bln kerja
                           </span>
                         )}
@@ -805,7 +846,7 @@ export default function LeaveManagementPage() {
                   <p className="text-sm text-gray-500">Tahun {new Date().getFullYear()} &mdash; {balances.length} data</p>
                 </div>
                 <button onClick={handleInitBalances}
-                  className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700">
+                  className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]">
                   <RefreshCw className="w-4 h-4" /> Inisialisasi Saldo
                 </button>
               </div>
@@ -845,7 +886,7 @@ export default function LeaveManagementPage() {
                             <td className="px-4 py-2 text-center text-green-600 font-medium">{b.used_days || 0}</td>
                             <td className="px-4 py-2 text-center text-yellow-600 font-medium">{b.pending_days || 0}</td>
                             <td className="px-4 py-2 text-center">
-                              <span className={`font-bold ${remaining <= 0 ? 'text-red-600' : remaining <= 3 ? 'text-orange-600' : 'text-violet-600'}`}>
+                              <span className={`font-bold ${remaining <= 0 ? 'text-red-600' : remaining <= 3 ? 'text-orange-600' : 'text-[color:var(--hf-brand-600)]'}`}>
                                 {remaining}
                               </span>
                             </td>
@@ -907,6 +948,22 @@ export default function LeaveManagementPage() {
 
               {selectedRequest.reason && (
                 <div className="text-sm"><span className="text-gray-500 text-xs">Alasan:</span><p className="mt-1 text-gray-700">{selectedRequest.reason}</p></div>
+              )}
+              {(selectedRequest as any).attachment_url && (
+                <div className="text-sm">
+                  <span className="text-gray-500 text-xs">Lampiran:</span>
+                  <p className="mt-1">
+                    <a
+                      href={(selectedRequest as any).attachment_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-medium underline"
+                      style={{ color: 'var(--hf-brand-600)' }}
+                    >
+                      Lihat lampiran
+                    </a>
+                  </p>
+                </div>
               )}
               {selectedRequest.status === 'pending' && (
                 <div>
@@ -986,12 +1043,12 @@ export default function LeaveManagementPage() {
                   <label className="block text-sm font-medium text-gray-700">Level Approval *</label>
                   <button onClick={() => setConfigForm(f => ({
                     ...f, levels: [...f.levels, { level: f.levels.length + 1, role: 'MANAGER', title: 'Manager', required: true, can_delegate: true }]
-                  }))} className="text-xs text-violet-600 hover:text-violet-700 flex items-center gap-1"><Plus className="w-3 h-3" /> Tambah Level</button>
+                  }))} className="text-xs text-[color:var(--hf-brand-600)] hover:text-[color:var(--hf-brand)] flex items-center gap-1"><Plus className="w-3 h-3" /> Tambah Level</button>
                 </div>
                 <div className="space-y-2">
                   {configForm.levels.map((lvl, i) => (
                     <div key={i} className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                      <span className="w-8 h-8 bg-violet-600 text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">{lvl.level}</span>
+                      <span className="w-8 h-8 bg-[var(--hf-brand-600)] text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">{lvl.level}</span>
                       <select value={lvl.role} onChange={e => {
                         const levels = [...configForm.levels];
                         levels[i] = { ...levels[i], role: e.target.value };
@@ -1024,13 +1081,13 @@ export default function LeaveManagementPage() {
               </div>
 
               {/* Preview */}
-              <div className="bg-violet-50 rounded-lg p-3">
-                <p className="text-xs font-medium text-violet-700 mb-1">Preview Alur:</p>
+              <div className="bg-[var(--hf-brand-50)] rounded-lg p-3">
+                <p className="text-xs font-medium text-[color:var(--hf-brand)] mb-1">Preview Alur:</p>
                 <div className="flex items-center gap-1 flex-wrap">
                   {configForm.levels.map((lvl, i) => (
                     <div key={i} className="flex items-center gap-1">
-                      <span className="px-2 py-0.5 bg-white rounded text-xs font-medium text-violet-700">L{lvl.level}: {lvl.title}</span>
-                      {i < configForm.levels.length - 1 && <ArrowRight className="w-3 h-3 text-violet-400" />}
+                      <span className="px-2 py-0.5 bg-white rounded text-xs font-medium text-[color:var(--hf-brand)]">L{lvl.level}: {lvl.title}</span>
+                      {i < configForm.levels.length - 1 && <ArrowRight className="w-3 h-3 text-[color:var(--hf-brand-500)]" />}
                     </div>
                   ))}
                 </div>
@@ -1038,7 +1095,7 @@ export default function LeaveManagementPage() {
             </div>
             <div className="px-6 py-4 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
               <button onClick={() => setShowConfigModal(false)} className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">Batal</button>
-              <button onClick={handleSaveConfig} className="px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700 flex items-center gap-2">
+              <button onClick={handleSaveConfig} className="px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)] flex items-center gap-2">
                 <Save className="w-4 h-4" /> Simpan
               </button>
             </div>
@@ -1058,7 +1115,7 @@ export default function LeaveManagementPage() {
 
               {/* Section: Basic Info */}
               <div>
-                <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5"><Info className="w-4 h-4 text-violet-500" /> Informasi Dasar</h4>
+                <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5"><Info className="w-4 h-4 text-[color:var(--hf-brand-500)]" /> Informasi Dasar</h4>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-gray-500 mb-1">Kode *</label>
@@ -1116,7 +1173,7 @@ export default function LeaveManagementPage() {
 
               {/* Section: Quota & Duration */}
               <div>
-                <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5"><CalendarDays className="w-4 h-4 text-violet-500" /> Kuota &amp; Durasi</h4>
+                <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5"><CalendarDays className="w-4 h-4 text-[color:var(--hf-brand-500)]" /> Kuota &amp; Durasi</h4>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-gray-500 mb-1">Maks Hari / Tahun *</label>
@@ -1187,7 +1244,7 @@ export default function LeaveManagementPage() {
 
               {/* Section: Eligibility */}
               <div>
-                <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5"><Users className="w-4 h-4 text-indigo-500" /> Kelayakan</h4>
+                <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5"><Users className="w-4 h-4 text-[color:var(--hf-brand-500)]" /> Kelayakan</h4>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-gray-500 mb-1">Gender</label>
@@ -1260,7 +1317,7 @@ export default function LeaveManagementPage() {
               </div>
               <div className="flex gap-3">
                 <button onClick={() => setShowTypeModal(false)} className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">Batal</button>
-                <button onClick={handleSaveType} className="px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700 flex items-center gap-2">
+                <button onClick={handleSaveType} className="px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)] flex items-center gap-2">
                   <Save className="w-4 h-4" /> Simpan
                 </button>
               </div>

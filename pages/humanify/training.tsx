@@ -10,9 +10,9 @@ import TrainingLmsBridge from '@/components/humanify/TrainingLmsBridge';
 type TabKey = 'programs' | 'schedule' | 'certifications' | 'reports';
 
 const TYPE_ICONS: Record<string, any> = { workshop: BookOpen, course: GraduationCap, hands_on: Monitor, certification: Award, online: Video, training: GraduationCap };
-const STATUS_COLORS: Record<string, string> = { active: 'bg-green-100 text-green-700', upcoming: 'bg-violet-100 text-violet-700', completed: 'bg-gray-100 text-gray-600', cancelled: 'bg-red-100 text-red-700' };
+const STATUS_COLORS: Record<string, string> = { active: 'bg-green-100 text-green-700', upcoming: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]', completed: 'bg-gray-100 text-gray-600', cancelled: 'bg-red-100 text-red-700' };
 const CERT_STATUS_COLORS: Record<string, string> = { active: 'bg-green-100 text-green-700', expiring_soon: 'bg-yellow-100 text-yellow-700', expired: 'bg-red-100 text-red-700' };
-const LEVEL_COLORS: Record<string, string> = { beginner: 'text-green-600', intermediate: 'text-violet-600', advanced: 'text-purple-600' };
+const LEVEL_COLORS: Record<string, string> = { beginner: 'text-green-600', intermediate: 'text-[color:var(--hf-brand-600)]', advanced: 'text-purple-600' };
 
 const emptyProgramForm = { title: '', category: 'technical', type: 'training', trainer: '', location: '', status: 'upcoming', start_date: '', end_date: '', max_participants: '30', cost_per_person: '0', description: '' };
 
@@ -184,7 +184,7 @@ export default function TrainingPage() {
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div className="bg-white rounded-xl p-4 border shadow-sm">
-            <div className="flex items-center gap-3"><div className="p-2 bg-violet-100 rounded-lg"><BookOpen className="w-5 h-5 text-violet-600" /></div>
+            <div className="flex items-center gap-3"><div className="p-2 bg-[var(--hf-brand-100)] rounded-lg"><BookOpen className="w-5 h-5 text-[color:var(--hf-brand-600)]" /></div>
               <div><p className="text-2xl font-bold">{activeProgramCount}</p><p className="text-xs text-gray-500">Program Aktif</p></div></div>
           </div>
           <div className="bg-white rounded-xl p-4 border shadow-sm">
@@ -209,13 +209,13 @@ export default function TrainingPage() {
         <div className="flex gap-1 border-b">
           {tabs.map(t => (
             <button key={t.key} onClick={() => { setTab(t.key); setSearch(''); setFilterCat(''); setFilterStatus(''); }}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 flex items-center gap-1.5 transition-colors ${tab === t.key ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+              className={`px-4 py-2.5 text-sm font-medium border-b-2 flex items-center gap-1.5 transition-colors ${tab === t.key ? 'border-[var(--hf-brand-600)] text-[color:var(--hf-brand-600)]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
               <t.icon className="w-4 h-4" /> {t.label}
             </button>
           ))}
         </div>
 
-        {loading && <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-indigo-600" /><span className="ml-2 text-sm text-gray-500">Memuat data...</span></div>}
+        {loading && <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-[color:var(--hf-brand-600)]" /><span className="ml-2 text-sm text-gray-500">Memuat data...</span></div>}
 
         {/* PROGRAMS TAB */}
         {!loading && tab === 'programs' && (
@@ -226,7 +226,7 @@ export default function TrainingPage() {
                 <select value={filterCat} onChange={e => setFilterCat(e.target.value)} className="px-3 py-2 border rounded-lg text-sm"><option value="">Semua Kategori</option>{categories.map(c => <option key={c} value={c}>{c}</option>)}</select>
                 <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2 border rounded-lg text-sm"><option value="">Semua Status</option><option value="active">Aktif</option><option value="upcoming">Akan Datang</option><option value="completed">Selesai</option></select>
               </div>
-              <button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700"><Plus className="w-4 h-4" /> Buat Program</button>
+              <button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]"><Plus className="w-4 h-4" /> Buat Program</button>
             </div>
             <div className="grid md:grid-cols-2 gap-4">
               {filtered.map(p => {
@@ -239,7 +239,7 @@ export default function TrainingPage() {
                   <div key={p.id} className="bg-white border rounded-xl p-5 hover:shadow-lg transition-all cursor-pointer group" onClick={() => setSelected(p)}>
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex items-center gap-3">
-                        <div className="p-2.5 bg-indigo-50 rounded-xl group-hover:bg-indigo-100 transition-colors"><Icon className="w-5 h-5 text-indigo-600" /></div>
+                        <div className="p-2.5 bg-[var(--hf-brand-50)] rounded-xl group-hover:bg-[var(--hf-brand-100)] transition-colors"><Icon className="w-5 h-5 text-[color:var(--hf-brand-600)]" /></div>
                         <div>
                           <h3 className="font-semibold text-gray-900">{p.title}</h3>
                           <div className="flex items-center gap-2 mt-0.5">
@@ -258,7 +258,7 @@ export default function TrainingPage() {
                     </div>
                     <div className="flex items-center justify-between pt-3 border-t">
                       <div className="flex-1 mr-3">
-                        <div className="w-full bg-gray-100 rounded-full h-1.5"><div className="bg-indigo-500 h-1.5 rounded-full transition-all" style={{ width: `${pct}%` }} /></div>
+                        <div className="w-full bg-gray-100 rounded-full h-1.5"><div className="bg-[var(--hf-brand-500)] h-1.5 rounded-full transition-all" style={{ width: `${pct}%` }} /></div>
                         <p className="text-[10px] text-gray-400 mt-1">{pct}% terisi</p>
                       </div>
                       <div className="text-right">
@@ -297,7 +297,7 @@ export default function TrainingPage() {
                 return (
                   <div key={p.id} className="bg-white border rounded-xl p-4 flex items-center gap-4 hover:shadow-md transition-all cursor-pointer" onClick={() => setSelected(p)}>
                     <div className="text-center min-w-[60px]">
-                      <p className="text-2xl font-bold text-indigo-600">{p.start_date ? new Date(p.start_date).getDate() : '-'}</p>
+                      <p className="text-2xl font-bold text-[color:var(--hf-brand-600)]">{p.start_date ? new Date(p.start_date).getDate() : '-'}</p>
                       <p className="text-xs text-gray-500">{p.start_date ? new Date(p.start_date).toLocaleDateString('id-ID', { month: 'short', year: 'numeric' }) : '-'}</p>
                     </div>
                     <div className="w-px h-12 bg-gray-200" />
@@ -374,7 +374,7 @@ export default function TrainingPage() {
                   return (
                     <div key={cat} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div><p className="text-sm font-medium">{cat}</p><p className="text-xs text-gray-500">{count} program</p></div>
-                      <p className="text-sm font-bold text-indigo-600">{enrolled} peserta</p>
+                      <p className="text-sm font-bold text-[color:var(--hf-brand-600)]">{enrolled} peserta</p>
                     </div>
                   );
                 })}
@@ -397,7 +397,7 @@ export default function TrainingPage() {
                   return (
                     <div key={p.id}>
                       <div className="flex justify-between text-sm mb-1"><span className="text-gray-700 truncate mr-2">{p.title}</span><span className="font-medium">{pct}%</span></div>
-                      <div className="w-full bg-gray-100 rounded-full h-2"><div className={`h-2 rounded-full ${pct === 100 ? 'bg-green-500' : pct > 50 ? 'bg-violet-500' : 'bg-orange-500'}`} style={{ width: `${pct}%` }} /></div>
+                      <div className="w-full bg-gray-100 rounded-full h-2"><div className={`h-2 rounded-full ${pct === 100 ? 'bg-green-500' : pct > 50 ? 'bg-[var(--hf-brand-500)]' : 'bg-orange-500'}`} style={{ width: `${pct}%` }} /></div>
                     </div>
                   );
                 })}
@@ -418,7 +418,7 @@ export default function TrainingPage() {
                 })}
                 <div className="pt-3 border-t flex justify-between">
                   <span className="font-semibold">Total Anggaran</span>
-                  <span className="font-bold text-indigo-600">{fmtCur(analytics?.totalBudget ?? programs.reduce((s, p) => s + (p.cost_per_person || 0) * (p.enrolled || p.current_participants || 0), 0))}</span>
+                  <span className="font-bold text-[color:var(--hf-brand-600)]">{fmtCur(analytics?.totalBudget ?? programs.reduce((s, p) => s + (p.cost_per_person || 0) * (p.enrolled || p.current_participants || 0), 0))}</span>
                 </div>
               </div>
             </div>
@@ -462,7 +462,7 @@ export default function TrainingPage() {
                 <div><label className="text-sm font-medium text-gray-700">Deskripsi</label><textarea value={createForm.description} onChange={e => setCreateForm({ ...createForm, description: e.target.value })} rows={3} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" /></div>
                 <div className="flex gap-2 pt-2">
                   <button type="button" onClick={() => setShowCreateModal(false)} className="flex-1 px-4 py-2 border rounded-lg text-sm">Batal</button>
-                  <button type="submit" disabled={saving} className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2">
+                  <button type="submit" disabled={saving} className="flex-1 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)] disabled:opacity-50 flex items-center justify-center gap-2">
                     {saving && <Loader2 className="w-4 h-4 animate-spin" />} Simpan
                   </button>
                 </div>
@@ -477,7 +477,7 @@ export default function TrainingPage() {
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto">
               <div className="p-5 border-b flex justify-between items-start">
                 <div className="flex items-center gap-3">
-                  {(() => { const Icon = TYPE_ICONS[getProgramType(selected)] || BookOpen; return <div className="p-2.5 bg-indigo-50 rounded-xl"><Icon className="w-6 h-6 text-indigo-600" /></div>; })()}
+                  {(() => { const Icon = TYPE_ICONS[getProgramType(selected)] || BookOpen; return <div className="p-2.5 bg-[var(--hf-brand-50)] rounded-xl"><Icon className="w-6 h-6 text-[color:var(--hf-brand-600)]" /></div>; })()}
                   <div><h3 className="font-bold text-lg">{selected.title}</h3><p className="text-sm text-gray-500">{selected.category}{selected.level ? ` - ${selected.level}` : ''}</p></div>
                 </div>
                 <button onClick={() => setSelected(null)} className="p-1.5 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
@@ -503,7 +503,7 @@ export default function TrainingPage() {
                     <div>
                       <p className="text-xs text-gray-500 mb-1.5">Kapasitas Terisi</p>
                       <div className="flex items-center gap-3">
-                        <div className="flex-1 bg-gray-100 rounded-full h-3"><div className="bg-indigo-500 h-3 rounded-full" style={{ width: `${Math.round(enrolled / maxP * 100)}%` }} /></div>
+                        <div className="flex-1 bg-gray-100 rounded-full h-3"><div className="bg-[var(--hf-brand-500)] h-3 rounded-full" style={{ width: `${Math.round(enrolled / maxP * 100)}%` }} /></div>
                         <span className="text-sm font-medium">{enrolled}/{maxP}</span>
                       </div>
                     </div>

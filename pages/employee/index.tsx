@@ -175,6 +175,7 @@ export default function EmployeeDashboard() {
 
   // ─── Form State ───
   const [leaveForm, setLeaveForm] = useState({ leaveType: 'annual', startDate: '', endDate: '', reason: '' });
+  const [leaveFile, setLeaveFile] = useState<File | null>(null);
   const [claimForm, setClaimForm] = useState({ claimType: 'medical', amount: '', description: '', receiptDate: '' });
   const [claimFiles, setClaimFiles] = useState<File[]>([]);
   const [claimPreviews, setClaimPreviews] = useState<{ url: string; name: string; type: string }[]>([]);
@@ -592,13 +593,26 @@ export default function EmployeeDashboard() {
     if (!leaveForm.startDate || !leaveForm.endDate || !leaveForm.reason) {
       toast.error('Semua field harus diisi'); return;
     }
+    const needsAttachment = ['sick', 'sakit', 'medical'].includes(String(leaveForm.leaveType).toLowerCase());
+    if (needsAttachment && !leaveFile) {
+      toast.error('Cuti sakit memerlukan lampiran'); return;
+    }
     setSubmitting(true);
     try {
-      const res = await api('leave-request', 'POST', leaveForm);
+      let attachments: Array<{ name: string; type: string; data: string }> = [];
+      if (leaveFile) {
+        attachments = [await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve({ name: leaveFile.name, type: leaveFile.type, data: reader.result as string });
+          reader.readAsDataURL(leaveFile);
+        })];
+      }
+      const res = await api('leave-request', 'POST', { ...leaveForm, attachments });
       if (res.success) {
         toast.success(res.message || 'Pengajuan cuti berhasil');
         setModal(null);
         setLeaveForm({ leaveType: 'annual', startDate: '', endDate: '', reason: '' });
+        setLeaveFile(null);
         const lrRes = await api('leave-requests');
         setLeaveRequests(Array.isArray(lrRes.data) ? lrRes.data : []);
       } else { toast.error(res.error || 'Gagal mengajukan cuti'); }
@@ -789,6 +803,18 @@ export default function EmployeeDashboard() {
                   <textarea value={leaveForm.reason} onChange={e => setLeaveForm(f => ({ ...f, reason: e.target.value }))}
                     rows={3} placeholder="Jelaskan alasan pengajuan cuti..."
                     className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 resize-none" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">
+                    Lampiran {['sick', 'sakit', 'medical'].includes(leaveForm.leaveType) ? '(wajib untuk sakit)' : '(opsional)'}
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={(e) => setLeaveFile(e.target.files?.[0] || null)}
+                    className="w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-slate-100 file:text-sm"
+                  />
+                  {leaveFile && <p className="text-xs text-slate-500 mt-1">{leaveFile.name}</p>}
                 </div>
                 <button onClick={handleSubmitLeave} disabled={submitting}
                   className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2">

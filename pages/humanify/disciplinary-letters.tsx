@@ -373,7 +373,7 @@ export default function DisciplinaryLettersPage() {
 
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
         {/* Hero header */}
-        <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white">
+        <div className="bg-gradient-to-r from-slate-900 via-[var(--hf-brand-500)] to-slate-900 text-white">
           <div className="max-w-[1600px] mx-auto px-4 md:px-6 py-6 md:py-8">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div>
@@ -383,7 +383,7 @@ export default function DisciplinaryLettersPage() {
                   </div>
                   <div>
                     <h1 className="text-xl md:text-2xl font-bold tracking-tight">Manajemen Surat Disiplin</h1>
-                    <p className="text-indigo-200/80 text-sm">Teguran · SP1 · SP2 · SP3 · PHK — workflow SOP good governance</p>
+                    <p className="text-[color:var(--hf-brand-600)]/80 text-sm">Teguran · SP1 · SP2 · SP3 · PHK — workflow SOP good governance</p>
                   </div>
                 </div>
                 {/* Mini ladder */}
@@ -394,7 +394,7 @@ export default function DisciplinaryLettersPage() {
                         type="button"
                         onClick={() => { setFilterType(filterType === type ? '' : type); setView('board'); }}
                         className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all ${
-                          filterType === type ? 'bg-white text-indigo-900' : 'bg-white/10 text-white/80 hover:bg-white/20'
+                          filterType === type ? 'bg-white text-[color:var(--hf-brand-600)]' : 'bg-white/10 text-white/80 hover:bg-white/20'
                         }`}
                       >
                         {type}
@@ -409,7 +409,7 @@ export default function DisciplinaryLettersPage() {
                 <button
                   onClick={() => setView(view === 'sop' ? 'board' : 'sop')}
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                    view === 'sop' ? 'bg-white text-indigo-900' : 'bg-white/10 text-white hover:bg-white/20 border border-white/10'
+                    view === 'sop' ? 'bg-white text-[color:var(--hf-brand-600)]' : 'bg-white/10 text-white hover:bg-white/20 border border-white/10'
                   }`}
                 >
                   <Settings className="w-4 h-4" /> Konfigurasi SOP
@@ -429,7 +429,7 @@ export default function DisciplinaryLettersPage() {
           {/* SOP View */}
           {view === 'sop' && (
             <div className="space-y-4">
-              <button onClick={() => setView('board')} className="text-sm text-indigo-600 hover:text-indigo-800 font-medium">
+              <button onClick={() => setView('board')} className="text-sm text-[color:var(--hf-brand-600)] hover:text-[color:var(--hf-brand-600)] font-medium">
                 ← Kembali ke papan kerja
               </button>
               <SOPConfigList
@@ -455,12 +455,12 @@ export default function DisciplinaryLettersPage() {
                   <div className="space-y-5 animate-in fade-in duration-300">
                     <EmployeePicker value={pickedEmployee?.id} onChange={setPickedEmployee} label="Karyawan yang Bersangkutan" required />
                     {pickedEmployee && (
-                      <div className="flex items-center gap-4 p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
+                      <div className="flex items-center gap-4 p-4 bg-[var(--hf-brand-50)] rounded-2xl border border-[var(--hf-brand-100)]">
                         <EmployeeAvatar name={pickedEmployee.name} size="lg" />
                         <div>
                           <p className="font-semibold text-gray-900">{pickedEmployee.name}</p>
                           <p className="text-sm text-gray-500">{pickedEmployee.position} · {pickedEmployee.department_label}</p>
-                          <p className="text-xs text-indigo-600 font-mono mt-0.5">{pickedEmployee.employee_id}</p>
+                          <p className="text-xs text-[color:var(--hf-brand-600)] font-mono mt-0.5">{pickedEmployee.employee_id}</p>
                         </div>
                       </div>
                     )}
@@ -483,7 +483,7 @@ export default function DisciplinaryLettersPage() {
                     <button
                       disabled={!pickedEmployee}
                       onClick={() => setCreateStep(1)}
-                      className="w-full py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 disabled:opacity-40 transition-all"
+                      className="w-full py-3 bg-[var(--hf-brand-600)] text-white rounded-xl font-medium hover:bg-[var(--hf-brand)] disabled:opacity-40 transition-all"
                     >
                       Lanjut →
                     </button>
@@ -497,30 +497,30 @@ export default function DisciplinaryLettersPage() {
                       <LetterTypeCards value={form.letter_type} onChange={(t) => setForm({ ...form, letter_type: t })} />
                     </div>
                     {activeSOP && (
-                      <div className="rounded-2xl border border-violet-100 bg-violet-50/50 p-4 text-sm">
-                        <p className="font-semibold text-violet-900">{activeSOP.name}</p>
-                        <p className="text-violet-700/80 text-xs mt-1">{activeSOP.description}</p>
-                        <p className="text-xs text-violet-600 mt-2">{(activeSOP.approval_levels || []).length} tahap persetujuan · berlaku {activeSOP.validity_months} bulan</p>
+                      <div className="rounded-2xl border border-[var(--hf-brand-50)] bg-[var(--hf-brand-50)]/50 p-4 text-sm">
+                        <p className="font-semibold text-[color:var(--hf-brand-600)]">{activeSOP.name}</p>
+                        <p className="text-[color:var(--hf-brand)]/80 text-xs mt-1">{activeSOP.description}</p>
+                        <p className="text-xs text-[color:var(--hf-brand-600)] mt-2">{(activeSOP.approval_levels || []).length} tahap persetujuan · berlaku {activeSOP.validity_months} bulan</p>
                       </div>
                     )}
                     <div className="grid sm:grid-cols-2 gap-4">
                       <div>
                         <label className="text-xs font-medium text-gray-500">Jenis Pelanggaran</label>
                         <select value={form.violation_type} onChange={(e) => setForm({ ...form, violation_type: e.target.value })}
-                          className="w-full mt-1 px-3 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400">
+                          className="w-full mt-1 px-3 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-[var(--hf-brand-500)] focus:border-[var(--hf-brand-500)]">
                           {Object.entries(VIOLATION_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                         </select>
                       </div>
                       <div>
                         <label className="text-xs font-medium text-gray-500">Tanggal Kejadian</label>
                         <input type="date" value={form.incident_date} onChange={(e) => setForm({ ...form, incident_date: e.target.value })}
-                          className="w-full mt-1 px-3 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-200" />
+                          className="w-full mt-1 px-3 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-[var(--hf-brand-500)]" />
                       </div>
                     </div>
                     <div>
                       <label className="text-xs font-medium text-gray-500">Deskripsi Pelanggaran *</label>
                       <textarea value={form.violation_description} onChange={(e) => setForm({ ...form, violation_description: e.target.value })}
-                        rows={4} className="w-full mt-1 px-3 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-200"
+                        rows={4} className="w-full mt-1 px-3 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-[var(--hf-brand-500)]"
                         placeholder="Uraikan pelanggaran secara detail, sertakan bukti dan saksi jika ada..." />
                     </div>
                     {form.letter_type === 'TERMINATION' && (
@@ -546,7 +546,7 @@ export default function DisciplinaryLettersPage() {
                       <button
                         disabled={!form.violation_description.trim()}
                         onClick={() => setCreateStep(2)}
-                        className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 disabled:opacity-40"
+                        className="flex-1 py-3 bg-[var(--hf-brand-600)] text-white rounded-xl font-medium hover:bg-[var(--hf-brand)] disabled:opacity-40"
                       >
                         Lanjut Review →
                       </button>
@@ -592,7 +592,7 @@ export default function DisciplinaryLettersPage() {
             <>
               {/* Stats row */}
               <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-5">
-                <StatCard label="Permohonan Manager" value={summary.managerRequests || 0} icon={User} gradient="from-violet-400 to-purple-600"
+                <StatCard label="Permohonan Manager" value={summary.managerRequests || 0} icon={User} gradient="from-[var(--hf-brand-600)] to-purple-600"
                   active={quickFilter === 'manager_requests'} onClick={() => setQuickFilter(quickFilter === 'manager_requests' ? '' : 'manager_requests')} />
                 <StatCard label="Menunggu Proses" value={summary.pending} icon={Clock} gradient="from-amber-400 to-orange-500"
                   active={quickFilter === 'pending'} onClick={() => setQuickFilter(quickFilter === 'pending' ? '' : 'pending')} />
@@ -600,7 +600,7 @@ export default function DisciplinaryLettersPage() {
                   active={quickFilter === 'issued'} onClick={() => setQuickFilter(quickFilter === 'issued' ? '' : 'issued')} />
                 <StatCard label="Draft" value={summary.draft} icon={FileText} gradient="from-slate-400 to-slate-600"
                   active={quickFilter === 'draft'} onClick={() => setQuickFilter(quickFilter === 'draft' ? '' : 'draft')} />
-                <StatCard label="Total Surat" value={summary.total} icon={BookOpen} gradient="from-indigo-400 to-purple-600"
+                <StatCard label="Total Surat" value={summary.total} icon={BookOpen} gradient="from-[var(--hf-brand-600)] to-purple-600"
                   active={quickFilter === ''} onClick={() => setQuickFilter('')} />
               </div>
 
@@ -613,13 +613,13 @@ export default function DisciplinaryLettersPage() {
                       <div className="relative">
                         <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
                         <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari nama, no. surat..."
-                          className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border-0 rounded-xl text-sm focus:ring-2 focus:ring-indigo-200 focus:bg-white transition-all" />
+                          className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border-0 rounded-xl text-sm focus:ring-2 focus:ring-[var(--hf-brand-500)] focus:bg-white transition-all" />
                       </div>
                       <div className="flex flex-wrap gap-1.5">
                         {QUICK_FILTERS.map((f) => (
                           <button key={f.key} onClick={() => setQuickFilter(f.key)}
                             className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                              quickFilter === f.key ? 'bg-indigo-600 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                              quickFilter === f.key ? 'bg-[var(--hf-brand-600)] text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                             }`}>
                             {f.label}
                           </button>
@@ -653,7 +653,7 @@ export default function DisciplinaryLettersPage() {
                           onClick={() => loadDetail(l.id)}
                           className={`w-full text-left p-4 rounded-xl border transition-all hover:shadow-md ${
                             selected?.id === l.id
-                              ? 'border-indigo-300 bg-indigo-50/50 ring-2 ring-indigo-100 shadow-sm'
+                              ? 'border-[var(--hf-brand-100)] bg-[var(--hf-brand-50)]/50 ring-2 ring-[var(--hf-brand-500)] shadow-sm'
                               : 'border-gray-100 bg-white hover:border-gray-200'
                           }`}
                         >
@@ -675,7 +675,7 @@ export default function DisciplinaryLettersPage() {
                                     <span>Tahap {l.current_approval_step || 1}/{l.total_approval_steps}</span>
                                   </div>
                                   <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
-                                    <div className="h-full bg-indigo-400 rounded-full" style={{ width: `${Math.round(((l.current_approval_step || 1) - 1) / l.total_approval_steps * 100)}%` }} />
+                                    <div className="h-full bg-[var(--hf-brand-100)] rounded-full" style={{ width: `${Math.round(((l.current_approval_step || 1) - 1) / l.total_approval_steps * 100)}%` }} />
                                   </div>
                                 </div>
                               )}
@@ -693,8 +693,8 @@ export default function DisciplinaryLettersPage() {
                     <div className="bg-white rounded-2xl border p-8"><SkeletonCards count={3} /></div>
                   ) : !selected ? (
                     <div className="bg-white rounded-2xl border border-dashed border-gray-200 h-full flex flex-col items-center justify-center py-20 text-center">
-                      <div className="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center mb-4">
-                        <PanelRightOpen className="w-8 h-8 text-indigo-400" />
+                      <div className="w-16 h-16 rounded-2xl bg-[var(--hf-brand-50)] flex items-center justify-center mb-4">
+                        <PanelRightOpen className="w-8 h-8 text-[color:var(--hf-brand-600)]" />
                       </div>
                       <h3 className="font-semibold text-gray-700">Pilih surat untuk melihat detail</h3>
                       <p className="text-sm text-gray-400 mt-1 max-w-xs">Klik salah satu surat di panel kiri untuk melihat alur persetujuan, draft, dan aksi</p>
@@ -705,7 +705,7 @@ export default function DisciplinaryLettersPage() {
                   ) : (
                     <div className="space-y-4">
                       {/* Mobile back */}
-                      <button onClick={() => setShowMobileDetail(false)} className="xl:hidden flex items-center gap-1 text-sm text-indigo-600 font-medium mb-2">
+                      <button onClick={() => setShowMobileDetail(false)} className="xl:hidden flex items-center gap-1 text-sm text-[color:var(--hf-brand-600)] font-medium mb-2">
                         ← Kembali ke daftar
                       </button>
 
@@ -726,9 +726,9 @@ export default function DisciplinaryLettersPage() {
                               </div>
                             </div>
                             {selected.letter_number && (
-                              <div className="text-right bg-indigo-50 rounded-xl px-4 py-2 border border-indigo-100">
-                                <p className="text-[10px] text-indigo-500 font-medium uppercase tracking-wide">No. Surat Resmi</p>
-                                <p className="font-mono text-sm font-bold text-indigo-700">{selected.letter_number}</p>
+                              <div className="text-right bg-[var(--hf-brand-50)] rounded-xl px-4 py-2 border border-[var(--hf-brand-100)]">
+                                <p className="text-[10px] text-[color:var(--hf-brand-500)] font-medium uppercase tracking-wide">No. Surat Resmi</p>
+                                <p className="font-mono text-sm font-bold text-[color:var(--hf-brand)]">{selected.letter_number}</p>
                               </div>
                             )}
                           </div>
@@ -738,10 +738,10 @@ export default function DisciplinaryLettersPage() {
                             <div className="mt-5 p-4 bg-gray-50 rounded-xl">
                               <div className="flex justify-between text-xs text-gray-600 mb-2">
                                 <span className="font-medium">Progress Workflow SOP</span>
-                                <span className="font-bold text-indigo-600">{approvalPct}%</span>
+                                <span className="font-bold text-[color:var(--hf-brand-600)]">{approvalPct}%</span>
                               </div>
                               <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                                <div className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-700" style={{ width: `${approvalPct}%` }} />
+                                <div className="h-full bg-gradient-to-r from-[var(--hf-brand-600)] to-purple-500 rounded-full transition-all duration-700" style={{ width: `${approvalPct}%` }} />
                               </div>
                               <p className="text-[10px] text-gray-400 mt-1.5">Tahap {selected.current_approval_step || 1} dari {selected.total_approval_steps || 1}</p>
                             </div>
@@ -769,8 +769,8 @@ export default function DisciplinaryLettersPage() {
                           </div>
 
                           {selected.request_source === 'manager_portal' && (
-                            <div className="mt-4 p-4 bg-violet-50/50 rounded-xl border border-violet-100">
-                              <p className="text-xs font-semibold text-violet-800 mb-2">Permohonan dari Manajer</p>
+                            <div className="mt-4 p-4 bg-[var(--hf-brand-50)]/50 rounded-xl border border-[var(--hf-brand-50)]">
+                              <p className="text-xs font-semibold text-[color:var(--hf-brand-600)] mb-2">Permohonan dari Manajer</p>
                               <p className="text-sm text-gray-700"><span className="font-medium">Pengaju:</span> {selected.requester_name || '—'}</p>
                               {selected.request_reason && (
                                 <p className="text-sm text-gray-700 mt-1"><span className="font-medium">Alasan:</span> {selected.request_reason}</p>
@@ -787,7 +787,7 @@ export default function DisciplinaryLettersPage() {
                               <div className="flex flex-wrap gap-2">
                                 {selected.attachments.map((att: any, i: number) => (
                                   <a key={i} href={att.data || att.url || '#'} target="_blank" rel="noopener noreferrer"
-                                    className="block w-20 h-20 rounded-lg border overflow-hidden bg-white hover:ring-2 hover:ring-indigo-200">
+                                    className="block w-20 h-20 rounded-lg border overflow-hidden bg-white hover:ring-2 hover:ring-[var(--hf-brand-500)]">
                                     {att.type?.startsWith('image/') && (att.data || att.url) ? (
                                       <img src={att.data || att.url} alt={att.name} className="w-full h-full object-cover" />
                                     ) : (
@@ -813,13 +813,13 @@ export default function DisciplinaryLettersPage() {
                           )}
                           {selected.status === 'investigating' && (
                             <button onClick={handleCompleteInvestigation} disabled={submitting}
-                              className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 shadow-sm disabled:opacity-50">
+                              className="flex items-center gap-2 px-4 py-2.5 bg-[var(--hf-brand-600)] text-white rounded-xl text-sm font-medium hover:bg-[var(--hf-brand)] shadow-sm disabled:opacity-50">
                               <CheckCircle className="w-4 h-4" /> Selesai Investigasi → Draft
                             </button>
                           )}
                           {['draft', 'drafting'].includes(selected.status) && (
                             <button onClick={() => handleSubmit(selected.id)}
-                              className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 shadow-sm">
+                              className="flex items-center gap-2 px-4 py-2.5 bg-[var(--hf-brand-600)] text-white rounded-xl text-sm font-medium hover:bg-[var(--hf-brand)] shadow-sm">
                               <Send className="w-4 h-4" /> Ajukan Persetujuan
                             </button>
                           )}
@@ -907,7 +907,7 @@ export default function DisciplinaryLettersPage() {
                       {/* Timeline */}
                       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 md:p-6">
                         <h3 className="font-semibold text-gray-900 flex items-center gap-2 mb-5">
-                          <GitBranch className="w-5 h-5 text-indigo-500" />
+                          <GitBranch className="w-5 h-5 text-[color:var(--hf-brand-500)]" />
                           Alur Persetujuan SOP
                           <span className="text-xs font-normal text-gray-400 ml-1">
                             ({selected.approval_steps?.filter((s: any) => s.status === 'approved').length || 0}/{selected.approval_steps?.length || 0} selesai)
@@ -942,7 +942,7 @@ export default function DisciplinaryLettersPage() {
             </div>
             <div className="p-6">
               <textarea value={approvalComments} onChange={(e) => setApprovalComments(e.target.value)}
-                rows={4} className="w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-200 resize-none"
+                rows={4} className="w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-[var(--hf-brand-500)] resize-none"
                 placeholder={approvalAction === 'approve' ? 'Catatan persetujuan (opsional)...' : 'Alasan penolakan (wajib)...'} />
               <div className="flex gap-3 mt-4">
                 <button onClick={() => setShowApproval(false)} className="flex-1 py-3 border rounded-xl text-sm font-medium hover:bg-gray-50">Batal</button>

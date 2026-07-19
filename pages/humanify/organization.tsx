@@ -210,7 +210,7 @@ export default function OrganizationPage() {
 
   const fmtCurrency = (n: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0);
 
-  const levelColors = ['bg-violet-600', 'bg-indigo-500', 'bg-purple-500', 'bg-pink-500', 'bg-orange-500'];
+  const levelColors = ['bg-[var(--hf-brand-600)]', 'bg-[var(--hf-brand-500)]', 'bg-purple-500', 'bg-pink-500', 'bg-orange-500'];
 
   // Recursive tree node renderer
   const renderOrgNode = (node: any, depth: number = 0) => {
@@ -234,7 +234,7 @@ export default function OrganizationPage() {
             <div className="flex items-center gap-2">
               <span className="font-medium text-gray-800 text-sm">{node.name}</span>
               {node.code && <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 text-[10px] rounded">{node.code}</span>}
-              <span className="px-1.5 py-0.5 bg-violet-50 text-violet-600 text-[10px] rounded">Level {node.level}</span>
+              <span className="px-1.5 py-0.5 bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)] text-[10px] rounded">Level {node.level}</span>
               {parseInt(node.employee_count) > 0 && (
                 <span className="px-1.5 py-0.5 bg-green-50 text-green-600 text-[10px] rounded flex items-center gap-0.5">
                   <Users className="w-3 h-3" /> {node.employee_count}
@@ -251,7 +251,7 @@ export default function OrganizationPage() {
               <Plus className="w-3.5 h-3.5" />
             </button>
             <button onClick={() => { setOrgForm({ id: node.id, name: node.name, code: node.code, parent_id: node.parent_id, level: node.level, sort_order: node.sort_order, head_employee_id: node.head_employee_id, description: node.description }); setShowOrgModal(true); }}
-              className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded" title="Edit">
+              className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded" title="Edit">
               <Edit className="w-3.5 h-3.5" />
             </button>
             <button onClick={() => deleteOrg(node.id, node.name)}
@@ -288,7 +288,7 @@ export default function OrganizationPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-              <Network className="w-6 h-6 text-indigo-600" /> Struktur Organisasi & Golongan Jabatan
+              <Network className="w-6 h-6 text-[color:var(--hf-brand-600)]" /> Struktur Organisasi & Golongan Jabatan
             </h1>
             <p className="text-sm text-gray-500 mt-0.5">Kelola hierarki organisasi dan golongan jabatan</p>
           </div>
@@ -298,9 +298,9 @@ export default function OrganizationPage() {
         {summary && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { label: 'Unit Organisasi', value: summary.totalUnits || 0, icon: Building2, color: 'text-indigo-600 bg-indigo-50' },
+              { label: 'Unit Organisasi', value: summary.totalUnits || 0, icon: Building2, color: 'text-[color:var(--hf-brand-600)] bg-[var(--hf-brand-50)]' },
               { label: 'Golongan Jabatan', value: summary.totalGrades || 0, icon: Layers, color: 'text-purple-600 bg-purple-50' },
-              { label: 'Total Karyawan', value: summary.totalEmployees || 0, icon: Users, color: 'text-violet-600 bg-violet-50' },
+              { label: 'Total Karyawan', value: summary.totalEmployees || 0, icon: Users, color: 'text-[color:var(--hf-brand-600)] bg-[var(--hf-brand-50)]' },
               { label: 'Departemen', value: summary.departmentBreakdown?.length || 0, icon: Briefcase, color: 'text-green-600 bg-green-50' },
             ].map((card, i) => (
               <div key={i} className="bg-white rounded-xl border p-4">
@@ -328,7 +328,7 @@ export default function OrganizationPage() {
               ] as { key: MainTab; label: string; icon: any }[]).map(tab => (
                 <button key={tab.key} onClick={() => setActiveTab(tab.key)}
                   className={`flex items-center gap-1.5 px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === tab.key ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                    activeTab === tab.key ? 'border-[var(--hf-brand-600)] text-[color:var(--hf-brand-600)]' : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}>
                   <tab.icon className="w-4 h-4" /> {tab.label}
                 </button>
@@ -350,20 +350,20 @@ export default function OrganizationPage() {
                       <button
                         type="button"
                         onClick={() => setOrgView('chart')}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 ${orgView === 'chart' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 ${orgView === 'chart' ? 'bg-[var(--hf-brand-600)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
                       >
                         <LayoutGrid className="w-4 h-4" /> Bagan
                       </button>
                       <button
                         type="button"
                         onClick={() => setOrgView('list')}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 border-l ${orgView === 'list' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 border-l ${orgView === 'list' ? 'bg-[var(--hf-brand-600)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
                       >
                         <ListIcon className="w-4 h-4" /> Daftar
                       </button>
                     </div>
                     <button onClick={() => { setOrgForm({ level: 0 }); setShowOrgModal(true); }}
-                      className="flex items-center gap-1 px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+                      className="flex items-center gap-1 px-3 py-1.5 text-sm bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)]">
                       <Plus className="w-3.5 h-3.5" /> Tambah Unit
                     </button>
                   </div>
@@ -438,7 +438,7 @@ export default function OrganizationPage() {
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
+                                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-[var(--hf-brand-600)] flex items-center justify-center text-white font-bold text-sm">
                                   {g.code}
                                 </div>
                                 <div>
@@ -464,7 +464,7 @@ export default function OrganizationPage() {
                                     <p className="text-[10px] font-medium text-gray-400 mb-1">TUNJANGAN</p>
                                     <div className="flex flex-wrap gap-1">
                                       {benefits.map((b: string, i: number) => (
-                                        <span key={i} className="px-2 py-0.5 bg-violet-50 text-violet-600 text-[10px] rounded">{b}</span>
+                                        <span key={i} className="px-2 py-0.5 bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)] text-[10px] rounded">{b}</span>
                                       ))}
                                     </div>
                                   </div>
@@ -488,7 +488,7 @@ export default function OrganizationPage() {
 
                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button onClick={() => { setGradeForm({ ...g, benefits, leave_quota: leaveQuota }); setShowGradeModal(true); }}
-                                className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded"><Edit className="w-3.5 h-3.5" /></button>
+                                className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded"><Edit className="w-3.5 h-3.5" /></button>
                               <button onClick={() => deleteGrade(g.id, g.name)}
                                 className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
                             </div>
@@ -520,7 +520,7 @@ export default function OrganizationPage() {
                         { label: 'Di Bawah Min', value: compAudit.belowMin, color: 'text-amber-700 bg-amber-50' },
                         { label: 'Di Atas Max', value: compAudit.aboveMax, color: 'text-rose-700 bg-rose-50' },
                         { label: 'Tanpa Grade', value: compAudit.noGrade, color: 'text-gray-700 bg-gray-50' },
-                        { label: 'Avg Compa-Ratio', value: compAudit.avgCompaRatio ?? '—', color: 'text-indigo-700 bg-indigo-50' },
+                        { label: 'Avg Compa-Ratio', value: compAudit.avgCompaRatio ?? '—', color: 'text-[color:var(--hf-brand)] bg-[var(--hf-brand-50)]' },
                       ].map((s) => (
                         <div key={s.label} className={`rounded-xl p-3 ${s.color}`}>
                           <p className="text-[10px] font-medium uppercase opacity-70">{s.label}</p>
@@ -591,7 +591,7 @@ export default function OrganizationPage() {
                           <div key={i} className="flex items-center gap-3">
                             <span className="text-sm text-gray-600 w-40 truncate">{d.department || 'N/A'}</span>
                             <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
-                              <div className="bg-gradient-to-r from-indigo-500 to-purple-500 h-full rounded-full flex items-center justify-end pr-2 transition-all"
+                              <div className="bg-gradient-to-r from-[var(--hf-brand-600)] to-purple-500 h-full rounded-full flex items-center justify-end pr-2 transition-all"
                                 style={{ width: `${Math.max(pct, 5)}%` }}>
                                 <span className="text-[10px] text-white font-medium">{d.cnt}</span>
                               </div>
@@ -620,7 +620,7 @@ export default function OrganizationPage() {
                           <tr key={o.id} className="hover:bg-gray-50">
                             <td className="px-4 py-2 text-gray-800">{o.name}</td>
                             <td className="px-4 py-2 text-gray-500">{o.code || '-'}</td>
-                            <td className="px-4 py-2"><span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-xs rounded">L{o.level}</span></td>
+                            <td className="px-4 py-2"><span className="px-2 py-0.5 bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)] text-xs rounded">L{o.level}</span></td>
                             <td className="px-4 py-2 text-gray-400 text-xs">{o.parent_name || '-'}</td>
                           </tr>
                         ))}
@@ -703,7 +703,7 @@ export default function OrganizationPage() {
             </div>
             <div className="flex justify-end gap-2 p-4 border-t">
               <button onClick={() => setShowOrgModal(false)} className="px-4 py-2 border rounded-lg text-sm">Batal</button>
-              <button onClick={saveOrg} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">Simpan</button>
+              <button onClick={saveOrg} className="px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]">Simpan</button>
             </div>
           </div>
         </div>

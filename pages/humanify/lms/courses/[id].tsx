@@ -73,7 +73,7 @@ export default function CourseDetailPage() {
         <LmsPageNav active="courses" />
         <div className="flex flex-wrap gap-2 mb-6">
           <Link href="/humanify/lms/courses" className="p-2 border rounded-lg"><ArrowLeft className="w-4 h-4" /></Link>
-          <button type="button" onClick={() => setModuleModal(true)} className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-sm flex items-center gap-1"><Plus className="w-4 h-4" /> Modul</button>
+          <button type="button" onClick={() => setModuleModal(true)} className="px-3 py-1.5 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm flex items-center gap-1"><Plus className="w-4 h-4" /> Modul</button>
           <button type="button" onClick={() => setEnrollModal(true)} className="px-3 py-1.5 border rounded-lg text-sm flex items-center gap-1"><UserPlus className="w-4 h-4" /> Enroll</button>
           {curriculum.status !== 'active' && (
             <button type="button" onClick={publish} className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm flex items-center gap-1"><Send className="w-4 h-4" /> Publish</button>
@@ -93,11 +93,11 @@ export default function CourseDetailPage() {
                       <h4 className="font-medium">{m.title}</h4>
                       <p className="text-sm text-gray-500">{m.delivery_method} · {materials.length} materi</p>
                     </div>
-                    <button type="button" onClick={() => { setMaterialModal(m.id); setMatForm({ type: 'text' }); }} className="text-sm text-indigo-600">+ Materi</button>
+                    <button type="button" onClick={() => { setMaterialModal(m.id); setMatForm({ type: 'text' }); }} className="text-sm text-[color:var(--hf-brand-600)]">+ Materi</button>
                   </div>
                   <div className="mt-3 space-y-1">
                     {materials.map((mat: any) => (
-                      <div key={mat.id} className="flex items-center gap-2 text-sm text-gray-600 pl-2 border-l-2 border-indigo-100">
+                      <div key={mat.id} className="flex items-center gap-2 text-sm text-gray-600 pl-2 border-l-2 border-[var(--hf-brand-100)]">
                         {mat.type === 'video' && <Video className="w-3 h-3" />}
                         {mat.type === 'pdf' && <FileText className="w-3 h-3" />}
                         {mat.type === 'link' && <LinkIcon className="w-3 h-3" />}
@@ -129,7 +129,7 @@ export default function CourseDetailPage() {
           <div className="space-y-3">
             <input className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Judul modul" value={moduleForm.title || ''} onChange={(e) => setModuleForm({ ...moduleForm, title: e.target.value })} />
             <textarea className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Deskripsi" value={moduleForm.description || ''} onChange={(e) => setModuleForm({ ...moduleForm, description: e.target.value })} />
-            <button type="button" onClick={addModule} className="w-full py-2 bg-indigo-600 text-white rounded-lg">Simpan Modul</button>
+            <button type="button" onClick={addModule} className="w-full py-2 bg-[var(--hf-brand-600)] text-white rounded-lg">Simpan Modul</button>
           </div>
         </Modal>
 
@@ -148,13 +148,13 @@ export default function CourseDetailPage() {
             {matForm.type === 'text' && (
               <textarea className="w-full border rounded-lg px-3 py-2 text-sm min-h-[100px]" placeholder="Konten teks" value={matForm.content || ''} onChange={(e) => setMatForm({ ...matForm, content: e.target.value })} />
             )}
-            <button type="button" onClick={addMaterial} className="w-full py-2 bg-indigo-600 text-white rounded-lg">Tambah Materi</button>
+            <button type="button" onClick={addMaterial} className="w-full py-2 bg-[var(--hf-brand-600)] text-white rounded-lg">Tambah Materi</button>
           </div>
         </Modal>
 
         <Modal open={enrollModal} onClose={() => setEnrollModal(false)} title="Enroll Karyawan">
           <input className="w-full border rounded-lg px-3 py-2 text-sm mb-3" placeholder="Employee UUID" value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} />
-          <button type="button" onClick={enroll} className="w-full py-2 bg-indigo-600 text-white rounded-lg">Enroll</button>
+          <button type="button" onClick={enroll} className="w-full py-2 bg-[var(--hf-brand-600)] text-white rounded-lg">Enroll</button>
         </Modal>
       </HumanifyLayout>
     </PageGuard>

@@ -39,7 +39,7 @@ export default function LmsCoursesPage() {
         <LmsPageNav active="courses" />
         <div className="flex justify-between mb-4">
           <DataSourceBadge source={dataSource} />
-          <button type="button" onClick={() => setModal(true)} className="flex items-center gap-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm">
+          <button type="button" onClick={() => setModal(true)} className="flex items-center gap-1 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm">
             <Plus className="w-4 h-4" /> Buat Kursus
           </button>
         </div>
@@ -48,16 +48,16 @@ export default function LmsCoursesPage() {
           {courses.map((c) => (
             <Link key={c.id} href={`/humanify/lms/courses/${c.id}`} className="bg-white border rounded-xl p-5 hover:shadow-md group">
               <div className="flex justify-between items-start">
-                <BookOpen className="w-8 h-8 text-indigo-600" />
+                <BookOpen className="w-8 h-8 text-[color:var(--hf-brand-600)]" />
                 <LmsStatusBadge status={c.status} />
               </div>
-              <h3 className="font-semibold mt-3 group-hover:text-indigo-600">{c.title}</h3>
+              <h3 className="font-semibold mt-3 group-hover:text-[color:var(--hf-brand-600)]">{c.title}</h3>
               <p className="text-sm text-gray-500 mt-1 line-clamp-2">{c.description || c.category}</p>
               <div className="flex gap-4 mt-3 text-xs text-gray-500">
                 <span>{c.module_count || 0} modul</span>
                 <span className="flex items-center gap-1"><Users className="w-3 h-3" />{c.enrollment_count || 0} peserta</span>
               </div>
-              <ChevronRight className="w-4 h-4 text-gray-300 mt-2 group-hover:text-indigo-500" />
+              <ChevronRight className="w-4 h-4 text-gray-300 mt-2 group-hover:text-[color:var(--hf-brand-500)]" />
             </Link>
           ))}
         </div>
@@ -77,7 +77,7 @@ export default function LmsCoursesPage() {
               <option value="general">General</option>
             </select>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.certificate_enabled} onChange={(e) => setForm({ ...form, certificate_enabled: e.target.checked })} /> Terbitkan sertifikat otomatis</label>
-            <button type="button" onClick={create} className="w-full py-2 bg-indigo-600 text-white rounded-lg">Buat Kursus</button>
+            <button type="button" onClick={create} className="w-full py-2 bg-[var(--hf-brand-600)] text-white rounded-lg">Buat Kursus</button>
           </div>
         </Modal>
       </HumanifyLayout>

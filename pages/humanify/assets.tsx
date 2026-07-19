@@ -10,7 +10,7 @@ const CATEGORY_ICONS: Record<string, any> = {
   laptop: Laptop, phone: Smartphone, id_card: CreditCard, access_card: Key, other: Package,
 };
 const STATUS_COLORS: Record<string, string> = {
-  available: 'bg-green-100 text-green-700', assigned: 'bg-violet-100 text-violet-700',
+  available: 'bg-green-100 text-green-700', assigned: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]',
   returned: 'bg-gray-100 text-gray-700', maintenance: 'bg-amber-100 text-amber-700',
 };
 
@@ -48,7 +48,7 @@ export default function AssetsPage() {
           <div className="flex items-center gap-3">
             <Link href="/humanify/onboarding" className="p-2 border rounded-lg hover:bg-gray-50"><ArrowLeft className="w-4 h-4" /></Link>
             <div className="flex-1">
-              <h2 className="text-xl font-bold flex items-center gap-2"><Package className="w-5 h-5 text-indigo-600" /> Manajemen Aset Karyawan</h2>
+              <h2 className="text-xl font-bold flex items-center gap-2"><Package className="w-5 h-5 text-[color:var(--hf-brand-600)]" /> Manajemen Aset Karyawan</h2>
               <p className="text-sm text-gray-500">Laptop, HP, ID card, access card — issue saat onboarding, return saat offboarding</p>
             </div>
             <Link href="/humanify/offboarding" className="px-3 py-2 text-sm border rounded-lg">Offboarding →</Link>
@@ -71,7 +71,7 @@ export default function AssetsPage() {
 
           <div className="flex gap-2">
             {['', 'assigned', 'available', 'returned'].map(s => (
-              <button key={s || 'all'} onClick={() => setFilter(s)} className={`px-3 py-1.5 rounded-lg text-sm ${filter === s ? 'bg-indigo-600 text-white' : 'bg-gray-100'}`}>
+              <button key={s || 'all'} onClick={() => setFilter(s)} className={`px-3 py-1.5 rounded-lg text-sm ${filter === s ? 'bg-[var(--hf-brand-600)] text-white' : 'bg-gray-100'}`}>
                 {s || 'Semua'}{s === 'assigned' ? ' (Perlu Return)' : ''}
               </button>
             ))}
@@ -84,7 +84,7 @@ export default function AssetsPage() {
                 return (
                   <div key={a.id} className="bg-white rounded-xl border shadow-sm p-4">
                     <div className="flex items-start gap-3">
-                      <div className="p-2 bg-indigo-100 rounded-lg"><Icon className="w-5 h-5 text-indigo-600" /></div>
+                      <div className="p-2 bg-[var(--hf-brand-100)] rounded-lg"><Icon className="w-5 h-5 text-[color:var(--hf-brand-600)]" /></div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="font-mono text-xs text-gray-400">{a.assetCode}</span>
@@ -93,13 +93,13 @@ export default function AssetsPage() {
                         <h3 className="font-semibold text-sm mt-0.5">{a.name}</h3>
                         {a.brand && <p className="text-xs text-gray-500">{a.brand} · {a.serialNumber}</p>}
                         {a.assignedToName && (
-                          <p className="text-xs text-violet-600 mt-1 flex items-center gap-1"><ArrowLeftRight className="w-3 h-3" />{a.assignedToName}</p>
+                          <p className="text-xs text-[color:var(--hf-brand-600)] mt-1 flex items-center gap-1"><ArrowLeftRight className="w-3 h-3" />{a.assignedToName}</p>
                         )}
                         {a.purchaseValue && <p className="text-xs text-gray-400 mt-1">{fmt(a.purchaseValue)}</p>}
                       </div>
                     </div>
                     {a.status === 'assigned' && (
-                      <button className="mt-3 w-full py-1.5 text-xs border border-indigo-200 text-indigo-600 rounded-lg hover:bg-indigo-50">
+                      <button className="mt-3 w-full py-1.5 text-xs border border-[var(--hf-brand-100)] text-[color:var(--hf-brand-600)] rounded-lg hover:bg-[var(--hf-brand-50)]">
                         Tandai Dikembalikan
                       </button>
                     )}

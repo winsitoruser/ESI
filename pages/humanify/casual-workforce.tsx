@@ -190,15 +190,15 @@ export default function CasualWorkforcePage() {
             </div>
           </div>
 
-          <div className="mb-4 p-3 bg-indigo-50 border border-indigo-100 rounded-lg flex flex-wrap items-center justify-between gap-2">
-            <span className="text-sm text-indigo-800">Untuk perusahaan pembiayaan / multifinance (AO, Kolektor, Surveyor, komisi penagihan):</span>
+          <div className="mb-4 p-3 bg-[var(--hf-brand-50)] border border-[var(--hf-brand-100)] rounded-lg flex flex-wrap items-center justify-between gap-2">
+            <span className="text-sm text-[color:var(--hf-brand-600)]">Untuk perusahaan pembiayaan / multifinance (AO, Kolektor, Surveyor, komisi penagihan):</span>
             {/* Modul pembiayaan tidak tersedia di Humanify standalone */}
           </div>
 
           {/* Mekanisme info */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-6">
             {[
-              { title: 'Per Jam / Harian', desc: 'Upah dari absensi aktual, diawasi pengawas lapangan', icon: Calendar, bg: 'bg-violet-50 border-violet-100', ic: 'text-violet-600' },
+              { title: 'Per Jam / Harian', desc: 'Upah dari absensi aktual, diawasi pengawas lapangan', icon: Calendar, bg: 'bg-[var(--hf-brand-50)] border-[var(--hf-brand-50)]', ic: 'text-[color:var(--hf-brand-600)]' },
               { title: 'Per Proyek', desc: 'Timesheet disetujui pengawas proyek × tarif', icon: ClipboardList, bg: 'bg-purple-50 border-purple-100', ic: 'text-purple-600' },
               { title: 'Borongan', desc: 'Diverifikasi pengawas → disetujui HR → payroll', icon: Package, bg: 'bg-amber-50 border-amber-100', ic: 'text-amber-600' },
               { title: 'Laporan Pengawas', desc: 'Pengawas kirim laporan harian kehadiran & produktivitas', icon: Shield, bg: 'bg-green-50 border-green-100', ic: 'text-green-600' },
@@ -230,9 +230,9 @@ export default function CasualWorkforcePage() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 {[
-                  { label: 'Tenaga Harian Aktif', value: stats.casualWorkers || 0, icon: Users, color: 'text-violet-600' },
+                  { label: 'Tenaga Harian Aktif', value: stats.casualWorkers || 0, icon: Users, color: 'text-[color:var(--hf-brand-600)]' },
                   { label: 'Tanpa Pengawas', value: stats.workersWithoutSupervisor || 0, icon: AlertTriangle, color: 'text-red-600' },
-                  { label: 'Pengawas Aktif', value: supervisors.length, icon: Shield, color: 'text-indigo-600' },
+                  { label: 'Pengawas Aktif', value: supervisors.length, icon: Shield, color: 'text-[color:var(--hf-brand-600)]' },
                   { label: 'Laporan Pending HR', value: stats.pendingSupervisionReports || 0, icon: FileText, color: 'text-orange-600' },
                   { label: 'Borongan Pending', value: stats.pendingPiecework || 0, icon: Package, color: 'text-amber-600' },
                   { label: 'Penugasan Hari Ini', value: stats.todayAssignments || 0, icon: MapPin, color: 'text-purple-600' },
@@ -247,7 +247,7 @@ export default function CasualWorkforcePage() {
               {supervisors.length > 0 && (
                 <div className="bg-white border rounded-xl p-4">
                   <h3 className="font-semibold text-sm text-gray-800 mb-3 flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-indigo-600" /> Pengawas & Tim Lapangan
+                    <Shield className="w-4 h-4 text-[color:var(--hf-brand-600)]" /> Pengawas & Tim Lapangan
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {supervisors.slice(0, 6).map((s: any) => (
@@ -255,7 +255,7 @@ export default function CasualWorkforcePage() {
                         <p className="font-medium text-sm">{s.name}</p>
                         <p className="text-xs text-gray-500">{s.position}</p>
                         <div className="flex gap-3 mt-2 text-xs">
-                          <span className="text-violet-700">{s.casual_worker_count} bawahan</span>
+                          <span className="text-[color:var(--hf-brand)]">{s.casual_worker_count} bawahan</span>
                           {Number(s.pending_reports) > 0 && (
                             <span className="text-orange-600">{s.pending_reports} laporan pending</span>
                           )}
@@ -273,7 +273,7 @@ export default function CasualWorkforcePage() {
             <div>
               <div className="flex justify-end mb-3">
                 <button onClick={() => openModal('supervisor', { employeeIds: workers.filter(w => !w.supervisor_id).map(w => w.id) })}
-                  className="flex items-center gap-2 px-3 py-2 border border-indigo-300 text-indigo-700 rounded-lg text-sm hover:bg-indigo-50">
+                  className="flex items-center gap-2 px-3 py-2 border border-[var(--hf-brand-100)] text-[color:var(--hf-brand)] rounded-lg text-sm hover:bg-[var(--hf-brand-50)]">
                   <UserCheck className="w-4 h-4" /> Tetapkan Pengawas
                 </button>
               </div>
@@ -301,7 +301,7 @@ export default function CasualWorkforcePage() {
                       <td className="px-4 py-3">
                         {w.supervisor_name ? (
                           <div>
-                            <p className="text-sm font-medium text-indigo-700">{w.supervisor_name}</p>
+                            <p className="text-sm font-medium text-[color:var(--hf-brand)]">{w.supervisor_name}</p>
                             <p className="text-xs text-gray-400">{w.supervisor_position}</p>
                           </div>
                         ) : (
@@ -321,7 +321,7 @@ export default function CasualWorkforcePage() {
                       </td>
                       <td className="px-4 py-3 text-center">
                         <button onClick={() => openModal('supervisor', { employeeId: w.id, supervisorId: w.supervisor_id || '' })}
-                          className="text-xs text-indigo-600 hover:underline">Atur</button>
+                          className="text-xs text-[color:var(--hf-brand-600)] hover:underline">Atur</button>
                       </td>
                     </tr>
                   ))}
@@ -338,8 +338,8 @@ export default function CasualWorkforcePage() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Supervisors list */}
                 <div className="bg-white border rounded-xl overflow-hidden">
-                  <div className="px-4 py-3 border-b bg-indigo-50 flex justify-between items-center">
-                    <h3 className="font-semibold text-sm text-indigo-900 flex items-center gap-2">
+                  <div className="px-4 py-3 border-b bg-[var(--hf-brand-50)] flex justify-between items-center">
+                    <h3 className="font-semibold text-sm text-[color:var(--hf-brand-600)] flex items-center gap-2">
                       <Shield className="w-4 h-4" /> Daftar Pengawas
                     </h3>
                   </div>
@@ -371,7 +371,7 @@ export default function CasualWorkforcePage() {
                                 employeeId: w.id, attendanceStatus: 'present', hoursWorked: 8, pieceworkVerified: false,
                               }));
                               openModal('report', { supervisorId: s.id, workers: supWorkers });
-                            }} className="text-xs text-indigo-600 hover:underline">+ Laporan</button>
+                            }} className="text-xs text-[color:var(--hf-brand-600)] hover:underline">+ Laporan</button>
                           </td>
                         </tr>
                       ))}
@@ -428,7 +428,7 @@ export default function CasualWorkforcePage() {
                               <button onClick={async () => {
                                 await api('submit-report', 'POST', { id: r.id });
                                 showToast('Laporan dikirim'); loadData();
-                              }} className="text-xs text-violet-600 hover:underline flex items-center gap-0.5">
+                              }} className="text-xs text-[color:var(--hf-brand-600)] hover:underline flex items-center gap-0.5">
                                 <Send className="w-3 h-3" /> Kirim
                               </button>
                             )}
@@ -445,9 +445,9 @@ export default function CasualWorkforcePage() {
               </div>
 
               {/* Mekanisme pengawasan */}
-              <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-sm text-indigo-900">
+              <div className="bg-[var(--hf-brand-50)] border border-[var(--hf-brand-100)] rounded-xl p-4 text-sm text-[color:var(--hf-brand-600)]">
                 <p className="font-semibold mb-2 flex items-center gap-2"><Eye className="w-4 h-4" /> Alur Pengawasan</p>
-                <ol className="list-decimal list-inside space-y-1 text-xs text-indigo-800">
+                <ol className="list-decimal list-inside space-y-1 text-xs text-[color:var(--hf-brand-600)]">
                   <li>HR tetapkan <strong>pengawas</strong> (supervisor) per tenaga harian — terhubung ke Genealogi Karyawan</li>
                   <li>Pengawas jadwalkan <strong>penugasan harian</strong> dan verifikasi <strong>borongan</strong> bawahan</li>
                   <li>Pengawas kirim <strong>laporan harian</strong>: kehadiran, produktivitas, insiden keselamatan</li>
@@ -499,7 +499,7 @@ export default function CasualWorkforcePage() {
                         </td>
                         <td className="px-4 py-3">{fmtDate(p.work_date)}</td>
                         <td className="px-4 py-3">{p.employee_name}</td>
-                        <td className="px-4 py-3 text-xs text-indigo-700">{p.supervisor_name || '—'}</td>
+                        <td className="px-4 py-3 text-xs text-[color:var(--hf-brand)]">{p.supervisor_name || '—'}</td>
                         <td className="px-4 py-3">{p.description || p.work_type || '-'}</td>
                         <td className="px-4 py-3 text-right">{p.quantity} {getPieceUnitLabel(p.unit)}</td>
                         <td className="px-4 py-3 text-right">{fmtCur(Number(p.unit_rate))}</td>
@@ -507,7 +507,7 @@ export default function CasualWorkforcePage() {
                         <td className="px-4 py-3">
                           <span className={`text-xs px-2 py-0.5 rounded-full ${
                             p.status === 'approved' ? 'bg-green-100 text-green-700' :
-                            p.status === 'paid' ? 'bg-violet-100 text-violet-700' : 'bg-yellow-100 text-yellow-700'
+                            p.status === 'paid' ? 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]' : 'bg-yellow-100 text-yellow-700'
                           }`}>{p.status}</span>
                         </td>
                         <td className="px-4 py-3">
@@ -554,7 +554,7 @@ export default function CasualWorkforcePage() {
                       <tr key={a.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3">{fmtDate(a.assignment_date)}</td>
                         <td className="px-4 py-3">{a.employee_name}</td>
-                        <td className="px-4 py-3 text-xs text-indigo-700">{a.supervisor_name || '—'}</td>
+                        <td className="px-4 py-3 text-xs text-[color:var(--hf-brand)]">{a.supervisor_name || '—'}</td>
                         <td className="px-4 py-3">{a.location || '-'}</td>
                         <td className="px-4 py-3">{a.role || '-'}</td>
                         <td className="px-4 py-3">{getPayTypeLabel(a.pay_type)}</td>
@@ -564,7 +564,7 @@ export default function CasualWorkforcePage() {
                         <td className="px-4 py-3">
                           <span className={`text-xs px-2 py-0.5 rounded-full ${
                             a.status === 'completed' ? 'bg-green-100 text-green-700' :
-                            a.status === 'in_progress' ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-600'
+                            a.status === 'in_progress' ? 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]' : 'bg-gray-100 text-gray-600'
                           }`}>{a.status}</span>
                         </td>
                       </tr>

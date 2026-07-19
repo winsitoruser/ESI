@@ -50,7 +50,7 @@ const PAY_TYPES: Record<string, { label: string; desc: string; icon: any }> = {
 
 const RUN_STATUS: Record<string, { label: string; color: string }> = {
   draft: { label: 'Draf', color: 'bg-gray-100 text-gray-600' },
-  calculated: { label: 'Dihitung', color: 'bg-violet-100 text-violet-700' },
+  calculated: { label: 'Dihitung', color: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]' },
   approved: { label: 'Disetujui', color: 'bg-green-100 text-green-700' },
   paid: { label: 'Dibayar', color: 'bg-emerald-100 text-emerald-700' },
   cancelled: { label: 'Dibatalkan', color: 'bg-red-100 text-red-700' },
@@ -678,7 +678,7 @@ export default function PayrollPage() {
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'Total Karyawan', value: stats.totalEmployees || 0, icon: Users, bg: 'bg-violet-100', color: 'text-violet-600', fmt: false },
+            { label: 'Total Karyawan', value: stats.totalEmployees || 0, icon: Users, bg: 'bg-[var(--hf-brand-100)]', color: 'text-[color:var(--hf-brand-600)]', fmt: false },
             { label: 'Gaji Terkonfigurasi', value: stats.configuredSalaries || 0, icon: CreditCard, bg: 'bg-green-100', color: 'text-green-600', fmt: false },
             { label: 'Komponen Gaji', value: stats.totalComponents || 0, icon: Layers, bg: 'bg-purple-100', color: 'text-purple-600', fmt: false },
             { label: 'Total Gaji Bulanan', value: stats.monthlyPayroll || 0, icon: Wallet, bg: 'bg-amber-100', color: 'text-amber-600', fmt: true },
@@ -707,7 +707,7 @@ export default function PayrollPage() {
             ].map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key as any)}
                 className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 whitespace-nowrap ${
-                  activeTab === tab.key ? 'border-violet-600 text-violet-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                  activeTab === tab.key ? 'border-[var(--hf-brand-600)] text-[color:var(--hf-brand-600)]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
                 <tab.icon className="w-4 h-4" /> {tab.label}
               </button>
             ))}
@@ -719,11 +719,11 @@ export default function PayrollPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Pay Types Guide */}
                 <div className="border rounded-xl p-4">
-                  <h3 className="font-semibold mb-3 flex items-center gap-2"><Briefcase className="w-4 h-4 text-violet-600" /> Tipe Perhitungan Gaji</h3>
+                  <h3 className="font-semibold mb-3 flex items-center gap-2"><Briefcase className="w-4 h-4 text-[color:var(--hf-brand-600)]" /> Tipe Perhitungan Gaji</h3>
                   <div className="space-y-3">
                     {Object.entries(PAY_TYPES).map(([key, pt]) => (
                       <div key={key} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                        <div className="p-1.5 bg-violet-100 rounded"><pt.icon className="w-4 h-4 text-violet-600" /></div>
+                        <div className="p-1.5 bg-[var(--hf-brand-100)] rounded"><pt.icon className="w-4 h-4 text-[color:var(--hf-brand-600)]" /></div>
                         <div>
                           <p className="font-medium text-sm">{pt.label}</p>
                           <p className="text-xs text-gray-500">{pt.desc}</p>
@@ -746,7 +746,7 @@ export default function PayrollPage() {
                     <div className="space-y-2">
                       <button onClick={() => { setActiveTab('salaries'); }} className="w-full flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 text-left">
                         <div className="flex items-center gap-3">
-                          <CreditCard className="w-5 h-5 text-violet-600" />
+                          <CreditCard className="w-5 h-5 text-[color:var(--hf-brand-600)]" />
                           <div><p className="font-medium text-sm">Konfigurasi Gaji</p><p className="text-xs text-gray-500">Atur gaji per karyawan</p></div>
                         </div>
                         <ChevronRight className="w-4 h-4 text-gray-400" />
@@ -792,7 +792,7 @@ export default function PayrollPage() {
                   </div>
                 </div>
                 <button onClick={() => { resetSalaryForm(); setShowSalaryModal(true); }}
-                  className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700">
+                  className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]">
                   <Plus className="w-4 h-4" /> Konfigurasi Gaji
                 </button>
               </div>
@@ -825,7 +825,7 @@ export default function PayrollPage() {
                             <p className="text-xs text-gray-500">{s.position} · {s.department}</p>
                           </td>
                           <td className="px-4 py-3 text-center">
-                            <span className="px-2.5 py-1 bg-violet-100 text-violet-700 text-xs rounded-full font-medium">
+                            <span className="px-2.5 py-1 bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)] text-xs rounded-full font-medium">
                               {PAY_TYPES[s.pay_type]?.label || s.pay_type}
                             </span>
                           </td>
@@ -872,8 +872,8 @@ export default function PayrollPage() {
                     return (
                       <div key={run.id} className="p-4 flex items-center justify-between hover:bg-gray-50">
                         <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 bg-violet-100 rounded-lg flex items-center justify-center">
-                            <FileText className="w-5 h-5 text-violet-600" />
+                          <div className="w-10 h-10 bg-[var(--hf-brand-100)] rounded-lg flex items-center justify-center">
+                            <FileText className="w-5 h-5 text-[color:var(--hf-brand-600)]" />
                           </div>
                           <div>
                             <p className="font-medium text-sm">{run.name || run.run_code}</p>
@@ -890,7 +890,7 @@ export default function PayrollPage() {
                             {run.status === 'draft' && (
                               <CanAccess permission="payroll.run">
                                 <button onClick={() => handleCalculateRun(run.id)}
-                                  className="px-2.5 py-1 bg-violet-600 text-white text-xs rounded hover:bg-violet-700">Hitung</button>
+                                  className="px-2.5 py-1 bg-[var(--hf-brand-600)] text-white text-xs rounded hover:bg-[var(--hf-brand)]">Hitung</button>
                               </CanAccess>
                             )}
                             {run.status === 'calculated' && (
@@ -922,7 +922,7 @@ export default function PayrollPage() {
                   <p className="text-sm text-gray-500">Konfigurasi komponen pendapatan dan potongan gaji</p>
                 </div>
                 <button onClick={openNewComponent}
-                  className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700">
+                  className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]">
                   <Plus className="w-4 h-4" /> Tambah Komponen
                 </button>
               </div>
@@ -950,7 +950,7 @@ export default function PayrollPage() {
                               {comp.calculation_type === 'fixed' ? 'Nominal Tetap' : comp.calculation_type === 'percentage' ? `Persentase ${comp.percentage_value || ''}%` : comp.calculation_type === 'per_day' ? 'Per Hari Kerja' : comp.calculation_type === 'formula' ? 'Formula' : comp.calculation_type}
                             </span>
                             {comp.is_taxable && <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] rounded-full border border-amber-200">Kena Pajak</span>}
-                            {comp.is_mandatory && <span className="px-2 py-0.5 bg-violet-50 text-violet-700 text-[10px] rounded-full border border-violet-200">Wajib</span>}
+                            {comp.is_mandatory && <span className="px-2 py-0.5 bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)] text-[10px] rounded-full border border-[var(--hf-brand-100)]">Wajib</span>}
                             {(comp.applies_to_pay_types || []).map(pt => (
                               <span key={pt} className="px-2 py-0.5 bg-gray-50 text-gray-600 text-[10px] rounded-full border border-gray-200">{PAY_TYPES[pt]?.label || pt}</span>
                             ))}
@@ -964,7 +964,7 @@ export default function PayrollPage() {
                           </p>
                           <p className="text-[10px] text-gray-400">Urutan: {comp.sort_order ?? 0}</p>
                           <div className="flex gap-1 mt-1.5 justify-end">
-                            <button onClick={() => openEditComponent(comp)} className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded" title="Edit">
+                            <button onClick={() => openEditComponent(comp)} className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded" title="Edit">
                               <Edit className="w-3.5 h-3.5" />
                             </button>
                             <button onClick={() => handleDeleteComponent(comp)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded" title="Hapus">
@@ -1003,7 +1003,7 @@ export default function PayrollPage() {
                             <span className="px-2 py-0.5 bg-red-50 text-red-700 text-[10px] rounded-full border border-red-200">
                               {comp.calculation_type === 'fixed' ? 'Nominal Tetap' : comp.calculation_type === 'percentage' ? `Persentase ${comp.percentage_value || ''}%` : comp.calculation_type === 'per_day' ? 'Per Hari Kerja' : comp.calculation_type === 'formula' ? 'Formula/Auto' : comp.calculation_type}
                             </span>
-                            {comp.is_mandatory && <span className="px-2 py-0.5 bg-violet-50 text-violet-700 text-[10px] rounded-full border border-violet-200">Wajib</span>}
+                            {comp.is_mandatory && <span className="px-2 py-0.5 bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)] text-[10px] rounded-full border border-[var(--hf-brand-100)]">Wajib</span>}
                           </div>
                         </div>
                         <div className="text-right flex-shrink-0">
@@ -1014,7 +1014,7 @@ export default function PayrollPage() {
                           </p>
                           <p className="text-[10px] text-gray-400">Urutan: {comp.sort_order ?? 0}</p>
                           <div className="flex gap-1 mt-1.5 justify-end">
-                            <button onClick={() => openEditComponent(comp)} className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded" title="Edit">
+                            <button onClick={() => openEditComponent(comp)} className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded" title="Edit">
                               <Edit className="w-3.5 h-3.5" />
                             </button>
                             <button onClick={() => handleDeleteComponent(comp)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded" title="Hapus">
@@ -1060,17 +1060,17 @@ export default function PayrollPage() {
                       <Download className="w-4 h-4 text-green-600" />
                     </a>
                     <a href="/api/humanify/payroll-bulk?action=template-csv" download
-                      className="flex items-center justify-between w-full px-4 py-3 bg-violet-50 border border-violet-200 rounded-lg hover:bg-violet-100 transition-colors">
+                      className="flex items-center justify-between w-full px-4 py-3 bg-[var(--hf-brand-50)] border border-[var(--hf-brand-100)] rounded-lg hover:bg-[var(--hf-brand-100)] transition-colors">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-violet-600 rounded-lg flex items-center justify-center">
+                        <div className="w-10 h-10 bg-[var(--hf-brand-600)] rounded-lg flex items-center justify-center">
                           <Table2 className="w-5 h-5 text-white" />
                         </div>
                         <div className="text-left">
-                          <p className="text-sm font-semibold text-violet-800">CSV Template (.csv)</p>
-                          <p className="text-[10px] text-violet-600">Format sederhana, bisa dibuka di Notepad/Excel</p>
+                          <p className="text-sm font-semibold text-[color:var(--hf-brand-600)]">CSV Template (.csv)</p>
+                          <p className="text-[10px] text-[color:var(--hf-brand-600)]">Format sederhana, bisa dibuka di Notepad/Excel</p>
                         </div>
                       </div>
-                      <Download className="w-4 h-4 text-violet-600" />
+                      <Download className="w-4 h-4 text-[color:var(--hf-brand-600)]" />
                     </a>
                   </div>
 
@@ -1091,7 +1091,7 @@ export default function PayrollPage() {
                 {/* File Upload Area */}
                 <div className="lg:col-span-2 space-y-4">
                   <div className="flex items-center gap-2">
-                    <UploadCloud className="w-5 h-5 text-violet-600" />
+                    <UploadCloud className="w-5 h-5 text-[color:var(--hf-brand-600)]" />
                     <h3 className="font-semibold">2. Upload File</h3>
                   </div>
 
@@ -1104,12 +1104,12 @@ export default function PayrollPage() {
                     onDrop={handleFileDrop}
                     onClick={() => fileInputRef.current?.click()}
                     className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
-                      uploadDragActive ? 'border-violet-500 bg-violet-50' :
-                      uploadFile ? 'border-green-400 bg-green-50' : 'border-gray-300 hover:border-violet-400 hover:bg-gray-50'}`}
+                      uploadDragActive ? 'border-[var(--hf-brand-500)] bg-[var(--hf-brand-50)]' :
+                      uploadFile ? 'border-green-400 bg-green-50' : 'border-gray-300 hover:border-[var(--hf-brand-100)] hover:bg-gray-50'}`}
                   >
                     {!uploadFile ? (
                       <>
-                        <UploadCloud className={`w-12 h-12 mx-auto mb-3 ${uploadDragActive ? 'text-violet-500' : 'text-gray-400'}`} />
+                        <UploadCloud className={`w-12 h-12 mx-auto mb-3 ${uploadDragActive ? 'text-[color:var(--hf-brand-500)]' : 'text-gray-400'}`} />
                         <p className="text-sm font-medium text-gray-700">
                           {uploadDragActive ? 'Lepaskan file di sini...' : 'Drag & drop file di sini'}
                         </p>
@@ -1119,9 +1119,9 @@ export default function PayrollPage() {
                     ) : (
                       <div className="flex items-center justify-center gap-3">
                         <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                          uploadFile.name.endsWith('.csv') ? 'bg-violet-100' : 'bg-green-100'}`}>
+                          uploadFile.name.endsWith('.csv') ? 'bg-[var(--hf-brand-100)]' : 'bg-green-100'}`}>
                           {uploadFile.name.endsWith('.csv')
-                            ? <Table2 className="w-6 h-6 text-violet-600" />
+                            ? <Table2 className="w-6 h-6 text-[color:var(--hf-brand-600)]" />
                             : <FileSpreadsheet className="w-6 h-6 text-green-600" />}
                         </div>
                         <div className="text-left">
@@ -1146,11 +1146,11 @@ export default function PayrollPage() {
                   {(uploadStep === 'validating' || uploadStep === 'uploading') && (
                     <div className="space-y-2">
                       <div className="flex items-center gap-3">
-                        <Loader2 className="w-5 h-5 text-violet-600 animate-spin" />
+                        <Loader2 className="w-5 h-5 text-[color:var(--hf-brand-600)] animate-spin" />
                         <p className="text-sm font-medium">{uploadStep === 'validating' ? 'Memvalidasi data...' : 'Mengupload dan menyimpan...'}</p>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2.5">
-                        <div className="bg-violet-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+                        <div className="bg-[var(--hf-brand-600)] h-2.5 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
                       </div>
                       <p className="text-xs text-gray-500 text-right">{uploadProgress}%</p>
                     </div>
@@ -1163,7 +1163,7 @@ export default function PayrollPage() {
                 <div className="border rounded-xl overflow-hidden">
                   {/* Summary Bar */}
                   <div className={`px-4 py-3 flex items-center justify-between ${
-                    uploadStep === 'done' ? 'bg-green-50' : uploadSummary.errorCount > 0 ? 'bg-amber-50' : 'bg-violet-50'}`}>
+                    uploadStep === 'done' ? 'bg-green-50' : uploadSummary.errorCount > 0 ? 'bg-amber-50' : 'bg-[var(--hf-brand-50)]'}`}>
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-2">
                         <Table2 className="w-4 h-4 text-gray-600" />
@@ -1181,8 +1181,8 @@ export default function PayrollPage() {
                       )}
                       {uploadStep === 'done' && uploadSummary.savedCount !== undefined && (
                         <div className="flex items-center gap-1.5">
-                          <Save className="w-4 h-4 text-violet-600" />
-                          <span className="text-sm text-violet-700 font-medium">{uploadSummary.savedCount} tersimpan</span>
+                          <Save className="w-4 h-4 text-[color:var(--hf-brand-600)]" />
+                          <span className="text-sm text-[color:var(--hf-brand)] font-medium">{uploadSummary.savedCount} tersimpan</span>
                         </div>
                       )}
                     </div>
@@ -1239,7 +1239,7 @@ export default function PayrollPage() {
                             <td className="px-3 py-2 font-mono text-xs">{row.employee_id_code}</td>
                             <td className="px-3 py-2 text-xs font-medium">{row.employee_name || '-'}</td>
                             <td className="px-3 py-2 text-center">
-                              <span className="px-2 py-0.5 bg-violet-100 text-violet-700 text-[10px] rounded-full">{row.pay_type}</span>
+                              <span className="px-2 py-0.5 bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)] text-[10px] rounded-full">{row.pay_type}</span>
                             </td>
                             <td className="px-3 py-2 text-right text-xs font-medium">{fmtCurrency(row.base_salary)}</td>
                             <td className="px-3 py-2 text-right text-xs text-gray-500">{row.hourly_rate > 0 ? fmtCurrency(row.hourly_rate) : '-'}</td>
@@ -1314,9 +1314,9 @@ export default function PayrollPage() {
                           setEmployeeSearchTerm(`${emp.employee_id} — ${emp.name}`);
                           setShowEmployeeDropdown(false);
                         }}
-                        className="w-full px-3 py-2 text-left text-sm hover:bg-violet-50 flex flex-col gap-0.5 border-b last:border-0"
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--hf-brand-50)] flex flex-col gap-0.5 border-b last:border-0"
                       >
-                        <span><span className="font-mono text-violet-600">{emp.employee_id}</span> — <span className="font-medium">{emp.name}</span></span>
+                        <span><span className="font-mono text-[color:var(--hf-brand-600)]">{emp.employee_id}</span> — <span className="font-medium">{emp.name}</span></span>
                         <span className="text-xs text-gray-400">{emp.position} · {emp.department}</span>
                       </button>
                     ))}
@@ -1333,7 +1333,7 @@ export default function PayrollPage() {
                   {Object.entries(PAY_TYPES).map(([key, pt]) => (
                     <button key={key} onClick={() => setSalaryForm(f => ({ ...f, payType: key }))}
                       className={`p-3 border rounded-lg text-center text-sm transition-all ${
-                        salaryForm.payType === key ? 'border-violet-600 bg-violet-50 text-violet-700' : 'hover:bg-gray-50'}`}>
+                        salaryForm.payType === key ? 'border-[var(--hf-brand-600)] bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)]' : 'hover:bg-gray-50'}`}>
                       <pt.icon className="w-5 h-5 mx-auto mb-1" />
                       <p className="font-medium">{pt.label}</p>
                     </button>
@@ -1427,7 +1427,7 @@ export default function PayrollPage() {
                   <h4 className="text-sm font-semibold text-gray-800">Komponen Gaji Karyawan</h4>
                   <div className="relative">
                     <button type="button" onClick={() => setShowComponentPicker(!showComponentPicker)}
-                      className="px-3 py-1.5 text-xs bg-violet-50 text-violet-700 border border-violet-200 rounded-lg hover:bg-violet-100 flex items-center gap-1">
+                      className="px-3 py-1.5 text-xs bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)] border border-[var(--hf-brand-100)] rounded-lg hover:bg-[var(--hf-brand-100)] flex items-center gap-1">
                       <Plus className="w-3.5 h-3.5" /> Tambah Komponen
                     </button>
                     {showComponentPicker && (
@@ -1447,7 +1447,7 @@ export default function PayrollPage() {
                               }));
                               setShowComponentPicker(false);
                             }}
-                            className="w-full px-3 py-2 text-left text-sm hover:bg-violet-50 flex items-center gap-2 border-b last:border-0"
+                            className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--hf-brand-50)] flex items-center gap-2 border-b last:border-0"
                           >
                             <span className={`w-2 h-2 rounded-full flex-shrink-0 ${comp.type === 'earning' ? 'bg-green-500' : 'bg-red-500'}`} />
                             <div className="flex-1 min-w-0">
@@ -1519,7 +1519,7 @@ export default function PayrollPage() {
             </div>
             <div className="px-6 py-4 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
               <button onClick={() => setShowSalaryModal(false)} className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">Batal</button>
-              <button onClick={handleSaveSalary} className="px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700 flex items-center gap-2">
+              <button onClick={handleSaveSalary} className="px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)] flex items-center gap-2">
                 <Save className="w-4 h-4" /> Simpan
               </button>
             </div>
@@ -1743,7 +1743,7 @@ export default function PayrollPage() {
                   ].map(m => (
                     <button key={m.key} onClick={() => setCompForm(f => ({ ...f, calculation_type: m.key }))}
                       className={`p-2.5 rounded-lg border-2 text-center transition-all ${
-                        compForm.calculation_type === m.key ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-gray-200 hover:border-gray-300'}`}>
+                        compForm.calculation_type === m.key ? 'border-[var(--hf-brand-500)] bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)]' : 'border-gray-200 hover:border-gray-300'}`}>
                       <m.icon className="w-4 h-4 mx-auto mb-1" />
                       <p className="text-xs font-medium">{m.label}</p>
                     </button>
@@ -1822,8 +1822,8 @@ export default function PayrollPage() {
                   </button>
                   <button onClick={() => setCompForm(f => ({ ...f, is_mandatory: !f.is_mandatory }))}
                     className={`flex items-center gap-2 p-3 rounded-lg border-2 transition-all ${
-                      compForm.is_mandatory ? 'border-violet-400 bg-violet-50' : 'border-gray-200'}`}>
-                    {compForm.is_mandatory ? <ToggleRight className="w-5 h-5 text-violet-600" /> : <ToggleLeft className="w-5 h-5 text-gray-400" />}
+                      compForm.is_mandatory ? 'border-[var(--hf-brand-100)] bg-[var(--hf-brand-50)]' : 'border-gray-200'}`}>
+                    {compForm.is_mandatory ? <ToggleRight className="w-5 h-5 text-[color:var(--hf-brand-600)]" /> : <ToggleLeft className="w-5 h-5 text-gray-400" />}
                     <div className="text-left">
                       <p className="text-xs font-medium">Wajib</p>
                       <p className="text-[10px] text-gray-500">{compForm.is_mandatory ? 'Auto-apply' : 'Opsional'}</p>
@@ -1849,7 +1849,7 @@ export default function PayrollPage() {
                     <button key={key} onClick={() => togglePayType(key)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
                         compForm.applies_to_pay_types.includes(key)
-                          ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                          ? 'border-[var(--hf-brand-500)] bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)]' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
                       {pt.label}
                     </button>
                   ))}
@@ -1864,7 +1864,7 @@ export default function PayrollPage() {
                     <button key={d.code} onClick={() => toggleDepartment(d.code)}
                       className={`px-2.5 py-1 rounded text-[10px] font-medium border transition-all ${
                         compForm.applicable_departments.includes(d.code)
-                          ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                          ? 'border-[var(--hf-brand-100)] bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)]' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
                       {d.label}
                     </button>
                   ))}
@@ -1875,7 +1875,7 @@ export default function PayrollPage() {
             <div className="px-6 py-4 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
               <button onClick={() => setShowComponentModal(false)} className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">Batal</button>
               <button onClick={handleSaveComponent}
-                className="px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700 flex items-center gap-2">
+                className="px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)] flex items-center gap-2">
                 <Save className="w-4 h-4" /> {editingComponent ? 'Perbarui' : 'Simpan'}
               </button>
             </div>

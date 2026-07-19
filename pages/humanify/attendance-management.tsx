@@ -306,7 +306,7 @@ export default function AttendanceManagementPage() {
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
           {[
-            { label: 'Total Hari Ini', value: todayStats.total || 0, icon: Users, bg: 'bg-violet-100', color: 'text-violet-600' },
+            { label: 'Total Hari Ini', value: todayStats.total || 0, icon: Users, bg: 'bg-[var(--hf-brand-100)]', color: 'text-[color:var(--hf-brand-600)]' },
             { label: 'Hadir', value: todayStats.present || 0, icon: UserCheck, bg: 'bg-green-100', color: 'text-green-600' },
             { label: 'Terlambat', value: todayStats.late || 0, icon: Clock, bg: 'bg-yellow-100', color: 'text-yellow-600' },
             { label: 'Tidak Hadir', value: todayStats.absent || 0, icon: UserX, bg: 'bg-red-100', color: 'text-red-600' },
@@ -345,7 +345,7 @@ export default function AttendanceManagementPage() {
               { key: 'settings', label: 'Pengaturan', icon: Settings },
             ].map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key as any)}
-                className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${activeTab === tab.key ? 'border-violet-600 text-violet-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${activeTab === tab.key ? 'border-[var(--hf-brand-600)] text-[color:var(--hf-brand-600)]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
                 <tab.icon className="w-4 h-4" /> {tab.label}
               </button>
             ))}
@@ -359,7 +359,7 @@ export default function AttendanceManagementPage() {
                   <h3 className="font-semibold text-lg">Manajemen Shift</h3>
                   <p className="text-sm text-gray-500">{shifts.length} shift terdefinisi &mdash; sesuaikan untuk industri Anda</p>
                 </div>
-                <button onClick={openNewShift} className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700">
+                <button onClick={openNewShift} className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]">
                   <Plus className="w-4 h-4" /> Tambah Shift
                 </button>
               </div>
@@ -370,7 +370,7 @@ export default function AttendanceManagementPage() {
                   return (
                     <div key={s.id} className={`border rounded-xl p-4 hover:shadow-md transition-shadow group relative ${!s.is_active ? 'opacity-60' : ''}`}>
                       <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => openEditShift(s)} className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded"><Edit className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => openEditShift(s)} className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded"><Edit className="w-3.5 h-3.5" /></button>
                         <button onClick={() => handleDeleteShift(s.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
 
@@ -403,7 +403,7 @@ export default function AttendanceManagementPage() {
                         <span className="text-[10px] text-gray-400">Hari:</span>
                         {[0,1,2,3,4,5,6].map(d => (
                           <span key={d} className={`w-5 h-5 rounded text-[9px] flex items-center justify-center font-medium ${
-                            (s.applicable_days || []).includes(d) ? 'bg-violet-100 text-violet-700' : 'bg-gray-50 text-gray-300'}`}>
+                            (s.applicable_days || []).includes(d) ? 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]' : 'bg-gray-50 text-gray-300'}`}>
                             {DAY_NAMES[d][0]}
                           </span>
                         ))}
@@ -429,7 +429,7 @@ export default function AttendanceManagementPage() {
                   <h3 className="font-semibold text-lg">Geofencing Lokasi</h3>
                   <p className="text-sm text-gray-500">Validasi kehadiran berdasarkan lokasi GPS &mdash; {geofences.length} lokasi</p>
                 </div>
-                <button onClick={openNewGeo} className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700">
+                <button onClick={openNewGeo} className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]">
                   <Plus className="w-4 h-4" /> Tambah Lokasi
                 </button>
               </div>
@@ -438,7 +438,7 @@ export default function AttendanceManagementPage() {
                 {geofences.map(g => (
                   <div key={g.id} className={`border rounded-xl p-4 hover:shadow-md transition-shadow group relative ${!g.is_active ? 'opacity-60' : ''}`}>
                     <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => openEditGeo(g)} className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded"><Edit className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => openEditGeo(g)} className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded"><Edit className="w-3.5 h-3.5" /></button>
                       <button onClick={() => handleDeleteGeo(g.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
 
@@ -486,7 +486,7 @@ export default function AttendanceManagementPage() {
                   <h3 className="font-semibold text-lg">Rotasi Shift Otomatis</h3>
                   <p className="text-sm text-gray-500">Atur pola rotasi shift karyawan secara otomatis</p>
                 </div>
-                <button onClick={openNewRotation} className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700">
+                <button onClick={openNewRotation} className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]">
                   <Plus className="w-4 h-4" /> Tambah Rotasi
                 </button>
               </div>
@@ -497,7 +497,7 @@ export default function AttendanceManagementPage() {
                     <div className="flex justify-between items-start mb-3">
                       <div>
                         <h4 className="font-semibold flex items-center gap-2">
-                          <RotateCcw className="w-4 h-4 text-violet-600" /> {rot.name}
+                          <RotateCcw className="w-4 h-4 text-[color:var(--hf-brand-600)]" /> {rot.name}
                         </h4>
                         <p className="text-xs text-gray-500 mt-0.5">{rot.description}</p>
                       </div>
@@ -508,7 +508,7 @@ export default function AttendanceManagementPage() {
                     </div>
 
                     <div className="flex flex-wrap gap-1.5 mb-3">
-                      <span className="px-2 py-0.5 bg-violet-100 text-violet-700 text-xs rounded-full">{rot.rotation_type}</span>
+                      <span className="px-2 py-0.5 bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)] text-xs rounded-full">{rot.rotation_type}</span>
                       {rot.auto_generate && <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">Auto-generate</span>}
                       <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">{rot.generate_weeks_ahead} minggu ke depan</span>
                       {rot.last_generated_date && <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs rounded-full">Last: {rot.last_generated_date}</span>}
@@ -550,7 +550,7 @@ export default function AttendanceManagementPage() {
               <h3 className="font-semibold text-lg">Pengaturan Absensi</h3>
 
               {/* Clock Methods */}
-              <SettingCard title="Metode Absensi" desc="Pilih metode absensi yang diaktifkan" icon={<Fingerprint className="w-5 h-5 text-violet-600" />}>
+              <SettingCard title="Metode Absensi" desc="Pilih metode absensi yang diaktifkan" icon={<Fingerprint className="w-5 h-5 text-[color:var(--hf-brand-600)]" />}>
                 <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mt-3">
                   {['manual', 'gps', 'face_recognition', 'fingerprint', 'qr_code', 'nfc'].map(m => {
                     const Icon = CLOCK_METHOD_ICONS[m] || Clock;
@@ -560,7 +560,7 @@ export default function AttendanceManagementPage() {
                         const current = settings.clock_methods?.methods || [];
                         const updated = enabled ? current.filter((x: string) => x !== m) : [...current, m];
                         handleSaveSetting('clock_methods', { ...settings.clock_methods, methods: updated });
-                      }} className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all text-xs ${enabled ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}>
+                      }} className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all text-xs ${enabled ? 'border-[var(--hf-brand-500)] bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)]' : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}>
                         <Icon className="w-5 h-5" />
                         <span className="font-medium">{CLOCK_METHOD_LABELS[m]}</span>
                       </button>
@@ -632,7 +632,7 @@ export default function AttendanceManagementPage() {
               </SettingCard>
 
               {/* Photo Verification */}
-              <SettingCard title="Verifikasi Foto" desc="Pengaturan selfie dan face matching" icon={<Camera className="w-5 h-5 text-indigo-500" />}>
+              <SettingCard title="Verifikasi Foto" desc="Pengaturan selfie dan face matching" icon={<Camera className="w-5 h-5 text-[color:var(--hf-brand-500)]" />}>
                 <div className="grid grid-cols-3 gap-3 mt-3">
                   <ToggleSetting label="Wajib Foto Clock In" checked={settings.photo_verification?.require_clock_in_photo} onChange={(v) => handleSaveSetting('photo_verification', { ...settings.photo_verification, require_clock_in_photo: v })} />
                   <ToggleSetting label="Wajib Foto Clock Out" checked={settings.photo_verification?.require_clock_out_photo} onChange={(v) => handleSaveSetting('photo_verification', { ...settings.photo_verification, require_clock_out_photo: v })} />
@@ -743,7 +743,7 @@ export default function AttendanceManagementPage() {
                     <button key={i} onClick={() => {
                       const days = shiftForm.applicable_days.includes(i) ? shiftForm.applicable_days.filter(x => x !== i) : [...shiftForm.applicable_days, i];
                       setShiftForm(f => ({ ...f, applicable_days: days }));
-                    }} className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${shiftForm.applicable_days.includes(i) ? 'bg-violet-600 text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}>
+                    }} className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${shiftForm.applicable_days.includes(i) ? 'bg-[var(--hf-brand-600)] text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}>
                       {d}
                     </button>
                   ))}
@@ -791,7 +791,7 @@ export default function AttendanceManagementPage() {
             </div>
             <div className="px-6 py-4 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
               <button onClick={() => setShowShiftModal(false)} className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">Batal</button>
-              <button onClick={handleSaveShift} className="px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700 flex items-center gap-2">
+              <button onClick={handleSaveShift} className="px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)] flex items-center gap-2">
                 <Save className="w-4 h-4" /> Simpan
               </button>
             </div>
@@ -851,7 +851,7 @@ export default function AttendanceManagementPage() {
             </div>
             <div className="px-6 py-4 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
               <button onClick={() => setShowGeoModal(false)} className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">Batal</button>
-              <button onClick={handleSaveGeo} className="px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700 flex items-center gap-2">
+              <button onClick={handleSaveGeo} className="px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)] flex items-center gap-2">
                 <Save className="w-4 h-4" /> Simpan
               </button>
             </div>
@@ -900,12 +900,12 @@ export default function AttendanceManagementPage() {
                 <div className="flex justify-between items-center mb-2">
                   <label className="text-xs font-medium text-gray-500">Pola Rotasi *</label>
                   <button onClick={() => setRotForm(f => ({ ...f, rotation_pattern: [...f.rotation_pattern, { week: f.rotation_pattern.length + 1, shift_id: shifts[0]?.id, shift_code: shifts[0]?.code }] }))}
-                    className="text-xs text-violet-600 hover:text-violet-700 flex items-center gap-1"><Plus className="w-3 h-3" /> Tambah</button>
+                    className="text-xs text-[color:var(--hf-brand-600)] hover:text-[color:var(--hf-brand)] flex items-center gap-1"><Plus className="w-3 h-3" /> Tambah</button>
                 </div>
                 <div className="space-y-2">
                   {rotForm.rotation_pattern.map((p, i) => (
                     <div key={i} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
-                      <span className="w-7 h-7 bg-violet-600 text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">W{p.week}</span>
+                      <span className="w-7 h-7 bg-[var(--hf-brand-600)] text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">W{p.week}</span>
                       <select value={p.shift_id || ''} onChange={e => {
                         const updated = [...rotForm.rotation_pattern];
                         const sel = shifts.find(s => s.id === e.target.value);
@@ -932,7 +932,7 @@ export default function AttendanceManagementPage() {
             </div>
             <div className="px-6 py-4 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
               <button onClick={() => setShowRotationModal(false)} className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">Batal</button>
-              <button onClick={handleSaveRotation} className="px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700 flex items-center gap-2">
+              <button onClick={handleSaveRotation} className="px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)] flex items-center gap-2">
                 <Save className="w-4 h-4" /> Simpan
               </button>
             </div>

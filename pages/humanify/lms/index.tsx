@@ -15,7 +15,7 @@ import TrainingLmsBridge from '@/components/humanify/TrainingLmsBridge';
 
 const GA_MODULES = [
   { id: 'courses', href: '/humanify/lms/courses', icon: BookOpen, color: 'text-emerald-600 bg-emerald-50', label: 'Kursus & Learning Path', desc: 'Kurikulum, modul, materi, progress belajar' },
-  { id: 'tests', href: '/humanify/lms/tests', icon: ClipboardList, color: 'text-indigo-600 bg-indigo-50', label: 'Tes & Ujian', desc: 'Buat & kelola tes/ujian online' },
+  { id: 'tests', href: '/humanify/lms/tests', icon: ClipboardList, color: 'text-[color:var(--hf-brand-600)] bg-[var(--hf-brand-50)]', label: 'Tes & Ujian', desc: 'Buat & kelola tes/ujian online' },
   { id: 'competency', href: '/humanify/lms/competency', icon: Award, color: 'text-green-600 bg-green-50', label: 'Kompetensi & Sertifikat', desc: 'Sertifikat & riwayat kompetensi' },
   { id: 'analytics', href: '/humanify/lms/analytics', icon: BarChart3, color: 'text-sky-600 bg-sky-50', label: 'Analytics L&D', desc: 'Heatmap departemen & skill gap' },
 ];
@@ -75,7 +75,7 @@ export default function LmsHubPage() {
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <GraduationCap className="w-4 h-4" />
             <span>Portal Karyawan:</span>
-            <Link href="/employee/training" className="text-indigo-600 hover:underline">/employee/training</Link>
+            <Link href="/employee/training" className="text-[color:var(--hf-brand-600)] hover:underline">/employee/training</Link>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">

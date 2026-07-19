@@ -57,7 +57,7 @@ export default function CertificatesPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Link href="/humanify/lms/competency" className="px-3 py-2 text-sm border rounded-lg flex items-center gap-1 text-indigo-600"><Award className="w-4 h-4" /> LMS Kompetensi</Link>
+              <Link href="/humanify/lms/competency" className="px-3 py-2 text-sm border rounded-lg flex items-center gap-1 text-[color:var(--hf-brand-600)]"><Award className="w-4 h-4" /> LMS Kompetensi</Link>
               <Link href="/humanify/workforce-analytics" className="px-3 py-2 text-sm border rounded-lg flex items-center gap-1"><BarChart3 className="w-4 h-4" /> Analytics</Link>
               <DataSourceBadge source={dataSource} />
             </div>

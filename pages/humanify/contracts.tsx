@@ -27,7 +27,7 @@ interface Contract {
 }
 
 const TYPE_LABELS: Record<string, { label: string; color: string }> = {
-  PKWT: { label: 'PKWT (Kontrak)', color: 'bg-violet-100 text-violet-700' },
+  PKWT: { label: 'PKWT (Kontrak)', color: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]' },
   PKWTT: { label: 'PKWTT (Tetap)', color: 'bg-green-100 text-green-700' },
   MAGANG: { label: 'Magang', color: 'bg-purple-100 text-purple-700' },
   FREELANCE: { label: 'Freelance', color: 'bg-orange-100 text-orange-700' },
@@ -37,7 +37,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   active: { label: 'Aktif', color: 'bg-green-100 text-green-700' },
   expired: { label: 'Kedaluwarsa', color: 'bg-red-100 text-red-700' },
   terminated: { label: 'Diterminasi', color: 'bg-gray-200 text-gray-700' },
-  renewed: { label: 'Diperpanjang', color: 'bg-violet-100 text-violet-700' },
+  renewed: { label: 'Diperpanjang', color: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]' },
 };
 
 function fmtIDR(n?: number | null) {
@@ -254,7 +254,7 @@ export default function ContractsPage() {
           <DataSourceBadge source={dataSource} />
         </div>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <StatCard icon={FileText} label="Total Kontrak" value={overview.total || contracts.length} color="text-violet-600" bg="bg-violet-100" />
+          <StatCard icon={FileText} label="Total Kontrak" value={overview.total || contracts.length} color="text-[color:var(--hf-brand-600)]" bg="bg-[var(--hf-brand-100)]" />
           <StatCard icon={CheckCircle} label="Aktif" value={overview.active || contracts.filter(c => c.status === 'active').length} color="text-green-600" bg="bg-green-100" />
           <StatCard icon={AlertTriangle} label="Expired < 30 Hari" value={overview.expiring || expiring.filter(e => (e.daysLeft as number) <= 30).length} color="text-orange-600" bg="bg-orange-100" />
           <StatCard icon={XCircle} label="Kedaluwarsa" value={overview.expired || contracts.filter(c => c.status === 'expired').length} color="text-red-600" bg="bg-red-100" />
@@ -278,7 +278,7 @@ export default function ContractsPage() {
                     <button
                       type="button"
                       onClick={() => handleSendESign(c)}
-                      className="text-xs px-2 py-1 border border-violet-200 text-violet-700 rounded hover:bg-violet-50 flex items-center gap-1"
+                      className="text-xs px-2 py-1 border border-[var(--hf-brand-100)] text-[color:var(--hf-brand)] rounded hover:bg-[var(--hf-brand-50)] flex items-center gap-1"
                     >
                       <PenLine className="w-3 h-3" /> E-Sign
                     </button>
@@ -355,7 +355,7 @@ export default function ContractsPage() {
                       <div className="flex justify-end gap-1">
                         <button onClick={() => { setEditing(c); setForm(c); setShowModal(true); }} className="p-1.5 hover:bg-gray-100 rounded" title="Edit"><Edit className="w-4 h-4 text-gray-600" /></button>
                         {c.status === 'active' && (
-                          <button onClick={() => { setSelected(c); setForm({ contractType: c.contractType, startDate: new Date().toISOString().slice(0, 10) }); setShowRenewModal(true); }} className="p-1.5 hover:bg-violet-50 rounded text-violet-600" title="Perpanjang">
+                          <button onClick={() => { setSelected(c); setForm({ contractType: c.contractType, startDate: new Date().toISOString().slice(0, 10) }); setShowRenewModal(true); }} className="p-1.5 hover:bg-[var(--hf-brand-50)] rounded text-[color:var(--hf-brand-600)]" title="Perpanjang">
                             <RefreshCw className="w-4 h-4" />
                           </button>
                         )}
@@ -500,7 +500,7 @@ export default function ContractsPage() {
             </div>
             <div className="flex justify-end gap-2 p-5 border-t bg-gray-50">
               <button type="button" onClick={closeRenewModal} className="px-4 py-2 border rounded-lg text-sm hover:bg-white">Batal</button>
-              <button type="button" onClick={handleRenew} className="px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700 flex items-center gap-1">
+              <button type="button" onClick={handleRenew} className="px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)] flex items-center gap-1">
                 <RefreshCw className="w-4 h-4" /> Perpanjang
               </button>
             </div>

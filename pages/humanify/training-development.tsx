@@ -21,17 +21,17 @@ type TabKey = 'dashboard' | 'curricula' | 'modules' | 'batches' | 'schedules' | 
 
 const STATUS_COLORS: Record<string, string> = {
   active: 'bg-green-100 text-green-700', draft: 'bg-gray-100 text-gray-600',
-  archived: 'bg-gray-200 text-gray-500', planned: 'bg-violet-100 text-violet-700',
-  registration: 'bg-indigo-100 text-indigo-700', in_progress: 'bg-yellow-100 text-yellow-700',
+  archived: 'bg-gray-200 text-gray-500', planned: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]',
+  registration: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]', in_progress: 'bg-yellow-100 text-yellow-700',
   exam_phase: 'bg-purple-100 text-purple-700', completed: 'bg-green-100 text-green-700',
-  cancelled: 'bg-red-100 text-red-700', scheduled: 'bg-violet-100 text-violet-700',
+  cancelled: 'bg-red-100 text-red-700', scheduled: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]',
   open: 'bg-green-100 text-green-700', closed: 'bg-gray-100 text-gray-600',
   graded: 'bg-teal-100 text-teal-700', passed: 'bg-green-100 text-green-700',
   failed: 'bg-red-100 text-red-700', conditional: 'bg-orange-100 text-orange-700',
   remedial: 'bg-yellow-100 text-yellow-700', withdrawn: 'bg-gray-100 text-gray-600',
-  pending: 'bg-yellow-100 text-yellow-700', confirmed: 'bg-violet-100 text-violet-700',
+  pending: 'bg-yellow-100 text-yellow-700', confirmed: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]',
   recalled: 'bg-red-100 text-red-700', rescheduled: 'bg-orange-100 text-orange-700',
-  submitted: 'bg-indigo-100 text-indigo-700',
+  submitted: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]',
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -354,7 +354,7 @@ export default function TrainingDevelopmentPage() {
         <TrainingLmsBridge currentModule="training-development" />
 
         {/* Hero Header */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-700 text-white shadow-lg">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[var(--hf-brand-600)] via-[var(--hf-brand-500)] to-purple-700 text-white shadow-lg">
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0djItSDI0di0yaDEyek0zNiAyNHYySDI0di0yaDEyeiIvPjwvZz48L2c+PC9zdmc+')] opacity-60" />
           <div className="relative p-6 md:p-8">
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
@@ -364,7 +364,7 @@ export default function TrainingDevelopmentPage() {
                   Learning & Development
                 </div>
                 <h2 className="text-xl md:text-2xl font-bold tracking-tight">Pelatihan & Pengembangan SDM</h2>
-                <p className="text-indigo-100 text-sm mt-1.5 leading-relaxed">
+                <p className="text-[color:var(--hf-brand-600)] text-sm mt-1.5 leading-relaxed">
                   Kelola kurikulum, batch pelatihan, ujian, kelulusan, dan penempatan karyawan — termasuk pipeline outsourcing.
                 </p>
               </div>
@@ -384,7 +384,7 @@ export default function TrainingDevelopmentPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
               {heroStats.map(s => (
                 <div key={s.label} className="rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 px-4 py-3">
-                  <div className="flex items-center gap-2 text-indigo-100 text-xs mb-1">
+                  <div className="flex items-center gap-2 text-[color:var(--hf-brand-600)] text-xs mb-1">
                     <s.icon className="w-3.5 h-3.5" />
                     {s.label}
                   </div>
@@ -405,7 +405,7 @@ export default function TrainingDevelopmentPage() {
                 onClick={() => { setTab(tb.key); setSearch(''); setFilterStatus(''); setFilterType(''); }}
                 className={`px-3.5 py-2.5 text-sm font-medium rounded-lg flex items-center gap-2 transition-all whitespace-nowrap ${
                   tab === tb.key
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
+                    ? 'bg-[var(--hf-brand-600)] text-white shadow-md shadow-[color:var(--hf-brand-100)]'
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                 }`}
               >
@@ -418,7 +418,7 @@ export default function TrainingDevelopmentPage() {
 
         {loading && (
           <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-gray-200">
-            <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+            <Loader2 className="w-8 h-8 animate-spin text-[color:var(--hf-brand-600)]" />
             <span className="mt-3 text-sm text-gray-500">Memuat data...</span>
           </div>
         )}
@@ -442,7 +442,7 @@ export default function TrainingDevelopmentPage() {
               <MetricCard title="Status Batch" icon={Users} iconColor="text-purple-600" bg="from-purple-50 to-white">
                 <MetricRow label="Aktif / Berlangsung" value={dashboard.batches?.active || 0} color="text-yellow-600" />
                 <MetricRow label="Selesai" value={dashboard.batches?.completed || 0} color="text-green-600" />
-                <MetricRow label="Outsourcing" value={dashboard.batches?.outsourcing || 0} color="text-violet-600" />
+                <MetricRow label="Outsourcing" value={dashboard.batches?.outsourcing || 0} color="text-[color:var(--hf-brand-600)]" />
                 <MetricRow label="Total Batch" value={dashboard.batches?.total || 0} color="text-gray-800" bold />
               </MetricCard>
 
@@ -450,37 +450,37 @@ export default function TrainingDevelopmentPage() {
                 <MetricRow label="Sedang Training" value={dashboard.graduations?.in_progress || 0} color="text-yellow-600" />
                 <MetricRow label="Lulus" value={dashboard.graduations?.passed || 0} color="text-green-600" />
                 <MetricRow label="Tidak Lulus" value={dashboard.graduations?.failed || 0} color="text-red-600" />
-                <MetricRow label="Siap Ditempatkan" value={dashboard.graduations?.ready_placement || 0} color="text-indigo-600" bold />
+                <MetricRow label="Siap Ditempatkan" value={dashboard.graduations?.ready_placement || 0} color="text-[color:var(--hf-brand-600)]" bold />
               </MetricCard>
 
               <MetricCard title="Status Penempatan" icon={MapPin} iconColor="text-orange-600" bg="from-orange-50 to-white">
                 <MetricRow label="Menunggu" value={dashboard.placements?.pending || 0} color="text-yellow-600" />
                 <MetricRow label="Aktif" value={dashboard.placements?.active || 0} color="text-green-600" />
-                <MetricRow label="Outsourcing" value={dashboard.placements?.outsourcing || 0} color="text-violet-600" />
+                <MetricRow label="Outsourcing" value={dashboard.placements?.outsourcing || 0} color="text-[color:var(--hf-brand-600)]" />
                 <MetricRow label="Total Penempatan" value={dashboard.placements?.total || 0} color="text-gray-800" bold />
               </MetricCard>
             </div>
 
             {/* Outsourcing Pipeline */}
             {pipeline && (
-              <div className="bg-gradient-to-br from-indigo-50 via-white to-purple-50 border border-indigo-100 rounded-2xl p-6 shadow-sm">
+              <div className="bg-gradient-to-br from-[var(--hf-brand-600)] via-white to-purple-50 border border-[var(--hf-brand-100)] rounded-2xl p-6 shadow-sm">
                 <div className="flex items-center justify-between mb-5">
                   <div>
                     <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                      <Network className="w-5 h-5 text-indigo-600" />
+                      <Network className="w-5 h-5 text-[color:var(--hf-brand-600)]" />
                       Pipeline Outsourcing
                     </h3>
                     <p className="text-xs text-gray-500 mt-0.5">Rekrutmen → Pelatihan → Penyaluran karyawan</p>
                   </div>
-                  <button type="button" onClick={() => setTab('pipeline')} className="text-xs font-medium text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
+                  <button type="button" onClick={() => setTab('pipeline')} className="text-xs font-medium text-[color:var(--hf-brand-600)] hover:text-[color:var(--hf-brand-600)] flex items-center gap-1">
                     Lihat detail <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
                 <div className="flex items-stretch gap-2 overflow-x-auto pb-1">
                   {[
-                    { label: 'Rekrutmen', value: pipeline.recruiting || 0, color: 'bg-violet-500', light: 'bg-violet-50 text-violet-700' },
+                    { label: 'Rekrutmen', value: pipeline.recruiting || 0, color: 'bg-[var(--hf-brand-500)]', light: 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)]' },
                     { label: 'Dalam Pelatihan', value: pipeline.in_training || 0, color: 'bg-amber-500', light: 'bg-amber-50 text-amber-700' },
-                    { label: 'Siap Ditempatkan', value: pipeline.ready_deploy || 0, color: 'bg-indigo-500', light: 'bg-indigo-50 text-indigo-700' },
+                    { label: 'Siap Ditempatkan', value: pipeline.ready_deploy || 0, color: 'bg-[var(--hf-brand-500)]', light: 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)]' },
                     { label: 'Ditempatkan', value: pipeline.deployed || 0, color: 'bg-emerald-500', light: 'bg-emerald-50 text-emerald-700' },
                     { label: 'Selesai Kontrak', value: pipeline.completed || 0, color: 'bg-slate-400', light: 'bg-slate-50 text-slate-600' },
                   ].map((stage, i, arr) => (
@@ -512,8 +512,8 @@ export default function TrainingDevelopmentPage() {
                   <p className="text-3xl font-bold text-emerald-600 tabular-nums">{Number(dashboard.exams?.pass_rate || 0).toFixed(1)}%</p>
                   <p className="text-xs text-gray-500 mt-1">Tingkat Kelulusan</p>
                 </div>
-                <div className="rounded-xl bg-gradient-to-br from-violet-50 to-white border border-violet-100 p-5 text-center">
-                  <p className="text-3xl font-bold text-violet-600 tabular-nums">{Number(dashboard.exams?.avg_score || 0).toFixed(1)}</p>
+                <div className="rounded-xl bg-gradient-to-br from-[var(--hf-brand-600)] to-white border border-[var(--hf-brand-50)] p-5 text-center">
+                  <p className="text-3xl font-bold text-[color:var(--hf-brand-600)] tabular-nums">{Number(dashboard.exams?.avg_score || 0).toFixed(1)}</p>
                   <p className="text-xs text-gray-500 mt-1">Rata-rata Skor</p>
                 </div>
               </div>
@@ -537,17 +537,17 @@ export default function TrainingDevelopmentPage() {
             </Toolbar>
             <div className="grid md:grid-cols-2 gap-4">
               {curricula.map(c => (
-                <div key={c.id} className="group bg-white border border-gray-200 rounded-2xl p-5 hover:shadow-lg hover:border-indigo-200 transition-all cursor-pointer" onClick={() => { setSelectedItem(c); setShowModal('detail-curriculum'); }}>
+                <div key={c.id} className="group bg-white border border-gray-200 rounded-2xl p-5 hover:shadow-lg hover:border-[var(--hf-brand-100)] transition-all cursor-pointer" onClick={() => { setSelectedItem(c); setShowModal('detail-curriculum'); }}>
                   <div className="flex justify-between items-start mb-3">
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-mono font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-md">{c.code}</span>
+                        <span className="text-xs font-mono font-semibold text-[color:var(--hf-brand-600)] bg-[var(--hf-brand-50)] px-2.5 py-0.5 rounded-md">{c.code}</span>
                         {statusBadge(c.status)}
                       </div>
-                      <h3 className="font-semibold text-gray-900 mt-2 group-hover:text-indigo-700 transition-colors">{c.title}</h3>
+                      <h3 className="font-semibold text-gray-900 mt-2 group-hover:text-[color:var(--hf-brand)] transition-colors">{c.title}</h3>
                     </div>
-                    <div className="p-2 rounded-xl bg-gray-50 group-hover:bg-indigo-50 transition-colors">
-                      <BookOpen className="w-5 h-5 text-gray-300 group-hover:text-indigo-500 transition-colors" />
+                    <div className="p-2 rounded-xl bg-gray-50 group-hover:bg-[var(--hf-brand-50)] transition-colors">
+                      <BookOpen className="w-5 h-5 text-gray-300 group-hover:text-[color:var(--hf-brand-500)] transition-colors" />
                     </div>
                   </div>
                   <p className="text-sm text-gray-500 line-clamp-2 mb-4 leading-relaxed">{c.description || 'Tidak ada deskripsi'}</p>
@@ -559,7 +559,7 @@ export default function TrainingDevelopmentPage() {
                   </div>
                   <div className="flex items-center gap-2 mt-3 text-xs">
                     <span className="bg-gray-100 px-2 py-0.5 rounded-md font-medium">{c.category}</span>
-                    {c.target_audience && <span className="bg-violet-50 text-violet-600 px-2 py-0.5 rounded-md font-medium">{c.target_audience}</span>}
+                    {c.target_audience && <span className="bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)] px-2 py-0.5 rounded-md font-medium">{c.target_audience}</span>}
                   </div>
                 </div>
               ))}
@@ -592,7 +592,7 @@ export default function TrainingDevelopmentPage() {
                   </tr></thead>
                   <tbody className="divide-y divide-gray-100">
                     {modules.filter(m => !search || m.title?.toLowerCase().includes(search.toLowerCase())).map((m, i) => (
-                      <tr key={m.id} className="hover:bg-indigo-50/40 cursor-pointer transition-colors" onClick={() => { setSelectedItem(m); setShowModal('detail-module'); }}>
+                      <tr key={m.id} className="hover:bg-[var(--hf-brand-50)]/40 cursor-pointer transition-colors" onClick={() => { setSelectedItem(m); setShowModal('detail-module'); }}>
                         <td className="px-4 py-3.5 text-gray-400 tabular-nums">{m.order_index ?? i + 1}</td>
                         <td className="px-4 py-3.5">
                           <p className="font-medium text-gray-900">{m.title}</p>
@@ -662,10 +662,10 @@ export default function TrainingDevelopmentPage() {
                         <span>{fillPct}%</span>
                       </div>
                       <div className="w-full bg-gray-100 rounded-full h-1.5">
-                        <div className="bg-indigo-500 h-1.5 rounded-full transition-all" style={{ width: `${fillPct}%` }} />
+                        <div className="bg-[var(--hf-brand-500)] h-1.5 rounded-full transition-all" style={{ width: `${fillPct}%` }} />
                       </div>
                     </div>
-                    {b.client_company && <div className="flex items-center gap-1 text-xs text-violet-600 mb-1"><Building2 className="w-3 h-3" /> {b.client_company}</div>}
+                    {b.client_company && <div className="flex items-center gap-1 text-xs text-[color:var(--hf-brand-600)] mb-1"><Building2 className="w-3 h-3" /> {b.client_company}</div>}
                     {b.instructor && <div className="flex items-center gap-1 text-xs text-gray-500"><UserCheck className="w-3 h-3" /> {b.instructor}</div>}
                     <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-100">
                       <div className="flex-1">
@@ -698,10 +698,10 @@ export default function TrainingDevelopmentPage() {
             </Toolbar>
             <div className="space-y-3">
               {schedules.filter(s => !search || s.session_title?.toLowerCase().includes(search.toLowerCase())).map(s => (
-                <div key={s.id} className="bg-white border border-gray-200 rounded-2xl p-4 flex items-center gap-4 hover:shadow-md hover:border-indigo-200 transition-all cursor-pointer" onClick={() => { setSelectedItem(s); setShowModal('detail-schedule'); }}>
-                  <div className="text-center min-w-[64px] rounded-xl bg-indigo-50 py-2 px-1">
-                    <p className="text-2xl font-bold text-indigo-600 tabular-nums">{s.session_date ? new Date(s.session_date).getDate() : '—'}</p>
-                    <p className="text-[10px] font-medium text-indigo-400 uppercase">{s.session_date ? new Date(s.session_date).toLocaleDateString('id-ID', { month: 'short' }) : '—'}</p>
+                <div key={s.id} className="bg-white border border-gray-200 rounded-2xl p-4 flex items-center gap-4 hover:shadow-md hover:border-[var(--hf-brand-100)] transition-all cursor-pointer" onClick={() => { setSelectedItem(s); setShowModal('detail-schedule'); }}>
+                  <div className="text-center min-w-[64px] rounded-xl bg-[var(--hf-brand-50)] py-2 px-1">
+                    <p className="text-2xl font-bold text-[color:var(--hf-brand-600)] tabular-nums">{s.session_date ? new Date(s.session_date).getDate() : '—'}</p>
+                    <p className="text-[10px] font-medium text-[color:var(--hf-brand-600)] uppercase">{s.session_date ? new Date(s.session_date).toLocaleDateString('id-ID', { month: 'short' }) : '—'}</p>
                   </div>
                   <div className="w-px h-14 bg-gray-200" />
                   <div className="flex-1 min-w-0">
@@ -765,7 +765,7 @@ export default function TrainingDevelopmentPage() {
                   </div>
                   <div className="flex items-center gap-4 text-xs mt-2">
                     {e.batch_name && <span className="text-purple-600 font-medium">Batch: {e.batch_name}</span>}
-                    {e.curriculum_title && <span className="text-violet-600">{e.curriculum_title}</span>}
+                    {e.curriculum_title && <span className="text-[color:var(--hf-brand-600)]">{e.curriculum_title}</span>}
                   </div>
                   <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-gray-100 text-center">
                     <div className="rounded-lg bg-gray-50 py-2">
@@ -776,9 +776,9 @@ export default function TrainingDevelopmentPage() {
                       <p className="text-sm font-bold text-emerald-700">{e.passed_count || 0}</p>
                       <p className="text-[10px] text-emerald-600">Lulus</p>
                     </div>
-                    <div className="rounded-lg bg-violet-50 py-2">
-                      <p className="text-sm font-bold text-violet-700">{Number(e.avg_score || 0).toFixed(1)}</p>
-                      <p className="text-[10px] text-violet-600">Avg Skor</p>
+                    <div className="rounded-lg bg-[var(--hf-brand-50)] py-2">
+                      <p className="text-sm font-bold text-[color:var(--hf-brand)]">{Number(e.avg_score || 0).toFixed(1)}</p>
+                      <p className="text-[10px] text-[color:var(--hf-brand-600)]">Avg Skor</p>
                     </div>
                   </div>
                 </div>
@@ -817,7 +817,7 @@ export default function TrainingDevelopmentPage() {
                   </tr></thead>
                   <tbody className="divide-y divide-gray-100">
                     {graduations.filter(g => !search || g.employee_name?.toLowerCase().includes(search.toLowerCase())).map(g => (
-                      <tr key={g.id} className="hover:bg-indigo-50/40 cursor-pointer transition-colors" onClick={() => { setSelectedItem(g); setShowModal('detail-graduation'); }}>
+                      <tr key={g.id} className="hover:bg-[var(--hf-brand-50)]/40 cursor-pointer transition-colors" onClick={() => { setSelectedItem(g); setShowModal('detail-graduation'); }}>
                         <td className="px-4 py-3.5">
                           <p className="font-medium text-gray-900">{g.employee_name || '—'}</p>
                           <p className="text-xs text-gray-400 font-mono mt-0.5">{g.employee_id?.substring(0, 8)}</p>
@@ -877,7 +877,7 @@ export default function TrainingDevelopmentPage() {
                   </tr></thead>
                   <tbody className="divide-y divide-gray-100">
                     {placements.map(p => (
-                      <tr key={p.id} className="hover:bg-indigo-50/40 cursor-pointer transition-colors" onClick={() => { setSelectedItem(p); setShowModal('detail-placement'); }}>
+                      <tr key={p.id} className="hover:bg-[var(--hf-brand-50)]/40 cursor-pointer transition-colors" onClick={() => { setSelectedItem(p); setShowModal('detail-placement'); }}>
                         <td className="px-4 py-3.5">
                           <p className="font-medium text-gray-900">{p.employee_name || '—'}</p>
                           <p className="text-xs text-gray-400 mt-0.5">{p.batch_name || '—'}</p>
@@ -885,7 +885,7 @@ export default function TrainingDevelopmentPage() {
                         <td className="px-4 py-3.5">{p.position}<br /><span className="text-xs text-gray-400">{p.department || '—'}</span></td>
                         <td className="px-4 py-3.5"><span className="text-xs bg-gray-100 px-2 py-0.5 rounded-md font-medium">{PLACEMENT_TYPES[p.placement_type] || p.placement_type}</span></td>
                         <td className="px-4 py-3.5 text-xs">
-                          {p.client_company && <p className="text-violet-600 font-medium">{p.client_company}</p>}
+                          {p.client_company && <p className="text-[color:var(--hf-brand-600)] font-medium">{p.client_company}</p>}
                           {p.client_site && <p className="text-gray-500">{p.client_site}</p>}
                           {p.target_branch_name && <p className="text-gray-500">{p.target_branch_name}</p>}
                           {!p.client_company && !p.target_branch_name && '—'}
@@ -908,7 +908,7 @@ export default function TrainingDevelopmentPage() {
         {/* ════════════════════════════════════════ */}
         {!loading && tab === 'pipeline' && (
           <div className="space-y-5">
-            <div className="bg-gradient-to-br from-indigo-50 via-white to-purple-50 border border-indigo-100 rounded-2xl p-6 md:p-8 shadow-sm">
+            <div className="bg-gradient-to-br from-[var(--hf-brand-600)] via-white to-purple-50 border border-[var(--hf-brand-100)] rounded-2xl p-6 md:p-8 shadow-sm">
               <div className="mb-6">
                 <h2 className="text-lg font-bold text-gray-900">Pipeline Outsourcing</h2>
                 <p className="text-sm text-gray-500 mt-1">Alur lengkap dari perekrutan → pembinaan/pelatihan → penyaluran karyawan outsourcing</p>
@@ -916,9 +916,9 @@ export default function TrainingDevelopmentPage() {
               {pipeline && (
                 <div className="flex items-stretch gap-3 overflow-x-auto pb-2">
                   {[
-                    { label: 'Rekrutmen', desc: 'Calon karyawan dalam proses seleksi', value: pipeline.recruiting || 0, color: 'from-violet-500 to-violet-600', icon: UserCheck },
+                    { label: 'Rekrutmen', desc: 'Calon karyawan dalam proses seleksi', value: pipeline.recruiting || 0, color: 'from-[var(--hf-brand-500)] to-[var(--hf-brand)]', icon: UserCheck },
                     { label: 'Pelatihan', desc: 'Dalam program pelatihan & pembinaan', value: pipeline.in_training || 0, color: 'from-amber-500 to-amber-600', icon: BookOpen },
-                    { label: 'Siap Ditempatkan', desc: 'Lulus pelatihan, siap ditempatkan', value: pipeline.ready_deploy || 0, color: 'from-indigo-500 to-indigo-600', icon: GraduationCap },
+                    { label: 'Siap Ditempatkan', desc: 'Lulus pelatihan, siap ditempatkan', value: pipeline.ready_deploy || 0, color: 'from-[var(--hf-brand-600)] to-[var(--hf-brand-600)]', icon: GraduationCap },
                     { label: 'Ditempatkan', desc: 'Aktif bekerja di lokasi klien', value: pipeline.deployed || 0, color: 'from-emerald-500 to-emerald-600', icon: MapPin },
                     { label: 'Selesai', desc: 'Kontrak selesai / selesai penempatan', value: pipeline.completed || 0, color: 'from-slate-500 to-slate-600', icon: CheckCircle2 },
                   ].map((stage, i) => (
@@ -931,7 +931,7 @@ export default function TrainingDevelopmentPage() {
                         <p className="text-sm font-semibold text-gray-700 mt-1">{stage.label}</p>
                         <p className="text-[10px] text-gray-400 mt-1.5 leading-snug px-1">{stage.desc}</p>
                       </div>
-                      {i < 4 && <ArrowRight className="w-5 h-5 text-indigo-200 flex-shrink-0" />}
+                      {i < 4 && <ArrowRight className="w-5 h-5 text-[color:var(--hf-brand-600)] flex-shrink-0" />}
                     </div>
                   ))}
                 </div>
@@ -1046,7 +1046,7 @@ export default function TrainingDevelopmentPage() {
               </div>
               <FormField label="Lokasi" value={form.location || ''} onChange={v => setForm({...form, location: v})} />
               {(form.batch_type === 'outsourcing') && (
-                <div className="grid grid-cols-2 gap-3 p-3 bg-violet-50 rounded-lg">
+                <div className="grid grid-cols-2 gap-3 p-3 bg-[var(--hf-brand-50)] rounded-lg">
                   <FormField label="Perusahaan Klien" value={form.client_company || ''} onChange={v => setForm({...form, client_company: v})} />
                   <FormField label="No. Kontrak/PO" value={form.contract_id || ''} onChange={v => setForm({...form, contract_id: v})} />
                 </div>
@@ -1125,7 +1125,7 @@ export default function TrainingDevelopmentPage() {
               <FormSelect label="Batch (opsional)" value={form.batch_id || ''} onChange={v => setForm({...form, batch_id: v})}
                 options={batches.map(b => [b.id, `${b.batch_code} - ${b.batch_name}`])} placeholder="Pilih batch" />
               {(form.placement_type === 'outsourcing_deployment' || form.placement_type === 'client_site') && (
-                <div className="p-3 bg-violet-50 rounded-lg space-y-3">
+                <div className="p-3 bg-[var(--hf-brand-50)] rounded-lg space-y-3">
                   <FormField label="Perusahaan Klien" value={form.client_company || ''} onChange={v => setForm({...form, client_company: v})} />
                   <FormField label="Lokasi Klien" value={form.client_site || ''} onChange={v => setForm({...form, client_site: v})} />
                 </div>
@@ -1146,7 +1146,7 @@ export default function TrainingDevelopmentPage() {
           <Modal title="Detail Kurikulum" onClose={() => { setShowModal(null); setSelectedItem(null); }}>
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-mono text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded">{selectedItem.code}</span>
+                <span className="text-sm font-mono text-[color:var(--hf-brand-500)] bg-[var(--hf-brand-50)] px-2 py-0.5 rounded">{selectedItem.code}</span>
                 {statusBadge(selectedItem.status)}
               </div>
               <h3 className="text-lg font-bold">{selectedItem.title}</h3>
@@ -1189,7 +1189,7 @@ export default function TrainingDevelopmentPage() {
               </div>
               <div className="flex gap-2 pt-2">
                 <button onClick={() => { setEnrollForm({ batch_id: selectedItem.id }); setShowModal('enroll-batch'); }}
-                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 flex items-center justify-center gap-1"><UserPlus className="w-4 h-4" /> Daftarkan Peserta</button>
+                  className="flex-1 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)] flex items-center justify-center gap-1"><UserPlus className="w-4 h-4" /> Daftarkan Peserta</button>
                 <button onClick={() => handleDelete('delete-batch', selectedItem.id, refreshBatches)} className="px-4 py-2 border border-red-300 text-red-600 rounded-lg text-sm hover:bg-red-50 flex items-center gap-1"><Trash2 className="w-4 h-4" /> Hapus</button>
               </div>
             </div>
@@ -1222,22 +1222,22 @@ export default function TrainingDevelopmentPage() {
               {/* Question List Section */}
               <div className="border-t pt-4">
                 <div className="flex justify-between items-center mb-3">
-                  <h4 className="font-semibold text-sm flex items-center gap-2"><ListOrdered className="w-4 h-4 text-indigo-600" /> Daftar Soal ({questions.length})</h4>
+                  <h4 className="font-semibold text-sm flex items-center gap-2"><ListOrdered className="w-4 h-4 text-[color:var(--hf-brand-600)]" /> Daftar Soal ({questions.length})</h4>
                   <div className="flex gap-2">
                     {questions.length === 0 && (
-                      <button onClick={() => fetchQuestions(selectedItem.id)} className="text-xs text-indigo-600 hover:underline flex items-center gap-1"><Eye className="w-3 h-3" /> Muat Soal</button>
+                      <button onClick={() => fetchQuestions(selectedItem.id)} className="text-xs text-[color:var(--hf-brand-600)] hover:underline flex items-center gap-1"><Eye className="w-3 h-3" /> Muat Soal</button>
                     )}
                     <button onClick={() => {
                       setQuestionForm({ exam_id: selectedItem.id, question_type: 'multiple_choice', score: 1, difficulty: 'medium', question_number: (questions.length || selectedItem.total_questions || 0) + 1, options: [{ label: 'A', text: '', isCorrect: false }, { label: 'B', text: '', isCorrect: false }, { label: 'C', text: '', isCorrect: false }, { label: 'D', text: '', isCorrect: false }] });
                       setShowModal('create-question');
-                    }} className="text-xs px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-1"><Plus className="w-3 h-3" /> Tambah Soal</button>
+                    }} className="text-xs px-3 py-1.5 bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)] flex items-center gap-1"><Plus className="w-3 h-3" /> Tambah Soal</button>
                   </div>
                 </div>
                 {questions.length > 0 && (
                   <div className="space-y-2 max-h-60 overflow-y-auto">
                     {questions.map((q, i) => (
                       <div key={q.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg text-sm">
-                        <span className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-bold flex-shrink-0">{q.question_number || i + 1}</span>
+                        <span className="w-7 h-7 rounded-lg bg-[var(--hf-brand-100)] text-[color:var(--hf-brand-600)] flex items-center justify-center text-xs font-bold flex-shrink-0">{q.question_number || i + 1}</span>
                         <div className="flex-1 min-w-0">
                           <p className="text-gray-800 line-clamp-2">{q.question_text}</p>
                           <div className="flex items-center gap-2 mt-1">
@@ -1325,7 +1325,7 @@ export default function TrainingDevelopmentPage() {
                 )}
                 {selectedItem.status === 'active' && (
                   <button onClick={() => handleUpdate('update-placement', { id: selectedItem.id, status: 'completed', end_date: new Date().toISOString().split('T')[0] }, refreshPlacements)}
-                    className="flex-1 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700">Selesai Penempatan</button>
+                    className="flex-1 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]">Selesai Penempatan</button>
                 )}
                 <button onClick={() => handleDelete('delete-placement', selectedItem.id, refreshPlacements)} className="px-4 py-2 border border-red-300 text-red-600 rounded-lg text-sm hover:bg-red-50 flex items-center gap-1"><Trash2 className="w-4 h-4" /> Hapus</button>
               </div>
@@ -1369,7 +1369,7 @@ export default function TrainingDevelopmentPage() {
                     const opts = [...(questionForm.options || [])];
                     if (opts.length < 10) opts.push({ label: labels[opts.length], text: '', isCorrect: false });
                     setQuestionForm({...questionForm, options: opts});
-                  }} className="text-xs text-indigo-600 hover:underline">+ Tambah Opsi</button>
+                  }} className="text-xs text-[color:var(--hf-brand-600)] hover:underline">+ Tambah Opsi</button>
                 </div>
               )}
 
@@ -1393,7 +1393,7 @@ export default function TrainingDevelopmentPage() {
 
               <div className="flex gap-2 pt-2">
                 <button type="button" onClick={() => setShowModal('detail-exam')} className="flex-1 px-4 py-2 border rounded-lg text-sm">Batal</button>
-                <button type="button" onClick={handleCreateQuestion} disabled={saving} className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2">
+                <button type="button" onClick={handleCreateQuestion} disabled={saving} className="flex-1 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)] disabled:opacity-50 flex items-center justify-center gap-2">
                   {saving && <Loader2 className="w-4 h-4 animate-spin" />} Simpan Soal
                 </button>
               </div>
@@ -1405,9 +1405,9 @@ export default function TrainingDevelopmentPage() {
         {showModal === 'enroll-batch' && (
           <Modal title="Daftarkan Peserta ke Batch" onClose={() => { setShowModal(null); setEnrollForm({}); }}>
             <div className="space-y-3">
-              <div className="p-3 bg-indigo-50 rounded-lg text-sm text-indigo-800 mb-2">
+              <div className="p-3 bg-[var(--hf-brand-50)] rounded-lg text-sm text-[color:var(--hf-brand-600)] mb-2">
                 <p className="font-medium">Batch: {selectedItem?.batch_name || batches.find(b => b.id === enrollForm.batch_id)?.batch_name || '-'}</p>
-                <p className="text-xs text-indigo-600">{selectedItem?.batch_code || ''}</p>
+                <p className="text-xs text-[color:var(--hf-brand-600)]">{selectedItem?.batch_code || ''}</p>
               </div>
               <FormField label="ID Karyawan / Kandidat *" value={enrollForm.employee_id || ''} onChange={v => setEnrollForm({...enrollForm, employee_id: v})} placeholder="UUID atau ID karyawan" required />
               <FormField label="Nama Peserta" value={enrollForm.employee_name || ''} onChange={v => setEnrollForm({...enrollForm, employee_name: v})} placeholder="Nama lengkap peserta" />
@@ -1416,7 +1416,7 @@ export default function TrainingDevelopmentPage() {
               </div>
               <div className="flex gap-2 pt-2">
                 <button type="button" onClick={() => { setShowModal(null); setEnrollForm({}); }} className="flex-1 px-4 py-2 border rounded-lg text-sm">Batal</button>
-                <button type="button" onClick={handleEnrollBatch} disabled={saving} className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2">
+                <button type="button" onClick={handleEnrollBatch} disabled={saving} className="flex-1 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)] disabled:opacity-50 flex items-center justify-center gap-2">
                   {saving && <Loader2 className="w-4 h-4 animate-spin" />} Daftarkan
                 </button>
               </div>
@@ -1429,7 +1429,7 @@ export default function TrainingDevelopmentPage() {
           <Modal title="Detail Modul" onClose={() => { setShowModal(null); setSelectedItem(null); }}>
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-mono text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded">{selectedItem.code}</span>
+                <span className="text-sm font-mono text-[color:var(--hf-brand-500)] bg-[var(--hf-brand-50)] px-2 py-0.5 rounded">{selectedItem.code}</span>
                 {statusBadge(selectedItem.status)}
               </div>
               <h3 className="text-lg font-bold">{selectedItem.title}</h3>
@@ -1483,7 +1483,7 @@ export default function TrainingDevelopmentPage() {
 // Reusable Sub-Components
 // ═══════════════════════════════════════════
 const STAT_COLORS: Record<string, { bg: string; icon: string; border: string }> = {
-  blue: { bg: 'from-violet-50 to-white', icon: 'bg-violet-100 text-violet-600', border: 'border-violet-100' },
+  blue: { bg: 'from-[var(--hf-brand-600)] to-white', icon: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand-600)]', border: 'border-[var(--hf-brand-50)]' },
   purple: { bg: 'from-purple-50 to-white', icon: 'bg-purple-100 text-purple-600', border: 'border-purple-100' },
   green: { bg: 'from-emerald-50 to-white', icon: 'bg-emerald-100 text-emerald-600', border: 'border-emerald-100' },
   orange: { bg: 'from-orange-50 to-white', icon: 'bg-orange-100 text-orange-600', border: 'border-orange-100' },
@@ -1548,7 +1548,7 @@ function Toolbar({ children }: { children: React.ReactNode }) {
 
 function PrimaryButton({ children, onClick, icon: Icon }: { children: React.ReactNode; onClick: () => void; icon?: any }) {
   return (
-    <button type="button" onClick={onClick} className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 shadow-sm shadow-indigo-200 transition-colors whitespace-nowrap">
+    <button type="button" onClick={onClick} className="flex items-center gap-2 px-4 py-2.5 bg-[var(--hf-brand-600)] text-white rounded-xl text-sm font-medium hover:bg-[var(--hf-brand)] shadow-sm shadow-[color:var(--hf-brand-100)] transition-colors whitespace-nowrap">
       {Icon && <Icon className="w-4 h-4" />}
       {children}
     </button>
@@ -1560,7 +1560,7 @@ function FilterSelect({ value, onChange, options }: { value: string; onChange: (
     <select
       value={value}
       onChange={e => onChange(e.target.value)}
-      className="px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-w-[140px]"
+      className="px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-[var(--hf-brand-500)] focus:border-[var(--hf-brand-100)] min-w-[140px]"
     >
       {options.map(opt => {
         const [val, lbl] = Array.isArray(opt) ? opt : [opt, opt];
@@ -1572,7 +1572,7 @@ function FilterSelect({ value, onChange, options }: { value: string; onChange: (
 
 function IntegrationCard({ title, desc, href, icon: Icon, color }: { title: string; desc: string; href: string; icon: any; color: 'blue' | 'purple' | 'green' }) {
   const styles = {
-    blue: { bg: 'bg-violet-50 border-violet-100', title: 'text-violet-900', text: 'text-violet-700', link: 'text-violet-600' },
+    blue: { bg: 'bg-[var(--hf-brand-50)] border-[var(--hf-brand-50)]', title: 'text-[color:var(--hf-brand-600)]', text: 'text-[color:var(--hf-brand)]', link: 'text-[color:var(--hf-brand-600)]' },
     purple: { bg: 'bg-purple-50 border-purple-100', title: 'text-purple-900', text: 'text-purple-700', link: 'text-purple-600' },
     green: { bg: 'bg-emerald-50 border-emerald-100', title: 'text-emerald-900', text: 'text-emerald-700', link: 'text-emerald-600' },
   }[color];
@@ -1597,7 +1597,7 @@ function SearchInput({ value, onChange, placeholder }: { value: string; onChange
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow"
+        className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-[var(--hf-brand-500)] focus:border-[var(--hf-brand-100)] transition-shadow"
       />
     </div>
   );
@@ -1607,7 +1607,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
-        <div className="px-5 py-4 border-b bg-gradient-to-r from-indigo-50 to-purple-50 flex justify-between items-center shrink-0">
+        <div className="px-5 py-4 border-b bg-gradient-to-r from-[var(--hf-brand-600)] to-purple-50 flex justify-between items-center shrink-0">
           <h3 className="font-bold text-lg text-gray-900">{title}</h3>
           <button type="button" onClick={onClose} className="p-1.5 hover:bg-white/80 rounded-lg transition-colors"><X className="w-5 h-5 text-gray-500" /></button>
         </div>
@@ -1622,7 +1622,7 @@ function FormField({ label, value, onChange, type = 'text', placeholder, require
     <div>
       <label className="text-sm font-medium text-gray-700">{label}</label>
       <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} required={required}
-        className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+        className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[var(--hf-brand-500)] focus:border-[var(--hf-brand-100)]" />
     </div>
   );
 }
@@ -1632,7 +1632,7 @@ function FormTextarea({ label, value, onChange }: { label: string; value: string
     <div>
       <label className="text-sm font-medium text-gray-700">{label}</label>
       <textarea value={value} onChange={e => onChange(e.target.value)} rows={3}
-        className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+        className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[var(--hf-brand-500)] focus:border-[var(--hf-brand-100)]" />
     </div>
   );
 }
@@ -1642,7 +1642,7 @@ function FormSelect({ label, value, onChange, options, placeholder, required }: 
     <div>
       <label className="text-sm font-medium text-gray-700">{label}</label>
       <select value={value} onChange={e => onChange(e.target.value)} required={required}
-        className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+        className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[var(--hf-brand-500)] focus:border-[var(--hf-brand-100)]">
         {placeholder && <option value="">{placeholder}</option>}
         {options.map(([val, lbl]) => <option key={val} value={val}>{lbl}</option>)}
       </select>
@@ -1663,7 +1663,7 @@ function ModalActions({ saving, onCancel }: { saving: boolean; onCancel: () => v
   return (
     <div className="flex gap-2 pt-2">
       <button type="button" onClick={onCancel} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">Batal</button>
-      <button type="submit" disabled={saving} className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm transition-colors">
+      <button type="submit" disabled={saving} className="flex-1 px-4 py-2.5 bg-[var(--hf-brand-600)] text-white rounded-xl text-sm font-medium hover:bg-[var(--hf-brand)] disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm transition-colors">
         {saving && <Loader2 className="w-4 h-4 animate-spin" />} Simpan
       </button>
     </div>

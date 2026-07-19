@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Wallet, ChevronDown, ChevronUp, Loader2, Receipt, TrendingDown, TrendingUp } from 'lucide-react';
+import { Wallet, ChevronDown, ChevronUp, Loader2, Receipt, TrendingDown, TrendingUp, Printer } from 'lucide-react';
+import { printPayslipHtml } from '@/components/employee/payslip-print';
 
 const fmtCur = (n: number) => `Rp ${(n || 0).toLocaleString('id-ID')}`;
 const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-';
@@ -143,6 +144,17 @@ export default function PayslipTab() {
                   <span className="text-sm font-semibold">Gaji Bersih</span>
                   <span className="font-bold">{fmtCur(ps.net_salary)}</span>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const ok = printPayslipHtml(ps);
+                    if (!ok) window.alert('Izinkan pop-up untuk mencetak / unduh PDF slip gaji.');
+                  }}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  <Printer className="w-4 h-4" /> Cetak / Unduh PDF
+                </button>
               </div>
             )}
           </div>

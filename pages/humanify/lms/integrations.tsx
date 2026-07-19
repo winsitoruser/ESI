@@ -51,7 +51,7 @@ export default function LmsIntegrationsPage() {
             { label: 'Baris KPI kompetensi', value: overview.kpi_competency_rows || 0, icon: Target },
           ].map((s) => (
             <div key={s.label} className="bg-white border rounded-xl p-4">
-              <s.icon className="w-5 h-5 text-indigo-600 mb-2" />
+              <s.icon className="w-5 h-5 text-[color:var(--hf-brand-600)] mb-2" />
               <p className="text-xs text-gray-500">{s.label}</p>
               <p className="text-lg font-bold">{s.value}</p>
             </div>
@@ -90,7 +90,7 @@ export default function LmsIntegrationsPage() {
               { href: '/humanify/training-scoring', label: 'Skor Training' },
               { href: '/humanify/certificates', label: 'Certificate Registry' },
             ].map((l) => (
-              <a key={l.href} href={l.href} className="px-3 py-1.5 border rounded-lg text-sm hover:border-indigo-300">{l.label}</a>
+              <a key={l.href} href={l.href} className="px-3 py-1.5 border rounded-lg text-sm hover:border-[var(--hf-brand-100)]">{l.label}</a>
             ))}
           </div>
         </div>

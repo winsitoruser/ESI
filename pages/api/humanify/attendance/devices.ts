@@ -157,7 +157,10 @@ async function createDevice(req: NextApiRequest, res: NextApiResponse, session: 
   }
 
   if (!AttendanceDevice) {
-    return res.status(200).json({ success: true, message: 'Device created (mock)', data: { id: 'mock-id' }, _mock: true });
+    if (allowHrMockFallback()) {
+      return res.status(200).json({ success: true, message: 'Device created (mock)', data: { id: 'mock-id' }, dataSource: 'demo', _mock: true });
+    }
+    return res.status(503).json({ success: false, error: 'Attendance devices unavailable', dataSource: 'empty' });
   }
 
   try {
@@ -177,7 +180,10 @@ async function createDevice(req: NextApiRequest, res: NextApiResponse, session: 
     return res.status(201).json({ success: true, data: serializeDevice(device) });
   } catch (error: any) {
     if (isMissingTableError(error)) {
-      return res.status(200).json({ success: true, message: 'Device created (mock)', data: { id: 'mock-id' }, _mock: true });
+      if (allowHrMockFallback()) {
+        return res.status(200).json({ success: true, message: 'Device created (mock)', data: { id: 'mock-id' }, dataSource: 'demo', _mock: true });
+      }
+      return res.status(503).json({ success: false, error: 'Attendance devices table missing', dataSource: 'empty' });
     }
     throw error;
   }
@@ -191,7 +197,10 @@ async function updateDevice(req: NextApiRequest, res: NextApiResponse, session: 
   }
 
   if (!AttendanceDevice) {
-    return res.status(200).json({ success: true, message: 'Device updated (mock)', _mock: true });
+    if (allowHrMockFallback()) {
+      return res.status(200).json({ success: true, message: 'Device updated (mock)', dataSource: 'demo', _mock: true });
+    }
+    return res.status(503).json({ success: false, error: 'Attendance devices unavailable', dataSource: 'empty' });
   }
 
   try {
@@ -218,7 +227,10 @@ async function updateDevice(req: NextApiRequest, res: NextApiResponse, session: 
     return res.status(200).json({ success: true, data: serializeDevice(device) });
   } catch (error: any) {
     if (isMissingTableError(error)) {
-      return res.status(200).json({ success: true, message: 'Device updated (mock)', _mock: true });
+      if (allowHrMockFallback()) {
+        return res.status(200).json({ success: true, message: 'Device updated (mock)', dataSource: 'demo', _mock: true });
+      }
+      return res.status(503).json({ success: false, error: 'Attendance devices table missing', dataSource: 'empty' });
     }
     throw error;
   }
@@ -232,7 +244,10 @@ async function deleteDevice(req: NextApiRequest, res: NextApiResponse, session: 
   }
 
   if (!AttendanceDevice) {
-    return res.status(200).json({ success: true, message: 'Device deleted (mock)', _mock: true });
+    if (allowHrMockFallback()) {
+      return res.status(200).json({ success: true, message: 'Device deleted (mock)', dataSource: 'demo', _mock: true });
+    }
+    return res.status(503).json({ success: false, error: 'Attendance devices unavailable', dataSource: 'empty' });
   }
 
   try {
@@ -248,7 +263,10 @@ async function deleteDevice(req: NextApiRequest, res: NextApiResponse, session: 
     return res.status(200).json({ success: true, message: 'Device deactivated' });
   } catch (error: any) {
     if (isMissingTableError(error)) {
-      return res.status(200).json({ success: true, message: 'Device deleted (mock)', _mock: true });
+      if (allowHrMockFallback()) {
+        return res.status(200).json({ success: true, message: 'Device deleted (mock)', dataSource: 'demo', _mock: true });
+      }
+      return res.status(503).json({ success: false, error: 'Attendance devices table missing', dataSource: 'empty' });
     }
     throw error;
   }

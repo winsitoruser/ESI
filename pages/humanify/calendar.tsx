@@ -28,7 +28,7 @@ interface CalEvent {
 
 const TYPE_CONF: Record<CalEventType, { label: string; color: string; icon: typeof Calendar }> = {
   leave: { label: 'Cuti', color: 'bg-yellow-100 text-yellow-800 border-yellow-300', icon: Heart },
-  shift: { label: 'Shift', color: 'bg-violet-100 text-violet-800 border-violet-300', icon: Clock },
+  shift: { label: 'Shift', color: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand-600)] border-[var(--hf-brand-100)]', icon: Clock },
   payday: { label: 'Gajian', color: 'bg-emerald-100 text-emerald-800 border-emerald-300', icon: DollarSign },
   training: { label: 'Training', color: 'bg-orange-100 text-orange-800 border-orange-300', icon: GraduationCap },
   birthday: { label: 'Ultah', color: 'bg-pink-100 text-pink-800 border-pink-300', icon: Cake },
@@ -285,9 +285,9 @@ export default function HRISCalendarPage() {
 
               return (
                 <button key={day} type="button" onClick={() => setSelectedDay(key)}
-                  className={`border-r border-b min-h-[110px] p-1.5 text-left hover:bg-violet-50/40 transition relative ${cellBg} ${isToday ? 'ring-2 ring-inset ring-violet-400' : ''}`}>
+                  className={`border-r border-b min-h-[110px] p-1.5 text-left hover:bg-[var(--hf-brand-50)]/40 transition relative ${cellBg} ${isToday ? 'ring-2 ring-inset ring-[var(--hf-brand-500)]' : ''}`}>
                   <div className="flex items-start justify-between gap-1 mb-1">
-                    <span className={`text-xs font-semibold ${isToday ? 'text-violet-700' : hol ? 'text-red-700' : isWeekend ? 'text-gray-400' : 'text-gray-700'}`}>
+                    <span className={`text-xs font-semibold ${isToday ? 'text-[color:var(--hf-brand)]' : hol ? 'text-red-700' : isWeekend ? 'text-gray-400' : 'text-gray-700'}`}>
                       {day}
                     </span>
                     {hol && (

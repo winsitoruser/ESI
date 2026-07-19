@@ -1,6 +1,23 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-51** · Maturity Sprint-1 (PublicAuthShell, empty states, PWA, --hf chrome)
+> Diperbarui: 19 Juli 2026 — **Wave-52** · Maturity Sprint-2 (bulk attendance, supervisor leave, payslip print, devices no-mock, UX tokens)
+
+## Wave-52 (19 Jul 2026) — Maturity S2
+
+| ID | Item | Status |
+|---|---|---|
+| HR-S2-1 | Attendance bulk correct + undo 24h UI | Done |
+| HR-S2-2 | Leave `supervisor_id` → `approver_id` + inbox “Menunggu saya” | Done |
+| ESS-S2-1 | Payslip print / PDF download | Done |
+| ESS-S2-2 | ESS leave attachment (sakit) | Done |
+| UX-S2-1 | Kill violet/indigo ops pages → `--hf-*` | Done |
+| UX-S2-2 | `HumanifyMarketingShell` + ADR `D-HF-TWO-SURFACE` | Done |
+| CP-S2-1 | `/platform/*` → `HumanifyLayout` | Done |
+| SEC-S2-1 | Devices mutate no `_mock` in prod + mock-guard | Done |
+
+Scripts: `npm run smoke:wave52` · `npm run smoke:mock-guard`
+
+Baseline post-S2 (judgment): Control ~99 · Sec ~97 · HR ~97 · ESS ~92 · UX ~96. Next: **Sprint 3**.
 
 ## Wave-51 (19 Jul 2026) — Maturity S1
 

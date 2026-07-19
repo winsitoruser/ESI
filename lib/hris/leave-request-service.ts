@@ -130,10 +130,33 @@ export type PortalLeaveInput = {
   endDate: string;
   reason: string;
   tenantId?: string | null;
+  attachmentUrl?: string | null;
 };
 
+/** Resolve person-level approver from employee.supervisor_id for SUPERVISOR/MANAGER steps. */
+export async function resolveLeaveApproverId(
+  employeeId: string | number,
+  role: string,
+  db?: any,
+): Promise<string | null> {
+  const seq = db || sequelize;
+  if (!seq) return null;
+  const roleUpper = String(role || '').toUpperCase();
+  if (!['SUPERVISOR', 'MANAGER', 'DIRECT_MANAGER', 'ATASAN'].includes(roleUpper)) return null;
+  try {
+    const [rows] = await seq.query(
+      `SELECT supervisor_id::text AS sid FROM employees WHERE id::text = :empId LIMIT 1`,
+      { replacements: { empId: String(employeeId) } },
+    );
+    const sid = rows?.[0]?.sid;
+    return sid && UUID_RE.test(String(sid)) ? String(sid) : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function createPortalLeaveRequest(input: PortalLeaveInput) {
-  const { employeeId, leaveType, startDate, endDate, reason, tenantId } = input;
+  const { employeeId, leaveType, startDate, endDate, reason, tenantId, attachmentUrl } = input;
   const totalDays = calcBusinessDays(startDate, endDate);
 
   if (!sequelize) {
@@ -156,7 +179,7 @@ export async function createPortalLeaveRequest(input: PortalLeaveInput) {
   }
 
   const [empRows] = await sequelize.query(`
-    SELECT id, name, department, branch_id, position FROM employees WHERE id::text = :empId LIMIT 1
+    SELECT id, name, department, branch_id, position, supervisor_id FROM employees WHERE id::text = :empId LIMIT 1
   `, { replacements: { empId: String(employeeId) } });
   const employee = empRows?.[0];
 
@@ -168,11 +191,11 @@ export async function createPortalLeaveRequest(input: PortalLeaveInput) {
   const [result] = await sequelize.query(`
     INSERT INTO leave_requests (
       id, employee_id, branch_id, leave_type, start_date, end_date, total_days,
-      reason, status, tenant_id, approval_config_id, current_approval_step, total_approval_steps,
+      reason, attachment_url, status, tenant_id, approval_config_id, current_approval_step, total_approval_steps,
       created_at, updated_at
     ) VALUES (
       uuid_generate_v4(), :employeeId, :branchId, :leaveType, :startDate, :endDate, :totalDays,
-      :reason, :status, :tenantId, :configId, 1, :totalSteps, NOW(), NOW()
+      :reason, :attachmentUrl, :status, :tenantId, :configId, 1, :totalSteps, NOW(), NOW()
     ) RETURNING *
   `, {
     replacements: {
@@ -183,6 +206,7 @@ export async function createPortalLeaveRequest(input: PortalLeaveInput) {
       endDate,
       totalDays,
       reason,
+      attachmentUrl: attachmentUrl || null,
       status: autoApprove ? 'approved' : 'pending',
       tenantId: tenantId || null,
       configId: approvalConfig?.id || null,
@@ -197,14 +221,16 @@ export async function createPortalLeaveRequest(input: PortalLeaveInput) {
 
   if (!autoApprove && approvalLevels.length > 0) {
     for (const level of approvalLevels) {
+      const approverId = await resolveLeaveApproverId(employeeId, level.role);
       await sequelize.query(`
-        INSERT INTO leave_approval_steps (id, leave_request_id, step_order, approver_role, status, created_at, updated_at)
-        VALUES (uuid_generate_v4(), :requestId, :stepOrder, :role, :status, NOW(), NOW())
+        INSERT INTO leave_approval_steps (id, leave_request_id, step_order, approver_role, approver_id, status, created_at, updated_at)
+        VALUES (uuid_generate_v4(), :requestId, :stepOrder, :role, :approverId, :status, NOW(), NOW())
       `, {
         replacements: {
           requestId: leaveRequest.id,
           stepOrder: level.level,
           role: level.role,
+          approverId,
           status: level.level === 1 ? 'pending' : 'waiting',
         },
       });

@@ -38,10 +38,10 @@ interface TeamMember {
 const ROLE_CONFIG: Record<MemberRole, { label: string; color: string; icon: any }> = {
   sales: { label: 'Sales', color: 'text-emerald-600 bg-emerald-50', icon: Target },
   marketing: { label: 'Marketing', color: 'text-purple-600 bg-purple-50', icon: Star },
-  ops: { label: 'Operations', color: 'text-violet-600 bg-violet-50', icon: Clock },
+  ops: { label: 'Operations', color: 'text-[color:var(--hf-brand-600)] bg-[var(--hf-brand-50)]', icon: Clock },
   finance: { label: 'Finance', color: 'text-amber-600 bg-amber-50', icon: Briefcase },
   admin: { label: 'Admin', color: 'text-gray-600 bg-gray-50', icon: User },
-  manager: { label: 'Manager', color: 'text-indigo-600 bg-indigo-50', icon: UserCheck },
+  manager: { label: 'Manager', color: 'text-[color:var(--hf-brand-600)] bg-[var(--hf-brand-50)]', icon: UserCheck },
   executive: { label: 'Executive', color: 'text-rose-600 bg-rose-50', icon: Star },
 };
 
@@ -157,7 +157,7 @@ export default function TeamMembersPage() {
             </button>
             <Link
               href="/humanify/team-members/new"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)] transition-colors"
             >
               <Plus className="w-4 h-4" />
               Tambah Anggota
@@ -180,7 +180,7 @@ export default function TeamMembersPage() {
           </div>
           <div className="bg-white rounded-xl border border-gray-200 p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-violet-50 text-violet-600">
+              <div className="p-2 rounded-lg bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)]">
                 <Target className="w-5 h-5" />
               </div>
               <div>
@@ -223,20 +223,20 @@ export default function TeamMembersPage() {
                 placeholder="Search by name, email, code..."
                 value={search}
                 onChange={e => { setSearch(e.target.value); setPage(1); }}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--hf-brand-500)] focus:border-[var(--hf-brand-100)]"
               />
             </div>
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={`inline-flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors ${
                 showFilters || roleFilter || statusFilter
-                  ? 'border-indigo-300 bg-indigo-50 text-indigo-700'
+                  ? 'border-[var(--hf-brand-100)] bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)]'
                   : 'border-gray-300 text-gray-600 hover:bg-gray-50'
               }`}
             >
               <Filter className="w-4 h-4" />
               Filters
-              {(roleFilter || statusFilter) && <span className="w-2 h-2 rounded-full bg-indigo-500" />}
+              {(roleFilter || statusFilter) && <span className="w-2 h-2 rounded-full bg-[var(--hf-brand-500)]" />}
             </button>
           </div>
 
@@ -247,7 +247,7 @@ export default function TeamMembersPage() {
                 <select
                   value={roleFilter}
                   onChange={e => { setRoleFilter(e.target.value); setPage(1); }}
-                  className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500"
+                  className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-[var(--hf-brand-500)]"
                 >
                   <option value="">All Roles</option>
                   {Object.entries(ROLE_CONFIG).map(([key, cfg]) => (
@@ -260,7 +260,7 @@ export default function TeamMembersPage() {
                 <select
                   value={statusFilter}
                   onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
-                  className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500"
+                  className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-[var(--hf-brand-500)]"
                 >
                   <option value="">All Status</option>
                   <option value="active">Active</option>
@@ -305,7 +305,7 @@ export default function TeamMembersPage() {
                     <div className="flex flex-col items-center gap-2 text-gray-400">
                       <Users className="w-12 h-12" />
                       <p className="text-sm">No team members found</p>
-                      <Link href="/humanify/team-members/new" className="text-indigo-600 hover:text-indigo-700 text-sm font-medium">
+                      <Link href="/humanify/team-members/new" className="text-[color:var(--hf-brand-600)] hover:text-[color:var(--hf-brand)] text-sm font-medium">
                         Add your first member
                       </Link>
                     </div>
@@ -314,14 +314,14 @@ export default function TeamMembersPage() {
                   <tr key={member.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
-                          <span className="text-xs font-semibold text-indigo-600">
+                        <div className="w-8 h-8 rounded-full bg-[var(--hf-brand-100)] flex items-center justify-center">
+                          <span className="text-xs font-semibold text-[color:var(--hf-brand-600)]">
                             {member.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
                           </span>
                         </div>
                         <div>
                           <Link href={`/humanify/team-members/${member.id}`}
-                            className="text-sm font-medium text-gray-900 hover:text-indigo-600">{member.name}</Link>
+                            className="text-sm font-medium text-gray-900 hover:text-[color:var(--hf-brand-600)]">{member.name}</Link>
                           <p className="text-xs text-gray-400">{member.code}{member.employeeUid ? ` • ${member.employeeUid}` : ''}</p>
                         </div>
                       </div>
@@ -351,7 +351,7 @@ export default function TeamMembersPage() {
                     </td>
                     <td className="px-4 py-3 text-center">
                       {member.workArea ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)]">
                           <Navigation className="w-3 h-3" /> {getWorkAreaLabel(member.workArea) || (member as any).workAreaLabel || member.workArea}
                         </span>
                       ) : (
@@ -369,7 +369,7 @@ export default function TeamMembersPage() {
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <Link href={`/humanify/team-members/${member.id}`}
-                          className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="View">
+                          className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded-lg transition-colors" title="View">
                           <Eye className="w-4 h-4" />
                         </Link>
                         <Link href={`/humanify/team-members/${member.id}?edit=true`}

@@ -66,6 +66,12 @@ export default function AttendancePage() {
   const [monthlyBranch, setMonthlyBranch] = useState('all');
 
   const [showBulkImport, setShowBulkImport] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkStatus, setBulkStatus] = useState('present');
+  const [bulkNotes, setBulkNotes] = useState('');
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [lastBatchId, setLastBatchId] = useState<string | null>(null);
+  const [undoExpiresAt, setUndoExpiresAt] = useState<string | null>(null);
   const [toast, setToast] = useState<{ type: string; message: string } | null>(null);
   const showToast = (type: string, message: string) => { setToast({ type, message }); setTimeout(() => setToast(null), 3500); };
 
@@ -135,7 +141,7 @@ export default function AttendancePage() {
   const navigateDate = (dir: number) => { const d = new Date(selectedDate); d.setDate(d.getDate() + dir); setSelectedDate(d.toISOString().split('T')[0]); };
   const formatTime = (t: string | null) => t ? new Date(t).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-';
   const getStatusConfig = (status: string) => {
-    const map: Record<string, { label: string; color: string; icon: any }> = { present: { label: 'Hadir', color: 'bg-green-100 text-green-700', icon: CheckCircle }, late: { label: 'Terlambat', color: 'bg-yellow-100 text-yellow-700', icon: AlertTriangle }, absent: { label: 'Tidak Hadir', color: 'bg-red-100 text-red-700', icon: XCircle }, leave: { label: 'Cuti', color: 'bg-violet-100 text-violet-700', icon: Coffee }, sick: { label: 'Sakit', color: 'bg-purple-100 text-purple-700', icon: Coffee }, work_from_home: { label: 'WFH', color: 'bg-indigo-100 text-indigo-700', icon: MapPin }, holiday: { label: 'Libur', color: 'bg-gray-100 text-gray-600', icon: Calendar } };
+    const map: Record<string, { label: string; color: string; icon: any }> = { present: { label: 'Hadir', color: 'bg-green-100 text-green-700', icon: CheckCircle }, late: { label: 'Terlambat', color: 'bg-yellow-100 text-yellow-700', icon: AlertTriangle }, absent: { label: 'Tidak Hadir', color: 'bg-red-100 text-red-700', icon: XCircle }, leave: { label: 'Cuti', color: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]', icon: Coffee }, sick: { label: 'Sakit', color: 'bg-purple-100 text-purple-700', icon: Coffee }, work_from_home: { label: 'WFH', color: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]', icon: MapPin }, holiday: { label: 'Libur', color: 'bg-gray-100 text-gray-600', icon: Calendar } };
     return map[status] || map.absent;
   };
   const getSourceIcon = (source: string) => {
@@ -205,6 +211,72 @@ export default function AttendancePage() {
     fetchLiveData();
   };
 
+  const toggleSelectId = (id: string) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const toggleSelectAllDaily = () => {
+    const ids = filteredDaily.map((r) => r.id).filter(Boolean);
+    const allSelected = ids.length > 0 && ids.every((id) => selectedIds.includes(id));
+    setSelectedIds(allSelected ? selectedIds.filter((id) => !ids.includes(id)) : [...new Set([...selectedIds, ...ids])]);
+  };
+
+  const handleBulkCorrect = async () => {
+    if (!selectedIds.length) { showToast('error', 'Pilih minimal satu baris'); return; }
+    setBulkBusy(true);
+    try {
+      const res = await fetch('/api/humanify/attendance-bulk?action=correct', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ids: selectedIds,
+          patch: { status: bulkStatus, ...(bulkNotes.trim() ? { notes: bulkNotes.trim() } : {}) },
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        showToast('error', json.error || 'Koreksi gagal');
+      } else {
+        setLastBatchId(json.data?.batchId || json.batchId || null);
+        setUndoExpiresAt(json.data?.undoExpiresAt || json.undoExpiresAt || null);
+        setSelectedIds([]);
+        showToast('success', `Dikoreksi ${json.data?.updated ?? json.updated ?? selectedIds.length} baris · undo 24 jam`);
+        fetchDailyData();
+        fetchLiveData();
+      }
+    } catch {
+      showToast('error', 'Koreksi gagal');
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const handleBulkUndo = async () => {
+    if (!lastBatchId) return;
+    setBulkBusy(true);
+    try {
+      const res = await fetch('/api/humanify/attendance-bulk?action=undo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ batchId: lastBatchId }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        showToast('error', json.error || 'Undo gagal');
+      } else {
+        showToast('success', 'Koreksi dibatalkan');
+        setLastBatchId(null);
+        setUndoExpiresAt(null);
+        fetchDailyData();
+        fetchLiveData();
+      }
+    } catch {
+      showToast('error', 'Undo gagal');
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
   const TABS: { key: TabKey; label: string; icon: any }[] = [
     { key: 'live', label: 'Live Hari Ini', icon: TrendingUp },
     { key: 'daily', label: 'Absensi Harian', icon: Calendar },
@@ -229,7 +301,7 @@ export default function AttendancePage() {
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
           {[
-            { label: 'Total Hari Ini', value: todayStats.total || dailyRecords.length, icon: Users, bg: 'bg-violet-100', color: 'text-violet-600' },
+            { label: 'Total Hari Ini', value: todayStats.total || dailyRecords.length, icon: Users, bg: 'bg-[var(--hf-brand-100)]', color: 'text-[color:var(--hf-brand-600)]' },
             { label: 'Hadir', value: todayStats.present || dPresent, icon: UserCheck, bg: 'bg-green-100', color: 'text-green-600' },
             { label: 'Terlambat', value: todayStats.late || dLate, icon: Clock, bg: 'bg-yellow-100', color: 'text-yellow-600' },
             { label: 'Tidak Hadir', value: todayStats.absent || dAbsent, icon: UserX, bg: 'bg-red-100', color: 'text-red-600' },
@@ -260,7 +332,7 @@ export default function AttendancePage() {
           <div className="flex border-b overflow-x-auto">
             {TABS.map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${activeTab === tab.key ? 'border-violet-600 text-violet-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${activeTab === tab.key ? 'border-[var(--hf-brand-600)] text-[color:var(--hf-brand-600)]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
                 <tab.icon className="w-4 h-4" /> {tab.label}
               </button>
             ))}
@@ -287,7 +359,7 @@ export default function AttendancePage() {
                     <thead className="bg-gray-50"><tr><th scope="col" className="px-4 py-3 text-left font-medium text-gray-500 text-xs uppercase">Karyawan</th><th scope="col" className="px-4 py-3 text-center font-medium text-gray-500 text-xs uppercase">Masuk</th><th scope="col" className="px-4 py-3 text-center font-medium text-gray-500 text-xs uppercase">Keluar</th><th scope="col" className="px-4 py-3 text-center font-medium text-gray-500 text-xs uppercase">Status</th><th scope="col" className="px-4 py-3 text-center font-medium text-gray-500 text-xs uppercase">Metode</th><th scope="col" className="px-4 py-3 text-center font-medium text-gray-500 text-xs uppercase">Jam Kerja</th></tr></thead>
                     <tbody className="divide-y">
                       {todayRecords.map((r: any, i: number) => {
-                        const statusMap: Record<string, { label: string; cls: string }> = { present: { label: 'Hadir', cls: 'bg-green-100 text-green-700' }, late: { label: 'Terlambat', cls: 'bg-yellow-100 text-yellow-700' }, absent: { label: 'Tidak Hadir', cls: 'bg-red-100 text-red-700' }, leave: { label: 'Cuti', cls: 'bg-violet-100 text-violet-700' }, sick: { label: 'Sakit', cls: 'bg-purple-100 text-purple-700' }, work_from_home: { label: 'WFH', cls: 'bg-cyan-100 text-cyan-700' } };
+                        const statusMap: Record<string, { label: string; cls: string }> = { present: { label: 'Hadir', cls: 'bg-green-100 text-green-700' }, late: { label: 'Terlambat', cls: 'bg-yellow-100 text-yellow-700' }, absent: { label: 'Tidak Hadir', cls: 'bg-red-100 text-red-700' }, leave: { label: 'Cuti', cls: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]' }, sick: { label: 'Sakit', cls: 'bg-purple-100 text-purple-700' }, work_from_home: { label: 'WFH', cls: 'bg-cyan-100 text-cyan-700' } };
                         const st = statusMap[r.status] || statusMap.present;
                         return (
                           <tr key={i} className="hover:bg-gray-50">
@@ -321,7 +393,7 @@ export default function AttendancePage() {
                   <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-green-500 rounded-full" /><span>Hadir: <strong>{dPresent}</strong></span></div>
                   <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-yellow-500 rounded-full" /><span>Terlambat: <strong>{dLate}</strong></span></div>
                   <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-red-500 rounded-full" /><span>Tidak Hadir: <strong>{dAbsent}</strong></span></div>
-                  <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-violet-500 rounded-full" /><span>Cuti: <strong>{dLeave}</strong></span></div>
+                  <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-[var(--hf-brand-500)] rounded-full" /><span>Cuti: <strong>{dLeave}</strong></span></div>
                   {dClockedIn > 0 && <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-orange-500 rounded-full animate-pulse" /><span>Aktif: <strong>{dClockedIn}</strong></span></div>}
                 </div>
               </div>
@@ -332,13 +404,68 @@ export default function AttendancePage() {
                 <select value={dailySource} onChange={(e) => setDailySource(e.target.value)} className="px-3 py-2 border rounded-lg text-sm" aria-label="Filter berdasarkan sumber absensi"><option value="all">Semua Sumber</option><option value="fingerprint">Sidik Jari</option><option value="face_recognition">Wajah</option><option value="gps_mobile">Ponsel/GPS</option><option value="manual">Manual</option></select>
                 <AttendanceExportBar view="daily" onExport={(f) => handleExport('daily', f)} onImport={() => setShowBulkImport(true)} />
               </div>
+
+              {(selectedIds.length > 0 || lastBatchId) && (
+                <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                  {selectedIds.length > 0 && (
+                    <>
+                      <span className="text-xs font-medium text-slate-600">{selectedIds.length} dipilih</span>
+                      <select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value)} className="px-2 py-1.5 border rounded-lg text-xs">
+                        <option value="present">Hadir</option>
+                        <option value="late">Terlambat</option>
+                        <option value="absent">Tidak Hadir</option>
+                        <option value="leave">Cuti</option>
+                      </select>
+                      <input
+                        value={bulkNotes}
+                        onChange={(e) => setBulkNotes(e.target.value)}
+                        placeholder="Catatan (opsional)"
+                        className="px-2 py-1.5 border rounded-lg text-xs min-w-[140px]"
+                      />
+                      <button
+                        type="button"
+                        disabled={bulkBusy}
+                        onClick={handleBulkCorrect}
+                        className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50"
+                        style={{ background: 'var(--hf-brand-600)' }}
+                      >
+                        Koreksi
+                      </button>
+                      <button type="button" onClick={() => setSelectedIds([])} className="px-2 py-1.5 text-xs text-slate-500 hover:underline">
+                        Batal pilih
+                      </button>
+                    </>
+                  )}
+                  {lastBatchId && (
+                    <button
+                      type="button"
+                      disabled={bulkBusy}
+                      onClick={handleBulkUndo}
+                      className="ml-auto px-3 py-1.5 rounded-lg text-xs font-medium border border-amber-300 bg-amber-50 text-amber-800 disabled:opacity-50"
+                      title={undoExpiresAt ? `Berlaku s/d ${undoExpiresAt}` : 'Undo 24 jam'}
+                    >
+                      Batalkan koreksi (24 jam)
+                    </button>
+                  )}
+                </div>
+              )}
+
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50"><tr><th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Karyawan</th><th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cabang</th><th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Masuk</th><th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Keluar</th><th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Jam Kerja</th><th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th><th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Sumber</th><th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Ket</th></tr></thead>
+                  <thead className="bg-gray-50"><tr>
+                    <th scope="col" className="px-3 py-3 text-center">
+                      <input
+                        type="checkbox"
+                        aria-label="Pilih semua"
+                        checked={filteredDaily.length > 0 && filteredDaily.every((r) => selectedIds.includes(r.id))}
+                        onChange={toggleSelectAllDaily}
+                      />
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Karyawan</th><th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cabang</th><th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Masuk</th><th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Keluar</th><th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Jam Kerja</th><th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th><th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Sumber</th><th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Ket</th></tr></thead>
                   <tbody className="divide-y">
                     {filteredDaily.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="p-4">
+                        <td colSpan={9} className="p-4">
                           <HrisEmptyState
                             source={dataSource}
                             title="Belum ada data absensi hari ini"
@@ -367,14 +494,22 @@ export default function AttendancePage() {
                       const sc = getStatusConfig(r.status); const StatusIcon = sc.icon; const si = getSourceIcon(r.source); const SourceIcon = si.icon;
                       return (
                         <tr key={r.id} className="hover:bg-gray-50">
+                          <td className="px-3 py-3 text-center">
+                            <input
+                              type="checkbox"
+                              aria-label={`Pilih ${r.employeeName}`}
+                              checked={selectedIds.includes(r.id)}
+                              onChange={() => toggleSelectId(r.id)}
+                            />
+                          </td>
                           <td className="px-4 py-3"><p className="font-medium">{r.employeeName}</p><p className="text-xs text-gray-500">{r.employeeId} · {r.position}</p></td>
                           <td className="px-4 py-3 text-sm">{r.branchName}</td>
                           <td className="px-4 py-3 text-center"><span className={`text-sm font-mono ${r.clockIn ? (r.status === 'late' ? 'text-yellow-600' : 'text-green-600') : 'text-gray-400'}`}>{formatTime(r.clockIn)}</span></td>
-                          <td className="px-4 py-3 text-center"><span className={`text-sm font-mono ${r.clockOut ? 'text-violet-600' : (r.clockIn ? 'text-orange-500' : 'text-gray-400')}`}>{r.clockOut ? formatTime(r.clockOut) : (r.clockIn ? '⏳ Aktif' : '-')}</span></td>
+                          <td className="px-4 py-3 text-center"><span className={`text-sm font-mono ${r.clockOut ? 'text-[color:var(--hf-brand-600)]' : (r.clockIn ? 'text-orange-500' : 'text-gray-400')}`}>{r.clockOut ? formatTime(r.clockOut) : (r.clockIn ? '⏳ Aktif' : '-')}</span></td>
                           <td className="px-4 py-3 text-center">{r.workHours > 0 ? <span className="text-sm font-medium">{r.workHours.toFixed(1)}h</span> : <span className="text-gray-400">-</span>}</td>
                           <td className="px-4 py-3 text-center"><span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${sc.color}`}><StatusIcon className="w-3 h-3" />{sc.label}</span></td>
                           <td className="px-4 py-3 text-center"><span className="inline-flex items-center gap-1 text-xs text-gray-500"><SourceIcon className="w-3.5 h-3.5" />{si.label}</span></td>
-                          <td className="px-4 py-3 text-center text-xs"><div className="space-y-0.5">{r.lateMinutes > 0 && <span className="block text-yellow-600">Telat {r.lateMinutes}m</span>}{r.overtimeMinutes > 0 && <span className="block text-violet-600">Lembur {r.overtimeMinutes}m</span>}{r.earlyLeaveMinutes > 0 && <span className="block text-orange-600">Pulang awal {r.earlyLeaveMinutes}m</span>}{r.isOutsideGeofence && <span className="block text-red-500">⚠ Di luar area</span>}{!r.lateMinutes && !r.overtimeMinutes && !r.earlyLeaveMinutes && !r.isOutsideGeofence && <span className="text-gray-400">-</span>}</div></td>
+                          <td className="px-4 py-3 text-center text-xs"><div className="space-y-0.5">{r.lateMinutes > 0 && <span className="block text-yellow-600">Telat {r.lateMinutes}m</span>}{r.overtimeMinutes > 0 && <span className="block text-[color:var(--hf-brand-600)]">Lembur {r.overtimeMinutes}m</span>}{r.earlyLeaveMinutes > 0 && <span className="block text-orange-600">Pulang awal {r.earlyLeaveMinutes}m</span>}{r.isOutsideGeofence && <span className="block text-red-500">⚠ Di luar area</span>}{!r.lateMinutes && !r.overtimeMinutes && !r.earlyLeaveMinutes && !r.isOutsideGeofence && <span className="text-gray-400">-</span>}</div></td>
                         </tr>
                       );
                     })}
@@ -389,7 +524,7 @@ export default function AttendancePage() {
             <div className="p-4 space-y-4">
               {/* Stats */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="bg-violet-50 rounded-lg p-3"><p className="text-xs text-violet-600">Total Karyawan</p><p className="text-xl font-bold text-violet-800">{mTotal}</p></div>
+                <div className="bg-[var(--hf-brand-50)] rounded-lg p-3"><p className="text-xs text-[color:var(--hf-brand-600)]">Total Karyawan</p><p className="text-xl font-bold text-[color:var(--hf-brand-600)]">{mTotal}</p></div>
                 <div className="bg-green-50 rounded-lg p-3"><p className="text-xs text-green-600">Rata-rata Kehadiran</p><p className="text-xl font-bold text-green-800">{mAvg.toFixed(1)}%</p></div>
                 <div className="bg-purple-50 rounded-lg p-3"><p className="text-xs text-purple-600">Kehadiran Sempurna</p><p className="text-xl font-bold text-purple-800">{mPerfect}</p></div>
                 <div className="bg-red-50 rounded-lg p-3"><p className="text-xs text-red-600">Kehadiran Rendah (&lt;80%)</p><p className="text-xl font-bold text-red-800">{mLow}</p></div>
@@ -429,7 +564,7 @@ export default function AttendancePage() {
                         <td className="px-4 py-3 text-center"><span className="flex items-center justify-center gap-1 text-green-600"><UserCheck className="w-3.5 h-3.5" />{r.present}</span></td>
                         <td className="px-4 py-3 text-center"><span className="flex items-center justify-center gap-1 text-yellow-600"><Clock className="w-3.5 h-3.5" />{r.late}</span></td>
                         <td className="px-4 py-3 text-center"><span className="flex items-center justify-center gap-1 text-red-600"><UserX className="w-3.5 h-3.5" />{r.absent}</span></td>
-                        <td className="px-4 py-3 text-center"><span className="flex items-center justify-center gap-1 text-violet-600"><Coffee className="w-3.5 h-3.5" />{r.leave}</span></td>
+                        <td className="px-4 py-3 text-center"><span className="flex items-center justify-center gap-1 text-[color:var(--hf-brand-600)]"><Coffee className="w-3.5 h-3.5" />{r.leave}</span></td>
                         <td className="px-4 py-3 text-center font-medium">{r.totalDays}</td>
                         <td className="px-4 py-3 text-center"><span className={`px-3 py-1 rounded-full text-xs font-medium ${getAttendanceColor(r.attendanceRate)}`}>{r.attendanceRate}%</span></td>
                       </tr>
@@ -485,7 +620,7 @@ function AttendanceExportBar({
       </button>
       {(view === 'daily' || view === 'monthly' || view === 'live') && (
         <button onClick={onImport} title="Import data massal"
-          className="flex items-center gap-1 px-2.5 py-1.5 bg-violet-600 text-white rounded-lg text-xs hover:bg-violet-700 ml-1">
+          className="flex items-center gap-1 px-2.5 py-1.5 bg-[var(--hf-brand-600)] text-white rounded-lg text-xs hover:bg-[var(--hf-brand)] ml-1">
           <Upload className="w-3.5 h-3.5" /> Import
         </button>
       )}

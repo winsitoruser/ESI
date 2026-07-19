@@ -15,7 +15,7 @@ const CATEGORY_ICONS: Record<string, any> = {
   kepegawaian: Users, kehadiran: Clock, kinerja: Target, cuti: Calendar, payroll: DollarSign,
 };
 const CATEGORY_COLORS: Record<string, string> = {
-  kepegawaian: 'bg-violet-50 text-violet-700 border-violet-200',
+  kepegawaian: 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)] border-[var(--hf-brand-100)]',
   kehadiran: 'bg-green-50 text-green-700 border-green-200',
   kinerja: 'bg-purple-50 text-purple-700 border-purple-200',
   cuti: 'bg-amber-50 text-amber-700 border-amber-200',
@@ -74,12 +74,12 @@ export default function HRISReportsPage() {
   };
 
   const statCards = [
-    { label: 'Total Karyawan', value: summary.employees?.total ?? '-', sub: `${summary.employees?.active ?? 0} aktif`, icon: Users, color: 'text-violet-600 bg-violet-50' },
+    { label: 'Total Karyawan', value: summary.employees?.total ?? '-', sub: `${summary.employees?.active ?? 0} aktif`, icon: Users, color: 'text-[color:var(--hf-brand-600)] bg-[var(--hf-brand-50)]' },
     { label: 'Kehadiran Bulan Ini', value: summary.attendance?.present ?? '-', sub: `${summary.attendance?.absent ?? 0} absen`, icon: Clock, color: 'text-green-600 bg-green-50' },
     { label: 'Rata-rata KPI', value: summary.kpi?.avg_achievement ? `${summary.kpi.avg_achievement}%` : '-', sub: `${summary.kpi?.employees ?? 0} karyawan`, icon: Target, color: 'text-purple-600 bg-purple-50' },
     { label: 'Cuti Pending', value: summary.leave?.pending ?? '-', sub: `${summary.leave?.approved ?? 0} disetujui`, icon: Calendar, color: 'text-amber-600 bg-amber-50' },
     { label: 'Payroll', value: summary.payroll?.runs ?? '-', sub: summary.payroll?.total_employees ? `${summary.payroll.total_employees} karyawan` : 'belum diproses', icon: DollarSign, color: 'text-emerald-600 bg-emerald-50' },
-    { label: 'Evaluasi Kinerja', value: summary.performance?.completed ?? '-', sub: summary.performance?.avg_score ? `skor ${summary.performance.avg_score}` : '-', icon: Award, color: 'text-indigo-600 bg-indigo-50' },
+    { label: 'Evaluasi Kinerja', value: summary.performance?.completed ?? '-', sub: summary.performance?.avg_score ? `skor ${summary.performance.avg_score}` : '-', icon: Award, color: 'text-[color:var(--hf-brand-600)] bg-[var(--hf-brand-50)]' },
   ];
 
   return (
@@ -136,7 +136,7 @@ export default function HRISReportsPage() {
           {['all', 'kepegawaian', 'kehadiran', 'kinerja', 'cuti', 'payroll'].map(cat => (
             <button key={cat} onClick={() => setCategoryFilter(cat)}
               className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                categoryFilter === cat ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                categoryFilter === cat ? 'bg-[var(--hf-brand-600)] text-white border-[var(--hf-brand-600)]' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
               }`}>
               {cat === 'all' ? 'Semua' : cat.charAt(0).toUpperCase() + cat.slice(1)}
             </button>
@@ -161,11 +161,11 @@ export default function HRISReportsPage() {
                       <span className="text-[10px] uppercase tracking-wider text-gray-400 font-medium">{report.category}</span>
                       <h3 className="font-semibold text-gray-900">{report.title}</h3>
                       <p className="text-sm text-gray-500 mt-0.5">{report.description}</p>
-                      {report.count > 0 && <p className="text-xs text-indigo-600 mt-1">{report.count} record</p>}
+                      {report.count > 0 && <p className="text-xs text-[color:var(--hf-brand-600)] mt-1">{report.count} record</p>}
                     </div>
                   </div>
                   {report.href && (
-                    <Link href={report.href} className="text-gray-400 hover:text-indigo-600 flex-shrink-0">
+                    <Link href={report.href} className="text-gray-400 hover:text-[color:var(--hf-brand-600)] flex-shrink-0">
                       <ChevronRight className="w-5 h-5" />
                     </Link>
                   )}
@@ -185,7 +185,7 @@ export default function HRISReportsPage() {
                   )}
                   {report.exportType && (
                     <Link href={`/humanify/${report.exportType === 'kpi' ? 'kpi' : report.exportType === 'attendance' ? 'attendance' : report.exportType === 'performance' ? 'performance' : 'employees'}`}
-                      className="flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-xs hover:bg-gray-50 ml-auto text-indigo-600">
+                      className="flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-xs hover:bg-gray-50 ml-auto text-[color:var(--hf-brand-600)]">
                       <TrendingUp className="w-3.5 h-3.5" /> Buka Modul
                     </Link>
                   )}
@@ -196,7 +196,7 @@ export default function HRISReportsPage() {
         </div>
 
         {/* Quick links */}
-        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-5">
+        <div className="bg-gradient-to-r from-[var(--hf-brand-600)] to-purple-50 border border-[var(--hf-brand-100)] rounded-xl p-5">
           <h3 className="font-semibold text-gray-900 mb-3">Modul Terkait</h3>
           <div className="flex flex-wrap gap-2">
             {[
@@ -209,7 +209,7 @@ export default function HRISReportsPage() {
               { label: 'Aktivitas HR', href: '/humanify/activities' },
             ].map(l => (
               <Link key={l.href} href={l.href}
-                className="px-3 py-1.5 bg-white border rounded-lg text-sm text-gray-700 hover:border-indigo-300 hover:text-indigo-700 transition-colors">
+                className="px-3 py-1.5 bg-white border rounded-lg text-sm text-gray-700 hover:border-[var(--hf-brand-100)] hover:text-[color:var(--hf-brand)] transition-colors">
                 {l.label}
               </Link>
             ))}

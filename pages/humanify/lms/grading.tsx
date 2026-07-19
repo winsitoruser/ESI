@@ -48,7 +48,7 @@ export default function GradingPage() {
 
         <div className="flex gap-2 mb-4">
           {(['auto', 'manual', 'integrity'] as const).map((t) => (
-            <button key={t} type="button" onClick={() => setTab(t)} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === t ? 'bg-indigo-600 text-white' : 'bg-gray-100'}`}>
+            <button key={t} type="button" onClick={() => setTab(t)} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === t ? 'bg-[var(--hf-brand-600)] text-white' : 'bg-gray-100'}`}>
               {t === 'auto' ? 'Sudah Dinilai' : t === 'manual' ? `Manual (${manualQueue.length})` : `Integritas (${sessions.length})`}
             </button>
           ))}

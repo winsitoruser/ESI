@@ -59,7 +59,7 @@ export default function TestDetailPage() {
         <LmsPageNav active="tests" />
         <div className="flex gap-2 mb-4">
           <Link href="/humanify/lms/tests" className="p-2 border rounded-lg"><ArrowLeft className="w-4 h-4" /></Link>
-          <button type="button" onClick={() => setModal(true)} className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-sm flex items-center gap-1"><Plus className="w-4 h-4" /> Soal Baru</button>
+          <button type="button" onClick={() => setModal(true)} className="px-3 py-1.5 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm flex items-center gap-1"><Plus className="w-4 h-4" /> Soal Baru</button>
           <button type="button" onClick={() => { loadBank(); setImportModal(true); }} className="px-3 py-1.5 border rounded-lg text-sm flex items-center gap-1"><Import className="w-4 h-4" /> Impor Bank Soal</button>
         </div>
 
@@ -75,7 +75,7 @@ export default function TestDetailPage() {
 
         <Modal open={modal} onClose={() => setModal(false)} title="Tambah Soal ke Tes">
           <textarea className="w-full border rounded-lg px-3 py-2 text-sm min-h-[80px] mb-3" placeholder="Teks soal" value={form.question_text || ''} onChange={(e) => setForm({ ...form, question_text: e.target.value })} />
-          <button type="button" onClick={addQuestion} className="w-full py-2 bg-indigo-600 text-white rounded-lg">Simpan</button>
+          <button type="button" onClick={addQuestion} className="w-full py-2 bg-[var(--hf-brand-600)] text-white rounded-lg">Simpan</button>
         </Modal>
 
         <Modal open={importModal} onClose={() => setImportModal(false)} title="Impor dari Bank Soal">
@@ -87,7 +87,7 @@ export default function TestDetailPage() {
               </label>
             ))}
           </div>
-          <button type="button" onClick={importFromBank} disabled={!selected.length} className="w-full py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50">Impor {selected.length} soal</button>
+          <button type="button" onClick={importFromBank} disabled={!selected.length} className="w-full py-2 bg-[var(--hf-brand-600)] text-white rounded-lg disabled:opacity-50">Impor {selected.length} soal</button>
         </Modal>
       </HumanifyLayout>
     </PageGuard>

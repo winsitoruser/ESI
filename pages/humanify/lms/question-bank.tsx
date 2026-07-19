@@ -60,7 +60,7 @@ export default function QuestionBankPage() {
           </div>
           <div className="flex gap-2 items-center">
             <DataSourceBadge source={dataSource} />
-            <button type="button" onClick={() => setModal(true)} className="flex items-center gap-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm">
+            <button type="button" onClick={() => setModal(true)} className="flex items-center gap-1 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm">
               <Plus className="w-4 h-4" /> Tambah Soal
             </button>
           </div>
@@ -123,7 +123,7 @@ export default function QuestionBankPage() {
                 }} />
               </div>
             ))}
-            <button type="button" onClick={save} className="w-full py-2 bg-indigo-600 text-white rounded-lg">Simpan</button>
+            <button type="button" onClick={save} className="w-full py-2 bg-[var(--hf-brand-600)] text-white rounded-lg">Simpan</button>
           </div>
         </Modal>
       </HumanifyLayout>

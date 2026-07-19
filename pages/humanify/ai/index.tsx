@@ -154,7 +154,7 @@ export default function AiHubPage() {
               type="button"
               onClick={() => setTab(key)}
               className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 -mb-px transition-colors ${
-                tab === key ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'
+                tab === key ? 'border-[var(--hf-brand-600)] text-[color:var(--hf-brand)]' : 'border-transparent text-slate-500 hover:text-slate-700'
               }`}
             >
               <Icon className="h-4 w-4" /> {label}
@@ -168,7 +168,7 @@ export default function AiHubPage() {
               {[
                 { label: 'Aturan Otomasi', value: dashboard?.totalRules ?? 0, icon: Zap, color: 'text-amber-600' },
                 { label: 'Aturan Aktif', value: dashboard?.activeRules ?? 0, icon: CheckCircle2, color: 'text-emerald-600' },
-                { label: 'Total Eksekusi', value: dashboard?.totalTriggers ?? 0, icon: Play, color: 'text-indigo-600' },
+                { label: 'Total Eksekusi', value: dashboard?.totalTriggers ?? 0, icon: Play, color: 'text-[color:var(--hf-brand-600)]' },
                 { label: 'AI Insights', value: insights.length, icon: Brain, color: 'text-purple-600' },
               ].map((s) => (
                 <div key={s.label} className="bg-white border rounded-xl p-4">
@@ -183,7 +183,7 @@ export default function AiHubPage() {
 
             <div className="grid lg:grid-cols-2 gap-6">
               <div className="bg-white border rounded-xl p-5">
-                <h3 className="font-semibold mb-3 flex items-center gap-2"><Sparkles className="h-5 w-5 text-indigo-500" /> Modul AI Terintegrasi</h3>
+                <h3 className="font-semibold mb-3 flex items-center gap-2"><Sparkles className="h-5 w-5 text-[color:var(--hf-brand-500)]" /> Modul AI Terintegrasi</h3>
                 <div className="space-y-2">
                   {quickLinks.map((l) => (
                     <Link key={l.href} href={l.href} className="flex items-center justify-between p-3 rounded-lg border hover:bg-slate-50 group">
@@ -191,7 +191,7 @@ export default function AiHubPage() {
                         <p className="font-medium text-sm">{l.label}</p>
                         <p className="text-xs text-slate-500">{l.desc}</p>
                       </div>
-                      <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-indigo-500" />
+                      <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-[color:var(--hf-brand-500)]" />
                     </Link>
                   ))}
                 </div>
@@ -200,7 +200,7 @@ export default function AiHubPage() {
               <div className="bg-white border rounded-xl p-5">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-semibold flex items-center gap-2"><Clock className="h-5 w-5 text-slate-500" /> Log Otomasi Terbaru</h3>
-                  <button type="button" onClick={runScan} disabled={scanning} className="text-xs px-3 py-1 bg-indigo-600 text-white rounded-lg disabled:opacity-50">
+                  <button type="button" onClick={runScan} disabled={scanning} className="text-xs px-3 py-1 bg-[var(--hf-brand-600)] text-white rounded-lg disabled:opacity-50">
                     {scanning ? 'Scanning...' : 'Jalankan Scan'}
                   </button>
                 </div>
@@ -220,21 +220,21 @@ export default function AiHubPage() {
 
         {tab === 'copilot' && (
           <div className="mt-6 bg-white border rounded-xl flex flex-col h-[600px] shadow-sm">
-            <div className="p-4 border-b flex items-center gap-3 bg-gradient-to-r from-indigo-50/80 to-white">
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-indigo-600 text-white font-bold text-sm shadow-md">
+            <div className="p-4 border-b flex items-center gap-3 bg-gradient-to-r from-[var(--hf-brand-600)]/80 to-white">
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--hf-brand-600)] text-white font-bold text-sm shadow-md">
                 AI
               </div>
               <div className="flex-1">
-                <p className="font-semibold text-slate-800">{t('hris.aimanName')} <span className="text-indigo-600">· {t('hris.aimanTitle')}</span></p>
+                <p className="font-semibold text-slate-800">{t('hris.aimanName')} <span className="text-[color:var(--hf-brand-600)]">· {t('hris.aimanTitle')}</span></p>
                 <p className="text-xs text-slate-500">{t('hris.aimanTagline')}</p>
               </div>
-              <span className="hidden sm:inline text-xs px-2 py-1 rounded-full bg-indigo-100 text-indigo-700 font-medium">AI Guide HR</span>
+              <span className="hidden sm:inline text-xs px-2 py-1 rounded-full bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)] font-medium">AI Guide HR</span>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {!chatHistory.length && (
-                <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-5 text-sm text-slate-700">
+                <div className="rounded-xl border border-[var(--hf-brand-100)] bg-[var(--hf-brand-50)]/40 p-5 text-sm text-slate-700">
                   <div className="flex items-start gap-3">
-                    <UserCircle2 className="h-8 w-8 text-indigo-500 shrink-0 mt-0.5" />
+                    <UserCircle2 className="h-8 w-8 text-[color:var(--hf-brand-500)] shrink-0 mt-0.5" />
                     <div className="space-y-3">
                       <p className="whitespace-pre-wrap leading-relaxed">{AIMAN_GREETING.replace(/\*\*(.*?)\*\*/g, '$1')}</p>
                       <div className="flex flex-wrap gap-2">
@@ -243,7 +243,7 @@ export default function AiHubPage() {
                             key={s}
                             type="button"
                             onClick={() => { setChatInput(s); }}
-                            className="text-xs px-3 py-1.5 rounded-full border border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50 transition-colors"
+                            className="text-xs px-3 py-1.5 rounded-full border border-[var(--hf-brand-100)] bg-white text-[color:var(--hf-brand)] hover:bg-[var(--hf-brand-50)] transition-colors"
                           >
                             {s}
                           </button>
@@ -256,15 +256,15 @@ export default function AiHubPage() {
               {chatHistory.map((m, i) => (
                 <div key={i} className={`flex gap-2 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   {m.role === 'assistant' && (
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white mt-0.5">AI</div>
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--hf-brand-600)] text-[10px] font-bold text-white mt-0.5">AI</div>
                   )}
                   <div className={`max-w-[78%] rounded-xl px-4 py-2.5 text-sm whitespace-pre-wrap leading-relaxed ${
                     m.role === 'user'
-                      ? 'bg-indigo-600 text-white rounded-br-sm'
+                      ? 'bg-[var(--hf-brand-600)] text-white rounded-br-sm'
                       : 'bg-slate-100 text-slate-800 border border-slate-200/80 rounded-bl-sm'
                   }`}>
                     {m.role === 'assistant' && (
-                      <p className="text-[10px] font-semibold text-indigo-600 mb-1 uppercase tracking-wide">AIMAN</p>
+                      <p className="text-[10px] font-semibold text-[color:var(--hf-brand-600)] mb-1 uppercase tracking-wide">AIMAN</p>
                     )}
                     {m.content.replace(/\*\*(.*?)\*\*/g, '$1')}
                   </div>
@@ -272,7 +272,7 @@ export default function AiHubPage() {
               ))}
               {chatLoading && (
                 <div className="flex items-center gap-2 text-sm text-slate-500">
-                  <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-[10px] font-bold text-indigo-600 animate-pulse">AI</div>
+                  <div className="h-8 w-8 rounded-full bg-[var(--hf-brand-100)] flex items-center justify-center text-[10px] font-bold text-[color:var(--hf-brand-600)] animate-pulse">AI</div>
                   <span className="animate-pulse">{AIMAN_THINKING_LABEL}</span>
                 </div>
               )}
@@ -280,13 +280,13 @@ export default function AiHubPage() {
             </div>
             <div className="p-4 border-t bg-slate-50/50 flex gap-2">
               <input
-                className="flex-1 border rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                className="flex-1 border rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[var(--hf-brand-500)]/30"
                 placeholder={t('hris.aimanPlaceholder')}
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendChat()}
               />
-              <button type="button" onClick={sendChat} disabled={chatLoading || !chatInput.trim()} className="px-4 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium disabled:opacity-50 hover:bg-indigo-700 transition-colors">
+              <button type="button" onClick={sendChat} disabled={chatLoading || !chatInput.trim()} className="px-4 py-2.5 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm font-medium disabled:opacity-50 hover:bg-[var(--hf-brand)] transition-colors">
                 Kirim
               </button>
             </div>
@@ -297,7 +297,7 @@ export default function AiHubPage() {
           <div className="mt-6 space-y-4">
             <div className="flex justify-between items-center">
               <p className="text-sm text-slate-500">{rules.length} aturan otomasi HR</p>
-              <button type="button" onClick={runScan} disabled={scanning} className="flex items-center gap-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm disabled:opacity-50">
+              <button type="button" onClick={runScan} disabled={scanning} className="flex items-center gap-1 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm disabled:opacity-50">
                 <Zap className="h-4 w-4" /> {scanning ? 'Memindai...' : 'Scan Semua Aturan'}
               </button>
             </div>
@@ -346,7 +346,7 @@ export default function AiHubPage() {
                       {ins.priority}
                     </span>
                   </div>
-                  <p className="text-xs text-indigo-600 mt-1 uppercase">{ins.module}</p>
+                  <p className="text-xs text-[color:var(--hf-brand-600)] mt-1 uppercase">{ins.module}</p>
                   <p className="text-sm text-slate-600 mt-2">{ins.summary}</p>
                   {ins.actions?.length > 0 && (
                     <ul className="mt-2 space-y-1">
@@ -363,7 +363,7 @@ export default function AiHubPage() {
                 <p className="text-slate-400 text-sm col-span-2">Belum ada insight. Refresh untuk memuat data.</p>
               )}
             </div>
-            <Link href="/humanify/hr-analytics" className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:underline">
+            <Link href="/humanify/hr-analytics" className="inline-flex items-center gap-1 text-sm text-[color:var(--hf-brand-600)] hover:underline">
               Buka HR Analytics lengkap <ChevronRight className="h-4 w-4" />
             </Link>
           </div>

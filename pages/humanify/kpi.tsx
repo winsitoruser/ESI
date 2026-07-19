@@ -91,7 +91,7 @@ function getCategoryLabels(t: (key: string) => string): Record<string, string> {
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  sales: 'bg-violet-100 text-violet-700', operations: 'bg-green-100 text-green-700',
+  sales: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]', operations: 'bg-green-100 text-green-700',
   customer: 'bg-amber-100 text-amber-700', financial: 'bg-purple-100 text-purple-700',
   hr: 'bg-pink-100 text-pink-700', quality: 'bg-cyan-100 text-cyan-700'
 };
@@ -325,7 +325,7 @@ export default function KPIDashboard() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'exceeded': return <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full flex items-center gap-1"><CheckCircle className="w-3 h-3" /> {t('hris.exceededBadge')}</span>;
-      case 'achieved': return <span className="px-2 py-1 text-xs bg-violet-100 text-violet-700 rounded-full flex items-center gap-1"><CheckCircle className="w-3 h-3" /> {t('hris.achievedBadge')}</span>;
+      case 'achieved': return <span className="px-2 py-1 text-xs bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)] rounded-full flex items-center gap-1"><CheckCircle className="w-3 h-3" /> {t('hris.achievedBadge')}</span>;
       case 'partial': return <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-700 rounded-full flex items-center gap-1"><Clock className="w-3 h-3" /> {t('hris.partialBadge')}</span>;
       case 'not_achieved': return <span className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded-full flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {t('hris.notAchievedBadge')}</span>;
       default: return null;
@@ -370,7 +370,7 @@ export default function KPIDashboard() {
               <button onClick={handleExportCSV} className="flex items-center gap-2 rounded-xl bg-white/15 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm hover:bg-white/25">
                 <Download className="h-4 w-4" />{t('hris.exportCsv')}
               </button>
-              <button onClick={fetchData} disabled={loading} className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50 disabled:opacity-60">
+              <button onClick={fetchData} disabled={loading} className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-medium text-[color:var(--hf-brand)] hover:bg-[var(--hf-brand-50)] disabled:opacity-60">
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
               </button>
             </>
@@ -379,9 +379,9 @@ export default function KPIDashboard() {
 
         {/* Summary Stats */}
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
-          <HRStatCard label={t('hris.avgAchievement')} value={`${avgAchievement.toFixed(0)}%`} icon={Target} gradient="from-indigo-500 to-violet-600" />
+          <HRStatCard label={t('hris.avgAchievement')} value={`${avgAchievement.toFixed(0)}%`} icon={Target} gradient="from-[var(--hf-brand-600)] to-[var(--hf-brand)]" />
           <HRStatCard label={t('hris.exceeded')} value={exceededCount} icon={TrendingUp} gradient="from-emerald-500 to-teal-600" />
-          <HRStatCard label={t('hris.achieved')} value={achievedCount} icon={CheckCircle} gradient="from-violet-500 to-cyan-600" />
+          <HRStatCard label={t('hris.achieved')} value={achievedCount} icon={CheckCircle} gradient="from-[var(--hf-brand-500)] to-cyan-600" />
           <HRStatCard label={t('hris.partial')} value={partialCount} icon={Clock} gradient="from-amber-500 to-orange-600" />
           <HRStatCard label={t('hris.notAchieved')} value={notAchievedCount} icon={AlertCircle} gradient="from-rose-500 to-red-600" />
           <HRStatCard label={t('hris.totalEmployees')} value={totalEmployees} sub={`${templates.length} template`} icon={Users} gradient="from-purple-500 to-fuchsia-600" />
@@ -406,10 +406,10 @@ export default function KPIDashboard() {
           {/* Sub-tabs for dashboard view */}
           {activeTab === 'dashboard' && (
             <div className="flex gap-2 mt-3 pt-3 border-t">
-              <button onClick={() => setViewMode('branch')} className={`px-3 py-1.5 rounded-md text-sm ${viewMode === 'branch' ? 'bg-violet-100 text-violet-700 font-medium' : 'text-gray-500 hover:bg-gray-100'}`}>
+              <button onClick={() => setViewMode('branch')} className={`px-3 py-1.5 rounded-md text-sm ${viewMode === 'branch' ? 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)] font-medium' : 'text-gray-500 hover:bg-gray-100'}`}>
                 <Building2 className="w-4 h-4 inline mr-1" />{t('hris.perBranch')}
               </button>
-              <button onClick={() => setViewMode('employee')} className={`px-3 py-1.5 rounded-md text-sm ${viewMode === 'employee' ? 'bg-violet-100 text-violet-700 font-medium' : 'text-gray-500 hover:bg-gray-100'}`}>
+              <button onClick={() => setViewMode('employee')} className={`px-3 py-1.5 rounded-md text-sm ${viewMode === 'employee' ? 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)] font-medium' : 'text-gray-500 hover:bg-gray-100'}`}>
                 <Users className="w-4 h-4 inline mr-1" />{t('hris.perEmployee')}
               </button>
               {viewMode === 'employee' && (
@@ -581,7 +581,7 @@ export default function KPIDashboard() {
                       <span className="text-green-600">{branch.topPerformers} ↑</span>
                       <span className="text-red-600">{branch.lowPerformers} ↓</span>
                     </div>
-                    <button onClick={() => setSelectedBranch(branch)} className="flex items-center gap-1 text-violet-600 hover:underline">
+                    <button onClick={() => setSelectedBranch(branch)} className="flex items-center gap-1 text-[color:var(--hf-brand-600)] hover:underline">
                       <Eye className="w-4 h-4" /> {t('hris.detail')}
                     </button>
                   </div>
@@ -652,7 +652,7 @@ export default function KPIDashboard() {
                       <td className="px-4 py-3 text-center">
                         <button 
                           onClick={() => { setMetricEdits({}); setSelectedKPI(emp); }}
-                          className="text-violet-600 hover:underline text-sm"
+                          className="text-[color:var(--hf-brand-600)] hover:underline text-sm"
                         >
                           {t('hris.detail')}
                         </button>
@@ -670,11 +670,11 @@ export default function KPIDashboard() {
         {selectedKPI && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white rounded-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto m-4">
-              <div className="p-6 border-b bg-gradient-to-r from-violet-600 to-indigo-600 rounded-t-xl">
+              <div className="p-6 border-b bg-gradient-to-r from-[var(--hf-brand-600)] to-[var(--hf-brand-600)] rounded-t-xl">
                 <div className="flex justify-between items-start">
                   <div className="text-white">
                     <h3 className="text-xl font-bold">{selectedKPI?.employeeName}</h3>
-                    <p className="text-violet-100">{selectedKPI?.position} • {selectedKPI?.branchName}</p>
+                    <p className="text-[color:var(--hf-brand-600)]">{selectedKPI?.position} • {selectedKPI?.branchName}</p>
                   </div>
                   <button onClick={() => setSelectedKPI(null)} className="text-white/70 hover:text-white text-2xl">×</button>
                 </div>
@@ -682,7 +682,7 @@ export default function KPIDashboard() {
               <div className="p-6 space-y-6">
                 {/* Summary Cards with Radial Charts */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-gradient-to-br from-violet-50 to-violet-100 rounded-xl p-4 text-center">
+                  <div className="bg-gradient-to-br from-[var(--hf-brand-600)] to-[var(--hf-brand)] rounded-xl p-4 text-center">
                     {typeof window !== 'undefined' && (
                       <Chart
                         type="radialBar"
@@ -850,7 +850,7 @@ export default function KPIDashboard() {
                   <button onClick={handleSaveMetricActuals} disabled={saving} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
                     {saving ? 'Menyimpan...' : 'Simpan Aktual'}
                   </button>
-                  <button onClick={() => handleEditKPI(selectedKPI)} className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700">Edit Target</button>
+                  <button onClick={() => handleEditKPI(selectedKPI)} className="px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)]">Edit Target</button>
                 </div>
               </div>
             </div>
@@ -888,7 +888,7 @@ export default function KPIDashboard() {
                     </div>
                     {tpls.map(tpl => (
                       <div key={tpl.id} className="px-4 py-3 flex items-center gap-4 hover:bg-gray-50">
-                        <div className="w-10 h-10 rounded-lg bg-violet-100 flex items-center justify-center text-violet-600 flex-shrink-0">
+                        <div className="w-10 h-10 rounded-lg bg-[var(--hf-brand-100)] flex items-center justify-center text-[color:var(--hf-brand-600)] flex-shrink-0">
                           <Target className="w-5 h-5" />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -992,7 +992,7 @@ export default function KPIDashboard() {
               </div>
               <div className="p-5 space-y-3">
                 <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="bg-violet-50 rounded-lg p-3"><p className="text-gray-500">Penjualan</p><p className="text-xl font-bold text-violet-600">{selectedBranch.salesKPI}%</p></div>
+                  <div className="bg-[var(--hf-brand-50)] rounded-lg p-3"><p className="text-gray-500">Penjualan</p><p className="text-xl font-bold text-[color:var(--hf-brand-600)]">{selectedBranch.salesKPI}%</p></div>
                   <div className="bg-green-50 rounded-lg p-3"><p className="text-gray-500">Operasional</p><p className="text-xl font-bold text-green-600">{selectedBranch.operationsKPI}%</p></div>
                   <div className="bg-amber-50 rounded-lg p-3"><p className="text-gray-500">Pelanggan</p><p className="text-xl font-bold text-amber-600">{selectedBranch.customerKPI}%</p></div>
                   <div className="bg-purple-50 rounded-lg p-3"><p className="text-gray-500">Keseluruhan</p><p className="text-xl font-bold text-purple-600">{selectedBranch.overallAchievement}%</p></div>
@@ -1002,7 +1002,7 @@ export default function KPIDashboard() {
                   {selectedBranch.totalRevenue ? <p>Revenue: Rp {(selectedBranch.totalRevenue / 1e6).toFixed(0)} Jt • {(selectedBranch.transactionCount || 0).toLocaleString()} transaksi</p> : null}
                 </div>
                 <button onClick={() => { setSelectedBranch(null); setViewMode('employee'); setSearchQuery(selectedBranch.branchName); setActiveTab('dashboard'); }}
-                  className="w-full mt-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700">
+                  className="w-full mt-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]">
                   Lihat Karyawan Cabang Ini
                 </button>
               </div>

@@ -39,7 +39,7 @@ export default function LmsAnalyticsPage() {
             { label: 'Proctor Flagged', value: overview.proctor_flagged || 0, icon: AlertTriangle },
           ].map((s) => (
             <div key={s.label} className="bg-white border rounded-xl p-4">
-              <s.icon className="w-5 h-5 text-indigo-600 mb-2" />
+              <s.icon className="w-5 h-5 text-[color:var(--hf-brand-600)] mb-2" />
               <p className="text-xs text-gray-500">{s.label}</p>
               <p className="text-xl font-bold">{s.value}</p>
             </div>
@@ -57,7 +57,7 @@ export default function LmsAnalyticsPage() {
                     <span>{d.avg_progress || 0}% progress</span>
                   </div>
                   <div className="h-2 bg-gray-100 rounded-full">
-                    <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${Math.min(100, Number(d.avg_progress) || 0)}%` }} />
+                    <div className="h-full bg-[var(--hf-brand-500)] rounded-full" style={{ width: `${Math.min(100, Number(d.avg_progress) || 0)}%` }} />
                   </div>
                   <p className="text-xs text-gray-500 mt-1">{d.enrolled} enrolled · avg ujian {d.avg_exam_score || 0}%</p>
                 </div>

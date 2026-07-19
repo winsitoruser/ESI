@@ -103,9 +103,9 @@ export default function DailyAttendancePage() {
       present: { label: 'Hadir', color: 'bg-green-100 text-green-700', icon: CheckCircle },
       late: { label: 'Terlambat', color: 'bg-yellow-100 text-yellow-700', icon: AlertTriangle },
       absent: { label: 'Tidak Hadir', color: 'bg-red-100 text-red-700', icon: XCircle },
-      leave: { label: 'Cuti', color: 'bg-violet-100 text-violet-700', icon: Coffee },
+      leave: { label: 'Cuti', color: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]', icon: Coffee },
       sick: { label: 'Sakit', color: 'bg-purple-100 text-purple-700', icon: Coffee },
-      work_from_home: { label: 'WFH', color: 'bg-indigo-100 text-indigo-700', icon: MapPin },
+      work_from_home: { label: 'WFH', color: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]', icon: MapPin },
       holiday: { label: 'Libur', color: 'bg-gray-100 text-gray-600', icon: Calendar },
     };
     return map[status] || map.absent;
@@ -182,7 +182,7 @@ export default function DailyAttendancePage() {
                 <span>Tidak Hadir: <strong>{absent}</strong></span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 bg-violet-500 rounded-full"></div>
+                <div className="w-3 h-3 bg-[var(--hf-brand-500)] rounded-full"></div>
                 <span>Cuti: <strong>{leave}</strong></span>
               </div>
               <div className="flex items-center gap-1.5">
@@ -223,7 +223,7 @@ export default function DailyAttendancePage() {
               <option value="gps_mobile">Mobile/GPS</option>
               <option value="manual">Manual</option>
             </select>
-            <button onClick={handleExport} className="flex items-center gap-2 px-3 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700">
+            <button onClick={handleExport} className="flex items-center gap-2 px-3 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]">
               <Download className="w-4 h-4" /> Export CSV
             </button>
           </div>
@@ -271,7 +271,7 @@ export default function DailyAttendancePage() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <span className={`text-sm font-mono ${r.clockOut ? 'text-violet-600' : (r.clockIn ? 'text-orange-500' : 'text-gray-400')}`}>
+                          <span className={`text-sm font-mono ${r.clockOut ? 'text-[color:var(--hf-brand-600)]' : (r.clockIn ? 'text-orange-500' : 'text-gray-400')}`}>
                             {r.clockOut ? formatTime(r.clockOut) : (r.clockIn ? '⏳ Aktif' : '-')}
                           </span>
                         </td>
@@ -300,7 +300,7 @@ export default function DailyAttendancePage() {
                               <span className="block text-yellow-600">Terlambat {r.lateMinutes} mnt</span>
                             )}
                             {r.overtimeMinutes > 0 && (
-                              <span className="block text-violet-600">Lembur {r.overtimeMinutes} mnt</span>
+                              <span className="block text-[color:var(--hf-brand-600)]">Lembur {r.overtimeMinutes} mnt</span>
                             )}
                             {r.earlyLeaveMinutes > 0 && (
                               <span className="block text-orange-600">Pulang awal {r.earlyLeaveMinutes} mnt</span>

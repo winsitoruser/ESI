@@ -62,7 +62,7 @@ export default function BlueprintsPage() {
         <LmsPageNav active="blueprints" />
         <div className="grid md:grid-cols-3 gap-4 mb-6">
           {TEMPLATES.map((tpl) => (
-            <button key={tpl.title} type="button" onClick={() => { setForm(tpl); setModal(true); }} className="bg-white border rounded-xl p-4 text-left hover:border-indigo-300">
+            <button key={tpl.title} type="button" onClick={() => { setForm(tpl); setModal(true); }} className="bg-white border rounded-xl p-4 text-left hover:border-[var(--hf-brand-100)]">
               <Zap className="w-6 h-6 text-amber-500 mb-2" />
               <p className="font-medium">{tpl.title}</p>
               <p className="text-xs text-gray-500 mt-1">{tpl.sections.reduce((s, x) => s + x.count, 0)} soal · {tpl.psychometric_type}</p>
@@ -78,7 +78,7 @@ export default function BlueprintsPage() {
                 <p className="font-medium">{bp.title}</p>
                 <p className="text-sm text-gray-500 capitalize">{bp.psychometric_type || 'general'} · {bp.total_questions} soal target</p>
               </div>
-              <button type="button" onClick={() => setApplyModal(bp)} className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-sm">Terapkan ke Tes</button>
+              <button type="button" onClick={() => setApplyModal(bp)} className="px-3 py-1.5 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm">Terapkan ke Tes</button>
             </div>
           ))}
           {!items.length && <p className="text-gray-400 text-sm">Buat blueprint dari template di atas</p>}
@@ -86,7 +86,7 @@ export default function BlueprintsPage() {
 
         <Modal open={modal} onClose={() => setModal(false)} title="Simpan Blueprint">
           <input className="w-full border rounded-lg px-3 py-2 text-sm mb-3" value={form.title || ''} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-          <button type="button" onClick={create} className="w-full py-2 bg-indigo-600 text-white rounded-lg">Simpan</button>
+          <button type="button" onClick={create} className="w-full py-2 bg-[var(--hf-brand-600)] text-white rounded-lg">Simpan</button>
         </Modal>
 
         <Modal open={!!applyModal} onClose={() => setApplyModal(null)} title="Terapkan Blueprint ke Tes">
@@ -94,7 +94,7 @@ export default function BlueprintsPage() {
             <option value="">Pilih tes...</option>
             {exams.map((ex) => <option key={ex.id} value={ex.id}>{ex.title}</option>)}
           </select>
-          <button type="button" onClick={apply} disabled={!examId} className="w-full py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50">Generate Soal</button>
+          <button type="button" onClick={apply} disabled={!examId} className="w-full py-2 bg-[var(--hf-brand-600)] text-white rounded-lg disabled:opacity-50">Generate Soal</button>
         </Modal>
       </HumanifyLayout>
     </PageGuard>

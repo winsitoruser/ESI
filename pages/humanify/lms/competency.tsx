@@ -38,9 +38,9 @@ export default function CompetencyPage() {
         <div className="flex justify-between mb-4">
           <div className="flex gap-2 items-center">
             <DataSourceBadge source={dataSource} />
-            <Link href="/humanify/certificates" className="text-sm text-indigo-600 hover:underline flex items-center gap-1"><Award className="w-4 h-4" /> Certificate Registry</Link>
+            <Link href="/humanify/certificates" className="text-sm text-[color:var(--hf-brand-600)] hover:underline flex items-center gap-1"><Award className="w-4 h-4" /> Certificate Registry</Link>
           </div>
-          <button type="button" onClick={() => setModal(true)} className="flex items-center gap-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm"><Plus className="w-4 h-4" /> Catat Kompetensi</button>
+          <button type="button" onClick={() => setModal(true)} className="flex items-center gap-1 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm"><Plus className="w-4 h-4" /> Catat Kompetensi</button>
         </div>
 
         <div className="bg-white border rounded-xl overflow-hidden">
@@ -75,7 +75,7 @@ export default function CompetencyPage() {
               <option value="advanced">Advanced</option>
               <option value="expert">Expert</option>
             </select>
-            <button type="button" onClick={save} className="w-full py-2 bg-indigo-600 text-white rounded-lg">Simpan</button>
+            <button type="button" onClick={save} className="w-full py-2 bg-[var(--hf-brand-600)] text-white rounded-lg">Simpan</button>
           </div>
         </Modal>
       </HumanifyLayout>

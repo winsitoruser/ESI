@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import HQLayout from '@/components/hq/HQLayout';
+import HumanifyLayout from '@/components/humanify/HumanifyLayout';
 import {
   ArrowLeft, Building2, Users, Briefcase, HeartPulse, Eye, Clock,
   PauseCircle, CheckCircle2, Loader2, RefreshCw, ExternalLink, Receipt,
@@ -132,14 +132,14 @@ export default function TenantDetailPage() {
   const amountFmt = (n: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n || 0);
 
   return (
-    <HQLayout title={tenant?.name || 'Tenant'} subtitle="Detail tenant & operasi" platform="humanify">
+    <HumanifyLayout title={tenant?.name || 'Tenant'} subtitle="Detail tenant & operasi" >
       <div className="space-y-6">
         {toast && (
           <div className="fixed top-4 right-4 z-50 bg-slate-900 text-white text-sm px-4 py-2 rounded-lg shadow">{toast}</div>
         )}
 
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <Link href="/platform" className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:underline">
+          <Link href="/platform" className="inline-flex items-center gap-1 text-sm text-[color:var(--hf-brand-600)] hover:underline">
             <ArrowLeft className="w-4 h-4" /> Kembali ke Platform
           </Link>
           <button onClick={load} className="flex items-center gap-2 text-sm px-3 py-2 border rounded-lg hover:bg-slate-50">
@@ -160,8 +160,8 @@ export default function TenantDetailPage() {
             <div className="bg-white border rounded-xl p-5">
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-indigo-50 flex items-center justify-center">
-                    <Building2 className="w-5 h-5 text-indigo-600" />
+                  <div className="w-11 h-11 rounded-xl bg-[var(--hf-brand-50)] flex items-center justify-center">
+                    <Building2 className="w-5 h-5 text-[color:var(--hf-brand-600)]" />
                   </div>
                   <div>
                     <h2 className="text-lg font-semibold text-slate-900">{tenant.name}</h2>
@@ -178,7 +178,7 @@ export default function TenantDetailPage() {
                     tenant.status === 'suspended' ? 'bg-red-100 text-red-700' :
                     tenant.status === 'archived' ? 'bg-slate-200 text-slate-600' : 'bg-slate-100 text-slate-600'
                   }`}>{tenant.status || 'trial'}</span>
-                  <span className="text-[11px] font-bold uppercase px-2 py-1 rounded bg-indigo-50 text-indigo-700">
+                  <span className="text-[11px] font-bold uppercase px-2 py-1 rounded bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)]">
                     {tenant.subscription_plan || 'trial'}
                   </span>
                   {tenant.setup_completed && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
@@ -189,7 +189,7 @@ export default function TenantDetailPage() {
                 <button
                   disabled={acting || tenant.status === 'suspended'}
                   onClick={impersonateTenant}
-                  className="text-xs px-3 py-1.5 rounded border border-indigo-200 text-indigo-700 hover:bg-indigo-50 disabled:opacity-50 inline-flex items-center gap-1"
+                  className="text-xs px-3 py-1.5 rounded border border-[var(--hf-brand-100)] text-[color:var(--hf-brand)] hover:bg-[var(--hf-brand-50)] disabled:opacity-50 inline-flex items-center gap-1"
                 ><Eye className="w-3.5 h-3.5" /> Buka sebagai support</button>
                 {tenant.status !== 'active' && (
                   <button
@@ -243,7 +243,7 @@ export default function TenantDetailPage() {
                 <p className="text-2xl font-bold">{tenant.employee_count ?? 0}</p>
               </div>
               <div className="bg-white border rounded-xl p-4">
-                <div className="flex items-center gap-2 text-xs text-slate-500 mb-1"><HeartPulse className="w-3.5 h-3.5 text-indigo-600" /> Health</div>
+                <div className="flex items-center gap-2 text-xs text-slate-500 mb-1"><HeartPulse className="w-3.5 h-3.5 text-[color:var(--hf-brand-600)]" /> Health</div>
                 <p className={`text-sm font-bold ${
                   health?.label === 'healthy' ? 'text-emerald-600' :
                   health?.label === 'watch' ? 'text-amber-600' : 'text-red-600'
@@ -339,6 +339,6 @@ export default function TenantDetailPage() {
           </>
         )}
       </div>
-    </HQLayout>
+    </HumanifyLayout>
   );
 }

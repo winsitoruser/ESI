@@ -662,7 +662,7 @@ async function getLeaveRequests(res: NextApiResponse, userId: string, tenantId: 
 }
 
 async function createLeaveRequest(req: NextApiRequest, res: NextApiResponse, userId: string, tenantId: string) {
-  const { leaveType, startDate, endDate, reason } = req.body || {};
+  const { leaveType, startDate, endDate, reason, attachmentUrl, attachments } = req.body || {};
   if (!leaveType || !startDate || !endDate || !reason) {
     return res.status(400).json({ success: false, error: 'Semua field harus diisi' });
   }
@@ -683,6 +683,23 @@ async function createLeaveRequest(req: NextApiRequest, res: NextApiResponse, use
       });
     }
 
+    let resolvedAttachment = typeof attachmentUrl === 'string' && attachmentUrl.trim() ? attachmentUrl.trim() : null;
+    if (!resolvedAttachment && Array.isArray(attachments) && attachments.length > 0) {
+      const first = attachments[0];
+      resolvedAttachment = first?.data || first?.url || first?.name || null;
+      if (attachments.length > 1 && !resolvedAttachment?.startsWith('data:')) {
+        resolvedAttachment = JSON.stringify(attachments.map((a: any) => ({ name: a.name, type: a.type })));
+      }
+    }
+
+    const needsAttachment = ['sick', 'sakit', 'medical'].includes(String(leaveType).toLowerCase());
+    if (needsAttachment && !resolvedAttachment) {
+      return res.status(400).json({
+        success: false,
+        error: 'Cuti sakit memerlukan lampiran (surat dokter / bukti).',
+      });
+    }
+
     const result = await createPortalLeaveRequest({
       employeeId: emp.id,
       leaveType,
@@ -690,6 +707,7 @@ async function createLeaveRequest(req: NextApiRequest, res: NextApiResponse, use
       endDate,
       reason,
       tenantId: tenantId || emp.tenantId,
+      attachmentUrl: resolvedAttachment,
     });
 
     if (!result.success) {

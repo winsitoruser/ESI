@@ -20,7 +20,7 @@ const DOC_TYPES = [
 const STATUS_COLORS: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-700',
   pending: 'bg-yellow-100 text-yellow-700',
-  partially_signed: 'bg-violet-100 text-violet-700',
+  partially_signed: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]',
   completed: 'bg-green-100 text-green-700',
 };
 
@@ -69,7 +69,7 @@ export default function ESignPage() {
           <div className="flex items-center gap-3">
             <Link href="/humanify/contracts" className="p-2 border rounded-lg hover:bg-gray-50"><ArrowLeft className="w-4 h-4" /></Link>
             <div className="flex-1">
-              <h2 className="text-xl font-bold flex items-center gap-2"><PenTool className="w-5 h-5 text-violet-600" /> E-Sign with Privy</h2>
+              <h2 className="text-xl font-bold flex items-center gap-2"><PenTool className="w-5 h-5 text-[color:var(--hf-brand-600)]" /> E-Sign with Privy</h2>
               <p className="text-sm text-gray-500">
                 Kontrak kerja, offer letter, mutasi — audit trail PSrE
                 {integration && (
@@ -88,7 +88,7 @@ export default function ESignPage() {
                 {' '}· GA path: docs/humanify-esign-privy-ga.md
               </p>
             </div>
-            <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700">
+            <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]">
               <Plus className="w-4 h-4" /> Buat Dokumen
             </button>
             <DataSourceBadge source={dataSource} />
@@ -114,7 +114,7 @@ export default function ESignPage() {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <FileText className="w-4 h-4 text-violet-600" />
+                      <FileText className="w-4 h-4 text-[color:var(--hf-brand-600)]" />
                       <h3 className="font-semibold">{doc.title}</h3>
                       <span className={`px-2 py-0.5 text-[10px] rounded font-medium ${STATUS_COLORS[doc.status] || 'bg-gray-100'}`}>{doc.status}</span>
                     </div>
@@ -127,7 +127,7 @@ export default function ESignPage() {
                       {s.signed ? <CheckCircle2 className="w-3 h-3 text-green-600" /> : <Clock className="w-3 h-3 text-gray-400" />}
                       <span>{s.name} ({s.role})</span>
                       {!s.signed && (
-                        <button onClick={() => handleSign(doc.id, s.email)} className="text-violet-600 hover:underline flex items-center gap-0.5">
+                        <button onClick={() => handleSign(doc.id, s.email)} className="text-[color:var(--hf-brand-600)] hover:underline flex items-center gap-0.5">
                           <Send className="w-3 h-3" /> Sign
                         </button>
                       )}
@@ -166,7 +166,7 @@ export default function ESignPage() {
                 </div>
                 <div className="flex justify-end gap-2 mt-4">
                   <button onClick={() => setShowCreate(false)} className="px-4 py-2 border rounded-lg text-sm">Batal</button>
-                  <button onClick={handleCreate} className="px-4 py-2 bg-violet-600 text-white rounded-lg text-sm">Kirim ke Privy</button>
+                  <button onClick={handleCreate} className="px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm">Kirim ke Privy</button>
                 </div>
               </div>
             </div>

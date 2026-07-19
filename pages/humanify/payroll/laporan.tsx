@@ -127,12 +127,12 @@ export default function LaporanPage() {
           <Link href="/humanify/payroll" className="p-2 border rounded-lg hover:bg-gray-50"><ArrowLeft className="w-4 h-4" /></Link>
           <div className="flex-1"><h2 className="text-lg font-bold">Laporan Penggajian</h2><p className="text-sm text-gray-500">Analisis dan rekap penggajian komprehensif</p></div>
           <DataSourceBadge source={dataSource} />
-          <a href="/api/humanify/payroll?action=export&type=salaries" download className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700"><Download className="w-4 h-4" /> Export Gaji</a>
+          <a href="/api/humanify/payroll?action=export&type=salaries" download className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]"><Download className="w-4 h-4" /> Export Gaji</a>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'YTD Gaji Kotor', value: ytdGross, icon: TrendingUp, bg: 'bg-violet-100', color: 'text-violet-600' },
+            { label: 'YTD Gaji Kotor', value: ytdGross, icon: TrendingUp, bg: 'bg-[var(--hf-brand-100)]', color: 'text-[color:var(--hf-brand-600)]' },
             { label: 'YTD Gaji Bersih', value: ytdNet, icon: DollarSign, bg: 'bg-green-100', color: 'text-green-600' },
             { label: 'YTD Pajak', value: ytdTax, icon: FileText, bg: 'bg-amber-100', color: 'text-amber-600' },
             { label: 'Karyawan Aktif', value: latestMonth?.employees || 0, icon: Users, bg: 'bg-purple-100', color: 'text-purple-600', noFmt: true },
@@ -151,7 +151,7 @@ export default function LaporanPage() {
               { key: 'distribution', label: 'Distribusi Gaji', icon: PieChart },
               { key: 'ytd', label: 'Year to Date', icon: Calendar },
             ].map(tab => (
-              <button key={tab.key} onClick={() => setActiveReport(tab.key as any)} className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 whitespace-nowrap ${activeReport === tab.key ? 'border-violet-600 text-violet-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}><tab.icon className="w-4 h-4" />{tab.label}</button>
+              <button key={tab.key} onClick={() => setActiveReport(tab.key as any)} className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 whitespace-nowrap ${activeReport === tab.key ? 'border-[var(--hf-brand-600)] text-[color:var(--hf-brand-600)]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}><tab.icon className="w-4 h-4" />{tab.label}</button>
             ))}
           </div>
 
@@ -189,7 +189,7 @@ export default function LaporanPage() {
                     <td className="px-4 py-2 text-right">{fmtCurrency(m.gross)}</td>
                     <td className="px-4 py-2 text-right text-red-600">{fmtCurrency(m.deductions)}</td>
                     <td className="px-4 py-2 text-right text-amber-600">{fmtCurrency(m.tax)}</td>
-                    <td className="px-4 py-2 text-right text-violet-600">{fmtCurrency(m.bpjs)}</td>
+                    <td className="px-4 py-2 text-right text-[color:var(--hf-brand-600)]">{fmtCurrency(m.bpjs)}</td>
                     <td className="px-4 py-2 text-right font-bold text-green-600">{fmtCurrency(m.net)}</td>
                   </tr>
                 ))}</tbody>
@@ -198,7 +198,7 @@ export default function LaporanPage() {
                   <td className="px-4 py-2 text-right">{fmtCurrency(ytdGross)}</td>
                   <td className="px-4 py-2 text-right text-red-600">{fmtCurrency(monthly.reduce((s, m) => s + m.deductions, 0))}</td>
                   <td className="px-4 py-2 text-right text-amber-600">{fmtCurrency(ytdTax)}</td>
-                  <td className="px-4 py-2 text-right text-violet-600">{fmtCurrency(monthly.reduce((s, m) => s + m.bpjs, 0))}</td>
+                  <td className="px-4 py-2 text-right text-[color:var(--hf-brand-600)]">{fmtCurrency(monthly.reduce((s, m) => s + m.bpjs, 0))}</td>
                   <td className="px-4 py-2 text-right text-green-600">{fmtCurrency(ytdNet)}</td>
                 </tr></tfoot></table>
               </div>
@@ -271,7 +271,7 @@ export default function LaporanPage() {
                   {distribution.map(s => (
                     <div key={s.range} className="flex items-center gap-3">
                       <div className="w-20 text-sm font-medium">{s.range}</div>
-                      <div className="flex-1"><div className="w-full bg-gray-200 rounded-full h-4"><div className="bg-violet-500 h-4 rounded-full transition-all" style={{ width: `${s.pct}%` }} /></div></div>
+                      <div className="flex-1"><div className="w-full bg-gray-200 rounded-full h-4"><div className="bg-[var(--hf-brand-500)] h-4 rounded-full transition-all" style={{ width: `${s.pct}%` }} /></div></div>
                       <div className="w-20 text-right text-sm"><span className="font-bold">{s.count}</span> <span className="text-gray-500">({s.pct}%)</span></div>
                     </div>
                   ))}
@@ -286,12 +286,12 @@ export default function LaporanPage() {
               <h3 className="font-semibold text-lg">Ringkasan Year-to-Date {selectedYear}</h3>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {[
-                  { label: 'Total Gaji Bruto', value: ytdGross, color: 'text-violet-600', bg: 'bg-violet-50' },
+                  { label: 'Total Gaji Bruto', value: ytdGross, color: 'text-[color:var(--hf-brand-600)]', bg: 'bg-[var(--hf-brand-50)]' },
                   { label: 'Total Gaji Bersih', value: ytdNet, color: 'text-green-600', bg: 'bg-green-50' },
                   { label: 'Total Pajak PPh 21', value: ytdTax, color: 'text-amber-600', bg: 'bg-amber-50' },
                   { label: 'Total BPJS', value: monthly.reduce((s, m) => s + m.bpjs, 0), color: 'text-purple-600', bg: 'bg-purple-50' },
                   { label: 'Total Potongan', value: monthly.reduce((s, m) => s + m.deductions, 0), color: 'text-red-600', bg: 'bg-red-50' },
-                  { label: 'Rata-rata per Bulan', value: Math.round(ytdGross / monthly.length), color: 'text-indigo-600', bg: 'bg-indigo-50' },
+                  { label: 'Rata-rata per Bulan', value: Math.round(ytdGross / monthly.length), color: 'text-[color:var(--hf-brand-600)]', bg: 'bg-[var(--hf-brand-50)]' },
                 ].map(item => (
                   <div key={item.label} className={`${item.bg} rounded-xl p-4`}>
                     <p className="text-xs text-gray-500">{item.label}</p>

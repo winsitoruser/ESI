@@ -249,7 +249,7 @@ export default function HumanifyBillingPage() {
           <div className="bg-white border border-slate-200 rounded-2xl p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-wide text-violet-600 font-semibold">Paket saat ini</p>
+                <p className="text-xs uppercase tracking-wide text-[color:var(--hf-brand-600)] font-semibold">Paket saat ini</p>
                 <h2 className="text-2xl font-bold text-slate-900 capitalize">{current?.planName || current?.plan || '—'}</h2>
                 <p className="text-sm text-slate-500 mt-1">
                   Status tenant: {current?.status || '—'}
@@ -264,17 +264,17 @@ export default function HumanifyBillingPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-violet-100 bg-violet-50/60 px-5 py-4 text-sm text-slate-700">
+          <div className="rounded-2xl border border-[var(--hf-brand-50)] bg-[var(--hf-brand-50)]/60 px-5 py-4 text-sm text-slate-700">
             <p className="font-semibold text-slate-900 mb-1">Kenapa Humanify?</p>
             <p className="text-slate-600">
               Multi-tenant SaaS + Action Inbox + payroll fiscal audit + SSO enterprise — bukan HRIS generik saja.
               Ringkas positioning: lihat{' '}
-              <a className="text-violet-700 font-medium hover:underline" href="/humanify/pricing/roi-calculator">
+              <a className="text-[color:var(--hf-brand)] font-medium hover:underline" href="/humanify/pricing/roi-calculator">
                 ROI calculator
               </a>
               {' '}· docs <code className="text-xs bg-white/80 px-1 rounded">humanify-positioning.md</code>
               {' '}· partner channel{' '}
-              <a className="text-violet-700 font-medium hover:underline" href="/humanify/partners">
+              <a className="text-[color:var(--hf-brand)] font-medium hover:underline" href="/humanify/partners">
                 daftar mitra
               </a>
               {' '}(<code className="text-xs bg-white/80 px-1 rounded">humanify-partner-channel.md</code>).
@@ -300,14 +300,14 @@ export default function HumanifyBillingPage() {
             <button
               type="button"
               onClick={() => setInterval('monthly')}
-              className={`px-4 py-2 rounded-xl text-sm font-medium ${interval === 'monthly' ? 'bg-violet-600 text-white' : 'bg-white border text-slate-600'}`}
+              className={`px-4 py-2 rounded-xl text-sm font-medium ${interval === 'monthly' ? 'bg-[var(--hf-brand-600)] text-white' : 'bg-white border text-slate-600'}`}
             >
               Bulanan
             </button>
             <button
               type="button"
               onClick={() => setInterval('yearly')}
-              className={`px-4 py-2 rounded-xl text-sm font-medium ${interval === 'yearly' ? 'bg-violet-600 text-white' : 'bg-white border text-slate-600'}`}
+              className={`px-4 py-2 rounded-xl text-sm font-medium ${interval === 'yearly' ? 'bg-[var(--hf-brand-600)] text-white' : 'bg-white border text-slate-600'}`}
             >
               Tahunan (−20%)
             </button>
@@ -322,15 +322,15 @@ export default function HumanifyBillingPage() {
               return (
                 <div
                   key={plan.id}
-                  className={`relative bg-white border rounded-2xl p-6 ${isCurrent ? 'border-violet-500 ring-2 ring-violet-100' : 'border-slate-200'}`}
+                  className={`relative bg-white border rounded-2xl p-6 ${isCurrent ? 'border-[var(--hf-brand-500)] ring-2 ring-[var(--hf-brand-500)]' : 'border-slate-200'}`}
                 >
                   {plan.id === 'growth' && (
-                    <span className="absolute -top-2 right-4 text-[10px] font-bold uppercase bg-violet-600 text-white px-2 py-0.5 rounded-full">
+                    <span className="absolute -top-2 right-4 text-[10px] font-bold uppercase bg-[var(--hf-brand-600)] text-white px-2 py-0.5 rounded-full">
                       Populer
                     </span>
                   )}
                   <div className="flex items-center gap-2 mb-2">
-                    <Sparkles className="w-4 h-4 text-violet-600" />
+                    <Sparkles className="w-4 h-4 text-[color:var(--hf-brand-600)]" />
                     <h3 className="font-bold text-slate-900">{plan.name}</h3>
                   </div>
                   <p className="text-sm text-slate-500 mb-4 min-h-[40px]">{plan.description}</p>
@@ -353,7 +353,7 @@ export default function HumanifyBillingPage() {
                     className={`w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 ${
                       isDowngrade
                         ? 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'
-                        : 'bg-violet-600 text-white hover:bg-violet-700'
+                        : 'bg-[var(--hf-brand-600)] text-white hover:bg-[var(--hf-brand)]'
                     }`}
                   >
                     {acting === plan.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
@@ -427,7 +427,7 @@ export default function HumanifyBillingPage() {
                               type="button"
                               disabled={acting === `inv-${o.order_code}`}
                               onClick={() => downloadInvoice(o.order_code)}
-                              className="inline-flex items-center gap-1 text-violet-700 hover:underline text-xs font-medium disabled:opacity-50"
+                              className="inline-flex items-center gap-1 text-[color:var(--hf-brand)] hover:underline text-xs font-medium disabled:opacity-50"
                             >
                               {acting === `inv-${o.order_code}` ? (
                                 <Loader2 className="w-3.5 h-3.5 animate-spin" />

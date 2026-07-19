@@ -130,12 +130,12 @@ export default function EngagementPage() {
   };
 
   const statusColor = (s: string) => {
-    const m: any = { draft: 'bg-gray-100 text-gray-800', active: 'bg-green-100 text-green-800', closed: 'bg-red-100 text-red-800', published: 'bg-violet-100 text-violet-800', archived: 'bg-gray-200 text-gray-600' };
+    const m: any = { draft: 'bg-gray-100 text-gray-800', active: 'bg-green-100 text-green-800', closed: 'bg-red-100 text-red-800', published: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand-600)]', archived: 'bg-gray-200 text-gray-600' };
     return m[s] || 'bg-gray-100 text-gray-800';
   };
 
   const priorityColor = (p: string) => {
-    const m: any = { low: 'text-gray-500', normal: 'text-violet-600', high: 'text-orange-600', urgent: 'text-red-600' };
+    const m: any = { low: 'text-gray-500', normal: 'text-[color:var(--hf-brand-600)]', high: 'text-orange-600', urgent: 'text-red-600' };
     return m[p] || 'text-gray-500';
   };
 
@@ -173,10 +173,10 @@ export default function EngagementPage() {
       )}
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <HRStatCard label="Total Survei" value={overview.totalSurveys || 0} sub={`${overview.activeSurveys || 0} aktif`} icon={BarChart3} gradient="from-violet-500 to-purple-600" />
+        <HRStatCard label="Total Survei" value={overview.totalSurveys || 0} sub={`${overview.activeSurveys || 0} aktif`} icon={BarChart3} gradient="from-[var(--hf-brand-500)] to-purple-600" />
         <HRStatCard label="Total Respons" value={overview.totalResponses || 0} sub={`Skor ${overview.avgEngagementScore || 0}%`} icon={Users} gradient="from-emerald-500 to-teal-600" />
         <HRStatCard label="Penghargaan" value={overview.totalRecognitions || 0} icon={Award} gradient="from-amber-500 to-orange-600" />
-        <HRStatCard label="Pengumuman" value={overview.publishedAnnouncements || 0} icon={Bell} gradient="from-violet-500 to-cyan-600" />
+        <HRStatCard label="Pengumuman" value={overview.publishedAnnouncements || 0} icon={Bell} gradient="from-[var(--hf-brand-500)] to-cyan-600" />
       </div>
 
       <EnterpriseTabBar tabs={tabs} active={tab} onChange={(k) => { setTab(k); setSurveyDetail(null); }} />
@@ -188,7 +188,7 @@ export default function EngagementPage() {
         <div>
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold">Survei & Pulse Check</h2>
-            <button onClick={() => openAdd('survey')} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700">
+            <button onClick={() => openAdd('survey')} className="flex items-center gap-2 rounded-xl bg-[var(--hf-brand-600)] px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-[var(--hf-brand)]">
               <Plus className="w-4 h-4" /> Buat Survey
             </button>
           </div>
@@ -212,7 +212,7 @@ export default function EngagementPage() {
                     <span>{s.total_responses || 0} respons</span>
                   </div>
                   <div className="flex gap-1">
-                    <button onClick={() => viewSurveyDetail(s.id)} className="text-xs px-2 py-1 text-indigo-600 hover:bg-indigo-50 rounded flex items-center gap-1"><Eye className="w-3 h-3" />Detail</button>
+                    <button onClick={() => viewSurveyDetail(s.id)} className="text-xs px-2 py-1 text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded flex items-center gap-1"><Eye className="w-3 h-3" />Detail</button>
                     {s.status === 'draft' && (
                       <button onClick={async () => { await api('publish-survey', 'POST', { id: s.id }); showToast('Survey dipublikasikan'); loadData(); }} className="text-xs px-2 py-1 text-green-600 hover:bg-green-50 rounded">Publikasikan</button>
                     )}
@@ -240,7 +240,7 @@ export default function EngagementPage() {
       {/* SURVEY DETAIL VIEW */}
       {!loading && tab === 'surveys' && surveyDetail && (
         <div>
-          <button onClick={() => setSurveyDetail(null)} className="text-sm text-indigo-600 mb-4 hover:underline">← Kembali ke daftar survey</button>
+          <button onClick={() => setSurveyDetail(null)} className="text-sm text-[color:var(--hf-brand-600)] mb-4 hover:underline">← Kembali ke daftar survey</button>
           <div className="bg-white border rounded-xl p-6">
             <div className="flex items-center gap-2 mb-2">
               <span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(surveyDetail.survey?.status)}`}>{surveyDetail.survey?.status}</span>
@@ -258,7 +258,7 @@ export default function EngagementPage() {
                     <p className="font-medium text-gray-800 mb-2">Q{i + 1}. {q.text}</p>
                     {(q.type === 'rating' || q.type === 'scale') && result && (
                       <div className="flex items-center gap-4">
-                        <div className="text-3xl font-bold text-indigo-600">{result.avg}</div>
+                        <div className="text-3xl font-bold text-[color:var(--hf-brand-600)]">{result.avg}</div>
                         <div className="text-sm text-gray-500">rata-rata dari {result.count} respons</div>
                         <div className="flex gap-1 ml-auto">
                           {Object.entries(result.distribution || {}).sort().map(([k, v]) => (
@@ -334,13 +334,13 @@ export default function EngagementPage() {
         <div>
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold">Pengumuman Perusahaan</h2>
-            <button onClick={() => openAdd('announcement')} className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700">
+            <button onClick={() => openAdd('announcement')} className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]">
               <Plus className="w-4 h-4" /> Buat Pengumuman
             </button>
           </div>
           <div className="space-y-3">
             {announcements.map(a => (
-              <div key={a.id} className={`bg-white border rounded-xl p-4 ${a.is_pinned ? 'border-violet-300 bg-violet-50/30' : ''}`}>
+              <div key={a.id} className={`bg-white border rounded-xl p-4 ${a.is_pinned ? 'border-[var(--hf-brand-100)] bg-[var(--hf-brand-50)]/30' : ''}`}>
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
@@ -360,7 +360,7 @@ export default function EngagementPage() {
                     {a.status === 'draft' && (
                       <button onClick={async () => { await api('publish-announcement', 'POST', { id: a.id }); showToast('Pengumuman diterbitkan'); loadData(); }} className="text-xs px-2 py-1 text-green-600 hover:bg-green-50 rounded">Publikasikan</button>
                     )}
-                    <button onClick={() => { setEditingItem(a); setAnnForm({ title: a.title, content: a.content, category: a.category, priority: a.priority, isPinned: a.is_pinned }); setModalType('announcement'); setShowModal(true); }} className="p-1.5 text-gray-400 hover:text-violet-600"><Edit className="w-4 h-4" /></button>
+                    <button onClick={() => { setEditingItem(a); setAnnForm({ title: a.title, content: a.content, category: a.category, priority: a.priority, isPinned: a.is_pinned }); setModalType('announcement'); setShowModal(true); }} className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)]"><Edit className="w-4 h-4" /></button>
                     <button onClick={() => handleDelete('announcement', a.id)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>
@@ -419,7 +419,7 @@ export default function EngagementPage() {
                     <select value={newQuestion.type} onChange={e => setNewQuestion({ ...newQuestion, type: e.target.value })} className="px-2 py-2 border rounded-lg text-sm">
                       <option value="rating">Rating</option><option value="scale">Scale</option><option value="text">Text</option><option value="choice">Choice</option>
                     </select>
-                    <button onClick={() => { if (newQuestion.text) { setSurveyForm({ ...surveyForm, questions: [...surveyForm.questions, { id: `q${Date.now()}`, ...newQuestion, required: true }] }); setNewQuestion({ text: '', type: 'rating' }); } }} className="px-3 py-2 bg-indigo-100 text-indigo-700 rounded-lg text-sm hover:bg-indigo-200"><Plus className="w-4 h-4" /></button>
+                    <button onClick={() => { if (newQuestion.text) { setSurveyForm({ ...surveyForm, questions: [...surveyForm.questions, { id: `q${Date.now()}`, ...newQuestion, required: true }] }); setNewQuestion({ text: '', type: 'rating' }); } }} className="px-3 py-2 bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)] rounded-lg text-sm hover:bg-[var(--hf-brand-100)]"><Plus className="w-4 h-4" /></button>
                   </div>
                 </div>
               </>)}
@@ -464,7 +464,7 @@ export default function EngagementPage() {
             </div>
             <div className="flex justify-end gap-2 p-5 border-t">
               <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-gray-700 border rounded-lg hover:bg-gray-50">Batal</button>
-              <button onClick={handleSave} className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Simpan</button>
+              <button onClick={handleSave} className="px-4 py-2 text-sm bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)]">Simpan</button>
             </div>
           </div>
         </div>

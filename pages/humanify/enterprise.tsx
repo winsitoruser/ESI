@@ -160,7 +160,7 @@ export default function HumanifyEnterprisePage() {
       </Head>
       <div className="max-w-4xl mx-auto space-y-10 py-6">
         <div>
-          <p className="text-xs uppercase tracking-wide text-indigo-600 font-semibold">Phase 5</p>
+          <p className="text-xs uppercase tracking-wide text-[color:var(--hf-brand-600)] font-semibold">Phase 5</p>
           <h1 className="text-2xl font-semibold text-slate-900 mt-1">Enterprise tools</h1>
           <p className="text-slate-600 mt-1 text-sm">
             White-label karir, API keys, dan export data portability.
@@ -169,7 +169,7 @@ export default function HumanifyEnterprisePage() {
 
         <section className="rounded-2xl border border-slate-200 bg-white p-6 space-y-4">
           <div className="flex items-center gap-2 text-slate-900 font-medium">
-            <Palette className="w-5 h-5 text-indigo-600" /> Branding portal karir
+            <Palette className="w-5 h-5 text-[color:var(--hf-brand-600)]" /> Branding portal karir
           </div>
           <div className="grid sm:grid-cols-2 gap-4">
             <label className="block text-sm">
@@ -212,7 +212,7 @@ export default function HumanifyEnterprisePage() {
             type="button"
             disabled={acting}
             onClick={saveBranding}
-            className="rounded-lg bg-indigo-600 text-white px-4 py-2 text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+            className="rounded-lg bg-[var(--hf-brand-600)] text-white px-4 py-2 text-sm font-medium hover:bg-[var(--hf-brand)] disabled:opacity-50"
           >
             Simpan branding
           </button>
@@ -220,7 +220,7 @@ export default function HumanifyEnterprisePage() {
 
         <section className="rounded-2xl border border-slate-200 bg-white p-6 space-y-4">
           <div className="flex items-center gap-2 text-slate-900 font-medium">
-            <KeyRound className="w-5 h-5 text-indigo-600" /> API keys
+            <KeyRound className="w-5 h-5 text-[color:var(--hf-brand-600)]" /> API keys
           </div>
           {docs && (
             <p className="text-xs text-slate-500 font-mono">
@@ -285,7 +285,7 @@ export default function HumanifyEnterprisePage() {
 
         <section className="rounded-2xl border border-slate-200 bg-white p-6 space-y-3">
           <div className="flex items-center gap-2 text-slate-900 font-medium">
-            <Download className="w-5 h-5 text-indigo-600" /> Export data
+            <Download className="w-5 h-5 text-[color:var(--hf-brand-600)]" /> Export data
           </div>
           <p className="text-sm text-slate-600">Unduh CSV karyawan (hingga 5.000 baris) untuk portability.</p>
           <button

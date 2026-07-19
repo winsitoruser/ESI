@@ -15,7 +15,7 @@ const LEVEL_LABELS: Record<OkrLevel, string> = {
   company: 'Perusahaan', department: 'Departemen', team: 'Tim', individual: 'Individu',
 };
 const LEVEL_COLORS: Record<OkrLevel, string> = {
-  company: 'bg-purple-600', department: 'bg-violet-600', team: 'bg-teal-600', individual: 'bg-indigo-600',
+  company: 'bg-purple-600', department: 'bg-[var(--hf-brand-600)]', team: 'bg-teal-600', individual: 'bg-[var(--hf-brand-600)]',
 };
 const CONFIDENCE_COLORS: Record<string, string> = {
   on_track: 'text-green-600 bg-green-50', at_risk: 'text-amber-600 bg-amber-50', off_track: 'text-red-600 bg-red-50',

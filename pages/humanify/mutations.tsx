@@ -25,7 +25,7 @@ type Tab = 'list' | 'create' | 'detail';
 
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-amber-100 text-amber-700',
-  approved: 'bg-violet-100 text-violet-700',
+  approved: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]',
   executed: 'bg-green-100 text-green-700',
   rejected: 'bg-red-100 text-red-700',
   cancelled: 'bg-gray-100 text-gray-600',
@@ -231,7 +231,7 @@ export default function MutationsPage() {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-              <ArrowRightLeft className="w-6 h-6 text-indigo-600" /> Mutasi, Penugasan & Perpindahan
+              <ArrowRightLeft className="w-6 h-6 text-[color:var(--hf-brand-600)]" /> Mutasi, Penugasan & Perpindahan
             </h1>
             <p className="text-sm text-gray-500 mt-0.5">
               Pengajuan perpindahan antar departemen, bagian, wilayah — dengan approval & E-Letter
@@ -245,7 +245,7 @@ export default function MutationsPage() {
             )}
             {activeTab === 'list' && (
               <button onClick={() => setActiveTab('create')}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">
+                className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]">
                 <Plus className="w-4 h-4" /> Ajukan Mutasi / Penugasan
               </button>
             )}
@@ -310,7 +310,7 @@ export default function MutationsPage() {
                     <tr><td colSpan={8} className="text-center py-8 text-gray-400">Belum ada pengajuan mutasi / penugasan</td></tr>
                   ) : filtered.map((m) => (
                     <tr key={m.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => loadDetail(m.id)}>
-                      <td className="px-4 py-3 font-mono text-xs text-indigo-600">{m.mutation_number}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-[color:var(--hf-brand-600)]">{m.mutation_number}</td>
                       <td className="px-4 py-3">
                         <p className="font-medium text-gray-800">{m.employee_name}</p>
                         <p className="text-xs text-gray-400">{m.employee_code}</p>
@@ -341,7 +341,7 @@ export default function MutationsPage() {
         {activeTab === 'create' && (
           <div className="bg-white rounded-xl border p-6 max-w-2xl">
             <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <Plus className="w-5 h-5 text-indigo-600" /> Form Pengajuan Mutasi / Penugasan
+              <Plus className="w-5 h-5 text-[color:var(--hf-brand-600)]" /> Form Pengajuan Mutasi / Penugasan
             </h2>
             <div className="space-y-4">
               <div>
@@ -408,14 +408,14 @@ export default function MutationsPage() {
                 <textarea value={form.reason} onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
                   rows={3} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" placeholder="Kebutuhan operasional, penugasan proyek, dll." />
               </div>
-              <div className="bg-violet-50 border border-violet-100 rounded-lg p-3 text-xs text-violet-700 flex gap-2">
+              <div className="bg-[var(--hf-brand-50)] border border-[var(--hf-brand-50)] rounded-lg p-3 text-xs text-[color:var(--hf-brand)] flex gap-2">
                 <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                 Pengajuan akan melalui tahap persetujuan: <strong>Manajer → HRD</strong>
                 {['promotion', 'demotion'].includes(form.mutation_type) && ' → Direktur'}.
                 Setelah disetujui, sistem menerbitkan E-Letter (SK Mutasi / Surat Penugasan).
               </div>
               <button onClick={handleSubmit} disabled={submitting}
-                className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-50">
+                className="flex items-center gap-2 px-5 py-2.5 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)] disabled:opacity-50">
                 <Save className="w-4 h-4" /> {submitting ? 'Mengajukan...' : 'Ajukan Persetujuan'}
               </button>
             </div>
@@ -429,7 +429,7 @@ export default function MutationsPage() {
               <div className="flex items-start justify-between flex-wrap gap-3">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm text-indigo-600">{selected.mutation_number}</span>
+                    <span className="font-mono text-sm text-[color:var(--hf-brand-600)]">{selected.mutation_number}</span>
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${STATUS_COLORS[selected.status]}`}>
                       {MUTATION_STATUS_LABELS[selected.status as keyof typeof MUTATION_STATUS_LABELS]}
                     </span>
@@ -472,11 +472,11 @@ export default function MutationsPage() {
                   <p className="text-sm font-medium">{selected.from_position || '-'}</p>
                   <p className="text-xs text-gray-500 mt-1">{getDepartmentLabel(selected.from_department)} • {selected.from_branch_name || '-'}</p>
                 </div>
-                <div className="bg-indigo-50 rounded-xl p-4 border border-indigo-100">
-                  <p className="text-xs font-semibold text-indigo-600 mb-2">POSISI BARU</p>
+                <div className="bg-[var(--hf-brand-50)] rounded-xl p-4 border border-[var(--hf-brand-100)]">
+                  <p className="text-xs font-semibold text-[color:var(--hf-brand-600)] mb-2">POSISI BARU</p>
                   <p className="text-sm font-medium">{selected.to_position || '-'}</p>
                   <p className="text-xs text-gray-500 mt-1">{getDepartmentLabel(selected.to_department)} • {selected.to_branch_name || '-'}</p>
-                  <p className="text-xs text-indigo-600 mt-2">Efektif: {fmtDate(selected.effective_date)}</p>
+                  <p className="text-xs text-[color:var(--hf-brand-600)] mt-2">Efektif: {fmtDate(selected.effective_date)}</p>
                 </div>
               </div>
               {selected.reason && (
@@ -489,7 +489,7 @@ export default function MutationsPage() {
             {/* Approval timeline */}
             <div className="bg-white rounded-xl border p-5">
               <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <GitBranch className="w-5 h-5 text-indigo-600" /> Alur Persetujuan
+                <GitBranch className="w-5 h-5 text-[color:var(--hf-brand-600)]" /> Alur Persetujuan
                 <span className="text-xs font-normal text-gray-400">
                   (Tahap {selected.current_approval_step || 1} / {selected.total_approval_steps || 1})
                 </span>
@@ -525,7 +525,7 @@ export default function MutationsPage() {
             {/* E-File info */}
             {selected.e_file_id && (
               <div className="bg-white rounded-xl border p-4 flex items-center gap-3">
-                <FileText className="w-8 h-8 text-indigo-500" />
+                <FileText className="w-8 h-8 text-[color:var(--hf-brand-500)]" />
                 <div>
                   <p className="text-sm font-medium text-gray-800">E-File Terdaftar</p>
                   <p className="text-xs text-gray-500">Dokumen SK tersimpan di arsip karyawan (ID: {selected.e_file_id.slice(0, 8)}...)</p>

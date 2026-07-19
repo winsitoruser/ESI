@@ -22,7 +22,7 @@ const CATEGORIES = [
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   pending: { label: 'Menunggu', color: 'bg-amber-100 text-amber-800' },
-  approved: { label: 'Disetujui', color: 'bg-violet-100 text-violet-800' },
+  approved: { label: 'Disetujui', color: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand-600)]' },
   paid: { label: 'Dibayar', color: 'bg-emerald-100 text-emerald-800' },
   reimbursed: { label: 'Direimburse', color: 'bg-emerald-100 text-emerald-800' },
   rejected: { label: 'Ditolak', color: 'bg-rose-100 text-rose-800' },
@@ -216,9 +216,9 @@ export default function ReimbursementPage() {
 
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <HRStatCard label="Menunggu Approval" value={pending.length} sub={fmt(totalPending)} icon={Clock} gradient="from-amber-500 to-orange-600" />
-            <HRStatCard label="Total Klaim" value={claims.length} sub={fmt(claims.reduce((s, c) => s + c.amount, 0))} icon={Receipt} gradient="from-violet-500 to-indigo-600" />
+            <HRStatCard label="Total Klaim" value={claims.length} sub={fmt(claims.reduce((s, c) => s + c.amount, 0))} icon={Receipt} gradient="from-[var(--hf-brand-500)] to-[var(--hf-brand-600)]" />
             <HRStatCard label="Disetujui" value={approved.length} icon={CheckCircle2} gradient="from-emerald-500 to-teal-600" />
-            <HRStatCard label="Integrasi Payroll" value="Auto" sub="Klaim approved → komponen gaji" icon={DollarSign} gradient="from-violet-500 to-purple-700" />
+            <HRStatCard label="Integrasi Payroll" value="Auto" sub="Klaim approved → komponen gaji" icon={DollarSign} gradient="from-[var(--hf-brand-500)] to-purple-700" />
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -294,7 +294,7 @@ export default function ReimbursementPage() {
             </table>
           </div>
 
-          <div className="rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-indigo-50 p-5 text-sm text-violet-900">
+          <div className="rounded-2xl border border-[var(--hf-brand-100)] bg-gradient-to-r from-[var(--hf-brand-600)] to-[var(--hf-brand)] p-5 text-sm text-[color:var(--hf-brand-600)]">
             <strong>Integrasi Payroll:</strong> Klaim yang disetujui otomatis masuk ke komponen payroll periode berjalan. Notifikasi real-time ke karyawan & HR saat status berubah.
           </div>
         </div>
@@ -308,12 +308,12 @@ export default function ReimbursementPage() {
               </div>
               <form onSubmit={handleCreate} className="space-y-4">
                 <EmployeePicker value={pickedEmployee?.id} onChange={setPickedEmployee} required />
-                <div className="rounded-xl border border-dashed border-violet-300 bg-violet-50 p-3">
+                <div className="rounded-xl border border-dashed border-[var(--hf-brand-100)] bg-[var(--hf-brand-50)] p-3">
                   <label className="flex cursor-pointer items-center gap-3">
-                    <div className="rounded-lg bg-violet-100 p-2"><Upload className="h-4 w-4 text-violet-600" /></div>
+                    <div className="rounded-lg bg-[var(--hf-brand-100)] p-2"><Upload className="h-4 w-4 text-[color:var(--hf-brand-600)]" /></div>
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-violet-900">Scan Struk dengan AI OCR</p>
-                      <p className="text-xs text-violet-600">{ocrLoading ? 'Membaca struk...' : 'Upload foto kwitansi — amount & kategori terisi otomatis'}</p>
+                      <p className="text-sm font-medium text-[color:var(--hf-brand-600)]">Scan Struk dengan AI OCR</p>
+                      <p className="text-xs text-[color:var(--hf-brand-600)]">{ocrLoading ? 'Membaca struk...' : 'Upload foto kwitansi — amount & kategori terisi otomatis'}</p>
                     </div>
                     <input type="file" accept="image/*" className="hidden" onChange={handleReceiptScan} disabled={ocrLoading} />
                   </label>

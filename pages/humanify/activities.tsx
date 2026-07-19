@@ -20,13 +20,13 @@ interface ActivityItem {
 }
 
 const TYPE_CONFIG: Record<string, { icon: typeof Activity; color: string; badge: string; label: string }> = {
-  employee_joined: { icon: UserPlus, color: 'bg-violet-500', badge: 'bg-violet-50 text-violet-700 border-violet-200', label: 'Karyawan' },
+  employee_joined: { icon: UserPlus, color: 'bg-[var(--hf-brand-500)]', badge: 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)] border-[var(--hf-brand-100)]', label: 'Karyawan' },
   leave_request: { icon: Calendar, color: 'bg-amber-500', badge: 'bg-amber-50 text-amber-700 border-amber-200', label: 'Cuti' },
   kpi_update: { icon: Target, color: 'bg-purple-500', badge: 'bg-purple-50 text-purple-700 border-purple-200', label: 'KPI' },
   kpi_assigned: { icon: Target, color: 'bg-purple-500', badge: 'bg-purple-50 text-purple-700 border-purple-200', label: 'KPI' },
   payroll: { icon: DollarSign, color: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', label: 'Payroll' },
-  performance_review: { icon: Award, color: 'bg-indigo-500', badge: 'bg-indigo-50 text-indigo-700 border-indigo-200', label: 'Kinerja' },
-  performance: { icon: Award, color: 'bg-indigo-500', badge: 'bg-indigo-50 text-indigo-700 border-indigo-200', label: 'Kinerja' },
+  performance_review: { icon: Award, color: 'bg-[var(--hf-brand-500)]', badge: 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)] border-[var(--hf-brand-100)]', label: 'Kinerja' },
+  performance: { icon: Award, color: 'bg-[var(--hf-brand-500)]', badge: 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)] border-[var(--hf-brand-100)]', label: 'Kinerja' },
   attendance: { icon: Clock, color: 'bg-teal-500', badge: 'bg-teal-50 text-teal-700 border-teal-200', label: 'Absensi' },
   training: { icon: Award, color: 'bg-orange-500', badge: 'bg-orange-50 text-orange-700 border-orange-200', label: 'Training' },
   announcement: { icon: Bell, color: 'bg-fuchsia-500', badge: 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200', label: 'Pengumuman' },
@@ -145,10 +145,10 @@ export default function HRISActivitiesPage() {
   const grouped = useMemo(() => groupByDate(filtered), [filtered]);
 
   const statCards = [
-    { label: 'Total Log', value: summary.total || activities.length, icon: Activity, color: 'text-indigo-600 bg-indigo-50' },
+    { label: 'Total Log', value: summary.total || activities.length, icon: Activity, color: 'text-[color:var(--hf-brand-600)] bg-[var(--hf-brand-50)]' },
     { label: 'KPI', value: (summary.byType?.kpi_assigned || 0) + (summary.byType?.kpi_update || 0), icon: Target, color: 'text-purple-600 bg-purple-50' },
     { label: 'Cuti', value: summary.byType?.leave_request || 0, icon: Calendar, color: 'text-amber-600 bg-amber-50' },
-    { label: 'Kinerja', value: summary.byType?.performance_review || 0, icon: Award, color: 'text-indigo-600 bg-indigo-50' },
+    { label: 'Kinerja', value: summary.byType?.performance_review || 0, icon: Award, color: 'text-[color:var(--hf-brand-600)] bg-[var(--hf-brand-50)]' },
     { label: 'Absensi', value: summary.byType?.attendance || 0, icon: Clock, color: 'text-teal-600 bg-teal-50' },
     { label: 'Payroll', value: summary.byType?.payroll || 0, icon: DollarSign, color: 'text-emerald-600 bg-emerald-50' },
   ];
@@ -160,7 +160,7 @@ export default function HRISActivitiesPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Activity className="w-6 h-6 text-indigo-600" />
+              <Activity className="w-6 h-6 text-[color:var(--hf-brand-600)]" />
               Aktivitas HRIS
             </h1>
             <p className="text-sm text-gray-500 mt-1">
@@ -202,7 +202,7 @@ export default function HRISActivitiesPage() {
               placeholder="Cari judul, detail, atau aktor..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+              className="w-full pl-9 pr-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--hf-brand-500)]/30 focus:border-[var(--hf-brand-500)]"
             />
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -213,7 +213,7 @@ export default function HRISActivitiesPage() {
                 onClick={() => setTypeFilter(f.key)}
                 className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
                   typeFilter === f.key
-                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    ? 'bg-[var(--hf-brand-600)] text-white border-[var(--hf-brand-600)]'
                     : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
                 }`}
               >
@@ -226,7 +226,7 @@ export default function HRISActivitiesPage() {
         {/* Timeline */}
         {loading ? (
           <div className="bg-white border rounded-xl p-16 flex flex-col items-center gap-3 text-gray-400">
-            <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+            <Loader2 className="w-8 h-8 animate-spin text-[color:var(--hf-brand-500)]" />
             <p className="text-sm">Memuat aktivitas...</p>
           </div>
         ) : activities.length === 0 ? (
@@ -330,7 +330,7 @@ export default function HRISActivitiesPage() {
 
         {/* Footer nav */}
         <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-gray-100">
-          <Link href="/humanify/reports" className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+          <Link href="/humanify/reports" className="flex items-center gap-1 text-sm text-[color:var(--hf-brand-600)] hover:text-[color:var(--hf-brand)] font-medium">
             Lihat Laporan HRIS <ChevronRight className="w-4 h-4" />
           </Link>
           <span className="text-gray-200">|</span>

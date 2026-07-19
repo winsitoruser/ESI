@@ -66,3 +66,11 @@ Hierarki agent AI mengikuti **Viking Division** untuk ERP Sobatpaws.
 - Smoke wajib di regression EXTRA: `scripts/smoke-test-saas-sso-acs-e2e.js` (`npm run smoke:sso-acs`)
 - CI gate: file presence di `humanify-saas-gate.yml`
 - Onboarding IdP nyata: konfigurasi per-tenant (Phase 13) + metadata `/api/humanify/sso/metadata`
+
+## D-HF-TWO-SURFACE: Marketing vs Ops chrome — 19 Jul 2026
+**UX:** Humanify memakai **dua permukaan** yang disengaja (bukan inkonsistensi):
+1. **Marketing (dark)** — welcome / partners / ROI: `HumanifyMarketingShell` + aksen brand; footer `NaincodeFooter`.
+2. **Ops / ESS (light tokens)** — `/humanify/*` app + `/employee` + `/platform/*`: `.humanify-theme` + `--hf-*` via `HumanifyLayout`.
+3. **Public auth** — `PublicAuthShell` (light) atau dark wrap untuk login/signup.
+
+Jangan memaksa marketing ke slate HQ, dan jangan mewarnai ops dengan gradient violet Tailwind ad-hoc.

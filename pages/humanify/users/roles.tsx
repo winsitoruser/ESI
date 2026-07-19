@@ -99,26 +99,26 @@ const ACTION_ICONS: Record<ActionType, React.ComponentType<any>> = {
 
 // Static color classes (Tailwind JIT friendly)
 const COLOR_BG50: Record<string, string> = {
-  blue: 'bg-violet-50', green: 'bg-green-50', amber: 'bg-amber-50', purple: 'bg-purple-50',
-  indigo: 'bg-indigo-50', pink: 'bg-pink-50', cyan: 'bg-cyan-50', orange: 'bg-orange-50',
+  blue: 'bg-[var(--hf-brand-50)]', green: 'bg-green-50', amber: 'bg-amber-50', purple: 'bg-purple-50',
+  indigo: 'bg-[var(--hf-brand-50)]', pink: 'bg-pink-50', cyan: 'bg-cyan-50', orange: 'bg-orange-50',
   teal: 'bg-teal-50', red: 'bg-red-50', rose: 'bg-rose-50', gray: 'bg-gray-50',
   yellow: 'bg-yellow-50'
 };
 const COLOR_BG100: Record<string, string> = {
-  blue: 'bg-violet-100', green: 'bg-green-100', amber: 'bg-amber-100', purple: 'bg-purple-100',
-  indigo: 'bg-indigo-100', pink: 'bg-pink-100', cyan: 'bg-cyan-100', orange: 'bg-orange-100',
+  blue: 'bg-[var(--hf-brand-100)]', green: 'bg-green-100', amber: 'bg-amber-100', purple: 'bg-purple-100',
+  indigo: 'bg-[var(--hf-brand-100)]', pink: 'bg-pink-100', cyan: 'bg-cyan-100', orange: 'bg-orange-100',
   teal: 'bg-teal-100', red: 'bg-red-100', rose: 'bg-rose-100', gray: 'bg-gray-100',
   yellow: 'bg-yellow-100'
 };
 const COLOR_TEXT600: Record<string, string> = {
-  blue: 'text-violet-600', green: 'text-green-600', amber: 'text-amber-600', purple: 'text-purple-600',
-  indigo: 'text-indigo-600', pink: 'text-pink-600', cyan: 'text-cyan-600', orange: 'text-orange-600',
+  blue: 'text-[color:var(--hf-brand-600)]', green: 'text-green-600', amber: 'text-amber-600', purple: 'text-purple-600',
+  indigo: 'text-[color:var(--hf-brand-600)]', pink: 'text-pink-600', cyan: 'text-cyan-600', orange: 'text-orange-600',
   teal: 'text-teal-600', red: 'text-red-600', rose: 'text-rose-600', gray: 'text-gray-600',
   yellow: 'text-yellow-600'
 };
 const COLOR_TEXT700: Record<string, string> = {
-  blue: 'text-violet-700', green: 'text-green-700', amber: 'text-amber-700', purple: 'text-purple-700',
-  indigo: 'text-indigo-700', pink: 'text-pink-700', cyan: 'text-cyan-700', orange: 'text-orange-700',
+  blue: 'text-[color:var(--hf-brand)]', green: 'text-green-700', amber: 'text-amber-700', purple: 'text-purple-700',
+  indigo: 'text-[color:var(--hf-brand)]', pink: 'text-pink-700', cyan: 'text-cyan-700', orange: 'text-orange-700',
   teal: 'text-teal-700', red: 'text-red-700', rose: 'text-rose-700', gray: 'text-gray-700',
   yellow: 'text-yellow-700'
 };
@@ -497,7 +497,7 @@ export default function UserRoles() {
                   if (t.key === 'users') { fetchRoleGroups(); setSelectedGroupRoleId(null); setGroupUsers([]); }
                 }}
                 className={`flex items-center gap-2 px-4 py-2 border-b-2 text-sm font-medium transition ${
-                  active ? 'border-violet-600 text-violet-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                  active ? 'border-[var(--hf-brand-600)] text-[color:var(--hf-brand-600)]' : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -519,7 +519,7 @@ export default function UserRoles() {
                     placeholder="Cari role..."
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
-                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-64 text-sm focus:ring-2 focus:ring-violet-500"
+                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-64 text-sm focus:ring-2 focus:ring-[var(--hf-brand-500)]"
                   />
                 </div>
                 <select
@@ -553,7 +553,7 @@ export default function UserRoles() {
                 </button>
                 <button
                   onClick={openCreate}
-                  className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700"
+                  className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]"
                 >
                   <Plus className="w-4 h-4" />
                   Tambah Role
@@ -564,7 +564,7 @@ export default function UserRoles() {
             <div className="overflow-x-auto">
               {loading ? (
                 <div className="flex items-center justify-center py-12">
-                  <RefreshCw className="w-8 h-8 animate-spin text-violet-600" />
+                  <RefreshCw className="w-8 h-8 animate-spin text-[color:var(--hf-brand-600)]" />
                 </div>
               ) : filteredRoles.length === 0 ? (
                 <div className="p-12 text-center text-gray-500">
@@ -592,8 +592,8 @@ export default function UserRoles() {
                         <tr key={role.id} className="border-b border-gray-100 hover:bg-gray-50">
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-3">
-                              <div className="p-2 bg-violet-100 rounded-lg">
-                                <Shield className="w-4 h-4 text-violet-600" />
+                              <div className="p-2 bg-[var(--hf-brand-100)] rounded-lg">
+                                <Shield className="w-4 h-4 text-[color:var(--hf-brand-600)]" />
                               </div>
                               <div>
                                 <p className="font-medium text-gray-900">{role.name}</p>
@@ -679,7 +679,7 @@ export default function UserRoles() {
                       openCreate();
                       setTimeout(() => applyPreset(preset.code), 0);
                     }}
-                    className="mt-4 w-full px-3 py-2 bg-violet-50 text-violet-700 rounded-lg text-sm font-medium hover:bg-violet-100 flex items-center justify-center gap-2"
+                    className="mt-4 w-full px-3 py-2 bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)] rounded-lg text-sm font-medium hover:bg-[var(--hf-brand-100)] flex items-center justify-center gap-2"
                   >
                     <Copy className="w-4 h-4" />
                     Gunakan Template
@@ -705,7 +705,7 @@ export default function UserRoles() {
               </div>
               <div className="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
                 {groupLoading && roleGroups.length === 0 ? (
-                  <div className="flex items-center justify-center py-8"><RefreshCw className="w-5 h-5 animate-spin text-indigo-600" /></div>
+                  <div className="flex items-center justify-center py-8"><RefreshCw className="w-5 h-5 animate-spin text-[color:var(--hf-brand-600)]" /></div>
                 ) : (
                   <>
                     {roleGroups.map(g => {
@@ -714,13 +714,13 @@ export default function UserRoles() {
                         <button
                           key={g.role_id}
                           onClick={() => { setSelectedGroupRoleId(g.role_id); fetchUsersByRole(g.role_id); }}
-                          className={`w-full flex items-center justify-between p-3 text-left text-sm hover:bg-indigo-50 transition ${active ? 'bg-indigo-50 border-l-4 border-indigo-500' : 'border-l-4 border-transparent'}`}
+                          className={`w-full flex items-center justify-between p-3 text-left text-sm hover:bg-[var(--hf-brand-50)] transition ${active ? 'bg-[var(--hf-brand-50)] border-l-4 border-[var(--hf-brand-100)]' : 'border-l-4 border-transparent'}`}
                         >
                           <div className="min-w-0">
                             <p className="font-medium text-gray-800 truncate">{g.role_name}</p>
                             <p className="text-[10px] text-gray-500 font-mono">{g.role_code} · L{g.level}</p>
                           </div>
-                          <span className={`flex-shrink-0 ml-2 px-2 py-0.5 rounded-full text-xs font-semibold ${g.user_count > 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'}`}>
+                          <span className={`flex-shrink-0 ml-2 px-2 py-0.5 rounded-full text-xs font-semibold ${g.user_count > 0 ? 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]' : 'bg-gray-100 text-gray-500'}`}>
                             {g.user_count}
                           </span>
                         </button>
@@ -756,8 +756,8 @@ export default function UserRoles() {
                 <>
                   <div className="p-4 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3 bg-gray-50">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-indigo-100 rounded-lg">
-                        <Users className="w-5 h-5 text-indigo-600" />
+                      <div className="p-2 bg-[var(--hf-brand-100)] rounded-lg">
+                        <Users className="w-5 h-5 text-[color:var(--hf-brand-600)]" />
                       </div>
                       <div>
                         <h3 className="font-semibold text-gray-900">
@@ -783,14 +783,14 @@ export default function UserRoles() {
 
                   {/* Bulk action bar */}
                   {selectedUserIds.size > 0 && (
-                    <div className="p-3 bg-indigo-50 border-b border-indigo-100 flex flex-wrap items-center gap-3">
-                      <span className="text-sm font-medium text-indigo-900">
+                    <div className="p-3 bg-[var(--hf-brand-50)] border-b border-[var(--hf-brand-100)] flex flex-wrap items-center gap-3">
+                      <span className="text-sm font-medium text-[color:var(--hf-brand-600)]">
                         {selectedUserIds.size} user terpilih:
                       </span>
                       <select
                         value={bulkTargetRoleId}
                         onChange={e => setBulkTargetRoleId(e.target.value)}
-                        className="px-3 py-1.5 border border-indigo-200 rounded-lg text-sm bg-white"
+                        className="px-3 py-1.5 border border-[var(--hf-brand-100)] rounded-lg text-sm bg-white"
                       >
                         <option value="">Pilih role tujuan...</option>
                         {roles.filter(r => r.id !== selectedGroupRoleId).map(r => (
@@ -800,7 +800,7 @@ export default function UserRoles() {
                       <button
                         onClick={() => runBulkAction('assign')}
                         disabled={bulkLoading || !bulkTargetRoleId}
-                        className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-1.5"
+                        className="px-3 py-1.5 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)] disabled:opacity-50 flex items-center gap-1.5"
                       >
                         <UserCog className="w-3.5 h-3.5" />
                         {bulkLoading ? 'Menerapkan...' : 'Assign ke Role'}
@@ -827,7 +827,7 @@ export default function UserRoles() {
                   <div className="max-h-[540px] overflow-y-auto">
                     {groupLoading ? (
                       <div className="flex items-center justify-center py-12">
-                        <RefreshCw className="w-6 h-6 animate-spin text-indigo-600" />
+                        <RefreshCw className="w-6 h-6 animate-spin text-[color:var(--hf-brand-600)]" />
                       </div>
                     ) : groupUsers.length === 0 ? (
                       <div className="text-center py-12 text-gray-400">
@@ -849,7 +849,7 @@ export default function UserRoles() {
                           {groupUsers.map(u => {
                             const checked = selectedUserIds.has(u.id);
                             return (
-                              <tr key={u.id} className={`hover:bg-gray-50 ${checked ? 'bg-indigo-50/50' : ''}`}>
+                              <tr key={u.id} className={`hover:bg-gray-50 ${checked ? 'bg-[var(--hf-brand-50)]/50' : ''}`}>
                                 <td className="px-3 py-2">
                                   <input
                                     type="checkbox"
@@ -860,7 +860,7 @@ export default function UserRoles() {
                                 </td>
                                 <td className="px-3 py-2">
                                   <div className="flex items-center gap-2">
-                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
+                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--hf-brand-600)] to-purple-500 flex items-center justify-center text-white text-xs font-bold">
                                       {u.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?'}
                                     </div>
                                     <span className="font-medium text-gray-800">{u.name}</span>
@@ -869,7 +869,7 @@ export default function UserRoles() {
                                 <td className="px-3 py-2 text-gray-600 text-xs">{u.email}</td>
                                 <td className="px-3 py-2">
                                   {u.role_name ? (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)] border border-[var(--hf-brand-100)]">
                                       <Shield className="w-3 h-3" />
                                       {u.role_name}
                                     </span>
@@ -900,8 +900,8 @@ export default function UserRoles() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200">
             <div className="p-4 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-100 rounded-lg">
-                  <History className="w-5 h-5 text-indigo-600" />
+                <div className="p-2 bg-[var(--hf-brand-100)] rounded-lg">
+                  <History className="w-5 h-5 text-[color:var(--hf-brand-600)]" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-900">Audit Trail Role & Privilege</h3>
@@ -935,7 +935,7 @@ export default function UserRoles() {
             <div className="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
               {auditLoading ? (
                 <div className="flex items-center justify-center py-12">
-                  <RefreshCw className="w-6 h-6 animate-spin text-indigo-600" />
+                  <RefreshCw className="w-6 h-6 animate-spin text-[color:var(--hf-brand-600)]" />
                 </div>
               ) : auditLogs.length === 0 ? (
                 <div className="text-center py-12 text-gray-400">
@@ -979,7 +979,7 @@ export default function UserRoles() {
                         </div>
                         {(log.oldValues || log.newValues) && (
                           <details className="mt-2 text-xs">
-                            <summary className="cursor-pointer text-indigo-600 hover:text-indigo-800">
+                            <summary className="cursor-pointer text-[color:var(--hf-brand-600)] hover:text-[color:var(--hf-brand-600)]">
                               Detail perubahan
                             </summary>
                             <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -1071,7 +1071,7 @@ export default function UserRoles() {
 
 function StatCard({ icon: Icon, color, value, label }: { icon: any; color: string; value: number; label: string }) {
   const colorMap: Record<string, string> = {
-    blue: 'bg-violet-100 text-violet-600',
+    blue: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand-600)]',
     purple: 'bg-purple-100 text-purple-600',
     green: 'bg-green-100 text-green-600',
     orange: 'bg-orange-100 text-orange-600',
@@ -1096,7 +1096,7 @@ function IconBtn({
   title, onClick, color, disabled, children
 }: { title: string; onClick: () => void; color: 'blue' | 'red'; disabled?: boolean; children: React.ReactNode }) {
   const hoverMap = {
-    blue: 'hover:text-violet-600 hover:bg-violet-50',
+    blue: 'hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)]',
     red: 'hover:text-red-600 hover:bg-red-50'
   };
   return (
@@ -1257,7 +1257,7 @@ function RoleForm(p: RoleFormProps) {
             type="text"
             value={p.form.code}
             onChange={e => p.setForm(prev => ({ ...prev, code: e.target.value.toUpperCase() }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-violet-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-[var(--hf-brand-500)]"
             placeholder="ROLE_CODE"
             disabled={p.isEdit}
           />
@@ -1268,7 +1268,7 @@ function RoleForm(p: RoleFormProps) {
             type="text"
             value={p.form.name}
             onChange={e => p.setForm(prev => ({ ...prev, name: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-violet-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[var(--hf-brand-500)]"
             placeholder="Nama Role"
           />
         </div>
@@ -1277,7 +1277,7 @@ function RoleForm(p: RoleFormProps) {
           <textarea
             value={p.form.description}
             onChange={e => p.setForm(prev => ({ ...prev, description: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-violet-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[var(--hf-brand-500)]"
             rows={2}
           />
         </div>
@@ -1346,19 +1346,19 @@ function RoleForm(p: RoleFormProps) {
           </select>
         </div>
 
-        <div className="bg-violet-50 border border-violet-200 rounded-lg p-3 mt-4">
+        <div className="bg-[var(--hf-brand-50)] border border-[var(--hf-brand-100)] rounded-lg p-3 mt-4">
           <div className="flex items-center gap-2 text-sm">
-            <Gauge className="w-4 h-4 text-violet-600" />
+            <Gauge className="w-4 h-4 text-[color:var(--hf-brand-600)]" />
             <span className="font-medium text-blue-900">Ringkasan</span>
           </div>
-          <p className="text-xs text-violet-800 mt-1">
+          <p className="text-xs text-[color:var(--hf-brand-600)] mt-1">
             {selectedCount} dari {total} permission terpilih
             <span className="mx-1">·</span>
             {Math.round((selectedCount / total) * 100)}% akses
           </p>
           <div className="mt-2 h-1.5 bg-white rounded-full overflow-hidden">
             <div
-              className="h-full bg-violet-600 rounded-full transition-all"
+              className="h-full bg-[var(--hf-brand-600)] rounded-full transition-all"
               style={{ width: `${Math.round((selectedCount / total) * 100)}%` }}
             />
           </div>
@@ -1499,7 +1499,7 @@ function RoleForm(p: RoleFormProps) {
           <button
             onClick={p.onSave}
             disabled={p.saving || !p.form.code || !p.form.name}
-            className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700 disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)] disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
             {p.saving ? 'Menyimpan...' : 'Simpan Role'}

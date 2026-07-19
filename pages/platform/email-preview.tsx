@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import HQLayout from '@/components/hq/HQLayout';
+import HumanifyLayout from '@/components/humanify/HumanifyLayout';
 import { ArrowLeft, Mail, Loader2, RefreshCw } from 'lucide-react';
 
 const TEMPLATES = [
@@ -78,10 +78,10 @@ export default function PlatformEmailPreviewPage() {
   }
 
   return (
-    <HQLayout title="Email Preview" subtitle="Template Humanify berlogo — sample HTML" platform="humanify">
+    <HumanifyLayout title="Email Preview" subtitle="Template Humanify berlogo — sample HTML" >
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <Link href="/platform/observability" className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:underline">
+          <Link href="/platform/observability" className="inline-flex items-center gap-1 text-sm text-[color:var(--hf-brand-600)] hover:underline">
             <ArrowLeft className="w-4 h-4" /> Observability
           </Link>
           <div className="flex items-center gap-2 flex-wrap">
@@ -92,7 +92,7 @@ export default function PlatformEmailPreviewPage() {
                 onClick={() => setTpl(t.id)}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border ${
                   tpl === t.id
-                    ? 'bg-violet-600 text-white border-violet-600'
+                    ? 'bg-[var(--hf-brand-600)] text-white border-[var(--hf-brand-600)]'
                     : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                 }`}
               >
@@ -134,10 +134,10 @@ export default function PlatformEmailPreviewPage() {
           ) : null}
         </div>
         <p className="text-xs text-slate-500">
-          Logo: <code className="text-violet-700">https://humanify.id/images/humanify_white.png</code>
+          Logo: <code className="text-[color:var(--hf-brand)]">https://humanify.id/images/humanify_white.png</code>
           {' '}· Preview via srcdoc (hindari X-Frame-Options: DENY). Sample — tidak mengirim email.
         </p>
       </div>
-    </HQLayout>
+    </HumanifyLayout>
   );
 }

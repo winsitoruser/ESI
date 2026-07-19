@@ -215,7 +215,7 @@ export default function HumanifySecurityPage() {
           <div className="bg-white border border-slate-200 rounded-2xl p-6">
             <div className="flex items-center justify-between mb-1">
               <h3 className="font-semibold text-slate-900 flex items-center gap-2">
-                <Lock className="w-4 h-4 text-violet-600" /> Autentikasi dua faktor
+                <Lock className="w-4 h-4 text-[color:var(--hf-brand-600)]" /> Autentikasi dua faktor
               </h3>
               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${enabled ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                 {enabled ? 'Aktif' : 'Nonaktif'}
@@ -241,7 +241,7 @@ export default function HumanifySecurityPage() {
                 onClick={() => togglePolicy(!tenantRequireMfa)}
                 className={`shrink-0 px-3 py-1.5 rounded-xl text-sm font-semibold border ${
                   tenantRequireMfa
-                    ? 'bg-violet-600 text-white border-violet-600'
+                    ? 'bg-[var(--hf-brand-600)] text-white border-[var(--hf-brand-600)]'
                     : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
                 }`}
               >
@@ -256,7 +256,7 @@ export default function HumanifySecurityPage() {
                 type="button"
                 onClick={startEnroll}
                 disabled={busy}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--hf-brand-600)] text-white text-sm font-semibold hover:bg-[var(--hf-brand)] disabled:opacity-50"
               >
                 {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
                 Aktifkan 2FA
@@ -266,7 +266,7 @@ export default function HumanifySecurityPage() {
 
           {!enabled && enroll && (
             <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
-              <div className="flex items-start gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900">
+              <div className="flex items-start gap-2 rounded-xl border border-[var(--hf-brand-100)] bg-[var(--hf-brand-50)] px-4 py-3 text-sm text-[color:var(--hf-brand-600)]">
                 <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
                 <span>Scan QR di bawah dengan aplikasi authenticator, atau masukkan secret secara manual. Lalu konfirmasi dengan kode 6 digit.</span>
               </div>
@@ -299,7 +299,7 @@ export default function HumanifySecurityPage() {
                 <span className="text-sm text-slate-600">Atau salin URL otpauth</span>
                 <div className="mt-1 flex items-center gap-2">
                   <code className="flex-1 bg-slate-100 rounded px-2 py-1 text-xs truncate">{enroll.otpauthUrl}</code>
-                  <button type="button" onClick={() => copy(enroll.otpauthUrl)} className="text-xs text-violet-600 hover:underline whitespace-nowrap">Salin</button>
+                  <button type="button" onClick={() => copy(enroll.otpauthUrl)} className="text-xs text-[color:var(--hf-brand-600)] hover:underline whitespace-nowrap">Salin</button>
                 </div>
               </div>
 
@@ -371,7 +371,7 @@ export default function HumanifySecurityPage() {
               {recoveryCodes && recoveryCodes.length > 0 && (
                 <div className="mt-3 space-y-2">
                   <div className="flex flex-wrap gap-2">
-                    <button type="button" onClick={copyAllRecovery} className="text-xs px-2 py-1 border rounded-lg text-violet-700 hover:bg-violet-50">
+                    <button type="button" onClick={copyAllRecovery} className="text-xs px-2 py-1 border rounded-lg text-[color:var(--hf-brand)] hover:bg-[var(--hf-brand-50)]">
                       Salin semua
                     </button>
                     <button type="button" onClick={downloadRecovery} className="text-xs px-2 py-1 border rounded-lg text-slate-700 hover:bg-slate-50">

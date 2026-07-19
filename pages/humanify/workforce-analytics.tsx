@@ -184,7 +184,7 @@ export default function WorkforceAnalyticsPage() {
   const fmtDateInput = (d: string) => (d ? String(d).slice(0, 10) : '');
 
   const statusColor = (s: string) => {
-    const m: any = { draft: 'bg-gray-100 text-gray-800', submitted: 'bg-violet-100 text-violet-800', approved: 'bg-green-100 text-green-800', active: 'bg-indigo-100 text-indigo-800', closed: 'bg-gray-200 text-gray-600' };
+    const m: any = { draft: 'bg-gray-100 text-gray-800', submitted: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand-600)]', approved: 'bg-green-100 text-green-800', active: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand-600)]', closed: 'bg-gray-200 text-gray-600' };
     return m[s] || 'bg-gray-100 text-gray-800';
   };
 
@@ -214,13 +214,13 @@ export default function WorkforceAnalyticsPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-xl p-5 text-white shadow-sm">
+        <div className="bg-gradient-to-br from-[var(--hf-brand-600)] to-[var(--hf-brand)] rounded-xl p-5 text-white shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <Users className="w-7 h-7 opacity-80" />
             <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">Aktif {overview.activeEmployees || 0}</span>
           </div>
           <p className="text-3xl font-bold">{overview.totalEmployees || 0}</p>
-          <p className="text-sm text-indigo-100 mt-1">Total Karyawan</p>
+          <p className="text-sm text-[color:var(--hf-brand-600)] mt-1">Total Karyawan</p>
         </div>
         <div className="bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-xl p-5 text-white shadow-sm">
           <div className="flex items-center justify-between mb-3">
@@ -252,7 +252,7 @@ export default function WorkforceAnalyticsPage() {
       <div className="flex gap-1 border-b mb-6 overflow-x-auto">
         {tabs.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={`px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-1.5 ${tab === t.key ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+            className={`px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-1.5 ${tab === t.key ? 'border-[var(--hf-brand-600)] text-[color:var(--hf-brand-600)]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
             <t.icon className="w-4 h-4" /> {t.label}
           </button>
         ))}
@@ -272,7 +272,7 @@ export default function WorkforceAnalyticsPage() {
                   <p className="text-sm text-gray-500 mt-0.5">Rekrutmen vs pengunduran diri — 12 bulan terakhir</p>
                 </div>
                 <div className="flex items-center gap-4 text-xs text-gray-500">
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-indigo-500" /> Rekrutmen</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[var(--hf-brand-500)]" /> Rekrutmen</span>
                   <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-rose-400" /> Pengunduran</span>
                 </div>
               </div>
@@ -384,7 +384,7 @@ export default function WorkforceAnalyticsPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {deptTableRows.map((row, i) => (
-                    <tr key={row.department} className="hover:bg-indigo-50/30 transition-colors">
+                    <tr key={row.department} className="hover:bg-[var(--hf-brand-50)]/30 transition-colors">
                       <td className="px-6 py-3.5 text-gray-400 font-medium">{i + 1}</td>
                       <td className="px-6 py-3.5">
                         <div className="flex items-center gap-2.5">
@@ -430,9 +430,9 @@ export default function WorkforceAnalyticsPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
               { label: 'Tingkat Absensi', value: `${overview.absenteeismRate || 0}%`, sub: '30 hari terakhir', color: 'text-orange-600', bg: 'bg-orange-50' },
-              { label: 'Rata-rata Jam Kerja', value: `${productivity.avgWorkHours || 0} jam`, sub: 'Per hari', color: 'text-violet-600', bg: 'bg-violet-50' },
+              { label: 'Rata-rata Jam Kerja', value: `${productivity.avgWorkHours || 0} jam`, sub: 'Per hari', color: 'text-[color:var(--hf-brand-600)]', bg: 'bg-[var(--hf-brand-50)]' },
               { label: 'Keterlambatan', value: `${productivity.lateRate || 0}%`, sub: 'Dari total kehadiran', color: 'text-amber-600', bg: 'bg-amber-50' },
-              { label: 'Rencana Headcount', value: String(plans.filter(p => p.status === 'approved').length), sub: `${plans.length} total rencana`, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+              { label: 'Rencana Headcount', value: String(plans.filter(p => p.status === 'approved').length), sub: `${plans.length} total rencana`, color: 'text-[color:var(--hf-brand-600)]', bg: 'bg-[var(--hf-brand-50)]' },
             ].map((item) => (
               <div key={item.label} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
                 <p className="text-xs text-gray-500 mb-1">{item.label}</p>
@@ -449,7 +449,7 @@ export default function WorkforceAnalyticsPage() {
         <div>
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold">Perencanaan Jumlah Karyawan</h2>
-            <button onClick={() => openAdd('plan')} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">
+            <button onClick={() => openAdd('plan')} className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]">
               <Plus className="w-4 h-4" /> Buat Rencana
             </button>
           </div>
@@ -460,7 +460,7 @@ export default function WorkforceAnalyticsPage() {
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(p.status)}`}>{p.status}</span>
-                      {p.department && <span className="text-xs bg-violet-50 text-violet-600 px-2 py-0.5 rounded">{p.department}</span>}
+                      {p.department && <span className="text-xs bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)] px-2 py-0.5 rounded">{p.department}</span>}
                     </div>
                     <h3 className="font-semibold">{p.name}</h3>
                     <p className="text-sm text-gray-500 mt-1">Periode: {p.period_start && new Date(p.period_start).toLocaleDateString('id-ID')} - {p.period_end && new Date(p.period_end).toLocaleDateString('id-ID')}</p>
@@ -469,13 +469,13 @@ export default function WorkforceAnalyticsPage() {
                     {p.status !== 'approved' && (
                       <button onClick={() => handleApprovePlan(p)} className="p-1.5 text-gray-400 hover:text-green-600" title="Setujui"><CheckCircle className="w-4 h-4" /></button>
                     )}
-                    <button onClick={() => { setEditingItem(p); setPlanForm({ name: p.name, periodStart: fmtDateInput(p.period_start), periodEnd: fmtDateInput(p.period_end), department: p.department || '', currentHeadcount: p.current_headcount, plannedHeadcount: p.planned_headcount, budgetAmount: Number(p.budget_amount) || 0, justification: p.justification || '', status: p.status }); setModalType('plan'); setShowModal(true); }} className="p-1.5 text-gray-400 hover:text-violet-600"><Edit className="w-4 h-4" /></button>
+                    <button onClick={() => { setEditingItem(p); setPlanForm({ name: p.name, periodStart: fmtDateInput(p.period_start), periodEnd: fmtDateInput(p.period_end), department: p.department || '', currentHeadcount: p.current_headcount, plannedHeadcount: p.planned_headcount, budgetAmount: Number(p.budget_amount) || 0, justification: p.justification || '', status: p.status }); setModalType('plan'); setShowModal(true); }} className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)]"><Edit className="w-4 h-4" /></button>
                     <button onClick={() => handleDelete('headcount-plan', p.id)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>
                 <div className="grid grid-cols-4 gap-4 mt-3 pt-3 border-t">
                   <div><p className="text-xs text-gray-500">Saat Ini</p><p className="text-lg font-bold">{p.current_headcount}</p></div>
-                  <div><p className="text-xs text-gray-500">Direncanakan</p><p className="text-lg font-bold text-violet-600">{p.planned_headcount}</p></div>
+                  <div><p className="text-xs text-gray-500">Direncanakan</p><p className="text-lg font-bold text-[color:var(--hf-brand-600)]">{p.planned_headcount}</p></div>
                   <div><p className="text-xs text-gray-500">Disetujui</p><p className="text-lg font-bold text-green-600">{p.approved_headcount || '-'}</p></div>
                   <div><p className="text-xs text-gray-500">Anggaran</p><p className="text-lg font-bold">Rp {fmtNum(p.budget_amount)}</p></div>
                 </div>
@@ -492,7 +492,7 @@ export default function WorkforceAnalyticsPage() {
         <div>
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold">Anggaran Tenaga Kerja</h2>
-            <button onClick={() => openAdd('budget')} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">
+            <button onClick={() => openAdd('budget')} className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]">
               <Plus className="w-4 h-4" /> Tambah Anggaran
             </button>
           </div>
@@ -522,7 +522,7 @@ export default function WorkforceAnalyticsPage() {
                     <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(b.status)}`}>{b.status}</span></td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1">
-                        <button onClick={() => { setEditingItem(b); setBudgetForm({ fiscalYear: b.fiscal_year, department: b.department || '', budgetCategory: b.budget_category, plannedAmount: Number(b.planned_amount) || 0, actualAmount: Number(b.actual_amount) || 0, notes: b.notes || '', status: b.status }); setModalType('budget'); setShowModal(true); }} className="p-1 text-gray-400 hover:text-violet-600"><Edit className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => { setEditingItem(b); setBudgetForm({ fiscalYear: b.fiscal_year, department: b.department || '', budgetCategory: b.budget_category, plannedAmount: Number(b.planned_amount) || 0, actualAmount: Number(b.actual_amount) || 0, notes: b.notes || '', status: b.status }); setModalType('budget'); setShowModal(true); }} className="p-1 text-gray-400 hover:text-[color:var(--hf-brand-600)]"><Edit className="w-3.5 h-3.5" /></button>
                         <button onClick={() => handleDelete('budget', b.id)} className="p-1 text-gray-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
                     </td>
@@ -585,8 +585,8 @@ export default function WorkforceAnalyticsPage() {
               <p className="text-sm text-gray-500 mt-1">Tingkat Kehadiran</p>
             </div>
             <div className="bg-white border rounded-xl p-5 text-center">
-              <Clock className="w-8 h-8 text-violet-500 mx-auto mb-2" />
-              <p className="text-3xl font-bold text-violet-600">{productivity.avgWorkHours || 0}</p>
+              <Clock className="w-8 h-8 text-[color:var(--hf-brand-500)] mx-auto mb-2" />
+              <p className="text-3xl font-bold text-[color:var(--hf-brand-600)]">{productivity.avgWorkHours || 0}</p>
               <p className="text-sm text-gray-500 mt-1">Rata-rata Jam Kerja</p>
             </div>
             <div className="bg-white border rounded-xl p-5 text-center">
@@ -656,7 +656,7 @@ export default function WorkforceAnalyticsPage() {
             </div>
             <div className="flex justify-end gap-2 p-5 border-t">
               <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-gray-700 border rounded-lg hover:bg-gray-50">Batal</button>
-              <button onClick={handleSave} className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Simpan</button>
+              <button onClick={handleSave} className="px-4 py-2 text-sm bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)]">Simpan</button>
             </div>
           </div>
         </div>

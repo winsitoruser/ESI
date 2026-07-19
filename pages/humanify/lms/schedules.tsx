@@ -41,7 +41,7 @@ export default function SchedulesPage() {
         <LmsPageNav active="schedules" />
         <div className="flex justify-between mb-4">
           <DataSourceBadge source={dataSource} />
-          <button type="button" onClick={() => setModal(true)} className="flex items-center gap-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm"><Plus className="w-4 h-4" /> Jadwalkan Tes</button>
+          <button type="button" onClick={() => setModal(true)} className="flex items-center gap-1 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm"><Plus className="w-4 h-4" /> Jadwalkan Tes</button>
         </div>
 
         <div className="space-y-3">
@@ -77,7 +77,7 @@ export default function SchedulesPage() {
               <option value="batch">Per Batch Pelatihan</option>
             </select>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.open_exam} onChange={(e) => setForm({ ...form, open_exam: e.target.checked })} /> Buka tes otomatis saat jadwal aktif</label>
-            <button type="button" onClick={save} className="w-full py-2 bg-indigo-600 text-white rounded-lg">Simpan Jadwal</button>
+            <button type="button" onClick={save} className="w-full py-2 bg-[var(--hf-brand-600)] text-white rounded-lg">Simpan Jadwal</button>
           </div>
         </Modal>
       </HumanifyLayout>

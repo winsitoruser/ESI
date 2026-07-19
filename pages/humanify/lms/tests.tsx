@@ -40,7 +40,7 @@ export default function LmsTestsPage() {
         <LmsPageNav active="tests" />
         <div className="flex justify-between mb-4">
           <DataSourceBadge source={dataSource} />
-          <button type="button" onClick={() => setModal(true)} className="flex items-center gap-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm">
+          <button type="button" onClick={() => setModal(true)} className="flex items-center gap-1 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm">
             <Plus className="w-4 h-4" /> Buat Tes Baru
           </button>
         </div>
@@ -55,7 +55,7 @@ export default function LmsTestsPage() {
                   <LmsStatusBadge status={ex.status} />
                   {ex.anti_cheat_enabled && <span className="text-xs bg-orange-50 text-orange-700 px-2 py-0.5 rounded">Anti-cheat</span>}
                   {ex.proctor_enabled && <span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded">Proctoring</span>}
-                  {ex.shuffle_questions && <span className="text-xs bg-violet-50 text-violet-700 px-2 py-0.5 rounded">Random soal</span>}
+                  {ex.shuffle_questions && <span className="text-xs bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)] px-2 py-0.5 rounded">Random soal</span>}
                 </div>
               </div>
               <div className="flex gap-2">
@@ -84,7 +84,7 @@ export default function LmsTestsPage() {
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.anti_cheat_enabled} onChange={(e) => setForm({ ...form, anti_cheat_enabled: e.target.checked })} /> Aktifkan anti-cheating</label>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.proctor_enabled} onChange={(e) => setForm({ ...form, proctor_enabled: e.target.checked })} /> Aktifkan proctoring kamera</label>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.fullscreen_required} onChange={(e) => setForm({ ...form, fullscreen_required: e.target.checked })} /> Wajib fullscreen</label>
-            <button type="button" onClick={create} className="w-full py-2 bg-indigo-600 text-white rounded-lg">Buat Tes</button>
+            <button type="button" onClick={create} className="w-full py-2 bg-[var(--hf-brand-600)] text-white rounded-lg">Buat Tes</button>
           </div>
         </Modal>
       </HumanifyLayout>

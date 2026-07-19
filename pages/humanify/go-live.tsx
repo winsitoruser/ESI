@@ -58,16 +58,16 @@ export default function GoLivePage() {
       </Head>
       <div className="max-w-2xl mx-auto space-y-6 py-4">
         <div>
-          <p className="text-xs uppercase tracking-wide text-indigo-600 font-semibold">Phase 7 · GA</p>
+          <p className="text-xs uppercase tracking-wide text-[color:var(--hf-brand-600)] font-semibold">Phase 7 · GA</p>
           <h1 className="text-2xl font-semibold text-slate-900 mt-1 flex items-center gap-2">
-            <Rocket className="w-6 h-6 text-indigo-600" /> Go-live checklist
+            <Rocket className="w-6 h-6 text-[color:var(--hf-brand-600)]" /> Go-live checklist
           </h1>
           <p className="text-sm text-slate-600 mt-1">
             Progress {data?.score}/{data?.total} ({data?.pct}%)
             {data?.ready ? ' — siap operasional' : ''}
           </p>
           <div className="mt-3 h-2 rounded-full bg-slate-100 overflow-hidden">
-            <div className="h-full bg-indigo-600 transition-all" style={{ width: `${data?.pct || 0}%` }} />
+            <div className="h-full bg-[var(--hf-brand-600)] transition-all" style={{ width: `${data?.pct || 0}%` }} />
           </div>
         </div>
 
@@ -88,13 +88,13 @@ export default function GoLivePage() {
                   <button
                     type="button"
                     onClick={ackBilling}
-                    className="mt-2 text-xs text-indigo-600 underline"
+                    className="mt-2 text-xs text-[color:var(--hf-brand-600)] underline"
                   >
                     Saya sudah cek halaman billing
                   </button>
                 )}
                 {!item.done && item.id !== 'billing_aware' && (
-                  <Link href={item.href} className="mt-2 inline-block text-xs text-indigo-600 underline">
+                  <Link href={item.href} className="mt-2 inline-block text-xs text-[color:var(--hf-brand-600)] underline">
                     Selesaikan
                   </Link>
                 )}
@@ -108,7 +108,7 @@ export default function GoLivePage() {
             {data.careersUrl && (
               <p>
                 Careers:{' '}
-                <Link href={data.careersUrl} className="text-indigo-600 underline" target="_blank">
+                <Link href={data.careersUrl} className="text-[color:var(--hf-brand-600)] underline" target="_blank">
                   {data.careersUrl}
                 </Link>
               </p>

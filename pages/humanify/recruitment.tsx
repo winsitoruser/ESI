@@ -14,7 +14,7 @@ type TabKey = 'openings' | 'candidates' | 'pipeline' | 'analytics' | 'integratio
 
 const STAGES = ['applied', 'screening', 'test', 'interview', 'offer', 'hired', 'rejected'];
 const STAGE_LABELS: Record<string, string> = { applied: 'Lamaran Masuk', screening: 'Penyaringan', test: 'Tes', interview: 'Wawancara', offer: 'Penawaran', hired: 'Diterima', rejected: 'Ditolak' };
-const STAGE_COLORS: Record<string, string> = { applied: 'bg-gray-100 text-gray-700', screening: 'bg-violet-100 text-violet-700', test: 'bg-indigo-100 text-indigo-700', interview: 'bg-purple-100 text-purple-700', offer: 'bg-orange-100 text-orange-700', hired: 'bg-green-100 text-green-700', rejected: 'bg-red-100 text-red-700' };
+const STAGE_COLORS: Record<string, string> = { applied: 'bg-gray-100 text-gray-700', screening: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]', test: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]', interview: 'bg-purple-100 text-purple-700', offer: 'bg-orange-100 text-orange-700', hired: 'bg-green-100 text-green-700', rejected: 'bg-red-100 text-red-700' };
 const PRIORITY_COLORS: Record<string, string> = { high: 'border-red-400 bg-red-50', medium: 'border-yellow-400 bg-yellow-50', low: 'border-gray-300 bg-gray-50' };
 
 const emptyForm = { title: '', department: '', location: '', type: 'full_time', priority: 'medium', salary_min: '', salary_max: '', description: '', requirements: '', deadline: '' };
@@ -199,8 +199,8 @@ export default function RecruitmentPage() {
   const statusBadge = (status: string) => {
     const map: Record<string, string> = {
       connected: 'bg-green-100 text-green-700',
-      webhook_only: 'bg-violet-100 text-violet-700',
-      configured: 'bg-indigo-100 text-indigo-700',
+      webhook_only: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]',
+      configured: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]',
       pending: 'bg-amber-100 text-amber-700',
       coming_soon: 'bg-gray-100 text-gray-600',
     };
@@ -342,14 +342,14 @@ export default function RecruitmentPage() {
         {toast && <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white ${toast.type === 'error' ? 'bg-red-500' : 'bg-green-500'}`}>{toast.msg}</div>}
 
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="bg-violet-50 border border-violet-200 rounded-xl px-4 py-3 text-sm flex-1 min-w-0">
+          <div className="bg-[var(--hf-brand-50)] border border-[var(--hf-brand-100)] rounded-xl px-4 py-3 text-sm flex-1 min-w-0">
             Portal karir publik per perusahaan (SaaS multi-tenant).{' '}
             {saasCtx?.careersUrl ? (
-              <a href={saasCtx.careersUrl} target="_blank" rel="noopener noreferrer" className="text-violet-700 font-medium hover:underline">
+              <a href={saasCtx.careersUrl} target="_blank" rel="noopener noreferrer" className="text-[color:var(--hf-brand)] font-medium hover:underline">
                 Buka {saasCtx.careersUrl} →
               </a>
             ) : (
-              <span className="text-violet-800">URL: /c/&#123;slug-perusahaan&#125;/careers</span>
+              <span className="text-[color:var(--hf-brand-600)]">URL: /c/&#123;slug-perusahaan&#125;/careers</span>
             )}
           </div>
           <DataSourceBadge source={dataSource} />
@@ -358,7 +358,7 @@ export default function RecruitmentPage() {
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-white rounded-xl p-4 border shadow-sm">
-            <div className="flex items-center gap-3"><div className="p-2 bg-violet-100 rounded-lg"><Briefcase className="w-5 h-5 text-violet-600" /></div>
+            <div className="flex items-center gap-3"><div className="p-2 bg-[var(--hf-brand-100)] rounded-lg"><Briefcase className="w-5 h-5 text-[color:var(--hf-brand-600)]" /></div>
               <div><p className="text-2xl font-bold">{openCount}</p><p className="text-xs text-gray-500">Lowongan Aktif</p></div></div>
           </div>
           <div className="bg-white rounded-xl p-4 border shadow-sm">
@@ -379,13 +379,13 @@ export default function RecruitmentPage() {
         <div className="flex gap-1 border-b">
           {tabs.map(t => (
             <button key={t.key} onClick={() => { setTab(t.key); setSearch(''); setFilterDept(''); setFilterStatus(''); if (t.key === 'screening') fetchScreening(); }}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 flex items-center gap-1.5 transition-colors ${tab === t.key ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+              className={`px-4 py-2.5 text-sm font-medium border-b-2 flex items-center gap-1.5 transition-colors ${tab === t.key ? 'border-[var(--hf-brand-600)] text-[color:var(--hf-brand-600)]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
               <t.icon className="w-4 h-4" /> {t.label}
             </button>
           ))}
         </div>
 
-        {loading && <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-indigo-600" /><span className="ml-2 text-sm text-gray-500">Memuat data...</span></div>}
+        {loading && <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-[color:var(--hf-brand-600)]" /><span className="ml-2 text-sm text-gray-500">Memuat data...</span></div>}
 
         {/* OPENINGS TAB */}
         {!loading && tab === 'openings' && (
@@ -396,7 +396,7 @@ export default function RecruitmentPage() {
                 <DepartmentSelect value={filterDept} onChange={setFilterDept} includeAll allLabel="Semua Dept" className="px-3 py-2 border rounded-lg text-sm" />
                 <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2 border rounded-lg text-sm"><option value="">Semua Status</option><option value="open">Buka</option><option value="closed">Ditutup</option><option value="on_hold">Ditunda</option></select>
               </div>
-              <button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700"><Plus className="w-4 h-4" /> Buat Lowongan</button>
+              <button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]"><Plus className="w-4 h-4" /> Buat Lowongan</button>
             </div>
             <div className="grid md:grid-cols-2 gap-4">
               {filteredOpenings.map(o => (
@@ -459,7 +459,7 @@ export default function RecruitmentPage() {
                       <tr key={c.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold">{initials}</div>
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-r from-[var(--hf-brand-600)] to-purple-500 flex items-center justify-center text-white text-xs font-bold">{initials}</div>
                             <div><p className="font-medium">{name}</p><p className="text-xs text-gray-500">{c.email}</p></div>
                           </div>
                         </td>
@@ -470,7 +470,7 @@ export default function RecruitmentPage() {
                         <td className="px-4 py-3 text-center"><span className={`text-xs px-2 py-1 rounded-full ${STAGE_COLORS[stage] || STAGE_COLORS.applied}`}>{STAGE_LABELS[stage] || stage}</span></td>
                         <td className="px-4 py-3 text-center">
                           <div className="flex justify-center gap-1">
-                            <button onClick={() => setSelectedCandidate(c)} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"><Eye className="w-4 h-4" /></button>
+                            <button onClick={() => setSelectedCandidate(c)} className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded-lg"><Eye className="w-4 h-4" /></button>
                           </div>
                         </td>
                       </tr>
@@ -504,7 +504,7 @@ export default function RecruitmentPage() {
                   </div>
                   <div className="p-2 space-y-1.5 max-h-72 overflow-y-auto">
                     {ps.candidates.map((c: any) => (
-                      <div key={c.id} onClick={() => setSelectedCandidate(c)} className="p-2.5 bg-gray-50 rounded-lg hover:bg-indigo-50 cursor-pointer transition-colors">
+                      <div key={c.id} onClick={() => setSelectedCandidate(c)} className="p-2.5 bg-gray-50 rounded-lg hover:bg-[var(--hf-brand-50)] cursor-pointer transition-colors">
                         <p className="text-sm font-medium text-gray-900 truncate">{getCandidateName(c)}</p>
                         <p className="text-xs text-gray-500 truncate">{getCandidatePosition(c)}</p>
                         <div className="flex items-center gap-1 mt-1"><Star className="w-3 h-3 text-yellow-400 fill-yellow-400" /><span className="text-xs">{c.rating || 0}</span></div>
@@ -521,21 +521,21 @@ export default function RecruitmentPage() {
         {/* AI SCREENING TAB */}
         {!loading && tab === 'screening' && (
           <div className="space-y-4">
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-700 p-5 text-white">
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[var(--hf-brand-600)] to-[var(--hf-brand)] p-5 text-white">
               <div className="absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/10" />
               <div className="relative flex items-start justify-between">
                 <div>
                   <h3 className="flex items-center gap-2 text-lg font-bold"><Star className="h-5 w-5" /> AI Candidate Screening</h3>
-                  <p className="mt-1 text-sm text-violet-100">Scoring otomatis: pengalaman, pendidikan, skill match, rating, sumber kandidat</p>
+                  <p className="mt-1 text-sm text-[color:var(--hf-brand-600)]">Scoring otomatis: pengalaman, pendidikan, skill match, rating, sumber kandidat</p>
                 </div>
                 <button onClick={fetchScreening} className="rounded-xl bg-white/15 px-3 py-1.5 text-xs font-medium backdrop-blur hover:bg-white/25">
                   Refresh
                 </button>
               </div>
               <div className="relative mt-4 grid grid-cols-3 gap-2 text-center text-xs">
-                <div className="rounded-xl bg-white/10 p-2"><p className="text-xl font-bold">{screeningResults.filter((r: any) => r.overallScore >= 70).length}</p><p className="text-violet-200">Lolos (≥70)</p></div>
-                <div className="rounded-xl bg-white/10 p-2"><p className="text-xl font-bold">{screeningResults.filter((r: any) => r.overallScore >= 50 && r.overallScore < 70).length}</p><p className="text-violet-200">Review Manual</p></div>
-                <div className="rounded-xl bg-white/10 p-2"><p className="text-xl font-bold">{screeningResults.filter((r: any) => r.autoAdvance).length}</p><p className="text-violet-200">Auto Advance</p></div>
+                <div className="rounded-xl bg-white/10 p-2"><p className="text-xl font-bold">{screeningResults.filter((r: any) => r.overallScore >= 70).length}</p><p className="text-[color:var(--hf-brand-600)]">Lolos (≥70)</p></div>
+                <div className="rounded-xl bg-white/10 p-2"><p className="text-xl font-bold">{screeningResults.filter((r: any) => r.overallScore >= 50 && r.overallScore < 70).length}</p><p className="text-[color:var(--hf-brand-600)]">Review Manual</p></div>
+                <div className="rounded-xl bg-white/10 p-2"><p className="text-xl font-bold">{screeningResults.filter((r: any) => r.autoAdvance).length}</p><p className="text-[color:var(--hf-brand-600)]">Auto Advance</p></div>
               </div>
             </div>
 
@@ -570,7 +570,7 @@ export default function RecruitmentPage() {
             </div>
             {!screeningResults.length && (
               <div className="rounded-2xl border bg-white p-12 text-center text-gray-400">
-                <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-violet-400" />
+                <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-[color:var(--hf-brand-500)]" />
                 <p className="text-sm">Memuat hasil AI screening...</p>
               </div>
             )}
@@ -580,11 +580,11 @@ export default function RecruitmentPage() {
         {/* INTEGRATIONS TAB */}
         {!loading && tab === 'integrations' && (
           <div className="space-y-6">
-            <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 text-sm text-indigo-900">
+            <div className="bg-[var(--hf-brand-50)] border border-[var(--hf-brand-100)] rounded-xl p-4 text-sm text-[color:var(--hf-brand-600)]">
               <strong>Multi-portal recruitment</strong> — Publikasikan lowongan ke LinkedIn, Indeed, Dealls, Google for Jobs, Jobstreet, Kalibrr, Glints, WhatsApp, dan portal karir Humanify.
               Status koneksi dibaca dari credential lingkungan + webhook secret (bukan stub).
               {integrations && (
-                <span className="block mt-1 text-indigo-700">
+                <span className="block mt-1 text-[color:var(--hf-brand)]">
                   {integrations.connected || 0} connected · {integrations.configured || 0} siap · {integrations.totalApplicantsSynced || 0} pelamar dari semua sumber
                 </span>
               )}
@@ -593,7 +593,7 @@ export default function RecruitmentPage() {
             {/* Publish panel */}
             <div className="bg-white border rounded-xl p-5 space-y-4">
               <h3 className="font-semibold flex items-center gap-2">
-                <Upload className="w-4 h-4 text-indigo-600" /> Publikasikan Lowongan ke Portal
+                <Upload className="w-4 h-4 text-[color:var(--hf-brand-600)]" /> Publikasikan Lowongan ke Portal
               </h3>
               <div className="grid md:grid-cols-2 gap-3">
                 <select
@@ -609,7 +609,7 @@ export default function RecruitmentPage() {
                 <button
                   onClick={() => publishToPortals(publishOpeningId)}
                   disabled={publishing || !publishOpeningId || !selectedPortals.length}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm font-medium hover:bg-[var(--hf-brand)] disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {publishing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
                   {publishing ? 'Mempublikasikan…' : `Publish ke ${selectedPortals.length} portal`}
@@ -623,8 +623,8 @@ export default function RecruitmentPage() {
                     onClick={() => togglePortal(ch.provider)}
                     className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
                       selectedPortals.includes(ch.provider)
-                        ? 'bg-indigo-600 text-white border-indigo-600'
-                        : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300'
+                        ? 'bg-[var(--hf-brand-600)] text-white border-[var(--hf-brand-600)]'
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-[var(--hf-brand-100)]'
                     }`}
                   >
                     {ch.name}
@@ -640,7 +640,7 @@ export default function RecruitmentPage() {
                         <p className="text-gray-600 mt-0.5">{r.message}</p>
                       </div>
                       {r.external_url && (
-                        <a href={r.external_url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline shrink-0">Buka</a>
+                        <a href={r.external_url} target="_blank" rel="noopener noreferrer" className="text-[color:var(--hf-brand-600)] hover:underline shrink-0">Buka</a>
                       )}
                     </div>
                   ))}
@@ -653,7 +653,7 @@ export default function RecruitmentPage() {
                 <div key={ch.id} className="bg-white border rounded-xl p-5 shadow-sm">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      {ch.provider === 'linkedin' && <Globe className="w-5 h-5 text-violet-600" />}
+                      {ch.provider === 'linkedin' && <Globe className="w-5 h-5 text-[color:var(--hf-brand-600)]" />}
                       {ch.provider === 'whatsapp' && <MessageCircle className="w-5 h-5 text-green-600" />}
                       {ch.provider === 'dealls' && <Link2 className="w-5 h-5 text-purple-600" />}
                       {!['linkedin', 'whatsapp', 'dealls'].includes(ch.provider) && <Globe className="w-5 h-5 text-gray-600" />}
@@ -668,11 +668,11 @@ export default function RecruitmentPage() {
                     ))}
                   </div>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-indigo-600 font-medium">{ch.applicantsSynced || 0} pelamar</span>
+                    <span className="text-[color:var(--hf-brand-600)] font-medium">{ch.applicantsSynced || 0} pelamar</span>
                     <span className="text-gray-400 capitalize">{ch.mode || 'manual'}</span>
                   </div>
                   {ch.docsUrl && (
-                    <a href={ch.docsUrl} target="_blank" rel="noopener noreferrer" className="inline-block mt-2 text-[11px] text-indigo-600 hover:underline">Dokumentasi portal →</a>
+                    <a href={ch.docsUrl} target="_blank" rel="noopener noreferrer" className="inline-block mt-2 text-[11px] text-[color:var(--hf-brand-600)] hover:underline">Dokumentasi portal →</a>
                   )}
                   {ch.configKeys?.length > 0 && ch.status === 'pending' && (
                     <p className="mt-2 text-[10px] text-amber-700 bg-amber-50 rounded px-2 py-1">
@@ -684,7 +684,7 @@ export default function RecruitmentPage() {
             </div>
 
             <div className="bg-white border rounded-xl p-5">
-              <h3 className="font-semibold mb-3 flex items-center gap-2"><Link2 className="w-4 h-4 text-indigo-600" /> Webhook Inbound (pelamar dari portal)</h3>
+              <h3 className="font-semibold mb-3 flex items-center gap-2"><Link2 className="w-4 h-4 text-[color:var(--hf-brand-600)]" /> Webhook Inbound (pelamar dari portal)</h3>
               <p className="text-xs text-gray-500 mb-3 font-mono bg-gray-50 p-2 rounded-lg break-all">
                 POST {typeof window !== 'undefined' ? window.location.origin : 'https://humanify.id'}/api/humanify/webhooks/recruitment
               </p>
@@ -692,7 +692,7 @@ export default function RecruitmentPage() {
               <div className="flex flex-wrap gap-2">
                 {['dealls', 'linkedin', 'indeed', 'jobstreet', 'kalibrr', 'glints'].map(p => (
                   <button key={p} onClick={() => testWebhook(p)} disabled={webhookTesting}
-                    className="px-3 py-1.5 text-xs font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[var(--hf-brand-600)] text-white hover:bg-[var(--hf-brand)] disabled:opacity-50">
                     {webhookTesting ? 'Menguji...' : `Test ${p}`}
                   </button>
                 ))}
@@ -741,7 +741,7 @@ export default function RecruitmentPage() {
                   return (
                     <div key={src.source}>
                       <div className="flex justify-between text-sm mb-1"><span className="text-gray-700">{src.source}</span><span className="font-medium">{src.count} ({pct}%)</span></div>
-                      <div className="w-full bg-gray-100 rounded-full h-2"><div className="bg-indigo-500 h-2 rounded-full" style={{ width: `${pct}%` }} /></div>
+                      <div className="w-full bg-gray-100 rounded-full h-2"><div className="bg-[var(--hf-brand-500)] h-2 rounded-full" style={{ width: `${pct}%` }} /></div>
                     </div>
                   );
                 })}
@@ -753,7 +753,7 @@ export default function RecruitmentPage() {
                 {openings.filter(o => o.status === 'open').map(o => (
                   <div key={o.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div><p className="text-sm font-medium">{o.title}</p><p className="text-xs text-gray-500">{o.department} - {o.location}</p></div>
-                    <div className="text-right"><p className="text-sm font-bold text-indigo-600">{o.applicants || 0}</p><p className="text-xs text-gray-500">pelamar</p></div>
+                    <div className="text-right"><p className="text-sm font-bold text-[color:var(--hf-brand-600)]">{o.applicants || 0}</p><p className="text-xs text-gray-500">pelamar</p></div>
                   </div>
                 ))}
               </div>
@@ -767,7 +767,7 @@ export default function RecruitmentPage() {
                     <div key={ps.stage} className="flex items-center gap-3">
                       <span className="text-xs text-gray-500 w-20">{ps.label}</span>
                       <div className="flex-1 bg-gray-100 rounded-full h-6 relative overflow-hidden">
-                        <div className="bg-gradient-to-r from-indigo-500 to-purple-500 h-6 rounded-full flex items-center justify-end pr-2 transition-all" style={{ width: `${Math.max(pct, 8)}%` }}>
+                        <div className="bg-gradient-to-r from-[var(--hf-brand-600)] to-purple-500 h-6 rounded-full flex items-center justify-end pr-2 transition-all" style={{ width: `${Math.max(pct, 8)}%` }}>
                           <span className="text-[10px] text-white font-bold">{ps.count}</span>
                         </div>
                       </div>
@@ -780,7 +780,7 @@ export default function RecruitmentPage() {
             <div className="bg-white border rounded-xl p-5">
               <h3 className="font-semibold mb-4">Metrik Rekrutmen</h3>
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-violet-50 rounded-lg p-4 text-center"><p className="text-2xl font-bold text-violet-600">{avgTimeToHire}</p><p className="text-xs text-gray-500">Rata-rata Hari Rekrut</p></div>
+                <div className="bg-[var(--hf-brand-50)] rounded-lg p-4 text-center"><p className="text-2xl font-bold text-[color:var(--hf-brand-600)]">{avgTimeToHire}</p><p className="text-xs text-gray-500">Rata-rata Hari Rekrut</p></div>
                 <div className="bg-green-50 rounded-lg p-4 text-center"><p className="text-2xl font-bold text-green-600">{totalApplicants > 0 ? Math.round(hiredCount / totalApplicants * 100) : 0}%</p><p className="text-xs text-gray-500">Tingkat Penerimaan</p></div>
                 <div className="bg-purple-50 rounded-lg p-4 text-center"><p className="text-2xl font-bold text-purple-600">{openCount}</p><p className="text-xs text-gray-500">Posisi Terbuka</p></div>
                 <div className="bg-orange-50 rounded-lg p-4 text-center"><p className="text-2xl font-bold text-orange-600">{totalApplicants > 0 ? Math.round(candidates.filter(c => (c.rating || 0) >= 4).length / totalApplicants * 100) : 0}%</p><p className="text-xs text-gray-500">Tingkat Kualitas Rekrut</p></div>
@@ -818,7 +818,7 @@ export default function RecruitmentPage() {
                 <div><label className="text-sm font-medium text-gray-700">Persyaratan</label><textarea value={createForm.requirements} onChange={e => setCreateForm({ ...createForm, requirements: e.target.value })} rows={2} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" placeholder="Satu persyaratan per baris" /></div>
                 <div className="flex gap-2 pt-2">
                   <button type="button" onClick={() => setShowCreateModal(false)} className="flex-1 px-4 py-2 border rounded-lg text-sm">Batal</button>
-                  <button type="submit" disabled={saving} className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2">
+                  <button type="submit" disabled={saving} className="flex-1 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)] disabled:opacity-50 flex items-center justify-center gap-2">
                     {saving && <Loader2 className="w-4 h-4 animate-spin" />} Simpan
                   </button>
                 </div>
@@ -834,7 +834,7 @@ export default function RecruitmentPage() {
               <div className="p-5 border-b">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold">{getCandidateName(selectedCandidate).split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}</div>
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-[var(--hf-brand-600)] to-purple-500 flex items-center justify-center text-white font-bold">{getCandidateName(selectedCandidate).split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}</div>
                     <div><h3 className="font-bold text-lg">{getCandidateName(selectedCandidate)}</h3><p className="text-sm text-gray-500">{getCandidatePosition(selectedCandidate)}</p></div>
                   </div>
                   <button onClick={() => setSelectedCandidate(null)} className="p-1.5 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
@@ -858,7 +858,7 @@ export default function RecruitmentPage() {
                   {getCandidateStage(selectedCandidate) !== 'hired' && getCandidateStage(selectedCandidate) !== 'rejected' && (
                     <>
                       <button onClick={() => handleAdvanceCandidate(selectedCandidate)}
-                        className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 flex items-center justify-center gap-1"><ChevronRight className="w-4 h-4" /> Majukan Stage</button>
+                        className="flex-1 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)] flex items-center justify-center gap-1"><ChevronRight className="w-4 h-4" /> Majukan Stage</button>
                       <button onClick={() => handleRejectCandidate(selectedCandidate)}
                         className="px-4 py-2 border border-red-300 text-red-600 rounded-lg text-sm hover:bg-red-50"><XCircle className="w-4 h-4" /></button>
                     </>
@@ -892,20 +892,20 @@ export default function RecruitmentPage() {
                 {selectedOpening.requirements && (
                   <div><p className="text-xs text-gray-500 mb-2">Persyaratan</p><p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg whitespace-pre-line">{selectedOpening.requirements}</p></div>
                 )}
-                <div className="flex items-center justify-between p-3 bg-indigo-50 rounded-lg">
-                  <div><p className="text-sm font-medium text-indigo-900">{selectedOpening.applicants || 0} Pelamar</p></div>
+                <div className="flex items-center justify-between p-3 bg-[var(--hf-brand-50)] rounded-lg">
+                  <div><p className="text-sm font-medium text-[color:var(--hf-brand-600)]">{selectedOpening.applicants || 0} Pelamar</p></div>
                   <div className="flex gap-2 flex-wrap justify-end">
                     {selectedOpening.status === 'open' && (
                       <button
                         onClick={() => publishToPortals(selectedOpening.id)}
                         disabled={publishing}
-                        className="text-xs px-3 py-1.5 bg-violet-600 text-white rounded-lg hover:bg-violet-700 disabled:opacity-50 flex items-center gap-1"
+                        className="text-xs px-3 py-1.5 bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)] disabled:opacity-50 flex items-center gap-1"
                       >
                         {publishing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Globe className="w-3 h-3" />}
                         Publish ke portal
                       </button>
                     )}
-                    <button onClick={() => { setSelectedOpening(null); setTab('candidates'); }} className="text-xs px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Lihat Kandidat</button>
+                    <button onClick={() => { setSelectedOpening(null); setTab('candidates'); }} className="text-xs px-3 py-1.5 bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)]">Lihat Kandidat</button>
                     <button onClick={() => handleDeleteOpening(selectedOpening.id)} className="text-xs px-3 py-1.5 border border-red-300 text-red-600 rounded-lg hover:bg-red-50">Hapus</button>
                   </div>
                 </div>

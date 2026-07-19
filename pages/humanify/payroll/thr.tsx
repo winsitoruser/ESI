@@ -122,7 +122,7 @@ export default function THRPage() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {[
             { label: 'Eligible', value: eligible.length, icon: CheckCircle, bg: 'bg-green-100', color: 'text-green-600' },
-            { label: 'Prorata', value: prorata.length, icon: Clock, bg: 'bg-violet-100', color: 'text-violet-600' },
+            { label: 'Prorata', value: prorata.length, icon: Clock, bg: 'bg-[var(--hf-brand-100)]', color: 'text-[color:var(--hf-brand-600)]' },
             { label: 'Tidak Eligible', value: notEligible.length, icon: AlertCircle, bg: 'bg-red-100', color: 'text-red-600' },
             { label: 'Total Karyawan', value: items.length, icon: Users, bg: 'bg-purple-100', color: 'text-purple-600' },
             { label: 'Total THR', value: totalTHR, icon: Gift, bg: 'bg-amber-100', color: 'text-amber-600', fmt: true },
@@ -139,7 +139,7 @@ export default function THRPage() {
         <div className="bg-white rounded-xl shadow-sm border">
           <div className="flex border-b">
             {[{ key: 'list', label: 'Daftar THR', icon: FileText }, { key: 'config', label: 'Konfigurasi', icon: Settings }].map(tab => (
-              <button key={tab.key} onClick={() => setActiveTab(tab.key as any)} className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 ${activeTab === tab.key ? 'border-violet-600 text-violet-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}><tab.icon className="w-4 h-4" />{tab.label}</button>
+              <button key={tab.key} onClick={() => setActiveTab(tab.key as any)} className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 ${activeTab === tab.key ? 'border-[var(--hf-brand-600)] text-[color:var(--hf-brand-600)]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}><tab.icon className="w-4 h-4" />{tab.label}</button>
             ))}
           </div>
 
@@ -154,7 +154,7 @@ export default function THRPage() {
               <div className="flex items-center gap-4">
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={config.includeAllowances} onChange={e => setConfig(c => ({ ...c, includeAllowances: e.target.checked }))} className="rounded" /> Sertakan Tunjangan Tetap</label>
               </div>
-              <div className="bg-violet-50 border border-violet-200 rounded-lg p-4 text-sm text-violet-800 space-y-1">
+              <div className="bg-[var(--hf-brand-50)] border border-[var(--hf-brand-100)] rounded-lg p-4 text-sm text-[color:var(--hf-brand-600)] space-y-1">
                 <p className="font-semibold">Aturan Perhitungan THR (PP No. 36/2021):</p>
                 <p>• Masa kerja ≥ 12 bulan: THR = 1 bulan gaji</p>
                 <p>• Masa kerja 1-12 bulan: THR = masa kerja / 12 × gaji</p>
@@ -162,7 +162,7 @@ export default function THRPage() {
                 <p>• Gaji = Gaji pokok + tunjangan tetap</p>
                 <p>• THR dibayar paling lambat 7 hari sebelum hari raya</p>
               </div>
-              <button onClick={handleCalculate} className="flex items-center gap-2 px-6 py-3 bg-violet-600 text-white rounded-lg hover:bg-violet-700 font-medium"><Calculator className="w-4 h-4" /> Hitung THR</button>
+              <button onClick={handleCalculate} className="flex items-center gap-2 px-6 py-3 bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)] font-medium"><Calculator className="w-4 h-4" /> Hitung THR</button>
             </div>
           )}
 
@@ -201,7 +201,7 @@ export default function THRPage() {
                         <td className="px-4 py-3 text-right text-sm text-gray-600">{fmtCurrency(item.allowances)}</td>
                         <td className="px-4 py-3 text-right text-sm font-bold text-green-600">{item.thr_amount > 0 ? fmtCurrency(item.thr_amount) : '-'}</td>
                         <td className="px-4 py-3 text-xs text-gray-500">{item.calculation}</td>
-                        <td className="px-4 py-3 text-center"><span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${item.status === 'eligible' ? 'bg-green-100 text-green-700' : item.status === 'prorata' ? 'bg-violet-100 text-violet-700' : 'bg-red-100 text-red-700'}`}>{item.status === 'eligible' ? 'Penuh' : item.status === 'prorata' ? 'Prorata' : 'Tidak Eligible'}</span></td>
+                        <td className="px-4 py-3 text-center"><span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${item.status === 'eligible' ? 'bg-green-100 text-green-700' : item.status === 'prorata' ? 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]' : 'bg-red-100 text-red-700'}`}>{item.status === 'eligible' ? 'Penuh' : item.status === 'prorata' ? 'Prorata' : 'Tidak Eligible'}</span></td>
                       </tr>
                     ))}
                   </tbody>

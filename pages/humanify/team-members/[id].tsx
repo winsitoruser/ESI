@@ -203,7 +203,7 @@ export default function TeamMemberDetailPage() {
       <HumanifyLayout>
         <div className="p-6 flex items-center justify-center h-64">
           <div className="flex items-center gap-2 text-gray-500">
-            <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-5 h-5 border-2 border-[var(--hf-brand-100)] border-t-transparent rounded-full animate-spin" />
             Loading member...
           </div>
         </div>
@@ -223,7 +223,7 @@ export default function TeamMemberDetailPage() {
             <h2 className="text-lg font-semibold text-red-700 mb-1">Error Loading Member</h2>
             <p className="text-sm text-red-600 mb-4">{error}</p>
             <Link href="/humanify/team-members"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)]">
               <ArrowLeft className="w-4 h-4" /> Kembali ke Daftar Anggota
             </Link>
           </div>
@@ -244,7 +244,7 @@ export default function TeamMemberDetailPage() {
             <div className="flex items-center gap-2">
               <DataSourceBadge source={dataSource} />
               <Link href={`/humanify/team-members/${member.id}?edit=true`}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+                className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)]">
                 Edit Member
               </Link>
             </div>
@@ -252,8 +252,8 @@ export default function TeamMemberDetailPage() {
 
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <div className="flex items-start gap-4">
-              <div className="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center">
-                <span className="text-xl font-bold text-indigo-600">
+              <div className="w-16 h-16 rounded-full bg-[var(--hf-brand-100)] flex items-center justify-center">
+                <span className="text-xl font-bold text-[color:var(--hf-brand-600)]">
                   {member.name?.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()}
                 </span>
               </div>
@@ -351,7 +351,7 @@ export default function TeamMemberDetailPage() {
                   return (
                     <button key={r.value} type="button" onClick={() => updateField('role', r.value)}
                       className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${
-                        selected ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                        selected ? 'border-[var(--hf-brand-100)] bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)]' : 'border-gray-200 hover:border-gray-300 text-gray-600'
                       }`}>
                       <Icon className="w-5 h-5" />
                       <span className="text-xs font-medium">{r.label}</span>
@@ -365,25 +365,25 @@ export default function TeamMemberDetailPage() {
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap *</label>
                 <input type="text" value={form.name} onChange={e => updateField('name', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--hf-brand-500)] disabled:bg-gray-50"
                   placeholder="e.g., Andi Pratama" required readOnly={form.linkedFromMaster} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                 <input type="email" value={form.email} onChange={e => updateField('email', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--hf-brand-500)] disabled:bg-gray-50"
                   placeholder="email@simesi.co.id" readOnly={form.linkedFromMaster} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
                 <input type="text" value={form.phone} onChange={e => updateField('phone', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--hf-brand-500)]"
                   placeholder="0812xxxxxxx" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Departemen</label>
                 <select value={form.department} onChange={e => updateField('department', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--hf-brand-500)]">
                   <option value="">Pilih departemen</option>
                   {HRIS_DEPARTMENTS.map(d => <option key={d.code} value={d.code}>{d.label}</option>)}
                 </select>
@@ -391,18 +391,18 @@ export default function TeamMemberDetailPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Bergabung</label>
                 <input type="date" value={form.joinDate} onChange={e => updateField('joinDate', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--hf-brand-500)]" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Lokasi / Cabang</label>
                 <input type="text" value={form.location} onChange={e => updateField('location', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--hf-brand-500)]"
                   placeholder="e.g., Jakarta, Kantor Pusat" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Area Kerja</label>
                 <select value={form.workArea} onChange={e => updateField('workArea', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--hf-brand-500)]">
                   {HRIS_TEAM_WORK_AREAS.map(w => (
                     <option key={w.code} value={w.code}>{w.label}</option>
                   ))}
@@ -415,7 +415,7 @@ export default function TeamMemberDetailPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
                 <select value={form.status} onChange={e => updateField('status', e.target.value as MemberStatus)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--hf-brand-500)]">
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                   <option value="resigned">Resigned</option>
@@ -427,7 +427,7 @@ export default function TeamMemberDetailPage() {
               <Link href={isNew ? '/humanify/team-members' : `/humanify/team-members/${id}`}
                 className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900">Cancel</Link>
               <button type="submit" disabled={saving || !form.name}
-                className="inline-flex items-center gap-2 px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                className="inline-flex items-center gap-2 px-6 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)] disabled:opacity-50 disabled:cursor-not-allowed">
                 {saving ? (
                   <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Saving...</>
                 ) : (

@@ -22,9 +22,9 @@ export default function LmsAccessPage() {
       <HumanifyLayout title={t('hris.lmsAccess')} subtitle="Manajemen pengguna LMS dan hak akses role">
         <LmsPageNav active="access" />
 
-        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 mb-6 text-sm">
-          <p className="flex items-center gap-2"><Shield className="w-4 h-4 text-indigo-600" /> Permission LMS dikelola melalui <strong>Role & Akses</strong>. Gunakan modul <code>lms.*</code> untuk mengatur hak admin, penilai, dan instruktur.</p>
-          <Link href="/humanify/users/roles" className="inline-flex items-center gap-1 mt-2 text-indigo-700 hover:underline">
+        <div className="bg-[var(--hf-brand-50)] border border-[var(--hf-brand-100)] rounded-xl p-4 mb-6 text-sm">
+          <p className="flex items-center gap-2"><Shield className="w-4 h-4 text-[color:var(--hf-brand-600)]" /> Permission LMS dikelola melalui <strong>Role & Akses</strong>. Gunakan modul <code>lms.*</code> untuk mengatur hak admin, penilai, dan instruktur.</p>
+          <Link href="/humanify/users/roles" className="inline-flex items-center gap-1 mt-2 text-[color:var(--hf-brand)] hover:underline">
             Buka Manajemen Role <ExternalLink className="w-3 h-3" />
           </Link>
         </div>

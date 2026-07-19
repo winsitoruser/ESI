@@ -53,7 +53,7 @@ export default function LmsAiAssistantPage() {
               value={sopText}
               onChange={(e) => setSopText(e.target.value)}
             />
-            <button type="button" disabled={loading || sopText.length < 50} onClick={generate} className="w-full py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50">
+            <button type="button" disabled={loading || sopText.length < 50} onClick={generate} className="w-full py-2 bg-[var(--hf-brand-600)] text-white rounded-lg disabled:opacity-50">
               {loading ? 'Memproses...' : 'Generate 5 Soal'}
             </button>
             {questions.length > 0 && (
@@ -66,7 +66,7 @@ export default function LmsAiAssistantPage() {
                     </div>
                   ))}
                 </div>
-                <button type="button" onClick={importBank} className="w-full py-2 border border-indigo-600 text-indigo-600 rounded-lg flex items-center justify-center gap-1">
+                <button type="button" onClick={importBank} className="w-full py-2 border border-[var(--hf-brand-600)] text-[color:var(--hf-brand-600)] rounded-lg flex items-center justify-center gap-1">
                   <Upload className="w-4 h-4" /> Impor ke Bank Soal
                 </button>
               </>

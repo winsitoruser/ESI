@@ -62,20 +62,20 @@ export default function LmsAcademyPage() {
             <input className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Logo URL" value={settings.logo_url || ''} onChange={(e) => setSettings({ ...settings, logo_url: e.target.value })} />
             <input className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Warna utama (#4f46e5)" value={settings.primary_color || '#4f46e5'} onChange={(e) => setSettings({ ...settings, primary_color: e.target.value })} />
             <textarea className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Pesan selamat datang" value={settings.welcome_message || ''} onChange={(e) => setSettings({ ...settings, welcome_message: e.target.value })} />
-            <button type="button" onClick={saveSettings} className="w-full py-2 bg-indigo-600 text-white rounded-lg text-sm">Simpan Branding</button>
+            <button type="button" onClick={saveSettings} className="w-full py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm">Simpan Branding</button>
           </div>
 
           <div className="bg-white border rounded-xl p-5">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-semibold flex items-center gap-2"><Users className="w-5 h-5" /> Peserta Eksternal</h3>
-              <button type="button" onClick={() => setModal(true)} className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-sm">Undang</button>
+              <button type="button" onClick={() => setModal(true)} className="px-3 py-1.5 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm">Undang</button>
             </div>
             <div className="space-y-2 max-h-80 overflow-y-auto">
               {learners.map((l) => (
                 <div key={l.id} className="border rounded-lg p-3 text-sm">
                   <p className="font-medium">{l.full_name} — {l.email}</p>
                   <p className="text-gray-500 capitalize">{l.learner_type} · {l.status}</p>
-                  <p className="text-xs text-indigo-600 truncate">/learn/{l.access_token?.slice(0, 12)}...</p>
+                  <p className="text-xs text-[color:var(--hf-brand-600)] truncate">/learn/{l.access_token?.slice(0, 12)}...</p>
                 </div>
               ))}
               {!learners.length && <p className="text-gray-400 text-sm">Belum ada peserta eksternal</p>}
@@ -97,7 +97,7 @@ export default function LmsAcademyPage() {
               <option value="">Pilih kursus (opsional)</option>
               {courses.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
             </select>
-            <button type="button" onClick={sendInvite} className="w-full py-2 bg-indigo-600 text-white rounded-lg">Kirim Undangan</button>
+            <button type="button" onClick={sendInvite} className="w-full py-2 bg-[var(--hf-brand-600)] text-white rounded-lg">Kirim Undangan</button>
           </div>
         </Modal>
       </HumanifyLayout>

@@ -83,10 +83,10 @@ export default function EmployeesImportPage() {
           <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h3 className="font-semibold text-slate-900 flex items-center gap-2">
-                <FileText className="w-4 h-4 text-violet-600" /> Data CSV
+                <FileText className="w-4 h-4 text-[color:var(--hf-brand-600)]" /> Data CSV
               </h3>
               <div className="flex items-center gap-2">
-                <button type="button" onClick={downloadTemplate} className="inline-flex items-center gap-1.5 text-sm text-violet-600 hover:underline">
+                <button type="button" onClick={downloadTemplate} className="inline-flex items-center gap-1.5 text-sm text-[color:var(--hf-brand-600)] hover:underline">
                   <Download className="w-4 h-4" /> Template
                 </button>
                 <label className="inline-flex items-center gap-1.5 text-sm text-slate-600 border border-slate-300 rounded-lg px-3 py-1.5 cursor-pointer hover:bg-slate-50">
@@ -121,7 +121,7 @@ export default function EmployeesImportPage() {
                 type="button"
                 disabled={busy !== null || !summary}
                 onClick={() => run(false)}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--hf-brand-600)] text-white text-sm font-semibold hover:bg-[var(--hf-brand)] disabled:opacity-50"
               >
                 {busy === 'import' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} Impor sekarang
               </button>
@@ -179,7 +179,7 @@ export default function EmployeesImportPage() {
               )}
 
               {wasDryRun && summary.results.some((r: any) => r.status === 'ok') && (
-                <div className="flex items-start gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900">
+                <div className="flex items-start gap-2 rounded-xl border border-[var(--hf-brand-100)] bg-[var(--hf-brand-50)] px-4 py-3 text-sm text-[color:var(--hf-brand-600)]">
                   <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                   <span>Pratinjau OK. Klik <strong>Impor sekarang</strong> untuk menyimpan {summary.results.filter((r: any) => r.status === 'ok').length} karyawan.</span>
                 </div>

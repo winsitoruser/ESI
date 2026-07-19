@@ -439,7 +439,7 @@ export default function EmployeeManagementPage() {
       header: t('hris.employee'),
       render: (emp) => (
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 font-bold text-sm">
+          <div className="w-9 h-9 rounded-full bg-[var(--hf-brand-100)] flex items-center justify-center text-[color:var(--hf-brand-600)] font-bold text-sm">
             {(emp.name || '?')[0]}
           </div>
           <div>
@@ -510,7 +510,7 @@ export default function EmployeeManagementPage() {
         <button 
           onClick={(e) => { e.stopPropagation(); fetchDetail(emp.id); }}
           aria-label={`Lihat detail karyawan ${emp.name || ''}`}
-          className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded"
+          className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded"
           title={`Lihat detail: ${emp.name || ''}`}
         >
           <Eye className="w-4 h-4" aria-hidden="true" />
@@ -541,7 +541,7 @@ export default function EmployeeManagementPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-              <Users className="w-6 h-6 text-violet-600" /> {t('hris.employeeDbTitle')}
+              <Users className="w-6 h-6 text-[color:var(--hf-brand-600)]" /> {t('hris.employeeDbTitle')}
             </h1>
             <p className="text-sm text-gray-500 mt-0.5">{t('hris.employeeDbSubtitle')}</p>
           </div>
@@ -552,7 +552,7 @@ export default function EmployeeManagementPage() {
                 <CanAccess permission="employees.create">
                   <button
                     onClick={() => setShowCreateModal(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 text-sm font-medium"
+                    className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)] text-sm font-medium"
                   >
                     <Plus className="w-4 h-4" /> Tambah Karyawan
                   </button>
@@ -633,14 +633,14 @@ export default function EmployeeManagementPage() {
                     <button
                       type="button"
                       onClick={() => setListView('table')}
-                      className={`flex items-center gap-1.5 px-3 py-2 ${listView === 'table' ? 'bg-violet-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                      className={`flex items-center gap-1.5 px-3 py-2 ${listView === 'table' ? 'bg-[var(--hf-brand-600)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
                     >
                       <Users className="w-4 h-4" /> Daftar
                     </button>
                     <button
                       type="button"
                       onClick={() => setListView('genealogy')}
-                      className={`flex items-center gap-1.5 px-3 py-2 border-l ${listView === 'genealogy' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                      className={`flex items-center gap-1.5 px-3 py-2 border-l ${listView === 'genealogy' ? 'bg-[var(--hf-brand-600)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
                     >
                       <Network className="w-4 h-4" /> Genealogi
                     </button>
@@ -661,8 +661,8 @@ export default function EmployeeManagementPage() {
             ) : (
             <>
             {(selectedIds.size > 0 || lastBulkBatchId) && (
-              <div className="bg-violet-50 border border-violet-200 rounded-xl p-3 flex flex-wrap items-end gap-3">
-                <p className="text-sm text-violet-900 font-medium w-full md:w-auto">
+              <div className="bg-[var(--hf-brand-50)] border border-[var(--hf-brand-100)] rounded-xl p-3 flex flex-wrap items-end gap-3">
+                <p className="text-sm text-[color:var(--hf-brand-600)] font-medium w-full md:w-auto">
                   {selectedIds.size > 0 ? `${selectedIds.size} dipilih` : 'Undo tersedia'}
                 </p>
                 {selectedIds.size > 0 && (
@@ -703,7 +703,7 @@ export default function EmployeeManagementPage() {
                         type="button"
                         disabled={bulkLoading}
                         onClick={applyBulkEdit}
-                        className="px-3 py-1.5 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 disabled:opacity-50"
+                        className="px-3 py-1.5 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm font-medium hover:bg-[var(--hf-brand)] disabled:opacity-50"
                       >
                         Terapkan
                       </button>
@@ -817,7 +817,7 @@ export default function EmployeeManagementPage() {
             {/* Employee Header Card */}
             <div className="bg-white rounded-xl border p-5">
               <div className="flex items-start gap-4">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white font-bold text-2xl flex-shrink-0">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[var(--hf-brand-500)] to-[var(--hf-brand-600)] flex items-center justify-center text-white font-bold text-2xl flex-shrink-0">
                   {(selectedEmployee.name || '?')[0]}
                 </div>
                 <div className="flex-1">
@@ -863,7 +863,7 @@ export default function EmployeeManagementPage() {
                   ] as { key: DetailTab; label: string; icon: any }[]).map(tab => (
                     <button key={tab.key} onClick={() => setDetailTab(tab.key)}
                       className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                        detailTab === tab.key ? 'border-violet-600 text-violet-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                        detailTab === tab.key ? 'border-[var(--hf-brand-600)] text-[color:var(--hf-brand-600)]' : 'border-transparent text-gray-500 hover:text-gray-700'
                       }`}>
                       <tab.icon className="w-4 h-4" /> {tab.label}
                       {tab.key === 'family' && selectedEmployee.families?.length > 0 && (
@@ -901,7 +901,7 @@ export default function EmployeeManagementPage() {
                         ) : (
                           <div className="flex gap-2">
                             <button onClick={() => setEditMode(false)} className="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50">{t('hris.cancel')}</button>
-                            <button onClick={savePersonal} className="flex items-center gap-1 px-3 py-1.5 text-sm bg-violet-600 text-white rounded-lg hover:bg-violet-700">
+                            <button onClick={savePersonal} className="flex items-center gap-1 px-3 py-1.5 text-sm bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)]">
                               <Save className="w-3.5 h-3.5" /> {t('hris.save')}
                             </button>
                           </div>
@@ -1049,7 +1049,7 @@ export default function EmployeeManagementPage() {
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="font-semibold text-gray-800">{t('hris.familyData')}</h3>
                       <button onClick={() => openSubModal('family')}
-                        className="flex items-center gap-1 px-3 py-1.5 text-sm bg-violet-600 text-white rounded-lg hover:bg-violet-700">
+                        className="flex items-center gap-1 px-3 py-1.5 text-sm bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)]">
                         <Plus className="w-3.5 h-3.5" /> {t('hris.add')}
                       </button>
                     </div>
@@ -1067,11 +1067,11 @@ export default function EmployeeManagementPage() {
                                 {f.phone_number && <p className="text-xs text-gray-400">Telp: {f.phone_number}</p>}
                                 <div className="flex gap-2 mt-1">
                                   {f.is_emergency_contact && <span className="px-2 py-0.5 bg-red-50 text-red-600 text-[10px] rounded-full">Kontak Darurat</span>}
-                                  {f.is_dependent && <span className="px-2 py-0.5 bg-violet-50 text-violet-600 text-[10px] rounded-full">Tanggungan</span>}
+                                  {f.is_dependent && <span className="px-2 py-0.5 bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)] text-[10px] rounded-full">Tanggungan</span>}
                                 </div>
                               </div>
                               <div className="flex gap-1">
-                                <button onClick={() => openSubModal('family', f)} className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded"><Edit className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => openSubModal('family', f)} className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded"><Edit className="w-3.5 h-3.5" /></button>
                                 <button onClick={() => deleteSubData('family', f.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
                               </div>
                             </div>
@@ -1088,7 +1088,7 @@ export default function EmployeeManagementPage() {
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="font-semibold text-gray-800">{t('hris.educationHistory')}</h3>
                       <button onClick={() => openSubModal('education')}
-                        className="flex items-center gap-1 px-3 py-1.5 text-sm bg-violet-600 text-white rounded-lg hover:bg-violet-700">
+                        className="flex items-center gap-1 px-3 py-1.5 text-sm bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)]">
                         <Plus className="w-3.5 h-3.5" /> {t('hris.add')}
                       </button>
                     </div>
@@ -1101,7 +1101,7 @@ export default function EmployeeManagementPage() {
                             <div className="flex items-start justify-between">
                               <div>
                                 <div className="flex items-center gap-2">
-                                  <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs rounded font-medium">{e.level}</span>
+                                  <span className="px-2 py-0.5 bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)] text-xs rounded font-medium">{e.level}</span>
                                   <p className="font-medium text-gray-800">{e.institution}</p>
                                   {e.is_highest && <span className="px-1.5 py-0.5 bg-yellow-50 text-yellow-700 text-[10px] rounded-full">Tertinggi</span>}
                                 </div>
@@ -1109,7 +1109,7 @@ export default function EmployeeManagementPage() {
                                 <p className="text-xs text-gray-400">{e.start_year || '?'} - {e.end_year || 'sekarang'} {e.gpa ? `• IPK: ${e.gpa}` : ''}</p>
                               </div>
                               <div className="flex gap-1">
-                                <button onClick={() => openSubModal('education', e)} className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded"><Edit className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => openSubModal('education', e)} className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded"><Edit className="w-3.5 h-3.5" /></button>
                                 <button onClick={() => deleteSubData('education', e.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
                               </div>
                             </div>
@@ -1126,7 +1126,7 @@ export default function EmployeeManagementPage() {
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="font-semibold text-gray-800">{t('hris.certificationLicense')}</h3>
                       <button onClick={() => openSubModal('certification')}
-                        className="flex items-center gap-1 px-3 py-1.5 text-sm bg-violet-600 text-white rounded-lg hover:bg-violet-700">
+                        className="flex items-center gap-1 px-3 py-1.5 text-sm bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)]">
                         <Plus className="w-3.5 h-3.5" /> {t('hris.add')}
                       </button>
                     </div>
@@ -1151,7 +1151,7 @@ export default function EmployeeManagementPage() {
                                 ) : (
                                   <span className="px-2 py-0.5 bg-green-50 text-green-600 text-[10px] rounded-full">Aktif</span>
                                 )}
-                                <button onClick={() => openSubModal('certification', c)} className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded"><Edit className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => openSubModal('certification', c)} className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded"><Edit className="w-3.5 h-3.5" /></button>
                                 <button onClick={() => deleteSubData('certification', c.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
                               </div>
                             </div>
@@ -1168,7 +1168,7 @@ export default function EmployeeManagementPage() {
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="font-semibold text-gray-800">{t('hris.workExperience')}</h3>
                       <button onClick={() => openSubModal('experience')}
-                        className="flex items-center gap-1 px-3 py-1.5 text-sm bg-violet-600 text-white rounded-lg hover:bg-violet-700">
+                        className="flex items-center gap-1 px-3 py-1.5 text-sm bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)]">
                         <Plus className="w-3.5 h-3.5" /> {t('hris.add')}
                       </button>
                     </div>
@@ -1188,7 +1188,7 @@ export default function EmployeeManagementPage() {
                                 {e.description && <p className="text-xs text-gray-500 mt-1">{e.description}</p>}
                               </div>
                               <div className="flex gap-1">
-                                <button onClick={() => openSubModal('experience', e)} className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded"><Edit className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => openSubModal('experience', e)} className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded"><Edit className="w-3.5 h-3.5" /></button>
                                 <button onClick={() => deleteSubData('experience', e.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
                               </div>
                             </div>
@@ -1217,7 +1217,7 @@ export default function EmployeeManagementPage() {
                       <h3 className="font-semibold text-gray-800">{t('hris.contractHistory')}</h3>
                       <CanAccess permission="employees.update">
                         <button onClick={() => openSubModal('contract')}
-                          className="flex items-center gap-1 px-3 py-1.5 text-sm bg-violet-600 text-white rounded-lg hover:bg-violet-700">
+                          className="flex items-center gap-1 px-3 py-1.5 text-sm bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)]">
                           <Plus className="w-3.5 h-3.5" /> {t('hris.add')}
                         </button>
                       </CanAccess>
@@ -1231,7 +1231,7 @@ export default function EmployeeManagementPage() {
                             <div className="flex items-start justify-between">
                               <div>
                                 <div className="flex items-center gap-2">
-                                  <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs rounded font-medium">{c.contract_type}</span>
+                                  <span className="px-2 py-0.5 bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)] text-xs rounded font-medium">{c.contract_type}</span>
                                   {statusBadge(c.status)}
                                   {c.renewal_count > 0 && <span className="text-[10px] text-gray-400">Perpanjangan ke-{c.renewal_count}</span>}
                                 </div>
@@ -1251,7 +1251,7 @@ export default function EmployeeManagementPage() {
                               </div>
                               <div className="flex gap-1">
                                 <CanAccess permission="employees.update">
-                                  <button onClick={() => openSubModal('contract', c)} className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded"><Edit className="w-3.5 h-3.5" /></button>
+                                  <button onClick={() => openSubModal('contract', c)} className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded"><Edit className="w-3.5 h-3.5" /></button>
                                 </CanAccess>
                                 <CanAccess permission="employees.delete">
                                   <button onClick={() => deleteSubData('contract', c.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
@@ -1281,7 +1281,7 @@ export default function EmployeeManagementPage() {
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="font-semibold text-gray-800">Riwayat Mutasi & Penugasan</h3>
                       <a href={`/humanify/mutations`}
-                        className="flex items-center gap-1 px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+                        className="flex items-center gap-1 px-3 py-1.5 text-sm bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)]">
                         <Plus className="w-3.5 h-3.5" /> Ajukan Baru
                       </a>
                     </div>
@@ -1300,7 +1300,7 @@ export default function EmployeeManagementPage() {
                             className="block border rounded-lg p-4 hover:bg-gray-50">
                             <div className="flex items-center justify-between">
                               <div>
-                                <span className="font-mono text-xs text-indigo-600">{m.mutation_number}</span>
+                                <span className="font-mono text-xs text-[color:var(--hf-brand-600)]">{m.mutation_number}</span>
                                 <p className="text-sm font-medium text-gray-800 mt-0.5">
                                   {m.mutation_type} — {m.from_department || m.from_branch_name} → {m.to_department || m.to_branch_name || m.to_position}
                                 </p>
@@ -1335,7 +1335,7 @@ export default function EmployeeManagementPage() {
               </button>
             </div>
             <div className="p-6 space-y-4">
-              <p className="text-xs text-gray-500 bg-violet-50 border border-violet-100 rounded-lg px-3 py-2">
+              <p className="text-xs text-gray-500 bg-[var(--hf-brand-50)] border border-[var(--hf-brand-50)] rounded-lg px-3 py-2">
                 UID karyawan (contoh EMP-001) akan digenerate otomatis setelah data disimpan.
               </p>
               <div>
@@ -1433,7 +1433,7 @@ export default function EmployeeManagementPage() {
               <button onClick={() => setShowCreateModal(false)}
                 className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">Batal</button>
               <button onClick={handleCreateEmployee} disabled={createLoading}
-                className="px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700 flex items-center gap-2">
+                className="px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)] flex items-center gap-2">
                 {createLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Simpan Karyawan
               </button>
@@ -1589,7 +1589,7 @@ export default function EmployeeManagementPage() {
             </div>
             <div className="flex justify-end gap-2 p-4 border-t sticky bottom-0 bg-white">
               <button onClick={() => setShowSubModal(false)} className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">{t('hris.cancel')}</button>
-              <button onClick={saveSubData} className="px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700">{t('hris.save')}</button>
+              <button onClick={saveSubData} className="px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]">{t('hris.save')}</button>
             </div>
           </div>
         </div>

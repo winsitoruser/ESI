@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 
 const BANKS = [
-  { id: 'bca', label: 'BCA (Auto Credit)', color: 'bg-violet-600' },
+  { id: 'bca', label: 'BCA (Auto Credit)', color: 'bg-[var(--hf-brand-600)]' },
   { id: 'mandiri', label: 'Mandiri (MCM)', color: 'bg-yellow-500' },
   { id: 'generic', label: 'CSV Generic', color: 'bg-gray-600' },
 ];

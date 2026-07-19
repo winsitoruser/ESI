@@ -41,5 +41,14 @@ if (/NODE_ENV === 'production'/.test(src) || /NODE_ENV !== 'production'/.test(sr
   ok('data-source.ts present');
 } else fail('data-source.ts missing guard');
 
+// SEC-S2-1: devices mutate paths must gate _mock
+const devices = fs.readFileSync(path.join(__dirname, '../pages/api/humanify/attendance/devices.ts'), 'utf8');
+const mockReturns = (devices.match(/_mock:\s*true/g) || []).length;
+const allowGates = (devices.match(/allowHrMockFallback\(\)/g) || []).length;
+if (mockReturns > 0 && allowGates >= mockReturns) ok('devices.ts every _mock behind allowHrMockFallback');
+else fail(`devices.ts mock/guard mismatch (_mock=${mockReturns}, allow=${allowGates})`);
+if (/dataSource:\s*'empty'/.test(devices) && /503/.test(devices)) ok('devices.ts prod empty/503 path');
+else fail('devices.ts missing prod empty/503');
+
 console.log(`\nRESULT: ${passed} passed / ${failed} failed`);
 process.exit(failed ? 1 : 0);

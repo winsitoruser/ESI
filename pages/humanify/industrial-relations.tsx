@@ -204,11 +204,11 @@ export default function IndustrialRelationsPage() {
   const statusColor = (s: string) => {
     const m: Record<string, string> = {
       active: 'bg-emerald-100 text-emerald-800', draft: 'bg-slate-100 text-slate-700',
-      expired: 'bg-red-100 text-red-800', reported: 'bg-violet-100 text-violet-800',
-      triage: 'bg-violet-100 text-violet-800', open: 'bg-sky-100 text-sky-800',
+      expired: 'bg-red-100 text-red-800', reported: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand-600)]',
+      triage: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand-600)]', open: 'bg-sky-100 text-sky-800',
       investigating: 'bg-amber-100 text-amber-800', mitigating: 'bg-orange-100 text-orange-800',
       resolved: 'bg-emerald-100 text-emerald-800', closed: 'bg-slate-100 text-slate-600',
-      pending: 'bg-amber-100 text-amber-800', in_progress: 'bg-indigo-100 text-indigo-800',
+      pending: 'bg-amber-100 text-amber-800', in_progress: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand-600)]',
       completed: 'bg-emerald-100 text-emerald-800', overdue: 'bg-red-100 text-red-800',
     };
     return m[s] || 'bg-slate-100 text-slate-700';
@@ -216,7 +216,7 @@ export default function IndustrialRelationsPage() {
 
   const priorityColor = (p: string) => {
     const m: Record<string, string> = {
-      low: 'bg-slate-100 text-slate-600', medium: 'bg-violet-100 text-violet-700',
+      low: 'bg-slate-100 text-slate-600', medium: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]',
       high: 'bg-orange-100 text-orange-700', critical: 'bg-red-100 text-red-700',
     };
     return m[p] || 'bg-slate-100 text-slate-600';
@@ -238,11 +238,11 @@ export default function IndustrialRelationsPage() {
   ];
 
   const kpiCards = [
-    { label: 'Peraturan Aktif', value: overview.activeRegulations, icon: FileText, color: 'from-indigo-500 to-indigo-600' },
+    { label: 'Peraturan Aktif', value: overview.activeRegulations, icon: FileText, color: 'from-[var(--hf-brand-600)] to-[var(--hf-brand-600)]' },
     { label: 'Skor Kepatuhan', value: `${overview.complianceScore || 0}%`, icon: TrendingUp, color: 'from-emerald-500 to-teal-600' },
     { label: 'Menunggu Tanda Terima', value: overview.pendingPolicyAcks || 0, icon: ClipboardCheck, color: 'from-sky-500 to-cyan-600' },
     { label: 'Insiden Terbuka', value: overview.openIncidents, icon: AlertCircle, color: 'from-amber-500 to-orange-600' },
-    { label: 'Dalam Investigasi', value: overview.investigatingIncidents, icon: Shield, color: 'from-violet-500 to-purple-600' },
+    { label: 'Dalam Investigasi', value: overview.investigatingIncidents, icon: Shield, color: 'from-[var(--hf-brand-500)] to-purple-600' },
   ];
 
   return (
@@ -256,11 +256,11 @@ export default function IndustrialRelationsPage() {
           )}
 
           {/* Hero */}
-          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white p-6 md:p-8 shadow-xl">
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-[var(--hf-brand-500)] to-slate-900 text-white p-6 md:p-8 shadow-xl">
             <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMzLjMxIDAgNiAyLjY5IDYgNnMtMi42OSA2LTYgNi02LTIuNjktNi02IDIuNjktNiA2LTZ6TTI0IDQyYzMuMzEgMCA2IDIuNjkgNiA2cy0yLjY5IDYtNiA2LTYtMi42OS02LTYgMi42OS02IDYtNnoiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLW9wYWNpdHk9Ii4wNSIvPjwvZz48L3N2Zz4=')] opacity-40" />
             <div className="relative flex flex-wrap items-start justify-between gap-4">
               <div className="max-w-2xl">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-xs font-medium text-indigo-200 mb-3">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-xs font-medium text-[color:var(--hf-brand-600)] mb-3">
                   <Scale className="w-3.5 h-3.5" /> Tata Kelola · Kepatuhan · Hubungan Industrial
                 </div>
                 <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Hubungan Industrial & Kepatuhan</h1>
@@ -274,7 +274,7 @@ export default function IndustrialRelationsPage() {
                 <button
                   type="button"
                   onClick={() => router.push('/humanify/disciplinary-letters')}
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white text-slate-900 text-sm font-semibold hover:bg-indigo-50 transition-colors shadow-lg"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white text-slate-900 text-sm font-semibold hover:bg-[var(--hf-brand-50)] transition-colors shadow-lg"
                 >
                   <Ban className="w-4 h-4 text-orange-600" />
                   Surat Disiplin (SP & PHK)
@@ -310,12 +310,12 @@ export default function IndustrialRelationsPage() {
                   type="button"
                   onClick={() => setTab(tb.key)}
                   className={`flex-1 min-w-[140px] px-4 py-4 text-left transition-colors border-b-2 ${
-                    tab === tb.key ? 'border-indigo-600 bg-indigo-50/50' : 'border-transparent hover:bg-slate-50'
+                    tab === tb.key ? 'border-[var(--hf-brand-600)] bg-[var(--hf-brand-50)]/50' : 'border-transparent hover:bg-slate-50'
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    <tb.icon className={`w-4 h-4 ${tab === tb.key ? 'text-indigo-600' : 'text-slate-400'}`} />
-                    <span className={`text-sm font-semibold ${tab === tb.key ? 'text-indigo-900' : 'text-slate-700'}`}>{tb.label}</span>
+                    <tb.icon className={`w-4 h-4 ${tab === tb.key ? 'text-[color:var(--hf-brand-600)]' : 'text-slate-400'}`} />
+                    <span className={`text-sm font-semibold ${tab === tb.key ? 'text-[color:var(--hf-brand-600)]' : 'text-slate-700'}`}>{tb.label}</span>
                   </div>
                   <p className="text-[11px] text-slate-400 mt-0.5 hidden sm:block">{tb.desc}</p>
                 </button>
@@ -331,19 +331,19 @@ export default function IndustrialRelationsPage() {
                   <div className="flex flex-wrap justify-between items-center gap-3">
                     <div className="relative flex-1 min-w-[200px] max-w-sm">
                       <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-                      <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari peraturan..." className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-100" />
+                      <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari peraturan..." className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[var(--hf-brand-500)]" />
                     </div>
-                    <button type="button" onClick={() => openAdd('regulation')} className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700">
+                    <button type="button" onClick={() => openAdd('regulation')} className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-xl text-sm font-medium hover:bg-[var(--hf-brand)]">
                       <Plus className="w-4 h-4" /> Tambah Peraturan
                     </button>
                   </div>
                   <div className="grid gap-3">
                     {regulations.filter((r) => !search || r.title.toLowerCase().includes(search.toLowerCase())).map((reg) => (
-                      <div key={reg.id} className="group rounded-xl border border-slate-100 p-4 hover:border-indigo-200 hover:shadow-sm transition-all bg-gradient-to-r from-white to-slate-50/50">
+                      <div key={reg.id} className="group rounded-xl border border-slate-100 p-4 hover:border-[var(--hf-brand-100)] hover:shadow-sm transition-all bg-gradient-to-r from-white to-slate-50/50">
                         <div className="flex justify-between gap-3">
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2 mb-1">
-                              <span className="text-xs font-mono text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-lg">{reg.regulation_number || '—'}</span>
+                              <span className="text-xs font-mono text-[color:var(--hf-brand)] bg-[var(--hf-brand-50)] px-2 py-0.5 rounded-lg">{reg.regulation_number || '—'}</span>
                               <span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(reg.status)}`}>{reg.status}</span>
                               <span className="text-xs text-slate-500">{CATEGORY_LABELS[reg.category] || reg.category}</span>
                             </div>
@@ -373,7 +373,7 @@ export default function IndustrialRelationsPage() {
                                 Publikasikan
                               </button>
                             )}
-                            <button type="button" onClick={() => { setEditingItem(reg); setRegForm({ title: reg.title, regulationNumber: reg.regulation_number, category: reg.category, description: reg.description || '', content: reg.content || '', effectiveDate: reg.effective_date || '', status: reg.status }); setModalType('regulation'); setShowModal(true); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"><Edit className="w-4 h-4" /></button>
+                            <button type="button" onClick={() => { setEditingItem(reg); setRegForm({ title: reg.title, regulationNumber: reg.regulation_number, category: reg.category, description: reg.description || '', content: reg.content || '', effectiveDate: reg.effective_date || '', status: reg.status }); setModalType('regulation'); setShowModal(true); }} className="p-2 text-slate-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded-lg"><Edit className="w-4 h-4" /></button>
                             <button type="button" onClick={() => handleDelete('regulation', reg.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
                           </div>
                         </div>
@@ -407,17 +407,17 @@ export default function IndustrialRelationsPage() {
                           <p className="text-sm text-slate-500">{cl.description}</p>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="text-3xl font-bold text-indigo-600">{Number(cl.completion_percent || 0).toFixed(0)}%</p>
+                          <p className="text-3xl font-bold text-[color:var(--hf-brand-600)]">{Number(cl.completion_percent || 0).toFixed(0)}%</p>
                           {cl.due_date && <p className="text-xs text-slate-400 mt-1">Deadline: {new Date(cl.due_date).toLocaleDateString('id-ID')}</p>}
                         </div>
                       </div>
                       <div className="w-full bg-slate-100 rounded-full h-2 mb-4">
-                        <div className="bg-gradient-to-r from-indigo-500 to-violet-500 h-2 rounded-full transition-all" style={{ width: `${cl.completion_percent || 0}%` }} />
+                        <div className="bg-gradient-to-r from-[var(--hf-brand-600)] to-[var(--hf-brand)] h-2 rounded-full transition-all" style={{ width: `${cl.completion_percent || 0}%` }} />
                       </div>
                       <div className="space-y-2">
                         {(cl.items || []).map((item: any, idx: number) => (
                           <div key={idx} className="flex items-center gap-3 text-sm">
-                            <button type="button" onClick={() => handleChecklistItem(cl.id, idx, item.status === 'completed' ? 'pending' : 'completed')} className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${item.status === 'completed' ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 hover:border-indigo-400'}`}>
+                            <button type="button" onClick={() => handleChecklistItem(cl.id, idx, item.status === 'completed' ? 'pending' : 'completed')} className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${item.status === 'completed' ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 hover:border-[var(--hf-brand-100)]'}`}>
                               {item.status === 'completed' && '✓'}
                             </button>
                             <span className={item.status === 'completed' ? 'line-through text-slate-400' : 'text-slate-700'}>{item.item || item.name}</span>
@@ -442,7 +442,7 @@ export default function IndustrialRelationsPage() {
                   <div className="rounded-xl border border-amber-100 bg-amber-50/60 px-4 py-3 text-sm text-amber-900">
                     <strong>Catatan:</strong> Insiden di sini mencakup event operasional, K3, pengaduan, dan mitigasi risiko IR.
                     Untuk <strong>surat peringatan, kasus disiplin karyawan, dan PHK</strong> gunakan modul{' '}
-                    <button type="button" onClick={() => router.push('/humanify/disciplinary-letters')} className="font-semibold text-indigo-700 hover:underline">
+                    <button type="button" onClick={() => router.push('/humanify/disciplinary-letters')} className="font-semibold text-[color:var(--hf-brand)] hover:underline">
                       Surat Disiplin & SOP →
                     </button>
                   </div>
@@ -481,7 +481,7 @@ export default function IndustrialRelationsPage() {
                           </div>
                         )}
                         <div className="flex gap-2 mt-4 pt-3 border-t border-slate-100">
-                          <button type="button" onClick={() => openEditIncident(inc)} className="text-xs px-3 py-1.5 text-indigo-700 bg-indigo-50 rounded-lg hover:bg-indigo-100 font-medium">Kelola & Update</button>
+                          <button type="button" onClick={() => openEditIncident(inc)} className="text-xs px-3 py-1.5 text-[color:var(--hf-brand)] bg-[var(--hf-brand-50)] rounded-lg hover:bg-[var(--hf-brand-100)] font-medium">Kelola & Update</button>
                           <button type="button" onClick={() => handleDelete('case', inc.id)} className="text-xs px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-lg">Hapus</button>
                         </div>
                       </div>
@@ -602,7 +602,7 @@ export default function IndustrialRelationsPage() {
             </div>
             <div className="flex justify-end gap-2 p-5 border-t border-slate-100">
               <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-slate-700 border rounded-xl hover:bg-slate-50">Batal</button>
-              <button type="button" onClick={handleSave} className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-medium">Simpan</button>
+              <button type="button" onClick={handleSave} className="px-4 py-2 text-sm bg-[var(--hf-brand-600)] text-white rounded-xl hover:bg-[var(--hf-brand)] font-medium">Simpan</button>
             </div>
           </div>
         </div>

@@ -178,7 +178,7 @@ export default function SlipGajiPage() {
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'Total Karyawan', value: filtered.length, icon: Users, bg: 'bg-violet-100', color: 'text-violet-600', fmt: false },
+            { label: 'Total Karyawan', value: filtered.length, icon: Users, bg: 'bg-[var(--hf-brand-100)]', color: 'text-[color:var(--hf-brand-600)]', fmt: false },
             { label: 'Total Gaji Kotor', value: totalGross, icon: TrendingUp, bg: 'bg-green-100', color: 'text-green-600', fmt: true },
             { label: 'Total Pajak', value: totalTax, icon: DollarSign, bg: 'bg-amber-100', color: 'text-amber-600', fmt: true },
             { label: 'Total Gaji Bersih', value: totalNet, icon: CreditCard, bg: 'bg-emerald-100', color: 'text-emerald-600', fmt: true },
@@ -241,7 +241,7 @@ export default function SlipGajiPage() {
                       <td className="px-4 py-3 text-right text-sm text-red-600">{fmtCurrency(p.total_deductions)}</td>
                       <td className="px-4 py-3 text-right text-sm text-amber-600">{fmtCurrency(p.tax_amount)}</td>
                       <td className="px-4 py-3 text-right text-sm font-bold text-green-600">{fmtCurrency(p.net_salary)}</td>
-                      <td className="px-4 py-3 text-center"><span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${p.run_status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-violet-100 text-violet-700'}`}>{p.run_status === 'paid' ? 'Dibayar' : 'Proses'}</span></td>
+                      <td className="px-4 py-3 text-center"><span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${p.run_status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]'}`}>{p.run_status === 'paid' ? 'Dibayar' : 'Proses'}</span></td>
                       <td className="px-4 py-3 text-center">
                         <button
                           onClick={() => {
@@ -251,7 +251,7 @@ export default function SlipGajiPage() {
                             }
                             setSelectedPayslip(p);
                           }}
-                          className="p-1.5 text-violet-600 hover:bg-violet-50 rounded"
+                          className="p-1.5 text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded"
                           title="Detail"
                         >
                           <Eye className="w-4 h-4" />

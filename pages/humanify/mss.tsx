@@ -120,7 +120,7 @@ export default function MSSPortalPage() {
   }, [activeTab, filterStatus]);
 
   const OT_TYPE_LABEL: Record<string, string> = { regular: 'Reguler', emergency: 'Darurat', project: 'Proyek' };
-  const DAY_TYPE_LABEL: Record<string, { label: string; color: string }> = { weekday: { label: 'Hari Kerja', color: 'bg-violet-50 text-violet-700' }, weekend: { label: 'Akhir Pekan', color: 'bg-purple-50 text-purple-700' }, holiday: { label: 'Hari Libur', color: 'bg-red-50 text-red-700' } };
+  const DAY_TYPE_LABEL: Record<string, { label: string; color: string }> = { weekday: { label: 'Hari Kerja', color: 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)]' }, weekend: { label: 'Akhir Pekan', color: 'bg-purple-50 text-purple-700' }, holiday: { label: 'Hari Libur', color: 'bg-red-50 text-red-700' } };
 
   const openApproval = (type: 'claim' | 'mutation' | 'overtime', item: any, action: 'approve' | 'reject') => {
     setApprovalType(type);
@@ -173,8 +173,8 @@ export default function MSSPortalPage() {
   const statusBadge = (status: string) => {
     const colors: Record<string, string> = {
       pending: 'bg-yellow-100 text-yellow-700', approved: 'bg-green-100 text-green-700',
-      rejected: 'bg-red-100 text-red-700', paid: 'bg-violet-100 text-violet-700',
-      executed: 'bg-indigo-100 text-indigo-700', cancelled: 'bg-gray-100 text-gray-600'
+      rejected: 'bg-red-100 text-red-700', paid: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]',
+      executed: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]', cancelled: 'bg-gray-100 text-gray-600'
     };
     return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${colors[status] || 'bg-gray-100 text-gray-600'}`}>{status}</span>;
   };
@@ -194,7 +194,7 @@ export default function MSSPortalPage() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-              <Shield className="w-6 h-6 text-violet-600" /> Manager Self Service (MSS)
+              <Shield className="w-6 h-6 text-[color:var(--hf-brand-600)]" /> Manager Self Service (MSS)
             </h1>
             <p className="text-sm text-gray-500 mt-0.5">Portal persetujuan dan pengelolaan tim</p>
           </div>
@@ -207,7 +207,7 @@ export default function MSSPortalPage() {
             { label: 'Klaim Tertunda', value: workflowSummary?.claims?.pending || 0, icon: Clock, color: 'text-yellow-600 bg-yellow-50' },
             { label: 'Mutasi Tertunda', value: workflowSummary?.mutations?.pending || 0, icon: ArrowRightLeft, color: 'text-orange-600 bg-orange-50' },
             { label: 'Klaim Disetujui', value: workflowSummary?.claims?.approved || 0, icon: CheckCircle, color: 'text-green-600 bg-green-50' },
-            { label: 'Mutasi Disetujui', value: workflowSummary?.mutations?.approved || 0, icon: CheckCircle, color: 'text-violet-600 bg-violet-50' },
+            { label: 'Mutasi Disetujui', value: workflowSummary?.mutations?.approved || 0, icon: CheckCircle, color: 'text-[color:var(--hf-brand-600)] bg-[var(--hf-brand-50)]' },
           ].map((card, i) => (
             <div key={i} className="bg-white rounded-xl border p-4">
               <div className="flex items-start justify-between">
@@ -233,7 +233,7 @@ export default function MSSPortalPage() {
               ] as { key: MSSTab; label: string; icon: any }[]).map(tab => (
                 <button key={tab.key} onClick={() => { setActiveTab(tab.key); setFilterStatus(''); }}
                   className={`flex items-center gap-1.5 px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                    activeTab === tab.key ? 'border-violet-600 text-violet-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                    activeTab === tab.key ? 'border-[var(--hf-brand-600)] text-[color:var(--hf-brand-600)]' : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}>
                   <tab.icon className="w-4 h-4" /> {tab.label}
                   {tab.key === 'claims-approval' && (workflowSummary?.claims?.pending || 0) > 0 && (
@@ -261,7 +261,7 @@ export default function MSSPortalPage() {
                       <h4 className="font-semibold text-gray-800 flex items-center gap-1.5">
                         <DollarSign className="w-4 h-4 text-yellow-600" /> Klaim Menunggu Persetujuan
                       </h4>
-                      <button onClick={() => setActiveTab('claims-approval')} className="text-xs text-violet-600 hover:underline flex items-center gap-0.5">
+                      <button onClick={() => setActiveTab('claims-approval')} className="text-xs text-[color:var(--hf-brand-600)] hover:underline flex items-center gap-0.5">
                         Lihat Semua <ChevronRight className="w-3 h-3" />
                       </button>
                     </div>
@@ -275,7 +275,7 @@ export default function MSSPortalPage() {
                       <h4 className="font-semibold text-gray-800 flex items-center gap-1.5">
                         <ArrowRightLeft className="w-4 h-4 text-orange-600" /> Mutasi Menunggu Persetujuan
                       </h4>
-                      <button onClick={() => setActiveTab('mutations-approval')} className="text-xs text-violet-600 hover:underline flex items-center gap-0.5">
+                      <button onClick={() => setActiveTab('mutations-approval')} className="text-xs text-[color:var(--hf-brand-600)] hover:underline flex items-center gap-0.5">
                         Lihat Semua <ChevronRight className="w-3 h-3" />
                       </button>
                     </div>
@@ -379,7 +379,7 @@ export default function MSSPortalPage() {
                                     const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
                                     return (
                                       <a key={i} href={url} target="_blank" rel="noopener noreferrer"
-                                        className="flex items-center gap-1.5 px-2 py-1.5 bg-gray-50 border rounded-lg hover:bg-violet-50 hover:border-violet-200 transition-colors group">
+                                        className="flex items-center gap-1.5 px-2 py-1.5 bg-gray-50 border rounded-lg hover:bg-[var(--hf-brand-50)] hover:border-[var(--hf-brand-100)] transition-colors group">
                                         {isImage ? (
                                           <img src={url} alt="" className="w-10 h-10 rounded object-cover border" />
                                         ) : (
@@ -388,7 +388,7 @@ export default function MSSPortalPage() {
                                           </div>
                                         )}
                                         <div>
-                                          <p className="text-[10px] text-gray-600 group-hover:text-violet-600">{isImage ? 'Foto' : 'PDF'} {i + 1}</p>
+                                          <p className="text-[10px] text-gray-600 group-hover:text-[color:var(--hf-brand-600)]">{isImage ? 'Foto' : 'PDF'} {i + 1}</p>
                                           <p className="text-[9px] text-gray-400">Klik untuk buka</p>
                                         </div>
                                       </a>
@@ -447,7 +447,7 @@ export default function MSSPortalPage() {
                             <div className="flex items-center gap-2">
                               <span className="font-medium text-gray-800">{m.mutation_number}</span>
                               {statusBadge(m.status)}
-                              <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-[10px] rounded font-medium">{m.mutation_type}</span>
+                              <span className="px-2 py-0.5 bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)] text-[10px] rounded font-medium">{m.mutation_type}</span>
                             </div>
                             <p className="text-sm text-gray-600 mt-1">{m.employee_name} ({m.employee_code})</p>
                             <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
@@ -457,10 +457,10 @@ export default function MSSPortalPage() {
                                 {m.from_branch_name && <p className="text-gray-400">{m.from_branch_name}</p>}
                               </div>
                               <ChevronRight className="w-4 h-4 text-gray-300" />
-                              <div className="bg-violet-50 rounded px-2 py-1">
-                                <p className="text-[10px] text-violet-400">KE</p>
-                                <p className="text-violet-700">{m.to_department || '-'} • {m.to_position || '-'}</p>
-                                {m.to_branch_name && <p className="text-violet-500">{m.to_branch_name}</p>}
+                              <div className="bg-[var(--hf-brand-50)] rounded px-2 py-1">
+                                <p className="text-[10px] text-[color:var(--hf-brand-500)]">KE</p>
+                                <p className="text-[color:var(--hf-brand)]">{m.to_department || '-'} • {m.to_position || '-'}</p>
+                                {m.to_branch_name && <p className="text-[color:var(--hf-brand-500)]">{m.to_branch_name}</p>}
                               </div>
                             </div>
                             <p className="text-xs text-gray-400 mt-2">Efektif: {fmtDate(m.effective_date)} {m.reason ? `• Alasan: ${m.reason}` : ''}</p>

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import HQLayout from '@/components/hq/HQLayout';
+import HumanifyLayout from '@/components/humanify/HumanifyLayout';
 import {
   Building2, Users, Briefcase, Search, ExternalLink,
   CheckCircle2, PauseCircle, Clock, Loader2, RefreshCw, TrendingUp, HeartPulse, Eye,
@@ -258,7 +258,7 @@ export default function PlatformDashboardPage() {
   }
 
   return (
-    <HQLayout title="Platform Control Plane" subtitle="Humanify SaaS — monitor tenant & bisnis" platform="humanify">
+    <HumanifyLayout title="Platform Control Plane" subtitle="Humanify SaaS — monitor tenant & bisnis" >
       <div className="space-y-6">
         {toast && (
           <div className="fixed top-4 right-4 z-50 bg-slate-900 text-white text-sm px-4 py-2 rounded-lg shadow">{toast}</div>
@@ -266,10 +266,10 @@ export default function PlatformDashboardPage() {
 
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <p className="text-xs uppercase tracking-wide text-indigo-600 font-semibold">Phase 3 · Control Plane</p>
+            <p className="text-xs uppercase tracking-wide text-[color:var(--hf-brand-600)] font-semibold">Phase 3 · Control Plane</p>
             <h2 className="text-lg font-semibold text-slate-900">MRR, kesehatan tenant & operasi</h2>
           </div>
-          <Link href="/platform/observability" className="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:underline">
+          <Link href="/platform/observability" className="inline-flex items-center gap-1.5 text-sm text-[color:var(--hf-brand-600)] hover:underline">
             <Activity className="w-4 h-4" /> Observability
           </Link>
         </div>
@@ -352,7 +352,7 @@ export default function PlatformDashboardPage() {
               value={partnerForm.contactEmail}
               onChange={(e) => setPartnerForm({ ...partnerForm, contactEmail: e.target.value })}
             />
-            <button onClick={createPartnerCode} className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm">
+            <button onClick={createPartnerCode} className="px-3 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm">
               Tambah
             </button>
           </div>
@@ -375,7 +375,7 @@ export default function PlatformDashboardPage() {
               type="button"
               onClick={previewDemoCommission}
               disabled={previewBusy}
-              className="text-xs px-2 py-1 border rounded-lg text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
+              className="text-xs px-2 py-1 border rounded-lg text-[color:var(--hf-brand)] hover:bg-[var(--hf-brand-50)] disabled:opacity-50"
             >
               {previewBusy ? 'Preview…' : 'Preview DEMO · Rp1jt'}
             </button>
@@ -471,7 +471,7 @@ export default function PlatformDashboardPage() {
               >
                 Export CSV
               </a>
-              <a href="/humanify/partners" className="text-xs text-indigo-600 hover:underline" target="_blank" rel="noreferrer">
+              <a href="/humanify/partners" className="text-xs text-[color:var(--hf-brand-600)] hover:underline" target="_blank" rel="noreferrer">
                 /humanify/partners
               </a>
             </div>
@@ -517,7 +517,7 @@ export default function PlatformDashboardPage() {
                             setActing(null);
                           }
                         }}
-                        className="px-1.5 py-0.5 rounded border text-[10px] text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
+                        className="px-1.5 py-0.5 rounded border text-[10px] text-[color:var(--hf-brand)] hover:bg-[var(--hf-brand-50)] disabled:opacity-50"
                       >
                         → {s}
                       </button>
@@ -564,7 +564,7 @@ export default function PlatformDashboardPage() {
           </div>
           <div className="bg-white border rounded-xl p-4">
             <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
-              <HeartPulse className="w-3.5 h-3.5 text-indigo-600" /> Health mix
+              <HeartPulse className="w-3.5 h-3.5 text-[color:var(--hf-brand-600)]" /> Health mix
             </div>
             <p className="text-sm font-medium text-slate-800">
               <span className="text-emerald-600">{m.health?.healthy ?? 0} healthy</span>
@@ -623,7 +623,7 @@ export default function PlatformDashboardPage() {
                   <span className="w-24 text-slate-600 capitalize">{p.name || p.plan}</span>
                   <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-indigo-500 rounded-full"
+                      className="h-full bg-[var(--hf-brand-500)] rounded-full"
                       style={{ width: `${Math.round((p.count / maxPlanCount) * 100)}%` }}
                     />
                   </div>
@@ -656,7 +656,7 @@ export default function PlatformDashboardPage() {
             <option value="suspended">Suspended</option>
             <option value="inactive">Inactive</option>
           </select>
-          <button onClick={load} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm">Filter</button>
+          <button onClick={load} className="px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm">Filter</button>
         </div>
 
         <div className="bg-white border rounded-xl overflow-hidden">
@@ -684,7 +684,7 @@ export default function PlatformDashboardPage() {
                 <tr key={t.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <Building2 className="w-4 h-4 text-indigo-500" />
+                      <Building2 className="w-4 h-4 text-[color:var(--hf-brand-500)]" />
                       <div>
                         <p className="font-medium text-slate-900">{t.name}</p>
                         <p className="text-xs text-slate-500">/{t.slug || '—'} · {t.business_email || '—'}</p>
@@ -728,7 +728,7 @@ export default function PlatformDashboardPage() {
                   </td>
                   <td className="px-4 py-3">
                     {t.slug ? (
-                      <Link href={`/c/${t.slug}/careers`} target="_blank" className="text-xs text-indigo-600 hover:underline inline-flex items-center gap-1">
+                      <Link href={`/c/${t.slug}/careers`} target="_blank" className="text-xs text-[color:var(--hf-brand-600)] hover:underline inline-flex items-center gap-1">
                         Buka <ExternalLink className="w-3 h-3" />
                       </Link>
                     ) : '—'}
@@ -743,7 +743,7 @@ export default function PlatformDashboardPage() {
                       disabled={acting === t.id || t.status === 'suspended'}
                       onClick={() => impersonateTenant(t.id)}
                       title="Buka sebagai support (tenant context)"
-                      className="text-[11px] px-2 py-1 rounded border border-indigo-200 text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
+                      className="text-[11px] px-2 py-1 rounded border border-[var(--hf-brand-100)] text-[color:var(--hf-brand)] hover:bg-[var(--hf-brand-50)] disabled:opacity-50"
                     ><Eye className="w-3 h-3 inline" /> Support</button>
                     {t.status !== 'active' && (
                       <button
@@ -773,11 +773,11 @@ export default function PlatformDashboardPage() {
           </table>
         </div>
 
-        <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-sm text-indigo-900">
+        <div className="bg-[var(--hf-brand-50)] border border-[var(--hf-brand-100)] rounded-xl p-4 text-sm text-[color:var(--hf-brand-600)]">
           <strong>Phase 8:</strong> Partner referral (?ref=CODE) · QA cleanup · go-live.
           Signup: <code className="bg-white/70 px-1 rounded">/humanify/signup?ref=CODE</code>
         </div>
       </div>
-    </HQLayout>
+    </HumanifyLayout>
   );
 }
