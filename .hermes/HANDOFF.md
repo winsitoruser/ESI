@@ -10,7 +10,7 @@
 | w15-2 | `docs/humanify-bounded-context.md` (CTO-2) | Done |
 | w15-3 | Doc storage health API + signed URL smoke | Done |
 | w15-4 | Trial expiry fields + banner Billing/Dashboard | Done |
-| w15-5 | Deploy + verify | Pending |
+| w15-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave15`
 

@@ -50,6 +50,8 @@ export async function middleware(request: NextRequest) {
     pathname === '/humanify/join' ||
     pathname === '/humanify/welcome' ||
     pathname.startsWith('/humanify/welcome/') ||
+    pathname === '/humanify/partners' ||
+    pathname.startsWith('/humanify/partners/') ||
     pathname.startsWith('/c/') ||
     pathname === '/careers' ||
     pathname.startsWith('/careers/');
