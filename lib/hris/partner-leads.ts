@@ -111,3 +111,22 @@ export async function createPartnerLead(opts: {
   );
   return { id };
 }
+
+export async function listPartnerLeads(opts?: {
+  limit?: number;
+  db?: any;
+}): Promise<Array<Record<string, unknown>>> {
+  const seq = opts?.db || sequelize;
+  if (!seq) return [];
+  await ensurePartnerLeadsTable(seq);
+  const limit = Math.min(100, Math.max(1, Number(opts?.limit) || 50));
+  const [rows] = await seq.query(
+    `SELECT id, company_name, contact_name, email, phone, partner_type, region,
+            LEFT(COALESCE(message,''), 200) AS message_preview, source, created_at
+     FROM humanify_partner_leads
+     ORDER BY created_at DESC
+     LIMIT :limit`,
+    { replacements: { limit } },
+  );
+  return (rows || []) as Array<Record<string, unknown>>;
+}

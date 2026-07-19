@@ -87,6 +87,8 @@ jobs:
           npm run smoke:wave12
           npm run smoke:wave14
           npm run smoke:wave15
+          npm run smoke:wave16
+          npm run smoke:rls-lab
           npm run smoke:mock-audit
           SMOKE_ALLOW_MISSING_BACKUP=true npm run check:backup-freshness
           test -f lib/saas/tenant-request-bound.ts
@@ -103,6 +105,7 @@ jobs:
           test -f docs/humanify-ga-scope.md
           test -f docs/humanify-rls-strict-staging.md
           test -f docs/humanify-doc-retention.md
+          test -f docs/humanify-doc-storage-s3.md
           test -f docs/humanify-esign-privy-ga.md
           test -f docs/humanify-partner-channel.md
           test -f docs/humanify-bounded-context.md

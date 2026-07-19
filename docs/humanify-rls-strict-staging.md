@@ -37,13 +37,20 @@ HUMANIFY_RLS_REQUEST_BOUND=true
 | Background job without `set_config` tenant | 0 rows or error (not leak) |
 
 ```bash
+# Offline unit (CI / local — no DB flip)
+npm run smoke:rls-lab
+
+# Optional live against lab DB only
+HUMANIFY_RLS_LAB=1 DATABASE_URL=postgresql://…/humanify_rls_lab npm run smoke:rls-lab
+
 SMOKE_BASE_URL=https://staging.example npm run security:scorecard
 SMOKE_BASE_URL=https://staging.example npm run smoke:ga-journey
 ```
 
 ## Exit criteria
 
-- [ ] No cross-tenant row in IDOR scorecard
+- [x] Unit smoke `smoke:rls-lab` asserts FORCE RLS + deny-empty + soft prod enable
+- [ ] No cross-tenant row in IDOR scorecard (staging URL)
 - [ ] Employee create + docs + payroll soft path green
 - [ ] Backup/restore of lab DB documented
 - [ ] Written decision in `.hermes/DECISIONS.md` before prod strict

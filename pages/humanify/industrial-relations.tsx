@@ -172,6 +172,29 @@ export default function IndustrialRelationsPage() {
     loadData();
   };
 
+  const handlePublish = async (reg: IrRegulation) => {
+    try {
+      await api(
+        'regulation',
+        'PUT',
+        {
+          title: reg.title,
+          regulationNumber: reg.regulation_number,
+          category: reg.category,
+          description: reg.description || '',
+          content: reg.content || '',
+          effectiveDate: reg.effective_date || new Date().toISOString().slice(0, 10),
+          status: 'active',
+        },
+        `&id=${reg.id}`,
+      );
+      showToast('Diterbitkan — terlihat di ESS untuk acknowledgment');
+      loadData();
+    } catch {
+      showToast('Gagal menerbitkan', 'error');
+    }
+  };
+
   const handleChecklistItem = async (checklistId: string, itemIndex: number, status: string) => {
     await api('update-checklist-item', 'POST', { id: checklistId, itemIndex, status });
     showToast('Item checklist diperbarui');
@@ -325,12 +348,30 @@ export default function IndustrialRelationsPage() {
                             </div>
                             <h3 className="font-semibold text-slate-900">{reg.title}</h3>
                             <p className="text-sm text-slate-500 mt-1 line-clamp-2">{reg.description}</p>
+                            {reg.content ? (
+                              <p className="text-xs text-slate-400 mt-1 line-clamp-1">Isi: {reg.content}</p>
+                            ) : (
+                              <p className="text-xs text-amber-600 mt-1">Belum ada isi kebijakan — edit sebelum publish ke ESS</p>
+                            )}
                             <div className="flex flex-wrap gap-3 mt-2 text-xs text-slate-400">
                               {reg.effective_date && <span>Berlaku: {new Date(reg.effective_date).toLocaleDateString('id-ID')}</span>}
                               <span>Versi {reg.version || 1}</span>
+                              {['active', 'published'].includes(String(reg.status || '').toLowerCase()) && (
+                                <span className="text-emerald-600">Terlihat di ESS</span>
+                              )}
                             </div>
                           </div>
                           <div className="flex gap-1 opacity-80 group-hover:opacity-100">
+                            {!['active', 'published'].includes(String(reg.status || '').toLowerCase()) && (
+                              <button
+                                type="button"
+                                title="Publikasikan ke ESS"
+                                onClick={() => handlePublish(reg)}
+                                className="px-2 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-50 rounded-lg"
+                              >
+                                Publikasikan
+                              </button>
+                            )}
                             <button type="button" onClick={() => { setEditingItem(reg); setRegForm({ title: reg.title, regulationNumber: reg.regulation_number, category: reg.category, description: reg.description || '', content: reg.content || '', effectiveDate: reg.effective_date || '', status: reg.status }); setModalType('regulation'); setShowModal(true); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"><Edit className="w-4 h-4" /></button>
                             <button type="button" onClick={() => handleDelete('regulation', reg.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
                           </div>
@@ -501,11 +542,22 @@ export default function IndustrialRelationsPage() {
                     </select>
                   </div>
                   <div><label className="text-sm font-medium text-slate-700">Deskripsi</label><textarea value={regForm.description} onChange={(e) => setRegForm({ ...regForm, description: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-xl text-sm" rows={3} /></div>
+                  <div>
+                    <label className="text-sm font-medium text-slate-700">Isi kebijakan (untuk ESS)</label>
+                    <textarea
+                      value={regForm.content}
+                      onChange={(e) => setRegForm({ ...regForm, content: e.target.value })}
+                      className="w-full mt-1 px-3 py-2 border rounded-xl text-sm"
+                      rows={5}
+                      placeholder="Teks lengkap yang dibaca karyawan saat acknowledgment"
+                    />
+                  </div>
                   <div><label className="text-sm font-medium text-slate-700">Tanggal Berlaku</label><input type="date" value={regForm.effectiveDate} onChange={(e) => setRegForm({ ...regForm, effectiveDate: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-xl text-sm" /></div>
                   <div><label className="text-sm font-medium text-slate-700">Status</label>
                     <select value={regForm.status} onChange={(e) => setRegForm({ ...regForm, status: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-xl text-sm">
-                      <option value="draft">Draf</option><option value="active">Aktif</option><option value="expired">Kedaluwarsa</option>
+                      <option value="draft">Draf</option><option value="active">Aktif (terbit di ESS)</option><option value="expired">Kedaluwarsa</option>
                     </select>
+                    <p className="text-[11px] text-slate-400 mt-1">Status Aktif = karyawan melihat & menandatangani di portal ESS.</p>
                   </div>
                 </>
               )}

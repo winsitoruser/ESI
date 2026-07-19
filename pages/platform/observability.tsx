@@ -20,6 +20,7 @@ export default function PlatformObservabilityPage() {
 
   const [obs, setObs] = useState<any>(null);
   const [health, setHealth] = useState<any>(null);
+  const [docStorage, setDocStorage] = useState<any>(null);
   const [alertInfo, setAlertInfo] = useState<any>(null);
   const [alertBusy, setAlertBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -29,14 +30,16 @@ export default function PlatformObservabilityPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [obsRes, healthRes, alertRes] = await Promise.all([
+      const [obsRes, healthRes, alertRes, docRes] = await Promise.all([
         fetch('/api/platform/observability').then((r) => r.json()),
         fetch('/api/health?deep=1').then((r) => r.json()).catch(() => null),
         fetch('/api/platform/obs-alerts').then((r) => r.json()).catch(() => null),
+        fetch('/api/humanify/docs-storage-health').then((r) => r.json()).catch(() => null),
       ]);
       if (obsRes.success) setObs(obsRes.data);
       if (healthRes) setHealth(healthRes);
       if (alertRes?.success) setAlertInfo(alertRes.data);
+      if (docRes?.success) setDocStorage(docRes.data);
       setLastRefresh(new Date());
     } finally {
       setLoading(false);
@@ -213,6 +216,45 @@ export default function PlatformObservabilityPage() {
             <p className="text-lg font-bold text-slate-800">{obs?.redisUrl ? 'Set' : '—'}</p>
             <p className="text-[11px] text-slate-400 mt-1">Sentry.io: {obs?.sentryExternalAllowed ? 'opt-in' : 'disabled'}</p>
           </div>
+        </div>
+
+        <div className="bg-white border rounded-xl p-4">
+          <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+            <p className="text-sm font-semibold text-slate-800">Document storage</p>
+            <span className="text-[11px] text-slate-400">GET /api/humanify/docs-storage-health</span>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+            <div>
+              <p className="text-xs text-slate-500">Mode</p>
+              <p className="font-semibold text-slate-800">{docStorage?.mode || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500">S3 ready</p>
+              <p className={`font-semibold ${docStorage?.s3Ready ? 'text-emerald-700' : 'text-slate-600'}`}>
+                {docStorage ? (docStorage.s3Ready ? 'Yes' : docStorage.s3Configured ? 'Incomplete' : 'Off (local)') : '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500">Local writable</p>
+              <p className={`font-semibold ${docStorage?.localWritable ? 'text-emerald-700' : 'text-amber-700'}`}>
+                {docStorage ? (docStorage.localWritable ? 'Yes' : 'No') : '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500">Outside public/</p>
+              <p className={`font-semibold ${docStorage?.outsidePublic ? 'text-emerald-700' : 'text-rose-700'}`}>
+                {docStorage ? (docStorage.outsidePublic ? 'Yes' : 'Risk') : '—'}
+              </p>
+            </div>
+          </div>
+          {docStorage?.localRoot && (
+            <p className="text-[11px] text-slate-400 mt-2 font-mono truncate">root: {docStorage.localRoot}</p>
+          )}
+          {docStorage?.bucket && (
+            <p className="text-[11px] text-slate-400 mt-1 font-mono truncate">
+              bucket: {docStorage.bucket}{docStorage.endpoint ? ` · ${docStorage.endpoint}` : ''}
+            </p>
+          )}
         </div>
 
         <div className="bg-white border rounded-xl p-4">

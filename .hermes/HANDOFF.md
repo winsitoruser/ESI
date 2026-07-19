@@ -1,6 +1,19 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-15** · partner lead form · bounded context · doc storage health · trial banner
+> Diperbarui: 19 Juli 2026 — **Wave-16** · S3 docs GA · partner lead inbox · policy publish · RLS lab smoke
+
+## Wave-16 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w16-1 | `@aws-sdk/client-s3` + s3Ready/probe + observability panel | Done |
+| w16-2 | Platform inbox `partner-leads` | Done |
+| w16-3 | IR policy content + Publikasikan → ESS | Done |
+| w16-4 | `smoke:rls-lab` (no prod flip) | Done |
+| w16-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:wave16` · `npm run smoke:rls-lab`  
+Docs: `docs/humanify-doc-storage-s3.md`
 
 ## Wave-15 (19 Jul 2026)
 

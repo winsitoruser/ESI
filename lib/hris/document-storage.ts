@@ -158,13 +158,33 @@ export function verifyDownloadToken(token: string, docId: string, tenantId: stri
   }
 }
 
-/** Ops health for document storage (local dir + S3 flag). */
+function s3CredentialsPresent(): boolean {
+  const accessKeyId = process.env.HUMANIFY_DOC_S3_ACCESS_KEY || process.env.AWS_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.HUMANIFY_DOC_S3_SECRET_KEY || process.env.AWS_SECRET_ACCESS_KEY;
+  return Boolean(accessKeyId?.trim() && secretAccessKey?.trim());
+}
+
+function s3SdkAvailable(): boolean {
+  try {
+    require.resolve('@aws-sdk/client-s3');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Ops health for document storage (local dir + S3 readiness). */
 export function getDocStorageHealth(): {
   mode: 'local' | 's3';
   localRoot: string;
   localWritable: boolean;
   s3Configured: boolean;
+  s3CredentialsPresent: boolean;
+  s3SdkAvailable: boolean;
+  s3Ready: boolean;
   outsidePublic: boolean;
+  bucket?: string;
+  endpoint?: string;
 } {
   const localRoot = getLocalStorageRoot();
   let localWritable = false;
@@ -177,13 +197,59 @@ export function getDocStorageHealth(): {
   }
   const publicUploads = path.join(process.cwd(), 'public', 'uploads', 'employee-documents');
   const outsidePublic = !localRoot.startsWith(path.join(process.cwd(), 'public'));
+  const s3Configured = isS3Enabled();
+  const creds = s3CredentialsPresent();
+  const sdk = s3SdkAvailable();
   return {
-    mode: isS3Enabled() ? 's3' : 'local',
+    mode: s3Configured ? 's3' : 'local',
     localRoot,
     localWritable,
-    s3Configured: isS3Enabled(),
+    s3Configured,
+    s3CredentialsPresent: creds,
+    s3SdkAvailable: sdk,
+    s3Ready: s3Configured && creds && sdk,
     outsidePublic: outsidePublic || localRoot !== publicUploads,
+    ...(s3Configured
+      ? {
+          bucket: process.env.HUMANIFY_DOC_S3_BUCKET?.trim(),
+          endpoint: process.env.HUMANIFY_DOC_S3_ENDPOINT?.trim() || undefined,
+        }
+      : {}),
   };
+}
+
+/**
+ * Optional live probe (HEAD/ListObjects). Skip when S3 not configured.
+ * Set HUMANIFY_DOC_S3_PROBE=false to disable network check.
+ */
+export async function probeDocStorageConnectivity(): Promise<{
+  ok: boolean;
+  skipped?: boolean;
+  error?: string;
+  latencyMs?: number;
+}> {
+  if (!isS3Enabled()) return { ok: true, skipped: true };
+  if (process.env.HUMANIFY_DOC_S3_PROBE === 'false') return { ok: true, skipped: true };
+  if (!s3CredentialsPresent()) return { ok: false, error: 'missing credentials' };
+  const started = Date.now();
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { S3Client, HeadBucketCommand } = require('@aws-sdk/client-s3');
+    const endpoint = process.env.HUMANIFY_DOC_S3_ENDPOINT || undefined;
+    const region = process.env.HUMANIFY_DOC_S3_REGION || process.env.AWS_REGION || 'auto';
+    const accessKeyId = process.env.HUMANIFY_DOC_S3_ACCESS_KEY || process.env.AWS_ACCESS_KEY_ID!;
+    const secretAccessKey = process.env.HUMANIFY_DOC_S3_SECRET_KEY || process.env.AWS_SECRET_ACCESS_KEY!;
+    const client = new S3Client({
+      region,
+      endpoint,
+      forcePathStyle: Boolean(endpoint),
+      credentials: { accessKeyId, secretAccessKey },
+    });
+    await client.send(new HeadBucketCommand({ Bucket: process.env.HUMANIFY_DOC_S3_BUCKET! }));
+    return { ok: true, latencyMs: Date.now() - started };
+  } catch (e: any) {
+    return { ok: false, error: String(e?.message || e).slice(0, 200), latencyMs: Date.now() - started };
+  }
 }
 
 function guessMime(name: string): string {

@@ -1,6 +1,6 @@
 /**
  * Platform Control Plane API — Humanify SaaS ops
- * GET   ?action=overview|tenants|tenant|tenant-detail|billing-orders|expiring-trials|partners
+ * GET   ?action=overview|tenants|tenant|tenant-detail|billing-orders|expiring-trials|partners|partner-leads
  * PATCH ?action=tenant-status|tenant-plan
  * POST  ?action=dunning-scan|partner-create|cleanup-qa|archive-qa|impersonate|end-impersonate
  */
@@ -25,6 +25,7 @@ import {
   QA_TENANT_SLUG_REGEX,
 } from '@/lib/saas/partners';
 import { parseTenantSettings } from '@/lib/saas/tenant-schema';
+import { listPartnerLeads } from '@/lib/hris/partner-leads';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch {}
@@ -329,6 +330,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (req.method === 'GET' && action === 'partners') {
       const data = await listPartners();
+      return res.json({ success: true, data });
+    }
+
+    if (req.method === 'GET' && action === 'partner-leads') {
+      const limit = Number(req.query.limit) || 50;
+      const data = await listPartnerLeads({ limit });
       return res.json({ success: true, data });
     }
 

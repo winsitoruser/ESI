@@ -28,6 +28,7 @@ export default function PlatformDashboardPage() {
   const [expiring, setExpiring] = useState<any[]>([]);
   const [dunningBusy, setDunningBusy] = useState(false);
   const [partners, setPartners] = useState<any[]>([]);
+  const [partnerLeads, setPartnerLeads] = useState<any[]>([]);
   const [partnerForm, setPartnerForm] = useState({ code: '', name: '', contactEmail: '' });
   const [cleanupBusy, setCleanupBusy] = useState(false);
   const [archiveBusy, setArchiveBusy] = useState(false);
@@ -36,16 +37,18 @@ export default function PlatformDashboardPage() {
     setLoading(true);
     try {
       const q = new URLSearchParams({ action: 'tenants', status: filterStatus, search });
-      const [ov, tn, ex, pn] = await Promise.all([
+      const [ov, tn, ex, pn, pl] = await Promise.all([
         fetch('/api/platform?action=overview').then((r) => r.json()),
         fetch(`/api/platform?${q}`).then((r) => r.json()),
         fetch('/api/platform?action=expiring-trials&days=7').then((r) => r.json()),
         fetch('/api/platform?action=partners').then((r) => r.json()),
+        fetch('/api/platform?action=partner-leads&limit=30').then((r) => r.json()),
       ]);
       if (ov.success) setOverview(ov.data);
       if (tn.success) setTenants(tn.data?.tenants || []);
       if (ex.success) setExpiring(ex.data || []);
       if (pn.success) setPartners(pn.data || []);
+      if (pl.success) setPartnerLeads(pl.data || []);
     } catch {
       setToast('Gagal memuat data platform');
     } finally {
@@ -309,6 +312,33 @@ export default function PlatformDashboardPage() {
               </li>
             ))}
             {!partners.length && <li className="py-1 text-slate-400">Belum ada partner.</li>}
+          </ul>
+        </div>
+
+        <div className="bg-white border rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <p className="text-sm font-semibold text-slate-900">Partner leads (form publik)</p>
+            <a href="/humanify/partners" className="text-xs text-indigo-600 hover:underline" target="_blank" rel="noreferrer">
+              /humanify/partners
+            </a>
+          </div>
+          <ul className="text-xs text-slate-600 divide-y max-h-40 overflow-y-auto">
+            {partnerLeads.map((lead) => (
+              <li key={lead.id} className="py-1.5 space-y-0.5">
+                <div className="flex justify-between gap-2">
+                  <span className="font-medium text-slate-800">{lead.company_name}</span>
+                  <span className="text-slate-400 shrink-0">
+                    {lead.created_at ? new Date(lead.created_at).toLocaleDateString('id-ID') : '—'}
+                  </span>
+                </div>
+                <p className="text-slate-500">
+                  {lead.contact_name} · {lead.email}
+                  {lead.partner_type ? ` · ${lead.partner_type}` : ''}
+                  {lead.region ? ` · ${lead.region}` : ''}
+                </p>
+              </li>
+            ))}
+            {!partnerLeads.length && <li className="py-1 text-slate-400">Belum ada lead dari form partner.</li>}
           </ul>
         </div>
 
