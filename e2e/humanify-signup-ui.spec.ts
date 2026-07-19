@@ -28,6 +28,8 @@ test.describe('Humanify signup UI (soft, no ref)', () => {
     await expect(page.locator('body')).toContainText(/Sudah punya akun|Masuk di sini/i, {
       timeout: 10_000,
     });
+    await expect(page.locator('a[href*="/humanify/partners"]').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('body')).toContainText(/Channel partner|partner/i, { timeout: 8_000 });
     // Soft: do not submit
   });
 });

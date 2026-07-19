@@ -24,6 +24,38 @@ test.describe('Humanify careers portal UI (soft)', () => {
     // Soft: do not open apply form / submit
   });
 
+  test('demo careers job detail soft (no apply submit)', async ({ page }) => {
+    await page.goto('/c/demo/careers', { waitUntil: 'domcontentloaded', timeout: 45_000 });
+    const slugLinks = page.locator('a[href^="/c/demo/careers/"]');
+    const count = await slugLinks.count();
+    if (count === 0) {
+      await expect(page.locator('body')).toContainText(/Belum ada lowongan|Memuat|Portal karir/i, {
+        timeout: 10_000,
+      });
+      return;
+    }
+    let target = slugLinks.first();
+    for (let i = 0; i < count; i++) {
+      const href = await slugLinks.nth(i).getAttribute('href');
+      if (href && /\/c\/demo\/careers\/[^/]+/.test(href)) {
+        target = slugLinks.nth(i);
+        break;
+      }
+    }
+    const href = await target.getAttribute('href');
+    if (!href || !/\/c\/demo\/careers\/[^/]+/.test(href)) {
+      await expect(page.locator('body')).toContainText(/Belum ada lowongan|Portal karir/i);
+      return;
+    }
+    await target.click();
+    await expect(page).toHaveURL(/\/c\/demo\/careers\/.+/, { timeout: 15_000 });
+    await expect(page.locator('body')).toContainText(/Lamar|Lamaran|Kembali|lowongan/i, {
+      timeout: 15_000,
+    });
+    // Soft: do not submit Kirim Lamaran
+    expect(page.url()).not.toMatch(/\/humanify\/login/);
+  });
+
   test('global /careers help page soft cues', async ({ page }) => {
     const res = await page.goto('/careers', {
       waitUntil: 'domcontentloaded',

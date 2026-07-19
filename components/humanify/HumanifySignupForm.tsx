@@ -358,6 +358,10 @@ export default function HumanifySignupForm() {
                 <Link href={HUMANIFY_BRAND.loginPath} className="text-violet-300 hover:text-white font-medium transition-colors">
                   Masuk di sini
                 </Link>
+                <span className="mx-2 text-violet-400/30">·</span>
+                <Link href={HUMANIFY_BRAND.partnersPath} className="text-violet-300 hover:text-white font-medium transition-colors">
+                  Channel partner
+                </Link>
               </p>
 
               <div className="mt-6 flex justify-center lg:hidden">

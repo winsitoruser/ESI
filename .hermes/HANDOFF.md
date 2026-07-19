@@ -1,6 +1,18 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-37** · ROI Partner · employee beranda soft · PWA icon soft · phase1/7/10 aliases
+> Diperbarui: 19 Juli 2026 — **Wave-38** · careers job soft · partners Daftar · signup partner cue · phase3/4/6 aliases
+
+## Wave-38 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w38-1 | Soft Playwright demo careers job detail (no apply) | Done |
+| w38-2 | Partners header Daftar + soft e2e | Done |
+| w38-3 | Signup Channel partner cue + soft e2e | Done |
+| w38-4 | `smoke:phase3-metrics` + `phase4-billing` + `phase6-seats` | Done |
+| w38-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:wave38` · `npm run test:e2e:humanify:careers:prod` · `npm run test:e2e:humanify:partners:prod` · `npm run test:e2e:humanify:signup:prod`
 
 ## Wave-37 (19 Jul 2026)
 

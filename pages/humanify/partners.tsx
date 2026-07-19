@@ -59,9 +59,14 @@ export default function HumanifyPartnersPage() {
           <Link href="/humanify/welcome" className="flex items-center gap-2 text-slate-700 hover:text-violet-700">
             <HumanifyLogo className="h-8 w-auto" />
           </Link>
-          <Link href="/humanify/login" className="text-sm text-violet-700 font-medium hover:underline">
-            Masuk
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link href={HUMANIFY_BRAND.signupPath} className="text-sm text-slate-600 font-medium hover:text-violet-700 hover:underline">
+              Daftar
+            </Link>
+            <Link href="/humanify/login" className="text-sm text-violet-700 font-medium hover:underline">
+              Masuk
+            </Link>
+          </div>
         </header>
 
         <main className="max-w-3xl mx-auto px-4 pb-16">
