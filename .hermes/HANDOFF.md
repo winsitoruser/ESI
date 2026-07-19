@@ -1,6 +1,18 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-32** · partners soft · auth csrf soft · humans.txt · phase13/20 aliases
+> Diperbarui: 19 Juli 2026 — **Wave-33** · ROI soft CTAs · forgot Kembali · signup Masuk · phase21/22 aliases
+
+## Wave-33 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w33-1 | Soft Playwright ROI login/welcome + range inputs | Done |
+| w33-2 | Soft Playwright forgot-password Kembali ke login | Done |
+| w33-3 | Soft Playwright signup Masuk di sini | Done |
+| w33-4 | `smoke:phase21-notifications` + `smoke:phase22-search` | Done |
+| w33-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:wave33` · `npm run test:e2e:humanify:roi:prod` · `npm run test:e2e:humanify:forgot-password:prod` · `npm run test:e2e:humanify:signup:prod`
 
 ## Wave-32 (19 Jul 2026)
 

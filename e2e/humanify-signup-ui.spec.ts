@@ -24,6 +24,10 @@ test.describe('Humanify signup UI (soft, no ref)', () => {
     if (await byLabel.count()) {
       await expect(byLabel.first()).toHaveValue('', { timeout: 8_000 });
     }
+    await expect(page.locator('a[href*="/humanify/login"]').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('body')).toContainText(/Sudah punya akun|Masuk di sini/i, {
+      timeout: 10_000,
+    });
     // Soft: do not submit
   });
 });
