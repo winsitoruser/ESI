@@ -10,7 +10,7 @@
 | w27-2 | Soft-deactivate `SEED_ONLY` + deploy one-shot | Done |
 | w27-3 | Soft Playwright robots.txt + sitemap.xml | Done |
 | w27-4 | Soft Playwright signup without `?ref` | Done |
-| w27-5 | Deploy + verify | Pending |
+| w27-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave27` · `npm run test:e2e:humanify:verify-email:prod` · `npm run test:e2e:humanify:seo-public:prod`
 
