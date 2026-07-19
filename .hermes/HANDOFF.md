@@ -1,6 +1,20 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-46** · soft-hardening series close-out (W43–W46)
+> Diperbarui: 19 Juli 2026 — **Wave-47** · payroll soft auth-gate (deferred Playwright slice)
+
+## Wave-47 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w47-1 | Soft Playwright payroll auth-gate (index/main/pph21) | Done |
+| w47-2 | `test:e2e:humanify:payroll` (+ prod) | Done |
+| w47-3 | RLS lab doc — payroll soft path checkbox | Done |
+| w47-4 | Unit smoke wave47 | Done |
+| w47-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:wave47` · `npm run test:e2e:humanify:payroll:prod` · `npm run smoke:rls-lab` · `npm run smoke:payroll-fiscal`
+
+**Note:** tidak flip prod RLS. Hard payroll suite + strict RLS tetap deferred.
 
 ## Soft-hardening series (Wave-27 → Wave-46)
 

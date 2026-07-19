@@ -51,7 +51,7 @@ SMOKE_BASE_URL=https://staging.example npm run smoke:ga-journey
 
 - [x] Unit smoke `smoke:rls-lab` asserts FORCE RLS + deny-empty + soft prod enable
 - [ ] No cross-tenant row in IDOR scorecard (staging URL)
-- [ ] Employee create + docs + payroll soft path green
+- [x] Employee create + docs + payroll soft path green — Wave-47 soft auth-gate e2e (`npm run test:e2e:humanify:payroll:prod`); hard payroll suite still deferred
 - [ ] Backup/restore of lab DB documented
 - [ ] Written decision in `.hermes/DECISIONS.md` before prod strict
 
