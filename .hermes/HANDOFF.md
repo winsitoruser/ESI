@@ -10,7 +10,7 @@
 | w38-2 | Partners header Daftar + soft e2e | Done |
 | w38-3 | Signup Channel partner cue + soft e2e | Done |
 | w38-4 | `smoke:phase3-metrics` + `phase4-billing` + `phase6-seats` | Done |
-| w38-5 | Deploy + verify | Pending |
+| w38-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave38` · `npm run test:e2e:humanify:careers:prod` · `npm run test:e2e:humanify:partners:prod` · `npm run test:e2e:humanify:signup:prod`
 
