@@ -7,6 +7,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 import { isPlatformOperator } from '@/lib/middleware/tenantIsolation';
 import { getObservabilitySnapshotAsync } from '@/lib/observability';
+import { getBackupFreshness } from '@/lib/saas/backup-freshness';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -23,6 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   res.setHeader('Cache-Control', 'no-store, max-age=0');
   const data = await getObservabilitySnapshotAsync();
+  const backup = getBackupFreshness();
   return res.json({
     success: true,
     data: {
@@ -34,6 +36,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           process.env.UPTIMEROBOT_API_KEY?.trim() || process.env.BETTERSTACK_TOKEN?.trim(),
         ),
         healthUrl: 'https://humanify.id/api/health?deep=1',
+      },
+      backup: {
+        present: backup.present,
+        skipped: backup.skipped,
+        ok: backup.ok,
+        ageHours: backup.ageHours,
+        maxAgeHours: backup.maxAgeHours,
+        sizeMb: backup.sizeMb,
+        reason: backup.reason,
       },
     },
   });

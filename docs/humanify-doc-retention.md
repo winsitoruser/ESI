@@ -42,6 +42,8 @@ APPLY=true npm run report:doc-expiry:soft
 APPLY=true TENANT_ID=<uuid> npm run report:doc-expiry:soft
 ```
 
+Cron VPS (Wave-19): Senin 02:00 UTC via `ensure-humanify-crons.sh` (`doc-expiry-soft`) — default dry-run; set `DOC_EXPIRY_SOFT_APPLY=true` di env crontab untuk apply.
+
 ## Digest email (Wave-11)
 
 ```bash

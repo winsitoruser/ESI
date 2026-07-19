@@ -261,6 +261,47 @@ export default function PlatformObservabilityPage() {
         </div>
 
         <div className="bg-white border rounded-xl p-4">
+          <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+            <p className="text-sm font-semibold text-slate-800">DB backup freshness</p>
+            <span className="text-[11px] text-slate-400">BACKUP_DIR/latest.sql.gz</span>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+            <div>
+              <p className="text-xs text-slate-500">Status</p>
+              <p className={`font-semibold ${
+                obs?.backup?.skipped ? 'text-slate-500'
+                  : obs?.backup?.ok ? 'text-emerald-700'
+                    : 'text-amber-700'
+              }`}>
+                {obs?.backup?.skipped ? 'n/a (local)'
+                  : obs?.backup?.ok ? 'Fresh'
+                    : obs?.backup?.present ? 'Stale'
+                      : 'Missing'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500">Age</p>
+              <p className="font-semibold text-slate-800">
+                {obs?.backup?.ageHours != null ? `${obs.backup.ageHours}h` : '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500">Max age</p>
+              <p className="font-semibold text-slate-800">{obs?.backup?.maxAgeHours ?? 36}h</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500">Size</p>
+              <p className="font-semibold text-slate-800">
+                {obs?.backup?.sizeMb != null ? `${obs.backup.sizeMb} MB` : '—'}
+              </p>
+            </div>
+          </div>
+          {obs?.backup?.reason && !obs.backup.ok && (
+            <p className="text-[11px] text-amber-700 mt-2">reason: {obs.backup.reason}</p>
+          )}
+        </div>
+
+        <div className="bg-white border rounded-xl p-4">
           <p className="text-sm font-semibold text-slate-800 mb-2">Status kode respons</p>
           <div className="flex gap-4 text-sm text-slate-600 flex-wrap">
             {Object.entries(obs?.counters?.byStatus || {}).length === 0 && (

@@ -20,6 +20,8 @@ const BATCHES = [
   'smoke-test-saas-idor-batch6.js',
   'smoke-test-saas-idor-batch8.js',
   'smoke-test-saas-idor-batch10.js',
+  'smoke-test-saas-idor-batch11.js',
+  'smoke-test-saas-phase17-login-lockout.js',
 ];
 
 function runBatch(file) {

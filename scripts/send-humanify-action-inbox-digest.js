@@ -24,7 +24,7 @@ if (!DATABASE_URL) {
 
 async function inboxCounts(sequelize, tenantId) {
   const r = { tenantId };
-  const counts = { leave: 0, contract: 0, documents: 0, attendance: 0 };
+  const counts = { leave: 0, contract: 0, documents: 0, attendance: 0, policyAck: 0 };
   try {
     const [leave] = await sequelize.query(
       `SELECT COUNT(*)::int AS c FROM leave_requests WHERE tenant_id = :tenantId AND status = 'pending'`,
@@ -69,7 +69,30 @@ async function inboxCounts(sequelize, tenantId) {
     );
     counts.attendance = a[0]?.c || 0;
   } catch { /* */ }
-  counts.total = counts.leave + counts.contract + counts.documents + counts.attendance;
+  try {
+    const [pols] = await sequelize.query(
+      `SELECT id FROM company_regulations
+       WHERE tenant_id = :tenantId
+         AND LOWER(COALESCE(status,'')) IN ('active','published')`,
+      { replacements: r },
+    );
+    const policyIds = (pols || []).map((p) => p.id);
+    if (policyIds.length) {
+      const [users] = await sequelize.query(
+        `SELECT COUNT(*)::int AS c FROM users
+         WHERE tenant_id = :tenantId AND COALESCE(is_active,true)=true`,
+        { replacements: r },
+      );
+      const userCount = Number(users?.[0]?.c || 0);
+      const [acks] = await sequelize.query(
+        `SELECT COUNT(*)::int AS c FROM policy_acknowledgments
+         WHERE tenant_id = :tenantId AND regulation_id IN (:ids)`,
+        { replacements: { ...r, ids: policyIds } },
+      );
+      counts.policyAck = Math.max(0, policyIds.length * userCount - Number(acks?.[0]?.c || 0));
+    }
+  } catch { /* */ }
+  counts.total = counts.leave + counts.contract + counts.documents + counts.attendance + counts.policyAck;
   return counts;
 }
 
@@ -167,11 +190,12 @@ async function main() {
           <li>Kontrak ≤30 hari: <strong>${counts.contract}</strong></li>
           <li>Dokumen belum lengkap: <strong>${counts.documents}</strong></li>
           <li>Absensi hari ini: <strong>${counts.attendance}</strong></li>
+          <li>Policy ack pending: <strong>${counts.policyAck}</strong></li>
         </ul>
         ${escalateNote}
         <p><a href="${inboxUrl}" style="display:inline-block;padding:10px 16px;background:#7c3aed;color:#fff;border-radius:8px;text-decoration:none;">Buka Action Inbox</a></p>
       </div>`;
-    const text = `${subject}\nCuti:${counts.leave} Kontrak:${counts.contract} Docs:${counts.documents} Absen:${counts.attendance}\n${inboxUrl}`;
+    const text = `${subject}\nCuti:${counts.leave} Kontrak:${counts.contract} Docs:${counts.documents} Absen:${counts.attendance} PolicyAck:${counts.policyAck}\n${inboxUrl}`;
 
     if (DRY_RUN) {
       console.log(`  [dry-run] → ${to}${ccList.length ? ` cc=${ccList.join(',')}` : ''} | ${subject}`);

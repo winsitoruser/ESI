@@ -58,6 +58,11 @@ ensure_line "action-digest" "0 1 * * 1" \
 ensure_line "doc-expiry-digest" "30 1 * * 1" \
   "node scripts/send-humanify-doc-expiry-digest.js >> ${LOG_DIR}/humanify-doc-expiry-digest.log 2>&1"
 
+# Weekly soft-deactivate expired docs (dry-run) — Mon 02:00 UTC
+# To apply: edit crontab APPLY=true or run APPLY=true npm run report:doc-expiry:soft
+ensure_line "doc-expiry-soft" "0 2 * * 1" \
+  "APPLY=false node scripts/run-humanify-doc-expiry-soft-deactivate.js >> ${LOG_DIR}/humanify-doc-expiry-soft.log 2>&1 || true"
+
 # Weekly IDOR security scorecard — Sun 23:00 UTC (Mon 06:00 WIB)
 ensure_line "security-scorecard" "0 23 * * 0" \
   "SMOKE_BASE_URL='https://humanify.id' node scripts/run-humanify-security-scorecard.js >> ${LOG_DIR}/humanify-security-scorecard.log 2>&1 || true"

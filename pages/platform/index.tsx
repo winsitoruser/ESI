@@ -319,6 +319,20 @@ export default function PlatformDashboardPage() {
           <p className="text-[11px] text-slate-400">
             Preview komisi: GET /api/platform?action=commission-preview&amp;partnerCode=CODE&amp;amountIdr=1000000 (calc only — bukan payout)
           </p>
+          <div className="flex flex-wrap gap-2 items-center">
+            <a
+              href="/api/platform?action=partner-commission-export"
+              className="text-xs px-2 py-1 border rounded-lg text-slate-700 hover:bg-slate-50"
+            >
+              Unduh CSV komisi (paid)
+            </a>
+            <a
+              href="/api/platform?action=billing-orders&status=paid&limit=50"
+              className="text-xs px-2 py-1 border rounded-lg text-slate-700 hover:bg-slate-50"
+            >
+              Order paid (JSON)
+            </a>
+          </div>
         </div>
 
         <div className="bg-white border rounded-xl p-4 space-y-3">

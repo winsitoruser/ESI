@@ -1,6 +1,18 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-18** · billing commission snapshot · lead CSV · soft-deactivate · policy-ack KPI
+> Diperbarui: 19 Juli 2026 — **Wave-19** · scorecard expand · commission CSV · backup chip · soft cron
+
+## Wave-19 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w19-1 | Security scorecard + batch11 + login-lockout | Done |
+| w19-2 | `billing-orders?partnerCode=` + commission CSV export | Done |
+| w19-3 | Backup freshness chip on `/platform/observability` | Done |
+| w19-4 | Soft-deactivate weekly cron + digest policyAck | Done |
+| w19-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:wave19`
 
 ## Wave-18 (19 Jul 2026)
 

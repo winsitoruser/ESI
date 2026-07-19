@@ -1,6 +1,6 @@
 /**
  * Platform Control Plane API — Humanify SaaS ops
- * GET   ?action=overview|tenants|tenant|tenant-detail|billing-orders|expiring-trials|partners|partner-leads|partner-leads-export|commission-preview
+ * GET   ?action=overview|tenants|tenant|tenant-detail|billing-orders|expiring-trials|partners|partner-leads|partner-leads-export|partner-commission-export|commission-preview
  * PATCH ?action=tenant-status|tenant-plan
  * POST  ?action=dunning-scan|partner-create|partner-lead-status|cleanup-qa|archive-qa|impersonate|end-impersonate
  */
@@ -508,6 +508,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const bCols = new Set((bColRows || []).map((c: any) => c.column_name));
 
       const tenantId = req.query.tenantId ? String(req.query.tenantId) : '';
+      const partnerCode = String(req.query.partnerCode || req.query.code || '').trim().toUpperCase();
+      const statusFilter = String(req.query.status || '').trim().toLowerCase();
       const lim = Math.min(100, Math.max(1, parseInt(String(req.query.limit || '20'), 10) || 20));
 
       const selectParts = [
@@ -533,6 +535,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         conditions.push('tenant_id = :tenantId');
         repl.tenantId = tenantId;
       }
+      if (partnerCode && bCols.has('partner_code')) {
+        conditions.push('UPPER(COALESCE(partner_code,\'\')) = :partnerCode');
+        repl.partnerCode = partnerCode;
+      }
+      if (statusFilter && bCols.has('status')) {
+        conditions.push('LOWER(status) = :statusFilter');
+        repl.statusFilter = statusFilter;
+      }
 
       const [orders] = await sequelize.query(`
         SELECT ${selectParts}
@@ -543,6 +553,56 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       `, { replacements: repl });
 
       return res.json({ success: true, data: { orders: orders || [], available: true } });
+    }
+
+    if (req.method === 'GET' && action === 'partner-commission-export') {
+      const [exists] = await sequelize.query(`
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'saas_billing_orders' LIMIT 1
+      `);
+      if (!exists?.length) {
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        return res.status(200).send('paid_at,order_code,tenant_id,plan,amount_idr,partner_code,commission_pct,commission_idr\n');
+      }
+      const [bColRows] = await sequelize.query(`
+        SELECT column_name FROM information_schema.columns
+        WHERE table_name = 'saas_billing_orders' AND table_schema = 'public'
+      `);
+      const bCols = new Set((bColRows || []).map((c: any) => c.column_name));
+      if (!bCols.has('partner_code') || !bCols.has('commission_idr')) {
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        return res.status(200).send('paid_at,order_code,tenant_id,plan,amount_idr,partner_code,commission_pct,commission_idr\n');
+      }
+      const partnerCode = String(req.query.partnerCode || req.query.code || '').trim().toUpperCase();
+      const lim = Math.min(5000, Math.max(1, Number(req.query.limit) || 2000));
+      const conditions = [`LOWER(status) = 'paid'`, `partner_code IS NOT NULL`, `partner_code <> ''`];
+      const repl: Record<string, unknown> = { lim };
+      if (partnerCode) {
+        conditions.push('UPPER(partner_code) = :partnerCode');
+        repl.partnerCode = partnerCode;
+      }
+      const [rows] = await sequelize.query(
+        `SELECT paid_at, order_code, tenant_id, plan, amount_idr, partner_code, commission_pct, commission_idr
+         FROM saas_billing_orders
+         WHERE ${conditions.join(' AND ')}
+         ORDER BY paid_at DESC NULLS LAST, created_at DESC
+         LIMIT :lim`,
+        { replacements: repl },
+      );
+      const esc = (v: unknown) => {
+        const s = v == null ? '' : String(v);
+        return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      };
+      const lines = ['paid_at,order_code,tenant_id,plan,amount_idr,partner_code,commission_pct,commission_idr'];
+      for (const r of rows || []) {
+        lines.push([
+          r.paid_at, r.order_code, r.tenant_id, r.plan, r.amount_idr,
+          r.partner_code, r.commission_pct, r.commission_idr,
+        ].map(esc).join(','));
+      }
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="partner-commission-paid.csv"');
+      return res.status(200).send(lines.join('\n'));
     }
 
     if (req.method === 'POST' && action === 'impersonate') {
