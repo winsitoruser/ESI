@@ -10,7 +10,7 @@
 | w25-2 | Cron-wire `check:uptime-external` | Done |
 | w25-3 | Ensure `HUMANIFY_STATE_DIR` + one-shot probe on deploy | Done |
 | w25-4 | Soft Playwright `/c/demo/careers` | Done |
-| w25-5 | Deploy + verify | Pending |
+| w25-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave25` · `npm run test:e2e:humanify:reset-password:prod` · `npm run test:e2e:humanify:careers:prod`
 
