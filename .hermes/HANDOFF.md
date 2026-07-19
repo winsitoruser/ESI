@@ -10,7 +10,7 @@
 | w16-2 | Platform inbox `partner-leads` | Done |
 | w16-3 | IR policy content + Publikasikan → ESS | Done |
 | w16-4 | `smoke:rls-lab` (no prod flip) | Done |
-| w16-5 | Deploy + verify | Pending |
+| w16-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave16` · `npm run smoke:rls-lab`  
 Docs: `docs/humanify-doc-storage-s3.md`
