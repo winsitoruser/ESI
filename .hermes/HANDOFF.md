@@ -10,7 +10,7 @@
 | w28-2 | Soft-deactivate `seed` in last-run + chip | Done |
 | w28-3 | Soft Playwright login cues (forgot/signup) | Done |
 | w28-4 | `smoke:phase16-health` + soft Playwright `/api/health` | Done |
-| w28-5 | Deploy + verify | Pending |
+| w28-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave28` · `npm run smoke:phase16-health` · `npm run test:e2e:humanify:health:prod` · `npm run test:e2e:humanify:prod`
 
