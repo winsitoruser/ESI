@@ -18,6 +18,8 @@
 
 Scripts: `npm run smoke:wave54` · `npm run smoke:rls-job-chaos` · `npm run smoke:rls-lab`
 
+Deploy verified 20 Jul 2026 — BUILD_OK · PAGES_OK · PM2 online · health checks passed.
+
 **Maturity 100% (judgment + ADR):** Control 100 · Sec 100* · HR 100 · ESS 100 · UX 100 · CP 100*
 \*Sec: soft RLS prod intentional (D-013 #4 chaos unit green; strict flip still staging-gated). CP: payout/monorepo/hard-e2e-prod explicitly won't-do or gated.
 
