@@ -9,7 +9,7 @@
 | w49-1 | Soft auth-gate HR core (12 routes) | Done |
 | w49-2 | `test:e2e:humanify:hr-auth-gate` (+ prod) | Done |
 | w49-3 | Unit smoke wave49 | Done |
-| w49-4 | Deploy + verify | Pending |
+| w49-4 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave49` · `npm run test:e2e:humanify:hr-auth-gate:prod`
 
