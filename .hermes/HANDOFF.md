@@ -1,6 +1,18 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-23** · commission partnerCode UI · signup soft e2e · DEMO chip
+> Diperbarui: 19 Juli 2026 — **Wave-24** · billing partnerCode · DEMO preview · forgot soft e2e · uptime probe chip
+
+## Wave-24 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w24-1 | Billing-orders `partnerCode` on paid JSON link | Done |
+| w24-2 | DEMO commission-preview button on `/platform` | Done |
+| w24-3 | Soft Playwright forgot-password cues | Done |
+| w24-4 | External uptime-probe last-run chip | Done |
+| w24-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:wave24` · `npm run test:e2e:humanify:forgot-password:prod`
 
 ## Wave-23 (19 Jul 2026)
 

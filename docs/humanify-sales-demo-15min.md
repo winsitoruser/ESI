@@ -7,7 +7,7 @@
 1. Login: `https://humanify.id/auth/login` (akun demo / superadmin).
 2. Pastikan tenant seed: `DEMO_TENANT_SLUG=demo npm run seed:demo-tenant` (di VPS dengan `DATABASE_URL`).
 3. Pastikan partner DEMO: `npm run ensure:demo-partner` (upsert kode `DEMO` 10%; attach ke slug `demo`).
-4. Signup referral: `/humanify/signup?ref=DEMO` atau `?partner=DEMO` — preview: `?action=commission-preview&partnerCode=DEMO&amountIdr=1000000`.
+4. Signup referral: `/humanify/signup?ref=DEMO` atau `?partner=DEMO` — preview: tombol **Preview DEMO · Rp1jt** di `/platform`.
 5. Cek chip **DEMO walkthrough: present** di `/platform` (Partner / referral codes).
 6. Buka `/humanify` — tunjukkan **Action Inbox** (cuti / kontrak / dokumen / absensi).
 

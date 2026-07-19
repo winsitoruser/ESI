@@ -38,6 +38,8 @@ export default function PlatformDashboardPage() {
   });
   const [commissionTo, setCommissionTo] = useState(() => new Date().toISOString().slice(0, 10));
   const [commissionPartnerCode, setCommissionPartnerCode] = useState('');
+  const [previewBusy, setPreviewBusy] = useState(false);
+  const [previewResult, setPreviewResult] = useState<string>('');
   const [partnerForm, setPartnerForm] = useState({ code: '', name: '', contactEmail: '' });
   const [cleanupBusy, setCleanupBusy] = useState(false);
   const [archiveBusy, setArchiveBusy] = useState(false);
@@ -178,6 +180,31 @@ export default function PlatformDashboardPage() {
       load();
     } else setToast(j.error || 'Gagal buat partner');
     setTimeout(() => setToast(''), 3000);
+  }
+
+  async function previewDemoCommission() {
+    setPreviewBusy(true);
+    setPreviewResult('');
+    try {
+      const code = (commissionPartnerCode.trim() || 'DEMO').toUpperCase();
+      const r = await fetch(
+        `/api/platform?action=commission-preview&partnerCode=${encodeURIComponent(code)}&amountIdr=1000000`,
+      );
+      const j = await r.json();
+      if (j.success && j.data?.estimate) {
+        const est = j.data.estimate;
+        const name = j.data.partner?.name || code;
+        setPreviewResult(
+          `${name} · ${est.commissionPct}% → Rp ${Number(est.commissionIdr || 0).toLocaleString('id-ID')} (calc only)`,
+        );
+      } else {
+        setPreviewResult(j.error || j.data?.error || 'Preview gagal');
+      }
+    } catch {
+      setPreviewResult('Preview gagal');
+    } finally {
+      setPreviewBusy(false);
+    }
   }
 
   async function runCleanupQa(apply: boolean) {
@@ -343,8 +370,21 @@ export default function PlatformDashboardPage() {
             ))}
             {!partners.length && <li className="py-1 text-slate-400">Belum ada partner.</li>}
           </ul>
+          <div className="flex flex-wrap gap-2 items-center">
+            <button
+              type="button"
+              onClick={previewDemoCommission}
+              disabled={previewBusy}
+              className="text-xs px-2 py-1 border rounded-lg text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
+            >
+              {previewBusy ? 'Preview…' : 'Preview DEMO · Rp1jt'}
+            </button>
+            {previewResult && (
+              <span className="text-[11px] text-slate-600">{previewResult}</span>
+            )}
+          </div>
           <p className="text-[11px] text-slate-400">
-            Preview komisi: GET /api/platform?action=commission-preview&amp;partnerCode=CODE&amp;amountIdr=1000000 (calc only — bukan payout)
+            Calc only — bukan payout. GET commission-preview&amp;partnerCode=&amp;amountIdr=
           </p>
           <div className="flex flex-wrap gap-2 items-center">
             <label className="text-[11px] text-slate-500 flex items-center gap-1">
@@ -381,7 +421,7 @@ export default function PlatformDashboardPage() {
               Unduh CSV komisi (paid)
             </a>
             <a
-              href="/api/platform?action=billing-orders&status=paid&limit=50"
+              href={`/api/platform?action=billing-orders&status=paid&limit=50${commissionPartnerCode.trim() ? `&partnerCode=${encodeURIComponent(commissionPartnerCode.trim().toUpperCase())}` : ''}`}
               className="text-xs px-2 py-1 border rounded-lg text-slate-700 hover:bg-slate-50"
             >
               Order paid (JSON)

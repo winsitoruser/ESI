@@ -11,6 +11,7 @@ import { getBackupFreshness } from '@/lib/saas/backup-freshness';
 import { getScorecardLastRun } from '@/lib/saas/scorecard-last';
 import { getDigestLastRun } from '@/lib/saas/digest-last';
 import { getSoftDeactivateLastRun } from '@/lib/saas/soft-deactivate-last';
+import { getUptimeLastRun } from '@/lib/saas/uptime-last';
 import { getPrivyWebhookHealth } from '@/lib/hris/privy-webhook';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -32,6 +33,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const scorecard = getScorecardLastRun();
   const digest = getDigestLastRun();
   const softDeactivate = getSoftDeactivateLastRun();
+  const uptimeLast = getUptimeLastRun();
   const privy = await getPrivyWebhookHealth().catch(() => null);
   return res.json({
     success: true,
@@ -44,6 +46,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           process.env.UPTIMEROBOT_API_KEY?.trim() || process.env.BETTERSTACK_TOKEN?.trim(),
         ),
         healthUrl: 'https://humanify.id/api/health?deep=1',
+        lastRun: {
+          present: uptimeLast.present,
+          ok: uptimeLast.ok,
+          at: uptimeLast.at,
+          ageHours: uptimeLast.ageHours,
+          result: uptimeLast.result,
+          reason: uptimeLast.reason,
+        },
       },
       backup: {
         present: backup.present,

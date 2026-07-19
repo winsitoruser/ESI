@@ -175,6 +175,12 @@ export default function PlatformObservabilityPage() {
             <p className={`text-[11px] mt-1 ${obs?.externalUptime?.configured ? 'text-emerald-700' : 'text-amber-700'}`}>
               External: {obs?.externalUptime?.configured ? 'API key set' : 'manual checklist'}
             </p>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              Probe:{' '}
+              {!obs?.externalUptime?.lastRun?.present
+                ? 'Never'
+                : `${obs.externalUptime.lastRun.result || '—'}${obs.externalUptime.lastRun.ageHours != null ? ` · ${obs.externalUptime.lastRun.ageHours}h ago` : ''}`}
+            </p>
           </div>
           <div className="bg-white border rounded-xl p-4">
             <div className="flex items-center gap-2 text-xs text-slate-500 mb-1"><Cpu className="w-3.5 h-3.5 text-amber-600" /> Memory (RSS)</div>

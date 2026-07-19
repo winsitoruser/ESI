@@ -95,6 +95,7 @@ jobs:
           npm run smoke:wave21
           npm run smoke:wave22
           npm run smoke:wave23
+          npm run smoke:wave24
           npm run smoke:rls-lab
           npm run check:uptime-external
           npm run smoke:mock-audit
@@ -104,6 +105,7 @@ jobs:
           test -f lib/saas/scorecard-last.ts
           test -f lib/saas/digest-last.ts
           test -f lib/saas/soft-deactivate-last.ts
+          test -f lib/saas/uptime-last.ts
           test -f lib/hris/policy-ack.ts
           test -f lib/saas/billing-webhook-idempotency.ts
           test -f lib/hris/payslip-view-gate.ts
@@ -116,6 +118,7 @@ jobs:
           test -f lib/hris/partner-leads.ts
           test -f e2e/humanify-partners-ui.spec.ts
           test -f e2e/humanify-signup-ref-ui.spec.ts
+          test -f e2e/humanify-forgot-password-ui.spec.ts
           test -f scripts/check-humanify-uptime-external.js
           test -f scripts/run-humanify-doc-expiry-soft-deactivate.js
           test -f scripts/ensure-humanify-demo-partner.js
