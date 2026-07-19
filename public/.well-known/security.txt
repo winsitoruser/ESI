@@ -1,0 +1,6 @@
+Contact: mailto:ops@humanify.id
+Expires: 2027-07-19T00:00:00.000Z
+Preferred-Languages: en, id
+Canonical: https://humanify.id/.well-known/security.txt
+Policy: https://humanify.id/humanify/welcome
+Acknowledgments: https://humanify.id/humanify/welcome

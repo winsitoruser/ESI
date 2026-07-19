@@ -27,4 +27,16 @@ test.describe('Humanify SEO public surfaces (soft)', () => {
     expect(body).toMatch(/urlset/i);
     expect(body).toMatch(/humanify\.id\/humanify\/welcome/i);
   });
+
+  test('security.txt is reachable with Contact', async ({ page }) => {
+    const res = await page.goto('/.well-known/security.txt', {
+      waitUntil: 'domcontentloaded',
+      timeout: 45_000,
+    });
+    expect((res?.status() ?? 0)).toBeLessThan(500);
+    const body = await page.locator('body').innerText();
+    expect(body).toMatch(/Contact:\s*mailto:ops@humanify\.id/i);
+    expect(body).toMatch(/Expires:/i);
+    expect(body).toMatch(/Canonical:\s*https:\/\/humanify\.id\/\.well-known\/security\.txt/i);
+  });
 });

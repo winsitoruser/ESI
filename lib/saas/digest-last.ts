@@ -11,6 +11,7 @@ export type DigestLastRun = {
   ageHours: number | null;
   sent: number | null;
   dryRun: boolean;
+  seed: boolean;
   path: string;
   reason?: string;
 };
@@ -26,6 +27,7 @@ export function writeDigestLast(summary: {
   at: string;
   sent: number;
   dryRun?: boolean;
+  seed?: boolean;
 }): void {
   const file = getDigestLastPath();
   try {
@@ -37,6 +39,7 @@ export function writeDigestLast(summary: {
           at: summary.at,
           sent: summary.sent,
           dryRun: Boolean(summary.dryRun),
+          ...(summary.seed ? { seed: true } : {}),
         },
         null,
         2,
@@ -58,6 +61,7 @@ export function getDigestLastRun(): DigestLastRun {
       ageHours: null,
       sent: null,
       dryRun: false,
+      seed: false,
       path: file,
       reason: 'never',
     };
@@ -75,6 +79,7 @@ export function getDigestLastRun(): DigestLastRun {
       ageHours,
       sent,
       dryRun: Boolean(raw.dryRun),
+      seed: Boolean(raw.seed),
       path: file,
     };
   } catch {
@@ -85,6 +90,7 @@ export function getDigestLastRun(): DigestLastRun {
       ageHours: null,
       sent: null,
       dryRun: false,
+      seed: false,
       path: file,
       reason: 'invalid_json',
     };

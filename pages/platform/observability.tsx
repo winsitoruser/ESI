@@ -335,16 +335,19 @@ export default function PlatformObservabilityPage() {
             </div>
             <p className={`text-lg font-bold ${
               !obs?.actionDigest?.present ? 'text-slate-500'
-                : obs.actionDigest.dryRun ? 'text-amber-700' : 'text-emerald-700'
+                : obs.actionDigest.seed ? 'text-amber-700'
+                  : obs.actionDigest.dryRun ? 'text-amber-700' : 'text-emerald-700'
             }`}>
               {!obs?.actionDigest?.present ? 'Never'
-                : obs.actionDigest.dryRun
-                  ? 'Dry-run'
-                  : `${obs.actionDigest.sent ?? 0} sent`}
+                : obs.actionDigest.seed
+                  ? 'Seed'
+                  : obs.actionDigest.dryRun
+                    ? 'Dry-run'
+                    : `${obs.actionDigest.sent ?? 0} sent`}
             </p>
             <p className="text-[11px] text-slate-400 mt-1">
               {obs?.actionDigest?.ageHours != null
-                ? `${obs.actionDigest.ageHours}h ago`
+                ? `${obs.actionDigest.ageHours}h ago${obs.actionDigest.seed ? ' · deploy seed' : ''}`
                 : 'Cron Mon 01:00 UTC'}
             </p>
           </div>

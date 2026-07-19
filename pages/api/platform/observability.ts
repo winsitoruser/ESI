@@ -82,6 +82,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         ageHours: digest.ageHours,
         sent: digest.sent,
         dryRun: digest.dryRun,
+        seed: digest.seed,
         reason: digest.reason,
       },
       docExpirySoft: {

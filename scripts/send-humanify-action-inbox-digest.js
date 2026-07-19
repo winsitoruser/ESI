@@ -5,6 +5,7 @@
  * Usage:
  *   DIGEST_TO=ops@humanify.id node scripts/send-humanify-action-inbox-digest.js
  *   DRY_RUN=true node scripts/send-humanify-action-inbox-digest.js
+ *   SEED_ONLY=true node scripts/send-humanify-action-inbox-digest.js
  *
  * Cron: Mon 01:00 UTC (08:00 WIB) via ensure-humanify-crons.sh
  */
@@ -17,6 +18,7 @@ const { Sequelize } = require('sequelize');
 const DATABASE_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL;
 const DIGEST_TO = process.env.DIGEST_TO || process.env.OBS_ALERT_EMAIL || process.env.SMTP_FROM || '';
 const DRY_RUN = String(process.env.DRY_RUN || '').toLowerCase() === 'true';
+const SEED_ONLY = String(process.env.SEED_ONLY || '').toLowerCase() === 'true';
 const BASE = (process.env.NEXTAUTH_URL || process.env.APP_URL || 'https://humanify.id').replace(/\/$/, '');
 
 function writeDigestLast(summary) {
@@ -25,11 +27,28 @@ function writeDigestLast(summary) {
     path.join(process.env.HUMANIFY_STATE_DIR || '/var/lib/humanify', 'action-digest-last.json');
   try {
     fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, JSON.stringify(summary, null, 2), 'utf8');
+    const payload = {
+      at: summary.at,
+      sent: summary.sent,
+      dryRun: Boolean(summary.dryRun),
+    };
+    if (summary.seed) payload.seed = true;
+    fs.writeFileSync(file, JSON.stringify(payload, null, 2), 'utf8');
     console.log(`[digest] wrote ${file}`);
   } catch (e) {
     console.warn('[digest] write last-run failed:', e.message || e);
   }
+}
+
+if (SEED_ONLY) {
+  writeDigestLast({
+    at: new Date().toISOString(),
+    sent: 0,
+    dryRun: true,
+    seed: true,
+  });
+  console.log('[digest] SEED_ONLY — wrote last-run without DB');
+  process.exit(0);
 }
 
 if (!DATABASE_URL) {
