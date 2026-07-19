@@ -39,13 +39,18 @@ HUMANIFY_RLS_REQUEST_BOUND=true
 ```bash
 # Offline unit (CI / local — no DB flip)
 npm run smoke:rls-lab
+npm run smoke:rls-job-chaos   # SEC-S4-2 — asserts runWithTenantDbContext + set_config
 
 # Optional live against lab DB only
 HUMANIFY_RLS_LAB=1 DATABASE_URL=postgresql://…/humanify_rls_lab npm run smoke:rls-lab
+HUMANIFY_RLS_LAB=1 HUMANIFY_RLS_MODE=strict DATABASE_URL=postgresql://…/humanify_rls_lab \
+  npm run smoke:rls-job-chaos
 
 SMOKE_BASE_URL=https://staging.example npm run security:scorecard
 SMOKE_BASE_URL=https://staging.example npm run smoke:ga-journey
 ```
+
+**SEC-S4-2 note:** Digest cron (`send-humanify-action-inbox-digest.js`) now calls `set_config('app.current_tenant', …)` per tenant iteration. Helper: `lib/saas/run-with-tenant-db-context.ts`. Chaos expectation unchanged — job **without** context must not leak rows under strict.
 
 ## Exit criteria
 

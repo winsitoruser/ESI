@@ -178,16 +178,38 @@ async function main() {
     return true;
   };
 
+  async function setTenantContext(tenantId) {
+    try {
+      await sequelize.query(`SELECT set_config('app.current_tenant', :tid, true)`, {
+        replacements: { tid: String(tenantId || '') },
+      });
+      await sequelize.query(`SELECT set_config('app.is_super_admin', 'false', true)`);
+    } catch {
+      /* older PG / no permission */
+    }
+  }
+
+  async function clearTenantContext() {
+    try {
+      await sequelize.query(`SELECT set_config('app.current_tenant', '', true)`);
+      await sequelize.query(`SELECT set_config('app.is_super_admin', 'false', true)`);
+    } catch { /* ignore */ }
+  }
+
   let sent = 0;
   for (const t of tenants) {
+    // SEC-S4-2 — bind tenant DB context per job iteration (pool-safe for future strict RLS)
+    await setTenantContext(t.id);
     const counts = await inboxCounts(sequelize, t.id);
     if (counts.total === 0) {
       console.log(`  · ${t.slug || t.name}: empty inbox — skip`);
+      await clearTenantContext();
       continue;
     }
     const to = DIGEST_TO || t.contact_email;
     if (!to) {
       console.log(`  · ${t.slug || t.name}: no DIGEST_TO/contact_email — skip`);
+      await clearTenantContext();
       continue;
     }
 
@@ -244,6 +266,7 @@ async function main() {
       console.log(`  ${ok ? '✓' : '✗'} ${t.slug || t.name} → ${to}${ccList.length ? ` +${ccList.length} cc` : ''} (total=${counts.total})`);
       if (ok) sent++;
     }
+    await clearTenantContext();
   }
 
   console.log(`Done. Sent=${sent}`);

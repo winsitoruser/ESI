@@ -32,9 +32,16 @@ else fail('runbook no-prod-flip');
 if (/security:scorecard|smoke:ga-journey/.test(doc)) ok('runbook chaos commands');
 else fail('runbook chaos commands');
 
+if (/smoke:rls-job-chaos|SEC-S4-2|runWithTenantDbContext/i.test(doc)) ok('runbook SEC-S4-2 job chaos');
+else fail('runbook SEC-S4-2 job chaos');
+
 const enable = fs.readFileSync(path.join(__dirname, 'enable-humanify-rls-request-bound.sh'), 'utf8');
 if (/HUMANIFY_RLS_MODE=soft/.test(enable) || /soft/.test(enable)) ok('prod enable stays soft');
 else fail('prod enable stays soft');
+
+const decisions = fs.readFileSync(path.join(__dirname, '../.hermes/DECISIONS.md'), 'utf8');
+if (/D-013/.test(decisions) && /strict/i.test(decisions)) ok('D-013 strict prod gate');
+else fail('D-013 strict prod gate');
 
 async function optionalLive() {
   if (process.env.HUMANIFY_RLS_LAB !== '1') {

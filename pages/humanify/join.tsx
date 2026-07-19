@@ -90,8 +90,8 @@ export default function JoinPage() {
       <PublicAuthShell>
         <div className="w-full max-w-md rounded-2xl border bg-white p-8 shadow-sm" style={{ borderColor: 'var(--hf-border)' }}>
           <div className="text-center">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center mx-auto mb-3">
-              <UserPlus className="w-6 h-6 text-indigo-600" />
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-3">
+              <UserPlus className="w-6 h-6 text-emerald-600" />
             </div>
             <h1 className="text-xl font-semibold text-slate-900">Bergabung ke tim</h1>
             <p className="mt-1.5 text-sm text-slate-500">Buat akun untuk menerima undangan.</p>
@@ -106,11 +106,11 @@ export default function JoinPage() {
               <p className="text-red-600">
                 {preview?.reason || 'Tautan tidak lengkap — token undangan tidak ditemukan.'}
               </p>
-              <Link href="/humanify/login" className="text-indigo-600 underline">
+              <Link href="/humanify/login" className="text-emerald-600 underline">
                 Kembali ke login
               </Link>
               <p>
-                <Link href={HUMANIFY_BRAND.welcomePath} className="text-indigo-600 underline">
+                <Link href={HUMANIFY_BRAND.welcomePath} className="text-emerald-600 underline">
                   Pelajari Humanify
                 </Link>
               </p>
@@ -120,7 +120,7 @@ export default function JoinPage() {
               <p className="flex items-center justify-center gap-2 text-emerald-700 text-sm">
                 <CheckCircle2 className="w-5 h-5" /> {message}
               </p>
-              <Link href="/humanify/login" className="inline-block text-indigo-600 underline text-sm">
+              <Link href="/humanify/login" className="inline-block text-emerald-600 underline text-sm">
                 Masuk sekarang
               </Link>
             </div>
@@ -134,7 +134,7 @@ export default function JoinPage() {
                 <p className="mt-1.5 text-xs text-slate-500">
                   Diundang ke <span className="font-medium text-slate-700">{preview?.companyName}</span>
                   {preview?.role && (
-                    <> sebagai <span className="font-medium text-indigo-600">{ROLE_LABELS[preview.role] || preview.role}</span></>
+                    <> sebagai <span className="font-medium text-emerald-600">{ROLE_LABELS[preview.role] || preview.role}</span></>
                   )}
                 </p>
               </div>
@@ -150,7 +150,7 @@ export default function JoinPage() {
                       onChange={(e) => setName(e.target.value)}
                       placeholder="Nama Anda"
                       required
-                      className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-slate-300 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                      className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-slate-300 text-sm outline-none focus:border-[var(--hf-ring)] focus:ring-2 focus:ring-[var(--hf-ring-soft)]"
                     />
                   </div>
                 </div>
@@ -164,7 +164,7 @@ export default function JoinPage() {
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Minimal 8 karakter"
                       required
-                      className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-300 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                      className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-300 text-sm outline-none focus:border-[var(--hf-ring)] focus:ring-2 focus:ring-[var(--hf-ring-soft)]"
                     />
                     <button
                       type="button"
@@ -185,7 +185,7 @@ export default function JoinPage() {
                       onChange={(e) => setConfirm(e.target.value)}
                       placeholder="Ulangi password"
                       required
-                      className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-slate-300 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                      className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-slate-300 text-sm outline-none focus:border-[var(--hf-ring)] focus:ring-2 focus:ring-[var(--hf-ring-soft)]"
                     />
                   </div>
                 </div>
@@ -193,7 +193,7 @@ export default function JoinPage() {
                 <button
                   type="submit"
                   disabled={status === 'loading'}
-                  className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+                  className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50"
                 >
                   {status === 'loading' ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
                   Buat akun &amp; bergabung
@@ -201,7 +201,7 @@ export default function JoinPage() {
                 <p className="text-center">
                   <Link
                     href="/humanify/login"
-                    className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-indigo-600"
+                    className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-emerald-600"
                   >
                     <ArrowLeft className="w-4 h-4" /> Sudah punya akun? Login
                   </Link>

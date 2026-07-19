@@ -1,6 +1,8 @@
-/* Humanify Employee Portal — minimal service worker */
-const CACHE = 'humanify-employee-v2';
-const PRECACHE = ['/employee', '/employee/login', '/employee/training', '/manifest-employee.json'];
+/* Humanify Employee Portal — online-first SW (D-016 / ESS-S4-1)
+ * Network first; cache only as shell fallback. No offline mutation queue.
+ */
+const CACHE = 'humanify-employee-v3';
+const PRECACHE = ['/employee', '/employee/login', '/manifest-employee.json'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
@@ -22,11 +24,14 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET') return;
   if (!url.pathname.startsWith('/employee')) return;
+  // Never cache API / auth — online only
+  if (url.pathname.startsWith('/api') || url.pathname.includes('/auth')) return;
 
   e.respondWith(
     fetch(e.request)
       .then((res) => {
-        if (res.ok) {
+        // Cache navigations / shell only (ok HTML-ish)
+        if (res.ok && e.request.mode === 'navigate') {
           const clone = res.clone();
           caches.open(CACHE).then((cache) => cache.put(e.request, clone));
         }

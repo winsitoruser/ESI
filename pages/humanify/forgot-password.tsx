@@ -48,8 +48,8 @@ export default function ForgotPasswordPage() {
       <PublicAuthShell>
         <div className="w-full max-w-md rounded-2xl border bg-white p-8 shadow-sm" style={{ borderColor: 'var(--hf-border)' }}>
           <div className="text-center">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center mx-auto mb-3">
-              <KeyRound className="w-6 h-6 text-indigo-600" />
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-3">
+              <KeyRound className="w-6 h-6 text-emerald-600" />
             </div>
             <h1 className="text-xl font-semibold text-slate-900">Lupa password?</h1>
             <p className="mt-1.5 text-sm text-slate-500">
@@ -70,7 +70,7 @@ export default function ForgotPasswordPage() {
               )}
               <Link
                 href="/humanify/login"
-                className="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:underline"
+                className="inline-flex items-center gap-1.5 text-sm text-emerald-600 hover:underline"
               >
                 <ArrowLeft className="w-4 h-4" /> Kembali ke login
               </Link>
@@ -87,7 +87,7 @@ export default function ForgotPasswordPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="nama@perusahaan.com"
                     required
-                    className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-slate-300 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                    className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-slate-300 text-sm outline-none focus:border-[var(--hf-ring)] focus:ring-2 focus:ring-[var(--hf-ring-soft)]"
                   />
                 </div>
               </div>
@@ -95,7 +95,7 @@ export default function ForgotPasswordPage() {
               <button
                 type="submit"
                 disabled={status === 'loading'}
-                className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+                className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50"
               >
                 {status === 'loading' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
                 Kirim tautan reset
@@ -103,14 +103,14 @@ export default function ForgotPasswordPage() {
               <p className="text-center">
                 <Link
                   href="/humanify/login"
-                  className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-indigo-600"
+                  className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-emerald-600"
                 >
                   <ArrowLeft className="w-4 h-4" /> Kembali ke login
                 </Link>
               </p>
               <p className="text-center text-xs text-slate-400">
                 Belum punya akun?{' '}
-                <Link href={HUMANIFY_BRAND.signupPath} className="text-indigo-600 hover:underline">
+                <Link href={HUMANIFY_BRAND.signupPath} className="text-emerald-600 hover:underline">
                   Daftar trial
                 </Link>
               </p>

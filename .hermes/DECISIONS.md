@@ -83,3 +83,28 @@ Jangan memaksa marketing ke slate HQ, dan jangan mewarnai ops dengan gradient vi
 4. Chaos job tenant context (SEC-S4-2) hijau sebelum flip `HUMANIFY_RLS_MODE=strict` di pool prod
 
 Flip strict di prod **tanpa** staging IDOR + chaos = dilarang.
+
+## D-014: Hard Playwright payroll — staging gate — 20 Jul 2026
+**QA + PM:** Soft payroll e2e (`e2e/humanify-payroll-ui.spec.ts` auth-gate) tetap **prod-safe**.
+- Hard suite skeleton: `e2e/humanify-payroll-hard.spec.ts` — **skipped** unless `HUMANIFY_E2E_HARD=1` + staging base URL.
+- Prod regression: soft gate only (`npm run test:e2e:humanify:payroll:prod`).
+- Golden calc smoke remains `npm run smoke:payroll-golden` (API/unit, bukan UI login).
+
+## D-015: Partner payout ledger deferred — 20 Jul 2026
+**PM + Finance:** Automated Midtrans/partner payout ledger **won't-do** for maturity 100%.
+- Source of truth: manual CSV / ops export + `estimatePartnerCommission` preview in `lib/saas/partners.ts`.
+- Revisit when partner GMV volume justifies ledger + disbursement automation.
+
+## D-016: Employee SW online-first — 20 Jul 2026
+**ESS:** Service worker `public/sw-employee.js` is **online-first** (network, then cache fallback for shell only).
+- No offline mutation queue for leave/attendance/payslip.
+- Cache name bump to `humanify-employee-v3` on policy change.
+- Offline ESS mutations = future epic, not maturity blocker.
+
+## D-017: `packages/humanify-core` monorepo extract won't-do — 20 Jul 2026
+**CTO:** Extracting shared core into `packages/humanify-core` is **out of scope** for maturity 100%.
+- App stays single Next.js repo; shared libs under `lib/`.
+- Revisit only if a second deployable (mobile BFF / worker package) needs a published package.
+
+## D-012 addendum (Wave-54): Customer IdP SAML QC — 20 Jul 2026
+**Ops:** Synthetic ACS smoke (`npm run smoke:sso-acs`) = **release gate**. Real customer IdP onboarding = ops runbook per tenant (metadata + ACS URL), not a code maturity gap.

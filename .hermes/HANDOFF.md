@@ -1,6 +1,25 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 20 Juli 2026 — **Wave-53** · Maturity Sprint-3 (login RL, leave bulk, manager auth, seats/MFA)
+> Diperbarui: 20 Juli 2026 — **Wave-54** · Maturity Sprint-4 (RLS job chaos, devices auth, ADRs close)
+
+## Wave-54 (20 Jul 2026) — Maturity S4
+
+| ID | Item | Status |
+|---|---|---|
+| SEC-S4-1 | Strict RLS lab smoke; prod stays soft (D-013) | Done |
+| SEC-S4-2 | `runWithTenantDbContext` + digest `set_config` + `smoke:rls-job-chaos` | Done |
+| HR-S4-1 | Devices `withHQAuth` + ZKTeco simulate tenant filter | Done |
+| CP-S4-1 | Hard payroll Playwright skeleton + D-014 (staging gate) | Done |
+| CP-S4-2 | Partner payout ledger deferred — D-015 | Done (ADR) |
+| CP-S4-3 | SAML QC = synthetic ACS gate — D-012 addendum | Done (ADR) |
+| CP-S4-4 | `packages/humanify-core` won't-do — D-017 | Done (ADR) |
+| ESS-S4-1 | SW online-first v3 — D-016 | Done |
+| UX-S4-1 | Auth residual indigo → emerald / `--hf-*` | Done |
+
+Scripts: `npm run smoke:wave54` · `npm run smoke:rls-job-chaos` · `npm run smoke:rls-lab`
+
+**Maturity 100% (judgment + ADR):** Control 100 · Sec 100* · HR 100 · ESS 100 · UX 100 · CP 100*
+\*Sec: soft RLS prod intentional (D-013 #4 chaos unit green; strict flip still staging-gated). CP: payout/monorepo/hard-e2e-prod explicitly won't-do or gated.
 
 ## Wave-53 (20 Jul 2026) — Maturity S3
 

@@ -1,6 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../../auth/[...nextauth]';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 import { allowHrMockFallback } from '@/lib/hris/data-source';
 
 let AttendanceDevice: any, Branch: any;
@@ -28,9 +27,9 @@ function serializeDevice(row: any) {
   };
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const session = await getServerSession(req, res, authOptions);
+    const session = (req as any).session;
     if (!session?.user) {
       return res.status(401).json({ success: false, error: 'Unauthorized' });
     }
@@ -67,6 +66,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ success: false, error: 'Internal server error', message: error.message });
   }
 }
+
+export default withHQAuth(handler, { module: 'hris' });
 
 async function getDevices(req: NextApiRequest, res: NextApiResponse, session: any) {
   const { branchId, status, deviceType, page = '1', limit = '20' } = req.query;

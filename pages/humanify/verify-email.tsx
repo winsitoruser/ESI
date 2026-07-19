@@ -62,7 +62,7 @@ export default function VerifyEmailPage() {
       </Head>
       <PublicAuthShell>
         <div className="w-full max-w-md rounded-2xl border bg-white p-8 shadow-sm text-center" style={{ borderColor: 'var(--hf-border)' }}>
-          <Mail className="w-10 h-10 text-indigo-600 mx-auto mb-3" />
+          <Mail className="w-10 h-10 text-emerald-600 mx-auto mb-3" />
           <h1 className="text-xl font-semibold text-slate-900">Verifikasi email</h1>
           {status === 'loading' && (
             <p className="mt-4 text-slate-500 flex items-center justify-center gap-2">
@@ -74,7 +74,7 @@ export default function VerifyEmailPage() {
               <p className="flex items-center justify-center gap-2">
                 <CheckCircle2 className="w-5 h-5" /> {message}
               </p>
-              <Link href="/humanify" className="inline-block text-indigo-600 underline">
+              <Link href="/humanify" className="inline-block text-emerald-600 underline">
                 Lanjut ke Humanify
               </Link>
             </div>
@@ -88,14 +88,14 @@ export default function VerifyEmailPage() {
               <button
                 type="button"
                 onClick={resend}
-                className="rounded-lg bg-indigo-600 text-white px-4 py-2 text-sm"
+                className="rounded-lg bg-emerald-600 text-white px-4 py-2 text-sm"
               >
                 Kirim ulang (perlu login)
               </button>
               <p className="space-x-3">
-                <Link href="/humanify/login" className="text-indigo-600 underline">Login</Link>
+                <Link href="/humanify/login" className="text-emerald-600 underline">Login</Link>
                 <span className="text-slate-300">·</span>
-                <Link href={HUMANIFY_BRAND.welcomePath} className="text-indigo-600 underline">
+                <Link href={HUMANIFY_BRAND.welcomePath} className="text-emerald-600 underline">
                   Pelajari Humanify
                 </Link>
               </p>

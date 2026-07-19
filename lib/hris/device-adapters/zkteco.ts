@@ -66,11 +66,17 @@ export async function pullZktecoAttendance(
     };
   }
 
-  const [emps] = await sequelize.query(`
-    SELECT id, employee_id, name FROM employees
-    WHERE is_active = true
-    ORDER BY RANDOM() LIMIT 5
-  `);
+  const tid = device.tenantId ? String(device.tenantId) : '';
+  const [emps] = await sequelize.query(
+    tid
+      ? `SELECT id, employee_id, name FROM employees
+         WHERE is_active = true AND tenant_id = :tid
+         ORDER BY RANDOM() LIMIT 5`
+      : `SELECT id, employee_id, name FROM employees
+         WHERE is_active = true
+         ORDER BY RANDOM() LIMIT 5`,
+    tid ? { replacements: { tid } } : undefined,
+  );
   const now = Date.now();
   const records: ZktecoPunchRecord[] = [];
   for (const e of emps as any[]) {
