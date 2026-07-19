@@ -10,7 +10,7 @@
 | w42-2 | Employee login Lupa password soft + e2e | Done |
 | w42-3 | `smoke:employee-hardening` + `lms-lab-gate` + `idor-*` | Done |
 | w42-4 | Sitemap employee soft assert | Done |
-| w42-5 | Deploy + verify | Pending |
+| w42-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave42` · `npm run test:e2e:humanify:partners:prod` · `npm run test:e2e:humanify:employee-login:prod` · `npm run test:e2e:humanify:seo-public:prod` · `npm run smoke:employee-hardening`
 
