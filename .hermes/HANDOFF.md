@@ -9,7 +9,7 @@
 | w50-1 | Soft auth-gate ops (billing/security/KPI/training/…) | Done |
 | w50-2 | `test:e2e:humanify:ops-auth-gate` (+ prod) | Done |
 | w50-3 | Unit smoke wave50 | Done |
-| w50-4 | Deploy + verify | Pending |
+| w50-4 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave50` · `npm run test:e2e:humanify:ops-auth-gate:prod`
 
