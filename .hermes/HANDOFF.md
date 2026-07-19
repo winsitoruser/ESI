@@ -10,7 +10,7 @@
 | w36-2 | Soft Playwright SW public + welcome Partner nav | Done |
 | w36-3 | `llms.txt` cross-link `humans.txt` | Done |
 | w36-4 | `smoke:phase8-partners` + `smoke:phase9-alerts` | Done |
-| w36-5 | Deploy + verify | Pending |
+| w36-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave36` · `npm run test:e2e:humanify:health:prod` · `npm run test:e2e:humanify:prod` · `npm run test:e2e:humanify:seo-public:prod`
 
