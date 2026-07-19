@@ -43,6 +43,11 @@ if (/SEED_ONLY=true.*action-inbox-digest|send-humanify-action-inbox-digest/.test
   ok('deploy digest seed');
 } else fail('deploy digest seed');
 
+const mw = fs.readFileSync(path.join(__dirname, '../middleware.ts'), 'utf8');
+if (/well-known\/security\.txt/.test(mw) || /\\.well-known\//.test(mw)) {
+  ok('middleware security.txt public');
+} else fail('middleware security.txt public');
+
 const api = fs.readFileSync(path.join(__dirname, '../pages/api/platform/observability.ts'), 'utf8');
 if (/seed: digest\.seed/.test(api)) ok('observability API digest seed');
 else fail('observability API digest seed');

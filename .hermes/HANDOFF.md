@@ -7,7 +7,7 @@
 | ID | Item | Status |
 |---|---|---|
 | w29-1 | Digest `SEED_ONLY` + observability Seed chip | Done |
-| w29-2 | `/.well-known/security.txt` + soft SEO e2e | Done |
+| w29-2 | `/.well-known/security.txt` + middleware public + soft SEO e2e | Done |
 | w29-3 | Soft Playwright `/employee/login` | Done |
 | w29-4 | `smoke:phase17-login-lockout` + `smoke:phase18-observability` | Done |
 | w29-5 | Deploy + verify | Pending |

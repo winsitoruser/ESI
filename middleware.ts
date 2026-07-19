@@ -26,7 +26,12 @@ export async function middleware(request: NextRequest) {
   const host = request.headers.get('host');
 
   // SEO crawl endpoints — always public
-  if (pathname === '/robots.txt' || pathname === '/sitemap.xml') {
+  if (
+    pathname === '/robots.txt' ||
+    pathname === '/sitemap.xml' ||
+    pathname === '/.well-known/security.txt' ||
+    pathname.startsWith('/.well-known/')
+  ) {
     return NextResponse.next();
   }
 
