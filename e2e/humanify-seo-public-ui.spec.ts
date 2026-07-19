@@ -71,5 +71,6 @@ test.describe('Humanify SEO public surfaces (soft)', () => {
     const body = await page.locator('body').innerText();
     expect(body).toMatch(/TEAM|Naincode/i);
     expect(body).toMatch(/ops@humanify\.id|CONTACT/i);
+    expect(body).toMatch(/llms\.txt/i);
   });
 });

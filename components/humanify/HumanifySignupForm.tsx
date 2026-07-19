@@ -362,6 +362,10 @@ export default function HumanifySignupForm() {
                 <Link href={HUMANIFY_BRAND.partnersPath} className="text-violet-300 hover:text-white font-medium transition-colors">
                   Channel partner
                 </Link>
+                <span className="mx-2 text-violet-400/30">·</span>
+                <Link href={HUMANIFY_BRAND.roiCalculatorPath} className="text-violet-300 hover:text-white font-medium transition-colors">
+                  Kalkulator ROI
+                </Link>
               </p>
 
               <div className="mt-6 flex justify-center lg:hidden">

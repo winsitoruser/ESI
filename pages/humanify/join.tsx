@@ -110,6 +110,11 @@ export default function JoinPage() {
               <Link href="/humanify/login" className="text-indigo-600 underline">
                 Kembali ke login
               </Link>
+              <p>
+                <Link href={HUMANIFY_BRAND.welcomePath} className="text-indigo-600 underline">
+                  Pelajari Humanify
+                </Link>
+              </p>
             </div>
           ) : status === 'ok' ? (
             <div className="mt-6 text-center space-y-3">

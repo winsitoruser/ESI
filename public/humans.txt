@@ -10,3 +10,5 @@ Security: https://humanify.id/.well-known/security.txt
 /* SITE */
 Standards: Next.js, PostgreSQL, multi-tenant HRIS
 Location: Indonesia
+LLMs: https://humanify.id/llms.txt
+Sitemap: https://humanify.id/sitemap.xml

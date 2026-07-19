@@ -93,6 +93,12 @@ export default function HumanifyRoiCalculatorPage() {
               Portal Karyawan
             </Link>
             <Link
+              href={HUMANIFY_BRAND.signupPath}
+              className="hidden sm:inline text-sm text-violet-200/80 hover:text-white transition"
+            >
+              Daftar
+            </Link>
+            <Link
               href={HUMANIFY_BRAND.loginPath}
               className="px-4 py-2 rounded-xl bg-white text-violet-900 text-sm font-semibold hover:bg-violet-50 shadow-md shadow-violet-500/10 transition"
             >

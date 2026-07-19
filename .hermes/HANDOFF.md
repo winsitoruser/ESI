@@ -1,6 +1,18 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-40** · careers Daftar · reset/verify cues · llms careers · tenant aliases
+> Diperbarui: 19 Juli 2026 — **Wave-41** · ROI Daftar · signup ROI · join welcome · soft-public aggregate
+
+## Wave-41 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w41-1 | ROI header Daftar soft cue + e2e | Done |
+| w41-2 | Signup Kalkulator ROI soft cue + e2e | Done |
+| w41-3 | Join welcome + humans↔llms soft | Done |
+| w41-4 | `test:e2e:humanify:soft-public` (+ prod) | Done |
+| w41-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:wave41` · `npm run test:e2e:humanify:soft-public:prod` · `npm run test:e2e:humanify:roi:prod` · `npm run test:e2e:humanify:signup:prod` · `npm run test:e2e:humanify:join:prod`
 
 ## Wave-40 (19 Jul 2026)
 
