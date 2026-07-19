@@ -18,6 +18,10 @@ test.describe('Humanify verify-email UI (soft)', () => {
       timeout: 15_000,
     });
     await expect(page.getByRole('link', { name: /Login/i })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: /Kirim ulang/i }).first()).toBeVisible({
+      timeout: 10_000,
+    });
+    // Soft: do not click Kirim ulang (needs session)
   });
 
   test('verify-email invalid token shows error', async ({ page }) => {

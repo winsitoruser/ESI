@@ -1,6 +1,18 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-33** · ROI soft CTAs · forgot Kembali · signup Masuk · phase21/22 aliases
+> Diperbarui: 19 Juli 2026 — **Wave-34** · demo careers soft · reset/verify soft · phase12/23 aliases
+
+## Wave-34 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w34-1 | Soft Playwright `/c/demo/careers` Masuk HR + Lamar cue | Done |
+| w34-2 | Soft Playwright reset-password → forgot link | Done |
+| w34-3 | Soft Playwright verify-email Kirim ulang cue (no click) | Done |
+| w34-4 | `smoke:phase12-digest` + `smoke:phase23-invitations` | Done |
+| w34-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:wave34` · `npm run test:e2e:humanify:careers:prod` · `npm run test:e2e:humanify:reset-password:prod` · `npm run test:e2e:humanify:verify-email:prod`
 
 ## Wave-33 (19 Jul 2026)
 

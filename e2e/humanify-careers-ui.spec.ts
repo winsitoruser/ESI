@@ -16,7 +16,12 @@ test.describe('Humanify careers portal UI (soft)', () => {
     await expect(page.locator('body')).toContainText(/Portal karir|Karir|lowongan|Memuat/i, {
       timeout: 15_000,
     });
-    await expect(page.locator('body')).toBeVisible();
+    await expect(page.locator('a[href*="/humanify/login"]').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('body')).toContainText(/Masuk HR/i, { timeout: 8_000 });
+    await expect(page.locator('body')).toContainText(/Lamar langsung|Belum ada lowongan|lowongan/i, {
+      timeout: 15_000,
+    });
+    // Soft: do not open apply form / submit
   });
 
   test('global /careers help page soft cues', async ({ page }) => {
