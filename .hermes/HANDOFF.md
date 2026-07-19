@@ -16,6 +16,8 @@
 
 Scripts: `npm run smoke:wave51`
 
+Deploy verified 19 Jul 2026 — BUILD_OK · PM2 online · health 200 · icons/manifest live.
+
 Baseline post-S1 (judgment): Control ~98 · Sec ~96 · HR ~95 · ESS ~88 · UX ~90. Next: **Sprint 2**.
 
 ## Wave-50 (19 Jul 2026)
