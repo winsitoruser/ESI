@@ -9,7 +9,7 @@
 | w48-1 | Soft auth-gate all payroll modules (bpjs/slip/thr/…) | Done |
 | w48-2 | Table-driven `PAYROLL_GATED` e2e | Done |
 | w48-3 | Unit smoke wave48 | Done |
-| w48-4 | Deploy + verify | Pending |
+| w48-4 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave48` · `npm run test:e2e:humanify:payroll:prod`
 
