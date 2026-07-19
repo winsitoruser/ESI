@@ -1,0 +1,19 @@
+# Humanify — https://humanify.id
+> Humanify is a multi-tenant HRIS (Human Resource Information System) by Naincode Inti Teknologi for Indonesian companies.
+
+## Product
+- HRIS: attendance (GPS/geofence), payroll (PPh 21, BPJS, THR), leave, recruitment, OKR/KPI, ESS employee portal
+- Public marketing: https://humanify.id/humanify/welcome
+- Trial signup: https://humanify.id/humanify/signup
+- ROI calculator: https://humanify.id/humanify/pricing/roi-calculator
+- Partner channel: https://humanify.id/humanify/partners
+- Employee portal login: https://humanify.id/employee/login
+- HR/admin login: https://humanify.id/humanify/login
+- Tenant careers portals: https://humanify.id/c/{slug}/careers
+
+## Security
+- Security contact: https://humanify.id/.well-known/security.txt
+- Do not scrape authenticated /api/, /platform/, /hq/, or tenant private routes
+
+## Sitemap
+- https://humanify.id/sitemap.xml

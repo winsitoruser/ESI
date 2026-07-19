@@ -1,6 +1,18 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-30** · partners sitemap · robots security · welcome/employee soft · phase19 alias
+> Diperbarui: 19 Juli 2026 — **Wave-31** · login portal cue · careers links · llms.txt · phase14/15 aliases
+
+## Wave-31 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w31-1 | Soft Playwright login → Portal Karyawan | Done |
+| w31-2 | Soft Playwright careers Masuk HR / welcome | Done |
+| w31-3 | `llms.txt` + middleware/robots + soft SEO | Done |
+| w31-4 | `smoke:phase14-ratelimit` + `smoke:phase15-password-reset` | Done |
+| w31-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:wave31` · `npm run test:e2e:humanify:seo-public:prod` · `npm run test:e2e:humanify:careers:prod`
 
 ## Wave-30 (19 Jul 2026)
 

@@ -11,6 +11,7 @@ Allow: /images/
 Allow: /careers
 Allow: /c/
 Allow: /.well-known/security.txt
+Allow: /llms.txt
 
 Disallow: /humanify/setup
 Disallow: /humanify/go-live

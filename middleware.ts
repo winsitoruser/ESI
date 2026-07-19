@@ -29,6 +29,7 @@ export async function middleware(request: NextRequest) {
   if (
     pathname === '/robots.txt' ||
     pathname === '/sitemap.xml' ||
+    pathname === '/llms.txt' ||
     pathname === '/.well-known/security.txt' ||
     pathname.startsWith('/.well-known/')
   ) {
@@ -254,6 +255,6 @@ export const preferredRegion = 'auto';
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|images/|uploads/|api/|procurement|robots\\.txt|sitemap\\.xml|\\.well-known/).*)',
+    '/((?!_next/static|_next/image|favicon.ico|images/|uploads/|api/|procurement|robots\\.txt|sitemap\\.xml|llms\\.txt|\\.well-known/).*)',
   ],
 };
