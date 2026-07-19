@@ -10,7 +10,7 @@
 | w19-2 | `billing-orders?partnerCode=` + commission CSV export | Done |
 | w19-3 | Backup freshness chip on `/platform/observability` | Done |
 | w19-4 | Soft-deactivate weekly cron + digest policyAck | Done |
-| w19-5 | Deploy + verify | Pending |
+| w19-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave19`
 
