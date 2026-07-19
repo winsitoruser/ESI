@@ -1,6 +1,18 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-22** · pm2 startup fix · soft-deactivate chip · lead filter · MFA soft e2e
+> Diperbarui: 19 Juli 2026 — **Wave-23** · commission partnerCode UI · signup soft e2e · DEMO chip
+
+## Wave-23 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w23-1 | Commission summary `partnerCode` filter UI | Done |
+| w23-2 | Soft Playwright signup `?ref=DEMO` | Done |
+| w23-3 | DEMO partner presence chip on `/platform` | Done |
+| w23-4 | CSV export `partnerCode` + sales demo docs | Done |
+| w23-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:wave23` · `npm run test:e2e:humanify:signup-ref:prod`
 
 ## Wave-22 (19 Jul 2026)
 

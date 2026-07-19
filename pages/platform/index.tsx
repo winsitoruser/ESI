@@ -37,6 +37,7 @@ export default function PlatformDashboardPage() {
     return d.toISOString().slice(0, 10);
   });
   const [commissionTo, setCommissionTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [commissionPartnerCode, setCommissionPartnerCode] = useState('');
   const [partnerForm, setPartnerForm] = useState({ code: '', name: '', contactEmail: '' });
   const [cleanupBusy, setCleanupBusy] = useState(false);
   const [archiveBusy, setArchiveBusy] = useState(false);
@@ -47,13 +48,16 @@ export default function PlatformDashboardPage() {
       const q = new URLSearchParams({ action: 'tenants', status: filterStatus, search });
       const leadQ = new URLSearchParams({ action: 'partner-leads', limit: '30' });
       if (leadStatus && leadStatus !== 'all') leadQ.set('status', leadStatus);
+      const summaryQ = new URLSearchParams({ action: 'partner-commission-summary' });
+      const code = commissionPartnerCode.trim().toUpperCase();
+      if (code) summaryQ.set('partnerCode', code);
       const [ov, tn, ex, pn, pl, cs] = await Promise.all([
         fetch('/api/platform?action=overview').then((r) => r.json()),
         fetch(`/api/platform?${q}`).then((r) => r.json()),
         fetch('/api/platform?action=expiring-trials&days=7').then((r) => r.json()),
         fetch('/api/platform?action=partners').then((r) => r.json()),
         fetch(`/api/platform?${leadQ}`).then((r) => r.json()),
-        fetch('/api/platform?action=partner-commission-summary').then((r) => r.json()),
+        fetch(`/api/platform?${summaryQ}`).then((r) => r.json()),
       ]);
       if (ov.success) setOverview(ov.data);
       if (tn.success) setTenants(tn.data?.tenants || []);
@@ -66,7 +70,7 @@ export default function PlatformDashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [filterStatus, search, leadStatus]);
+  }, [filterStatus, search, leadStatus, commissionPartnerCode]);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -290,7 +294,18 @@ export default function PlatformDashboardPage() {
         </div>
 
         <div className="bg-white border rounded-xl p-4 space-y-3">
-          <p className="text-sm font-semibold text-slate-900">Partner / referral codes</p>
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <p className="text-sm font-semibold text-slate-900">Partner / referral codes</p>
+            <p className={`text-[11px] px-2 py-0.5 rounded-full border ${
+              partners.some((p) => String(p.code || '').toUpperCase() === 'DEMO')
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                : 'bg-amber-50 text-amber-800 border-amber-200'
+            }`}>
+              DEMO walkthrough:{' '}
+              {partners.some((p) => String(p.code || '').toUpperCase() === 'DEMO') ? 'present' : 'missing'}
+              {' · '}{partners.length} partner{partners.length === 1 ? '' : 's'}
+            </p>
+          </div>
           <div className="flex flex-wrap gap-2">
             <input
               className="border rounded-lg px-3 py-2 text-sm uppercase"
@@ -333,6 +348,15 @@ export default function PlatformDashboardPage() {
           </p>
           <div className="flex flex-wrap gap-2 items-center">
             <label className="text-[11px] text-slate-500 flex items-center gap-1">
+              Partner
+              <input
+                className="border rounded px-1.5 py-1 text-xs uppercase w-24"
+                placeholder="ALL"
+                value={commissionPartnerCode}
+                onChange={(e) => setCommissionPartnerCode(e.target.value.toUpperCase())}
+              />
+            </label>
+            <label className="text-[11px] text-slate-500 flex items-center gap-1">
               From
               <input
                 type="date"
@@ -351,7 +375,7 @@ export default function PlatformDashboardPage() {
               />
             </label>
             <a
-              href={`/api/platform?action=partner-commission-export&from=${encodeURIComponent(commissionFrom)}&to=${encodeURIComponent(commissionTo)}`}
+              href={`/api/platform?action=partner-commission-export&from=${encodeURIComponent(commissionFrom)}&to=${encodeURIComponent(commissionTo)}${commissionPartnerCode.trim() ? `&partnerCode=${encodeURIComponent(commissionPartnerCode.trim().toUpperCase())}` : ''}`}
               className="text-xs px-2 py-1 border rounded-lg text-slate-700 hover:bg-slate-50"
             >
               Unduh CSV komisi (paid)
@@ -365,7 +389,10 @@ export default function PlatformDashboardPage() {
           </div>
           {commissionMonths.length > 0 && (
             <div className="border-t pt-2 mt-1">
-              <p className="text-xs font-semibold text-slate-700 mb-1">Komisi paid (6 bulan, est.)</p>
+              <p className="text-xs font-semibold text-slate-700 mb-1">
+                Komisi paid (6 bulan, est.)
+                {commissionPartnerCode.trim() ? ` · ${commissionPartnerCode.trim().toUpperCase()}` : ''}
+              </p>
               <ul className="text-[11px] text-slate-600 divide-y max-h-28 overflow-y-auto">
                 {commissionMonths.slice(0, 12).map((row, i) => (
                   <li key={`${row.month}-${row.partner_code}-${i}`} className="py-1 flex justify-between gap-2">

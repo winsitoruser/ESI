@@ -8,7 +8,8 @@
 2. Pastikan tenant seed: `DEMO_TENANT_SLUG=demo npm run seed:demo-tenant` (di VPS dengan `DATABASE_URL`).
 3. Pastikan partner DEMO: `npm run ensure:demo-partner` (upsert kode `DEMO` 10%; attach ke slug `demo`).
 4. Signup referral: `/humanify/signup?ref=DEMO` atau `?partner=DEMO` — preview: `?action=commission-preview&partnerCode=DEMO&amountIdr=1000000`.
-5. Buka `/humanify` — tunjukkan **Action Inbox** (cuti / kontrak / dokumen / absensi).
+5. Cek chip **DEMO walkthrough: present** di `/platform` (Partner / referral codes).
+6. Buka `/humanify` — tunjukkan **Action Inbox** (cuti / kontrak / dokumen / absensi).
 
 ## Alur demo (13 menit)
 
@@ -27,6 +28,7 @@
 ```bash
 SMOKE_BASE_URL=https://humanify.id npm run smoke:ga-journey
 SMOKE_BASE_URL=https://humanify.id npm run smoke:employee-docs
+PLAYWRIGHT_BASE_URL=https://humanify.id npm run test:e2e:humanify:signup-ref:prod
 ```
 
 ## Jangan demo dulu
