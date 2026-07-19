@@ -17,6 +17,8 @@
 
 Scripts: `npm run smoke:wave52` · `npm run smoke:mock-guard`
 
+Deploy verified 19 Jul 2026 — BUILD_OK · PM2 online · health checks passed.
+
 Baseline post-S2 (judgment): Control ~99 · Sec ~97 · HR ~97 · ESS ~92 · UX ~96. Next: **Sprint 3**.
 
 ## Wave-51 (19 Jul 2026) — Maturity S1
