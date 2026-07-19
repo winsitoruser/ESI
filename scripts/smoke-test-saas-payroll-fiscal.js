@@ -83,5 +83,16 @@ assertEq('9M/mo TK/0 monthly', monthlyTax(9_000_000, 'TK/0'), 225_000);
 // 18M/mo K/1 → annual 216M, PTKP 63M, PKP 153M → 60M*5% + 93M*15% = 3M + 13.95M = 16.95M /12 = 1_412_500
 assertEq('18M/mo K/1 monthly', monthlyTax(18_000_000, 'K/1'), 1_412_500);
 
+// Bracket edges (Wave-55 / PAY-L2-3)
+assertEq('PKP 60M exactly @5%', calculatePPh21Annual(60_000_000), 3_000_000);
+// 60M+1 → 3_000_000 + round(1*0.15) = 3_000_000
+assertEq('PKP 60M+1 first rupiah @15%', calculatePPh21Annual(60_000_001), 3_000_000);
+// 250M → 60M*5% + 190M*15% = 3M + 28.5M = 31_500_000
+assertEq('PKP 250M band boundary', calculatePPh21Annual(250_000_000), 31_500_000);
+// 500M → 31.5M + 250M*25% = 31.5M + 62.5M = 94_000_000
+assertEq('PKP 500M band boundary', calculatePPh21Annual(500_000_000), 94_000_000);
+assertEq('PTKP K/3', getPTKP('K/3'), 72_000_000);
+assertEq('PTKP TK/3', getPTKP('TK/3'), 67_500_000);
+
 console.log(`\nRESULT: ${passed} passed / ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

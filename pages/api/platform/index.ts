@@ -27,6 +27,13 @@ import {
   QA_TENANT_SLUG_REGEX,
   resolvePartnerByCode,
 } from '@/lib/saas/partners';
+import {
+  createPartnerPayoutDraft,
+  ensurePartnerPayoutsTable,
+  listPartnerPayouts,
+  markPartnerPayoutPaid,
+  partnerPayoutsToCsv,
+} from '@/lib/saas/partner-payouts';
 import { getSeatUsage } from '@/lib/saas/seat-metering';
 import { isTenantMfaRequired, setTenantMfaRequired } from '@/lib/saas/mfa-policy';
 
@@ -734,6 +741,48 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         },
         message: 'Support mode ended',
       });
+    }
+
+    // Wave-55 — partner payout ledger (ops mark-paid; not Midtrans)
+    if (req.method === 'GET' && action === 'partner-payouts') {
+      await ensurePartnerPayoutsTable();
+      const rows = await listPartnerPayouts({
+        partnerCode: String(req.query.partnerCode || req.query.code || ''),
+        limit: Number(req.query.limit) || 50,
+      });
+      return res.json({ success: true, data: { payouts: rows, available: true } });
+    }
+
+    if (req.method === 'GET' && action === 'partner-payout-export') {
+      await ensurePartnerPayoutsTable();
+      const rows = await listPartnerPayouts({
+        partnerCode: String(req.query.partnerCode || req.query.code || ''),
+        limit: Number(req.query.limit) || 2000,
+      });
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="partner-payouts.csv"');
+      return res.status(200).send(partnerPayoutsToCsv(rows));
+    }
+
+    if (req.method === 'POST' && action === 'partner-payout-create') {
+      const body = req.body || {};
+      const created = await createPartnerPayoutDraft({
+        partnerCode: String(body.partnerCode || body.code || ''),
+        amountIdr: Number(body.amountIdr || body.amount || 0),
+        periodFrom: body.periodFrom || null,
+        periodTo: body.periodTo || null,
+        note: body.note || null,
+        createdBy: String((session.user as any)?.email || ''),
+      });
+      return res.status(201).json({ success: true, data: created });
+    }
+
+    if (req.method === 'POST' && action === 'partner-payout-mark-paid') {
+      const id = String(req.body?.id || '');
+      if (!id) return res.status(400).json({ success: false, error: 'id required' });
+      const row = await markPartnerPayoutPaid(id, req.body?.note || null);
+      if (!row) return res.status(404).json({ success: false, error: 'Payout not found' });
+      return res.json({ success: true, data: row });
     }
 
     return res.status(400).json({ success: false, error: 'Unknown action' });

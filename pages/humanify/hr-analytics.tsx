@@ -15,7 +15,7 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from 'recharts';
 
-const CHART_COLORS = ['#4F46E5', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6'];
+const CHART_COLORS = ['#7c3aed', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#a78bfa', '#EC4899', '#14B8A6'];
 
 type TabKey = 'overview' | 'attendance' | 'performance' | 'payroll' | 'recruitment' | 'predictive' | 'ai';
 
@@ -310,7 +310,7 @@ export default function HRAnalyticsPage() {
                       <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} />
                       <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 10 }} />
                       <Tooltip formatter={(v: number) => [`${v}%`, 'Pencapaian']} />
-                      <Bar dataKey="achievement" fill="#8B5CF6" radius={[0, 6, 6, 0]} />
+                      <Bar dataKey="achievement" fill="#a78bfa" radius={[0, 6, 6, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
@@ -433,7 +433,7 @@ export default function HRAnalyticsPage() {
                         <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                         <YAxis tick={{ fontSize: 11 }} />
                         <Tooltip />
-                        <Area type="monotone" dataKey="projected" name="Proyeksi" stroke="#8B5CF6" fill="#8B5CF6" fillOpacity={0.2} />
+                        <Area type="monotone" dataKey="projected" name="Proyeksi" stroke="#a78bfa" fill="#a78bfa" fillOpacity={0.2} />
                       </AreaChart>
                     </ResponsiveContainer>
                   ) : <div className="flex h-full items-center justify-center text-sm text-gray-400">Data headcount terbatas</div>}

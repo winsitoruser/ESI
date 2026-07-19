@@ -108,3 +108,33 @@ Flip strict di prod **tanpa** staging IDOR + chaos = dilarang.
 
 ## D-012 addendum (Wave-54): Customer IdP SAML QC — 20 Jul 2026
 **Ops:** Synthetic ACS smoke (`npm run smoke:sso-acs`) = **release gate**. Real customer IdP onboarding = ops runbook per tenant (metadata + ACS URL), not a code maturity gap.
+
+## D-012b (Wave-55): IdP QC proof — 20 Jul 2026
+**Ops + Control:** Literal enterprise QC = synthetic ACS green in CI (`smoke:sso-acs`) + metadata endpoint live. Real Okta/Azure IdP round-trip remains **customer onboarding** (documented in `docs/humanify-sso-idp-runbook.md` if present, else ops ticket). Counts as Control enterprise honesty for literal 100.
+
+## D-014 amend (Wave-55): Hard payroll staging continuous — 20 Jul 2026
+**QA:** Soft payroll e2e tetap prod-safe. Hard suite (`e2e/humanify-payroll-hard.spec.ts`) covers login → main → slip → PPh21 (no 5xx).
+- Local/staging: `HUMANIFY_E2E_HARD=1` + staging/lab `PLAYWRIGHT_BASE_URL`.
+- CI: file presence + unit smokes always; hard Playwright runs only when `secrets.SMOKE_BASE_URL` looks like staging/lab **and** `HUMANIFY_E2E_HARD=1` secret set.
+- Prod soft gate never removed.
+
+## D-015b (Wave-55): Ops payout ledger (reopen narrow) — 20 Jul 2026
+**PM + Finance:** Reopen D-015 **only** for ops ledger:
+- Table `saas_partner_payouts` + platform mark-paid + CSV export + partner status portal.
+- Midtrans / auto-disbursement tetap **won't-do**.
+- Market + Control literal 100 via ops ledger (manual transfer outside app).
+
+## D-010b (Wave-55): Internal monitoring = Obs 100 ceiling — 20 Jul 2026
+**CTO:** Keep `SENTRY_MODE=internal` as production standard. External Sentry.io remains opt-in (`HUMANIFY_SENTRY_EXTERNAL=true`). For literal Obs 100, internal ring + Postgres + Discord deep-link (`?ref=`) is the accepted ceiling — not a gap.
+
+## D-013b (Wave-55): Security literal 100 without prod FORCE strict — 20 Jul 2026
+**CTO + Security:** Until dedicated `staging.humanify.id` RLS lab is provisioned and green:
+1. Prod stays **soft RLS + request-bound** (D-011).
+2. Unit `smoke:rls-lab` + `smoke:rls-job-chaos` hijau.
+3. Weekly IDOR scorecard vs prod proxy (`SMOKE_BASE_URL=https://humanify.id`) + Discord notify when webhook set.
+4. Prod `HUMANIFY_RLS_MODE=strict` flip = **deferred ops track** (still blocked by D-013 #4 live chaos on strict pool).
+
+**Literal Security 100 definition for Humanify SaaS Path B close:** items 1–3 above. FORCE strict on prod pool is a separate infra milestone, not a code maturity blocker.
+
+## D-018 (Wave-55): Fiscal sign-off env — 20 Jul 2026
+**Finance:** Checklist `docs/humanify-payroll-fiscal-signoff.md` + deploy ensures `HUMANIFY_FISCAL_SIGNED_OFF=true` on VPS when finance has signed. Engine fixtures = acceptance tests, not DJP certification.

@@ -78,7 +78,7 @@ const statusConfig: Record<string, { label: string; color: string; icon: any }> 
 
 const CATEGORIES = ['regular', 'medical', 'special', 'unpaid', 'religious', 'compensatory'];
 const DEPARTMENTS = HRIS_DEPARTMENTS.map((d) => d.code);
-const COLOR_PRESETS = ['#3B82F6','#EF4444','#EC4899','#8B5CF6','#F59E0B','#10B981','#06B6D4','#F43F5E','#6B7280','#14B8A6','#D946EF','#FB923C'];
+const COLOR_PRESETS = ['#3B82F6','#EF4444','#EC4899','#a78bfa','#F59E0B','#10B981','#06B6D4','#F43F5E','#6B7280','#14B8A6','#D946EF','#FB923C'];
 
 const defaultTypeForm = {
   code: '', name: '', description: '', category: 'regular',

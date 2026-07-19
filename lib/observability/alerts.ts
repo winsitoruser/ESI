@@ -27,8 +27,17 @@ function isDiscordWebhook(url: string): boolean {
   return /discord(?:app)?\.com\/api\/webhooks\//i.test(url);
 }
 
-function buildWebhookBody(message: string, errors: number, thr: number, win: number) {
-  const ui = 'https://humanify.id/platform/observability';
+function buildWebhookBody(
+  message: string,
+  errors: number,
+  thr: number,
+  win: number,
+  requestId?: string | null,
+) {
+  const baseUi = 'https://humanify.id/platform/observability';
+  const ui = requestId
+    ? `${baseUi}?ref=${encodeURIComponent(String(requestId))}`
+    : baseUi;
   const line = `[Humanify] Observability alert: ${message}`;
   return {
     text: line, // Slack
@@ -43,6 +52,9 @@ function buildWebhookBody(message: string, errors: number, thr: number, win: num
           { name: 'Errors', value: String(errors), inline: true },
           { name: 'Threshold', value: String(thr), inline: true },
           { name: 'Window', value: `${win}m`, inline: true },
+          ...(requestId
+            ? [{ name: 'Request', value: String(requestId).slice(0, 36), inline: false }]
+            : []),
         ],
         url: ui,
       },
@@ -75,7 +87,15 @@ export async function evaluateObsErrorSpike(): Promise<ObsAlertResult> {
 
   if (!base.triggered) return base;
 
-  const body = buildWebhookBody(base.message, errors, thr, win);
+  const firstErr = recent.find(
+    (e) => e.level === 'error' && new Date(e.at).getTime() >= since,
+  );
+  const requestId =
+    (firstErr as any)?.requestId ||
+    (firstErr as any)?.request_id ||
+    (firstErr as any)?.id ||
+    null;
+  const body = buildWebhookBody(base.message, errors, thr, win, requestId);
   const webhook = String(process.env.OBS_ALERT_WEBHOOK_URL || '').trim();
   if (webhook) {
     try {

@@ -30,6 +30,15 @@ const BackupSettingsPage: React.FC = () => {
     }
   }, [session, status, router]);
 
+  // Wave-55 OBS-L1-1 — Humanify SoT is platform observability backup chip (not this mock list)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const host = window.location.hostname || '';
+    if (/humanify/i.test(host) || process.env.NEXT_PUBLIC_PRODUCT === 'humanify') {
+      router.replace('/platform/observability');
+    }
+  }, [router]);
+
   useEffect(() => {
     if (session) {
       fetchBackups();
@@ -42,12 +51,15 @@ const BackupSettingsPage: React.FC = () => {
       const response = await fetch('/api/settings/backup/list');
       const data = await response.json();
 
-      if (data.success) {
-        setBackups(data.data || []);
+      if (data.success && Array.isArray(data.data) && data.data.length) {
+        setBackups(data.data);
+      } else {
+        // Do not silently invent backups — empty until live list exists
+        setBackups([]);
       }
     } catch (error) {
       console.error('Error fetching backups:', error);
-      setBackups(MOCK_BACKUPS);
+      setBackups([]);
     } finally {
       setLoading(false);
     }

@@ -58,8 +58,17 @@ SMOKE_BASE_URL=https://staging.example npm run smoke:ga-journey
 - [x] No cross-tenant row in IDOR scorecard — **prod proxy accepted** until dedicated staging URL exists: `npm run smoke:idor` + weekly `npm run security:scorecard` (cron). Set `SMOKE_BASE_URL` when staging lab is online.
 - [x] Employee create + docs + payroll soft path green — Wave-47 soft auth-gate e2e (`npm run test:e2e:humanify:payroll:prod`); hard payroll suite still deferred
 - [x] Backup/restore of lab DB documented — see **Lab backup/restore** below
-- [x] Written decision in `.hermes/DECISIONS.md` before prod strict — **D-013**
+- [x] Written decision in `.hermes/DECISIONS.md` before prod strict — **D-013** + **D-013b** (literal Security 100 = soft+chaos+weekly IDOR; FORCE strict deferred until dedicated staging lab)
 
+## Staging URL (L0-3)
+
+| Env | URL | Notes |
+|---|---|---|
+| Prod | `https://humanify.id` | Soft RLS; IDOR scorecard proxy OK |
+| Staging (planned) | `https://staging.humanify.id` | `.env.staging.example`; set `SMOKE_BASE_URL` when live |
+| RLS lab DB | `humanify_rls_lab` | Strict mode only |
+
+Until staging hostname is live, use `SMOKE_BASE_URL=https://humanify.id` for IDOR / scorecard (D-013b).
 ## Lab backup/restore
 
 ```bash

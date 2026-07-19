@@ -478,7 +478,7 @@ export default function KPIDashboard() {
                       chart: { toolbar: { show: false }, fontFamily: 'inherit' },
                       xaxis: { categories: ['Penjualan', 'Operasional', 'Pelanggan', 'Keseluruhan'] },
                       yaxis: { max: 110 },
-                      colors: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'],
+                      colors: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#a78bfa'],
                       markers: { size: 4 },
                       legend: { position: 'bottom' },
                       fill: { opacity: 0.2 }

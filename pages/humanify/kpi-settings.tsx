@@ -626,9 +626,9 @@ export default function KPISettings() {
                                   startAngle: -135,
                                   endAngle: 135,
                                   hollow: { size: '60%' },
-                                  track: { background: '#e0e7ff' },
+                                  track: { background: '#ede9fe' },
                                   dataLabels: {
-                                    name: { show: true, fontSize: '14px', color: '#6366f1', offsetY: 25 },
+                                    name: { show: true, fontSize: '14px', color: '#7c3aed', offsetY: 25 },
                                     value: { 
                                       show: true, 
                                       fontSize: '32px', 

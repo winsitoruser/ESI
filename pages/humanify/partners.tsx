@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import Head from 'next/head';
 import Link from 'next/link';
 import { Users, ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
 import HumanifyMarketingShell from '@/components/humanify/HumanifyMarketingShell';
+import HumanifySeoHead from '@/components/humanify/HumanifySeoHead';
 
 const TYPES = [
   { value: 'payroll_consultant', label: 'Konsultan gaji / PPh 21' },
@@ -50,12 +50,15 @@ export default function HumanifyPartnersPage() {
 
   return (
     <>
-      <Head>
-        <title>Partner Channel — {HUMANIFY_BRAND.name}</title>
-        <meta name="description" content="Bergabung sebagai mitra implementasi Humanify — konsultan payroll, BPJS, dan absensi." />
-      </Head>
+      <HumanifySeoHead
+        title={`Partner Channel — ${HUMANIFY_BRAND.name}`}
+        description="Bergabung sebagai mitra implementasi Humanify — konsultan payroll, BPJS, dan absensi. Cek status lead di portal partner."
+        path="/humanify/partners"
+        keywords={['partner HRIS', 'reseller payroll', 'mitra Humanify', 'konsultan BPJS']}
+      />
       <HumanifyMarketingShell
         links={[
+          { label: 'Status lead', href: '/humanify/partners/status' },
           { label: 'ROI', href: HUMANIFY_BRAND.roiCalculatorPath },
           { label: 'Beranda', href: HUMANIFY_BRAND.welcomePath },
         ]}

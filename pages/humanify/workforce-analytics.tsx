@@ -11,7 +11,7 @@ import {
   PieChart, Pie, Cell, Legend,
 } from 'recharts';
 
-const CHART_COLORS = ['#4F46E5', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6'];
+const CHART_COLORS = ['#7c3aed', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#a78bfa', '#EC4899', '#14B8A6'];
 
 interface HeadcountPlan { id: string; name: string; period_start: string; period_end: string; department: string; current_headcount: number; planned_headcount: number; approved_headcount: number; budget_amount: number; status: string; justification: string; details: any[]; }
 interface ManpowerBudget { id: string; fiscal_year: number; department: string; budget_category: string; planned_amount: number; actual_amount: number; variance: number; status: string; notes: string; }
@@ -282,8 +282,8 @@ export default function WorkforceAnalyticsPage() {
                     <AreaChart data={trendChartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                       <defs>
                         <linearGradient id="hiresGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#4F46E5" stopOpacity={0.35} />
-                          <stop offset="95%" stopColor="#4F46E5" stopOpacity={0.02} />
+                          <stop offset="5%" stopColor="#7c3aed" stopOpacity={0.35} />
+                          <stop offset="95%" stopColor="#7c3aed" stopOpacity={0.02} />
                         </linearGradient>
                         <linearGradient id="resignGradient" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#F43F5E" stopOpacity={0.3} />
@@ -297,7 +297,7 @@ export default function WorkforceAnalyticsPage() {
                         contentStyle={{ borderRadius: 10, border: '1px solid #E5E7EB', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
                         labelStyle={{ fontWeight: 600, color: '#111827' }}
                       />
-                      <Area type="monotone" dataKey="hires" name="Rekrutmen" stroke="#4F46E5" strokeWidth={2.5} fill="url(#hiresGradient)" />
+                      <Area type="monotone" dataKey="hires" name="Rekrutmen" stroke="#7c3aed" strokeWidth={2.5} fill="url(#hiresGradient)" />
                       <Area type="monotone" dataKey="resignations" name="Pengunduran" stroke="#F43F5E" strokeWidth={2} fill="url(#resignGradient)" />
                     </AreaChart>
                   </ResponsiveContainer>

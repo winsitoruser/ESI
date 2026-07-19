@@ -25,7 +25,27 @@ export default function PlatformObservabilityPage() {
   const [alertBusy, setAlertBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [refHighlight, setRefHighlight] = useState('');
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const eventRowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
+
+  // Wave-55 OBS-L4-2 — deep-link ?ref=<requestId|eventId>
+  useEffect(() => {
+    const raw = String(router.query.ref || '').trim();
+    setRefHighlight(raw);
+    if (!raw || !obs?.recent?.length) return;
+    const match = (obs.recent as any[]).find(
+      (ev) =>
+        String(ev.id || '') === raw ||
+        String(ev.requestId || ev.request_id || '') === raw,
+    );
+    if (!match) return;
+    const key = String(match.id || match.requestId || '');
+    const el = eventRowRefs.current[key];
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [router.query.ref, obs?.recent]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -410,9 +430,14 @@ export default function PlatformObservabilityPage() {
         </div>
 
         <div className="bg-white border rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b flex items-center gap-2">
+          <div className="px-4 py-3 border-b flex items-center gap-2 flex-wrap">
             <AlertTriangle className="w-4 h-4 text-amber-500" />
             <p className="text-sm font-semibold text-slate-800">Event terbaru (live ring + Postgres)</p>
+            {refHighlight && (
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                filter ref={refHighlight.slice(0, 40)}
+              </span>
+            )}
           </div>
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-left">
@@ -428,8 +453,26 @@ export default function PlatformObservabilityPage() {
               {(!obs?.recent || obs.recent.length === 0) && (
                 <tr><td colSpan={5} className="px-4 py-6 text-center text-slate-400">Belum ada event tercatat.</td></tr>
               )}
-              {(obs?.recent || []).map((ev: any) => (
-                <tr key={ev.id}>
+              {(obs?.recent || [])
+                .filter((ev: any) => {
+                  if (!refHighlight) return true;
+                  return (
+                    String(ev.id || '') === refHighlight ||
+                    String(ev.requestId || ev.request_id || '') === refHighlight
+                  );
+                })
+                .map((ev: any) => {
+                  const key = String(ev.id || ev.requestId || Math.random());
+                  const hit =
+                    refHighlight &&
+                    (String(ev.id || '') === refHighlight ||
+                      String(ev.requestId || ev.request_id || '') === refHighlight);
+                  return (
+                <tr
+                  key={key}
+                  ref={(el) => { eventRowRefs.current[key] = el; }}
+                  className={hit ? 'bg-amber-50' : undefined}
+                >
                   <td className="px-4 py-2 text-xs text-slate-500 whitespace-nowrap">{ev.at ? new Date(ev.at).toLocaleString('id-ID') : '—'}</td>
                   <td className="px-4 py-2">
                     <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
@@ -441,7 +484,8 @@ export default function PlatformObservabilityPage() {
                   <td className="px-4 py-2 text-xs text-slate-700 max-w-[420px] truncate" title={ev.msg}>{ev.msg}</td>
                   <td className="px-4 py-2 text-xs text-right text-slate-500">{ev.durationMs != null ? `${ev.durationMs}ms` : '—'}</td>
                 </tr>
-              ))}
+                  );
+                })}
             </tbody>
           </table>
         </div>

@@ -384,8 +384,54 @@ export default function PlatformDashboardPage() {
             )}
           </div>
           <p className="text-[11px] text-slate-400">
-            Calc only — bukan payout. GET commission-preview&amp;partnerCode=&amp;amountIdr=
+            Preview commission tetap tersedia. Payout ledger ops: mark-paid + CSV (bukan Midtrans auto).
           </p>
+          <div className="flex flex-wrap gap-2 items-center pt-2 border-t">
+            <Link href="/platform/demo-checklist" className="text-xs text-[color:var(--hf-brand-600)] hover:underline">
+              Sales demo checklist →
+            </Link>
+            <a
+              href="/api/platform?action=partner-payout-export"
+              className="text-xs px-2 py-1 border rounded-lg hover:bg-slate-50"
+            >
+              Export payout CSV
+            </a>
+            <button
+              type="button"
+              className="text-xs px-2 py-1 border rounded-lg hover:bg-slate-50"
+              onClick={async () => {
+                const code = (commissionPartnerCode || 'DEMO').trim().toUpperCase();
+                const amount = Number(prompt('Amount IDR untuk draft payout', '100000') || 0);
+                if (!amount) return;
+                const r = await fetch('/api/platform?action=partner-payout-create', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ partnerCode: code, amountIdr: amount }),
+                });
+                const j = await r.json();
+                alert(j.success ? `Draft payout ${j.data?.id}` : (j.error || 'Gagal'));
+              }}
+            >
+              Buat draft payout
+            </button>
+            <button
+              type="button"
+              className="text-xs px-2 py-1 border rounded-lg hover:bg-emerald-50 text-emerald-800"
+              onClick={async () => {
+                const id = prompt('Payout UUID to mark paid');
+                if (!id) return;
+                const r = await fetch('/api/platform?action=partner-payout-mark-paid', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ id }),
+                });
+                const j = await r.json();
+                alert(j.success ? 'Marked paid' : (j.error || 'Gagal'));
+              }}
+            >
+              Mark payout paid
+            </button>
+          </div>
           <div className="flex flex-wrap gap-2 items-center">
             <label className="text-[11px] text-slate-500 flex items-center gap-1">
               Partner

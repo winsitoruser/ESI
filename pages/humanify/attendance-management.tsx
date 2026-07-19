@@ -50,7 +50,7 @@ const SHIFT_TYPES = [
   { v: 'flexible', l: 'Fleksibel' }, { v: 'field', l: 'Lapangan/Field' },
 ];
 const LOCATION_TYPES = ['office', 'branch', 'warehouse', 'factory', 'site', 'other'];
-const COLOR_PRESETS = ['#F59E0B','#3B82F6','#8B5CF6','#10B981','#EC4899','#EF4444','#06B6D4','#14B8A6','#F43F5E','#6B7280'];
+const COLOR_PRESETS = ['#F59E0B','#3B82F6','#a78bfa','#10B981','#EC4899','#EF4444','#06B6D4','#14B8A6','#F43F5E','#6B7280'];
 const CLOCK_METHOD_ICONS: Record<string, any> = {
   manual: Clock, gps: MapPin, face_recognition: Camera, fingerprint: Fingerprint,
   qr_code: QrCode, nfc: Wifi
@@ -63,7 +63,7 @@ const CLOCK_METHOD_LABELS: Record<string, string> = {
 const MOCK_AM_SHIFTS: WorkShift[] = [
   { id: 'sh1', code: 'PAGI', name: 'Shift Pagi', shift_type: 'regular', start_time: '08:00', end_time: '17:00', break_start: '12:00', break_end: '13:00', break_duration_minutes: 60, is_cross_day: false, work_hours_per_day: 8, color: '#3B82F6', tolerance_late_minutes: 15, applicable_days: [1,2,3,4,5], is_active: true, sort_order: 1 },
   { id: 'sh2', code: 'SIANG', name: 'Shift Siang', shift_type: 'regular', start_time: '14:00', end_time: '22:00', break_start: '18:00', break_end: '18:30', break_duration_minutes: 30, is_cross_day: false, work_hours_per_day: 8, color: '#F59E0B', tolerance_late_minutes: 10, applicable_days: [1,2,3,4,5], is_active: true, sort_order: 2 },
-  { id: 'sh3', code: 'MALAM', name: 'Shift Malam', shift_type: 'regular', start_time: '22:00', end_time: '06:00', break_start: '02:00', break_end: '02:30', break_duration_minutes: 30, is_cross_day: true, work_hours_per_day: 8, color: '#8B5CF6', tolerance_late_minutes: 10, applicable_days: [1,2,3,4,5,6], is_active: true, sort_order: 3 },
+  { id: 'sh3', code: 'MALAM', name: 'Shift Malam', shift_type: 'regular', start_time: '22:00', end_time: '06:00', break_start: '02:00', break_end: '02:30', break_duration_minutes: 30, is_cross_day: true, work_hours_per_day: 8, color: '#a78bfa', tolerance_late_minutes: 10, applicable_days: [1,2,3,4,5,6], is_active: true, sort_order: 3 },
 ];
 const MOCK_AM_GEO: GeofenceLocation[] = [
   { id: 'g1', name: 'Kantor Pusat Jakarta', location_type: 'office', latitude: -6.2088, longitude: 106.8456, radius_meters: 150, address: 'Jl. Sudirman No.1, Jakarta', is_active: true },

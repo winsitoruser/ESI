@@ -99,10 +99,16 @@ jobs:
           npm run smoke:wave25
           npm run smoke:wave26
           npm run smoke:wave27
+          npm run smoke:wave54
+          npm run smoke:wave55
           npm run smoke:rls-lab
+          npm run smoke:rls-job-chaos
           npm run check:uptime-external
           npm run smoke:mock-audit
           SMOKE_ALLOW_MISSING_BACKUP=true npm run check:backup-freshness
+          test -f e2e/humanify-hr-auth-gate-ui.spec.ts
+          test -f e2e/humanify-payroll-hard.spec.ts
+          test -f lib/saas/partner-payouts.ts
           test -f lib/saas/tenant-request-bound.ts
           test -f lib/saas/backup-freshness.ts
           test -f lib/saas/scorecard-last.ts
@@ -117,6 +123,7 @@ jobs:
           test -f lib/hris/action-inbox-snooze.ts
           test -f lib/hris/privy-webhook.ts
           test -f lib/hris/document-compliance-summary.ts
+          echo "✓ HR auth-gate + payroll-hard specs present (Wave-55)"
           test -f lib/hris/attendance-bulk-correct.ts
           test -f lib/hris/partner-leads.ts
           test -f e2e/humanify-partners-ui.spec.ts
