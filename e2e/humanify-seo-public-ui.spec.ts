@@ -30,6 +30,8 @@ test.describe('Humanify SEO public surfaces (soft)', () => {
     expect(body).toMatch(/urlset/i);
     expect(body).toMatch(/humanify\.id\/humanify\/welcome/i);
     expect(body).toMatch(/humanify\.id\/humanify\/partners/i);
+    expect(body).toMatch(/humanify\.id\/humanify\/pricing\/roi-calculator/i);
+    expect(body).toMatch(/humanify\.id\/humanify\/signup/i);
   });
 
   test('security.txt is reachable with Contact', async ({ page }) => {

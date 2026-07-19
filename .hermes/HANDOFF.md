@@ -1,6 +1,18 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-38** · careers job soft · partners Daftar · signup partner cue · phase3/4/6 aliases
+> Diperbarui: 19 Juli 2026 — **Wave-39** · login Partner · forgot signup · sitemap ROI · phase5/5b aliases
+
+## Wave-39 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w39-1 | Login Partner Channel soft cue + e2e | Done |
+| w39-2 | Forgot-password signup soft cue + e2e | Done |
+| w39-3 | Soft Playwright sitemap ROI + signup | Done |
+| w39-4 | `smoke:phase5-enterprise` + `phase5b-support` | Done |
+| w39-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:wave39` · `npm run test:e2e:humanify:prod` · `npm run test:e2e:humanify:forgot-password:prod` · `npm run test:e2e:humanify:seo-public:prod`
 
 ## Wave-38 (19 Jul 2026)
 

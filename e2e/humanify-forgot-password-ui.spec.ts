@@ -22,6 +22,10 @@ test.describe('Humanify forgot-password UI (soft)', () => {
     });
     await expect(page.locator('a[href*="/humanify/login"]').first()).toBeVisible({ timeout: 10_000 });
     await expect(page.locator('body')).toContainText(/Kembali ke login/i, { timeout: 8_000 });
+    await expect(page.locator('a[href*="/humanify/signup"]').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('body')).toContainText(/Daftar trial|Belum punya akun/i, {
+      timeout: 8_000,
+    });
     // Soft: do not submit (avoids email / rate-limit burn)
   });
 

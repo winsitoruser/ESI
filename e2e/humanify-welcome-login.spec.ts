@@ -40,6 +40,10 @@ test.describe('Humanify welcome → login', () => {
       timeout: 10_000,
     });
     await expect(page.locator('body')).toContainText(/Portal Karyawan/i, { timeout: 10_000 });
+    await expect(page.locator('a[href*="/humanify/partners"]').first()).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(page.locator('body')).toContainText(/Partner/i, { timeout: 8_000 });
     // Soft: do not submit login
   });
 

@@ -437,6 +437,10 @@ export default function HumanifyLoginForm({
                     Pelajari Humanify
                   </Link>
                   <span className="mx-2">·</span>
+                  <Link href={HUMANIFY_BRAND.partnersPath} className="hover:text-violet-300/70 transition-colors">
+                    Partner
+                  </Link>
+                  <span className="mx-2">·</span>
                   © {new Date().getFullYear()} {NAINCODE.legalName}
                 </p>
               </div>

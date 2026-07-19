@@ -109,6 +109,12 @@ export default function ForgotPasswordPage() {
                   <ArrowLeft className="w-4 h-4" /> Kembali ke login
                 </Link>
               </p>
+              <p className="text-center text-xs text-slate-400">
+                Belum punya akun?{' '}
+                <Link href={HUMANIFY_BRAND.signupPath} className="text-indigo-600 hover:underline">
+                  Daftar trial
+                </Link>
+              </p>
             </form>
           )}
         </div>
