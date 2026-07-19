@@ -10,7 +10,7 @@
 | w39-2 | Forgot-password signup soft cue + e2e | Done |
 | w39-3 | Soft Playwright sitemap ROI + signup | Done |
 | w39-4 | `smoke:phase5-enterprise` + `phase5b-support` | Done |
-| w39-5 | Deploy + verify | Pending |
+| w39-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave39` · `npm run test:e2e:humanify:prod` · `npm run test:e2e:humanify:forgot-password:prod` · `npm run test:e2e:humanify:seo-public:prod`
 
