@@ -58,6 +58,8 @@
     "smoke:wave18": "node scripts/smoke-test-humanify-wave18.js",
     "smoke:wave19": "node scripts/smoke-test-humanify-wave19.js",
     "smoke:wave20": "node scripts/smoke-test-humanify-wave20.js",
+    "smoke:wave21": "node scripts/smoke-test-humanify-wave21.js",
+    "ensure:demo-partner": "node scripts/ensure-humanify-demo-partner.js",
     "smoke:rls-lab": "node scripts/smoke-test-humanify-rls-strict-lab.js",
     "check:uptime-external": "node scripts/check-humanify-uptime-external.js",
     "smoke:mock-audit": "node scripts/audit-humanify-mock-paths.js",

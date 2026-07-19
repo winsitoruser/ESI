@@ -10,12 +10,27 @@
  */
 require('dotenv').config();
 
+const fs = require('fs');
+const path = require('path');
 const { Sequelize } = require('sequelize');
 
 const DATABASE_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL;
 const DIGEST_TO = process.env.DIGEST_TO || process.env.OBS_ALERT_EMAIL || process.env.SMTP_FROM || '';
 const DRY_RUN = String(process.env.DRY_RUN || '').toLowerCase() === 'true';
 const BASE = (process.env.NEXTAUTH_URL || process.env.APP_URL || 'https://humanify.id').replace(/\/$/, '');
+
+function writeDigestLast(summary) {
+  const file =
+    process.env.DIGEST_LAST_PATH ||
+    path.join(process.env.HUMANIFY_STATE_DIR || '/var/lib/humanify', 'action-digest-last.json');
+  try {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify(summary, null, 2), 'utf8');
+    console.log(`[digest] wrote ${file}`);
+  } catch (e) {
+    console.warn('[digest] write last-run failed:', e.message || e);
+  }
+}
 
 if (!DATABASE_URL) {
   console.error('DATABASE_URL required');
@@ -213,6 +228,11 @@ async function main() {
   }
 
   console.log(`Done. Sent=${sent}`);
+  writeDigestLast({
+    at: new Date().toISOString(),
+    sent: DRY_RUN ? 0 : sent,
+    dryRun: DRY_RUN,
+  });
   await sequelize.close();
 }
 

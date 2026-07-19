@@ -301,7 +301,7 @@ export default function PlatformObservabilityPage() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           <div className="bg-white border rounded-xl p-4">
             <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
               <p className="text-sm font-semibold text-slate-800">Security scorecard</p>
@@ -318,6 +318,26 @@ export default function PlatformObservabilityPage() {
               {obs?.scorecard?.ageHours != null
                 ? `${obs.scorecard.ageHours}h ago · ${obs.scorecard.passedTotal ?? 0} passed`
                 : 'Run: npm run security:scorecard'}
+            </p>
+          </div>
+          <div className="bg-white border rounded-xl p-4">
+            <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+              <p className="text-sm font-semibold text-slate-800">Action Inbox digest</p>
+              <span className="text-[11px] text-slate-400">last cron run</span>
+            </div>
+            <p className={`text-lg font-bold ${
+              !obs?.actionDigest?.present ? 'text-slate-500'
+                : obs.actionDigest.dryRun ? 'text-amber-700' : 'text-emerald-700'
+            }`}>
+              {!obs?.actionDigest?.present ? 'Never'
+                : obs.actionDigest.dryRun
+                  ? 'Dry-run'
+                  : `${obs.actionDigest.sent ?? 0} sent`}
+            </p>
+            <p className="text-[11px] text-slate-400 mt-1">
+              {obs?.actionDigest?.ageHours != null
+                ? `${obs.actionDigest.ageHours}h ago`
+                : 'Cron Mon 01:00 UTC'}
             </p>
           </div>
           <div className="bg-white border rounded-xl p-4">

@@ -248,6 +248,16 @@ ssh_cmd "ENV_FILE=$APP_DIR/.env bash -s" < "$SRC/scripts/ensure-humanify-obs-ale
 echo "=== [3e/6] Ensure platform crons (purge / hard-delete / health) ==="
 ssh_cmd "APP_DIR=$APP_DIR bash -s" < "$SRC/scripts/ensure-humanify-crons.sh" || true
 
+echo "=== [3e2/6] Ensure DEMO partner (sales walkthrough) ==="
+ssh_cmd "bash -s" <<REMOTE_DEMO || true
+set -euo pipefail
+cd $APP_DIR
+set -a
+[ -f .env ] && . ./.env
+set +a
+node scripts/ensure-humanify-demo-partner.js || echo "⚠️ ensure DEMO partner skipped"
+REMOTE_DEMO
+
 echo "=== [3f/6] Uptime monitor probe ==="
 ssh_cmd "HEALTH_URL=https://${DOMAIN}/api/health?deep=1 STATE_FILE=/var/log/humanify-uptime-last.json bash -s" < "$SRC/scripts/ensure-humanify-uptime-monitor.sh" || true
 
@@ -345,15 +355,25 @@ REMOTE_NPM_BUILD
 fi
 
 echo "=== [6/6] PM2 + Nginx + SSL + Firewall ==="
-scp_cmd "$SRC/scripts/humanify-ecosystem.config.cjs" "$VPS_USER@$VPS_HOST:$APP_DIR/"
-scp_cmd "$SRC/scripts/humanify-healthcheck.sh" "$VPS_USER@$VPS_HOST:$APP_DIR/"
+# Wave-21: SCP must not abort before PM2 restart (Wave-20 left app stopped → 502)
+scp_cmd "$SRC/scripts/humanify-ecosystem.config.cjs" "$VPS_USER@$VPS_HOST:$APP_DIR/" \
+  || echo "⚠️ ecosystem SCP failed — will reuse existing file / fallback restart"
+scp_cmd "$SRC/scripts/humanify-healthcheck.sh" "$VPS_USER@$VPS_HOST:$APP_DIR/" \
+  || echo "⚠️ healthcheck SCP failed — continuing"
 ssh_cmd "APP_DIR='$APP_DIR' DOMAIN='$DOMAIN' USE_DOMAIN='$USE_DOMAIN' ENABLE_SSL='$ENABLE_SSL' CLOUDFLARE_SSL='$CLOUDFLARE_SSL' CERTBOT_EMAIL='$CERTBOT_EMAIL' VPS_USER='$VPS_USER' bash -s" <<'REMOTE_PM2'
 set -euo pipefail
 cd "$APP_DIR"
 
-chmod +x humanify-healthcheck.sh
-pm2 delete humanify 2>/dev/null || true
-HUMANIFY_APP_DIR="$APP_DIR" pm2 start humanify-ecosystem.config.cjs
+# Bring app back online first (build step stops PM2)
+chmod +x humanify-healthcheck.sh 2>/dev/null || true
+if [ -f humanify-ecosystem.config.cjs ]; then
+  pm2 delete humanify 2>/dev/null || true
+  HUMANIFY_APP_DIR="$APP_DIR" pm2 start humanify-ecosystem.config.cjs
+else
+  echo "⚠️ humanify-ecosystem.config.cjs missing — fallback restart"
+  pm2 restart humanify --update-env 2>/dev/null \
+    || pm2 start npm --name humanify --cwd "$APP_DIR" -- start
+fi
 pm2 save
 
 if [ "$USE_DOMAIN" = true ]; then

@@ -143,6 +143,64 @@ export async function createPartner(opts: {
   return { id, code, name };
 }
 
+/** Stable sales walkthrough partner — upsert code DEMO (10%). */
+export async function ensureDemoPartner(opts?: {
+  attachSlug?: string | null;
+}): Promise<{
+  code: string;
+  id: string;
+  created: boolean;
+  attachedSlug: string | null;
+}> {
+  if (!sequelize) throw new Error('Database unavailable');
+  await ensurePartnersTable();
+  const code = 'DEMO';
+  const name = 'Humanify Demo Partner';
+  const email = 'partners@humanify.id';
+  const pct = 10;
+  const notes = 'Wave-21 sales walkthrough — signup ?ref=DEMO / ?partner=DEMO';
+
+  const [existing] = await sequelize.query(
+    `SELECT id FROM saas_partners WHERE code = :code LIMIT 1`,
+    { replacements: { code } },
+  );
+  let id = existing?.[0]?.id as string | undefined;
+  let created = false;
+  if (id) {
+    await sequelize.query(
+      `UPDATE saas_partners
+       SET name = :name, contact_email = :email, commission_pct = :pct,
+           status = 'active', notes = :notes, updated_at = NOW()
+       WHERE code = :code`,
+      { replacements: { code, name, email, pct, notes } },
+    );
+  } else {
+    id = crypto.randomUUID();
+    await sequelize.query(
+      `INSERT INTO saas_partners (id, code, name, contact_email, commission_pct, status, notes)
+       VALUES (:id, :code, :name, :email, :pct, 'active', :notes)`,
+      { replacements: { id, code, name, email, pct, notes } },
+    );
+    created = true;
+  }
+
+  const attachSlug = opts?.attachSlug === undefined ? 'demo' : opts.attachSlug;
+  let attachedSlug: string | null = null;
+  if (attachSlug) {
+    const [tenants] = await sequelize.query(
+      `SELECT id FROM tenants WHERE slug = :slug LIMIT 1`,
+      { replacements: { slug: attachSlug } },
+    );
+    const tid = tenants?.[0]?.id as string | undefined;
+    if (tid) {
+      const att = await attachPartnerToTenant(tid, code);
+      if (att.attached) attachedSlug = attachSlug;
+    }
+  }
+
+  return { code, id: id!, created, attachedSlug };
+}
+
 /** Attach partner attribution into tenant settings after provision. */
 export async function attachPartnerToTenant(
   tenantId: string,

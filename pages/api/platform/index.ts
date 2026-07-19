@@ -619,11 +619,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       const partnerCode = String(req.query.partnerCode || req.query.code || '').trim().toUpperCase();
       const lim = Math.min(5000, Math.max(1, Number(req.query.limit) || 2000));
+      const fromRaw = String(req.query.from || '').trim();
+      const toRaw = String(req.query.to || '').trim();
+      const fromMatch = fromRaw.match(/^(\d{4}-\d{2}-\d{2})/);
+      const toMatch = toRaw.match(/^(\d{4}-\d{2}-\d{2})/);
       const conditions = [`LOWER(status) = 'paid'`, `partner_code IS NOT NULL`, `partner_code <> ''`];
       const repl: Record<string, unknown> = { lim };
       if (partnerCode) {
         conditions.push('UPPER(partner_code) = :partnerCode');
         repl.partnerCode = partnerCode;
+      }
+      if (fromMatch) {
+        conditions.push('paid_at >= :fromTs::timestamptz');
+        repl.fromTs = `${fromMatch[1]}T00:00:00.000Z`;
+      }
+      if (toMatch) {
+        conditions.push('paid_at < (:toTs::date + INTERVAL \'1 day\')');
+        repl.toTs = toMatch[1];
       }
       const [rows] = await sequelize.query(
         `SELECT paid_at, order_code, tenant_id, plan, amount_idr, partner_code, commission_pct, commission_idr

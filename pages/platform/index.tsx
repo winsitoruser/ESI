@@ -30,6 +30,12 @@ export default function PlatformDashboardPage() {
   const [partners, setPartners] = useState<any[]>([]);
   const [partnerLeads, setPartnerLeads] = useState<any[]>([]);
   const [commissionMonths, setCommissionMonths] = useState<any[]>([]);
+  const [commissionFrom, setCommissionFrom] = useState(() => {
+    const d = new Date();
+    d.setUTCDate(1);
+    return d.toISOString().slice(0, 10);
+  });
+  const [commissionTo, setCommissionTo] = useState(() => new Date().toISOString().slice(0, 10));
   const [partnerForm, setPartnerForm] = useState({ code: '', name: '', contactEmail: '' });
   const [cleanupBusy, setCleanupBusy] = useState(false);
   const [archiveBusy, setArchiveBusy] = useState(false);
@@ -323,8 +329,26 @@ export default function PlatformDashboardPage() {
             Preview komisi: GET /api/platform?action=commission-preview&amp;partnerCode=CODE&amp;amountIdr=1000000 (calc only — bukan payout)
           </p>
           <div className="flex flex-wrap gap-2 items-center">
+            <label className="text-[11px] text-slate-500 flex items-center gap-1">
+              From
+              <input
+                type="date"
+                value={commissionFrom}
+                onChange={(e) => setCommissionFrom(e.target.value)}
+                className="border rounded px-1.5 py-1 text-xs"
+              />
+            </label>
+            <label className="text-[11px] text-slate-500 flex items-center gap-1">
+              To
+              <input
+                type="date"
+                value={commissionTo}
+                onChange={(e) => setCommissionTo(e.target.value)}
+                className="border rounded px-1.5 py-1 text-xs"
+              />
+            </label>
             <a
-              href="/api/platform?action=partner-commission-export"
+              href={`/api/platform?action=partner-commission-export&from=${encodeURIComponent(commissionFrom)}&to=${encodeURIComponent(commissionTo)}`}
               className="text-xs px-2 py-1 border rounded-lg text-slate-700 hover:bg-slate-50"
             >
               Unduh CSV komisi (paid)

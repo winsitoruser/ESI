@@ -44,4 +44,6 @@ Program mitra implementasi untuk konsultan payroll, BPJS, dan payroll outsourcin
 - [x] Snapshot komisi di `saas_billing_orders` + kolom UI tenant detail  
 - [x] Export CSV partner leads (`?action=partner-leads-export`)  
 - [x] Export CSV komisi paid (`?action=partner-commission-export`) + filter `billing-orders?partnerCode=`  
+- [x] Filter tanggal CSV komisi (`from` / `to`) + ringkasan bulanan di `/platform`  
+- [x] Partner stabil `DEMO` (10%) — `npm run ensure:demo-partner` (deploy auto)  
 - [ ] Revenue share otomatis + payout di billing — wave berikutnya  

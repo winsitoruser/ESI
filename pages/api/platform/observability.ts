@@ -9,6 +9,7 @@ import { isPlatformOperator } from '@/lib/middleware/tenantIsolation';
 import { getObservabilitySnapshotAsync } from '@/lib/observability';
 import { getBackupFreshness } from '@/lib/saas/backup-freshness';
 import { getScorecardLastRun } from '@/lib/saas/scorecard-last';
+import { getDigestLastRun } from '@/lib/saas/digest-last';
 import { getPrivyWebhookHealth } from '@/lib/hris/privy-webhook';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -28,6 +29,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const data = await getObservabilitySnapshotAsync();
   const backup = getBackupFreshness();
   const scorecard = getScorecardLastRun();
+  const digest = getDigestLastRun();
   const privy = await getPrivyWebhookHealth().catch(() => null);
   return res.json({
     success: true,
@@ -59,6 +61,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         failedTotal: scorecard.failedTotal,
         base: scorecard.base,
         reason: scorecard.reason,
+      },
+      actionDigest: {
+        present: digest.present,
+        ok: digest.ok,
+        at: digest.at,
+        ageHours: digest.ageHours,
+        sent: digest.sent,
+        dryRun: digest.dryRun,
+        reason: digest.reason,
       },
       privyWebhook: privy,
     },

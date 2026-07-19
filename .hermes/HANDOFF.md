@@ -1,6 +1,18 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-20** · fiscal e2e · commission summary · scorecard chip · MFA UX · Privy health
+> Diperbarui: 19 Juli 2026 — **Wave-21** · deploy PM2 resilience · digest chip · DEMO partner · commission CSV dates
+
+## Wave-21 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w21-1 | Deploy: PM2 restart even if ecosystem SCP fails | Done |
+| w21-2 | Action Inbox digest last-run chip | Done |
+| w21-3 | Seed/ensure DEMO partner (sales walkthrough) | Done |
+| w21-4 | Partner commission CSV `from`/`to` date filter | Done |
+| w21-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:wave21` · `npm run ensure:demo-partner`
 
 ## Wave-20 (19 Jul 2026)
 
