@@ -10,7 +10,7 @@
 | w40-2 | Reset no-token login + verify welcome soft | Done |
 | w40-3 | `llms.txt` careers help + robots/seo soft | Done |
 | w40-4 | `smoke:tenant-isolation` + `tenant-empty-state` | Done |
-| w40-5 | Deploy + verify | Pending |
+| w40-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave40` · `npm run test:e2e:humanify:careers:prod` · `npm run test:e2e:humanify:reset-password:prod` · `npm run test:e2e:humanify:verify-email:prod` · `npm run test:e2e:humanify:seo-public:prod`
 
