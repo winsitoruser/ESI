@@ -10,7 +10,7 @@
 | w30-2 | Soft Playwright employee login HR Admin link | Done |
 | w30-3 | Soft Playwright welcome ROI / portal CTAs | Done |
 | w30-4 | `smoke:phase19-mfa` npm alias | Done |
-| w30-5 | Deploy + verify | Pending |
+| w30-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave30` · `npm run smoke:phase19-mfa` · `npm run test:e2e:humanify:seo-public:prod` · `npm run test:e2e:humanify:prod`
 
