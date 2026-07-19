@@ -10,7 +10,7 @@
 | w34-2 | Soft Playwright reset-password → forgot link | Done |
 | w34-3 | Soft Playwright verify-email Kirim ulang cue (no click) | Done |
 | w34-4 | `smoke:phase12-digest` + `smoke:phase23-invitations` | Done |
-| w34-5 | Deploy + verify | Pending |
+| w34-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave34` · `npm run test:e2e:humanify:careers:prod` · `npm run test:e2e:humanify:reset-password:prod` · `npm run test:e2e:humanify:verify-email:prod`
 
