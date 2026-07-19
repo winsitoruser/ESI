@@ -5,10 +5,12 @@ Allow: /humanify/welcome
 Allow: /humanify/signup
 Allow: /humanify/login
 Allow: /humanify/pricing/
+Allow: /humanify/partners
 Allow: /employee/login
 Allow: /images/
 Allow: /careers
 Allow: /c/
+Allow: /.well-known/security.txt
 
 Disallow: /humanify/setup
 Disallow: /humanify/go-live

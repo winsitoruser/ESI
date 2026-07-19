@@ -19,6 +19,10 @@ test.describe('Humanify employee login UI (soft)', () => {
     await expect(page.locator('input[type="email"]').first()).toBeVisible({ timeout: 15_000 });
     await expect(page.locator('input[name="password"], input[type="password"]').first()).toBeVisible();
     await expect(page.getByRole('button', { name: /Masuk/i }).first()).toBeVisible();
+    await expect(page.locator('a[href*="/humanify/login"]').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('body')).toContainText(/Login HR \/ Admin|HR \/ Admin/i, {
+      timeout: 10_000,
+    });
     // Soft: do not submit
   });
 });

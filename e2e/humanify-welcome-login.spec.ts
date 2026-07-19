@@ -38,4 +38,22 @@ test.describe('Humanify welcome → login', () => {
     });
     // Soft: do not submit login
   });
+
+  test('welcome page shows ROI and employee portal CTAs (soft)', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    const res = await page.goto('/humanify/welcome', {
+      waitUntil: 'domcontentloaded',
+      timeout: 45_000,
+    });
+    expect((res?.status() ?? 0)).toBeLessThan(500);
+    await expect(page.locator('a[href*="/humanify/pricing/roi-calculator"]').first()).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.locator('a[href*="/employee/login"]').first()).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(page.locator('a[href*="/humanify/signup"]').first()).toBeVisible({
+      timeout: 10_000,
+    });
+  });
 });

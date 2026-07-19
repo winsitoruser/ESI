@@ -70,6 +70,8 @@
     "smoke:phase16-health": "node scripts/smoke-test-saas-phase16-health.js",
     "smoke:phase17-login-lockout": "node scripts/smoke-test-saas-phase17-login-lockout.js",
     "smoke:phase18-observability": "node scripts/smoke-test-saas-phase18-observability.js",
+    "smoke:phase19-mfa": "node scripts/smoke-test-saas-phase19-mfa.js",
+    "smoke:wave30": "node scripts/smoke-test-humanify-wave30.js",
     "ensure:demo-partner": "node scripts/ensure-humanify-demo-partner.js",
     "smoke:rls-lab": "node scripts/smoke-test-humanify-rls-strict-lab.js",
     "check:uptime-external": "node scripts/check-humanify-uptime-external.js",

@@ -14,6 +14,7 @@ test.describe('Humanify SEO public surfaces (soft)', () => {
     const body = await page.locator('body').innerText();
     expect(body).toMatch(/User-agent/i);
     expect(body).toMatch(/Disallow:\s*\/api\//i);
+    expect(body).toMatch(/Allow:\s*\/\.well-known\/security\.txt/i);
     expect(body).toMatch(/Sitemap:\s*https:\/\/humanify\.id\/sitemap\.xml/i);
   });
 
@@ -26,6 +27,7 @@ test.describe('Humanify SEO public surfaces (soft)', () => {
     const body = await page.locator('body').innerText();
     expect(body).toMatch(/urlset/i);
     expect(body).toMatch(/humanify\.id\/humanify\/welcome/i);
+    expect(body).toMatch(/humanify\.id\/humanify\/partners/i);
   });
 
   test('security.txt is reachable with Contact', async ({ page }) => {

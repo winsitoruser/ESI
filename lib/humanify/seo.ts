@@ -58,6 +58,14 @@ export const HUMANIFY_PUBLIC_ROUTES: {
       'Hitung estimasi penghematan biaya dan waktu dengan Humanify. Kalkulator ROI interaktif untuk perusahaan Anda.',
   },
   {
+    path: '/humanify/partners',
+    priority: 0.7,
+    changefreq: 'monthly',
+    title: 'Partner Channel — Humanify HRIS',
+    description:
+      'Daftar sebagai partner Humanify — konsultan payroll, BPJS, akuntan, dan vendor absensi.',
+  },
+  {
     path: '/employee/login',
     priority: 0.6,
     changefreq: 'monthly',

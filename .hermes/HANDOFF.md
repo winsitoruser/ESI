@@ -1,6 +1,18 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 19 Juli 2026 — **Wave-29** · digest seed · security.txt · employee-login soft · phase17/18 aliases
+> Diperbarui: 19 Juli 2026 — **Wave-30** · partners sitemap · robots security · welcome/employee soft · phase19 alias
+
+## Wave-30 (19 Jul 2026)
+
+| ID | Item | Status |
+|---|---|---|
+| w30-1 | Partners in sitemap + robots Allow (partners + security.txt) | Done |
+| w30-2 | Soft Playwright employee login HR Admin link | Done |
+| w30-3 | Soft Playwright welcome ROI / portal CTAs | Done |
+| w30-4 | `smoke:phase19-mfa` npm alias | Done |
+| w30-5 | Deploy + verify | Pending |
+
+Scripts: `npm run smoke:wave30` · `npm run smoke:phase19-mfa` · `npm run test:e2e:humanify:seo-public:prod` · `npm run test:e2e:humanify:prod`
 
 ## Wave-29 (19 Jul 2026)
 
