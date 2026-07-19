@@ -10,7 +10,7 @@
 | w37-2 | Soft Playwright employee login → beranda | Done |
 | w37-3 | Soft Playwright `/icons` PWA + llms security assert | Done |
 | w37-4 | `smoke:phase1-signup` + `phase7-golive` + `phase10-plan-change` | Done |
-| w37-5 | Deploy + verify | Pending |
+| w37-5 | Deploy + verify | Done |
 
 Scripts: `npm run smoke:wave37` · `npm run test:e2e:humanify:roi:prod` · `npm run test:e2e:humanify:employee-login:prod` · `npm run test:e2e:humanify:health:prod`
 
