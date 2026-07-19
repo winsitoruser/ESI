@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import { Handshake, ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react';
+import { Users, ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
 import { HumanifyLogo } from '@/components/humanify/HumanifyLogo';
 
@@ -71,7 +71,7 @@ export default function HumanifyPartnersPage() {
 
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2.5 rounded-xl bg-violet-100 text-violet-700">
-              <Handshake className="w-6 h-6" />
+              <Users className="w-6 h-6" />
             </div>
             <h1 className="text-2xl font-bold text-slate-900">Partner Channel</h1>
           </div>
@@ -187,7 +187,7 @@ export default function HumanifyPartnersPage() {
                 disabled={sending}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 disabled:opacity-60"
               >
-                {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Handshake className="w-4 h-4" />}
+                {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
                 Kirim pendaftaran
               </button>
             </form>

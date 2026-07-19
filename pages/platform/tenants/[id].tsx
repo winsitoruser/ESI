@@ -5,7 +5,7 @@ import Link from 'next/link';
 import HQLayout from '@/components/hq/HQLayout';
 import {
   ArrowLeft, Building2, Users, Briefcase, HeartPulse, Eye, Clock,
-  PauseCircle, CheckCircle2, Loader2, RefreshCw, ExternalLink, ReceiptText,
+  PauseCircle, CheckCircle2, Loader2, RefreshCw, ExternalLink, Receipt,
 } from 'lucide-react';
 
 /**
@@ -280,7 +280,7 @@ export default function TenantDetailPage() {
 
             <div className="bg-white border rounded-xl overflow-hidden">
               <div className="px-4 py-3 border-b flex items-center gap-2">
-                <ReceiptText className="w-4 h-4 text-slate-500" />
+                <Receipt className="w-4 h-4 text-slate-500" />
                 <p className="text-sm font-semibold text-slate-800">Riwayat billing orders</p>
               </div>
               <table className="w-full text-sm">
