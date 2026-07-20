@@ -1,6 +1,23 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 20 Juli 2026 — **Wave-64** · Payroll approve→paid + hard e2e depth
+> Diperbarui: 21 Juli 2026 — **Wave-65** · Formal QA matrix + leave/IR TX hardening
+
+## Wave-65 (21 Jul 2026) — Formal QA closeout + TX-aborted fixes
+
+| ID | Item | Status |
+|---|---|---|
+| BE-1 | Leave `attachment_url` schema drift + notify SAVEPOINT | Done |
+| BE-2 | IR `logAudit` SAVEPOINT (request-bound TX poison) | Done |
+| QA-1 | `npm run qa:humanify:matrix` (Smoke→AdHoc) | Done |
+| QA-2 | Staging webhook secrets loader (`sshpass -e` + staging `.env`) | Done |
+| QA-3 | Authenticated UI button smoke (`e2e/humanify-authenticated-ui-smoke.spec.ts`) | Done |
+
+Scripts: `npm run qa:humanify:matrix` · `node scripts/smoke-test-humanify-enterprise.js` (needs `VPS_PASS`)
+
+Staging verified 21 Jul 2026 — leave create PASS · IR 31/0 · enterprise **21/0** (webhook HMAC) · matrix **26/27→27/27** after secrets fix.  
+Known ops: concurrent deploy+QA SSH can trip password auth denials — prefer sequential; deploy step-6 may need manual `pm2 restart humanify-staging` if SSH flakes.
+
+**ADR ceilings (masih deferred):** prod FORCE strict RLS · Sentry.io · Midtrans auto-payout.
 
 ## Wave-64 (20 Jul 2026) — Payroll depth (approve / paid / UI)
 

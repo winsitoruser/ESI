@@ -13,7 +13,8 @@ SSH_OPTS=(-o StrictHostKeyChecking=no -o PreferredAuthentications=password -o Pu
 
 pkill -f "ssh.*${LOCAL_PORT}:127.0.0.1:${REMOTE_PG_PORT}.*${VPS_HOST}" 2>/dev/null || true
 
-sshpass -p "$VPS_PASS" ssh -f -N "${SSH_OPTS[@]}" \
+export SSHPASS="$VPS_PASS"
+sshpass -e ssh -f -N "${SSH_OPTS[@]}" \
   -L "${LOCAL_PORT}:127.0.0.1:${REMOTE_PG_PORT}" \
   "${VPS_USER}@${VPS_HOST}"
 

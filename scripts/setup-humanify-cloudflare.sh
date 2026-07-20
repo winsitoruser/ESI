@@ -24,7 +24,8 @@ else
 fi
 
 SSH_OPTS=(-o StrictHostKeyChecking=no -o PreferredAuthentications=password -o PubkeyAuthentication=no -o ServerAliveInterval=60)
-ssh_cmd() { sshpass -p "$VPS_PASS" ssh "${SSH_OPTS[@]}" "$VPS_USER@$VPS_HOST" "$@"; }
+export SSHPASS="$VPS_PASS"
+ssh_cmd() { sshpass -e ssh "${SSH_OPTS[@]}" "$VPS_USER@$VPS_HOST" "$@"; }
 
 echo "=== Cloudflare SSL setup: $DOMAIN on $VPS_HOST ==="
 ssh_cmd "bash -s" <<REMOTE
