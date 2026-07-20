@@ -138,6 +138,8 @@
     "smoke:wave59": "node scripts/smoke-test-humanify-wave59.js",
     "smoke:wave60": "node scripts/smoke-test-humanify-wave60.js",
     "smoke:wave61": "node scripts/smoke-test-humanify-wave61.js",
+    "smoke:wave62": "node scripts/smoke-test-humanify-wave62.js",
+    "verify:humanify:staging": "bash scripts/run-humanify-staging-verify.sh",
     "db:partner-payouts-migrate": "node scripts/migrate-saas-partner-payouts.js",
     "deploy:humanify:staging": "bash scripts/deploy-humanify-staging-vps.sh",
     "lint:humanify-hq-auth": "node scripts/lint-humanify-hq-auth.js",

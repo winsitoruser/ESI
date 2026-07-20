@@ -188,3 +188,10 @@ Flip strict di prod **tanpa** staging IDOR + chaos = dilarang.
 5. **QA-4** — `e2e/humanify-manager-approve-leave.spec.ts` secret-gated + CI wire.
 6. **DO-4** — CI warns when `SMOKE_BASE_URL` empty (unit smokes still required).
 7. Staging public DNS + prod FORCE strict RLS remain external/ADR-gated.
+
+## D-025 (Wave-62): Staging ops hardening — e2e host + verify chain — 20 Jul 2026
+**Ops / QA:** After staging sequential verify went green:
+1. **Hard payroll host rule** — `PLAYWRIGHT_BASE_URL` must be `https://staging.humanify.id` (or lab). Loopback (`127.0.0.1` / `localhost`) skipped unless `HUMANIFY_E2E_ALLOW_LOOPBACK=1` — avoids NEXTAUTH cookie mismatch → `/auth/login` stuck.
+2. **`npm run verify:humanify:staging`** — chains scorecard → optional hard payroll; refuses loopback BASE.
+3. **Clone grant regression** — smoke asserts `ensure-humanify-staging-db.sh` always re-GRANTs after `pg_dump --no-acl`.
+4. ADR ceilings unchanged: prod FORCE strict RLS · Sentry.io · Midtrans auto-payout.

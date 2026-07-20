@@ -1,6 +1,6 @@
 # Humanify — Staging Deploy (`staging.humanify.id`)
 
-> Wave-58 · updated Wave-60 (20 Jul 2026)
+> Wave-58 · updated Wave-62 (20 Jul 2026)
 
 ## Purpose
 
@@ -62,17 +62,29 @@ Slot layout on VPS:
 
 ## Verify (after DNS A record fixed)
 
+**E2E host rule (Wave-62 / D-025):** always use `https://staging.humanify.id` for Playwright.
+Do **not** use `http://127.0.0.1:3021` — `NEXTAUTH_URL` is the public host, so cookies mismatch and login sticks on `/auth/login`. Loopback only with `HUMANIFY_E2E_ALLOW_LOOPBACK=1` when local `NEXTAUTH_URL` matches.
+
 ```bash
 curl -sS https://staging.humanify.id/api/health?deep=1
+
+# One-shot chain: scorecard → (optional) hard payroll
+HUMANIFY_E2E_HARD=1 HUMANIFY_E2E_EMAIL=… HUMANIFY_E2E_PASSWORD=… \
+  npm run verify:humanify:staging
+
+# Or step-by-step
 SMOKE_BASE_URL=https://staging.humanify.id npm run security:scorecard
 HUMANIFY_E2E_HARD=1 PLAYWRIGHT_BASE_URL=https://staging.humanify.id \
   HUMANIFY_E2E_EMAIL=… HUMANIFY_E2E_PASSWORD=… \
-  npx playwright test e2e/humanify-payroll-hard.spec.ts
+  npm run test:e2e:humanify:payroll:hard
+
 # RBAC personas (Wave-60)
 HUMANIFY_E2E_HR_EMAIL=… HUMANIFY_E2E_HR_PASSWORD=… \
 HUMANIFY_E2E_EMPLOYEE_EMAIL=… HUMANIFY_E2E_EMPLOYEE_PASSWORD=… \
   npx playwright test e2e/humanify-rbac-personas.spec.ts
 ```
+
+**DB clone note:** `pg_dump --no-acl` strips grants — `ensure-humanify-staging-db.sh` always re-GRANTs role `humanify` after clone (login fails with `permission denied for table users` otherwise).
 
 ## Cron
 

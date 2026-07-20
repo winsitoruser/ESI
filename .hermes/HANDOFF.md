@@ -1,6 +1,20 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 20 Juli 2026 — **Staging sequential verify** (post Wave-61)
+> Diperbarui: 20 Juli 2026 — **Wave-62** · Staging ops hardening
+
+## Wave-62 (20 Jul 2026) — Staging ops hardening
+
+| ID | Item | Status |
+|---|---|---|
+| QA-1 | Hard payroll refuses loopback unless `HUMANIFY_E2E_ALLOW_LOOPBACK=1` | Done |
+| DO-2 | `npm run verify:humanify:staging` (scorecard → hard e2e) | Done |
+| DO-3 | Staging deploy docs — e2e host + clone grant note | Done |
+| DO-1 | Smoke asserts staging DB re-grant after clone | Done |
+| ADR | D-025 | Done |
+
+Scripts: `npm run smoke:wave62` · `npm run verify:humanify:staging`
+
+**ADR ceilings (masih deferred):** prod FORCE strict RLS · Sentry.io · Midtrans auto-payout.
 
 ## Staging sequential verify (20 Jul 2026)
 
