@@ -271,7 +271,8 @@
     "smoke:vps": "node scripts/smoke-test-humanify-vps.js",
     "qa:humanify": "node scripts/production-qa-humanify.js",
     "qa:humanify:prod": "SMOKE_BASE_URL=https://humanify.id node scripts/production-qa-humanify.js",
-    "humanify:webhook-secrets": "bash scripts/ensure-humanify-webhook-secrets.sh"
+    "humanify:webhook-secrets": "bash scripts/ensure-humanify-webhook-secrets.sh",
+    "qa:humanify:matrix": "bash scripts/run-humanify-qa-matrix.sh"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1090.0",

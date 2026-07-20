@@ -582,13 +582,17 @@ async function handleDelete(req: NextApiRequest, res: NextApiResponse, action: s
 async function logAudit(session: any, action: string, resource: string, resourceId: string, oldValues: any, newValues: any) {
   if (!AuditLog) return;
   try {
-    await AuditLog.create({
-      userId: (session.user as any)?.id,
-      action, resource, resourceId,
-      oldValues, newValues,
-      details: { module: 'industrial_relations', timestamp: new Date().toISOString() }
-    });
-  } catch (e) { /* silent */ }
+    const sequelize = require('../../../lib/sequelize');
+    const { withDbSavepoint } = require('@/lib/saas/tenant-request-bound');
+    await withDbSavepoint(sequelize, async () => {
+      await AuditLog.create({
+        userId: (session.user as any)?.id,
+        action, resource, resourceId,
+        oldValues, newValues,
+        details: { module: 'industrial_relations', timestamp: new Date().toISOString() }
+      });
+    }, 'ir_audit');
+  } catch (e) { /* silent — never poison request-bound TX */ }
 }
 
 function serializeIrCase(row: any) {

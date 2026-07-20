@@ -181,7 +181,10 @@ async function createLeaveRequest(req: NextApiRequest, res: NextApiResponse, ses
 
     try {
       if (typeof triggerHRISWebhook === 'function') {
-        await triggerHRISWebhook('leave.requested', empId, session.user.name || 'Employee', leave);
+        const { withDbSavepoint } = await import('@/lib/saas/tenant-request-bound');
+        await withDbSavepoint(sequelize, async () => {
+          await triggerHRISWebhook('leave.requested', empId, session.user.name || 'Employee', leave);
+        }, 'leave_webhook');
       }
     } catch (whErr) {
       console.warn('leave webhook skipped:', (whErr as any)?.message || whErr);

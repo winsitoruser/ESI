@@ -170,6 +170,11 @@ export async function createPortalLeaveRequest(input: PortalLeaveInput) {
 
   await sequelize.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"').catch(() => {});
 
+  // Schema drift: older DBs lack attachment_url — ensure before INSERT
+  await sequelize.query(
+    `ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS attachment_url TEXT`,
+  ).catch(() => {});
+
   const remaining = await getLeaveBalanceRemaining(String(employeeId), leaveType, new Date().getFullYear());
   if (remaining !== null && remaining < totalDays) {
     return {
