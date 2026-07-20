@@ -1,6 +1,20 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 20 Juli 2026 — **Wave-61** · Residual P2 closers
+> Diperbarui: 20 Juli 2026 — **Staging sequential verify** (post Wave-61)
+
+## Staging sequential verify (20 Jul 2026)
+
+Run berurutan setelah staging DNS + login fix (GRANT `humanify` on clone).
+
+| # | Step | Result |
+|---|---|---|
+| 1 | Security scorecard → `https://staging.humanify.id` | **38 passed / 0 failed** · `/var/lib/humanify/scorecard-last.json` |
+| 2 | VPS cron → staging URL | `HUMANIFY_STAGING_URL` in prod `.env` · weekly cron `SMOKE_BASE_URL=https://staging.humanify.id` · VPS `/etc/hosts` → CF IP (resolver NXDOMAIN lokal VPS) |
+| 3 | Hard payroll Playwright | **PASS** (6.2s) via `PLAYWRIGHT_BASE_URL=https://staging.humanify.id` + `HUMANIFY_E2E_HARD=1` — jangan pakai `127.0.0.1:3021` (NEXTAUTH cookie mismatch → stuck di `/auth/login`) |
+| 4 | Staging RLS / env | `HUMANIFY_RLS_MODE=strict` · `HUMANIFY_RLS_REQUEST_BOUND=true` · `HUMANIFY_DEPLOY_SLOT=staging` · DB `humanify_staging` · PM2 online · login 200 |
+
+**Login:** `https://staging.humanify.id/humanify/login` · `superadmin@humanify.id` / `superadmin123`  
+**ADR ceilings (masih deferred):** prod FORCE strict RLS · Sentry.io · Midtrans auto-payout.
 
 ## Wave-61 (20 Jul 2026) — Residual P2 closers
 
@@ -18,7 +32,7 @@ Scripts: `npm run smoke:wave61` · `npm run db:partner-payouts-migrate`
 
 Deploy verified 20 Jul 2026 — prod BUILD_OK · PM2 online · health checks passed.
 
-**Staging public:** `https://staging.humanify.id` live (20 Jul 2026) — DNS A via Cloudflare · health ok · login 200.  
+**Staging public:** `https://staging.humanify.id` live (20 Jul 2026) — DNS A via Cloudflare · health ok · login 200 · sequential verify green.  
 **ADR ceilings:** prod FORCE strict RLS · Sentry.io · Midtrans auto-payout.
 
 ## Wave-60 (20 Jul 2026) — Auth batch-3 complete
@@ -31,14 +45,14 @@ Closes remaining **audit multi-peran** deferred track.
 | FE-3 | ESS `HomeTab` code-split (+ Leave/Attendance from Wave-59) | Done |
 | BE-4 | mock-guard extend leave-management + team-tasks | Done |
 | QA-2 | RBAC persona e2e secret-gated in CI | Done |
-| DO-1 | Staging CF 1016 documented; VPS slot :3021 healthy | Done (public DNS live 20 Jul) |
+| DO-1 | Staging public DNS live; VPS slot :3021 healthy | Done (20 Jul) |
 | ADR | D-023 | Done |
 
 Scripts: `npm run smoke:wave60` · `npm run lint:humanify-hq-auth` · `npm run smoke:mock-guard`
 
 Deploy verified 20 Jul 2026 — prod + staging slot BUILD_OK · PM2 online · health checks passed.
 
-**Staging blocker:** Cloudflare returns **1016 Origin DNS** for `staging.humanify.id` — set A `staging` → `103.92.215.37`. Slot itself OK via Host header / :3021.
+**Staging:** public URL live (CF A `staging` → VPS). Old 1016 Origin DNS blocker cleared 20 Jul.
 
 **Deferred:** prod FORCE strict RLS (D-013b) · Sentry.io (D-010b) · Midtrans auto-payout (D-015b).
 
