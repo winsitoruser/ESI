@@ -63,10 +63,12 @@ if [ -n "${VPS_SSH_KEY:-}" ]; then
   scp_cmd() { scp "${SSH_OPTS[@]}" "$@"; }
   rsync_cmd() { rsync -az "$@" -e "ssh ${SSH_OPTS[*]}"; }
 elif [ -n "${VPS_PASS:-}" ] && [ -n "$SSHPASS_PATH" ]; then
+  # Prefer SSHPASS + -e so passwords with '%' / special chars work (sshpass -p treats % as escape).
+  export SSHPASS="$VPS_PASS"
   SSH_OPTS=(-o StrictHostKeyChecking=no -o PreferredAuthentications=password -o PubkeyAuthentication=no -o ServerAliveInterval=60 -o ServerAliveCountMax=120)
-  ssh_cmd() { sshpass -p "$VPS_PASS" ssh "${SSH_OPTS[@]}" "$VPS_USER@$VPS_HOST" "$@"; }
-  scp_cmd() { sshpass -p "$VPS_PASS" scp "${SSH_OPTS[@]}" "$@"; }
-  rsync_cmd() { sshpass -p "$VPS_PASS" rsync -az "$@" -e "ssh ${SSH_OPTS[*]}"; }
+  ssh_cmd() { sshpass -e ssh "${SSH_OPTS[@]}" "$VPS_USER@$VPS_HOST" "$@"; }
+  scp_cmd() { sshpass -e scp "${SSH_OPTS[@]}" "$@"; }
+  rsync_cmd() { sshpass -e rsync -az "$@" -e "ssh ${SSH_OPTS[*]}"; }
 else
   echo "ERROR: Set VPS_SSH_KEY or VPS_PASS (with sshpass installed)."
   exit 1

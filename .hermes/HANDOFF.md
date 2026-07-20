@@ -10,9 +10,12 @@
 | DO-2 | `npm run verify:humanify:staging` (scorecard → hard e2e) | Done |
 | DO-3 | Staging deploy docs — e2e host + clone grant note | Done |
 | DO-1 | Smoke asserts staging DB re-grant after clone | Done |
+| DO-4 | Deploy `sshpass -e` / `SSHPASS` (password with `%` safe) | Done |
 | ADR | D-025 | Done |
 
 Scripts: `npm run smoke:wave62` · `npm run verify:humanify:staging`
+
+Deploy verified 20 Jul 2026 — staging BUILD_OK · PM2 online · health/login 200 · `smoke:wave62` 6/6 on VPS · strict RLS.
 
 **ADR ceilings (masih deferred):** prod FORCE strict RLS · Sentry.io · Midtrans auto-payout.
 

@@ -194,4 +194,5 @@ Flip strict di prod **tanpa** staging IDOR + chaos = dilarang.
 1. **Hard payroll host rule** — `PLAYWRIGHT_BASE_URL` must be `https://staging.humanify.id` (or lab). Loopback (`127.0.0.1` / `localhost`) skipped unless `HUMANIFY_E2E_ALLOW_LOOPBACK=1` — avoids NEXTAUTH cookie mismatch → `/auth/login` stuck.
 2. **`npm run verify:humanify:staging`** — chains scorecard → optional hard payroll; refuses loopback BASE.
 3. **Clone grant regression** — smoke asserts `ensure-humanify-staging-db.sh` always re-GRANTs after `pg_dump --no-acl`.
-4. ADR ceilings unchanged: prod FORCE strict RLS · Sentry.io · Midtrans auto-payout.
+4. **Deploy SSH** — `deploy-humanify-vps.sh` uses `sshpass -e` + `SSHPASS` so passwords containing `%` work ( `-p` treats `%` as escape).
+5. ADR ceilings unchanged: prod FORCE strict RLS · Sentry.io · Midtrans auto-payout.
