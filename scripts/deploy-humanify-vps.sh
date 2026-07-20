@@ -165,7 +165,7 @@ if [ "$ENV_EXISTS" = "yes" ]; then
   echo "  (preserving existing .env, sync URL jika DOMAIN diset)"
   ssh_cmd "bash -s" <<REMOTE_ENV_SSL
 set -euo pipefail
-python3 - \<<PY
+python3 - <<PY
 from pathlib import Path
 import re
 
@@ -225,7 +225,7 @@ HUMANIFY_DEPLOY_SLOT=$HUMANIFY_DEPLOY_SLOT
 EOF
 chmod 600 $APP_DIR/.env
 
-python3 - \<<'PY'
+python3 - <<'PY'
 from pathlib import Path
 p = Path('$APP_DIR/config/database.js')
 text = p.read_text()
