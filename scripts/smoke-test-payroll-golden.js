@@ -162,6 +162,33 @@ async function main() {
         console.log(`  · gross allowance soft-skip (gross=${gross} < ${BASE_SALARY + ALLOWANCE})`);
       }
     }
+
+    // --- Wave-64: approve → paid + audit trail ---
+    const approve = await api('POST', '/api/humanify/payroll?action=approve', { runId });
+    if (approve.status >= 400 || approve.json?.success === false) {
+      fail('approve', approve.json?.error || `HTTP ${approve.status}`);
+    } else {
+      ok('approve payroll run');
+    }
+
+    const paid = await api('PUT', '/api/humanify/payroll?action=run-status', {
+      runId,
+      status: 'paid',
+      notifyEmployees: false,
+    });
+    if (paid.status >= 400 || paid.json?.success === false) {
+      fail('mark paid', paid.json?.error || `HTTP ${paid.status}`);
+    } else {
+      ok('mark paid');
+    }
+
+    const audit = await api('GET', `/api/humanify/payroll?action=payroll-audit&runId=${runId}&limit=20`);
+    const events = Array.isArray(audit.json?.data) ? audit.json.data : [];
+    const types = events.map((e) => String(e.event_type || e.eventType || '').toLowerCase());
+    if (types.includes('approved')) ok('audit event: approved');
+    else fail('audit approved', `types=${types.join(',') || 'none'}`);
+    if (types.includes('paid')) ok('audit event: paid');
+    else fail('audit paid', `types=${types.join(',') || 'none'}`);
   }
 
   // --- Wave-63: attendance → generate-from-attendance ---

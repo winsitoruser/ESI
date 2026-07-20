@@ -1,6 +1,20 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 20 Juli 2026 — **Wave-63** · Payroll/attendance depth
+> Diperbarui: 20 Juli 2026 — **Wave-64** · Payroll approve→paid + hard e2e depth
+
+## Wave-64 (20 Jul 2026) — Payroll depth (approve / paid / UI)
+
+| ID | Item | Status |
+|---|---|---|
+| QA-1 | Golden approve → paid + payroll-audit events | Done |
+| QA-2 | Hard e2e THR / BPJS / lembur pages | Done |
+| ADR | D-027 | Done |
+
+Scripts: `npm run smoke:wave64` · `npm run smoke:payroll-golden` · `npm run test:e2e:humanify:payroll:hard`
+
+Staging verified 20 Jul 2026 — `smoke:payroll-golden` **17/0** (approve→paid+audit) · hard e2e THR/BPJS/lembur **PASS**.
+
+**ADR ceilings (masih deferred):** prod FORCE strict RLS · Sentry.io · Midtrans auto-payout.
 
 ## Wave-63 (20 Jul 2026) — Payroll/attendance depth
 

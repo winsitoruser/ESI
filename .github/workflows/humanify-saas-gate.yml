@@ -110,6 +110,7 @@ jobs:
           npm run smoke:wave61
           npm run smoke:wave62
           npm run smoke:wave63
+          npm run smoke:wave64
           npm run smoke:rls-lab
           npm run smoke:rls-job-chaos
           npm run check:uptime-external

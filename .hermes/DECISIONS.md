@@ -203,3 +203,9 @@ Flip strict di prod **tanpa** staging IDOR + chaos = dilarang.
 2. **Bulk import** — optional `overtimeMinutes` / `lateMinutes` on `attendance-bulk?action=import` to feed payroll OT/late lines.
 3. **`smoke:payroll-golden`** owns attendance → generate-from-attendance → OVERTIME earnings + net identity (hard fail, no soft empty-pass on this path).
 4. ADR ceilings unchanged.
+
+## D-027 (Wave-64): Payroll depth — approve→paid audit + hard e2e pages — 20 Jul 2026
+**Product / Finance / QA:** Continue P1 payroll depth after Wave-63 bridge:
+1. **`smoke:payroll-golden`** — after calculate: `approve` → `run-status=paid` → assert `payroll-audit` events `approved` + `paid`.
+2. **Hard e2e (staging)** — `humanify-payroll-hard.spec.ts` also hits `/payroll/thr`, `/bpjs`, `/lembur` (no 5xx); soft prod gate unchanged.
+3. ADR ceilings unchanged.

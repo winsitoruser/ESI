@@ -36,7 +36,7 @@ test.describe('Humanify payroll UI (hard — staging only)', () => {
     'Set HUMANIFY_E2E_HARD=1 + PLAYWRIGHT_BASE_URL=https://staging.humanify.id (not 127.0.0.1; D-014/D-025)',
   );
 
-  test('login → payroll main → slip → PPh21 without 5xx', async ({ page }) => {
+  test('login → payroll main → slip → PPh21 → THR → BPJS → lembur without 5xx', async ({ page }) => {
     test.skip(!email || !password, 'HUMANIFY_E2E_EMAIL / HUMANIFY_E2E_PASSWORD required');
 
     await login(page);
@@ -45,6 +45,9 @@ test.describe('Humanify payroll UI (hard — staging only)', () => {
       '/humanify/payroll/main',
       '/humanify/payroll/slip-gaji',
       '/humanify/payroll/pph21',
+      '/humanify/payroll/thr',
+      '/humanify/payroll/bpjs',
+      '/humanify/payroll/lembur',
     ] as const) {
       const res = await page.goto(path, {
         waitUntil: 'domcontentloaded',
