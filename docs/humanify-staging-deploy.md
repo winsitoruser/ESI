@@ -38,7 +38,7 @@ Slot layout on VPS:
 | PM2 | `humanify` | `humanify-staging` |
 | Port | 3020 | 3021 |
 | Nginx | `humanify` | `humanify-staging` |
-| DB | `humanify` | `humanify_staging` |
+| DB | `humanify` | `humanify_staging` (cloned from prod on first deploy) |
 | RLS | soft | **strict** |
 
 ## Verify

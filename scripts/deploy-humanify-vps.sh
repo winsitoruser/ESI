@@ -146,6 +146,15 @@ JWT_SECRET="$(openssl rand -base64 32)"
 # Preserve existing .env on redeploy (jangan reset password DB)
 ENV_EXISTS=$(ssh_cmd "test -f $APP_DIR/.env && echo yes || echo no")
 
+# Additional slots (e.g. staging) share the `humanify` PG role with prod — reuse prod password.
+if [ "$ENV_EXISTS" = "no" ] && [ "$HUMANIFY_DB_NAME" != "humanify" ]; then
+  SHARED_DB_PASS="$(ssh_cmd "test -f /root/humanify/.env && grep '^DB_PASSWORD=' /root/humanify/.env | cut -d= -f2- || true")"
+  if [ -n "$SHARED_DB_PASS" ]; then
+    DB_PASS="$SHARED_DB_PASS"
+    echo "  (reusing shared humanify DB password from prod slot)"
+  fi
+fi
+
 ssh_cmd "bash -s" <<REMOTE_DB
 set -euo pipefail
 if [ "$ENV_EXISTS" = "yes" ]; then
@@ -328,7 +337,11 @@ cd $APP_DIR
 export NODE_OPTIONS='--max-old-space-size=4096'
 if [ ! -d node_modules ]; then npm install --legacy-peer-deps 2>&1 | tail -5; fi
 
-# Base schema (users, employees UUID, tenants, etc.) — required on fresh VPS
+if [ "$HUMANIFY_DEPLOY_SLOT" = staging ]; then
+  echo "  (staging slot — skip full migrate chain; DB cloned from prod)"
+  node scripts/run-humanify-pending-migrations.js 2>&1 | tail -5 || true
+  node scripts/ensure-humanify-superadmin.js || true
+else
 node scripts/setup-users-table.js || true
 npm run db:migrate 2>&1 | tail -30 || true
 node scripts/setup-hris-tables.js 2>&1 | tail -5 || true
@@ -358,6 +371,7 @@ node scripts/ensure-superadmin.js || true
 node scripts/ensure-humanify-superadmin.js || true
 node scripts/sync-org-departments.js || true
 node scripts/seed-hris-demo-data.js 2>&1 | tail -3 || true
+fi
 REMOTE_BUILD
 fi
 
@@ -368,7 +382,7 @@ else
 ssh_cmd "bash -s" <<REMOTE_NPM_BUILD
 set -euo pipefail
 cd $APP_DIR
-pm2 stop humanify 2>/dev/null || true
+pm2 stop $HUMANIFY_PM2_NAME 2>/dev/null || true
 
 # Extra swap headroom for large Next.js builds
 if [ "\$(free -m | awk '/^Swap:/{print \$2}')" -lt 4096 ]; then
