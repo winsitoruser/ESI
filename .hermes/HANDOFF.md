@@ -15,7 +15,8 @@
 
 Scripts: `npm run smoke:wave62` · `npm run verify:humanify:staging`
 
-Deploy verified 20 Jul 2026 — staging BUILD_OK · PM2 online · health/login 200 · `smoke:wave62` 6/6 on VPS · strict RLS.
+Deploy verified 20 Jul 2026 — staging BUILD_OK · PM2 online · health/login 200 · `smoke:wave62` 6/6 on VPS · strict RLS.  
+Prod deploy same day — BUILD_OK · PM2 online · health/login 200 · **`HUMANIFY_RLS_MODE=soft`** (D-013b intact) · staging remains strict.
 
 **ADR ceilings (masih deferred):** prod FORCE strict RLS · Sentry.io · Midtrans auto-payout.
 
