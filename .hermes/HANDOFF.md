@@ -1,6 +1,26 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 20 Juli 2026 — **Wave-57** · Product + UX + QA (pasca Wave-56)
+> Diperbarui: 20 Juli 2026 — **Wave-58** · Staging track (infra)
+
+## Wave-58 (20 Jul 2026) — Staging track
+
+Closes canvas **audit multi-peran** Wave-58 infra track.
+
+| ID | Item | Status |
+|---|---|---|
+| DO-1 | `deploy-humanify-staging-vps.sh` → `staging.humanify.id` slot | Done |
+| DO-2 | Deploy `VPS_SSH_KEY` support (no sshpass required) | Done |
+| DO-3 | PM2 `humanify-staging` port 3021 + nginx `humanify-staging` | Done |
+| SEC-1 | DB `humanify_staging` + `HUMANIFY_RLS_MODE=strict` on staging | Done |
+| SEC-2 | Weekly scorecard cron → `HUMANIFY_STAGING_URL` when staging live | Done |
+| DO-4 | Runbook `docs/humanify-staging-deploy.md` | Done |
+| ADR | D-021 | Done |
+
+Scripts: `npm run smoke:wave58` · `npm run deploy:humanify:staging`
+
+**DNS required:** A/CNAME `staging.humanify.id` → VPS (Cloudflare proxy OK).
+
+**Deferred:** bare-session migration batch-2 · ESS tab code-split · Redis alert webhook hardening.
 
 ## Wave-57 (20 Jul 2026) — Product + UX + QA
 

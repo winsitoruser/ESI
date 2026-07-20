@@ -17,6 +17,13 @@
 # Atau hanya setup Cloudflare di VPS yang sudah jalan:
 #   DOMAIN=humanify.id VPS_PASS='...' bash scripts/setup-humanify-cloudflare.sh
 #
+# Deploy staging slot (Wave-58):
+#   bash scripts/deploy-humanify-staging-vps.sh
+#   (DNS: A staging → VPS_HOST; Cloudflare SSL recommended)
+#
+# Deploy dengan SSH key (tanpa sshpass):
+#   VPS_SSH_KEY=~/.ssh/id_ed25519 VPS_HOST=... bash scripts/deploy-humanify-vps.sh
+#
 # Pastikan DNS A record @ dan www → VPS_HOST sebelum deploy domain.
 set -euo pipefail
 
@@ -24,7 +31,12 @@ SRC="$(cd "$(dirname "$0")/.." && pwd)"
 APP_SRC="${APP_SRC:-$SRC}"
 VPS_HOST="${VPS_HOST:-103.92.215.37}"
 VPS_USER="${VPS_USER:-root}"
-VPS_PASS="${VPS_PASS:?Set VPS_PASS}"
+HUMANIFY_PM2_NAME="${HUMANIFY_PM2_NAME:-humanify}"
+HUMANIFY_PORT="${HUMANIFY_PORT:-3020}"
+NGINX_SITE="${NGINX_SITE:-humanify}"
+ECOSYSTEM_FILE="${ECOSYSTEM_FILE:-humanify-ecosystem.config.cjs}"
+HUMANIFY_DB_NAME="${HUMANIFY_DB_NAME:-humanify}"
+HUMANIFY_DEPLOY_SLOT="${HUMANIFY_DEPLOY_SLOT:-production}"
 if [[ "$VPS_USER" == "root" ]]; then
   APP_DIR="${APP_DIR:-/root/humanify}"
 else
@@ -44,15 +56,20 @@ if ! is_ip "$DOMAIN"; then
   USE_DOMAIN=true
 fi
 
-SSH_OPTS=(-o StrictHostKeyChecking=no -o PreferredAuthentications=password -o PubkeyAuthentication=no -o ServerAliveInterval=60 -o ServerAliveCountMax=120)
 SSHPASS_PATH="$(command -v sshpass || true)"
-if [ -n "$SSHPASS_PATH" ]; then
-  ssh_cmd() { sshpass -p "$VPS_PASS" ssh "${SSH_OPTS[@]}" "$VPS_USER@$VPS_HOST" "$@"; }
-  scp_cmd() { sshpass -p "$VPS_PASS" scp "${SSH_OPTS[@]}" "$@"; }
-else
-  echo "⚠️ sshpass tidak ditemukan. Deploy akan menggunakan password SSH interaktif."
+if [ -n "${VPS_SSH_KEY:-}" ]; then
+  SSH_OPTS=(-o StrictHostKeyChecking=no -o "IdentityFile=${VPS_SSH_KEY}" -o PreferredAuthentications=publickey -o PubkeyAuthentication=yes -o ServerAliveInterval=60 -o ServerAliveCountMax=120)
   ssh_cmd() { ssh "${SSH_OPTS[@]}" "$VPS_USER@$VPS_HOST" "$@"; }
   scp_cmd() { scp "${SSH_OPTS[@]}" "$@"; }
+  rsync_cmd() { rsync -az "$@" -e "ssh ${SSH_OPTS[*]}"; }
+elif [ -n "${VPS_PASS:-}" ] && [ -n "$SSHPASS_PATH" ]; then
+  SSH_OPTS=(-o StrictHostKeyChecking=no -o PreferredAuthentications=password -o PubkeyAuthentication=no -o ServerAliveInterval=60 -o ServerAliveCountMax=120)
+  ssh_cmd() { sshpass -p "$VPS_PASS" ssh "${SSH_OPTS[@]}" "$VPS_USER@$VPS_HOST" "$@"; }
+  scp_cmd() { sshpass -p "$VPS_PASS" scp "${SSH_OPTS[@]}" "$@"; }
+  rsync_cmd() { sshpass -p "$VPS_PASS" rsync -az "$@" -e "ssh ${SSH_OPTS[*]}"; }
+else
+  echo "ERROR: Set VPS_SSH_KEY or VPS_PASS (with sshpass installed)."
+  exit 1
 fi
 
 if [ "$USE_DOMAIN" = true ]; then
@@ -82,7 +99,7 @@ if [ "${DEPLOY_SKIP_SYNC:-false}" = true ]; then
   echo "  (skip sync — DEPLOY_SKIP_SYNC=true)"
 else
 ssh_cmd "mkdir -p $APP_DIR"
-sshpass -p "$VPS_PASS" rsync -az --delete \
+rsync_cmd --delete \
   --exclude .env --exclude .env.local --exclude .env.*.local \
   --exclude 'public/uploads/' \
   --exclude 'storage/' \
@@ -90,7 +107,6 @@ sshpass -p "$VPS_PASS" rsync -az --delete \
   --filter='protect storage/' \
   --filter='protect node_modules/' \
   --exclude node_modules --exclude .next --exclude .git \
-  -e "ssh ${SSH_OPTS[*]}" \
   "$APP_SRC/" "$VPS_USER@$VPS_HOST:$APP_DIR/"
 ssh_cmd "mkdir -p $APP_DIR/storage/employee-documents $APP_DIR/public/uploads/employee-documents"
 fi
@@ -140,9 +156,9 @@ else
 fi
 sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='humanify'" | grep -q 1 || \
   sudo -u postgres psql -c "CREATE USER humanify WITH PASSWORD '\$DB_PASS';"
-sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='humanify'" | grep -q 1 || \
-  sudo -u postgres psql -c "CREATE DATABASE humanify OWNER humanify;"
-sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE humanify TO humanify;"
+sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='$HUMANIFY_DB_NAME'" | grep -q 1 || \
+  sudo -u postgres psql -c "CREATE DATABASE $HUMANIFY_DB_NAME OWNER humanify;"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $HUMANIFY_DB_NAME TO humanify;"
 REMOTE_DB
 
 if [ "$ENV_EXISTS" = "yes" ]; then
@@ -186,9 +202,9 @@ APP_SCHEME="http"
 [ "$USE_DOMAIN" = true ] && APP_SCHEME="http"
 ssh_cmd "bash -s" <<REMOTE_ENV
 set -euo pipefail
-cat > $APP_DIR/.env \<<EOF
+cat > $APP_DIR/.env <<EOF
 NODE_ENV=production
-PORT=3020
+PORT=$HUMANIFY_PORT
 APP_URL=${APP_SCHEME}://$DOMAIN
 NEXTAUTH_URL=${APP_SCHEME}://$DOMAIN
 NEXTAUTH_SECRET=$AUTH_SECRET
@@ -196,15 +212,16 @@ SESSION_SECRET=$SESSION_SECRET
 JWT_SECRET=$JWT_SECRET
 DB_HOST=127.0.0.1
 DB_PORT=5432
-DB_NAME=humanify
+DB_NAME=$HUMANIFY_DB_NAME
 DB_USER=humanify
 DB_PASSWORD=$DB_PASS
-DATABASE_URL=postgresql://humanify:$DB_PASS@127.0.0.1:5432/humanify
+DATABASE_URL=postgresql://humanify:$DB_PASS@127.0.0.1:5432/$HUMANIFY_DB_NAME
 TENANT_ISOLATION_ENABLED=true
 TENANT_SUPERADMIN_EMAIL=superadmin@humanify.id
 DEFAULT_TIMEZONE=Asia/Jakarta
 DEFAULT_LANGUAGE=id
 DEALLS_WEBHOOK_SECRET=$(openssl rand -hex 32)
+HUMANIFY_DEPLOY_SLOT=$HUMANIFY_DEPLOY_SLOT
 EOF
 chmod 600 $APP_DIR/.env
 
@@ -224,6 +241,12 @@ fi
 
 echo "=== [3b/6] Ensure webhook secrets ==="
 ssh_cmd "ENV_FILE=$APP_DIR/.env bash -s" < "$SRC/scripts/ensure-humanify-webhook-secrets.sh"
+
+if [ "$HUMANIFY_DEPLOY_SLOT" = staging ]; then
+  echo "=== [3a-staging] Ensure staging DB + strict RLS env ==="
+  ssh_cmd "APP_DIR='$APP_DIR' HUMANIFY_DB_NAME='$HUMANIFY_DB_NAME' bash -s" < "$SRC/scripts/ensure-humanify-staging-db.sh"
+  ssh_cmd "ENV_FILE='$APP_DIR/.env' bash -s" < "$SRC/scripts/ensure-humanify-staging-env.sh"
+fi
 
 echo "=== [3c/6] Ensure SumoPod AI (if key available) ==="
 _LOCAL_HERMES="${HERMES_ENV:-$HOME/.hermes/.env}"
@@ -247,7 +270,12 @@ ssh_cmd "ENV_FILE=$APP_DIR/.env bash -s" < "$SRC/scripts/ensure-humanify-redis.s
 ssh_cmd "ENV_FILE=$APP_DIR/.env bash -s" < "$SRC/scripts/ensure-humanify-obs-alerts.sh" || true
 
 echo "=== [3e/6] Ensure platform crons (purge / hard-delete / health) ==="
-ssh_cmd "APP_DIR=$APP_DIR bash -s" < "$SRC/scripts/ensure-humanify-crons.sh" || true
+if [ "$HUMANIFY_DEPLOY_SLOT" = staging ] && [ "$USE_DOMAIN" = true ]; then
+  # Scorecard cron lives on prod app dir but targets staging URL
+  ssh_cmd "APP_DIR=/root/humanify HUMANIFY_STAGING_URL=https://${DOMAIN} bash -s" < "$SRC/scripts/ensure-humanify-crons.sh" || true
+else
+  ssh_cmd "APP_DIR=$APP_DIR bash -s" < "$SRC/scripts/ensure-humanify-crons.sh" || true
+fi
 
 echo "=== [3e1/6] Ensure HUMANIFY_STATE_DIR (last-run artifacts) ==="
 ssh_cmd "APP_DIR='$APP_DIR' bash -s" <<'REMOTE_STATE' || true
@@ -382,28 +410,32 @@ fi
 
 echo "=== [6/6] PM2 + Nginx + SSL + Firewall ==="
 # Wave-21: SCP must not abort before PM2 restart (Wave-20 left app stopped → 502)
-scp_cmd "$SRC/scripts/humanify-ecosystem.config.cjs" "$VPS_USER@$VPS_HOST:$APP_DIR/" \
+scp_cmd "$SRC/scripts/$ECOSYSTEM_FILE" "$VPS_USER@$VPS_HOST:$APP_DIR/humanify-ecosystem.config.cjs" \
   || echo "⚠️ ecosystem SCP failed — will reuse existing file / fallback restart"
 scp_cmd "$SRC/scripts/humanify-healthcheck.sh" "$VPS_USER@$VPS_HOST:$APP_DIR/" \
   || echo "⚠️ healthcheck SCP failed — continuing"
-ssh_cmd "APP_DIR='$APP_DIR' DOMAIN='$DOMAIN' USE_DOMAIN='$USE_DOMAIN' ENABLE_SSL='$ENABLE_SSL' CLOUDFLARE_SSL='$CLOUDFLARE_SSL' CERTBOT_EMAIL='$CERTBOT_EMAIL' VPS_USER='$VPS_USER' bash -s" <<'REMOTE_PM2'
+ssh_cmd "APP_DIR='$APP_DIR' DOMAIN='$DOMAIN' USE_DOMAIN='$USE_DOMAIN' ENABLE_SSL='$ENABLE_SSL' CLOUDFLARE_SSL='$CLOUDFLARE_SSL' CERTBOT_EMAIL='$CERTBOT_EMAIL' VPS_USER='$VPS_USER' HUMANIFY_PM2_NAME='$HUMANIFY_PM2_NAME' HUMANIFY_PORT='$HUMANIFY_PORT' NGINX_SITE='$NGINX_SITE' HUMANIFY_DEPLOY_SLOT='$HUMANIFY_DEPLOY_SLOT' bash -s" <<'REMOTE_PM2'
 set -euo pipefail
 cd "$APP_DIR"
 
 # Bring app back online first (build step stops PM2)
 chmod +x humanify-healthcheck.sh 2>/dev/null || true
 if [ -f humanify-ecosystem.config.cjs ]; then
-  pm2 delete humanify 2>/dev/null || true
-  HUMANIFY_APP_DIR="$APP_DIR" pm2 start humanify-ecosystem.config.cjs
+  pm2 delete "$HUMANIFY_PM2_NAME" 2>/dev/null || true
+  HUMANIFY_APP_DIR="$APP_DIR" HUMANIFY_PORT="$HUMANIFY_PORT" pm2 start humanify-ecosystem.config.cjs --only "$HUMANIFY_PM2_NAME"
 else
   echo "⚠️ humanify-ecosystem.config.cjs missing — fallback restart"
-  pm2 restart humanify --update-env 2>/dev/null \
-    || pm2 start npm --name humanify --cwd "$APP_DIR" -- start
+  pm2 restart "$HUMANIFY_PM2_NAME" --update-env 2>/dev/null \
+    || pm2 start npm --name "$HUMANIFY_PM2_NAME" --cwd "$APP_DIR" -- start -- -p "$HUMANIFY_PORT"
 fi
 pm2 save
 
 if [ "$USE_DOMAIN" = true ]; then
-  SERVER_NAMES="$DOMAIN www.$DOMAIN"
+  if [ "$HUMANIFY_DEPLOY_SLOT" = staging ]; then
+    SERVER_NAMES="$DOMAIN"
+  else
+    SERVER_NAMES="$DOMAIN www.$DOMAIN"
+  fi
   LISTEN_DEFAULT=""
 else
   SERVER_NAMES="_"
@@ -438,7 +470,7 @@ else
   CF_IP=''
 fi
 
-sudo tee /etc/nginx/sites-available/humanify >/dev/null <<NGINX
+sudo tee /etc/nginx/sites-available/$NGINX_SITE >/dev/null <<NGINX
 server {
     listen 80 $LISTEN_DEFAULT;
     listen [::]:80 $LISTEN_DEFAULT;
@@ -448,7 +480,7 @@ server {
     client_max_body_size 50M;
 
     location / {
-        proxy_pass http://127.0.0.1:3020;
+        proxy_pass http://127.0.0.1:$HUMANIFY_PORT;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -462,8 +494,10 @@ server {
     }
 }
 NGINX
-sudo ln -sf /etc/nginx/sites-available/humanify /etc/nginx/sites-enabled/humanify
-sudo rm -f /etc/nginx/sites-enabled/default
+sudo ln -sf /etc/nginx/sites-available/$NGINX_SITE /etc/nginx/sites-enabled/$NGINX_SITE
+if [ "$NGINX_SITE" = humanify ]; then
+  sudo rm -f /etc/nginx/sites-enabled/default
+fi
 sudo nginx -t
 sudo systemctl reload nginx
 
@@ -498,7 +532,7 @@ else:
     text = re.sub(r'^TRUST_PROXY=.*$', 'TRUST_PROXY=true', text, flags=re.M)
 p.write_text(text)
 PY
-  pm2 restart humanify 2>/dev/null || true
+  pm2 restart "$HUMANIFY_PM2_NAME" 2>/dev/null || true
 fi
 
 sudo ufw --force enable 2>/dev/null || true
@@ -512,7 +546,7 @@ if [ -n "$_PM2_STARTUP" ]; then
 fi
 pm2 save
 sleep 3
-bash humanify-healthcheck.sh http://127.0.0.1:3020 || true
+bash humanify-healthcheck.sh "http://127.0.0.1:$HUMANIFY_PORT" || true
 REMOTE_PM2
 
 PUBLIC_SCHEME="http"

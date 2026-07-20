@@ -104,6 +104,7 @@ jobs:
           npm run lint:humanify-hq-auth
           npm run smoke:wave56
           npm run smoke:wave57
+          npm run smoke:wave58
           npm run smoke:rls-lab
           npm run smoke:rls-job-chaos
           npm run check:uptime-external

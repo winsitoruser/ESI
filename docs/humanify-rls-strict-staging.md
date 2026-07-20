@@ -64,11 +64,11 @@ SMOKE_BASE_URL=https://staging.example npm run smoke:ga-journey
 
 | Env | URL | Notes |
 |---|---|---|
-| Prod | `https://humanify.id` | Soft RLS; IDOR scorecard proxy OK |
-| Staging (planned) | `https://staging.humanify.id` | `.env.staging.example`; set `SMOKE_BASE_URL` when live |
-| RLS lab DB | `humanify_rls_lab` | Strict mode only |
+| Prod | `https://humanify.id` | Soft RLS; health/uptime |
+| Staging | `https://staging.humanify.id` | Deploy: `bash scripts/deploy-humanify-staging-vps.sh` · see [humanify-staging-deploy.md](./humanify-staging-deploy.md) |
+| RLS lab DB | `humanify_staging` / `humanify_rls_lab` | Strict mode on staging slot |
 
-Until staging hostname is live, use `SMOKE_BASE_URL=https://humanify.id` for IDOR / scorecard (D-013b).
+Until staging hostname is live, use `SMOKE_BASE_URL=https://humanify.id` for IDOR / scorecard (D-013b). After Wave-58 deploy, prefer `https://staging.humanify.id`.
 ## Lab backup/restore
 
 ```bash

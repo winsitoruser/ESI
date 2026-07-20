@@ -153,3 +153,11 @@ Flip strict di prod **tanpa** staging IDOR + chaos = dilarang.
 2. **ESS portal** (`/employee/*`): teal/emerald accent via `portal-ui` EP tokens + `--ep-accent*` CSS vars — no violet CTAs on employee surface.
 3. Marketing/welcome stays dark violet on public pages; not mixed into ops cards.
 4. Sidebar: single marketing entry removed from ops nav (welcome hidden; public `/`); engagement lab hidden.
+
+## D-021 (Wave-58): Staging slot + SSH-key deploy — 20 Jul 2026
+**Infra / Security:** Post–Wave-57 audit infra track:
+1. `staging.humanify.id` deploy slot: `/root/humanify-staging`, PM2 `humanify-staging`, port **3021**, DB `humanify_staging`, nginx `humanify-staging`.
+2. Staging env: `HUMANIFY_RLS_MODE=strict` + request-bound (prod remains soft per D-013b).
+3. Weekly IDOR scorecard cron uses `HUMANIFY_STAGING_URL` when set (not prod proxy).
+4. Deploy auth: `VPS_SSH_KEY` preferred over `VPS_PASS`/sshpass (`scripts/deploy-humanify-vps.sh`).
+5. Hard payroll e2e + strict RLS chaos run against staging URL only (D-014 amend unchanged).
