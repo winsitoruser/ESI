@@ -18,7 +18,7 @@ Scripts: `npm run smoke:wave61` · `npm run db:partner-payouts-migrate`
 
 Deploy verified 20 Jul 2026 — prod BUILD_OK · PM2 online · health checks passed.
 
-**Still external:** Cloudflare A `staging` → `103.92.215.37` (public URL).  
+**Staging public:** `https://staging.humanify.id` live (20 Jul 2026) — DNS A via Cloudflare · health ok · login 200.  
 **ADR ceilings:** prod FORCE strict RLS · Sentry.io · Midtrans auto-payout.
 
 ## Wave-60 (20 Jul 2026) — Auth batch-3 complete
@@ -31,7 +31,7 @@ Closes remaining **audit multi-peran** deferred track.
 | FE-3 | ESS `HomeTab` code-split (+ Leave/Attendance from Wave-59) | Done |
 | BE-4 | mock-guard extend leave-management + team-tasks | Done |
 | QA-2 | RBAC persona e2e secret-gated in CI | Done |
-| DO-1 | Staging CF 1016 documented; VPS slot :3021 healthy | Partial (DNS origin) |
+| DO-1 | Staging CF 1016 documented; VPS slot :3021 healthy | Done (public DNS live 20 Jul) |
 | ADR | D-023 | Done |
 
 Scripts: `npm run smoke:wave60` · `npm run lint:humanify-hq-auth` · `npm run smoke:mock-guard`
