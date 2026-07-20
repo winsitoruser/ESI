@@ -178,3 +178,13 @@ Flip strict di prod **tanpa** staging IDOR + chaos = dilarang.
 3. **BE-4 mock-guard** — `smoke:mock-guard` asserts leave-management + team-tasks create paths fail closed and mock only behind `allowHrMockFallback`.
 4. **QA-2 CI** — `humanify-rbac-personas.spec.ts` job secret-gated (`HUMANIFY_E2E_HR_*` + `HUMANIFY_E2E_EMPLOYEE_*`).
 5. **Staging honesty** — VPS slot live (:3021); public `staging.humanify.id` blocked by Cloudflare **1016 Origin DNS** until A record → `103.92.215.37` is fixed in CF. Prod strict RLS still ADR-gated (D-013b).
+
+## D-024 (Wave-61): Residual P2 closers — FAQ, payout migrate, chart tokens — 20 Jul 2026
+**Product / Ops / QA:** Close remaining audit multi-peran P2 items that do not wait on staging DNS:
+1. **DO-7** — `docs/humanify-tenant-isolation-faq.md` soft RLS honesty for sales/security questionnaires.
+2. **BE-6** — formal `scripts/migrate-saas-partner-payouts.js` (+ deploy hook); runtime ensure remains safety net.
+3. **FE-5** — `lib/humanify/chart-tokens.ts` used by hr-analytics + workforce-analytics.
+4. **PM-4** — sidebar: `/humanify/ess` = Konfigurasi ESS (HR); `/employee` = Portal Karyawan (ESS).
+5. **QA-4** — `e2e/humanify-manager-approve-leave.spec.ts` secret-gated + CI wire.
+6. **DO-4** — CI warns when `SMOKE_BASE_URL` empty (unit smokes still required).
+7. Staging public DNS + prod FORCE strict RLS remain external/ADR-gated.

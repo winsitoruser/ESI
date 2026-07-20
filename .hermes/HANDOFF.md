@@ -1,6 +1,23 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 20 Juli 2026 — **Wave-60** · Auth complete + HomeTab + mock-guard + staging honesty
+> Diperbarui: 20 Juli 2026 — **Wave-61** · Residual P2 closers
+
+## Wave-61 (20 Jul 2026) — Residual P2 closers
+
+| ID | Item | Status |
+|---|---|---|
+| DO-7 | Tenant isolation FAQ (soft RLS honesty) | Done |
+| BE-6 | `migrate-saas-partner-payouts.js` + deploy hook | Done |
+| FE-5 | Shared chart tokens (hr + workforce analytics) | Done |
+| PM-4 | ESS dual-surface sidebar labels | Done |
+| QA-4 | Manager approve leave e2e + CI | Done |
+| DO-4 | CI warn when live smoke secrets missing | Done |
+| ADR | D-024 | Done |
+
+Scripts: `npm run smoke:wave61` · `npm run db:partner-payouts-migrate`
+
+**Still external:** Cloudflare A `staging` → `103.92.215.37` (public URL).  
+**ADR ceilings:** prod FORCE strict RLS · Sentry.io · Midtrans auto-payout.
 
 ## Wave-60 (20 Jul 2026) — Auth batch-3 complete
 

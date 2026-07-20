@@ -1,6 +1,8 @@
 /**
  * Partner payout ledger (Wave-55 / CP-L4-1) — ops mark-paid + CSV.
  * Not Midtrans auto-disbursement (D-015 still: no automated transfer).
+ * Schema: prefer `node scripts/migrate-saas-partner-payouts.js` (Wave-61);
+ * ensurePartnerPayoutsTable remains as runtime safety net.
  */
 import crypto from 'crypto';
 

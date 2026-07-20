@@ -46,7 +46,7 @@ export const humanifySidebarConfig: SidebarConfig = {
         { id: 'humanify-assets', name: 'Manajemen Aset', href: '/humanify/assets', icon: Package, modules: ['humanify', 'hris'] },
         { id: 'humanify-esign', name: 'E-Sign · Simulasi', href: '/humanify/esign', icon: PenLine, modules: ['humanify', 'hris'] },
         { id: 'humanify-org-settings', name: 'Pengaturan Organisasi', href: '/humanify/org-settings', icon: Settings, modules: ['humanify', 'hris'] },
-        { id: 'humanify-ess', name: 'Layanan Mandiri Karyawan', href: '/humanify/ess', icon: Heart, modules: ['humanify', 'hris'] },
+        { id: 'humanify-ess', name: 'Konfigurasi ESS (HR)', href: '/humanify/ess', icon: Heart, modules: ['humanify', 'hris'] },
         { id: 'humanify-mss', name: 'Layanan Mandiri Manajer', href: '/humanify/mss', icon: Shield, modules: ['humanify', 'hris'] },
       ],
     },
@@ -161,7 +161,7 @@ export const humanifySidebarConfig: SidebarConfig = {
       id: 'platform',
       title: 'Platform',
       items: [
-        { id: 'humanify-employee-portal', name: 'Portal Karyawan', href: '/employee', icon: UserCheck, modules: ['humanify', 'hris'] },
+        { id: 'humanify-employee-portal', name: 'Portal Karyawan (ESS)', href: '/employee', icon: UserCheck, modules: ['humanify', 'hris'] },
         { id: 'humanify-billing', name: 'Billing & Upgrade', href: '/humanify/billing', icon: CreditCard, modules: ['humanify', 'hris'] },
         { id: 'humanify-go-live', name: 'Go-live Checklist', href: '/humanify/go-live', icon: CheckCircle2, modules: ['humanify', 'hris'] },
         { id: 'humanify-enterprise', name: 'Enterprise (API & Brand)', href: '/humanify/enterprise', icon: KeyRound, modules: ['humanify', 'hris'] },

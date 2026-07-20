@@ -365,6 +365,7 @@ node scripts/run-humanify-pending-migrations.js 2>&1 | tail -1 || true
 node scripts/seed-recruitment-training-demo.js 2>&1 | tail -3 || true
 node scripts/migrate-multifinance-workforce.js 2>&1 | tail -1 || true
 node scripts/migrate-humanify-vps-deps.js 2>&1 | tail -3 || true
+node scripts/migrate-saas-partner-payouts.js 2>&1 | tail -2 || true
 node scripts/setup-users-table.js || true
 node scripts/create-super-user.js || true
 node scripts/ensure-superadmin.js || true

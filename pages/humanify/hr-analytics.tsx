@@ -15,7 +15,7 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from 'recharts';
 
-const CHART_COLORS = ['#7c3aed', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#a78bfa', '#EC4899', '#14B8A6'];
+import { HF_CHART_COLORS_SOLID as CHART_COLORS } from '@/lib/humanify/chart-tokens';
 
 type TabKey = 'overview' | 'attendance' | 'performance' | 'payroll' | 'recruitment' | 'predictive' | 'ai';
 
