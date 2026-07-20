@@ -17,6 +17,8 @@ Closes remaining **audit multi-peran** deferred track.
 
 Scripts: `npm run smoke:wave60` · `npm run lint:humanify-hq-auth` · `npm run smoke:mock-guard`
 
+Deploy verified 20 Jul 2026 — prod + staging slot BUILD_OK · PM2 online · health checks passed.
+
 **Staging blocker:** Cloudflare returns **1016 Origin DNS** for `staging.humanify.id` — set A `staging` → `103.92.215.37`. Slot itself OK via Host header / :3021.
 
 **Deferred:** prod FORCE strict RLS (D-013b) · Sentry.io (D-010b) · Midtrans auto-payout (D-015b).
