@@ -136,6 +136,7 @@
     "smoke:wave57": "node scripts/smoke-test-humanify-wave57.js",
     "smoke:wave58": "node scripts/smoke-test-humanify-wave58.js",
     "smoke:wave59": "node scripts/smoke-test-humanify-wave59.js",
+    "smoke:wave60": "node scripts/smoke-test-humanify-wave60.js",
     "deploy:humanify:staging": "bash scripts/deploy-humanify-staging-vps.sh",
     "lint:humanify-hq-auth": "node scripts/lint-humanify-hq-auth.js",
     "smoke:redis-shared": "node scripts/smoke-test-saas-redis-shared.js",

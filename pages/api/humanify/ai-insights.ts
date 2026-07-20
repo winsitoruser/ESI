@@ -4,8 +4,6 @@
  * POST { module, context }
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../auth/[...nextauth]';
 import {
   generateAIInsights,
   generateModuleInsightsBatchAsync,
@@ -13,6 +11,7 @@ import {
 } from '@/lib/hris/ai-service';
 import { getSumopodConfig } from '@/lib/hris/sumopod-config';
 import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 
 const VALID_MODULES: HRModule[] = [
   'recruitment', 'attendance', 'kpi', 'performance', 'payroll',
@@ -100,8 +99,8 @@ async function gatherContext(
   return {};
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions);
+async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const session = (req as any).session;
   if (!session) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
   const period = (req.query.period as string) || new Date().toISOString().substring(0, 7);
@@ -161,3 +160,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   return res.status(405).json({ success: false, error: 'Method not allowed' });
 }
+
+export default withHQAuth(handler, { module: 'hris' });

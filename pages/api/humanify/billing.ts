@@ -4,8 +4,6 @@
  * POST ?action=checkout|confirm-manual|dunning-scan
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
 import {
   activatePaidOrder,
   createHumanifyCheckout,
@@ -17,13 +15,14 @@ import {
 } from '@/lib/saas/humanify-billing';
 import { applyPlanChange, previewPlanChange } from '@/lib/saas/plan-change';
 import { isPlatformOperator } from '@/lib/middleware/tenantIsolation';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 
 const PLAN_CHANGE_ROLES = new Set([
   'owner', 'hq_admin', 'super_admin', 'superadmin', 'platform_admin', 'hr_admin',
 ]);
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions);
+async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const session = (req as any).session;
   if (!session?.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
   const role = (session.user as any).role;
@@ -166,3 +165,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ success: false, error: e.message || 'Billing error' });
   }
 }
+
+export default withHQAuth(handler);

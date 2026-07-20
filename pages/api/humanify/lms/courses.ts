@@ -2,10 +2,9 @@
  * LMS Courses API — curricula, modules, materials, enrollments
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../../auth/[...nextauth]';
 import { parseMaterials } from '../../../../lib/hris/lms/course-service';
 import { enforceHumanifyPlanFeature } from '@/lib/saas/assert-feature';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 
 const sequelize = require('../../../../lib/sequelize');
 
@@ -15,9 +14,9 @@ function asUuid(v: unknown): string | null {
   return UUID_RE.test(s) ? s : null;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const session = await getServerSession(req, res, authOptions);
+    const session = (req as any).session;
     if (!session?.user) return res.status(401).json({ error: 'Unauthorized' });
     if (!(await enforceHumanifyPlanFeature(req, res, session))) return;
 
@@ -237,3 +236,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: err.message || 'Internal error' });
   }
 }
+
+export default withHQAuth(handler, { module: 'hris' });

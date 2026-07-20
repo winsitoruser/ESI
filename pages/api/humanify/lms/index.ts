@@ -3,9 +3,8 @@
  * Question bank, tests, psychometric, schedules, grading, reports, competency
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../../auth/[...nextauth]';
 import { gradeExam, computeIntegrityScore } from '../../../../lib/hris/lms/grading';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 
 const sequelize = require('../../../../lib/sequelize');
 
@@ -23,9 +22,9 @@ async function tableExists(name: string): Promise<boolean> {
   return rows.length > 0;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const session = await getServerSession(req, res, authOptions);
+    const session = (req as any).session;
     if (!session?.user) return res.status(401).json({ error: 'Unauthorized' });
     const { enforceHumanifyPlanFeature } = await import('@/lib/saas/assert-feature');
     if (!(await enforceHumanifyPlanFeature(req, res, session))) return;
@@ -433,3 +432,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: err.message || 'Internal error' });
   }
 }
+
+export default withHQAuth(handler, { module: 'hris' });

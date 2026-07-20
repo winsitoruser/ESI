@@ -3,16 +3,15 @@
  * GET — ranked alerts for the current tenant (empty for platform ops / no tenant)
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
 import { getAccountAlerts, summarizeAlerts } from '@/lib/saas/account-alerts';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   }
 
-  const session = await getServerSession(req, res, authOptions);
+  const session = (req as any).session;
   if (!session?.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
   const tenantId = (session.user as any).tenantId || null;
@@ -33,3 +32,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ success: false, error: e.message || 'Error' });
   }
 }
+
+export default withHQAuth(handler, { module: 'hris' });

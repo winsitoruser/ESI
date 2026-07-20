@@ -170,3 +170,11 @@ Flip strict di prod **tanpa** staging IDOR + chaos = dilarang.
 4. **Scorecard cron wrapper** — `run-humanify-security-scorecard-cron.js` notifies on crash (DO-5); batch failures still handled by scorecard script.
 5. **QA-2** — `e2e/humanify-rbac-personas.spec.ts` staging-gated HR vs employee login (env-seeded).
 6. Remaining ~50 bare-session APIs deferred to Wave-60+; prod strict RLS still ADR-gated (D-013b).
+
+## D-023 (Wave-60): Auth batch-3 complete + HomeTab + mock-guard — 20 Jul 2026
+**Security / Product / QA:** Close remaining audit multi-peran deferred track:
+1. **withHQAuth batch-3** — all remaining `pages/api/humanify/**` APIs wrapped except allowlist `claim-file.ts` (HMAC) and `email-verify.ts` (public token). Lint gains full-tree scan.
+2. **ESS HomeTab** — `components/employee/tabs/HomeTab.tsx` dynamic-imported from `EmployeePortal` (with LeaveTab/AttendanceTab from Wave-59).
+3. **BE-4 mock-guard** — `smoke:mock-guard` asserts leave-management + team-tasks create paths fail closed and mock only behind `allowHrMockFallback`.
+4. **QA-2 CI** — `humanify-rbac-personas.spec.ts` job secret-gated (`HUMANIFY_E2E_HR_*` + `HUMANIFY_E2E_EMPLOYEE_*`).
+5. **Staging honesty** — VPS slot live (:3021); public `staging.humanify.id` blocked by Cloudflare **1016 Origin DNS** until A record → `103.92.215.37` is fixed in CF. Prod strict RLS still ADR-gated (D-013b).

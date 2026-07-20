@@ -4,14 +4,13 @@
  * POST ?action=chat|automation-execute|automation-scan|toggle-rule
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
 import {
   listRules, listLogs, executeRule, scanAllRules, getAutomationDashboard, ensureDefaultRules,
 } from '@/lib/hris/hr-automation';
 import { chatWithCopilot, saveConversation } from '@/lib/hris/ai-copilot';
 import { generateModuleInsightsBatchAsync } from '@/lib/hris/ai-service';
 import { getSumopodConfig } from '@/lib/hris/sumopod-config';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch {}
@@ -49,9 +48,9 @@ async function gatherBatchContext(period: string) {
   return contexts;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const session = await getServerSession(req, res, authOptions);
+    const session = (req as any).session;
     if (!session?.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     const tenantId = (session.user as any).tenantId || null;
@@ -151,3 +150,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ success: false, error: err.message || 'Internal error' });
   }
 }
+
+export default withHQAuth(handler, { module: 'hris' });

@@ -106,6 +106,7 @@ jobs:
           npm run smoke:wave57
           npm run smoke:wave58
           npm run smoke:wave59
+          npm run smoke:wave60
           npm run smoke:rls-lab
           npm run smoke:rls-job-chaos
           npm run check:uptime-external
@@ -178,3 +179,15 @@ jobs:
           SMOKE_EMAIL: ${{ secrets.SMOKE_EMAIL }}
           SMOKE_PASSWORD: ${{ secrets.SMOKE_PASSWORD }}
         run: bash scripts/run-saas-ci-subset.sh
+
+      - name: RBAC persona e2e (secret-gated — Wave-60 / QA-2)
+        if: ${{ secrets.HUMANIFY_E2E_HR_EMAIL != '' && secrets.HUMANIFY_E2E_EMPLOYEE_EMAIL != '' }}
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ secrets.SMOKE_BASE_URL }}
+          HUMANIFY_E2E_HR_EMAIL: ${{ secrets.HUMANIFY_E2E_HR_EMAIL }}
+          HUMANIFY_E2E_HR_PASSWORD: ${{ secrets.HUMANIFY_E2E_HR_PASSWORD }}
+          HUMANIFY_E2E_EMPLOYEE_EMAIL: ${{ secrets.HUMANIFY_E2E_EMPLOYEE_EMAIL }}
+          HUMANIFY_E2E_EMPLOYEE_PASSWORD: ${{ secrets.HUMANIFY_E2E_EMPLOYEE_PASSWORD }}
+        run: |
+          npx playwright install --with-deps chromium
+          npx playwright test e2e/humanify-rbac-personas.spec.ts

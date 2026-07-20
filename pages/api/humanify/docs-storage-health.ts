@@ -2,15 +2,14 @@
  * GET /api/humanify/docs-storage-health — platform/ops storage mode check
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
 import { getDocStorageHealth, probeDocStorageConnectivity } from '@/lib/hris/document-storage';
 import { isPlatformOperator } from '@/lib/middleware/tenantIsolation';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') return res.status(405).json({ success: false, error: 'Method not allowed' });
 
-  const session = await getServerSession(req, res, authOptions);
+  const session = (req as any).session;
   if (!session?.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
   const role = (session.user as any).role;
@@ -45,3 +44,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     },
   });
 }
+
+export default withHQAuth(handler);

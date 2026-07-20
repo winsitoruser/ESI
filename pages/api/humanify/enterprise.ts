@@ -4,8 +4,6 @@
  * POST ?action=save-branding|create-api-key|revoke-api-key|export-employees
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
 import { assertHumanifyFeature } from '@/lib/saas/assert-feature';
 import { getTenantBranding, saveTenantBranding } from '@/lib/saas/humanify-branding';
 import {
@@ -15,13 +13,14 @@ import {
 } from '@/lib/saas/humanify-api-keys';
 import { exportTenantEmployeesCsv, exportTenantBundle } from '@/lib/saas/humanify-export';
 import { isPlatformOperator } from '@/lib/middleware/tenantIsolation';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 
 const OWNER_ROLES = new Set([
   'owner', 'hq_admin', 'super_admin', 'superadmin', 'platform_admin', 'hr_admin',
 ]);
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions);
+async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const session = (req as any).session;
   if (!session?.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
   const role = String((session.user as any).role || '');
@@ -116,3 +115,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ success: false, error: e.message || 'Gagal' });
   }
 }
+
+export default withHQAuth(handler);

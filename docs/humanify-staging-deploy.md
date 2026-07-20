@@ -1,6 +1,6 @@
 # Humanify — Staging Deploy (`staging.humanify.id`)
 
-> Wave-58 · last updated 20 Jul 2026
+> Wave-58 · updated Wave-60 (20 Jul 2026)
 
 ## Purpose
 
@@ -12,13 +12,24 @@ Dedicated **non-prod** slot for:
 
 Production stays **soft RLS** (D-013b).
 
-## DNS (Cloudflare)
+## DNS (Cloudflare) — required for public URL
 
-| Type | Name | Value |
-|------|------|-------|
-| A or CNAME | `staging` | VPS IP `103.92.215.37` (proxy ON OK) |
+| Type | Name | Value | Proxy |
+|------|------|-------|-------|
+| **A** | `staging` | `103.92.215.37` | ON (orange) OK |
 
-SSL: Cloudflare edge (`CLOUDFLARE_SSL=true`) — no origin certbot required.
+**Do not** use a broken CNAME / wrong origin hostname. Cloudflare **error 1016 (Origin DNS)** means the proxied record exists but CF cannot resolve the origin — fix by setting a direct **A** record to the VPS IP above.
+
+SSL: Cloudflare edge (`CLOUDFLARE_SSL=true`) — no origin certbot required. SSL/TLS mode: **Full** (not Full Strict) until origin cert exists.
+
+### Local / VPS verify (works without public DNS)
+
+```bash
+# On VPS
+curl -sS -H 'Host: staging.humanify.id' http://127.0.0.1/api/health
+curl -sS http://127.0.0.1:3021/api/health?deep=1
+pm2 list | grep humanify-staging
+```
 
 ## Deploy
 
@@ -41,7 +52,7 @@ Slot layout on VPS:
 | DB | `humanify` | `humanify_staging` (cloned from prod on first deploy) |
 | RLS | soft | **strict** |
 
-## Verify
+## Verify (after DNS A record fixed)
 
 ```bash
 curl -sS https://staging.humanify.id/api/health?deep=1
@@ -49,6 +60,10 @@ SMOKE_BASE_URL=https://staging.humanify.id npm run security:scorecard
 HUMANIFY_E2E_HARD=1 PLAYWRIGHT_BASE_URL=https://staging.humanify.id \
   HUMANIFY_E2E_EMAIL=… HUMANIFY_E2E_PASSWORD=… \
   npx playwright test e2e/humanify-payroll-hard.spec.ts
+# RBAC personas (Wave-60)
+HUMANIFY_E2E_HR_EMAIL=… HUMANIFY_E2E_HR_PASSWORD=… \
+HUMANIFY_E2E_EMPLOYEE_EMAIL=… HUMANIFY_E2E_EMPLOYEE_PASSWORD=… \
+  npx playwright test e2e/humanify-rbac-personas.spec.ts
 ```
 
 ## Cron

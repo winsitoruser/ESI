@@ -1,9 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../auth/[...nextauth]';
 import formidable from 'formidable';
 import fs from 'fs';
 import path from 'path';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 
 export const config = {
   api: { bodyParser: false }
@@ -447,8 +446,8 @@ function getCategories() {
   return cats;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions);
+async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const session = (req as any).session;
   if (!session) return res.status(401).json({ error: 'Unauthorized' });
 
   const { action } = req.query;
@@ -585,3 +584,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: error.message });
   }
 }
+
+export default withHQAuth(handler, { module: 'hris' });

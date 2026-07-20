@@ -3,12 +3,11 @@
  * POST { imageBase64?, text?, filename?, mimeType? }
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../auth/[...nextauth]';
 import { processReceiptOCR } from '@/lib/hris/receipt-ocr';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions);
+async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const session = (req as any).session;
   if (!session) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
   if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed' });
@@ -25,3 +24,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ success: false, error: error.message || 'OCR failed' });
   }
 }
+
+export default withHQAuth(handler, { module: 'hris' });

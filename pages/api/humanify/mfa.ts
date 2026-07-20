@@ -7,8 +7,6 @@
  *   POST ?action=policy   { requireMfa } — owner/admin only
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
 import { checkLimit, RateLimitTier } from '@/lib/middleware/rateLimit';
 import {
   beginEnrollment,
@@ -17,11 +15,12 @@ import {
   getMfaStatus,
 } from '@/lib/saas/mfa';
 import { isTenantMfaRequired, setTenantMfaRequired } from '@/lib/saas/mfa-policy';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 
 const POLICY_ROLES = new Set(['owner', 'hq_admin', 'admin']);
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions);
+async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const session = (req as any).session;
   if (!session?.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
   const userId = (session.user as any).id as string;
@@ -124,3 +123,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ success: false, error: e?.message || 'Error' });
   }
 }
+
+export default withHQAuth(handler);

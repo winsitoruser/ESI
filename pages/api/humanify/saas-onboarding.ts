@@ -4,8 +4,7 @@
  * POST — { action: 'save'|'complete', step?, data? }
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 import {
   SAAS_ONBOARDING_STEPS,
   completeSaasOnboarding,
@@ -16,8 +15,8 @@ import {
 
 const OWNER_ROLES = new Set(['owner', 'hq_admin', 'super_admin', 'superadmin']);
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions);
+async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const session = (req as any).session;
   if (!session?.user) {
     return res.status(401).json({ success: false, error: 'Unauthorized' });
   }
@@ -76,3 +75,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ success: false, error: e.message || 'Gagal memproses onboarding' });
   }
 }
+
+export default withHQAuth(handler);

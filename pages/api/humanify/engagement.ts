@@ -1,11 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../auth/[...nextauth]';
 import { formatRelativeTime } from '../../../lib/employee-portal';
 import { ensureEngagementTables } from '../../../lib/hris/ensure-engagement-tables';
 import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
-import { ensureTenantDbContext } from '@/lib/saas/ensure-tenant-db-context';
-
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 let Survey: any, SurveyResponse: any, Recognition: any, Announcement: any;
 let sequelize: any;
 try { Survey = require('../../../models/Survey'); } catch(e) {}
@@ -292,11 +289,9 @@ async function listHrisAnnouncements(filters: { status?: string; category?: stri
   return (rows as any[]).map(mapAnnouncementRow);
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions);
+async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const session = (req as any).session;
   if (!session) return res.status(401).json({ error: 'Unauthorized' });
-  await ensureTenantDbContext(session);
-
   const { method } = req;
   const { action } = req.query;
 
@@ -900,3 +895,5 @@ async function handleDelete(req: NextApiRequest, res: NextApiResponse, action: s
   if (!n) return res.status(404).json({ error: 'Not found' });
   return res.json({ success: true, message: 'Deleted' });
 }
+
+export default withHQAuth(handler, { module: 'hris' });

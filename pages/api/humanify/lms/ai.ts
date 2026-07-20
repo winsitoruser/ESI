@@ -2,9 +2,8 @@
  * LMS AI Assistant API — generate questions, summaries, recommendations
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../../auth/[...nextauth]';
 import { assertLmsLabApi } from '@/lib/humanify/assert-lms-lab';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 import {
   generateQuestionsFromSop,
   summarizePsychometricForManager,
@@ -13,9 +12,9 @@ import {
 
 const sequelize = require('../../../../lib/sequelize');
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const session = await getServerSession(req, res, authOptions);
+    const session = (req as any).session;
     if (!session?.user) return res.status(401).json({ error: 'Unauthorized' });
     if (!assertLmsLabApi(req, res)) return;
 
@@ -92,3 +91,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: err.message });
   }
 }
+
+export default withHQAuth(handler, { module: 'hris' });

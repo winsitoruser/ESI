@@ -1,14 +1,12 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../auth/[...nextauth]';
-
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch {}
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-  const session = await getServerSession(req, res, authOptions);
+  const session = (req as any).session;
   if (!session) return res.json({ success: true, data: null, dataSource: 'empty' });
 
   if (!sequelize) {
@@ -59,3 +57,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.json({ success: true, data: null, dataSource: 'empty', warning: error?.message });
   }
 }
+
+export default withHQAuth(handler, { module: 'hris' });

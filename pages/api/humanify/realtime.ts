@@ -1,6 +1,4 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
 import { 
   calculateAchievementPercentage, 
   calculateWeightedScore, 
@@ -9,6 +7,7 @@ import {
 } from '@/lib/hq/kpi-calculator';
 import { successResponse, errorResponse, ErrorCodes, HttpStatus } from '../../../lib/api/response';
 import { allowHrMockFallback } from '@/lib/hris/data-source';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 
 let QueryTypes: any;
 try { QueryTypes = require('sequelize').QueryTypes; } catch (e) {}
@@ -41,9 +40,9 @@ interface EmployeeMetrics {
   lastActivity: string;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const session = await getServerSession(req, res, authOptions);
+    const session = (req as any).session;
     if (!session?.user) {
       return res.status(HttpStatus.UNAUTHORIZED).json(
         errorResponse(ErrorCodes.UNAUTHORIZED, 'Unauthorized')
@@ -373,3 +372,5 @@ function getMockRealtimeData() {
     timestamp: new Date().toISOString()
   };
 }
+
+export default withHQAuth(handler, { module: 'hris' });

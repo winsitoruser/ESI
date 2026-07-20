@@ -1,8 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../auth/[...nextauth]';
 import { rowsToSnake, rowToSnake } from '@/lib/hris/serialize-rows';
 import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 
 let Project: any, ProjectWorker: any, ProjectTimesheet: any, ProjectPayroll: any;
 try { Project = require('../../../models/Project'); } catch(e) {}
@@ -10,8 +9,8 @@ try { ProjectWorker = require('../../../models/ProjectWorker'); } catch(e) {}
 try { ProjectTimesheet = require('../../../models/ProjectTimesheet'); } catch(e) {}
 try { ProjectPayroll = require('../../../models/ProjectPayroll'); } catch(e) {}
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions);
+async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const session = (req as any).session;
   if (!session) return res.status(401).json({ error: 'Unauthorized' });
 
   const { method } = req;
@@ -399,3 +398,5 @@ function mapTimesheetPayload(body: any) {
     status: body.status || 'submitted',
   };
 }
+
+export default withHQAuth(handler, { module: 'hris' });

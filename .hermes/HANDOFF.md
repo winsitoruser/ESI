@@ -1,6 +1,25 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 20 Juli 2026 — **Wave-59** · Auth batch-2 + ESS tabs + ops alerts
+> Diperbarui: 20 Juli 2026 — **Wave-60** · Auth complete + HomeTab + mock-guard + staging honesty
+
+## Wave-60 (20 Jul 2026) — Auth batch-3 complete
+
+Closes remaining **audit multi-peran** deferred track.
+
+| ID | Item | Status |
+|---|---|---|
+| BE-2 / CTO-1 | withHQAuth batch-3 — all humanify APIs except claim-file + email-verify | Done |
+| FE-3 | ESS `HomeTab` code-split (+ Leave/Attendance from Wave-59) | Done |
+| BE-4 | mock-guard extend leave-management + team-tasks | Done |
+| QA-2 | RBAC persona e2e secret-gated in CI | Done |
+| DO-1 | Staging CF 1016 documented; VPS slot :3021 healthy | Partial (DNS origin) |
+| ADR | D-023 | Done |
+
+Scripts: `npm run smoke:wave60` · `npm run lint:humanify-hq-auth` · `npm run smoke:mock-guard`
+
+**Staging blocker:** Cloudflare returns **1016 Origin DNS** for `staging.humanify.id` — set A `staging` → `103.92.215.37`. Slot itself OK via Host header / :3021.
+
+**Deferred:** prod FORCE strict RLS (D-013b) · Sentry.io (D-010b) · Midtrans auto-payout (D-015b).
 
 ## Wave-59 (20 Jul 2026) — Auth batch-2 + ESS + ops
 

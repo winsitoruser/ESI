@@ -16,15 +16,14 @@
  * DELETE ?type=level&id=            - Delete scoring level
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
 import { successResponse, errorResponse, ErrorCodes, HttpStatus } from '../../../lib/api/response';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 
 const sequelize = require('../../../lib/sequelize');
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const session = await getServerSession(req, res, authOptions);
+    const session = (req as any).session;
     if (!session?.user) return res.status(401).json({ error: 'Unauthorized' });
 
     const tenantId = (session.user as any).tenantId || null;
@@ -303,3 +302,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(errorResponse(ErrorCodes.INTERNAL_SERVER_ERROR, error.message || 'Internal server error'));
   }
 }
+
+export default withHQAuth(handler, { module: 'hris' });

@@ -4,12 +4,11 @@
  * POST ?action=ack-billing
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
 import { acknowledgeBillingGoLive, getGoLiveStatus } from '@/lib/saas/go-live';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions);
+async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const session = (req as any).session;
   if (!session?.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
   const tenantId = (session.user as any).tenantId as string | null;
@@ -35,3 +34,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ success: false, error: e.message || 'Error' });
   }
 }
+
+export default withHQAuth(handler);

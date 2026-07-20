@@ -7,17 +7,16 @@
  * DELETE ?id=        - Delete template
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
 import { KPI_CATEGORIES, STANDARD_SCORING_LEVELS } from '../../../lib/hq/kpi-calculator';
 import { successResponse, errorResponse, ErrorCodes, HttpStatus } from '../../../lib/api/response';
 import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 
 const sequelize = require('../../../lib/sequelize');
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const session = await getServerSession(req, res, authOptions);
+    const session = (req as any).session;
     if (!session?.user) return res.status(401).json({ error: 'Unauthorized' });
 
     const tenantId = tenantIdFromSession(session);
@@ -240,3 +239,5 @@ async function deleteTemplate(req: NextApiRequest, res: NextApiResponse, tenantI
     successResponse(null, undefined, 'KPI template deleted successfully')
   );
 }
+
+export default withHQAuth(handler, { module: 'hris' });

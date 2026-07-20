@@ -6,8 +6,7 @@
  * GET — list active snooze keys for tenant
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 import {
   clearInboxSnooze,
   inboxItemKey,
@@ -15,8 +14,8 @@ import {
   snoozeInboxItem,
 } from '@/lib/hris/action-inbox-snooze';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions);
+async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const session = (req as any).session;
   if (!session?.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
   const tenantId = (session.user as any)?.tenantId;
   if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT', code: 'NO_TENANT' });
@@ -66,3 +65,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ success: false, error: e.message || 'Error' });
   }
 }
+
+export default withHQAuth(handler, { module: 'hris' });

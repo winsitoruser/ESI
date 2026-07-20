@@ -1,21 +1,20 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
 import formidable from 'formidable';
 import fs from 'fs';
 import path from 'path';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 
 export const config = {
   api: { bodyParser: false },
 };
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   }
 
   try {
-    const session = await getServerSession(req, res, authOptions);
+    const session = (req as any).session;
     if (!session?.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'letter-logos');
@@ -63,3 +62,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ success: false, error: error.message || 'Upload gagal' });
   }
 }
+
+export default withHQAuth(handler, { module: 'hris' });

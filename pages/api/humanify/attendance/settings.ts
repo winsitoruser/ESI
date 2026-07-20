@@ -1,7 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../../auth/[...nextauth]';
 import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 
 const POLICY_KEY = 'policy';
 
@@ -52,9 +51,9 @@ async function getSequelize() {
   return sequelize;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const session = await getServerSession(req, res, authOptions);
+    const session = (req as any).session;
     if (!session?.user) {
       return res.status(401).json({ success: false, error: 'Unauthorized' });
     }
@@ -168,3 +167,5 @@ async function upsertSettings(req: NextApiRequest, res: NextApiResponse, session
     data: policy,
   });
 }
+
+export default withHQAuth(handler, { module: 'hris' });

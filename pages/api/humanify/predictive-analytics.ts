@@ -3,8 +3,6 @@
  * GET ?action=overview|attrition|absenteeism|headcount
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../auth/[...nextauth]';
 import {
   computeAttritionRisk,
   forecastAbsenteeism,
@@ -17,6 +15,7 @@ import {
 import { allowHrMockFallback } from '@/lib/hris/data-source';
 import { getSumopodConfig } from '@/lib/hris/sumopod-config';
 import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch {}
@@ -31,8 +30,8 @@ async function safeQuery(sql: string, replacements: Record<string, unknown> = {}
   }
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions);
+async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const session = (req as any).session;
   if (!session) return res.status(401).json({ success: false, error: 'Unauthorized' });
   const { enforceHumanifyPlanFeature } = await import('@/lib/saas/assert-feature');
   if (!(await enforceHumanifyPlanFeature(req, res, session))) return;
@@ -242,3 +241,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   return res.status(400).json({ success: false, error: 'Invalid action' });
 }
+
+export default withHQAuth(handler, { module: 'hris' });

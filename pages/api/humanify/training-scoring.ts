@@ -16,9 +16,8 @@
  * DELETE ?action=delete-competency - Delete competency
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
 import bcrypt from 'bcryptjs';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 
 const sequelize = require('../../../lib/sequelize');
 
@@ -28,9 +27,9 @@ function asUuid(value: unknown): string | null {
   return UUID_RE.test(s) ? s : null;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const session = await getServerSession(req, res, authOptions);
+    const session = (req as any).session;
     if (!session?.user) return res.status(401).json({ error: 'Unauthorized' });
     const { enforceHumanifyPlanFeature } = await import('@/lib/saas/assert-feature');
     if (!(await enforceHumanifyPlanFeature(req, res, session))) return;
@@ -512,3 +511,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: error.message || 'Internal server error' });
   }
 }
+
+export default withHQAuth(handler, { module: 'hris' });

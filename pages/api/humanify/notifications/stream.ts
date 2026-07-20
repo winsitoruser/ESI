@@ -3,8 +3,7 @@
  * GET /api/humanify/notifications/stream
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../../auth/[...nextauth]';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 import {
   listNotifications,
   syncAccountAlertNotifications,
@@ -19,13 +18,13 @@ export const config = {
 
 const PUSH_MS = Number(process.env.NOTIF_SSE_MS || 15000);
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', ['GET']);
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   }
 
-  const session = await getServerSession(req, res, authOptions);
+  const session = (req as any).session;
   if (!session?.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
   const tenantId = (session.user as any).tenantId || null;
@@ -67,3 +66,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const interval = setInterval(() => { void push(); }, PUSH_MS);
   req.on('close', () => clearInterval(interval));
 }
+
+export default withHQAuth(handler, { module: 'hris' });
