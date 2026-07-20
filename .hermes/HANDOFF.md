@@ -16,6 +16,8 @@
 
 Scripts: `npm run smoke:wave61` · `npm run db:partner-payouts-migrate`
 
+Deploy verified 20 Jul 2026 — prod BUILD_OK · PM2 online · health checks passed.
+
 **Still external:** Cloudflare A `staging` → `103.92.215.37` (public URL).  
 **ADR ceilings:** prod FORCE strict RLS · Sentry.io · Midtrans auto-payout.
 
