@@ -2,6 +2,7 @@
 # Humanify VPS health check — frontend pages + API endpoints
 set -euo pipefail
 BASE="${1:-http://127.0.0.1:3020}"
+PM2_NAME="${HUMANIFY_PM2_NAME:-humanify}"
 FAIL=0
 
 check() {
@@ -32,7 +33,7 @@ check "Auth providers" "$BASE/api/auth/providers"
 echo ""
 echo "Services:"
 if command -v pm2 >/dev/null; then
-  pm2 jlist 2>/dev/null | grep -q '"name":"humanify".*"status":"online"' && echo "  ✓ PM2 humanify online" || { echo "  ✗ PM2 humanify not online"; FAIL=$((FAIL+1)); }
+  pm2 jlist 2>/dev/null | grep -q "\"name\":\"${PM2_NAME}\".*\"status\":\"online\"" && echo "  ✓ PM2 ${PM2_NAME} online" || { echo "  ✗ PM2 ${PM2_NAME} not online"; FAIL=$((FAIL+1)); }
 fi
 systemctl is-active --quiet nginx && echo "  ✓ nginx active" || { echo "  ✗ nginx down"; FAIL=$((FAIL+1)); }
 systemctl is-active --quiet postgresql && echo "  ✓ postgresql active" || { echo "  ✗ postgresql down"; FAIL=$((FAIL+1)); }
