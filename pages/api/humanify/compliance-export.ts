@@ -1,6 +1,4 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../auth/[...nextauth]';
 import {
   generatePPh21Csv, generateEBupotXml, generateBPJSCsv, generateBPJSEdabu,
   getMockPPh21Rows, getMockBPJSRows,
@@ -9,9 +7,10 @@ import { allowHrMockFallback } from '@/lib/hris/data-source';
 import { fetchBPJSExportRows, fetchPPh21ExportRows } from '@/lib/hris/compliance-data';
 import { enforceHumanifyPlanFeature } from '@/lib/saas/assert-feature';
 import { withObservability } from '@/lib/observability';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions);
+  const session = (req as any).session;
   if (!session) return res.status(401).json({ error: 'Unauthorized' });
   if (!(await enforceHumanifyPlanFeature(req, res, session))) return;
 
@@ -106,4 +105,4 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 }
 
-export default withObservability(handler, 'humanify/compliance-export');
+export default withObservability(withHQAuth(handler, { module: 'hris' }), 'humanify/compliance-export');

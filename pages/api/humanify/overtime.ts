@@ -13,8 +13,7 @@
  * POST ?action=save-settings — save multiplier/rules
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 import { allowHrMockFallback } from '@/lib/hris/data-source';
 
 let sequelize: any;
@@ -31,8 +30,8 @@ const q = async (sql: string, params: any = {}) => {
   }
 };
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions);
+async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const session = (req as any).session;
   if (!session?.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
   const tenantId = String((session.user as any).tenantId || '');
   const action = String(req.query.action || '');
@@ -58,6 +57,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
+
+export default withHQAuth(handler, { module: 'hris' });
 
 // ── GET: List ─────────────────────────────────────────────────────────────────
 async function getList(req: NextApiRequest, res: NextApiResponse, tenantId: string) {

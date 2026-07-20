@@ -1,13 +1,12 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../auth/[...nextauth]';
 import {
   listPayrollInputs, createPayrollInput, updatePayrollInputStatus, getPayrollInputsSummary,
   type PayrollInputType,
 } from '@/lib/hris/payroll-inputs-store';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions);
+async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const session = (req as any).session;
   if (!session) return res.status(401).json({ error: 'Unauthorized' });
 
   const tenantId = (session.user as any)?.tenantId || null;
@@ -45,3 +44,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: error.message });
   }
 }
+
+export default withHQAuth(handler, { module: 'hris' });

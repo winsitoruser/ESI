@@ -1,9 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
 import { allowHrMockFallback, resolveDataSource } from '@/lib/hris/data-source';
 import { withObservability } from '@/lib/observability';
-import { ensureTenantDbContext } from '@/lib/saas/ensure-tenant-db-context';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch (e) {}
@@ -79,12 +77,9 @@ const ALLOWANCE_SUBQUERY = `COALESCE((
 ), 0)`;
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
-  let ctxSet = false;
   try {
-    const session = await getServerSession(req, res, authOptions);
+    const session = (req as any).session;
     if (!session?.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
-    await ensureTenantDbContext(session);
-    ctxSet = true;
 
     const { assertHumanifyFeature } = await import('@/lib/saas/assert-feature');
     if (!(await assertHumanifyFeature(req, res, {
@@ -140,17 +135,10 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   } catch (error: any) {
     console.warn('Payroll API Error: (table may not exist):', (error as any)?.message || error);
     return res.status(500).json({ success: false, error: 'Internal server error' });
-  } finally {
-    if (ctxSet) {
-      try {
-        const { releaseTenantDbContext } = await import('@/lib/saas/ensure-tenant-db-context');
-        await releaseTenantDbContext();
-      } catch { /* ignore */ }
-    }
   }
 }
 
-export default withObservability(handler, 'humanify/payroll');
+export default withObservability(withHQAuth(handler, { module: 'hris' }), 'humanify/payroll');
 
 // ===== GET: Overview =====
 async function getOverview(req: NextApiRequest, res: NextApiResponse, session: any) {

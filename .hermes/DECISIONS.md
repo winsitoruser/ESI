@@ -138,3 +138,11 @@ Flip strict di prod **tanpa** staging IDOR + chaos = dilarang.
 
 ## D-018 (Wave-55): Fiscal sign-off env — 20 Jul 2026
 **Finance:** Checklist `docs/humanify-payroll-fiscal-signoff.md` + deploy ensures `HUMANIFY_FISCAL_SIGNED_OFF=true` on VPS when finance has signed. Engine fixtures = acceptance tests, not DJP certification.
+
+## D-019 (Wave-56): Security honesty — claim private + withHQAuth batch — 20 Jul 2026
+**Security / Backend:** Post–Wave-55 multi-role audit:
+1. Claim receipts leave `public/uploads` → `storage/claims/{tenant}/` + signed `/api/humanify/claim-file` (session or HMAC).
+2. Priority mutate/payroll-adjacent APIs migrate to `withHQAuth` (RLS `set_config` path): overtime, leave, payroll*, disbursement, export, compliance-export, travel-expense, upload-claim.
+3. CI `lint:humanify-hq-auth` + `smoke:wave56` gate the allowlist; remaining bare-session APIs = follow-up waves, not reopen Path B.
+4. `performance-360` error → `dataSource: empty` (no `isMock:true`); JOIN tenants on feedback.
+5. Staging hostname / FORCE strict RLS remain D-013b (ops track) — not unblocked by this wave.

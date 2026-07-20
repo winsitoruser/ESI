@@ -64,14 +64,18 @@ export default function ESignPage() {
 
   return (
     <PageGuard anyPermission={['employees.view', 'employees.*']} title="E-Sign" description="Tanda tangan elektronik HR">
-      <HQLayout title="E-Sign HR (Privy ID)" subtitle="Tanda tangan elektronik berstandar PSrE — sequential & parallel signing">
+      <HQLayout title="E-Sign HR · Simulasi" subtitle="Tanda tangan elektronik — mode simulasi lokal hingga Privy GA">
         <div className="space-y-6">
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <strong>Simulasi:</strong> Integrasi Privy ID belum GA-complete. Dokumen di sini memakai alur lokal/sandbox —
+            bukan PSrE produksi. Lihat <code className="text-xs bg-amber-100 px-1 rounded">docs/humanify-esign-privy-ga.md</code>.
+          </div>
           <div className="flex items-center gap-3">
             <Link href="/humanify/contracts" className="p-2 border rounded-lg hover:bg-gray-50"><ArrowLeft className="w-4 h-4" /></Link>
             <div className="flex-1">
-              <h2 className="text-xl font-bold flex items-center gap-2"><PenTool className="w-5 h-5 text-[color:var(--hf-brand-600)]" /> E-Sign with Privy</h2>
+              <h2 className="text-xl font-bold flex items-center gap-2"><PenTool className="w-5 h-5 text-[color:var(--hf-brand-600)]" /> E-Sign · Simulasi</h2>
               <p className="text-sm text-gray-500">
-                Kontrak kerja, offer letter, mutasi — audit trail PSrE
+                Kontrak kerja, offer letter, mutasi — audit trail (simulasi)
                 {integration && (
                   <span className={`ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                     integration.configured

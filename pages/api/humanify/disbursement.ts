@@ -1,15 +1,14 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../auth/[...nextauth]';
 import {
   generateDisbursementFile, type BankFormat,
 } from '@/lib/hris/payroll-disbursement';
 import { loadDisbursementRows } from '@/lib/hris/disbursement-data';
 import { enforceHumanifyPlanFeature } from '@/lib/saas/assert-feature';
 import { withObservability } from '@/lib/observability';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions);
+  const session = (req as any).session;
   if (!session) return res.status(401).json({ error: 'Unauthorized' });
   if (!(await enforceHumanifyPlanFeature(req, res, session))) return;
 
@@ -57,4 +56,4 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   return res.status(405).json({ error: 'Method not allowed' });
 }
 
-export default withObservability(handler, 'humanify/disbursement');
+export default withObservability(withHQAuth(handler, { module: 'hris' }), 'humanify/disbursement');

@@ -37,8 +37,8 @@ async function getFeedback(
     const rows = await sequelize.query(`
       SELECT f.*, e.name as employee_name, pr.review_period, pr.employee_name as review_subject
       FROM performance_review_feedback f
-      LEFT JOIN employees e ON f.employee_id = e.id
-      LEFT JOIN performance_reviews pr ON f.review_id = pr.id
+      LEFT JOIN employees e ON f.employee_id = e.id AND e.tenant_id = f.tenant_id
+      LEFT JOIN performance_reviews pr ON f.review_id = pr.id AND pr.tenant_id = f.tenant_id
       ${where}
       ORDER BY f.created_at DESC
       LIMIT 100
@@ -66,11 +66,13 @@ async function getFeedback(
       feedbackTypes: FEEDBACK_TYPES,
     });
   } catch (e: any) {
+    console.warn('[performance-360] query failed:', e?.message || e);
     return res.status(200).json({
       success: true,
       data: [],
       summary: { overall360: 0, byType: [], total: 0 },
-      meta: { isMock: true, error: e.message },
+      dataSource: 'empty',
+      meta: { error: e?.message || 'query_failed' },
     });
   }
 }

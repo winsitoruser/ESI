@@ -1,6 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch (e) {}
@@ -12,9 +11,9 @@ const PAY_TYPES = ['monthly','daily','hourly','weekly','project','piecework','co
 const TAX_STATUSES = ['TK/0','TK/1','TK/2','TK/3','K/0','K/1','K/2','K/3'];
 const TAX_METHODS = ['gross','gross_up','nett'];
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const session = await getServerSession(req, res, authOptions);
+    const session = (req as any).session;
     if (!session?.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     const { action } = req.query;
@@ -37,6 +36,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ success: false, error: 'Internal server error', details: error.message });
   }
 }
+
+export default withHQAuth(handler, { module: 'hris' });
 
 // ===== Template Headers & Example Data =====
 function getTemplateHeaders() {

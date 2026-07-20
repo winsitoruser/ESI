@@ -1,10 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
 import { allowHrMockFallback } from '@/lib/hris/data-source';
 import { findScopedById, tenantIdFromSession } from '@/lib/saas/tenant-scope';
 import { withObservability } from '@/lib/observability';
-import { ensureTenantDbContext } from '@/lib/saas/ensure-tenant-db-context';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 
 let LeaveRequest: any, Employee: any;
 try {
@@ -25,11 +23,10 @@ try {
 
 async function leaveHandler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const session = await getServerSession(req, res, authOptions);
+    const session = (req as any).session;
     if (!session?.user) {
       return res.status(401).json({ success: false, error: 'Unauthorized' });
     }
-    await ensureTenantDbContext(session);
 
     switch (req.method) {
       case 'GET': return await getLeaveRequests(req, res, session);
@@ -44,7 +41,7 @@ async function leaveHandler(req: NextApiRequest, res: NextApiResponse) {
   }
 }
 
-export default withObservability(leaveHandler, 'humanify/leave');
+export default withObservability(withHQAuth(leaveHandler, { module: 'hris' }), 'humanify/leave');
 
 async function getLeaveRequests(req: NextApiRequest, res: NextApiResponse, session: any) {
   const { employeeId, status, leaveType, startDate, endDate } = req.query;

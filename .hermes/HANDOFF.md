@@ -1,6 +1,25 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 20 Juli 2026 — **Wave-55** · Literal 100% Path B close (post Wave-54)
+> Diperbarui: 20 Juli 2026 — **Wave-56** · Security honesty (pasca audit multi-peran Wave-55)
+
+## Wave-56 (20 Jul 2026) — Security honesty
+
+Closes canvas **Humanify — audit multi-peran (pasca Wave-55)** P0 track + light P1 honesty.
+
+| ID | Item | Status |
+|---|---|---|
+| BE-1 | Claim upload → `storage/claims` + signed `/api/humanify/claim-file` | Done |
+| BE-2 / CTO-1 | withHQAuth batch (overtime/leave/payroll*/export/compliance/travel/upload-claim) + `lint:humanify-hq-auth` | Done |
+| BE-3 | performance-360: no `isMock:true`; tenant JOIN; `dataSource: empty` | Done |
+| PM-2 | E-Sign sidebar/UI **Simulasi** banner | Done |
+| CTO-3 | Hide engagement lab; AI group labeled Lab; `hidden` filter in sidebar | Done |
+| FE-2 | ESS manager/quick-action violet → teal/slate | Done |
+| QA-1 | `e2e/humanify-ess-journey.spec.ts` staging skeleton | Done |
+| ADR | D-019 | Done |
+
+Scripts: `npm run smoke:wave56` · `npm run lint:humanify-hq-auth`
+
+**Deferred (Wave-57/58):** ESS god-page split · staging.humanify.id · full bare-session migration · Redis/CI hygiene ops.
 
 ## Wave-55 (20 Jul 2026) — Literal 100% (Path B)
 

@@ -1105,7 +1105,7 @@ export function filterSidebarConfig(
       return true;
     })
     .map(group => {
-      let filteredItems = group.items;
+      let filteredItems = group.items.filter(item => !item.hidden);
 
       // Filter by role
       if (userRole) {
@@ -1116,6 +1116,12 @@ export function filterSidebarConfig(
       if (enabledModules && enabledModules.length > 0) {
         filteredItems = filterMenuByModules(filteredItems, enabledModules, userRole);
       }
+
+      // Drop hidden children
+      filteredItems = filteredItems.map(item => ({
+        ...item,
+        children: item.children?.filter(c => !c.hidden),
+      }));
 
       return {
         ...group,

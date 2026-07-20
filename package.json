@@ -132,6 +132,8 @@
     "smoke:wave53": "node scripts/smoke-test-humanify-wave53.js",
     "smoke:wave54": "node scripts/smoke-test-humanify-wave54.js",
     "smoke:wave55": "node scripts/smoke-test-humanify-wave55.js",
+    "smoke:wave56": "node scripts/smoke-test-humanify-wave56.js",
+    "lint:humanify-hq-auth": "node scripts/lint-humanify-hq-auth.js",
     "smoke:redis-shared": "node scripts/smoke-test-saas-redis-shared.js",
     "ensure:demo-partner": "node scripts/ensure-humanify-demo-partner.js",
     "smoke:rls-lab": "node scripts/smoke-test-humanify-rls-strict-lab.js",

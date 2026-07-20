@@ -1,6 +1,4 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
 import { 
   calculateAchievementPercentage,
   getKPIStatus,
@@ -9,6 +7,7 @@ import {
 import { successResponse, errorResponse, ErrorCodes, HttpStatus } from '../../../lib/api/response';
 import { allowHrMockFallback } from '@/lib/hris/data-source';
 import { withObservability } from '@/lib/observability';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 
 let QueryTypes: any;
 let sequelize: any;
@@ -22,7 +21,7 @@ try { sequelize = require('../../../lib/sequelize'); } catch (e) {}
 
 async function exportHandler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const session = await getServerSession(req, res, authOptions);
+    const session = (req as any).session;
     if (!session?.user) {
       return res.status(HttpStatus.UNAUTHORIZED).json(
         errorResponse(ErrorCodes.UNAUTHORIZED, 'Unauthorized')
@@ -389,4 +388,4 @@ function getMockPayrollExport(period: string) {
   ];
 }
 
-export default withObservability(exportHandler, 'humanify/export');
+export default withObservability(withHQAuth(exportHandler, { module: 'hris' }), 'humanify/export');

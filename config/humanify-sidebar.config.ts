@@ -44,7 +44,7 @@ export const humanifySidebarConfig: SidebarConfig = {
         { id: 'humanify-offboarding', name: 'Offboarding / Exit', href: '/humanify/offboarding', icon: KeyRound, modules: ['humanify', 'hris'] },
         { id: 'humanify-contracts', name: 'Kontrak & Reminder', href: '/humanify/contracts', icon: FileText, modules: ['humanify', 'hris'] },
         { id: 'humanify-assets', name: 'Manajemen Aset', href: '/humanify/assets', icon: Package, modules: ['humanify', 'hris'] },
-        { id: 'humanify-esign', name: 'E-Sign (Privy)', href: '/humanify/esign', icon: PenLine, modules: ['humanify', 'hris'] },
+        { id: 'humanify-esign', name: 'E-Sign · Simulasi', href: '/humanify/esign', icon: PenLine, modules: ['humanify', 'hris'] },
         { id: 'humanify-org-settings', name: 'Pengaturan Organisasi', href: '/humanify/org-settings', icon: Settings, modules: ['humanify', 'hris'] },
         { id: 'humanify-ess', name: 'Layanan Mandiri Karyawan', href: '/humanify/ess', icon: Heart, modules: ['humanify', 'hris'] },
         { id: 'humanify-mss', name: 'Layanan Mandiri Manajer', href: '/humanify/mss', icon: Shield, modules: ['humanify', 'hris'] },
@@ -70,7 +70,7 @@ export const humanifySidebarConfig: SidebarConfig = {
         { id: 'humanify-kpi', name: 'KPI Karyawan', href: '/humanify/kpi', icon: Target, modules: ['humanify', 'hris'] },
         { id: 'humanify-kpi-settings', name: 'Pengaturan KPI', href: '/humanify/kpi-settings', icon: Settings, modules: ['humanify', 'hris'] },
         { id: 'humanify-performance', name: 'Penilaian Kinerja', href: '/humanify/performance', icon: Award, modules: ['humanify', 'hris'] },
-        { id: 'humanify-engagement', name: 'Keterlibatan & Budaya', href: '/humanify/engagement', icon: Activity, modules: ['humanify', 'hris'] },
+        { id: 'humanify-engagement', name: 'Keterlibatan & Budaya', href: '/humanify/engagement', icon: Activity, modules: ['humanify', 'hris'], hidden: true },
       ],
     },
     {
@@ -141,11 +141,11 @@ export const humanifySidebarConfig: SidebarConfig = {
     },
     {
       id: 'ai',
-      title: 'AI & Otomasi',
+      title: 'AI & Otomasi (Lab)',
       items: [
-        { id: 'humanify-ai-hub', name: 'AI Center', href: '/humanify/ai', icon: Sparkles, modules: ['humanify', 'hris'] },
-        { id: 'humanify-ai-copilot', name: 'AIMAN', href: '/humanify/ai?tab=copilot', icon: Brain, modules: ['humanify', 'hris'] },
-        { id: 'humanify-ai-automation', name: 'Otomasi HR', href: '/humanify/ai?tab=automation', icon: Zap, modules: ['humanify', 'hris'] },
+        { id: 'humanify-ai-hub', name: 'AI Center · Lab', href: '/humanify/ai', icon: Sparkles, modules: ['humanify', 'hris'] },
+        { id: 'humanify-ai-copilot', name: 'AIMAN · Lab', href: '/humanify/ai?tab=copilot', icon: Brain, modules: ['humanify', 'hris'] },
+        { id: 'humanify-ai-automation', name: 'Otomasi HR · Lab', href: '/humanify/ai?tab=automation', icon: Zap, modules: ['humanify', 'hris'] },
       ],
     },
     {

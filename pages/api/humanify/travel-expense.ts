@@ -1,8 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../auth/[...nextauth]';
 import { rowsToSnake, rowToSnake } from '@/lib/hris/serialize-rows';
 import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 
 let TravelRequest: any, TravelExpense: any, ExpenseBudget: any;
 try { TravelRequest = require('../../../models/TravelRequest'); } catch(e) {}
@@ -12,8 +11,8 @@ try { ExpenseBudget = require('../../../models/ExpenseBudget'); } catch(e) {}
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch(e) {}
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions);
+async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const session = (req as any).session;
   if (!session) return res.status(401).json({ error: 'Unauthorized' });
 
   const tenantId = tenantIdFromSession(session);
@@ -33,6 +32,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: error.message });
   }
 }
+
+export default withHQAuth(handler, { module: 'hris' });
 
 async function handleGet(req: NextApiRequest, res: NextApiResponse, action: string, tenantId: string | null) {
   if (!tenantId) {

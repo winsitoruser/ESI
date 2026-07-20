@@ -1163,46 +1163,46 @@ export default function EmployeeDashboard() {
       </Card>
 
       {isManagerPortal && (
-        <Card className="p-4 ring-2 ring-violet-100/80">
+        <Card className="p-4 ring-2 ring-teal-100/80">
           <SectionHeader
             title="Panel Manajer"
             action={managerPendingCount > 0 ? (
-              <span className="text-[10px] font-bold text-violet-700 bg-violet-100 px-2 py-0.5 rounded-full">
+              <span className="text-[10px] font-bold text-teal-800 bg-teal-100 px-2 py-0.5 rounded-full">
                 {managerPendingCount} pending
               </span>
             ) : undefined}
           />
           <p className="text-xs text-slate-500 mb-3">Persetujuan cuti, klaim, lembur & surat peringatan tim Anda</p>
           <button onClick={() => goToTab('manager')}
-            className="w-full py-2.5 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 active:scale-[0.98]">
+            className="w-full py-2.5 bg-gradient-to-r from-teal-700 to-emerald-700 text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 active:scale-[0.98]">
             <Shield className="w-4 h-4" /> Buka Panel Manajer
           </button>
         </Card>
       )}
 
       {isMfAgent && (
-        <Card className="p-4 ring-2 ring-indigo-100/80">
+        <Card className="p-4 ring-2 ring-slate-200/80">
           <SectionHeader
             title="Pembiayaan — Kinerja Hari Ini"
-            action={<button onClick={() => goToTab('mf')} className="text-xs font-semibold text-indigo-600">Detail →</button>}
+            action={<button onClick={() => goToTab('mf')} className="text-xs font-semibold text-teal-700">Detail →</button>}
           />
           <div className="grid grid-cols-2 gap-2.5 mb-3">
             <div className="rounded-xl bg-emerald-50 p-3 border border-emerald-100">
               <p className="text-[10px] text-emerald-600 font-medium">Koleksi Hari Ini</p>
               <p className="text-lg font-bold text-emerald-800">{fmtCur(mfOverview?.todayCollection || 0)}</p>
             </div>
-            <div className="rounded-xl bg-blue-50 p-3 border border-blue-100">
-              <p className="text-[10px] text-blue-600 font-medium">Aktivitas</p>
-              <p className="text-lg font-bold text-blue-800">{mfOverview?.todayActivities || 0} kunjungan</p>
+            <div className="rounded-xl bg-slate-50 p-3 border border-slate-100">
+              <p className="text-[10px] text-slate-600 font-medium">Aktivitas</p>
+              <p className="text-lg font-bold text-slate-800">{mfOverview?.todayActivities || 0} kunjungan</p>
             </div>
           </div>
           <div className="flex items-center justify-between text-xs text-slate-500">
             <span>Tunggakan: <b className="text-amber-600">{mfOverview?.portfolioOverdue || 0}</b></span>
             <span>NPL: <b className="text-red-600">{mfOverview?.portfolioNpl || 0}</b></span>
-            <span>Komisi pending: <b className="text-violet-600">{fmtCur(mfOverview?.pendingCommission || 0)}</b></span>
+            <span>Komisi pending: <b className="text-teal-700">{fmtCur(mfOverview?.pendingCommission || 0)}</b></span>
           </div>
           <button onClick={() => goToTab('mf')}
-            className="w-full mt-3 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 active:scale-[0.98]">
+            className="w-full mt-3 py-2.5 bg-teal-700 text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 active:scale-[0.98]">
             <Building2 className="w-4 h-4" /> Buka Modul Lapangan
           </button>
         </Card>
@@ -1226,21 +1226,21 @@ export default function EmployeeDashboard() {
                 key={a.id}
                 className={`rounded-xl p-3 border ${
                   a.is_pinned
-                    ? 'bg-gradient-to-r from-fuchsia-50 to-violet-50 border-fuchsia-100'
+                    ? 'bg-gradient-to-r from-teal-50 to-emerald-50 border-teal-100'
                     : 'bg-slate-50 border-slate-100'
                 }`}
               >
                 <div className="flex items-start gap-2.5">
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                    a.priority === 'high' ? 'bg-rose-100' : 'bg-fuchsia-100'
+                    a.priority === 'high' ? 'bg-rose-100' : 'bg-teal-100'
                   }`}>
-                    <Megaphone className={`w-4 h-4 ${a.priority === 'high' ? 'text-rose-600' : 'text-fuchsia-600'}`} />
+                    <Megaphone className={`w-4 h-4 ${a.priority === 'high' ? 'text-rose-600' : 'text-teal-600'}`} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
                       <p className="text-sm font-semibold text-slate-900 truncate">{a.title}</p>
                       {a.is_pinned && (
-                        <span className="text-[9px] font-bold uppercase tracking-wide text-fuchsia-600 bg-fuchsia-100 px-1.5 py-0.5 rounded flex-shrink-0">Pin</span>
+                        <span className="text-[9px] font-bold uppercase tracking-wide text-teal-700 bg-teal-100 px-1.5 py-0.5 rounded flex-shrink-0">Pin</span>
                       )}
                     </div>
                     <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">{a.content}</p>
@@ -1303,12 +1303,12 @@ export default function EmployeeDashboard() {
         <SectionHeader title="Aksi Cepat" subtitle="Pengajuan & akses fitur utama" />
         <div className="grid grid-cols-4 gap-1">
           {(isMfAgent ? [
-            { icon: Building2, label: 'Lapangan', gradient: 'from-indigo-500 to-violet-600', action: () => goToTab('mf') },
-            { icon: Calendar, label: 'Cuti', gradient: 'from-violet-500 to-indigo-600', action: () => setModal('leave') },
-            { icon: Navigation, label: 'Kunjungan', gradient: 'from-cyan-500 to-blue-600', action: () => goToTab('visit') },
-            { icon: Target, label: 'KPI', gradient: 'from-fuchsia-500 to-violet-600', action: () => goToTab('kpi') },
+            { icon: Building2, label: 'Lapangan', gradient: 'from-slate-600 to-teal-700', action: () => goToTab('mf') },
+            { icon: Calendar, label: 'Cuti', gradient: 'from-teal-600 to-emerald-700', action: () => setModal('leave') },
+            { icon: Navigation, label: 'Kunjungan', gradient: 'from-cyan-600 to-slate-700', action: () => goToTab('visit') },
+            { icon: Target, label: 'KPI', gradient: 'from-emerald-600 to-teal-800', action: () => goToTab('kpi') },
           ] : [
-            { icon: Calendar, label: 'Cuti', gradient: 'from-violet-500 to-indigo-600', action: () => setModal('leave') },
+            { icon: Calendar, label: 'Cuti', gradient: 'from-teal-600 to-emerald-700', action: () => setModal('leave') },
             { icon: Wallet, label: 'Gaji', gradient: 'from-sky-500 to-blue-600', action: () => goToTab('payslip') },
             { icon: Receipt, label: 'Klaim', gradient: 'from-emerald-500 to-teal-600', action: () => setModal('claim') },
             { icon: Timer, label: 'Lembur', gradient: 'from-orange-500 to-rose-500', action: () => { goToTab('overtime'); setTimeout(() => setOtModal('new'), 100); } },
