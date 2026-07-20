@@ -4,6 +4,7 @@
 # Usage:
 #   SMOKE_BASE_URL=https://staging.humanify.id \
 #   SMOKE_EMAIL=… SMOKE_PASSWORD=… \
+#   VPS_PASS='…' \   # loads DEALLS_WEBHOOK_SECRET from matching VPS .env
 #   bash scripts/run-humanify-qa-matrix.sh
 #
 # Types covered: Smoke, Sanity, Regression, Retest, E2E, API, UI, DB, Exploratory, Ad-hoc
@@ -20,6 +21,10 @@ export HUMANIFY_E2E_HARD="${HUMANIFY_E2E_HARD:-1}"
 export HUMANIFY_EMAIL_VERIFY_RETURN_TOKEN=true
 export HUMANIFY_INVITE_RETURN_TOKEN=true
 export HUMANIFY_PASSWORD_RESET_RETURN_TOKEN=true
+# Prefer SSHPASS for sshpass -e (passwords containing '%' break sshpass -p)
+if [ -n "${VPS_PASS:-}" ] && [ -z "${SSHPASS:-}" ]; then
+  export SSHPASS="$VPS_PASS"
+fi
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
