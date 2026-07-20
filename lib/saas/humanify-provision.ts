@@ -123,16 +123,25 @@ export async function provisionHumanifyTenant(input: ProvisionInput): Promise<Pr
   );
 
   const hashedPassword = await bcrypt.hash(input.password, 10);
-  const user = await db.User.create({
-    name: ownerName,
-    email,
-    phone: input.phone || null,
-    businessName: companyName,
-    password: hashedPassword,
-    tenantId,
-    role: 'owner',
-    isActive: true,
-  });
+  let user: any;
+  try {
+    user = await db.User.create({
+      name: ownerName,
+      email,
+      phone: input.phone || null,
+      businessName: companyName,
+      password: hashedPassword,
+      tenantId,
+      role: 'owner',
+      isActive: true,
+    });
+  } catch (createErr: any) {
+    const detail = String(createErr?.parent?.detail || createErr?.message || '');
+    if (/users_email|Key \(email\)|unique/i.test(detail)) {
+      throw new Error('Email sudah terdaftar');
+    }
+    throw createErr;
+  }
 
   return {
     tenantId,

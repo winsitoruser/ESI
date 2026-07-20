@@ -715,14 +715,21 @@ async function createLeaveRequest(req: NextApiRequest, res: NextApiResponse, use
     }
 
     if (!result.autoApproved) {
-      await notifyManagersForEmployee(sequelize, emp.id, {
-        tenantId: tenantId || emp.tenantId,
-        title: 'Pengajuan Cuti Baru',
-        message: `Ada pengajuan cuti ${leaveType} (${startDate} – ${endDate}) yang menunggu persetujuan Anda.`,
-        type: 'approval',
-        sourceType: 'leave_request',
-        sourceId: result.data?.id ? String(result.data.id) : null,
-      });
+      try {
+        const { withDbSavepoint } = await import('@/lib/saas/tenant-request-bound');
+        await withDbSavepoint(sequelize, async () => {
+          await notifyManagersForEmployee(sequelize, emp.id, {
+            tenantId: tenantId || emp.tenantId,
+            title: 'Pengajuan Cuti Baru',
+            message: `Ada pengajuan cuti ${leaveType} (${startDate} – ${endDate}) yang menunggu persetujuan Anda.`,
+            type: 'approval',
+            sourceType: 'leave_request',
+            sourceId: result.data?.id ? String(result.data.id) : null,
+          });
+        }, 'leave_notify');
+      } catch (notifyErr) {
+        console.warn('leave notify skipped:', (notifyErr as any)?.message || notifyErr);
+      }
     }
 
     return res.json({
