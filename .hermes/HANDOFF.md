@@ -13,7 +13,8 @@
 
 Scripts: `npm run smoke:wave63` · `npm run smoke:payroll-golden`
 
-Staging verified 20 Jul 2026 — BUILD_OK · `smoke:payroll-golden` **13/0** (attendance→OVERTIME bridge green).
+Staging verified 20 Jul 2026 — BUILD_OK · `smoke:payroll-golden` **13/0** (attendance→OVERTIME bridge green).  
+Prod verified same day — BUILD_OK · soft RLS · `smoke:payroll-golden` **13/0**.
 
 **ADR ceilings (masih deferred):** prod FORCE strict RLS · Sentry.io · Midtrans auto-payout.
 
