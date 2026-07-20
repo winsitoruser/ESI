@@ -18,9 +18,17 @@ Production stays **soft RLS** (D-013b).
 |------|------|-------|-------|
 | **A** | `staging` | `103.92.215.37` | ON (orange) OK |
 
-**Do not** use a broken CNAME / wrong origin hostname. Cloudflare **error 1016 (Origin DNS)** means the proxied record exists but CF cannot resolve the origin — fix by setting a direct **A** record to the VPS IP above.
+**NXDOMAIN** = record belum dibuat. **1016 Origin DNS** = record ada tapi origin salah.
 
-SSL: Cloudflare edge (`CLOUDFLARE_SSL=true`) — no origin certbot required. SSL/TLS mode: **Full** (not Full Strict) until origin cert exists.
+```bash
+# Otomatis (butuh Zone:DNS:Edit token)
+CF_API_TOKEN=xxx bash scripts/setup-humanify-staging-dns.sh
+
+# Atau manual: Cloudflare → humanify.id → DNS → Add record
+#   Type A · Name staging · IPv4 103.92.215.37 · Proxy ON
+```
+
+SSL: Cloudflare edge (`CLOUDFLARE_SSL=true`) — SSL/TLS mode **Full**. No origin certbot required.
 
 ### Local / VPS verify (works without public DNS)
 
