@@ -68,3 +68,26 @@ elif [ "${HUMANIFY_STAGING_FORCE_CLONE:-false}" = true ]; then
 else
   echo "  ✓ staging schema looks complete (team_members present)"
 fi
+
+# pg_dump --no-acl strips grants — always re-grant to app role (fixes login: permission denied for table users)
+echo "  → granting $DB_USER on $HUMANIFY_DB_NAME"
+sudo -u postgres psql -d "$HUMANIFY_DB_NAME" -v ON_ERROR_STOP=1 <<SQL
+GRANT CONNECT ON DATABASE $HUMANIFY_DB_NAME TO $DB_USER;
+GRANT USAGE, CREATE ON SCHEMA public TO $DB_USER;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO $DB_USER;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO $DB_USER;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO $DB_USER;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO $DB_USER;
+DO \$\$
+DECLARE r RECORD;
+BEGIN
+  FOR r IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+    EXECUTE format('ALTER TABLE public.%I OWNER TO $DB_USER', r.tablename);
+  END LOOP;
+  FOR r IN SELECT sequence_name FROM information_schema.sequences WHERE sequence_schema = 'public' LOOP
+    EXECUTE format('ALTER SEQUENCE public.%I OWNER TO $DB_USER', r.sequence_name);
+  END LOOP;
+END
+\$\$;
+SQL
+echo "  ✓ grants restored for $DB_USER"
