@@ -49,8 +49,11 @@ export async function provisionHumanifyTenant(input: ProvisionInput): Promise<Pr
     throw new Error('Password minimal 8 karakter');
   }
 
-  const existing = await db.User.findOne({ where: { email } });
-  if (existing) throw new Error('Email sudah terdaftar');
+  const [existingRows] = await sequelize.query(
+    `SELECT id FROM users WHERE LOWER(TRIM(email)) = :email LIMIT 1`,
+    { replacements: { email } },
+  );
+  if (existingRows?.[0]) throw new Error('Email sudah terdaftar');
 
   const cols = await getTenantColumns();
   const tenantId = randomUUID();

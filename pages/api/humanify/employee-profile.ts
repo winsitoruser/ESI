@@ -364,10 +364,18 @@ async function getEmployeeDetail(req: NextApiRequest, res: NextApiResponse, tena
     .replace('e.work_location', 'NULL::varchar AS work_location');
 
   let employees: any[];
-  try {
-    [employees] = await sequelize.query(detailSql, { replacements: { empId, tenantId } });
-  } catch {
-    [employees] = await sequelize.query(detailSqlFallback, { replacements: { empId, tenantId } });
+  {
+    const { withDbSavepoint } = await import('@/lib/saas/tenant-request-bound');
+    const primary = await withDbSavepoint(sequelize, async () => {
+      const [rows] = await sequelize.query(detailSql, { replacements: { empId, tenantId } });
+      return rows;
+    }, 'emp_detail_primary');
+    if (primary) {
+      employees = primary;
+    } else {
+      const [rows] = await sequelize.query(detailSqlFallback, { replacements: { empId, tenantId } });
+      employees = rows;
+    }
   }
 
   if (!employees[0]) return res.status(404).json({ success: false, error: 'Employee not found' });
@@ -635,18 +643,46 @@ async function createEmployee(
     if (!tenantId) {
       return res.status(403).json({ success: false, error: 'Tenant required' });
     }
+
+    const emailNorm = String(email).trim().toLowerCase();
+    if (!emailNorm || !emailNorm.includes('@')) {
+      return res.status(400).json({ success: false, error: 'Format email tidak valid' });
+    }
+
+    // Pre-check email (global unique index emp_email_unique) — honest message before INSERT
+    const [emailHit] = await sequelize.query(
+      `SELECT id, employee_code, name FROM employees
+       WHERE LOWER(TRIM(email)) = :email
+       LIMIT 1`,
+      { replacements: { email: emailNorm } },
+    );
+    if (emailHit?.[0]) {
+      return res.status(409).json({
+        success: false,
+        error: 'Email sudah terdaftar',
+        detail: `Dipakai oleh ${emailHit[0].name || emailHit[0].employee_code || 'karyawan lain'}`,
+      });
+    }
+
+    // employee_code is GLOBALLY unique — namespace by tenant (same pattern as /api/humanify/employees)
     const [countResult] = await sequelize.query(
       `SELECT COUNT(*)::int AS c FROM employees WHERE tenant_id = :tenantId`,
-      { replacements: { tenantId } }
+      { replacements: { tenantId } },
     );
-    const nextNum = (countResult[0]?.c || 0) + 1;
-    let employee_code = `EMP-${String(nextNum).padStart(3, '0')}`;
-    const [dup] = await sequelize.query(
-      `SELECT employee_code FROM employees WHERE employee_code = :code LIMIT 1`,
-      { replacements: { code: employee_code } }
-    );
-    if (dup?.[0]) {
-      employee_code = `EMP-${String(nextNum + 100).padStart(3, '0')}`;
+    const tenantToken = String(tenantId).replace(/-/g, '').slice(0, 6).toUpperCase();
+    let nextNum = (countResult[0]?.c || 0) + 1;
+    let employee_code = `EMP-${tenantToken}-${String(nextNum).padStart(3, '0')}`;
+    for (let attempt = 0; attempt < 12; attempt++) {
+      const [dup] = await sequelize.query(
+        `SELECT 1 FROM employees WHERE employee_code = :code LIMIT 1`,
+        { replacements: { code: employee_code } },
+      );
+      if (!dup?.[0]) break;
+      nextNum += 1;
+      employee_code = `EMP-${tenantToken}-${String(nextNum).padStart(3, '0')}`;
+      if (attempt === 11) {
+        employee_code = `EMP-${tenantToken}-${Date.now().toString(36).toUpperCase()}`;
+      }
     }
 
     let resolvedBranchId: string | null = isUuid(branch_id) ? String(branch_id).trim() : null;
@@ -690,7 +726,7 @@ async function createEmployee(
     `;
 
     const replacements = {
-      employee_code, name, email, phone_number: phone_number || null,
+      employee_code, name, email: emailNorm, phone_number: phone_number || null,
       position, department, join_date: joinDateClean, tenantId,
       work_location: work_location || 'ADMIN_OFFICE',
       branch_id: resolvedBranchId,
@@ -721,9 +757,23 @@ async function createEmployee(
       message: `Karyawan ${employee_code} berhasil ditambahkan`
     });
   } catch (e: any) {
-    const msg = e.parent?.detail || e.parent?.message || e.message || 'Gagal menambahkan karyawan';
-    if (msg.includes('unique') || msg.includes('duplicate')) {
+    const msg = String(e.parent?.detail || e.parent?.message || e.message || 'Gagal menambahkan karyawan');
+    const constraint = String(e.parent?.constraint || e.original?.constraint || '');
+    // Do NOT map every unique violation to "email" — employee_code collisions were false positives
+    if (/emp_email_unique|employees_email|Key \(email\)/i.test(`${constraint} ${msg}`)) {
       return res.status(409).json({ success: false, error: 'Email sudah terdaftar' });
+    }
+    if (/employee_code|emp_empid|Key \(employee_code\)/i.test(`${constraint} ${msg}`)) {
+      return res.status(409).json({
+        success: false,
+        error: 'Kode karyawan bentrok. Coba lagi.',
+      });
+    }
+    if (/unique|duplicate/i.test(msg)) {
+      return res.status(409).json({
+        success: false,
+        error: 'Data bentrok (unik). Periksa email atau kode karyawan.',
+      });
     }
     // Never leak raw "transaction is aborted" — root cause was a prior failed query
     if (/transaction is aborted/i.test(msg)) {
