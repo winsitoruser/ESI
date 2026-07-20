@@ -14,8 +14,10 @@
 
 Scripts: `npm run qa:humanify:matrix` · `node scripts/smoke-test-humanify-enterprise.js` (needs `VPS_PASS`)
 
-Staging verified 21 Jul 2026 — leave create PASS · IR 31/0 · enterprise **21/0** (webhook HMAC) · matrix **26/27→27/27** after secrets fix.  
-Known ops: concurrent deploy+QA SSH can trip password auth denials — prefer sequential; deploy step-6 may need manual `pm2 restart humanify-staging` if SSH flakes.
+Staging verified 21 Jul 2026 — leave create PASS · IR 31/0 · enterprise **21/0** (webhook HMAC) · matrix **26/27** (full-qa login flake mid-deploy) → full-qa retest **GREEN** · enterprise PASS.  
+Prod verified same day — leave create PASS · IR **31/0** · enterprise **21/0** · soft RLS intact · manual sync+build (full deploy SSH flaked under concurrent QA).
+
+Known ops: concurrent deploy+QA SSH can trip password auth denials — prefer sequential; deploy step-6 may need manual `pm2 restart` if SSH flakes.
 
 **ADR ceilings (masih deferred):** prod FORCE strict RLS · Sentry.io · Midtrans auto-payout.
 
