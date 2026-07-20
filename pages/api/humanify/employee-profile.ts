@@ -620,6 +620,17 @@ async function createEmployee(
     return res.status(400).json({ success: false, error: 'Nama, email, departemen, dan jabatan wajib diisi' });
   }
 
+  const isUuid = (v: unknown) =>
+    typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v.trim());
+  const cleanDate = (v: unknown): string | null => {
+    if (v == null) return null;
+    const s = String(v).trim();
+    if (!s) return null;
+    // HTML date input → YYYY-MM-DD; reject other formats that poison PG cast
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+    return s;
+  };
+
   try {
     if (!tenantId) {
       return res.status(403).json({ success: false, error: 'Tenant required' });
@@ -638,16 +649,20 @@ async function createEmployee(
       employee_code = `EMP-${String(nextNum + 100).padStart(3, '0')}`;
     }
 
-    let resolvedBranchId = branch_id || null;
+    let resolvedBranchId: string | null = isUuid(branch_id) ? String(branch_id).trim() : null;
     if (!resolvedBranchId && branch_name) {
-      try {
+      const { withDbSavepoint } = await import('@/lib/saas/tenant-request-bound');
+      const found = await withDbSavepoint(sequelize, async () => {
         const [branchRows] = await sequelize.query(
           `SELECT id FROM branches WHERE name ILIKE :branchName LIMIT 1`,
           { replacements: { branchName: branch_name } }
         );
-        if (branchRows?.[0]?.id) resolvedBranchId = branchRows[0].id;
-      } catch { /* branches table may not exist */ }
+        return branchRows?.[0]?.id || null;
+      }, 'branch_lookup');
+      if (found && isUuid(found)) resolvedBranchId = String(found);
     }
+
+    const joinDateClean = cleanDate(join_date);
 
     const insertWithLocation = `
       INSERT INTO employees (
@@ -676,21 +691,30 @@ async function createEmployee(
 
     const replacements = {
       employee_code, name, email, phone_number: phone_number || null,
-      position, department, join_date: join_date || null, tenantId,
+      position, department, join_date: joinDateClean, tenantId,
       work_location: work_location || 'ADMIN_OFFICE',
       branch_id: resolvedBranchId,
       national_id: national_id || nik || null,
       employment_category: employment_category || (contract_type === 'FREELANCE' ? 'daily_casual' : 'permanent'),
     };
 
-    let result: any[];
-    try {
-      [result] = await sequelize.query(insertWithLocation, { replacements });
-    } catch {
-      [result] = await sequelize.query(insertBasic, { replacements });
+    // Prefer full INSERT; on schema mismatch fall back via SAVEPOINT so
+    // request-bound RLS TX is not left aborted (PG: "current transaction is aborted").
+    const { withDbSavepoint } = await import('@/lib/saas/tenant-request-bound');
+    let result: any[] | null = await withDbSavepoint(sequelize, async () => {
+      const [rows] = await sequelize.query(insertWithLocation, { replacements });
+      return rows;
+    }, 'emp_insert_full');
+
+    if (!result?.[0]) {
+      const [rows] = await sequelize.query(insertBasic, { replacements });
+      result = rows;
     }
 
-    const row = normalizeEmployeeRecord(result[0] || {});
+    const row = normalizeEmployeeRecord(result?.[0] || {});
+    if (!row?.id && !row?.employee_id && !row?.employeeId) {
+      return res.status(500).json({ success: false, error: 'Gagal menambahkan karyawan' });
+    }
     return res.status(201).json({
       success: true,
       data: row,
@@ -700,6 +724,13 @@ async function createEmployee(
     const msg = e.parent?.detail || e.parent?.message || e.message || 'Gagal menambahkan karyawan';
     if (msg.includes('unique') || msg.includes('duplicate')) {
       return res.status(409).json({ success: false, error: 'Email sudah terdaftar' });
+    }
+    // Never leak raw "transaction is aborted" — root cause was a prior failed query
+    if (/transaction is aborted/i.test(msg)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Data tidak valid (cabang/tanggal bergabung). Periksa form lalu coba lagi.',
+      });
     }
     return res.status(500).json({ success: false, error: msg });
   }

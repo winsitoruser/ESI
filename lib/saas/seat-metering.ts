@@ -7,16 +7,20 @@ import {
   type HumanifyPlanId,
 } from './plan-entitlements';
 import { resolveTenantPlan } from './assert-feature';
+import { withDbSavepoint, safeQueryWithSavepoint } from './tenant-request-bound';
 
 let sequelize: any;
 try { sequelize = require('../sequelize'); } catch {}
 
 async function tableExists(name: string): Promise<boolean> {
   if (!sequelize) return false;
-  const [rows] = await sequelize.query(`
-    SELECT 1 FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_name = :name LIMIT 1
-  `, { replacements: { name } });
+  const rows = await safeQueryWithSavepoint(
+    sequelize,
+    `SELECT 1 FROM information_schema.tables
+     WHERE table_schema = 'public' AND table_name = :name LIMIT 1`,
+    { name },
+    'seat_table_exists',
+  );
   return Boolean(rows?.length);
 }
 
@@ -38,44 +42,51 @@ export async function countTenantSeats(tenantId: string): Promise<{ users: numbe
 
   let users = 0;
   let employees = 0;
-  try {
+
+  // Prefer isActive column; fall back without poisoning request-bound TX.
+  const withActive = await withDbSavepoint(sequelize, async () => {
     const [u] = await sequelize.query(
       `SELECT COUNT(*)::int AS c FROM users
        WHERE tenant_id = :tid
          AND COALESCE("isActive", true) = true`,
       { replacements: { tid: tenantId } },
     );
-    users = u?.[0]?.c || 0;
-  } catch {
-    try {
-      const [u] = await sequelize.query(
-        `SELECT COUNT(*)::int AS c FROM users WHERE tenant_id = :tid`,
-        { replacements: { tid: tenantId } },
-      );
-      users = u?.[0]?.c || 0;
-    } catch { /* */ }
+    return u?.[0]?.c ?? 0;
+  }, 'seat_users_active');
+
+  if (withActive != null) {
+    users = withActive;
+  } else {
+    const rows = await safeQueryWithSavepoint(
+      sequelize,
+      `SELECT COUNT(*)::int AS c FROM users WHERE tenant_id = :tid`,
+      { tid: tenantId },
+      'seat_users_plain',
+    );
+    users = rows?.[0]?.c || 0;
   }
 
   try {
     if (await tableExists('employees')) {
-      // Count only ACTIVE headcount. The app manages `status` (create=ACTIVE,
-      // deactivate=INACTIVE); `is_active` is an extra guard. Excluding
-      // inactive/terminated keeps seat usage honest after offboarding.
-      const [e] = await sequelize.query(
+      const rows = await safeQueryWithSavepoint(
+        sequelize,
         `SELECT COUNT(*)::int AS c FROM employees
          WHERE tenant_id = :tid
            AND COALESCE(is_active, true) = true
            AND LOWER(COALESCE(status, 'active'))
                NOT IN ('inactive', 'terminated', 'resigned', 'exited', 'offboarded')`,
-        { replacements: { tid: tenantId } },
+        { tid: tenantId },
+        'seat_employees',
       );
-      employees = e?.[0]?.c || 0;
+      employees = rows?.[0]?.c || 0;
     } else if (await tableExists('hris_employees')) {
-      const [e] = await sequelize.query(
+      const rows = await safeQueryWithSavepoint(
+        sequelize,
         `SELECT COUNT(*)::int AS c FROM hris_employees WHERE tenant_id = :tid`,
-        { replacements: { tid: tenantId } },
+        { tid: tenantId },
+        'seat_hris_employees',
       );
-      employees = e?.[0]?.c || 0;
+      employees = rows?.[0]?.c || 0;
     }
   } catch { /* */ }
 
