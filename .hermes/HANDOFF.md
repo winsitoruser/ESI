@@ -1,6 +1,23 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 20 Juli 2026 — **Wave-56** · Security honesty (pasca audit multi-peran Wave-55)
+> Diperbarui: 20 Juli 2026 — **Wave-57** · Product + UX + QA (pasca Wave-56)
+
+## Wave-57 (20 Jul 2026) — Product + UX + QA
+
+Closes canvas **Humanify — audit multi-peran** Wave-57 track.
+
+| ID | Item | Status |
+|---|---|---|
+| FE-1 | ESS god-page → `components/employee/EmployeePortal.tsx`; routes leave/payslip/attendance real shells | Done |
+| FE-2 / UX-2 | ESS nav + training pages teal; ops violet unchanged (`--hf-brand`) | Done |
+| UX-1 | D-020 two-surface brand (`--ep-accent*` ESS vs ops violet) | Done |
+| UX-3 | Sidebar welcome hidden + remove duplicate Naincode link | Done |
+| QA-1 | ESS journey e2e (staging skeleton, Wave-56) verified in smoke | Done |
+| ADR | D-020 | Done |
+
+Scripts: `npm run smoke:wave57` · `smoke:wave56` · `smoke:sidebar-persona`
+
+**Deferred (Wave-58):** staging.humanify.id · full bare-session migration · ESS tab-level code-split · Redis/deploy key ops.
 
 ## Wave-56 (20 Jul 2026) — Security honesty
 

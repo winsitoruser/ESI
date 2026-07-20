@@ -146,3 +146,10 @@ Flip strict di prod **tanpa** staging IDOR + chaos = dilarang.
 3. CI `lint:humanify-hq-auth` + `smoke:wave56` gate the allowlist; remaining bare-session APIs = follow-up waves, not reopen Path B.
 4. `performance-360` error → `dataSource: empty` (no `isMock:true`); JOIN tenants on feedback.
 5. Staging hostname / FORCE strict RLS remain D-013b (ops track) — not unblocked by this wave.
+
+## D-020 (Wave-57): Two-surface brand — ops violet vs ESS teal — 20 Jul 2026
+**UX / Product:** Documented dual accent per `D-HF-TWO-SURFACE`:
+1. **Ops HRIS** (`/humanify/*`, HQLayout): keep `--hf-brand` violet family (`humanify-tokens.css`).
+2. **ESS portal** (`/employee/*`): teal/emerald accent via `portal-ui` EP tokens + `--ep-accent*` CSS vars — no violet CTAs on employee surface.
+3. Marketing/welcome stays dark violet on public pages; not mixed into ops cards.
+4. Sidebar: single marketing entry removed from ops nav (welcome hidden; public `/`); engagement lab hidden.

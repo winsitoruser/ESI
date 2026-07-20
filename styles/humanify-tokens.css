@@ -21,6 +21,11 @@
   --hf-radius-lg: 1rem;
   --hf-shadow: 0 1px 2px rgb(15 23 42 / 0.06);
   --hf-font: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  /* ESS portal accent (D-020) — teal surface, distinct from ops violet brand */
+  --ep-accent: #0d9488;
+  --ep-accent-600: #0f766e;
+  --ep-accent-50: #f0fdfa;
 }
 
 .humanify-theme {

@@ -61,7 +61,9 @@ if (/hidden:\s*true/.test(side) && /AI & Otomasi \(Lab\)/.test(side)
 } else fail('CTO-3 sidebar lab');
 
 // FE-2 ESS purple residual (quick actions / manager)
-const ess = read('pages/employee/index.tsx');
+const ess = exists('components/employee/EmployeePortal.tsx')
+  ? read('components/employee/EmployeePortal.tsx')
+  : read('pages/employee/index.tsx');
 if (!/from-violet-600 to-fuchsia-600/.test(ess)
   && !/from-indigo-500 to-violet-600/.test(ess)
   && /from-teal-700 to-emerald-700|from-teal-600 to-emerald-700/.test(ess)) {

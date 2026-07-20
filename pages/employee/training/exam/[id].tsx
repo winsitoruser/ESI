@@ -210,7 +210,7 @@ export default function EmployeeExamPage() {
       <>
         <Head><title>{exam?.title} — Ujian</title></Head>
         <div className="min-h-screen bg-slate-50 p-6 max-w-lg mx-auto">
-          <Link href="/employee/training" className="text-sm text-indigo-600 flex items-center gap-1 mb-4"><ArrowLeft className="w-4 h-4" /> Kembali</Link>
+          <Link href="/employee/training" className="text-sm text-teal-600 flex items-center gap-1 mb-4"><ArrowLeft className="w-4 h-4" /> Kembali</Link>
           <h1 className="text-xl font-bold">{exam?.title}</h1>
           <p className="text-gray-500 mt-2">{exam?.description}</p>
           <div className="mt-4 space-y-2 text-sm">
@@ -219,7 +219,7 @@ export default function EmployeeExamPage() {
             {exam?.anti_cheat_enabled && <p className="flex items-center gap-1 text-orange-600"><Shield className="w-4 h-4" /> Mode anti-cheating aktif</p>}
             {proctorEnabled && <p className="flex items-center gap-1 text-purple-600"><Camera className="w-4 h-4" /> Proctoring kamera aktif — izinkan akses kamera</p>}
           </div>
-          <button type="button" disabled={!canAttempt} onClick={handleStart} className="mt-6 w-full py-3 bg-indigo-600 text-white rounded-xl font-medium disabled:opacity-50">
+          <button type="button" disabled={!canAttempt} onClick={handleStart} className="mt-6 w-full py-3 bg-teal-600 text-white rounded-xl font-medium disabled:opacity-50">
             {canAttempt ? 'Mulai Ujian' : 'Batas percobaan habis'}
           </button>
         </div>
@@ -234,7 +234,7 @@ export default function EmployeeExamPage() {
         <h1 className="text-xl font-bold">{result.is_passed ? 'Lulus!' : result.needs_manual ? 'Dikumpulkan' : 'Belum Lulus'}</h1>
         <p className="text-3xl font-bold mt-2">{result.percentage?.toFixed?.(1) ?? result.percentage}%</p>
         {result.integrity_score != null && <p className="text-sm text-gray-500 mt-2">Integrity: {result.integrity_score}</p>}
-        <Link href="/employee/training" className="mt-6 inline-block px-6 py-2 bg-indigo-600 text-white rounded-xl">Kembali</Link>
+        <Link href="/employee/training" className="mt-6 inline-block px-6 py-2 bg-teal-600 text-white rounded-xl">Kembali</Link>
       </div>
     );
   }
@@ -249,7 +249,7 @@ export default function EmployeeExamPage() {
         <video ref={videoRef} className="fixed bottom-4 right-4 w-24 h-18 rounded-lg border-2 border-purple-400 object-cover z-20" muted playsInline />
       )}
       <div className="min-h-screen bg-white flex flex-col">
-        <div className="sticky top-0 bg-indigo-600 text-white px-4 py-3 flex justify-between items-center z-10">
+        <div className="sticky top-0 bg-teal-600 text-white px-4 py-3 flex justify-between items-center z-10">
           <span className="text-sm font-medium">{currentQ + 1}/{questions.length}</span>
           <span className={`flex items-center gap-1 font-mono ${timeLeft < 300 ? 'text-red-200' : ''}`}><Clock className="w-4 h-4" />{formatTime(timeLeft)}</span>
           {exam?.anti_cheat_enabled && <Shield className="w-4 h-4 opacity-70" />}
@@ -268,7 +268,7 @@ export default function EmployeeExamPage() {
                 key={o.label}
                 type="button"
                 onClick={() => setAnswers({ ...answers, [q.id]: o.label })}
-                className={`w-full text-left p-3 rounded-xl border-2 transition-colors ${answers[q.id] === o.label ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200'}`}
+                className={`w-full text-left p-3 rounded-xl border-2 transition-colors ${answers[q.id] === o.label ? 'border-teal-500 bg-teal-50' : 'border-gray-200'}`}
               >
                 <span className="font-mono mr-2">{o.label}.</span>{o.text}
               </button>
@@ -281,7 +281,7 @@ export default function EmployeeExamPage() {
           {currentQ < questions.length - 1 ? (
             <button type="button" onClick={() => setCurrentQ((c) => c + 1)} className="flex-1 py-3 bg-gray-100 rounded-xl font-medium">Lanjut</button>
           ) : (
-            <button type="button" onClick={() => handleSubmit()} disabled={submitting} className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-medium flex items-center justify-center gap-2">
+            <button type="button" onClick={() => handleSubmit()} disabled={submitting} className="flex-1 py-3 bg-teal-600 text-white rounded-xl font-medium flex items-center justify-center gap-2">
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Kumpulkan
             </button>
           )}

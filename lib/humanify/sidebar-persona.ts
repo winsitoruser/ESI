@@ -6,9 +6,8 @@ import type { MenuGroup, MenuItem, SidebarConfig, UserRole } from '@/config/side
 
 const PLATFORM_OPS = new Set(['super_admin', 'superadmin', 'platform_admin', 'owner', 'superhero']);
 
-/** Item IDs safe for employee/staff (ESS-first). */
+/** Item IDs safe for employee/staff (ESS-first). Marketing welcome hidden — use public `/`. */
 const STAFF_ITEMS = new Set([
-  'humanify-welcome',
   'humanify-home',
   'humanify-calendar',
   'humanify-announcements',
@@ -90,7 +89,7 @@ export function filterHumanifySidebarByPersona(
 ): SidebarConfig {
   const persona = resolveHumanifyPersona(userRole);
   if (persona === 'platform' || persona === 'hr_admin') {
-    return config; // full IA
+    return config; // full IA (lab items labeled/hidden in sidebar config)
   }
 
   const allow = (id: string) => {

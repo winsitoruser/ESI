@@ -1,10 +1,12 @@
 import React from 'react';
 import { MapPin, Loader2 } from 'lucide-react';
 
-/** Enterprise design tokens — Humanify Employee Portal */
+/** Enterprise design tokens — Humanify Employee Portal (teal surface, D-020) */
 export const EP = {
-  accent: 'from-violet-600 to-indigo-600',
-  accentSolid: 'bg-violet-600',
+  accent: 'from-teal-600 to-emerald-700',
+  accentSolid: 'bg-teal-600',
+  accentMuted: 'text-teal-700',
+  accentBg: 'bg-teal-50',
   surface: 'bg-white',
   muted: 'text-slate-500',
   border: 'border-slate-200/80',
@@ -18,8 +20,8 @@ export function PortalLoading() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#0c0f1a]">
       <div className="relative">
-        <div className="absolute inset-0 rounded-full bg-violet-500/20 blur-xl animate-pulse" />
-        <Loader2 className="relative w-10 h-10 text-violet-400 animate-spin" />
+        <div className="absolute inset-0 rounded-full bg-teal-500/20 blur-xl animate-pulse" />
+        <Loader2 className="relative w-10 h-10 text-teal-400 animate-spin" />
       </div>
       <p className="mt-5 text-sm font-medium text-slate-400 tracking-wide">Memuat Portal Karyawan</p>
     </div>
@@ -29,12 +31,12 @@ export function PortalLoading() {
 export function Card({ children, className = '', variant = 'default' }: {
   children: React.ReactNode;
   className?: string;
-  variant?: 'default' | 'elevated' | 'accent';
+    variant?: 'default' | 'elevated' | 'accent';
 }) {
   const variants = {
     default: `${EP.surface} ${EP.border} border ${EP.shadow}`,
     elevated: `${EP.surface} border border-slate-100 ${EP.shadowLg}`,
-    accent: 'bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white border border-white/10 shadow-xl shadow-indigo-950/20',
+    accent: 'bg-gradient-to-br from-slate-900 via-slate-800 to-teal-950 text-white border border-white/10 shadow-xl shadow-teal-950/20',
   };
   return (
     <div className={`${EP.radiusLg} overflow-hidden ${variants[variant]} ${className}`}>

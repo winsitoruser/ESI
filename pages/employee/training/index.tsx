@@ -34,7 +34,7 @@ export default function EmployeeTrainingPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
       </div>
     );
   }
@@ -51,7 +51,7 @@ export default function EmployeeTrainingPage() {
             <h1 className="font-bold text-gray-900">Training & Learning</h1>
             <p className="text-xs text-gray-500">{employee?.name}</p>
           </div>
-          <Link href="/employee" className="ml-auto text-sm text-indigo-600">← Portal</Link>
+          <Link href="/employee" className="ml-auto text-sm text-teal-600">← Portal</Link>
         </header>
 
         <main className="max-w-lg mx-auto p-4 space-y-4">
@@ -62,11 +62,11 @@ export default function EmployeeTrainingPage() {
                 <div className="flex-1">
                   <h3 className="font-semibold">{c.title}</h3>
                   <div className="h-1.5 bg-gray-200 rounded-full mt-2 mb-1">
-                    <div className="h-full bg-indigo-600 rounded-full" style={{ width: `${c.progress_pct || 0}%` }} />
+                    <div className="h-full bg-teal-600 rounded-full" style={{ width: `${c.progress_pct || 0}%` }} />
                   </div>
                   <p className="text-xs text-gray-500">{c.progress_pct || 0}% · {c.mandatory ? 'Wajib' : 'Opsional'}</p>
                 </div>
-                <Link href={`/employee/training/course/${c.curriculum_id}`} className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-sm shrink-0">
+                <Link href={`/employee/training/course/${c.curriculum_id}`} className="px-3 py-1.5 bg-teal-600 text-white rounded-lg text-sm shrink-0">
                   {c.status === 'completed' ? 'Review' : 'Lanjut'}
                 </Link>
               </div>
@@ -84,7 +84,7 @@ export default function EmployeeTrainingPage() {
                   {ex.psychometric_type && <StatusBadge status={ex.psychometric_type} />}
                 </div>
                 {ex.my_attempts < ex.max_attempts && ex.status === 'open' ? (
-                  <Link href={`/employee/training/exam/${ex.id}`} className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-sm">Mulai</Link>
+                  <Link href={`/employee/training/exam/${ex.id}`} className="px-3 py-1.5 bg-teal-600 text-white rounded-lg text-sm">Mulai</Link>
                 ) : (
                   <span className="text-xs text-gray-400">{ex.last_passed ? 'Lulus' : 'Selesai'}</span>
                 )}

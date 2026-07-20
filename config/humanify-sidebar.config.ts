@@ -27,7 +27,7 @@ export const humanifySidebarConfig: SidebarConfig = {
       id: 'main',
       title: 'Utama',
       items: [
-        { id: 'humanify-welcome', name: 'Tentang Humanify', href: '/humanify/welcome', icon: Sparkles, modules: ['humanify', 'hris'] },
+        { id: 'humanify-welcome', name: 'Tentang Humanify', href: '/humanify/welcome', icon: Sparkles, modules: ['humanify', 'hris'], hidden: true },
         { id: 'humanify-home', name: 'Beranda', href: '/humanify', icon: Sparkles, modules: ['humanify', 'hris'] },
         { id: 'humanify-calendar', name: 'Kalender HR', href: '/humanify/calendar', icon: Calendar, modules: ['humanify', 'hris'] },
         { id: 'humanify-announcements', name: 'Pengumuman', href: '/humanify/announcements', icon: Megaphone, modules: ['humanify', 'hris'] },
@@ -169,7 +169,6 @@ export const humanifySidebarConfig: SidebarConfig = {
         { id: 'humanify-security', name: 'Keamanan (2FA)', href: '/humanify/security', icon: Lock, modules: ['humanify', 'hris'] },
         { id: 'humanify-users-team', name: 'Tim & Undangan', href: '/humanify/users', icon: UserPlus, modules: ['humanify', 'hris'] },
         { id: 'humanify-users-roles', name: 'Role & Akses', href: '/humanify/users/roles', icon: Shield, modules: ['humanify', 'hris'] },
-        { id: 'humanify-about-naincode', name: 'Tentang Naincode', href: '/humanify/welcome', icon: Layers, modules: ['humanify', 'hris'] },
       ],
     },
   ] as MenuGroup[],

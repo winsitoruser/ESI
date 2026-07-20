@@ -62,7 +62,7 @@ export default function EmployeeCoursePage() {
   const allDone = (data?.progress_pct || 0) >= 100;
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-teal-600" /></div>;
   }
 
   if (certResult?.certificate) {
@@ -73,11 +73,11 @@ export default function EmployeeCoursePage() {
         <p className="text-gray-600 mt-2">Sertifikat Anda telah diterbitkan</p>
         <p className="font-mono text-sm mt-4 bg-white border rounded-lg p-3">{certResult.certificate.certificateNumber}</p>
         {certResult.verify_url && (
-          <Link href={certResult.verify_url} className="text-indigo-600 text-sm mt-2 inline-block hover:underline">
+          <Link href={certResult.verify_url} className="text-teal-600 text-sm mt-2 inline-block hover:underline">
             Verifikasi sertifikat
           </Link>
         )}
-        <Link href="/employee/training" className="mt-6 inline-block px-6 py-2 bg-indigo-600 text-white rounded-xl">Kembali</Link>
+        <Link href="/employee/training" className="mt-6 inline-block px-6 py-2 bg-teal-600 text-white rounded-xl">Kembali</Link>
       </div>
     );
   }
@@ -92,7 +92,7 @@ export default function EmployeeCoursePage() {
           <div className="flex-1 min-w-0">
             <h1 className="font-bold text-sm truncate">{data?.curriculum?.title}</h1>
             <div className="h-1.5 bg-gray-200 rounded-full mt-1">
-              <div className="h-full bg-indigo-600 rounded-full transition-all" style={{ width: `${data?.progress_pct || 0}%` }} />
+              <div className="h-full bg-teal-600 rounded-full transition-all" style={{ width: `${data?.progress_pct || 0}%` }} />
             </div>
             <p className="text-xs text-gray-500 mt-0.5">{data?.progress_pct || 0}% selesai</p>
           </div>
@@ -105,7 +105,7 @@ export default function EmployeeCoursePage() {
                 key={m.id}
                 type="button"
                 onClick={() => { setActiveModule(mi); setActiveLesson(0); }}
-                className={`w-full text-left p-3 rounded-xl border text-sm ${activeModule === mi ? 'border-indigo-500 bg-indigo-50' : 'bg-white'}`}
+                className={`w-full text-left p-3 rounded-xl border text-sm ${activeModule === mi ? 'border-teal-500 bg-teal-50' : 'bg-white'}`}
               >
                 <p className="font-medium">{m.title}</p>
                 <p className="text-xs text-gray-500">{m.progress_pct || 0}%</p>
@@ -128,7 +128,7 @@ export default function EmployeeCoursePage() {
                       key={l.id}
                       type="button"
                       onClick={() => setActiveLesson(li)}
-                      className={`px-3 py-1 rounded-full text-xs whitespace-nowrap ${activeLesson === li ? 'bg-indigo-600 text-white' : completedSet.has(l.id) ? 'bg-green-100 text-green-700' : 'bg-gray-100'}`}
+                      className={`px-3 py-1 rounded-full text-xs whitespace-nowrap ${activeLesson === li ? 'bg-teal-600 text-white' : completedSet.has(l.id) ? 'bg-green-100 text-green-700' : 'bg-gray-100'}`}
                     >
                       {li + 1}. {l.title}
                     </button>
