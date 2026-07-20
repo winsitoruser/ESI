@@ -12,7 +12,8 @@
 
 Scripts: `npm run smoke:wave64` · `npm run smoke:payroll-golden` · `npm run test:e2e:humanify:payroll:hard`
 
-Staging verified 20 Jul 2026 — `smoke:payroll-golden` **17/0** (approve→paid+audit) · hard e2e THR/BPJS/lembur **PASS**.
+Staging verified 20 Jul 2026 — `smoke:payroll-golden` **17/0** (approve→paid+audit) · hard e2e THR/BPJS/lembur **PASS**.  
+Prod verified same day — soft RLS · `smoke:payroll-golden` **17/0**.
 
 **ADR ceilings (masih deferred):** prod FORCE strict RLS · Sentry.io · Midtrans auto-payout.
 
