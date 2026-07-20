@@ -18,7 +18,8 @@ Closes canvas **audit multi-peran** Wave-58 infra track.
 
 Scripts: `npm run smoke:wave58` · `npm run deploy:humanify:staging`
 
-**DNS required:** A/CNAME `staging.humanify.id` → VPS (Cloudflare proxy OK).
+**DNS required:** A/CNAME `staging.humanify.id` → VPS `103.92.215.37` (Cloudflare proxy OK).  
+**VPS status (20 Jul):** PM2 `humanify-staging` :3021 online · DB cloned from prod · `HUMANIFY_RLS_MODE=strict` · nginx `humanify-staging` configured. Public URL blocked until DNS propagates.
 
 **Deferred:** bare-session migration batch-2 · ESS tab code-split · Redis alert webhook hardening.
 
