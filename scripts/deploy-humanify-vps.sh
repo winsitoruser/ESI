@@ -560,7 +560,7 @@ if [ -n "$_PM2_STARTUP" ]; then
 fi
 pm2 save
 sleep 3
-HUMANIFY_PM2_NAME='$HUMANIFY_PM2_NAME' bash humanify-healthcheck.sh "http://127.0.0.1:$HUMANIFY_PORT" || true
+HUMANIFY_PM2_NAME="${HUMANIFY_PM2_NAME}" bash humanify-healthcheck.sh "http://127.0.0.1:${HUMANIFY_PORT}" || true
 REMOTE_PM2
 
 PUBLIC_SCHEME="http"

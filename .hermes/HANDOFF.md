@@ -17,6 +17,8 @@ Closes canvas **audit multi-peran** deferred track post Wave-58.
 
 Scripts: `npm run smoke:wave59` · `npm run lint:humanify-hq-auth`
 
+Deploy verified 20 Jul 2026 — BUILD_OK · PM2 online · health checks passed.
+
 **Deferred (Wave-60+):** ~50 remaining bare-session APIs · HomeTab split · mock-guard extend · staging DNS public verify.
 
 ## Wave-58 (20 Jul 2026) — Staging track
