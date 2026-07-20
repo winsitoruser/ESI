@@ -66,7 +66,11 @@ ensure_line "doc-expiry-soft" "0 2 * * 1" \
 
 # Weekly IDOR security scorecard — Sun 23:00 UTC (Mon 06:00 WIB)
 ensure_line "security-scorecard" "0 23 * * 0" \
-  "SMOKE_BASE_URL='${SCORECARD_BASE}' node scripts/run-humanify-security-scorecard.js >> ${LOG_DIR}/humanify-security-scorecard.log 2>&1 || true"
+  "SMOKE_BASE_URL='${SCORECARD_BASE}' node scripts/run-humanify-security-scorecard-cron.js >> ${LOG_DIR}/humanify-security-scorecard.log 2>&1 || true"
+
+# Redis down alert (fail-open rate-limit) — every 10 min
+ensure_line "redis-alert" "*/10 * * * *" \
+  "node scripts/check-humanify-redis-alert.js >> ${LOG_DIR}/humanify-redis-alert.log 2>&1 || true"
 
 # External uptime probe last-run (Wave-25) — every 6h; writes /var/lib/humanify/uptime-last.json
 ensure_line "uptime-external" "15 */6 * * *" \

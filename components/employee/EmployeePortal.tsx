@@ -32,6 +32,8 @@ const TabSkeleton = () => (
   </div>
 );
 
+const LeaveTab = dynamic(() => import('@/components/employee/tabs/LeaveTab'), { loading: () => <TabSkeleton />, ssr: false });
+const AttendanceTab = dynamic(() => import('@/components/employee/tabs/AttendanceTab'), { loading: () => <TabSkeleton />, ssr: false });
 const MultifinanceFieldTab = dynamic(() => import('@/components/employee/MultifinanceFieldTab'), { loading: () => <TabSkeleton />, ssr: false });
 const ManagerHubTab = dynamic(() => import('@/components/employee/ManagerHubTab'), { loading: () => <TabSkeleton />, ssr: false });
 const MyFilesTab = dynamic(() => import('@/components/employee/MyFilesTab'), { loading: () => <TabSkeleton />, ssr: false });
@@ -94,8 +96,6 @@ const LEAVE_TYPES = [
   { value: 'maternity', label: 'Cuti Melahirkan' },
   { value: 'unpaid', label: 'Cuti Tanpa Gaji' },
 ];
-
-const LEAVE_COLORS = ['bg-blue-500', 'bg-red-500', 'bg-purple-500', 'bg-pink-500', 'bg-gray-500'];
 
 const getInitials = (name: string) =>
   (name || 'K').split(' ').filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase()).join('');
@@ -1454,71 +1454,12 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
     </div>
   );
 
-  // ─── TAB: LEAVE ───
   const renderLeave = () => (
-    <div className="space-y-4">
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold text-gray-900">Saldo Cuti</h3>
-          <button onClick={() => setModal('leave')} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium flex items-center gap-1">
-            <Plus className="w-3.5 h-3.5" /> Ajukan Cuti
-          </button>
-        </div>
-        <div className="space-y-3">
-          {leaveBalance.map((lb: any, i: number) => (
-            <div key={i}>
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-gray-700">{lb.type || lb.name}</span>
-                <span className="font-medium">{lb.used || lb.used_days || 0}/{lb.total || lb.total_days || 12} hari</span>
-              </div>
-              <div className="w-full bg-gray-100 rounded-full h-2.5">
-                <div className={`h-2.5 rounded-full ${LEAVE_COLORS[i % LEAVE_COLORS.length]}`}
-                  style={{ width: `${((lb.used || lb.used_days || 0) / (lb.total || lb.total_days || 12)) * 100}%` }} />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-        <h3 className="font-semibold text-gray-900 mb-3">Riwayat Pengajuan</h3>
-        {leaveRequests.length === 0 ? <p className="text-sm text-gray-400 text-center py-4">Belum ada pengajuan cuti</p> : (
-          <div className="space-y-2.5">
-            {leaveRequests.map((l: any) => (
-              <div key={l.id} className="p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-medium text-gray-900">{l.leave_type_name || LEAVE_TYPES.find(t => t.value === l.leave_type)?.label || l.leave_type}</span>
-                  <StatusBadge status={l.status} />
-                </div>
-                <p className="text-xs text-gray-500 mb-1">{l.reason}</p>
-                <div className="flex items-center gap-3 text-[11px] text-gray-400">
-                  <span className="flex items-center gap-1"><CalendarDays className="w-3 h-3" />{fmtDate(l.start_date || l.startDate)} - {fmtDate(l.end_date || l.endDate)}</span>
-                  <span>{l.total_days || l.totalDays} hari</span>
-                </div>
-                {l.status === 'pending' && l.total_approval_steps > 1 && (
-                  <div className="mt-2 flex items-center gap-2">
-                    <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-teal-500 rounded-full transition-all"
-                        style={{ width: `${Math.min(100, ((l.current_approval_step || 1) / l.total_approval_steps) * 100)}%` }}
-                      />
-                    </div>
-                    <span className="text-[10px] text-teal-600 font-semibold whitespace-nowrap">
-                      Tahap {l.current_approval_step || 1}/{l.total_approval_steps}
-                    </span>
-                  </div>
-                )}
-                {l.status === 'pending' && l.current_step?.approver_role && (
-                  <p className="text-[10px] text-amber-600 mt-1">Menunggu: {l.current_step.approver_role}</p>
-                )}
-                {l.status === 'rejected' && l.rejection_reason && (
-                  <p className="text-[10px] text-rose-600 mt-1">Alasan: {l.rejection_reason}</p>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+    <LeaveTab
+      leaveBalance={leaveBalance}
+      leaveRequests={leaveRequests}
+      onOpenApply={() => setModal('leave')}
+    />
   );
 
   // ─── TAB: CLAIMS ───
@@ -2147,127 +2088,17 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
     </div>
   );
 
-  // ─── TAB: ATTENDANCE HISTORY ───────────────────────────────────────────────
-  const attStatusConfig: Record<string, { label: string; bg: string; text: string; dot: string }> = {
-    present: { label: 'Hadir',      bg: 'bg-green-50',  text: 'text-green-700',  dot: 'bg-green-500' },
-    late:    { label: 'Terlambat',  bg: 'bg-yellow-50', text: 'text-yellow-700', dot: 'bg-yellow-500' },
-    absent:  { label: 'Absen',      bg: 'bg-red-50',    text: 'text-red-700',    dot: 'bg-red-500' },
-    leave:   { label: 'Cuti/Izin',  bg: 'bg-blue-50',   text: 'text-blue-700',   dot: 'bg-blue-500' },
-    wfh:     { label: 'WFH',        bg: 'bg-purple-50', text: 'text-purple-700', dot: 'bg-purple-500' },
-  };
-
-  const renderAttendance = () => {
-    const monthLabel = new Date(`${attMonth}-01`).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
-    const prevMonth = () => { const d = new Date(`${attMonth}-01`); d.setMonth(d.getMonth() - 1); setAttMonth(d.toISOString().slice(0, 7)); };
-    const nextMonth = () => { const d = new Date(`${attMonth}-01`); d.setMonth(d.getMonth() + 1); if (d <= new Date()) setAttMonth(d.toISOString().slice(0, 7)); };
-    const isCurrentMonth = attMonth === new Date().toISOString().slice(0, 7);
-
-    return (
-      <div className="space-y-4">
-        {/* Month Navigator */}
-        <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 shadow-sm border border-gray-100">
-          <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-gray-100 active:scale-95 transition-all">
-            <ChevronRight className="w-4 h-4 text-gray-600 rotate-180" />
-          </button>
-          <p className="font-semibold text-gray-800 text-sm capitalize">{monthLabel}</p>
-          <button onClick={nextMonth} disabled={isCurrentMonth} className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30 active:scale-95 transition-all">
-            <ChevronRight className="w-4 h-4 text-gray-600" />
-          </button>
-        </div>
-
-        {/* Attendance Rate Card */}
-        <div className="bg-gradient-to-br from-teal-600 to-emerald-700 rounded-2xl p-5 text-white shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-xs text-blue-200 uppercase tracking-wide">Tingkat Kehadiran</p>
-              <p className="text-4xl font-bold mt-0.5">{attMeta.attendanceRate}<span className="text-xl">%</span></p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-blue-200">Hari Kerja</p>
-              <p className="text-2xl font-bold">{attMeta.workDaysInMonth}<span className="text-sm font-normal"> / {attSummary.total}</span></p>
-              <p className="text-xs text-blue-200 mt-0.5">Total jam: {attMeta.totalWorkHours}j</p>
-            </div>
-          </div>
-          {/* Progress bar */}
-          <div className="bg-white/20 rounded-full h-2.5">
-            <div className="bg-white rounded-full h-2.5 transition-all duration-500" style={{ width: `${attMeta.attendanceRate}%` }} />
-          </div>
-        </div>
-
-        {/* Summary Pills */}
-        <div className="grid grid-cols-5 gap-1.5">
-          {[
-            { key: 'present', label: 'Hadir',     value: attSummary.present, color: 'bg-green-50 text-green-700' },
-            { key: 'late',    label: 'Terlambat', value: attSummary.late,    color: 'bg-yellow-50 text-yellow-700' },
-            { key: 'leave',   label: 'Cuti',      value: attSummary.leave,   color: 'bg-blue-50 text-blue-700' },
-            { key: 'wfh',     label: 'WFH',       value: attSummary.wfh,     color: 'bg-purple-50 text-purple-700' },
-            { key: 'absent',  label: 'Absen',     value: attSummary.absent,  color: 'bg-red-50 text-red-700' },
-          ].map(s => (
-            <div key={s.key} className={`${s.color} rounded-xl p-2 text-center`}>
-              <p className="text-lg font-bold">{s.value}</p>
-              <p className="text-[9px] font-medium leading-tight mt-0.5">{s.label}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Daily Records List */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-            <h3 className="font-semibold text-gray-900 text-sm">Riwayat Harian</h3>
-            <button onClick={() => fetchAttendanceHistory(attMonth)} className="text-gray-400 active:scale-95 transition-all">
-              <RefreshCw className={`w-4 h-4 ${attLoading ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
-
-          {attLoading ? (
-            <div className="flex items-center justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-blue-400" /></div>
-          ) : attHistory.length === 0 ? (
-            <div className="text-center py-10">
-              <CalendarDays className="w-10 h-10 text-gray-200 mx-auto mb-2" />
-              <p className="text-sm text-gray-400">Belum ada data absensi</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-50">
-              {attHistory.map((r, i) => {
-                const d = new Date(r.date + 'T00:00:00');
-                const cfg = attStatusConfig[r.status] || attStatusConfig['absent'];
-                const dayName = d.toLocaleDateString('id-ID', { weekday: 'short' });
-                const dayNum  = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
-                const isToday = r.date === new Date().toISOString().split('T')[0];
-                return (
-                  <div key={i} className={`flex items-center gap-3 px-4 py-3 ${isToday ? 'bg-blue-50/50' : ''}`}>
-                    {/* Date column */}
-                    <div className={`w-11 text-center flex-shrink-0 ${isToday ? 'bg-blue-600 text-white rounded-xl py-1' : ''}`}>
-                      <p className={`text-[10px] font-medium ${isToday ? 'text-blue-100' : 'text-gray-400'}`}>{dayName}</p>
-                      <p className={`text-sm font-bold ${isToday ? 'text-white' : 'text-gray-800'}`}>{d.getDate()}</p>
-                    </div>
-                    {/* Status dot */}
-                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${cfg.dot}`} />
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.text}`}>{cfg.label}</span>
-                        {r.late_minutes > 0 && <span className="text-[10px] text-yellow-600">+{r.late_minutes} mnt</span>}
-                        {isToday && <span className="text-[10px] font-bold text-blue-600">Hari ini</span>}
-                      </div>
-                      {(r.check_in || r.check_out) && (
-                        <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                          {r.check_in && <span className="flex items-center gap-0.5"><Clock className="w-3 h-3 text-green-500" />{r.check_in?.substring(0,5)}</span>}
-                          {r.check_out && <span className="flex items-center gap-0.5"><Clock className="w-3 h-3 text-orange-500" />{r.check_out?.substring(0,5)}</span>}
-                          {r.work_hours && <span className="text-gray-400">{r.work_hours}j</span>}
-                        </div>
-                      )}
-                      {r.notes && <p className="text-[10px] text-gray-400 mt-0.5 truncate">{r.notes}</p>}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
+  const renderAttendance = () => (
+    <AttendanceTab
+      attMonth={attMonth}
+      setAttMonth={setAttMonth}
+      attMeta={attMeta}
+      attSummary={attSummary}
+      attHistory={attHistory}
+      attLoading={attLoading}
+      onRefresh={fetchAttendanceHistory}
+    />
+  );
 
   // ─── TAB: OVERTIME (LEMBUR) ────────────────────────────────────────────────
   const OT_STATUS: Record<string, { label: string; bg: string; text: string; dot: string }> = {

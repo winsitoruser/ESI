@@ -1,6 +1,23 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 20 Juli 2026 — **Wave-58** · Staging track (infra)
+> Diperbarui: 20 Juli 2026 — **Wave-59** · Auth batch-2 + ESS tabs + ops alerts
+
+## Wave-59 (20 Jul 2026) — Auth batch-2 + ESS + ops
+
+Closes canvas **audit multi-peran** deferred track post Wave-58.
+
+| ID | Item | Status |
+|---|---|---|
+| BE-2 / CTO-1 | withHQAuth batch-2 (12 HR-core APIs) + lint extend | Done |
+| FE-3 | ESS `LeaveTab` + `AttendanceTab` code-split | Done |
+| DO-2 | Redis down alert cron | Done |
+| DO-5 | Scorecard cron crash wrapper + Discord | Done |
+| QA-2 | RBAC persona e2e skeleton (staging-gated) | Done |
+| ADR | D-022 | Done |
+
+Scripts: `npm run smoke:wave59` · `npm run lint:humanify-hq-auth`
+
+**Deferred (Wave-60+):** ~50 remaining bare-session APIs · HomeTab split · mock-guard extend · staging DNS public verify.
 
 ## Wave-58 (20 Jul 2026) — Staging track
 

@@ -1,6 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 import { successResponse, errorResponse, ErrorCodes, HttpStatus } from '../../../lib/api/response';
 import { launchReviewCycle, listReviewCycles } from '@/lib/hris/review-cycle';
 import { resolveDataSource } from '@/lib/hris/data-source';
@@ -16,9 +15,9 @@ try {
   triggerHRISWebhook = async () => {};
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const session = await getServerSession(req, res, authOptions);
+    const session = (req as any).session;
     if (!session?.user) {
       return res.status(HttpStatus.UNAUTHORIZED).json(
         errorResponse(ErrorCodes.UNAUTHORIZED, 'Unauthorized')
@@ -54,6 +53,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     );
   }
 }
+
+export default withHQAuth(handler, { module: 'hris' });
 
 // ========== GET: Fetch performance reviews from DB ==========
 async function getPerformanceReviews(req: NextApiRequest, res: NextApiResponse, session: any) {

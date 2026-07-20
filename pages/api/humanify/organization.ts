@@ -1,6 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 import { getDepartmentLabel } from '../../../lib/hris/master-data';
 import { syncOrgDepartments } from '../../../lib/hris/sync-org-departments';
 import { runCompensationAudit } from '@/lib/hris/compensation-bands';
@@ -58,9 +57,9 @@ async function ensureOrgTables() {
   return true;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const session = await getServerSession(req, res, authOptions);
+    const session = (req as any).session;
     if (!session?.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     const { action } = req.query;
@@ -92,6 +91,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ success: false, error: error?.message || 'Internal server error' });
   }
 }
+
+export default withHQAuth(handler, { module: 'hris' });
 
 // ===== GET: Org Tree (hierarchical) =====
 async function getOrgTree(req: NextApiRequest, res: NextApiResponse, session: any) {

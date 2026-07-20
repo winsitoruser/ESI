@@ -1,6 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 import {
   getDefaultApprovalLevels,
   inferMutationScope,
@@ -12,9 +11,9 @@ import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch (e) {}
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const session = await getServerSession(req, res, authOptions);
+    const session = (req as any).session;
     if (!session?.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     const { action } = req.query;
@@ -47,6 +46,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ success: false, error: error?.message || 'Internal server error' });
   }
 }
+
+export default withHQAuth(handler, { module: 'hris' });
 
 function getTenantId(session: any): string | null {
   return tenantIdFromSession(session);

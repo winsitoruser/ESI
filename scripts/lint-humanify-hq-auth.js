@@ -22,6 +22,19 @@ const MUST_HQ_AUTH = [
   'travel-expense.ts',
   'upload-claim.ts',
   'performance-360.ts',
+  // Wave-59 batch-2 (mutate / HR core)
+  'attendance-management.ts',
+  'kpi.ts',
+  'lifecycle.ts',
+  'recruitment.ts',
+  'performance.ts',
+  'organization.ts',
+  'disciplinary-letters.ts',
+  'industrial-relations.ts',
+  'training.ts',
+  'workflow.ts',
+  'reminders.ts',
+  'esign.ts',
 ];
 
 let failed = 0;

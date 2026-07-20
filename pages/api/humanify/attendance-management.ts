@@ -1,9 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../auth/[...nextauth]';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 import { allowHrMockFallback, resolveDataSource } from '@/lib/hris/data-source';
 import { tenantIdFromSession, findScopedById, destroyScoped } from '@/lib/saas/tenant-scope';
-import { ensureTenantDbContext } from '@/lib/saas/ensure-tenant-db-context';
 
 let sequelize: any, Op: any;
 try { sequelize = require('../../../lib/sequelize'); Op = require('sequelize').Op; } catch (e) {}
@@ -18,13 +16,12 @@ try {
   EmployeeAttendance = require('../../../models/EmployeeAttendance');
 } catch (e) { console.warn('Attendance models not available'); }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const session = await getServerSession(req, res, authOptions);
+    const session = (req as any).session;
     if (!session) return res.status(401).json({ error: 'Unauthorized' });
     const { enforceHumanifyPlanFeature } = await import('@/lib/saas/assert-feature');
     if (!(await enforceHumanifyPlanFeature(req, res, session))) return;
-    await ensureTenantDbContext(session);
 
     const { action } = req.query;
 
@@ -70,6 +67,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
+
+export default withHQAuth(handler, { module: 'hris' });
 
 function settingsToMap(settingsList: any[]) {
   return (settingsList || []).reduce((acc: any, s: any) => {

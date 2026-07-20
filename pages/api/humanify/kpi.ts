@@ -1,6 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 import { resolveDataSource } from '@/lib/hris/data-source';
 import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
 
@@ -21,9 +20,9 @@ try {
   console.warn('KPI models not available:', e);
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const session = await getServerSession(req, res, authOptions);
+    const session = (req as any).session;
     if (!session?.user) {
       return res.status(401).json({ success: false, error: 'Unauthorized' });
     }
@@ -48,6 +47,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: 'Internal server error', details: error?.message });
   }
 }
+
+export default withHQAuth(handler, { module: 'hris' });
 
 // ========== GET: Fetch KPI data with real branch calculations ==========
 async function getKPIData(req: NextApiRequest, res: NextApiResponse, tenantId: string | null) {

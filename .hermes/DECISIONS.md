@@ -161,3 +161,12 @@ Flip strict di prod **tanpa** staging IDOR + chaos = dilarang.
 3. Weekly IDOR scorecard cron uses `HUMANIFY_STAGING_URL` when set (not prod proxy).
 4. Deploy auth: `VPS_SSH_KEY` preferred over `VPS_PASS`/sshpass (`scripts/deploy-humanify-vps.sh`).
 5. Hard payroll e2e + strict RLS chaos run against staging URL only (D-014 amend unchanged).
+
+## D-022 (Wave-59): Auth batch-2 + ESS tab split + ops alerts — 20 Jul 2026
+**Security / Product / Ops:** Post–Wave-58 deferred track:
+1. **withHQAuth batch-2** — 12 HR-core mutate APIs (attendance-management, kpi, lifecycle, recruitment, performance, organization, disciplinary-letters, industrial-relations, training, workflow, reminders, esign) + extended `lint:humanify-hq-auth`.
+2. **ESS tab code-split** — `LeaveTab` + `AttendanceTab` under `components/employee/tabs/` with dynamic import from `EmployeePortal`.
+3. **Redis alert** — `check-humanify-redis-alert.js` cron when `REDIS_URL` set but ping fails (DO-2).
+4. **Scorecard cron wrapper** — `run-humanify-security-scorecard-cron.js` notifies on crash (DO-5); batch failures still handled by scorecard script.
+5. **QA-2** — `e2e/humanify-rbac-personas.spec.ts` staging-gated HR vs employee login (env-seeded).
+6. Remaining ~50 bare-session APIs deferred to Wave-60+; prod strict RLS still ADR-gated (D-013b).

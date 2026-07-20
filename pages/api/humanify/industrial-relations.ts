@@ -1,6 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../auth/[...nextauth]';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 import { rowsToSnake, rowToSnake } from '@/lib/hris/serialize-rows';
 import {
   tenantIdFromSession,
@@ -8,7 +7,6 @@ import {
   updateScoped,
   destroyScoped,
 } from '@/lib/saas/tenant-scope';
-import { ensureTenantDbContext } from '@/lib/saas/ensure-tenant-db-context';
 import { countTenantPolicyAckPending } from '@/lib/hris/policy-ack';
 
 let CompanyRegulation: any, WarningLetter: any, IrCase: any, TerminationRequest: any, ComplianceChecklist: any, AuditLog: any;
@@ -183,10 +181,9 @@ async function countPendingDisciplinaryTerminations(tenantId: string | null): Pr
   }
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions);
+async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const session = (req as any).session;
   if (!session) return res.status(401).json({ error: 'Unauthorized' });
-  await ensureTenantDbContext(session);
 
   const { method } = req;
   const { action } = req.query;
@@ -204,6 +201,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: error.message });
   }
 }
+
+export default withHQAuth(handler, { module: 'hris' });
 
 async function handleGet(req: NextApiRequest, res: NextApiResponse, action: string, session: any) {
   const tenantId = tenantIdFromSession(session);

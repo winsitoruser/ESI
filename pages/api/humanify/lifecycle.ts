@@ -1,6 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../auth/[...nextauth]';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 import { loadEmployeesList } from '../../../lib/hris/employee-lookup';
 import { getDepartmentLabel } from '../../../lib/hris/master-data';
 import { isUuid } from '../../../lib/hris/serialize-rows';
@@ -10,7 +9,6 @@ import {
   getOnboardingById, getOffboardingById,
 } from '../../../lib/hris/lifecycle-store';
 import { findScopedById, destroyScoped, updateScoped, tenantIdFromSession } from '@/lib/saas/tenant-scope';
-import { ensureTenantDbContext } from '@/lib/saas/ensure-tenant-db-context';
 
 let EmployeeContract: any, ContractReminder: any;
 try { EmployeeContract = require('../../../models/EmployeeContract'); } catch (e) { /* noop */ }
@@ -54,10 +52,9 @@ function uuid() {
   try { return require('crypto').randomUUID(); } catch { return `id-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions);
+async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const session = (req as any).session;
   if (!session) return res.status(401).json({ error: 'Unauthorized' });
-  await ensureTenantDbContext(session);
 
   const { method } = req;
   const action = (req.query.action as string) || '';
@@ -75,6 +72,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: error.message || 'Internal error' });
   }
 }
+
+export default withHQAuth(handler, { module: 'hris' });
 
 async function handleGet(req: NextApiRequest, res: NextApiResponse, action: string, session: any) {
   const tenantId = getTenantId(session);
