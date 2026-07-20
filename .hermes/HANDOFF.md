@@ -17,6 +17,8 @@ Closes canvas **Humanify — audit multi-peran** Wave-57 track.
 
 Scripts: `npm run smoke:wave57` · `smoke:wave56` · `smoke:sidebar-persona`
 
+Deploy verified 20 Jul 2026 — BUILD_OK · PAGES_OK · PM2 online · health checks passed.
+
 **Deferred (Wave-58):** staging.humanify.id · full bare-session migration · ESS tab-level code-split · Redis/deploy key ops.
 
 ## Wave-56 (20 Jul 2026) — Security honesty
