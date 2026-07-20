@@ -196,3 +196,10 @@ Flip strict di prod **tanpa** staging IDOR + chaos = dilarang.
 3. **Clone grant regression** — smoke asserts `ensure-humanify-staging-db.sh` always re-GRANTs after `pg_dump --no-acl`.
 4. **Deploy SSH** — `deploy-humanify-vps.sh` uses `sshpass -e` + `SSHPASS` so passwords containing `%` work ( `-p` treats `%` as escape).
 5. ADR ceilings unchanged: prod FORCE strict RLS · Sentry.io · Midtrans auto-payout.
+
+## D-026 (Wave-63): Payroll/attendance depth — golden bridge + tenant scope — 20 Jul 2026
+**Product / Finance / Security:** Deepen P1 payroll↔attendance without UI redesign:
+1. **Tenant scope** — `attendance-summary` + `generate-from-attendance` require `tenantId` and filter `employees` / `employee_attendance` / run updates by tenant (soft-prod IDOR defense).
+2. **Bulk import** — optional `overtimeMinutes` / `lateMinutes` on `attendance-bulk?action=import` to feed payroll OT/late lines.
+3. **`smoke:payroll-golden`** owns attendance → generate-from-attendance → OVERTIME earnings + net identity (hard fail, no soft empty-pass on this path).
+4. ADR ceilings unchanged.

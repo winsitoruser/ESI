@@ -20,6 +20,9 @@ interface ImportRow {
   source?: string;
   branchName?: string;
   notes?: string;
+  /** Wave-63 — feed payroll generate-from-attendance */
+  overtimeMinutes?: number;
+  lateMinutes?: number;
 }
 
 function buildTimestamp(date: string, time: string | null | undefined): string | null {
@@ -78,20 +81,24 @@ async function bulkImport(req: NextApiRequest, res: NextApiResponse, tenantId?: 
       const clockOut = buildTimestamp(row.date, row.clockOut);
       const workHours = calcWorkHours(clockIn, clockOut);
       const notes = [row.source ? `sumber:${row.source}` : '', row.notes || ''].filter(Boolean).join(' | ') || null;
+      const overtimeMinutes = Math.max(0, Math.round(Number(row.overtimeMinutes) || 0));
+      const lateMinutes = Math.max(0, Math.round(Number(row.lateMinutes) || 0));
 
       await sequelize.query(`
         INSERT INTO employee_attendance (
           id, tenant_id, employee_id, branch_id, date, clock_in, clock_out,
-          status, work_hours, notes, created_at, updated_at
+          status, work_hours, overtime_minutes, late_minutes, notes, created_at, updated_at
         ) VALUES (
           uuid_generate_v4(), :tenantId, :employeeId, :branchId, :date, :clockIn, :clockOut,
-          :status, :workHours, :notes, NOW(), NOW()
+          :status, :workHours, :overtimeMinutes, :lateMinutes, :notes, NOW(), NOW()
         )
         ON CONFLICT (employee_id, date) DO UPDATE SET
           clock_in = COALESCE(EXCLUDED.clock_in, employee_attendance.clock_in),
           clock_out = COALESCE(EXCLUDED.clock_out, employee_attendance.clock_out),
           status = EXCLUDED.status,
           work_hours = EXCLUDED.work_hours,
+          overtime_minutes = GREATEST(COALESCE(EXCLUDED.overtime_minutes, 0), COALESCE(employee_attendance.overtime_minutes, 0)),
+          late_minutes = GREATEST(COALESCE(EXCLUDED.late_minutes, 0), COALESCE(employee_attendance.late_minutes, 0)),
           branch_id = COALESCE(EXCLUDED.branch_id, employee_attendance.branch_id),
           notes = COALESCE(EXCLUDED.notes, employee_attendance.notes),
           updated_at = NOW()
@@ -105,6 +112,8 @@ async function bulkImport(req: NextApiRequest, res: NextApiResponse, tenantId?: 
           clockOut,
           status: row.status,
           workHours,
+          overtimeMinutes,
+          lateMinutes,
           notes,
         },
       });

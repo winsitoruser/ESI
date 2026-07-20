@@ -1165,11 +1165,13 @@ async function getAttendanceSummary(req: NextApiRequest, res: NextApiResponse, s
   if (!periodStart || !periodEnd) {
     return res.status(400).json({ success: false, error: 'periodStart and periodEnd required' });
   }
+  const tenantId = session?.user?.tenantId;
+  if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
   if (!sequelize) return res.json({ success: true, data: [], summary: {} });
 
   try {
     let empFilter = '';
-    const replacements: any = { periodStart, periodEnd };
+    const replacements: any = { periodStart, periodEnd, tenantId };
     if (branchId) { empFilter += ' AND ea.branch_id = :branchId'; replacements.branchId = branchId; }
 
     const [rows] = await sequelize.query(`
@@ -1191,9 +1193,11 @@ async function getAttendanceSummary(req: NextApiRequest, res: NextApiResponse, s
         es.base_salary,
         es.pay_type
       FROM employee_attendance ea
-      JOIN employees e ON ea.employee_id = e.id
+      JOIN employees e ON ea.employee_id = e.id AND e.tenant_id = :tenantId
       LEFT JOIN employee_salaries es ON es.employee_id = e.id AND es.is_active = true
+        AND (es.tenant_id = :tenantId OR es.tenant_id IS NULL)
       WHERE ea.date BETWEEN :periodStart AND :periodEnd
+        AND (ea.tenant_id = :tenantId OR ea.tenant_id IS NULL)
         AND ${ACTIVE_EMPLOYEE_FILTER}
         ${empFilter}
       GROUP BY ea.employee_id, e.name, e.position, e.department, e.branch_id, es.base_salary, es.pay_type
@@ -1242,10 +1246,11 @@ async function generatePayrollFromAttendance(req: NextApiRequest, res: NextApiRe
   if (!periodStart || !periodEnd) {
     return res.status(400).json({ success: false, error: 'periodStart and periodEnd required' });
   }
+  const tenantId = session?.user?.tenantId;
+  if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
   if (!sequelize) return res.json({ success: true, message: 'Generated (mock)' });
 
   try {
-    const tenantId = session.user.tenantId;
     const runCode = `PR-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Date.now().toString(36).toUpperCase()}`;
 
     // Create payroll run
@@ -1267,9 +1272,9 @@ async function generatePayrollFromAttendance(req: NextApiRequest, res: NextApiRe
     const run = runResult?.[0];
     if (!run) return res.status(500).json({ success: false, error: 'Failed to create payroll run' });
 
-    // Get attendance summary per employee for the period
+    // Get attendance summary per employee for the period (tenant-scoped)
     let empFilter = '';
-    const replacements: any = { periodStart, periodEnd };
+    const replacements: any = { periodStart, periodEnd, tenantId };
     if (branchId) { empFilter += ' AND ea.branch_id = :branchId'; replacements.branchId = branchId; }
 
     const [attendanceSummary] = await sequelize.query(`
@@ -1289,8 +1294,9 @@ async function generatePayrollFromAttendance(req: NextApiRequest, res: NextApiRe
         COALESCE(SUM(ea.late_minutes), 0) AS total_late_minutes,
         COALESCE(SUM(ea.early_leave_minutes), 0) AS total_early_leave_minutes
       FROM employee_attendance ea
-      JOIN employees e ON ea.employee_id = e.id
+      JOIN employees e ON ea.employee_id = e.id AND e.tenant_id = :tenantId
       WHERE ea.date BETWEEN :periodStart AND :periodEnd
+        AND (ea.tenant_id = :tenantId OR ea.tenant_id IS NULL)
         AND ${ACTIVE_EMPLOYEE_FILTER}
         ${empFilter}
       GROUP BY ea.employee_id, e.name, e.position, e.department, e.branch_id
@@ -1344,12 +1350,13 @@ async function generatePayrollFromAttendance(req: NextApiRequest, res: NextApiRe
       const absentDays = parseInt(emp.absent_days) || 0;
       const totalLateMinutes = parseInt(emp.total_late_minutes) || 0;
 
-      // Get employee salary config
+      // Get employee salary config (tenant-scoped)
       const [salaryRows] = await sequelize.query(`
         SELECT es.* FROM employee_salaries es
         WHERE es.employee_id = :empId AND es.is_active = true
+          AND (es.tenant_id = :tenantId OR es.tenant_id IS NULL)
         ORDER BY es.effective_date DESC LIMIT 1
-      `, { replacements: { empId } });
+      `, { replacements: { empId, tenantId } });
       const salary = salaryRows?.[0];
       const baseSalary = salary ? parseFloat(salary.base_salary) || 0 : 0;
 
@@ -1453,14 +1460,14 @@ async function generatePayrollFromAttendance(req: NextApiRequest, res: NextApiRe
       totalAttendanceDeductions += attendanceDeduction;
     }
 
-    // Update run totals
+    // Update run totals (tenant-scoped)
     await sequelize.query(`
       UPDATE payroll_runs SET total_employees = :empCount, total_gross = :gross,
         total_deductions = :deductions, total_net = :net, status = 'calculated', updated_at = NOW()
-      WHERE id = :runId
+      WHERE id = :runId AND tenant_id = :tenantId
     `, {
       replacements: {
-        runId: run.id, empCount: attendanceSummary.length,
+        runId: run.id, tenantId, empCount: attendanceSummary.length,
         gross: totalGross, deductions: totalDeductions, net: totalNet
       }
     });

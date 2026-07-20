@@ -1,6 +1,21 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 20 Juli 2026 — **Wave-62** · Staging ops hardening
+> Diperbarui: 20 Juli 2026 — **Wave-63** · Payroll/attendance depth
+
+## Wave-63 (20 Jul 2026) — Payroll/attendance depth
+
+| ID | Item | Status |
+|---|---|---|
+| BE-1 | Tenant-scope `attendance-summary` + `generate-from-attendance` | Done |
+| BE-2 | Attendance bulk import `overtimeMinutes` / `lateMinutes` | Done |
+| QA-1 | `smoke:payroll-golden` attendance → OVERTIME bridge | Done |
+| ADR | D-026 | Done |
+
+Scripts: `npm run smoke:wave63` · `npm run smoke:payroll-golden`
+
+Staging verified 20 Jul 2026 — BUILD_OK · `smoke:payroll-golden` **13/0** (attendance→OVERTIME bridge green).
+
+**ADR ceilings (masih deferred):** prod FORCE strict RLS · Sentry.io · Midtrans auto-payout.
 
 ## Wave-62 (20 Jul 2026) — Staging ops hardening
 
