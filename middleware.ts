@@ -47,9 +47,17 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL(`/c/${hostSlug}/careers`, request.url));
   }
 
-  // humanify.id root → public landing (bukan ESI login)
+  // humanify.id root → landing di URL pendek `/` (rewrite, bukan redirect ke /humanify/welcome)
   if (pathname === '/' && isHumanifyHost(host)) {
-    return NextResponse.redirect(new URL(HUMANIFY_WELCOME, request.url));
+    return NextResponse.rewrite(new URL(HUMANIFY_WELCOME, request.url));
+  }
+
+  // Canonical singkat: /humanify/welcome → / pada domain Humanify
+  if (
+    isHumanifyHost(host) &&
+    (pathname === HUMANIFY_WELCOME || pathname === `${HUMANIFY_WELCOME}/`)
+  ) {
+    return NextResponse.redirect(new URL('/', request.url));
   }
 
   const isHumanifyPublic =
@@ -105,9 +113,9 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     }
     if (!token) {
-      // Root Humanify → landing publik; sub-routes → login
+      // Root Humanify → landing publik di `/` (URL pendek)
       if (pathname === '/humanify' || pathname === '/humanify/') {
-        return NextResponse.redirect(new URL('/humanify/welcome', request.url));
+        return NextResponse.redirect(new URL('/', request.url));
       }
       const loginUrl = new URL('/humanify/login', request.url);
       loginUrl.searchParams.set('callbackUrl', pathname);

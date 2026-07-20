@@ -6,9 +6,11 @@ import { test, expect } from '@playwright/test';
  */
 test.describe('Humanify welcome → login', () => {
   test('welcome page is reachable and links to login', async ({ page }) => {
-    const res = await page.goto('/humanify/welcome', { waitUntil: 'domcontentloaded' });
+    const res = await page.goto('/', { waitUntil: 'domcontentloaded' });
     expect(res?.ok() || res?.status() === 304).toBeTruthy();
     await expect(page).toHaveTitle(/Humanify/i);
+    // Canonical short URL on humanify.id (legacy /humanify/welcome redirects here)
+    await expect(page).toHaveURL(/\/(?:$|\?)/);
 
     const loginLink = page.locator('a[href*="/humanify/login"]').first();
     await expect(loginLink).toBeVisible({ timeout: 15_000 });
@@ -53,7 +55,7 @@ test.describe('Humanify welcome → login', () => {
 
   test('welcome page shows ROI and employee portal CTAs (soft)', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
-    const res = await page.goto('/humanify/welcome', {
+    const res = await page.goto('/', {
       waitUntil: 'domcontentloaded',
       timeout: 45_000,
     });

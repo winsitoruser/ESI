@@ -63,7 +63,9 @@ export const HUMANIFY_BRAND = {
   loginPath: '/humanify/login',
   signupPath: '/humanify/signup',
   setupPath: '/humanify/setup',
-  welcomePath: '/humanify/welcome',
+  welcomePath: '/',
+  /** Legacy path — masih valid; di humanify.id di-redirect ke `/` */
+  welcomePathLegacy: '/humanify/welcome',
   roiCalculatorPath: '/humanify/pricing/roi-calculator',
   partnersPath: '/humanify/partners',
   appPath: '/humanify',

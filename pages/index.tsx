@@ -2,16 +2,15 @@ import type { GetServerSideProps } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from './api/auth/[...nextauth]';
 import { isHumanifyHost } from '@/lib/humanify/host';
-import { HUMANIFY_WELCOME } from '@/lib/humanify/paths';
 
-/** ESI ERP — no public landing; Humanify domain → welcome landing. */
+/** ESI ERP — no public landing; Humanify domain → welcome at `/` (middleware rewrite). */
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
   const host = ctx.req.headers.host;
 
   if (isHumanifyHost(host)) {
     return {
       redirect: {
-        destination: HUMANIFY_WELCOME,
+        destination: '/',
         permanent: false,
       },
     };

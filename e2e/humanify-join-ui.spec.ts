@@ -19,7 +19,7 @@ test.describe('Humanify join invite UI (soft)', () => {
     await expect(page.getByRole('link', { name: /Kembali ke login/i })).toBeVisible({
       timeout: 10_000,
     });
-    await expect(page.locator('a[href*="/humanify/welcome"]').first()).toBeVisible({
+    await expect(page.locator('a[href="/"], a[href*="/humanify/welcome"]').first()).toBeVisible({
       timeout: 10_000,
     });
     await expect(page.locator('body')).toContainText(/Pelajari Humanify/i, { timeout: 8_000 });

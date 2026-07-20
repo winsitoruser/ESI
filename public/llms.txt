@@ -3,7 +3,7 @@
 
 ## Product
 - HRIS: attendance (GPS/geofence), payroll (PPh 21, BPJS, THR), leave, recruitment, OKR/KPI, ESS employee portal
-- Public marketing: https://humanify.id/humanify/welcome
+- Public marketing: https://humanify.id/
 - Trial signup: https://humanify.id/humanify/signup
 - ROI calculator: https://humanify.id/humanify/pricing/roi-calculator
 - Partner channel: https://humanify.id/humanify/partners

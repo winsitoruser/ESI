@@ -65,7 +65,7 @@ export default function HumanifyPartnersPage() {
         footerVariant="dark"
       >
         <div className="max-w-3xl mx-auto px-4 pb-16">
-          <Link href="/humanify/welcome" className="inline-flex items-center gap-1 text-sm text-white/60 hover:text-white mb-6">
+          <Link href={HUMANIFY_BRAND.welcomePath} className="inline-flex items-center gap-1 text-sm text-white/60 hover:text-white mb-6">
             <ArrowLeft className="w-4 h-4" /> Kembali
           </Link>
 
@@ -86,7 +86,7 @@ export default function HumanifyPartnersPage() {
                 <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto mb-3" />
                 <h2 className="text-lg font-semibold text-emerald-900">Pendaftaran terkirim</h2>
                 <p className="text-sm text-emerald-800 mt-2">Terima kasih — tim partnership akan menghubungi Anda.</p>
-                <Link href="/humanify/welcome" className="inline-block mt-4 text-sm font-medium hover:underline" style={{ color: 'var(--hf-brand-600)' }}>
+                <Link href={HUMANIFY_BRAND.welcomePath} className="inline-block mt-4 text-sm font-medium hover:underline" style={{ color: 'var(--hf-brand-600)' }}>
                   Ke beranda Humanify
                 </Link>
               </div>

@@ -27,9 +27,17 @@ export const HUMANIFY_PUBLIC_ROUTES: {
   description: string;
 }[] = [
   {
-    path: '/humanify/welcome',
+    path: '/',
     priority: 1.0,
     changefreq: 'weekly',
+    title: 'Humanify — HRIS System | Naincode',
+    description:
+      'Sistem HRIS lengkap untuk mengelola karyawan, kehadiran, payroll, rekrutmen, dan kinerja — bagian dari ekosistem produk Naincode.',
+  },
+  {
+    path: '/humanify/welcome',
+    priority: 0.3,
+    changefreq: 'monthly',
     title: 'Humanify — HRIS System | Naincode',
     description:
       'Sistem HRIS lengkap untuk mengelola karyawan, kehadiran, payroll, rekrutmen, dan kinerja — bagian dari ekosistem produk Naincode.',
@@ -92,7 +100,7 @@ export function buildSoftwareApplicationJsonLd() {
     applicationCategory: 'BusinessApplication',
     applicationSubCategory: 'HRIS',
     operatingSystem: 'Web',
-    url: absoluteUrl('/humanify/welcome'),
+    url: absoluteUrl('/'),
     description:
       'Sistem HRIS lengkap untuk mengelola karyawan, kehadiran, payroll, rekrutmen, dan kinerja.',
     offers: {

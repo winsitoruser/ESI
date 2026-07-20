@@ -73,7 +73,7 @@ test.describe('Humanify careers portal UI (soft)', () => {
       timeout: 10_000,
     });
     await expect(page.locator('body')).toContainText(/Masuk HR/i, { timeout: 8_000 });
-    await expect(page.locator('a[href*="/humanify/welcome"]').first()).toBeVisible({
+    await expect(page.locator('a[href="/"], a[href*="/humanify/welcome"]').first()).toBeVisible({
       timeout: 10_000,
     });
     await expect(page.locator('a[href*="/humanify/signup"]').first()).toBeVisible({

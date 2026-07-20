@@ -21,7 +21,7 @@ test.describe('Humanify partners UI (soft)', () => {
     expect(page.url()).not.toMatch(/\/humanify\/login/);
 
     await expect(page.locator('a[href*="/humanify/login"]').first()).toBeVisible({ timeout: 10_000 });
-    await expect(page.locator('a[href*="/humanify/welcome"]').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('a[href="/"], a[href*="/humanify/welcome"]').first()).toBeVisible({ timeout: 10_000 });
     await expect(page.locator('a[href*="/humanify/signup"]').first()).toBeVisible({ timeout: 10_000 });
     await expect(page.locator('body')).toContainText(/Daftar|Jenis mitra/i, { timeout: 10_000 });
     await expect(page.locator('a[href*="/humanify/pricing/roi-calculator"]').first()).toBeVisible({

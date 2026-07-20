@@ -176,7 +176,7 @@ export function wrapHumanifyEmail(opts: WrapEmailOpts): string {
         <p style="margin:16px 0 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:11px;color:#a1a1aa;">
           <a href="${escapeHtml(base)}/humanify/login" style="color:#7c3aed;text-decoration:none;">Login</a>
           &nbsp;·&nbsp;
-          <a href="${escapeHtml(base)}/humanify/welcome" style="color:#7c3aed;text-decoration:none;">Pelajari Humanify</a>
+          <a href="${escapeHtml(base)}/" style="color:#7c3aed;text-decoration:none;">Pelajari Humanify</a>
         </p>
       </td>
     </tr>
