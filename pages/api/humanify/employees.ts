@@ -498,9 +498,16 @@ async function deleteEmployee(req: NextApiRequest, res: NextApiResponse) {
     );
   }
 
+  const idStr = String(Array.isArray(id) ? id[0] : id);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idStr)) {
+    return res.status(HttpStatus.BAD_REQUEST).json(
+      errorResponse(ErrorCodes.VALIDATION_ERROR, 'Employee ID must be a valid UUID')
+    );
+  }
+
   try {
     // 🔒 TENANT ISOLATION: scope by tenantId (platform ops = no tenant → any).
-    const where: any = { id };
+    const where: any = { id: idStr };
     if (tenantId) where.tenantId = tenantId;
     const record = await model.findOne({ where });
 

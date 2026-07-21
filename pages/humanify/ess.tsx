@@ -155,7 +155,13 @@ export default function ESSPortalPage() {
       return;
     }
     try {
-      const receipt_url = uploadedFiles.length > 0 ? JSON.stringify(uploadedFiles.map(f => f.url)) : claimForm.receipt_url || null;
+      const receipt_url = uploadedFiles.length > 0
+        ? JSON.stringify(uploadedFiles.map((f) => ({
+          storageKey: f.storageKey,
+          filename: f.filename,
+          mimetype: f.mimetype,
+        })))
+        : claimForm.receipt_url || null;
       const res = await fetch('/api/humanify/workflow?action=claim', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...claimForm, receipt_url })

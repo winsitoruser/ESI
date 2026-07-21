@@ -10,6 +10,16 @@ import {
   hasAimanLiveData,
   type AimanDataContext,
 } from './ai-data-resolver';
+import {
+  detectAgentWorkflow,
+  runAimanAgent,
+  isAgentConfirmMessage,
+  confirmAimanAgentActions,
+  type AgentPendingAction,
+  type AgentStep,
+  type AgentWorkflowId,
+} from './aiman-agent';
+import type { AgentToolName } from './aiman-agent-tools';
 
 let sequelize: any;
 try { sequelize = require('../../lib/sequelize'); } catch {}
@@ -17,8 +27,22 @@ try { sequelize = require('../../lib/sequelize'); } catch {}
 export interface CopilotMessage {
   role: 'user' | 'assistant';
   content: string;
-  source?: 'rules' | 'llm' | 'hybrid' | 'live-data';
+  source?: 'rules' | 'llm' | 'hybrid' | 'live-data' | 'agent' | 'agent+llm' | 'agent-confirm';
 }
+
+export type CopilotChatResult = {
+  reply: string;
+  module: HRModule;
+  insights: unknown[];
+  source: string;
+  persona: string;
+  dataContext?: AimanDataContext;
+  agent?: {
+    workflowId: AgentWorkflowId | null;
+    steps: AgentStep[];
+    pendingActions: AgentPendingAction[];
+  };
+};
 
 const INTENT_MAP: { pattern: RegExp; module: HRModule }[] = [
   { pattern: /rekrut|kandidat|hiring|recruit|lowongan|pelamar/i, module: 'recruitment' },
@@ -93,8 +117,64 @@ export async function chatWithCopilot(opts: {
   message: string;
   tenantId: string | null;
   userId?: string | null;
+  userEmail?: string | null;
   history?: CopilotMessage[];
-}): Promise<{ reply: string; module: HRModule; insights: unknown[]; source: string; persona: string; dataContext?: AimanDataContext }> {
+  pendingTools?: AgentToolName[];
+}): Promise<CopilotChatResult> {
+  // Text confirm for previously pending write tools
+  const pending = (opts.pendingTools || []).filter(Boolean) as AgentToolName[];
+  if (pending.length && isAgentConfirmMessage(opts.message)) {
+    const confirmed = await confirmAimanAgentActions({
+      tools: pending,
+      tenantId: opts.tenantId,
+      actorUserId: opts.userId,
+      actorEmail: opts.userEmail,
+    });
+    return {
+      reply: confirmed.reply,
+      module: 'general',
+      insights: [],
+      source: 'agent-confirm',
+      persona: AIMAN.name,
+      agent: {
+        workflowId: null,
+        steps: confirmed.steps,
+        pendingActions: [],
+      },
+    };
+  }
+
+  // Assisted agent workflows
+  const workflowId = detectAgentWorkflow(opts.message);
+  if (workflowId) {
+    const agent = await runAimanAgent({
+      message: opts.message,
+      tenantId: opts.tenantId,
+      workflowId,
+    });
+    const moduleMap: Record<string, HRModule> = {
+      payroll_prep: 'payroll',
+      recruitment_screen: 'recruitment',
+      hr_backlog: 'leave',
+      leave_desk: 'leave',
+      contract_watch: 'workforce',
+      onboarding_check: 'workforce',
+      general_scan: 'general',
+    };
+    return {
+      reply: agent.reply,
+      module: moduleMap[workflowId] || 'general',
+      insights: [],
+      source: agent.source,
+      persona: AIMAN.name,
+      agent: {
+        workflowId: agent.workflowId,
+        steps: agent.steps,
+        pendingActions: agent.pendingActions,
+      },
+    };
+  }
+
   const module = detectModule(opts.message);
   const dataContext = await resolveAimanDataContext(opts.message, opts.tenantId);
   const insightCtx = buildInsightContext(dataContext, module);

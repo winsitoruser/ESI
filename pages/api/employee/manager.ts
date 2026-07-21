@@ -177,6 +177,7 @@ async function getPendingApprovals(res: NextApiResponse, userId: string, tenantI
   const claimTenant = tenantId ? 'AND c.tenant_id = :tenantId' : '';
   const [claims] = await sequelize.query(`
     SELECT c.id, c.claim_type, c.amount, c.claim_date, c.description, c.status, c.created_at,
+      c.receipt_url, c.attachments_count,
       e.name AS employee_name, e.position, e.department, 'claim' AS approval_type
     FROM employee_claims c
     JOIN employees e ON c.employee_id::text = e.id::text

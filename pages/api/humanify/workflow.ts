@@ -109,14 +109,28 @@ async function createClaim(req: NextApiRequest, res: NextApiResponse, session: a
   );
   const claimNumber = `CLM-${String(parseInt(countRes[0].cnt) + 1).padStart(5, '0')}`;
 
+  let receiptUrlFinal = receipt_url || null;
+  let attachmentsCount = 0;
+  if (receipt_url) {
+    try {
+      const { parseClaimReceipts } = await import('@/lib/hris/claim-receipt');
+      attachmentsCount = parseClaimReceipts(receipt_url).length;
+    } catch {
+      attachmentsCount = 1;
+    }
+  }
+
   const [result] = await sequelize.query(`
-    INSERT INTO employee_claims (tenant_id, employee_id, claim_number, claim_type, amount, claim_date, description, receipt_url, receipt_number, status)
-    VALUES (:tenantId, :employee_id, :claimNumber, :claim_type, :amount, :claim_date, :description, :receipt_url, :receipt_number, 'pending') RETURNING *
+    INSERT INTO employee_claims (tenant_id, employee_id, claim_number, claim_type, amount, claim_date, description, receipt_url, receipt_number, attachments_count, status)
+    VALUES (:tenantId, :employee_id, :claimNumber, :claim_type, :amount, :claim_date, :description, :receipt_url, :receipt_number, :attachments_count, 'pending') RETURNING *
   `, {
     replacements: {
       tenantId, employee_id, claimNumber, claim_type, amount,
       claim_date: claim_date || new Date().toISOString().split('T')[0],
-      description: description || null, receipt_url: receipt_url || null, receipt_number: receipt_number || null,
+      description: description || null,
+      receipt_url: receiptUrlFinal,
+      receipt_number: receipt_number || null,
+      attachments_count: attachmentsCount,
     },
   });
   return res.json({ success: true, data: result[0] || result, message: 'Claim submitted' });

@@ -63,6 +63,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     }))) return;
 
     const userId = asUuid((session.user as any).id);
+    const userEmail = (session.user as any).email || null;
     const { action } = req.query;
     const period = (req.query.period as string) || new Date().toISOString().substring(0, 7);
 
@@ -108,15 +109,69 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     if (req.method === 'POST') {
       if (action === 'chat') {
-        const { message, history } = req.body || {};
+        const { message, history, pendingTools } = req.body || {};
         if (!message?.trim()) return res.status(400).json({ success: false, error: 'message required' });
         await saveConversation({ tenantId, userId, role: 'user', message, source: 'user' });
-        const result = await chatWithCopilot({ message, tenantId, userId, history });
+        const result = await chatWithCopilot({
+          message,
+          tenantId,
+          userId,
+          userEmail,
+          history,
+          pendingTools: Array.isArray(pendingTools) ? pendingTools : undefined,
+        });
         await saveConversation({
           tenantId, userId, role: 'assistant', message: result.reply,
           module: result.module, source: result.source,
         });
         return res.json({ success: true, data: result });
+      }
+
+      if (action === 'agent-confirm') {
+        const { tool, tools } = req.body || {};
+        const allowed = new Set([
+          'run_automation_scan',
+          'execute_recruitment_screening',
+          'execute_contract_expiry_alert',
+          'execute_leave_backlog_alert',
+          'payroll_prep_checklist',
+          'recruitment_screen_preview',
+          'list_hr_backlog',
+          'leave_pending_detail',
+          'contract_expiry_check',
+          'onboarding_status',
+        ]);
+        const list: string[] = Array.isArray(tools) && tools.length
+          ? tools.map(String)
+          : tool ? [String(tool)] : [];
+        if (!list.length || list.some((t) => !allowed.has(t))) {
+          return res.status(400).json({ success: false, error: 'tool invalid' });
+        }
+        const { confirmAimanAgentActions, confirmAimanAgentAction } = await import('@/lib/hris/aiman-agent');
+        if (list.length === 1) {
+          const confirmed = await confirmAimanAgentAction({
+            tool: list[0] as any,
+            tenantId,
+            actorUserId: userId,
+            actorEmail: userEmail,
+          });
+          await saveConversation({
+            tenantId, userId, role: 'assistant', message: confirmed.reply,
+            module: 'agent', source: 'agent-confirm',
+          });
+          return res.json({ success: true, data: confirmed });
+        }
+        const batch = await confirmAimanAgentActions({
+          tools: list as any,
+          tenantId,
+          actorUserId: userId,
+          actorEmail: userEmail,
+        });
+        await saveConversation({
+          tenantId, userId, role: 'assistant', message: batch.reply,
+          module: 'agent', source: 'agent-confirm',
+        });
+        return res.json({ success: true, data: batch });
       }
 
       if (action === 'automation-execute') {

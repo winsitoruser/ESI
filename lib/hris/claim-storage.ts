@@ -43,9 +43,19 @@ export function makeClaimFileName(originalName: string): string {
   return `claim-${unique}${ext}`;
 }
 
-/** Persist a formidable temp file into tenant-scoped private storage. */
 export function persistClaimUpload(
   tempPath: string,
+  originalName: string,
+  tenantId: string,
+): { storageKey: string; fileName: string; size: number } {
+  const buffer = fs.readFileSync(tempPath);
+  try { fs.unlinkSync(tempPath); } catch { /* temp cleanup best-effort */ }
+  return persistClaimBuffer(buffer, originalName, tenantId);
+}
+
+/** Persist raw bytes (e.g. base64 from employee portal). */
+export function persistClaimBuffer(
+  buffer: Buffer,
   originalName: string,
   tenantId: string,
 ): { storageKey: string; fileName: string; size: number } {
@@ -53,12 +63,11 @@ export function persistClaimUpload(
   const tenantSeg = sanitizeTenantSegment(tenantId);
   const dir = ensureClaimStorageDir(tenantId);
   const dest = path.join(dir, fileName);
-  fs.renameSync(tempPath, dest);
-  const size = fs.statSync(dest).size;
+  fs.writeFileSync(dest, buffer);
   return {
     storageKey: `${CLAIM_KEY_PREFIX}${tenantSeg}/${fileName}`,
     fileName: originalName || fileName,
-    size,
+    size: buffer.length,
   };
 }
 

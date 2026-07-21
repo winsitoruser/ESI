@@ -2,9 +2,10 @@ import { useState, useEffect, useCallback, memo } from 'react';
 import {
   Shield, CheckCircle, XCircle, Clock, Calendar, Wallet, Timer,
   AlertTriangle, Users, FileWarning, Plus, Loader2, ChevronRight,
-  Send, Stamp, X, Search, MapPin, Navigation, Image, RefreshCw,
+  Send, Stamp, X, Search, MapPin, Navigation, Image, RefreshCw, Eye,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ClaimReceiptGallery, { parseClaimReceipts } from '@/components/humanify/ClaimReceiptGallery';
 import TeamMemberDetailSheet from './TeamMemberDetailSheet';
 import VisitDetailModal from './VisitDetailModal';
 import SpRequestModal from './SpRequestModal';
@@ -132,6 +133,7 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
   const [letters, setLetters] = useState<any[]>([]);
   const [approvalFilter, setApprovalFilter] = useState<'all' | 'leave' | 'claim' | 'overtime'>('all');
   const [showRejectModal, setShowRejectModal] = useState<{ type: string; id: string } | null>(null);
+  const [proofClaim, setProofClaim] = useState<any>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [showSpModal, setShowSpModal] = useState(false);
@@ -425,6 +427,15 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
                   <p><span className="font-medium">Jenis:</span> {CLAIM_TYPE_LABEL[item.claim_type] || item.claim_type}</p>
                   <p><span className="font-medium">Nominal:</span> {fmtCur(item.amount)}</p>
                   <p><span className="font-medium">Keterangan:</span> {item.description}</p>
+                  {(parseClaimReceipts(item.receipt_url).length || item.attachments_count || 0) > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setProofClaim(item)}
+                      className="mt-1 inline-flex items-center gap-1 text-violet-700 font-medium"
+                    >
+                      <Eye className="w-3.5 h-3.5" /> Lihat bukti ({parseClaimReceipts(item.receipt_url).length || item.attachments_count})
+                    </button>
+                  )}
                 </div>
               )}
               {item.approval_type === 'overtime' && (
@@ -694,6 +705,25 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
           loading={visitDetailLoading}
           onClose={() => { setVisitDetail(null); setVisitDetailLoading(false); }}
         />
+      )}
+
+      {proofClaim && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setProofClaim(null)}>
+          <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div>
+                <h3 className="font-semibold text-slate-900">Bukti Klaim</h3>
+                <p className="text-sm text-slate-500">{proofClaim.employee_name} · {fmtCur(proofClaim.amount)}</p>
+              </div>
+              <button type="button" onClick={() => setProofClaim(null)} className="p-1.5 rounded-lg hover:bg-slate-100">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="rounded-xl border bg-slate-50 p-4">
+              <ClaimReceiptGallery receiptUrl={proofClaim.receipt_url} maxThumbs={8} />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

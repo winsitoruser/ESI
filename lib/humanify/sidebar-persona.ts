@@ -16,12 +16,15 @@ const STAFF_ITEMS = new Set([
   'humanify-attendance',
   'humanify-employee-portal',
   'humanify-security',
+  'humanify-knowledge-base',
+  'humanify-support',
 ]);
 
 /** Extra items for managers (MSS + team ops). */
 const MANAGER_EXTRA = new Set([
   'humanify-mss',
   'humanify-employees',
+  'humanify-attendance-group',
   'humanify-attendance-mgmt',
   'humanify-attendance-daily',
   'humanify-kpi',
@@ -32,6 +35,8 @@ const MANAGER_EXTRA = new Set([
   'humanify-mutations',
   'humanify-travel',
   'humanify-reimbursement',
+  'humanify-knowledge-base',
+  'humanify-support',
 ]);
 
 /** Items only HR/finance/admin should see. */
@@ -49,6 +54,7 @@ const ADMIN_ONLY = new Set([
   'humanify-ai-hub',
   'humanify-ai-copilot',
   'humanify-ai-automation',
+  'humanify-ir',
   'humanify-industrial-relations',
   'humanify-disciplinary',
 ]);

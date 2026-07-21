@@ -1,6 +1,27 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 21 Juli 2026 — **Wave-65** · Formal QA matrix + leave/IR TX hardening
+> Diperbarui: 21 Juli 2026 — **Wave-66** · AIMAN agent + claim proof approval + KB depth
+
+## Wave-66 (21 Jul 2026) — AIMAN assisted agent · claim bukti · KB/sidebar
+
+| ID | Item | Status |
+|---|---|---|
+| AI-1 | AIMAN assisted agent (tools + confirm + audit `aiman.agent_confirm`) | Done |
+| AI-2 | Workflows: payroll_prep, recruitment_screen, hr_backlog, leave_desk, contract_watch, onboarding_check | Done |
+| FE-1 | ClaimReceiptGallery + private storage persist (ESS/MSS/reimbursement) | Done |
+| FE-2 | Approval **Lihat bukti** — reimbursement Aksi, MSS, ManagerHub | Done |
+| BE-1 | Manager pending-approvals exposes `receipt_url` / `attachments_count` | Done |
+| KB-1 | Knowledge Center seed detail + flowchart renderer | Done |
+| IA-1 | Sidebar IA + persona Bantuan/KB for staff/manager | Done |
+| QA-1 | `smoke:claim-proof` · `smoke-test-humanify-aiman-agent.js` | Done |
+
+Scripts: `npm run smoke:claim-proof` · `node scripts/smoke-test-humanify-aiman-agent.js` · `npm run smoke:sidebar-persona`
+
+Prod verified 21 Jul 2026 — deploy BUILD_OK · `smoke:claim-proof` **15/0** · enterprise **21/0** · manager pending `receipt_url` live.
+
+Known residual: klaim **legacy** (hanya filename di `receipt_url`) tidak bisa preview — butuh re-upload karyawan.
+
+**ADR ceilings (masih deferred):** prod FORCE strict RLS · Sentry.io · Midtrans auto-payout.
 
 ## Wave-65 (21 Jul 2026) — Formal QA closeout + TX-aborted fixes
 

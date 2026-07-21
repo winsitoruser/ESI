@@ -34,8 +34,15 @@ export default function AiHubPage() {
   const [insights, setInsights] = useState<any[]>([]);
   const [insightSource, setInsightSource] = useState('rules');
   const [chatInput, setChatInput] = useState('');
-  const [chatHistory, setChatHistory] = useState<{ role: string; content: string }[]>([]);
+  const [chatHistory, setChatHistory] = useState<{
+    role: string;
+    content: string;
+    steps?: any[];
+    pendingActions?: { tool: string; label: string; description: string; risk?: string }[];
+    workflowId?: string | null;
+  }[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
+  const [confirmingTool, setConfirmingTool] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -68,22 +75,64 @@ export default function AiHubPage() {
   }, [router.query.tab]);
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatHistory]);
 
-  const sendChat = async () => {
-    if (!chatInput.trim() || chatLoading) return;
-    const msg = chatInput.trim();
+  const sendChat = async (preset?: string) => {
+    const msg = (preset ?? chatInput).trim();
+    if (!msg || chatLoading) return;
     setChatInput('');
+    const pendingTools = [...chatHistory].reverse()
+      .find((m) => m.role === 'assistant' && m.pendingActions?.length)?.pendingActions
+      ?.map((a) => a.tool) || [];
     setChatHistory(h => [...h, { role: 'user', content: msg }]);
     setChatLoading(true);
     try {
       const res = await fetch(`${API}?action=chat`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg, history: chatHistory }),
+        body: JSON.stringify({
+          message: msg,
+          history: chatHistory.map(({ role, content }) => ({ role, content })),
+          pendingTools,
+        }),
       });
       const data = await res.json();
       if (data.success) {
-        setChatHistory(h => [...h, { role: 'assistant', content: data.data.reply }]);
+        setChatHistory(h => [...h, {
+          role: 'assistant',
+          content: data.data.reply,
+          steps: data.data.agent?.steps,
+          pendingActions: data.data.agent?.pendingActions,
+          workflowId: data.data.agent?.workflowId,
+        }]);
+        if (data.data.source === 'agent-confirm') await load();
       }
     } finally { setChatLoading(false); }
+  };
+
+  const confirmAgentAction = async (tool: string) => {
+    if (confirmingTool) return;
+    setConfirmingTool(tool);
+    try {
+      const res = await fetch(`${API}?action=agent-confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tool }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setChatHistory(h => [...h, {
+          role: 'assistant',
+          content: data.data.reply,
+          steps: data.data.step ? [data.data.step] : undefined,
+        }]);
+        await load();
+      } else {
+        setChatHistory(h => [...h, {
+          role: 'assistant',
+          content: `Gagal konfirmasi: ${data.error || 'unknown'}`,
+        }]);
+      }
+    } finally {
+      setConfirmingTool(null);
+    }
   };
 
   const runScan = async () => {
@@ -164,12 +213,13 @@ export default function AiHubPage() {
 
         {tab === 'overview' && (
           <div className="mt-6 space-y-6">
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
               {[
                 { label: 'Aturan Otomasi', value: dashboard?.totalRules ?? 0, icon: Zap, color: 'text-amber-600' },
                 { label: 'Aturan Aktif', value: dashboard?.activeRules ?? 0, icon: CheckCircle2, color: 'text-emerald-600' },
                 { label: 'Total Eksekusi', value: dashboard?.totalTriggers ?? 0, icon: Play, color: 'text-[color:var(--hf-brand-600)]' },
                 { label: 'AI Insights', value: insights.length, icon: Brain, color: 'text-purple-600' },
+                { label: 'Agent Workflow', value: 'Assisted', icon: Bot, color: 'text-[color:var(--hf-brand-600)]' },
               ].map((s) => (
                 <div key={s.label} className="bg-white border rounded-xl p-4">
                   <div className="flex items-center justify-between">
@@ -242,7 +292,7 @@ export default function AiHubPage() {
                           <button
                             key={s}
                             type="button"
-                            onClick={() => { setChatInput(s); }}
+                            onClick={() => sendChat(s)}
                             className="text-xs px-3 py-1.5 rounded-full border border-[var(--hf-brand-100)] bg-white text-[color:var(--hf-brand)] hover:bg-[var(--hf-brand-50)] transition-colors"
                           >
                             {s}
@@ -258,15 +308,53 @@ export default function AiHubPage() {
                   {m.role === 'assistant' && (
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--hf-brand-600)] text-[10px] font-bold text-white mt-0.5">AI</div>
                   )}
-                  <div className={`max-w-[78%] rounded-xl px-4 py-2.5 text-sm whitespace-pre-wrap leading-relaxed ${
+                  <div className={`max-w-[85%] rounded-xl px-4 py-2.5 text-sm leading-relaxed ${
                     m.role === 'user'
-                      ? 'bg-[var(--hf-brand-600)] text-white rounded-br-sm'
+                      ? 'bg-[var(--hf-brand-600)] text-white rounded-br-sm whitespace-pre-wrap'
                       : 'bg-slate-100 text-slate-800 border border-slate-200/80 rounded-bl-sm'
                   }`}>
                     {m.role === 'assistant' && (
-                      <p className="text-[10px] font-semibold text-[color:var(--hf-brand-600)] mb-1 uppercase tracking-wide">AIMAN</p>
+                      <p className="text-[10px] font-semibold text-[color:var(--hf-brand-600)] mb-1 uppercase tracking-wide">
+                        AIMAN{m.workflowId ? ` · Agent · ${m.workflowId}` : ''}
+                      </p>
                     )}
-                    {m.content.replace(/\*\*(.*?)\*\*/g, '$1')}
+                    <p className="whitespace-pre-wrap">{m.content.replace(/\*\*(.*?)\*\*/g, '$1')}</p>
+                    {m.steps && m.steps.length > 0 && (
+                      <div className="mt-3 space-y-1.5 border-t border-slate-200/80 pt-2">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Langkah agent</p>
+                        {m.steps.map((s: any, si: number) => (
+                          <div key={si} className="flex items-start gap-2 text-xs">
+                            <span className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 font-medium ${
+                              s.status === 'ok' ? 'bg-emerald-100 text-emerald-700'
+                                : s.status === 'pending_confirm' ? 'bg-amber-100 text-amber-700'
+                                  : s.status === 'skipped' ? 'bg-slate-100 text-slate-500'
+                                    : 'bg-red-100 text-red-700'
+                            }`}>
+                              {s.status === 'ok' ? 'ok' : s.status === 'pending_confirm' ? 'confirm' : s.status}
+                            </span>
+                            <span className="text-slate-700"><span className="font-medium">{s.label}</span> — {s.summary}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {m.pendingActions && m.pendingActions.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {m.pendingActions.map((a) => (
+                          <button
+                            key={a.tool}
+                            type="button"
+                            disabled={!!confirmingTool}
+                            onClick={() => confirmAgentAction(a.tool)}
+                            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50 ${
+                              a.risk === 'high' ? 'bg-orange-600 hover:bg-orange-700' : 'bg-[var(--hf-brand-600)] hover:bg-[var(--hf-brand)]'
+                            }`}
+                          >
+                            <Play className="h-3 w-3" />
+                            {confirmingTool === a.tool ? 'Menjalankan…' : `Konfirmasi: ${a.label}`}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -286,7 +374,7 @@ export default function AiHubPage() {
                 onChange={(e) => setChatInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendChat()}
               />
-              <button type="button" onClick={sendChat} disabled={chatLoading || !chatInput.trim()} className="px-4 py-2.5 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm font-medium disabled:opacity-50 hover:bg-[var(--hf-brand)] transition-colors">
+              <button type="button" onClick={() => sendChat()} disabled={chatLoading || !chatInput.trim()} className="px-4 py-2.5 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm font-medium disabled:opacity-50 hover:bg-[var(--hf-brand)] transition-colors">
                 Kirim
               </button>
             </div>

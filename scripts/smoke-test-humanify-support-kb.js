@@ -42,8 +42,28 @@ async function main() {
   }
 
   const kb = await (await fetch(`${BASE}/api/humanify/knowledge-base`, { headers: { Cookie: COOKIE } })).json();
-  if (kb.success && Array.isArray(kb.data) && kb.data.length >= 1) ok(`kb list (${kb.data.length})`);
-  else fail('kb list', JSON.stringify(kb).slice(0, 160));
+  if (kb.success && Array.isArray(kb.data) && kb.data.length >= 10) ok(`kb list detailed (${kb.data.length})`);
+  else if (kb.success && Array.isArray(kb.data) && kb.data.length >= 1) {
+    fail('kb list', `expected ≥10 detailed articles, got ${kb.data.length}`);
+  } else fail('kb list', JSON.stringify(kb).slice(0, 160));
+
+  const guide = (kb.data || []).find((a) => a.slug === 'panduan-lengkap-memulai-humanify') || kb.data?.[0];
+  if (guide?.slug || guide?.id) {
+    const key = guide.slug || guide.id;
+    const detail = await (
+      await fetch(`${BASE}/api/humanify/knowledge-base?action=detail&slug=${encodeURIComponent(key)}`, {
+        headers: { Cookie: COOKIE },
+      })
+    ).json();
+    const content = detail?.data?.content || '';
+    if (content.includes('flowchart') || content.includes('```flowchart')) {
+      ok(`kb detail has flowchart (${key})`);
+    } else if (content.length > 800) {
+      ok(`kb detail long-form (${content.length} chars)`);
+    } else {
+      fail('kb detail', 'content too short / missing flowchart');
+    }
+  }
 
   const sum = await (await fetch(`${BASE}/api/humanify/support?action=summary`, { headers: { Cookie: COOKIE } })).json();
   if (sum.success && sum.data) ok(`ticket summary total=${sum.data.total}`);

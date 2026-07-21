@@ -26,32 +26,158 @@ const CATEGORY_LABEL: Record<string, string> = {
   karyawan: 'Karyawan',
   payroll: 'Payroll',
   kehadiran: 'Kehadiran & Cuti',
-  keamanan: 'Keamanan',
+  kinerja: 'Kinerja (KPI/OKR)',
+  talent: 'Talent & LMS',
+  ess: 'ESS / MSS',
+  keamanan: 'Keamanan & Billing',
   umum: 'Umum',
 };
+
+function inlineHtml(text: string) {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 bg-gray-100 rounded text-[12px] font-mono">$1</code>');
+}
 
 function renderSimpleMarkdown(md: string) {
   const lines = String(md || '').split('\n');
   const nodes: ReactNode[] = [];
   let i = 0;
-  let listItems: string[] = [];
+  let listItems: { ordered: boolean; text: string }[] = [];
+  let ordered = false;
+  let fence: { lang: string; body: string[] } | null = null;
+  let tableRows: string[][] = [];
+
   const flushList = () => {
     if (!listItems.length) return;
+    const Tag = ordered ? 'ol' : 'ul';
+    const cls = ordered
+      ? 'list-decimal pl-5 space-y-1.5 text-sm text-gray-700 mb-3'
+      : 'list-disc pl-5 space-y-1.5 text-sm text-gray-700 mb-3';
     nodes.push(
-      <ul key={`ul-${i}`} className="list-disc pl-5 space-y-1 text-sm text-gray-700 mb-3">
+      <Tag key={`list-${i++}`} className={cls}>
         {listItems.map((li, idx) => (
-          <li key={idx}>{li}</li>
+          <li key={idx} dangerouslySetInnerHTML={{ __html: inlineHtml(li.text) }} />
         ))}
-      </ul>,
+      </Tag>,
     );
     listItems = [];
   };
+
+  const flushTable = () => {
+    if (!tableRows.length) return;
+    const [header, ...body] = tableRows;
+    const dataRows = body.filter((r) => !r.every((c) => /^:?-+:?$/.test(c.trim())));
+    nodes.push(
+      <div key={`tbl-${i++}`} className="overflow-x-auto mb-4 border rounded-lg">
+        <table className="min-w-full text-sm text-left">
+          <thead className="bg-gray-50 border-b">
+            <tr>
+              {header.map((c, idx) => (
+                <th key={idx} className="px-3 py-2 font-semibold text-gray-800 whitespace-nowrap">
+                  {c.trim()}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {dataRows.map((row, rIdx) => (
+              <tr key={rIdx} className="border-b last:border-0">
+                {row.map((c, cIdx) => (
+                  <td
+                    key={cIdx}
+                    className="px-3 py-2 text-gray-700 align-top"
+                    dangerouslySetInnerHTML={{ __html: inlineHtml(c.trim()) }}
+                  />
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>,
+    );
+    tableRows = [];
+  };
+
+  const flushFence = () => {
+    if (!fence) return;
+    const body = fence.body.join('\n');
+    const isFlow = /^(flowchart|mermaid|diagram)$/i.test(fence.lang);
+    if (isFlow) {
+      nodes.push(
+        <div
+          key={`flow-${i++}`}
+          className="mb-4 rounded-xl border border-slate-200 bg-slate-50 overflow-hidden"
+        >
+          <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500 bg-slate-100 border-b border-slate-200">
+            Flowchart
+          </div>
+          <pre className="p-4 text-[12px] leading-relaxed font-mono text-slate-800 whitespace-pre overflow-x-auto">
+            {body}
+          </pre>
+        </div>,
+      );
+    } else {
+      nodes.push(
+        <pre
+          key={`code-${i++}`}
+          className="mb-4 p-3 rounded-lg bg-gray-900 text-gray-100 text-[12px] font-mono overflow-x-auto"
+        >
+          {body}
+        </pre>,
+      );
+    }
+    fence = null;
+  };
+
   for (const raw of lines) {
     const line = raw.trimEnd();
+
+    if (fence) {
+      if (/^```/.test(line.trim())) {
+        flushFence();
+      } else {
+        fence.body.push(raw);
+      }
+      continue;
+    }
+
+    const fenceOpen = line.trim().match(/^```(\w+)?\s*$/);
+    if (fenceOpen) {
+      flushList();
+      flushTable();
+      fence = { lang: fenceOpen[1] || 'text', body: [] };
+      continue;
+    }
+
+    if (/^\|/.test(line) && line.includes('|')) {
+      flushList();
+      const cells = line
+        .replace(/^\|/, '')
+        .replace(/\|$/, '')
+        .split('|')
+        .map((c) => c.trim());
+      tableRows.push(cells);
+      continue;
+    }
+    if (tableRows.length) flushTable();
+
+    if (/^###\s+/.test(line)) {
+      flushList();
+      nodes.push(
+        <h3 key={`h3-${i++}`} className="text-base font-semibold text-gray-900 mt-4 mb-1.5">
+          {line.replace(/^###\s+/, '')}
+        </h3>,
+      );
+      continue;
+    }
     if (/^##\s+/.test(line)) {
       flushList();
       nodes.push(
-        <h2 key={`h2-${i++}`} className="text-lg font-semibold text-gray-900 mt-4 mb-2">
+        <h2 key={`h2-${i++}`} className="text-lg font-semibold text-gray-900 mt-5 mb-2 border-b border-gray-100 pb-1">
           {line.replace(/^##\s+/, '')}
         </h2>,
       );
@@ -67,7 +193,15 @@ function renderSimpleMarkdown(md: string) {
       continue;
     }
     if (/^[-*]\s+/.test(line)) {
-      listItems.push(line.replace(/^[-*]\s+/, ''));
+      if (listItems.length && ordered) flushList();
+      ordered = false;
+      listItems.push({ ordered: false, text: line.replace(/^[-*]\s+/, '') });
+      continue;
+    }
+    if (/^\d+\.\s+/.test(line)) {
+      if (listItems.length && !ordered) flushList();
+      ordered = true;
+      listItems.push({ ordered: true, text: line.replace(/^\d+\.\s+/, '') });
       continue;
     }
     flushList();
@@ -75,18 +209,17 @@ function renderSimpleMarkdown(md: string) {
       nodes.push(<div key={`sp-${i++}`} className="h-2" />);
       continue;
     }
-    const html = line
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 bg-gray-100 rounded text-[12px]">$1</code>');
     nodes.push(
       <p
         key={`p-${i++}`}
         className="text-sm text-gray-700 leading-relaxed mb-2"
-        dangerouslySetInnerHTML={{ __html: html }}
+        dangerouslySetInnerHTML={{ __html: inlineHtml(line) }}
       />,
     );
   }
   flushList();
+  flushTable();
+  flushFence();
   return nodes;
 }
 
@@ -178,7 +311,7 @@ export default function KnowledgeBasePage() {
 
   if (selected) {
     return (
-      <HQLayout title="Knowledge Center" subtitle={selected.title}>
+      <HQLayout title="Pusat Pengetahuan" subtitle={selected.title}>
         <div className="max-w-3xl mx-auto space-y-4">
           <button
             type="button"
@@ -222,14 +355,14 @@ export default function KnowledgeBasePage() {
 
   return (
     <HQLayout
-      title="Knowledge Center"
-      subtitle="Pusat pengetahuan & panduan Humanify HRIS"
+      title="Pusat Pengetahuan"
+      subtitle="Panduan produk, fitur, flowchart, dan penjelasan modul Humanify"
     >
       <div className="space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-[color:var(--hf-brand)]" />
-            <h2 className="text-lg font-semibold text-gray-900">Knowledge Center</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Pusat Pengetahuan</h2>
             <DataSourceBadge source={dataSource} />
           </div>
           <div className="flex gap-2">
@@ -252,7 +385,9 @@ export default function KnowledgeBasePage() {
 
         <div className="bg-gradient-to-br from-[var(--hf-brand)] to-[color:var(--hf-brand-600)] rounded-2xl p-6 text-white">
           <h3 className="text-xl font-semibold mb-1">Bagaimana kami bisa membantu?</h3>
-          <p className="text-sm text-white/80 mb-4">Cari panduan setup, payroll, absensi, keamanan, dan support.</p>
+          <p className="text-sm text-white/80 mb-4">
+            Panduan lengkap: mulai penggunaan, detail fitur &amp; komponen, flowchart, serta penjelasan modul.
+          </p>
           <div className="relative max-w-xl">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input

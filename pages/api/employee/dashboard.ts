@@ -786,8 +786,10 @@ async function createClaim(req: NextApiRequest, res: NextApiResponse, userId: st
       return res.status(400).json({ success: false, error: 'Profil karyawan belum tersedia' });
     }
     const now = new Date().toISOString();
-    const attachmentsCount = Array.isArray(attachments) ? attachments.length : 0;
-    const receiptUrl = attachmentsCount > 0 ? JSON.stringify(attachments.map((a: any) => a.name)) : null;
+    const { persistPortalClaimAttachments, serializeClaimReceipts } = await import('@/lib/hris/claim-receipt');
+    const savedFiles = await persistPortalClaimAttachments(attachments, tenantId || emp.tenantId || '');
+    const attachmentsCount = savedFiles.length;
+    const receiptUrl = attachmentsCount > 0 ? serializeClaimReceipts(savedFiles) : null;
     await sequelize.query(`
       INSERT INTO employee_claims (
         id, employee_id, claim_type, amount, description, receipt_date, claim_date,
@@ -846,7 +848,12 @@ async function resubmitClaim(req: NextApiRequest, res: NextApiResponse, userId: 
       return res.status(404).json({ success: false, error: 'Klaim tidak ditemukan atau tidak bisa diajukan ulang' });
     }
     const attachmentsCount = Array.isArray(attachments) ? attachments.length : null;
-    const receiptUrl = attachmentsCount ? JSON.stringify(attachments.map((a: any) => a.name)) : null;
+    const { persistPortalClaimAttachments, serializeClaimReceipts } = await import('@/lib/hris/claim-receipt');
+    const savedFiles = attachmentsCount
+      ? await persistPortalClaimAttachments(attachments, tenantId)
+      : [];
+    const receiptUrl = savedFiles.length ? serializeClaimReceipts(savedFiles) : null;
+    const finalAttachmentsCount = savedFiles.length || attachmentsCount;
     await sequelize.query(`
       UPDATE employee_claims
       SET status = 'pending',
@@ -863,7 +870,7 @@ async function resubmitClaim(req: NextApiRequest, res: NextApiResponse, userId: 
           resubmit_count = COALESCE(resubmit_count, 0) + 1,
           updated_at = NOW()
       WHERE id = :claimId AND tenant_id = :tenantId
-    `, { replacements: { claimId, tenantId, amount: amount ? parseFloat(amount) : null, description: description || null, receiptDate: receiptDate || null, receiptUrl, attachmentsCount } });
+    `, { replacements: { claimId, tenantId, amount: amount ? parseFloat(amount) : null, description: description || null, receiptDate: receiptDate || null, receiptUrl, attachmentsCount: finalAttachmentsCount } });
     return res.json({ success: true, message: 'Klaim berhasil diajukan ulang dan sedang menunggu persetujuan' });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: 'Gagal mengajukan ulang klaim', details: e.message });

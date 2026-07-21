@@ -53,8 +53,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const fileName = path.basename(parts[1]);
+  const asDownload = String(req.query.download || '') === '1';
   res.setHeader('Content-Type', guessClaimMime(fileName));
-  res.setHeader('Content-Disposition', `inline; filename="${fileName}"`);
+  res.setHeader(
+    'Content-Disposition',
+    `${asDownload ? 'attachment' : 'inline'}; filename="${fileName}"`,
+  );
   res.setHeader('Cache-Control', 'private, max-age=300');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   return res.send(buffer);

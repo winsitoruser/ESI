@@ -47,21 +47,22 @@ BATASAN:
 
 export const AIMAN_GREETING = `Selamat datang. Saya **AIMAN**, AI Guide HR Humanify.
 
-Saya dapat menelusuri data live hampir seluruh modul SDM — workforce, onboarding, KPI & performance, kehadiran, cuti, rekrutmen, payroll, klaim, lembur, kontrak, training, hingga disiplin.
+Saya dapat menelusuri data live hampir seluruh modul SDM — dan menjalankan **assisted agent workflow** (baca data dulu, aksi write hanya setelah konfirmasi Anda).
 
 Contoh:
-• "Ringkasan kondisi SDM saat ini"
-• "Berapa jumlah pegawai aktif? Siapa yang onboarding?"
-• "Sisa cuti Ahmad Wijaya" / "KPI EMP-001 Juli"
-• "Pipeline rekrutmen" / "Klaim pending" / "Kontrak yang segera habis"`;
+• "Persiapkan payroll bulan ini"
+• "Screening kandidat" / "Pratinjau screening"
+• "Backlog HR" / "Jalankan scan otomasi"
+• "Ringkasan kondisi SDM saat ini" / "Sisa cuti Ahmad Wijaya"`;
 
 export const AIMAN_THINKING_LABEL = 'AIMAN sedang menelusuri data Humanify...';
 
 export const AIMAN_SUGGESTIONS = [
-  'Ringkasan kondisi SDM saat ini',
-  'Berapa jumlah pegawai aktif dan siapa yang onboarding?',
-  'KPI dan performance tim bulan ini',
-  'Cuti, klaim, dan lembur yang masih pending',
+  'Persiapkan payroll bulan ini',
+  'Screening kandidat',
+  'Cek kontrak hampir habis',
+  'Cek onboarding',
+  'Meja cuti — detail pending',
 ] as const;
 
 /** Landing-page / public demo persona — product Q&A, no live tenant data */

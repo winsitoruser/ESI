@@ -2,6 +2,8 @@
  * Humanify Support Tickets + Knowledge Base store
  * Runtime schema bootstrap (CREATE TABLE IF NOT EXISTS) — matches HRIS pattern.
  */
+import { HUMANIFY_KB_SEED } from '@/lib/hris/knowledge-base-seed';
+
 let ensured = false;
 
 let sequelize: any;
@@ -98,125 +100,67 @@ export async function ensureSupportTables(): Promise<boolean> {
   }
 
   ensured = true;
-  await seedDefaultKbIfEmpty();
+  await upsertPlatformKbArticles();
   return true;
 }
 
-const DEFAULT_KB: Array<{
-  slug: string;
-  title: string;
-  summary: string;
-  content: string;
-  category: string;
-  sort_order: number;
-}> = [
-  {
-    slug: 'mulai-cepat-humanify',
-    title: 'Mulai Cepat Humanify',
-    summary: 'Langkah awal setup tenant: karyawan, absensi, payroll.',
-    category: 'getting_started',
-    sort_order: 1,
-    content: `## Mulai Cepat
-
-1. **Struktur organisasi** — buat unit & golongan di menu Struktur Organisasi.
-2. **Database karyawan** — tambah karyawan atau impor CSV.
-3. **Absensi** — atur shift & geofence di Pengaturan Absensi.
-4. **Payroll** — isi komponen gaji lalu jalankan proses di Proses Gaji.
-5. **Portal karyawan** — undang user ESS dari Tim & Undangan.
-
-Butuh bantuan? Buka **Tiket Support** dan kirim pengaduan ke tim Humanify.`,
-  },
-  {
-    slug: 'cara-ajukan-tiket-support',
-    title: 'Cara Mengajukan Tiket Support',
-    summary: 'Bagaimana melaporkan bug, billing, atau permintaan fitur.',
-    category: 'support',
-    sort_order: 2,
-    content: `## Mengajukan Tiket
-
-1. Buka menu **Bantuan → Tiket Support**.
-2. Klik **Buat Tiket**, isi subjek, kategori, prioritas, dan deskripsi.
-3. Lampirkan langkah reproduksi (untuk bug) atau nomor invoice (untuk billing).
-4. Tim Humanify akan merespons di thread komentar tiket.
-
-Status tiket: *Open* → *In Progress* → *Waiting* → *Resolved* → *Closed*.`,
-  },
-  {
-    slug: 'impor-karyawan-csv',
-    title: 'Impor Karyawan via CSV',
-    summary: 'Format kolom dan tips menghindari error unik email/kode.',
-    category: 'karyawan',
-    sort_order: 3,
-    content: `## Impor Karyawan
-
-Gunakan halaman **Impor Karyawan**. Kolom penting: nama, email, departemen, jabatan, tanggal bergabung.
-
-- Email harus unik per tenant.
-- Kode karyawan digenerate otomatis jika kosong.
-- Validasi baris gagal tidak menghentikan baris lain.`,
-  },
-  {
-    slug: 'payroll-dan-slip-gaji',
-    title: 'Payroll & Slip Gaji',
-    summary: 'Alur generate → approve → paid dan akses slip.',
-    category: 'payroll',
-    sort_order: 4,
-    content: `## Payroll
-
-1. Pastikan data gaji karyawan lengkap.
-2. Buat run di **Proses Gaji**, hitung, lalu approve.
-3. Tandai **paid** setelah transfer.
-4. Karyawan melihat slip di Portal ESS / Slip Gaji.
-
-THR, BPJS, lembur, kasbon, dan pinjaman ada di submenu Payroll.`,
-  },
-  {
-    slug: 'absensi-dan-cuti',
-    title: 'Absensi & Cuti',
-    summary: 'Shift, perangkat, pengajuan cuti, dan persetujuan.',
-    category: 'kehadiran',
-    sort_order: 5,
-    content: `## Absensi & Cuti
-
-- Atur shift & geofence di **Jadwal & Shift** / **Pengaturan Absensi**.
-- Rekap harian di **Rekap Harian**.
-- Cuti diajukan dari Portal Karyawan atau Manajemen Cuti (HR).
-- Persetujuan mengikuti alur approval yang dikonfigurasi.`,
-  },
-  {
-    slug: 'keamanan-dan-sso',
-    title: 'Keamanan (2FA) & SSO',
-    summary: 'Aktifkan MFA dan SAML untuk enterprise.',
-    category: 'keamanan',
-    sort_order: 6,
-    content: `## Keamanan
-
-- Aktifkan 2FA di **Keamanan (2FA)**.
-- SSO SAML dikonfigurasi di **SSO (SAML)** (rencana Enterprise).
-- Role & akses diatur di **Role & Akses**.`,
-  },
-];
-
-async function seedDefaultKbIfEmpty() {
-  const [rows]: any = await sequelize.query(
-    `SELECT COUNT(*)::int AS cnt FROM humanify_kb_articles WHERE is_platform = true AND tenant_id IS NULL`,
-  );
-  if ((rows?.[0]?.cnt || 0) > 0) return;
-  for (const a of DEFAULT_KB) {
-    await sequelize.query(
-      `INSERT INTO humanify_kb_articles
-        (tenant_id, slug, title, summary, content, category, tags, status, is_platform, sort_order, created_by)
-       VALUES (NULL, :slug, :title, :summary, :content, :category, '[]'::jsonb, 'published', true, :sort_order, 'Humanify')`,
-      {
-        replacements: {
-          slug: a.slug,
-          title: a.title,
-          summary: a.summary,
-          content: a.content,
-          category: a.category,
-          sort_order: a.sort_order,
+async function upsertPlatformKbArticles() {
+  for (const a of HUMANIFY_KB_SEED) {
+    const tagsJson = JSON.stringify(a.tags || []);
+    const [existing]: any = await sequelize.query(
+      `SELECT id FROM humanify_kb_articles
+       WHERE tenant_id IS NULL AND is_platform = true AND slug = :slug
+       LIMIT 1`,
+      { replacements: { slug: a.slug } },
+    );
+    if (existing?.[0]?.id) {
+      await sequelize.query(
+        `UPDATE humanify_kb_articles SET
+           title = :title, summary = :summary, content = :content,
+           category = :category, tags = :tags::jsonb, status = 'published',
+           sort_order = :sort_order, updated_at = NOW()
+         WHERE id = :id`,
+        {
+          replacements: {
+            id: existing[0].id,
+            title: a.title,
+            summary: a.summary,
+            content: a.content,
+            category: a.category,
+            tags: tagsJson,
+            sort_order: a.sort_order,
+          },
         },
-      },
+      );
+    } else {
+      await sequelize.query(
+        `INSERT INTO humanify_kb_articles
+          (tenant_id, slug, title, summary, content, category, tags, status, is_platform, sort_order, created_by)
+         VALUES (NULL, :slug, :title, :summary, :content, :category, :tags::jsonb, 'published', true, :sort_order, 'Humanify')`,
+        {
+          replacements: {
+            slug: a.slug,
+            title: a.title,
+            summary: a.summary,
+            content: a.content,
+            category: a.category,
+            tags: tagsJson,
+            sort_order: a.sort_order,
+          },
+        },
+      );
+    }
+  }
+  // Soft-hide legacy short stubs if slug no longer in seed (keep history)
+  const keep = HUMANIFY_KB_SEED.map((a) => a.slug);
+  if (keep.length) {
+    await sequelize.query(
+      `UPDATE humanify_kb_articles
+       SET status = 'archived', updated_at = NOW()
+       WHERE tenant_id IS NULL AND is_platform = true
+         AND status = 'published'
+         AND slug NOT IN (:keep)`,
+      { replacements: { keep } },
     );
   }
 }

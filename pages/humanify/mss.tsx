@@ -3,11 +3,12 @@ import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
+import ClaimReceiptGallery, { parseClaimReceipts } from '@/components/humanify/ClaimReceiptGallery';
 import {
   Shield, Users, Clock, CheckCircle, XCircle, DollarSign,
   ArrowRightLeft, Bell, AlertTriangle, Eye, ChevronRight,
   BarChart3, FileText, RefreshCw, Send, Filter, Image, Paperclip,
-  Timer, CalendarClock, TrendingUp
+  Timer, CalendarClock, TrendingUp, X,
 } from 'lucide-react';
 
 type MSSTab = 'overview' | 'claims-approval' | 'mutations-approval' | 'overtime-approval' | 'team';
@@ -42,6 +43,7 @@ export default function MSSPortalPage() {
   const [approvalAction, setApprovalAction] = useState<'approve' | 'reject'>('approve');
   const [approvalComments, setApprovalComments] = useState('');
   const [approvedAmount, setApprovedAmount] = useState('');
+  const [proofClaim, setProofClaim] = useState<any>(null);
 
   // Toast
   const [toast, setToast] = useState<any>(null);
@@ -333,8 +335,7 @@ export default function MSSPortalPage() {
                 ) : (
                   <div className="space-y-3">
                     {claims.map((c: any) => {
-                      let attachments: string[] = [];
-                      try { if (c.receipt_url) attachments = JSON.parse(c.receipt_url); } catch { if (c.receipt_url) attachments = [c.receipt_url]; }
+                      const proofCount = parseClaimReceipts(c.receipt_url).length || c.attachments_count || 0;
                       return (
                       <div key={c.id} className="border rounded-lg p-4 hover:bg-gray-50">
                         <div className="flex items-start justify-between">
@@ -370,50 +371,41 @@ export default function MSSPortalPage() {
                               </div>
                             )}
 
-                            {/* Attachments */}
-                            {attachments.length > 0 && (
+                            {proofCount > 0 && (
                               <div className="mt-2">
-                                <p className="text-[10px] font-medium text-gray-400 mb-1 flex items-center gap-1"><Paperclip className="w-3 h-3" /> LAMPIRAN ({attachments.length})</p>
-                                <div className="flex flex-wrap gap-2">
-                                  {attachments.map((url: string, i: number) => {
-                                    const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
-                                    return (
-                                      <a key={i} href={url} target="_blank" rel="noopener noreferrer"
-                                        className="flex items-center gap-1.5 px-2 py-1.5 bg-gray-50 border rounded-lg hover:bg-[var(--hf-brand-50)] hover:border-[var(--hf-brand-100)] transition-colors group">
-                                        {isImage ? (
-                                          <img src={url} alt="" className="w-10 h-10 rounded object-cover border" />
-                                        ) : (
-                                          <div className="w-10 h-10 rounded bg-red-50 flex items-center justify-center border">
-                                            <FileText className="w-5 h-5 text-red-500" />
-                                          </div>
-                                        )}
-                                        <div>
-                                          <p className="text-[10px] text-gray-600 group-hover:text-[color:var(--hf-brand-600)]">{isImage ? 'Foto' : 'PDF'} {i + 1}</p>
-                                          <p className="text-[9px] text-gray-400">Klik untuk buka</p>
-                                        </div>
-                                      </a>
-                                    );
-                                  })}
-                                </div>
+                                <p className="text-[10px] font-medium text-gray-400 mb-1 flex items-center gap-1">
+                                  <Paperclip className="w-3 h-3" /> BUKTI ({proofCount})
+                                </p>
+                                <ClaimReceiptGallery receiptUrl={c.receipt_url} compact maxThumbs={4} />
                               </div>
                             )}
                           </div>
-                          {c.status === 'pending' && (
-                            <div className="flex gap-2 ml-3">
-                              <button onClick={() => openApproval('claim', c, 'approve')}
-                                className="flex items-center gap-1 px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700">
-                                <CheckCircle className="w-3.5 h-3.5" /> Setujui
+                          <div className="flex flex-col gap-2 ml-3 shrink-0">
+                            {proofCount > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setProofClaim(c)}
+                                className="flex items-center gap-1 px-3 py-1.5 text-sm border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50"
+                              >
+                                <Eye className="w-3.5 h-3.5" /> Lihat bukti
                               </button>
-                              <button onClick={() => openApproval('claim', c, 'reject')}
-                                className="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700">
-                                <XCircle className="w-3.5 h-3.5" /> Tolak
-                              </button>
-                            </div>
-                          )}
+                            )}
+                            {c.status === 'pending' && (
+                              <>
+                                <button onClick={() => openApproval('claim', c, 'approve')}
+                                  className="flex items-center gap-1 px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700">
+                                  <CheckCircle className="w-3.5 h-3.5" /> Setujui
+                                </button>
+                                <button onClick={() => openApproval('claim', c, 'reject')}
+                                  className="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700">
+                                  <XCircle className="w-3.5 h-3.5" /> Tolak
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      );
-                    })}
+                    );})}
                   </div>
                 )}
               </div>
@@ -573,6 +565,13 @@ export default function MSSPortalPage() {
                 </div>
               )}
 
+              {approvalType === 'claim' && parseClaimReceipts(approvalItem.receipt_url).length > 0 && (
+                <div className="rounded-lg border bg-gray-50 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Bukti dari karyawan</p>
+                  <ClaimReceiptGallery receiptUrl={approvalItem.receipt_url} maxThumbs={6} />
+                </div>
+              )}
+
               <div>
                 <label className="text-xs font-medium text-gray-700 flex items-center gap-1">
                   {approvalAction === 'reject' ? (
@@ -604,6 +603,43 @@ export default function MSSPortalPage() {
                 {approvalAction === 'approve' ? 'Setujui' : 'Tolak Klaim'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {proofClaim && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setProofClaim(null)}>
+          <div className="bg-white rounded-xl w-full max-w-lg p-5 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div>
+                <h3 className="font-semibold text-gray-900">{proofClaim.claim_number || 'Bukti Klaim'}</h3>
+                <p className="text-sm text-gray-500">{proofClaim.employee_name} · {fmtCurrency(proofClaim.amount)}</p>
+              </div>
+              <button type="button" onClick={() => setProofClaim(null)} className="p-1.5 hover:bg-gray-100 rounded-lg">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="rounded-lg border bg-gray-50 p-4">
+              <ClaimReceiptGallery receiptUrl={proofClaim.receipt_url} maxThumbs={8} />
+            </div>
+            {proofClaim.status === 'pending' && (
+              <div className="mt-4 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setProofClaim(null); openApproval('claim', proofClaim, 'approve'); }}
+                  className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700"
+                >
+                  Setujui
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setProofClaim(null); openApproval('claim', proofClaim, 'reject'); }}
+                  className="px-4 py-2 text-sm border text-red-600 rounded-lg hover:bg-red-50"
+                >
+                  Tolak
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

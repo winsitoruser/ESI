@@ -3,13 +3,14 @@ import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
 import EmployeePicker, { type PickedEmployee } from '@/components/humanify/EmployeePicker';
+import ClaimReceiptGallery, { parseClaimReceipts } from '@/components/humanify/ClaimReceiptGallery';
 import { PageGuard } from '@/components/permissions';
 import Link from 'next/link';
 import HRStatCard from '@/components/humanify/HRStatCard';
 import {
   Wallet, Receipt, Plus, Search, Check, X, Clock, ArrowLeft,
   Plane, Stethoscope, Car, Utensils, Upload, RefreshCw, DollarSign,
-  AlertCircle, CheckCircle2, Ban,
+  AlertCircle, CheckCircle2, Ban, Eye, Paperclip,
 } from 'lucide-react';
 
 const CATEGORIES = [
@@ -41,6 +42,7 @@ interface ClaimRow {
   status: string;
   claim_date: string;
   receipt_url?: string;
+  attachments_count?: number;
   department?: string;
 }
 
@@ -56,6 +58,9 @@ export default function ReimbursementPage() {
   const [toast, setToast] = useState<{ msg: string; type: string } | null>(null);
   const [pickedEmployee, setPickedEmployee] = useState<PickedEmployee | null>(null);
   const [form, setForm] = useState({ claim_type: 'transport', amount: '', description: '', claim_date: new Date().toISOString().slice(0, 10) });
+  const [uploadedFiles, setUploadedFiles] = useState<Array<{ storageKey: string; filename: string; mimetype: string | null; url: string }>>([]);
+  const [uploading, setUploading] = useState(false);
+  const [detailClaim, setDetailClaim] = useState<ClaimRow | null>(null);
   const [ocrLoading, setOcrLoading] = useState(false);
 
   const showToast = (msg: string, type = 'success') => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
@@ -81,6 +86,7 @@ export default function ReimbursementPage() {
           status: c.status,
           claim_date: c.claim_date,
           receipt_url: c.receipt_url,
+          attachments_count: c.attachments_count,
           department: c.department,
         }));
         setClaims(rows);
@@ -155,12 +161,42 @@ export default function ReimbursementPage() {
     finally { setOcrLoading(false); e.target.value = ''; }
   };
 
+  const handleClaimFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const list = e.target.files;
+    if (!list?.length) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      Array.from(list).forEach((f) => formData.append('files', f));
+      const res = await fetch('/api/humanify/upload-claim', { method: 'POST', body: formData });
+      const json = await res.json();
+      if (json.success && json.data?.length) {
+        setUploadedFiles((prev) => [...prev, ...json.data]);
+        showToast(`${json.data.length} bukti diupload`);
+      } else {
+        showToast(json.error || 'Gagal upload bukti', 'error');
+      }
+    } catch {
+      showToast('Gagal upload bukti', 'error');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pickedEmployee) { showToast('Pilih karyawan', 'error'); return; }
     if (!form.amount) { showToast('Jumlah wajib diisi', 'error'); return; }
     setSaving(true);
     try {
+      const receipt_url = uploadedFiles.length
+        ? JSON.stringify(uploadedFiles.map((f) => ({
+          storageKey: f.storageKey,
+          filename: f.filename,
+          mimetype: f.mimetype,
+        })))
+        : null;
       const res = await fetch('/api/humanify/workflow?action=claim', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -169,6 +205,7 @@ export default function ReimbursementPage() {
           amount: parseFloat(form.amount),
           description: form.description,
           claim_date: form.claim_date,
+          receipt_url,
         }),
       });
       const json = await res.json();
@@ -177,6 +214,7 @@ export default function ReimbursementPage() {
         setShowModal(false);
         setForm({ claim_type: 'transport', amount: '', description: '', claim_date: new Date().toISOString().slice(0, 10) });
         setPickedEmployee(null);
+        setUploadedFiles([]);
         load();
       } else showToast(json.error || 'Gagal mengajukan', 'error');
     } catch { showToast('Gagal mengajukan', 'error'); }
@@ -250,6 +288,7 @@ export default function ReimbursementPage() {
                   <th className="p-3 text-left font-medium">Karyawan</th>
                   <th className="p-3 text-left font-medium">Kategori</th>
                   <th className="p-3 text-left font-medium">Deskripsi</th>
+                  <th className="p-3 text-center font-medium">Bukti</th>
                   <th className="p-3 text-right font-medium">Jumlah</th>
                   <th className="p-3 text-right font-medium">Limit</th>
                   <th className="p-3 text-center font-medium">Status</th>
@@ -258,12 +297,13 @@ export default function ReimbursementPage() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={8} className="p-8 text-center text-gray-400">Memuat...</td></tr>
+                  <tr><td colSpan={9} className="p-8 text-center text-gray-400">Memuat...</td></tr>
                 ) : filtered.length === 0 ? (
-                  <tr><td colSpan={8} className="p-8 text-center text-gray-400">Belum ada klaim reimbursement</td></tr>
+                  <tr><td colSpan={9} className="p-8 text-center text-gray-400">Belum ada klaim reimbursement</td></tr>
                 ) : filtered.map(c => {
                   const st = STATUS_MAP[c.status] || STATUS_MAP.pending;
                   const overLimit = c.amount > catLimit(c.claim_type);
+                  const proofCount = parseClaimReceipts(c.receipt_url).length || c.attachments_count || 0;
                   return (
                     <tr key={c.id} className="border-b hover:bg-gray-50/80">
                       <td className="p-3 font-mono text-xs text-gray-500">{c.claim_number || c.id.slice(0, 8)}</td>
@@ -272,7 +312,25 @@ export default function ReimbursementPage() {
                         {c.department && <p className="text-xs text-gray-400">{c.department}</p>}
                       </td>
                       <td className="p-3 capitalize">{c.claim_type}</td>
-                      <td className="p-3 text-gray-600">{c.description || '-'}</td>
+                      <td className="p-3 text-gray-600 max-w-[200px] truncate" title={c.description || ''}>{c.description || '-'}</td>
+                      <td className="p-3">
+                        <div className="flex flex-col items-center gap-1">
+                          {proofCount > 0 ? (
+                            <>
+                              <ClaimReceiptGallery receiptUrl={c.receipt_url} compact maxThumbs={3} />
+                              <button
+                                type="button"
+                                onClick={() => setDetailClaim(c)}
+                                className="inline-flex items-center gap-1 text-[11px] text-emerald-700 hover:underline"
+                              >
+                                <Eye className="h-3 w-3" /> {proofCount} bukti
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-xs text-gray-300">—</span>
+                          )}
+                        </div>
+                      </td>
                       <td className="p-3 text-right">
                         <span className={`font-semibold ${overLimit ? 'text-rose-600' : ''}`}>{fmt(c.amount)}</span>
                         {overLimit && <AlertCircle className="ml-1 inline h-3 w-3 text-rose-500" />}
@@ -280,12 +338,24 @@ export default function ReimbursementPage() {
                       <td className="p-3 text-right text-gray-400">{fmt(catLimit(c.claim_type))}</td>
                       <td className="p-3 text-center"><span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${st.color}`}>{st.label}</span></td>
                       <td className="p-3 text-center">
-                        {c.status === 'pending' && (
-                          <div className="flex justify-center gap-1">
-                            <button disabled={saving} onClick={() => handleApprove(c.id, c.amount)} className="rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-50" title="Setujui"><Check className="h-4 w-4" /></button>
-                            <button disabled={saving} onClick={() => handleReject(c.id)} className="rounded-lg p-1.5 text-rose-600 hover:bg-rose-50" title="Tolak"><X className="h-4 w-4" /></button>
-                          </div>
-                        )}
+                        <div className="flex justify-center gap-1">
+                          {proofCount > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setDetailClaim(c)}
+                              className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100"
+                              title="Lihat bukti"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+                          )}
+                          {c.status === 'pending' && (
+                            <>
+                              <button disabled={saving} onClick={() => handleApprove(c.id, c.amount)} className="rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-50" title="Setujui"><Check className="h-4 w-4" /></button>
+                              <button disabled={saving} onClick={() => handleReject(c.id)} className="rounded-lg p-1.5 text-rose-600 hover:bg-rose-50" title="Tolak"><X className="h-4 w-4" /></button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -308,6 +378,28 @@ export default function ReimbursementPage() {
               </div>
               <form onSubmit={handleCreate} className="space-y-4">
                 <EmployeePicker value={pickedEmployee?.id} onChange={setPickedEmployee} required />
+                <div className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50/50 p-3">
+                  <label className="flex cursor-pointer items-center gap-3">
+                    <div className="rounded-lg bg-emerald-100 p-2"><Paperclip className="h-4 w-4 text-emerald-700" /></div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-emerald-800">Lampirkan bukti reimbursement</p>
+                      <p className="text-xs text-emerald-700">{uploading ? 'Mengupload…' : 'Foto/PDF — tersimpan aman (private storage)'}</p>
+                    </div>
+                    <input type="file" accept="image/*,application/pdf" multiple className="hidden" onChange={handleClaimFileUpload} disabled={uploading} />
+                  </label>
+                  {uploadedFiles.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {uploadedFiles.map((f, i) => (
+                        <div key={f.storageKey} className="flex items-center gap-2 rounded-lg border bg-white px-2 py-1 text-xs">
+                          <span className="max-w-[120px] truncate">{f.filename}</span>
+                          <button type="button" onClick={() => setUploadedFiles((prev) => prev.filter((_, idx) => idx !== i))} className="text-rose-500">
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <div className="rounded-xl border border-dashed border-[var(--hf-brand-100)] bg-[var(--hf-brand-50)] p-3">
                   <label className="flex cursor-pointer items-center gap-3">
                     <div className="rounded-lg bg-[var(--hf-brand-100)] p-2"><Upload className="h-4 w-4 text-[color:var(--hf-brand-600)]" /></div>
@@ -345,6 +437,34 @@ export default function ReimbursementPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {detailClaim && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setDetailClaim(null)}>
+            <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-bold">{detailClaim.claim_number || 'Detail Klaim'}</h3>
+                  <p className="text-sm text-gray-500">{detailClaim.employee_name} · {detailClaim.claim_type}</p>
+                  <p className="mt-1 text-lg font-semibold text-emerald-700">{fmt(detailClaim.amount)}</p>
+                </div>
+                <button type="button" onClick={() => setDetailClaim(null)} className="rounded-lg p-1 hover:bg-gray-100"><X className="h-5 w-5" /></button>
+              </div>
+              {detailClaim.description && (
+                <p className="mb-4 text-sm text-gray-600">{detailClaim.description}</p>
+              )}
+              <div className="rounded-xl border bg-gray-50 p-4">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Bukti dari karyawan</p>
+                <ClaimReceiptGallery receiptUrl={detailClaim.receipt_url} maxThumbs={8} />
+              </div>
+              {detailClaim.status === 'pending' && (
+                <div className="mt-4 flex justify-end gap-2">
+                  <button disabled={saving} onClick={() => { handleApprove(detailClaim.id, detailClaim.amount); setDetailClaim(null); }} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm text-white">Setujui</button>
+                  <button disabled={saving} onClick={() => { handleReject(detailClaim.id); setDetailClaim(null); }} className="rounded-xl border px-4 py-2 text-sm text-rose-600">Tolak</button>
+                </div>
+              )}
             </div>
           </div>
         )}
