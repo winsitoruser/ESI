@@ -10,7 +10,10 @@ import { test, expect } from '@playwright/test';
 const base = process.env.PLAYWRIGHT_BASE_URL || '';
 const email = process.env.HUMANIFY_E2E_EMAIL || process.env.SMOKE_EMAIL || '';
 const password = process.env.HUMANIFY_E2E_PASSWORD || process.env.SMOKE_PASSWORD || '';
-const enabled = /staging|lab/i.test(base) && Boolean(email && password);
+const allowProd = process.env.HUMANIFY_E2E_ALLOW_PROD === '1';
+const enabled =
+  Boolean(email && password) &&
+  (/staging|lab/i.test(base) || (allowProd && /humanify\.id/i.test(base)));
 
 async function login(page: any) {
   await page.goto('/humanify/login', { waitUntil: 'domcontentloaded', timeout: 45_000 });

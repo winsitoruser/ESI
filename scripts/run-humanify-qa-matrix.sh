@@ -25,6 +25,12 @@ export HUMANIFY_PASSWORD_RESET_RETURN_TOKEN=true
 if [ -n "${VPS_PASS:-}" ] && [ -z "${SSHPASS:-}" ]; then
   export SSHPASS="$VPS_PASS"
 fi
+# Allow Playwright authenticated suites against production when explicitly targeting humanify.id
+if [[ "$BASE" == *"humanify.id"* ]] && [[ "$BASE" != *"staging"* ]]; then
+  export HUMANIFY_E2E_ALLOW_PROD="${HUMANIFY_E2E_ALLOW_PROD:-1}"
+fi
+# Hard payroll needs non-loopback public URL (already set via PLAYWRIGHT_BASE_URL)
+export HUMANIFY_E2E_ALLOW_LOOPBACK="${HUMANIFY_E2E_ALLOW_LOOPBACK:-0}"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -61,6 +67,7 @@ run() {
 # ─── Smoke ───
 run Smoke health "curl -fsS -m 15 '$BASE/api/health?deep=1' | grep -q '\"status\":\"ok\"'"
 run Smoke page-crawl "node scripts/smoke-test-humanify-page-crawl.js"
+run Smoke module-pages "node scripts/smoke-test-humanify-module-pages.js"
 run Smoke dashboard "node scripts/smoke-test-humanify-dashboard.js"
 run Smoke scorecard "npm run security:scorecard"
 
@@ -109,11 +116,28 @@ const BASE=process.env.SMOKE_BASE_URL; const EMAIL=process.env.SMOKE_EMAIL; cons
 \""
 run Retest ir-incident "node scripts/smoke-test-ir-disciplinary-integration.js"
 run Retest employee-portal "node scripts/smoke-test-employee-portal-full.js"
+run Retest org-summary-keys "node -e \"
+const BASE=process.env.SMOKE_BASE_URL; const EMAIL=process.env.SMOKE_EMAIL; const PASS=process.env.SMOKE_PASSWORD;
+(async()=>{
+  const csrfRes=await fetch(BASE+'/api/auth/csrf'); const {csrfToken}=await csrfRes.json();
+  const csrfCookie=(csrfRes.headers.getSetCookie?.()||[]).find(c=>c.includes('csrf'))?.split(';')[0]||'';
+  const loginRes=await fetch(BASE+'/api/auth/callback/credentials',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',Cookie:csrfCookie},body:new URLSearchParams({csrfToken,email:EMAIL,password:PASS,json:'true'}),redirect:'manual'});
+  const cookies=(loginRes.headers.getSetCookie?.()||[]).filter(c=>c.includes('next-auth')).map(c=>c.split(';')[0]);
+  if(csrfCookie) cookies.push(csrfCookie); const COOKIE=cookies.join('; ');
+  const j=await (await fetch(BASE+'/api/humanify/organization?action=summary',{headers:{Cookie:COOKIE}})).json();
+  if(!j.success||!j.data) throw new Error('summary failed');
+  for (const k of ['totalUnits','totalGrades','totalEmployees','totalDepartments']) {
+    if (j.data[k]==null) throw new Error('missing key '+k+' got '+Object.keys(j.data));
+  }
+  console.log('org summary keys ok', j.data.totalUnits, j.data.totalGrades, j.data.totalEmployees, j.data.totalDepartments);
+})().catch(e=>{console.error(e); process.exit(1);});
+\""
 
 # ─── E2E / UI ───
 run E2E soft-ui "npx playwright test e2e/humanify-welcome-login.spec.ts e2e/humanify-signup-ui.spec.ts e2e/humanify-payroll-ui.spec.ts e2e/humanify-hr-auth-gate-ui.spec.ts e2e/humanify-ops-auth-gate-ui.spec.ts --reporter=line"
 run E2E hard-payroll "npx playwright test e2e/humanify-payroll-hard.spec.ts --reporter=line"
 run UI auth-pages-buttons "npx playwright test e2e/humanify-authenticated-ui-smoke.spec.ts --reporter=line"
+run UI module-pages "npx playwright test e2e/humanify-module-pages-ui.spec.ts --reporter=line"
 
 # ─── API ───
 run API payroll-depth "node scripts/smoke-test-saas-payroll-depth.js"
