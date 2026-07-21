@@ -9,7 +9,7 @@ import {
   Briefcase, Plane, BookOpen, PenTool, AlertTriangle, Calculator, Banknote,
   Percent, Gift, Clock, Network, Fingerprint, Sparkles, Layers, Ban,
   Wallet, Package, CreditCard, Crosshair, PenLine, Scale, Globe, Brain, Zap,
-  CheckCircle2, Lock, Upload,
+  CheckCircle2, Lock, Upload, LifeBuoy,
   type LucideIcon,
 } from 'lucide-react';
 import type { SidebarConfig, MenuGroup } from './sidebar.config';
@@ -169,6 +169,14 @@ export const humanifySidebarConfig: SidebarConfig = {
         { id: 'humanify-security', name: 'Keamanan (2FA)', href: '/humanify/security', icon: Lock, modules: ['humanify', 'hris'] },
         { id: 'humanify-users-team', name: 'Tim & Undangan', href: '/humanify/users', icon: UserPlus, modules: ['humanify', 'hris'] },
         { id: 'humanify-users-roles', name: 'Role & Akses', href: '/humanify/users/roles', icon: Shield, modules: ['humanify', 'hris'] },
+      ],
+    },
+    {
+      id: 'help',
+      title: 'Bantuan',
+      items: [
+        { id: 'humanify-support', name: 'Tiket Support', href: '/humanify/support', icon: LifeBuoy, modules: ['humanify', 'hris'] },
+        { id: 'humanify-knowledge-base', name: 'Knowledge Center', href: '/humanify/knowledge-base', icon: BookOpen, modules: ['humanify', 'hris'] },
       ],
     },
   ] as MenuGroup[],
