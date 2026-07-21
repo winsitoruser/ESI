@@ -310,6 +310,16 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
     return () => document.body.classList.remove('employee-portal-active');
   }, [mounted]);
   useEffect(() => {
+    if (status !== 'loading') return;
+    const t = window.setTimeout(() => {
+      // Session stuck — send user to login instead of infinite spinner
+      if (status === 'loading') {
+        router.replace(`/employee/login?callbackUrl=${encodeURIComponent('/employee')}`);
+      }
+    }, 12000);
+    return () => window.clearTimeout(t);
+  }, [status, router]);
+  useEffect(() => {
     if (status === 'unauthenticated') {
       router.replace(`/employee/login?callbackUrl=${encodeURIComponent('/employee')}`);
     }

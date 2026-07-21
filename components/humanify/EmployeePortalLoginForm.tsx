@@ -108,7 +108,7 @@ export default function EmployeePortalLoginForm({ csrfToken }: Props) {
         />
 
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.1 }}
           className="max-w-xl"
@@ -133,7 +133,7 @@ export default function EmployeePortalLoginForm({ csrfToken }: Props) {
             {ESS_FEATURES.map((f, i) => (
               <motion.div
                 key={f.title}
-                initial={{ opacity: 0, y: 10 }}
+                initial={false}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.35, delay: 0.2 + i * 0.07 }}
                 className="group p-4 rounded-2xl border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.05] hover:border-white/[0.12] transition-all"
@@ -165,7 +165,7 @@ export default function EmployeePortalLoginForm({ csrfToken }: Props) {
       {/* Right — login form */}
       <div className="flex-1 relative z-10 flex items-center justify-center p-5 sm:p-8 lg:p-12">
         <motion.div
-          initial={{ opacity: 0, y: 16 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           className="w-full max-w-[420px]"
