@@ -48,6 +48,7 @@ const TABLES = [
   'geofence_locations',
   'employee_attendance',
   'employee_claims',
+  'employee_documents',
   'overtime_requests',
   'employee_mutations',
   'surveys',

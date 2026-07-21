@@ -127,7 +127,8 @@ async function main() {
 
   let sent = 0;
   for (const t of tenants || []) {
-    const counts = await expiryCounts(sequelize, t.id);
+    const { withTenantContext } = require('./lib/tenant-db-context');
+    const counts = await withTenantContext(sequelize, t.id, () => expiryCounts(sequelize, t.id));
     if (counts.total === 0) {
       console.log(`  · ${t.slug || t.name}: no expiry — skip`);
       continue;
@@ -138,7 +139,7 @@ async function main() {
       continue;
     }
 
-    const samples = await sampleRows(sequelize, t.id);
+    const samples = await withTenantContext(sequelize, t.id, () => sampleRows(sequelize, t.id));
     const sampleHtml = samples.length
       ? `<ul>${samples.map((r) =>
           `<li>[${escape(r.bucket)}] ${escape(r.expiry_date)} · ${escape(r.document_type)} · ${escape(r.title)}</li>`

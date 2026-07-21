@@ -1,6 +1,20 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 21 Juli 2026 — **Wave-67** · Staging strict RLS live chaos green (prod FORCE still deferred)
+> Diperbarui: 21 Juli 2026 — **Wave-68** · Cron tenant-context + prod RLS flip runbook (prod still soft)
+
+## Wave-68 (21 Jul 2026) — Cron RLS readiness · gated prod flip runbook
+
+| ID | Item | Status |
+|---|---|---|
+| BE-1 | `scripts/lib/tenant-db-context.js` for cron jobs | Done |
+| BE-2 | Bind context: doc-expiry digest, soft-deactivate, hard-delete | Done |
+| BE-3 | Action-inbox digest: drop unscoped `leave_requests` subquery | Done |
+| BE-4 | Migrate list + `employee_documents` | Done |
+| DO-1 | `docs/humanify-rls-prod-flip.md` + `flip-humanify-prod-rls-strict.sh` (`CONFIRM_PROD_RLS_STRICT=YES`) | Done |
+| QA-1 | `npm run smoke:wave68` | Done |
+| ADR | Prod FORCE flip **not executed** — Sentry/Midtrans still deferred | Deferred |
+
+Scripts: `npm run smoke:wave68` · flip only with `CONFIRM_PROD_RLS_STRICT=YES bash scripts/flip-humanify-prod-rls-strict.sh`
 
 ## Wave-67 (21 Jul 2026) — D-013 staging readiness · no prod FORCE flip
 

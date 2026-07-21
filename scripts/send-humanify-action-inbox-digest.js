@@ -142,14 +142,13 @@ async function main() {
   await sequelize.authenticate();
 
   // Prefer tenants that already have pending leave / named demo seeds
+  // (leave_requests count must run under tenant context once strict RLS is on)
   const [tenants] = await sequelize.query(`
-    SELECT t.id, t.name, t.slug, t.contact_email,
-      (SELECT COUNT(*)::int FROM leave_requests lr WHERE lr.tenant_id = t.id AND lr.status = 'pending') AS pending_leave
+    SELECT t.id, t.name, t.slug, t.contact_email
     FROM tenants t
     WHERE COALESCE(t.is_active, true) = true
     ORDER BY
       CASE WHEN t.slug IN ('qa-golden','demo') THEN 0 ELSE 1 END,
-      pending_leave DESC,
       t.created_at DESC
     LIMIT 80
   `);

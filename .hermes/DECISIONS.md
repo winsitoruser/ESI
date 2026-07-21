@@ -217,3 +217,10 @@ Flip strict di prod **tanpa** staging IDOR + chaos = dilarang.
 3. Expanded migrate table list with `employee_claims`, `overtime_requests`, `employee_mutations`.
 4. Staging IDOR pack + scorecard green (`SMOKE_BASE_URL=https://staging.humanify.id`).
 5. **Prod FORCE flip still deferred** (D-013b). Sentry.io (D-010b) and Midtrans auto-payout (D-015) unchanged.
+
+## D-029 (Wave-68): Cron tenant context + gated prod flip — 21 Jul 2026
+**Security / Ops:** Before any prod FORCE flip:
+1. Cron/job scripts that touch RLS tables must `set_config` per tenant (or super_admin for platform maintenance).
+2. Helper: `scripts/lib/tenant-db-context.js`.
+3. Flip is **manual + gated**: `CONFIRM_PROD_RLS_STRICT=YES bash scripts/flip-humanify-prod-rls-strict.sh` — see `docs/humanify-rls-prod-flip.md`.
+4. Wave-68 does **not** flip prod. Sentry.io / Midtrans auto-payout unchanged.

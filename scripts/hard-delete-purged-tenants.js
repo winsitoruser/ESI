@@ -82,6 +82,7 @@ async function main() {
     `, { replacements: { days: String(HARD_DELETE_DAYS) } });
 
     const results = [];
+    const { withTenantContext } = require('./lib/tenant-db-context');
     for (const row of rows || []) {
       const entry = { id: row.id, slug: row.slug, deleted: {} };
       if (DRY_RUN) {
@@ -90,19 +91,21 @@ async function main() {
         continue;
       }
 
-      for (const table of TENANT_TABLES) {
-        if (!(await tableExists(sequelize, table))) continue;
-        if (!(await hasTenantId(sequelize, table))) continue;
-        try {
-          const [r] = await sequelize.query(
-            `DELETE FROM ${table} WHERE tenant_id = :tid RETURNING id`,
-            { replacements: { tid: row.id } },
-          );
-          entry.deleted[table] = (r || []).length;
-        } catch (e) {
-          entry.deleted[table] = `error:${e.message}`;
+      await withTenantContext(sequelize, row.id, async () => {
+        for (const table of TENANT_TABLES) {
+          if (!(await tableExists(sequelize, table))) continue;
+          if (!(await hasTenantId(sequelize, table))) continue;
+          try {
+            const [r] = await sequelize.query(
+              `DELETE FROM ${table} WHERE tenant_id = :tid RETURNING id`,
+              { replacements: { tid: row.id } },
+            );
+            entry.deleted[table] = (r || []).length;
+          } catch (e) {
+            entry.deleted[table] = `error:${e.message}`;
+          }
         }
-      }
+      });
 
       // Soft-null role_id then delete orphaned users already covered; finally remove tenant
       await sequelize.query(`DELETE FROM tenants WHERE id = :tid`, {

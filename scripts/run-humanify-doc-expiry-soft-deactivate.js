@@ -51,10 +51,18 @@ async function main() {
     process.exit(1);
   }
 
+  const { withSuperAdminContext, withTenantContext } = require('./lib/tenant-db-context');
+
   const whereTenant = TENANT_ID ? 'AND tenant_id = :tid' : '';
   const replacements = TENANT_ID ? { tid: TENANT_ID } : {};
 
-  const [counts] = await sequelize.query(
+  const runScoped = async (fn) => {
+    if (TENANT_ID) return withTenantContext(sequelize, TENANT_ID, fn);
+    // Platform-wide dry-run/apply needs super context under FORCE strict RLS
+    return withSuperAdminContext(sequelize, fn);
+  };
+
+  const [counts] = await runScoped(() => sequelize.query(
     `SELECT COUNT(*)::int AS expired_active
      FROM employee_documents
      WHERE COALESCE(is_active, true) = true
@@ -62,7 +70,7 @@ async function main() {
        AND expiry_date < CURRENT_DATE
        ${whereTenant}`,
     { replacements },
-  );
+  ));
   const n = counts?.[0]?.expired_active || 0;
   console.log('Humanify doc expiry soft-deactivate');
   console.log(`Mode: ${APPLY ? 'APPLY' : 'DRY-RUN'} · expired active docs: ${n}${TENANT_ID ? ` · tenant=${TENANT_ID}` : ''}`);
@@ -89,7 +97,7 @@ async function main() {
     process.exit(0);
   }
 
-  const [, meta] = await sequelize.query(
+  const [, meta] = await runScoped(() => sequelize.query(
     `UPDATE employee_documents
      SET is_active = false, updated_at = COALESCE(updated_at, NOW())
      WHERE COALESCE(is_active, true) = true
@@ -97,7 +105,7 @@ async function main() {
        AND expiry_date < CURRENT_DATE
        ${whereTenant}`,
     { replacements },
-  );
+  ));
   const updated = Number(meta?.rowCount ?? n);
   console.log(`Updated ${updated} rows → is_active=false`);
   writeSoftDeactivateLast({
