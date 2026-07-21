@@ -55,10 +55,11 @@ SMOKE_BASE_URL=https://staging.example npm run smoke:ga-journey
 ## Exit criteria
 
 - [x] Unit smoke `smoke:rls-lab` asserts FORCE RLS + deny-empty + soft prod enable
-- [x] No cross-tenant row in IDOR scorecard — **prod proxy accepted** until dedicated staging URL exists: `npm run smoke:idor` + weekly `npm run security:scorecard` (cron). Set `SMOKE_BASE_URL` when staging lab is online.
+- [x] No cross-tenant row in IDOR scorecard — staging URL: `SMOKE_BASE_URL=https://staging.humanify.id npm run smoke:idor` (+ weekly `npm run security:scorecard`)
 - [x] Employee create + docs + payroll soft path green — Wave-47 soft auth-gate e2e (`npm run test:e2e:humanify:payroll:prod`); hard payroll suite still deferred
 - [x] Backup/restore of lab DB documented — see **Lab backup/restore** below
 - [x] Written decision in `.hermes/DECISIONS.md` before prod strict — **D-013** + **D-013b** (literal Security 100 = soft+chaos+weekly IDOR; FORCE strict deferred until dedicated staging lab)
+- [x] **Wave-67 (21 Jul 2026):** Live staging DB chaos — empty tenant context returns **0** employees after re-applying `HUMANIFY_RLS_MODE=strict` migrate (env was strict but policies were still soft). Prod FORCE flip still **deferred**.
 
 ## Staging URL (L0-3)
 

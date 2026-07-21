@@ -52,6 +52,8 @@
     "smoke:page-crawl": "node scripts/smoke-test-humanify-page-crawl.js",
     "smoke:ga-journey": "node scripts/smoke-test-humanify-ga-journey.js",
     "smoke:sidebar-persona": "node scripts/smoke-test-humanify-sidebar-persona.js",
+    "smoke:wave66": "node scripts/smoke-test-humanify-claim-proof.js",
+    "smoke:wave67": "node scripts/smoke-test-humanify-wave67.js",
     "smoke:claim-proof": "node scripts/smoke-test-humanify-claim-proof.js",
     "smoke:multi-role": "node scripts/smoke-test-humanify-multi-role.js",
     "smoke:employees-bulk": "node scripts/smoke-test-humanify-employees-bulk.js",

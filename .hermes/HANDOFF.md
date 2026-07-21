@@ -1,6 +1,25 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 21 Juli 2026 — **Wave-66** · AIMAN agent + claim proof approval + KB depth
+> Diperbarui: 21 Juli 2026 — **Wave-67** · Staging strict RLS live chaos green (prod FORCE still deferred)
+
+## Wave-67 (21 Jul 2026) — D-013 staging readiness · no prod FORCE flip
+
+| ID | Item | Status |
+|---|---|---|
+| OPS-1 | `git push` Wave-66 → `origin/main` | Done |
+| SEC-1 | Staging IDOR pack (`smoke:idor`) | Done — all batches 0 fail |
+| SEC-2 | Security scorecard staging | Done — **38/0** |
+| SEC-3 | Live chaos: empty `app.current_tenant` → `employees=0` under FORCE+strict policy | Done (was leak: soft policy still on DB) |
+| SEC-4 | Re-apply `HUMANIFY_RLS_MODE=strict migrate-humanify-rls` on staging DB | Done |
+| BE-1 | Expand RLS table list: `employee_claims`, `overtime_requests`, `employee_mutations` | Done |
+| ADR | Prod FORCE strict · Sentry.io · Midtrans auto-payout | **Still deferred** (D-013b / D-010b / D-015) |
+
+Scripts: `npm run smoke:wave67` · `npm run smoke:rls-lab` · `npm run smoke:rls-job-chaos` · `npm run smoke:idor`
+
+Staging verified 21 Jul 2026 — env `HUMANIFY_RLS_MODE=strict` · policy USING_STRICT live · empty-context **0** · app login+claims+employees OK.  
+Prod remains `HUMANIFY_RLS_MODE=soft` + request-bound (no flip).
+
+**Do not** set prod `HUMANIFY_RLS_MODE=strict` without explicit CTO sign-off after cron/job audit on soft pool.
 
 ## Wave-66 (21 Jul 2026) — AIMAN assisted agent · claim bukti · KB/sidebar
 
