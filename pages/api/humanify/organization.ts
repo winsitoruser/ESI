@@ -230,15 +230,26 @@ async function getOrgSummary(req: NextApiRequest, res: NextApiResponse, session:
       cnt: d.cnt,
     }));
 
+    const units = Number(orgCount?.[0]?.cnt) || 0;
+    const grades = Number(gradeCount?.[0]?.cnt) || 0;
+    const employees = Number(empCount?.[0]?.cnt) || 0;
+
     return res.json({
       success: true,
       data: {
-        orgUnits: orgCount?.[0]?.cnt || 0,
-        jobGrades: gradeCount?.[0]?.cnt || 0,
-        employees: empCount?.[0]?.cnt || 0,
+        // Canonical keys (UI cards)
+        totalUnits: units,
+        totalGrades: grades,
+        totalJobGrades: grades,
+        totalEmployees: employees,
+        totalDepartments: units,
         departmentBreakdown,
+        // Legacy aliases (older clients / smoke)
+        orgUnits: units,
+        jobGrades: grades,
+        employees,
       },
-      dataSource: (empCount?.[0]?.cnt || 0) > 0 || (orgCount?.[0]?.cnt || 0) > 0 ? 'live' : 'empty',
+      dataSource: employees > 0 || units > 0 ? 'live' : 'empty',
     });
   } catch (e: any) {
     console.warn('getOrgSummary error:', e.message);

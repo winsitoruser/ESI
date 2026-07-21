@@ -294,14 +294,34 @@ export default function OrganizationPage() {
           </div>
         </div>
 
-        {/* Summary Cards */}
+        {/* Summary Cards — prefer summary API keys; fall back to live list lengths */}
         {summary && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { label: 'Unit Organisasi', value: summary.totalUnits || 0, icon: Building2, color: 'text-[color:var(--hf-brand-600)] bg-[var(--hf-brand-50)]' },
-              { label: 'Golongan Jabatan', value: summary.totalGrades || 0, icon: Layers, color: 'text-purple-600 bg-purple-50' },
-              { label: 'Total Karyawan', value: summary.totalEmployees || 0, icon: Users, color: 'text-[color:var(--hf-brand-600)] bg-[var(--hf-brand-50)]' },
-              { label: 'Departemen', value: summary.departmentBreakdown?.length || 0, icon: Briefcase, color: 'text-green-600 bg-green-50' },
+              {
+                label: 'Unit Organisasi',
+                value: summary.totalUnits ?? summary.orgUnits ?? orgFlat.length ?? 0,
+                icon: Building2,
+                color: 'text-[color:var(--hf-brand-600)] bg-[var(--hf-brand-50)]',
+              },
+              {
+                label: 'Golongan Jabatan',
+                value: summary.totalGrades ?? summary.jobGrades ?? summary.totalJobGrades ?? jobGrades.length ?? 0,
+                icon: Layers,
+                color: 'text-purple-600 bg-purple-50',
+              },
+              {
+                label: 'Total Karyawan',
+                value: summary.totalEmployees ?? summary.employees ?? 0,
+                icon: Users,
+                color: 'text-[color:var(--hf-brand-600)] bg-[var(--hf-brand-50)]',
+              },
+              {
+                label: 'Departemen',
+                value: summary.totalDepartments ?? summary.totalUnits ?? summary.orgUnits ?? orgFlat.length ?? 0,
+                icon: Briefcase,
+                color: 'text-green-600 bg-green-50',
+              },
             ].map((card, i) => (
               <div key={i} className="bg-white rounded-xl border p-4">
                 <div className="flex items-center gap-3">
