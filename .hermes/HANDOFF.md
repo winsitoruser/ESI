@@ -17,7 +17,7 @@
 
 Scripts: `npm run smoke:claim-proof` · `node scripts/smoke-test-humanify-aiman-agent.js` · `npm run smoke:sidebar-persona`
 
-Prod verified 21 Jul 2026 — deploy BUILD_OK · `smoke:claim-proof` **15/0** · enterprise **21/0** · manager pending `receipt_url` live.
+Prod verified 21 Jul 2026 — deploy BUILD_OK · `smoke:claim-proof` **22/0** (upload→preview→approve E2E) · enterprise **21/0** · manager pending `receipt_url` live.
 
 Known residual: klaim **legacy** (hanya filename di `receipt_url`) tidak bisa preview — butuh re-upload karyawan.
 
