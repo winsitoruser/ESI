@@ -1,7 +1,7 @@
 import {
   Fingerprint, Loader2, Camera, Sunrise, Moon, Navigation, ExternalLink,
   Shield, Building2, Megaphone, Bell, Calendar, Wallet, Target, Receipt,
-  FileText, Clock, Award, Users, Plane, CheckCircle, XCircle, Plus,
+  FileText, Clock, Award, Users, Plane, CheckCircle, XCircle, Plus, Timer,
 } from 'lucide-react';
 import {
   Card, SectionHeader, StatusBadge, GeofenceBadge,
