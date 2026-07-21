@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Humanify QA Matrix — maps formal test types → runnable suites (staging preferred).
+# Humanify QA Matrix — maps formal test types → runnable suites.
 #
 # Usage:
 #   SMOKE_BASE_URL=https://staging.humanify.id \
 #   SMOKE_EMAIL=… SMOKE_PASSWORD=… \
-#   VPS_PASS='…' \   # loads DEALLS_WEBHOOK_SECRET from matching VPS .env
+#   VPS_PASS='…' \
 #   bash scripts/run-humanify-qa-matrix.sh
 #
-# Types covered: Smoke, Sanity, Regression, Retest, E2E, API, UI, DB, Exploratory, Ad-hoc
+# Types: Smoke, Sanity, Regression, Retest, E2E, API, UI, Database, Exploratory, AdHoc
 set -uo pipefail
 
 BASE="${SMOKE_BASE_URL:-https://staging.humanify.id}"
@@ -21,15 +21,13 @@ export HUMANIFY_E2E_HARD="${HUMANIFY_E2E_HARD:-1}"
 export HUMANIFY_EMAIL_VERIFY_RETURN_TOKEN=true
 export HUMANIFY_INVITE_RETURN_TOKEN=true
 export HUMANIFY_PASSWORD_RESET_RETURN_TOKEN=true
-# Prefer SSHPASS for sshpass -e (passwords containing '%' break sshpass -p)
+
 if [ -n "${VPS_PASS:-}" ] && [ -z "${SSHPASS:-}" ]; then
   export SSHPASS="$VPS_PASS"
 fi
-# Allow Playwright authenticated suites against production when explicitly targeting humanify.id
 if [[ "$BASE" == *"humanify.id"* ]] && [[ "$BASE" != *"staging"* ]]; then
   export HUMANIFY_E2E_ALLOW_PROD="${HUMANIFY_E2E_ALLOW_PROD:-1}"
 fi
-# Hard payroll needs non-loopback public URL (already set via PLAYWRIGHT_BASE_URL)
 export HUMANIFY_E2E_ALLOW_LOOPBACK="${HUMANIFY_E2E_ALLOW_LOOPBACK:-0}"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -47,25 +45,25 @@ run() {
   local type="$1" label="$2" cmd="$3"
   echo ""
   echo "── [$type] $label ──"
-  local start=$(date +%s)
-  local status="PASS" exitc=0
+  local start end status="PASS" exitc=0
+  start=$(date +%s)
   if eval "$cmd" > "/tmp/hf-qa-${type}-${label//[^a-zA-Z0-9]/_}.log" 2>&1; then
     echo "  [ PASS ] $type · $label"
-    pass=$((pass+1))
+    pass=$((pass + 1))
   else
     exitc=$?
     status="FAIL"
     echo "  [ FAIL ] $type · $label (exit $exitc)"
-    fail=$((fail+1))
+    fail=$((fail + 1))
     tail -8 "/tmp/hf-qa-${type}-${label//[^a-zA-Z0-9]/_}.log" | sed 's/^/    /'
   fi
-  local end=$(date +%s)
+  end=$(date +%s)
   printf '{"type":"%s","label":"%s","status":"%s","exit":%s,"seconds":%s,"at":"%s"}\n' \
-    "$type" "$label" "$status" "$exitc" "$((end-start))" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$REPORT"
+    "$type" "$label" "$status" "$exitc" "$((end - start))" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$REPORT"
 }
 
 # ─── Smoke ───
-run Smoke health "curl -fsS -m 15 '$BASE/api/health?deep=1' | grep -q '\"status\":\"ok\"'"
+run Smoke health "curl -fsS -m 15 \"$BASE/api/health?deep=1\" | grep -q '\"status\":\"ok\"'"
 run Smoke page-crawl "node scripts/smoke-test-humanify-page-crawl.js"
 run Smoke module-pages "node scripts/smoke-test-humanify-module-pages.js"
 run Smoke dashboard "node scripts/smoke-test-humanify-dashboard.js"
@@ -75,20 +73,7 @@ run Smoke scorecard "npm run security:scorecard"
 run Sanity payroll-golden "npm run smoke:payroll-golden"
 run Sanity payroll-module "node scripts/smoke-test-humanify-payroll.js"
 run Sanity attendance "node scripts/smoke-test-humanify-attendance.js"
-run Sanity employees-create "node -e \"
-const BASE=process.env.SMOKE_BASE_URL; const EMAIL=process.env.SMOKE_EMAIL; const PASS=process.env.SMOKE_PASSWORD;
-(async()=>{
-  const csrfRes=await fetch(BASE+'/api/auth/csrf'); const {csrfToken}=await csrfRes.json();
-  const csrfCookie=(csrfRes.headers.getSetCookie?.()||[]).find(c=>c.includes('csrf'))?.split(';')[0]||'';
-  const loginRes=await fetch(BASE+'/api/auth/callback/credentials',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',Cookie:csrfCookie},body:new URLSearchParams({csrfToken,email:EMAIL,password:PASS,json:'true'}),redirect:'manual'});
-  const cookies=(loginRes.headers.getSetCookie?.()||[]).filter(c=>c.includes('next-auth')).map(c=>c.split(';')[0]);
-  if(csrfCookie) cookies.push(csrfCookie); const COOKIE=cookies.join('; ');
-  const stamp=Date.now().toString(36);
-  const res=await fetch(BASE+'/api/humanify/employee-profile?action=create',{method:'POST',headers:{Cookie:COOKIE,'Content-Type':'application/json'},body:JSON.stringify({name:'Sanity '+stamp,email:'sanity-'+stamp+'@contoh.test',department:'Finance',position:'Staff',work_location:'ADMIN_OFFICE'})});
-  const j=await res.json(); if(res.status!==201||!j.success) throw new Error(j.error||('HTTP '+res.status));
-  console.log('ok', j.message);
-})().catch(e=>{console.error(e); process.exit(1);});
-\""
+run Sanity employees-create "node scripts/qa-sanity-employee-create.js"
 
 # ─── Regression ───
 run Regression full-qa "bash scripts/run-humanify-full-qa.sh"
@@ -98,40 +83,11 @@ run Regression kpi "node scripts/smoke-test-humanify-kpi-performance-engagement.
 run Regression recruitment "node scripts/smoke-test-humanify-recruitment-training.js"
 run Regression ops-hr "node scripts/smoke-test-humanify-ops-hr.js"
 
-# ─── Retest (previously failing areas) ───
-run Retest leave-create "node -e \"
-const BASE=process.env.SMOKE_BASE_URL; const EMAIL=process.env.SMOKE_EMAIL; const PASS=process.env.SMOKE_PASSWORD;
-(async()=>{
-  const csrfRes=await fetch(BASE+'/api/auth/csrf'); const {csrfToken}=await csrfRes.json();
-  const csrfCookie=(csrfRes.headers.getSetCookie?.()||[]).find(c=>c.includes('csrf'))?.split(';')[0]||'';
-  const loginRes=await fetch(BASE+'/api/auth/callback/credentials',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',Cookie:csrfCookie},body:new URLSearchParams({csrfToken,email:EMAIL,password:PASS,json:'true'}),redirect:'manual'});
-  const cookies=(loginRes.headers.getSetCookie?.()||[]).filter(c=>c.includes('next-auth')).map(c=>c.split(';')[0]);
-  if(csrfCookie) cookies.push(csrfCookie); const COOKIE=cookies.join('; ');
-  const d=new Date(); d.setDate(d.getDate()+((d.getDay()===5)?3:(d.getDay()===6)?2:1));
-  const start=d.toISOString().slice(0,10); d.setDate(d.getDate()+1); const end=d.toISOString().slice(0,10);
-  const res=await fetch(BASE+'/api/employee/dashboard?action=leave-request',{method:'POST',headers:{Cookie:COOKIE,'Content-Type':'application/json'},body:JSON.stringify({leaveType:'annual',startDate:start,endDate:end,reason:'QA retest leave'})});
-  const j=await res.json(); if(!(res.status<300 && j.success)) throw new Error((j.error||'')+' '+(j.details||'')+' HTTP '+res.status);
-  console.log('leave ok', j.message);
-})().catch(e=>{console.error(e); process.exit(1);});
-\""
+# ─── Retest ───
+run Retest leave-create "node scripts/qa-retest-leave-create.js"
 run Retest ir-incident "node scripts/smoke-test-ir-disciplinary-integration.js"
 run Retest employee-portal "node scripts/smoke-test-employee-portal-full.js"
-run Retest org-summary-keys "node -e \"
-const BASE=process.env.SMOKE_BASE_URL; const EMAIL=process.env.SMOKE_EMAIL; const PASS=process.env.SMOKE_PASSWORD;
-(async()=>{
-  const csrfRes=await fetch(BASE+'/api/auth/csrf'); const {csrfToken}=await csrfRes.json();
-  const csrfCookie=(csrfRes.headers.getSetCookie?.()||[]).find(c=>c.includes('csrf'))?.split(';')[0]||'';
-  const loginRes=await fetch(BASE+'/api/auth/callback/credentials',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',Cookie:csrfCookie},body:new URLSearchParams({csrfToken,email:EMAIL,password:PASS,json:'true'}),redirect:'manual'});
-  const cookies=(loginRes.headers.getSetCookie?.()||[]).filter(c=>c.includes('next-auth')).map(c=>c.split(';')[0]);
-  if(csrfCookie) cookies.push(csrfCookie); const COOKIE=cookies.join('; ');
-  const j=await (await fetch(BASE+'/api/humanify/organization?action=summary',{headers:{Cookie:COOKIE}})).json();
-  if(!j.success||!j.data) throw new Error('summary failed');
-  for (const k of ['totalUnits','totalGrades','totalEmployees','totalDepartments']) {
-    if (j.data[k]==null) throw new Error('missing key '+k+' got '+Object.keys(j.data));
-  }
-  console.log('org summary keys ok', j.data.totalUnits, j.data.totalGrades, j.data.totalEmployees, j.data.totalDepartments);
-})().catch(e=>{console.error(e); process.exit(1);});
-\""
+run Retest org-summary-keys "node scripts/qa-retest-org-summary.js"
 
 # ─── E2E / UI ───
 run E2E soft-ui "npx playwright test e2e/humanify-welcome-login.spec.ts e2e/humanify-signup-ui.spec.ts e2e/humanify-payroll-ui.spec.ts e2e/humanify-hr-auth-gate-ui.spec.ts e2e/humanify-ops-auth-gate-ui.spec.ts --reporter=line"
@@ -146,46 +102,15 @@ run API mock-guard "npm run smoke:mock-guard"
 
 # ─── Database ───
 run Database rls-lab-unit "npm run smoke:rls-lab"
-run Database db-probe "node -e \"
-const BASE=process.env.SMOKE_BASE_URL; const EMAIL=process.env.SMOKE_EMAIL; const PASS=process.env.SMOKE_PASSWORD;
-(async()=>{
-  const csrfRes=await fetch(BASE+'/api/auth/csrf'); const {csrfToken}=await csrfRes.json();
-  const csrfCookie=(csrfRes.headers.getSetCookie?.()||[]).find(c=>c.includes('csrf'))?.split(';')[0]||'';
-  const loginRes=await fetch(BASE+'/api/auth/callback/credentials',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',Cookie:csrfCookie},body:new URLSearchParams({csrfToken,email:EMAIL,password:PASS,json:'true'}),redirect:'manual'});
-  const cookies=(loginRes.headers.getSetCookie?.()||[]).filter(c=>c.includes('next-auth')).map(c=>c.split(';')[0]);
-  if(csrfCookie) cookies.push(csrfCookie); const COOKIE=cookies.join('; ');
-  const health=await (await fetch(BASE+'/api/health?deep=1')).json();
-  if(health.status!=='ok') throw new Error('health not ok');
-  const emp=await (await fetch(BASE+'/api/humanify/employee-profile?action=list&limit=5',{headers:{Cookie:COOKIE}})).json();
-  if(!Array.isArray(emp.data)) throw new Error('employees list not array');
-  console.log('db-ok employees', emp.data.length, 'health', health.status);
-})().catch(e=>{console.error(e); process.exit(1);});
-\""
+run Database db-probe "node scripts/qa-db-probe.js"
 
 # ─── Exploratory / Ad-hoc ───
 run Exploratory enterprise "node scripts/smoke-test-humanify-enterprise.js"
-run AdHoc random-module-gets "node -e \"
-const BASE=process.env.SMOKE_BASE_URL; const EMAIL=process.env.SMOKE_EMAIL; const PASS=process.env.SMOKE_PASSWORD;
-const paths=['/api/humanify/dashboard','/api/humanify/payroll','/api/humanify/attendance-management?action=overview','/api/humanify/leave','/api/humanify/recruitment','/api/humanify/performance','/api/humanify/organization','/api/humanify/billing','/api/humanify/industrial-relations?action=overview','/api/humanify/training'];
-(async()=>{
-  const csrfRes=await fetch(BASE+'/api/auth/csrf'); const {csrfToken}=await csrfRes.json();
-  const csrfCookie=(csrfRes.headers.getSetCookie?.()||[]).find(c=>c.includes('csrf'))?.split(';')[0]||'';
-  const loginRes=await fetch(BASE+'/api/auth/callback/credentials',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',Cookie:csrfCookie},body:new URLSearchParams({csrfToken,email:EMAIL,password:PASS,json:'true'}),redirect:'manual'});
-  const cookies=(loginRes.headers.getSetCookie?.()||[]).filter(c=>c.includes('next-auth')).map(c=>c.split(';')[0]);
-  if(csrfCookie) cookies.push(csrfCookie); const COOKIE=cookies.join('; ');
-  let bad=0;
-  for (const p of paths) {
-    const res=await fetch(BASE+p,{headers:{Cookie:COOKIE}});
-    if(res.status>=500){ console.error('5xx', p, res.status); bad++; }
-    else console.log('ok', p, res.status);
-  }
-  if(bad) process.exit(1);
-})().catch(e=>{console.error(e); process.exit(1);});
-\""
+run AdHoc random-module-gets "node scripts/qa-adhoc-module-gets.js"
 
 echo ""
 echo "════════════════════════════════════════════════════════"
 echo " QA MATRIX DONE — $pass passed / $fail failed"
 echo " Report JSONL: $REPORT"
 echo "════════════════════════════════════════════════════════"
-exit $([ "$fail" = "0" ] && echo 0 || echo 1)
+exit "$([ "$fail" = "0" ] && echo 0 || echo 1)"
