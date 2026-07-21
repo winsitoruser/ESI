@@ -209,3 +209,11 @@ Flip strict di prod **tanpa** staging IDOR + chaos = dilarang.
 1. **`smoke:payroll-golden`** — after calculate: `approve` → `run-status=paid` → assert `payroll-audit` events `approved` + `paid`.
 2. **Hard e2e (staging)** — `humanify-payroll-hard.spec.ts` also hits `/payroll/thr`, `/bpjs`, `/lembur` (no 5xx); soft prod gate unchanged.
 3. ADR ceilings unchanged.
+
+## D-028 (Wave-67): Staging strict RLS live chaos — 21 Jul 2026
+**Security / Ops:** Staging env had `HUMANIFY_RLS_MODE=strict` but DB policies were still **soft** (`empty tenant → allow`), so empty-context `employees` leaked (~166). Wave-67:
+1. Re-applied `HUMANIFY_RLS_MODE=strict node scripts/migrate-humanify-rls.js` on staging DB → USING_STRICT + FORCE.
+2. Live chaos: empty `app.current_tenant` + `is_super_admin=false` → **0** employees.
+3. Expanded migrate table list with `employee_claims`, `overtime_requests`, `employee_mutations`.
+4. Staging IDOR pack + scorecard green (`SMOKE_BASE_URL=https://staging.humanify.id`).
+5. **Prod FORCE flip still deferred** (D-013b). Sentry.io (D-010b) and Midtrans auto-payout (D-015) unchanged.
