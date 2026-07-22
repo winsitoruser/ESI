@@ -1042,6 +1042,11 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
       kpiScore={kpiScore}
       kpiMetrics={kpiMetrics}
       setModal={setModal}
+      leaveBalance={leaveBalance}
+      pendingLeaves={pendingLeaves}
+      pendingClaims={pendingClaims}
+      pendingTravel={pendingTravel}
+      setOtModal={setOtModal}
     />
   );
 

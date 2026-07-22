@@ -38,6 +38,11 @@ export interface HomeTabProps {
   kpiScore: number;
   kpiMetrics: any;
   setModal: (...args: any[]) => any;
+  leaveBalance: any[];
+  pendingLeaves: any[];
+  pendingClaims: any[];
+  pendingTravel: any[];
+  setOtModal: (...args: any[]) => any;
 }
 
 
@@ -52,8 +57,14 @@ const fmtAttTime = (val?: string | null) => {
 const getInitials = (name: string) =>
   (name || 'K').split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('');
 
+const CLAIM_TYPE_LABELS: Record<string, string> = {
+  transport: 'Transport', meal: 'Makan', medical: 'Medis', lodging: 'Penginapan', other: 'Lainnya',
+};
+const claimTypeLabel = (v: string) => CLAIM_TYPE_LABELS[v] || v;
+
 export default function HomeTab({
-  greeting, userName, userPosition, userBranch, userDept, todayAttendance, canClockIn, canClockOut, clocking, handleClockIn, handleClockOut, setClockPhoto, setClockPhotoModal, monthAttendance, lastClockEvent, lastCheckIn, lastCheckOut, isManagerPortal, managerPendingCount, goToTab, isMfAgent, mfOverview, unreadCount, openNotifications, announcements, notifications, kpiScore, kpiMetrics, setModal
+  greeting, userName, userPosition, userBranch, userDept, todayAttendance, canClockIn, canClockOut, clocking, handleClockIn, handleClockOut, setClockPhoto, setClockPhotoModal, monthAttendance, lastClockEvent, lastCheckIn, lastCheckOut, isManagerPortal, managerPendingCount, goToTab, isMfAgent, mfOverview, unreadCount, openNotifications, announcements, notifications, kpiScore, kpiMetrics, setModal,
+  leaveBalance = [], pendingLeaves = [], pendingClaims = [], pendingTravel = [], setOtModal,
 }: HomeTabProps) {
   return (
 <div className="space-y-4">
