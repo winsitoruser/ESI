@@ -58,7 +58,8 @@ const getInitials = (name: string) =>
   (name || 'K').split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('');
 
 const CLAIM_TYPE_LABELS: Record<string, string> = {
-  transport: 'Transport', meal: 'Makan', medical: 'Medis', lodging: 'Penginapan', other: 'Lainnya',
+  medical: 'Medis', transport: 'Transport', meals: 'Makan', accommodation: 'Akomodasi',
+  communication: 'Komunikasi', other: 'Lainnya',
 };
 const claimTypeLabel = (v: string) => CLAIM_TYPE_LABELS[v] || v;
 
