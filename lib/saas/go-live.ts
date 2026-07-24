@@ -16,7 +16,8 @@ export type GoLiveItemId =
   | 'setup_wizard'
   | 'first_employee'
   | 'careers_ready'
-  | 'billing_aware';
+  | 'billing_aware'
+  | 'asset_inventory';
 
 export interface GoLiveItem {
   id: GoLiveItemId;
@@ -50,6 +51,19 @@ async function hasOpenJobs(tenantId: string): Promise<boolean> {
   }
 }
 
+async function hasAssetInventory(tenantId: string): Promise<boolean> {
+  if (!sequelize) return false;
+  try {
+    const [rows] = await sequelize.query(
+      `SELECT 1 FROM hris_assets WHERE tenant_id = :tid LIMIT 1`,
+      { replacements: { tid: tenantId } },
+    );
+    return Boolean(rows?.length);
+  } catch {
+    return false;
+  }
+}
+
 export async function getGoLiveStatus(tenantId: string): Promise<GoLiveStatus> {
   const tenant = await resolveTenantById(tenantId);
   const seats = await countTenantSeats(tenantId);
@@ -57,6 +71,7 @@ export async function getGoLiveStatus(tenantId: string): Promise<GoLiveStatus> {
   const setupOk = await isSaasOnboardingComplete(tenantId);
   const jobsOk = await hasOpenJobs(tenantId);
   const careersReady = Boolean(tenant?.slug);
+  const assetsOk = await hasAssetInventory(tenantId);
 
   let billingAware = false;
   try {
@@ -93,6 +108,15 @@ export async function getGoLiveStatus(tenantId: string): Promise<GoLiveStatus> {
       href: '/humanify/employees',
     },
     {
+      id: 'asset_inventory',
+      title: 'Inventori aset (disarankan untuk onboarding)',
+      done: assetsOk,
+      href: '/humanify/assets',
+      hint: assetsOk
+        ? 'Ada aset di inventori tenant'
+        : 'Tambah laptop/HP/ID di Manajemen Aset sebelum serah terima onboarding',
+    },
+    {
       id: 'careers_ready',
       title: 'Portal karir siap (slug + lowongan opsional)',
       done: careersReady,
@@ -110,12 +134,15 @@ export async function getGoLiveStatus(tenantId: string): Promise<GoLiveStatus> {
   const score = items.filter((i) => i.done).length;
   const total = items.length;
   const pct = Math.round((score / total) * 100);
+  // Core 4 (email, setup, employee, billing) enough to operate; assets/careers recommended
+  const coreIds = new Set(['email_verified', 'setup_wizard', 'first_employee', 'billing_aware']);
+  const coreDone = items.filter((i) => coreIds.has(i.id) && i.done).length;
 
   return {
     score,
     total,
     pct,
-    ready: score >= 4,
+    ready: coreDone >= 3,
     items,
     careersUrl: tenant?.slug ? `/c/${tenant.slug}/careers` : null,
     subdomainHint: tenant?.slug ? `https://${tenant.slug}.humanify.id` : null,

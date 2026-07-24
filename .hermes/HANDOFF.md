@@ -1,6 +1,21 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 24 Juli 2026 — **Wave-69** · Chase readiness 100% (assets↔lifecycle + IA hide)
+> Diperbarui: 24 Juli 2026 — **Wave-69** · Deploy + Gate A–D smoke hijau (staging & prod)
+
+## Wave-69 closeout — post-deploy Gate A–D (24 Jul 2026)
+
+| Gate | Check | Staging | Prod |
+|---|---|---|---|
+| A | health deep + login | 200 | 200 |
+| B | `security:scorecard` | **38/0** | **38/0** |
+| C | payroll-golden / claim-proof / ga-journey | 17·22·15 /0 | 17·22·15 /0 |
+| D | sidebar-persona + mock-guard | 13/0 · 12/0 | (static) |
+
+Also: `smoke:assets-lifecycle` 12/0 · `/humanify/devices` → attendance/devices.
+
+Git: `15fe4b6` (+ HANDOFF/go-live follow-ups). ADR ceilings tetap.
+
+**HRD next:** `/humanify/go-live` (termasuk inventori aset) + isi karyawan per tenant.
 
 ## Wave-69 (24 Jul 2026) — Readiness chase (closable gaps)
 
