@@ -1,6 +1,22 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 25 Juli 2026 — **Wave-72** · Kontrak sync · leave suggestions · KPI seed
+> Diperbarui: 25 Juli 2026 — **Wave-73** · Go-live verify · legacy claims clean · asset seed
+
+## Wave-73 (25 Jul 2026) — Sequential ops: go-live → legacy claims
+
+| ID | Item | Status |
+|---|---|---|
+| QA-1 | `smoke:phase7-golive` staging+prod | Done — **6/0** each |
+| QA-2 | `report:legacy-claims` live scan | Done — staging **0** legacy · prod **0** legacy |
+| QA-3 | `smoke:claim-proof` | Done — staging+prod **25/0** |
+| OPS-1 | Seed inventori aset demo (`LT-001`) → go-live **5/6** ready=true | Done |
+| OPS-2 | Gap tersisa: `email_verified` (pemilik tenant — verifikasi inbox) | Open (HRD) |
+
+**Go-live tenant demo (`c692477a-…`):** setup · karyawan · aset · karir · billing ✅ · email pemilik ⏳  
+
+Scripts: `npm run smoke:phase7-golive` · `npm run report:legacy-claims` · `npm run smoke:claim-proof`
+
+**ADR ceilings unchanged:** prod FORCE RLS · Sentry.io · Midtrans auto-payout · Privy unhide.
 
 ## Wave-72 (25 Jul 2026) — HR config depth (contracts · leave · KPI)
 
