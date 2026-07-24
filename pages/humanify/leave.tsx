@@ -6,12 +6,13 @@ import {
   Search, Filter, Download, Plus, Eye, ChevronDown, Building2,
   Coffee, Heart, Baby, UserX, Calendar, Settings, Shield, ArrowRight,
   ChevronRight, Layers, X, Save, Trash2, Edit, AlertCircle, RefreshCw,
-  Copy, FileText, Info, Database, Palette, ToggleLeft, ToggleRight
+  Copy, FileText, Info, Database, Palette, ToggleLeft, ToggleRight, Sparkles, Wand2
 } from 'lucide-react';
 import { HRIS_DEPARTMENTS } from '@/lib/hris/master-data';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import HrisEmptyState from '@/components/humanify/HrisEmptyState';
 import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
+import Link from 'next/link';
 
 
 interface LeaveRequest {
@@ -156,6 +157,11 @@ export default function LeaveManagementPage() {
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [editingType, setEditingType] = useState<LeaveTypeItem | null>(null);
   const [typeForm, setTypeForm] = useState({ ...defaultTypeForm });
+  const [typeSuggestions, setTypeSuggestions] = useState<any[]>([]);
+  const [typeSuggestTip, setTypeSuggestTip] = useState('');
+  const [approvalSuggestions, setApprovalSuggestions] = useState<any[]>([]);
+  const [approvalSuggestTip, setApprovalSuggestTip] = useState('');
+  const [suggestLoading, setSuggestLoading] = useState(false);
 
   // Config form
   const [configForm, setConfigForm] = useState<{
@@ -238,8 +244,93 @@ export default function LeaveManagementPage() {
     }
   };
 
+  const loadAiSuggestions = async () => {
+    setSuggestLoading(true);
+    try {
+      const [typesRes, apprRes] = await Promise.all([
+        fetch('/api/humanify/leave-management?action=suggest-types'),
+        fetch('/api/humanify/leave-management?action=suggest-approvals'),
+      ]);
+      const typesJson = await typesRes.json();
+      const apprJson = await apprRes.json();
+      if (typesJson.success) {
+        setTypeSuggestions(typesJson.data?.suggestions || []);
+        setTypeSuggestTip(typesJson.data?.summary?.tip || '');
+      }
+      if (apprJson.success) {
+        setApprovalSuggestions(apprJson.data?.suggestions || []);
+        setApprovalSuggestTip(apprJson.data?.summary?.tip || '');
+      }
+    } catch {
+      /* non-blocking */
+    } finally {
+      setSuggestLoading(false);
+    }
+  };
+
+  const applyTypeSuggestion = (s: any) => {
+    if (s.alreadyConfigured) {
+      showToast('success', `${s.name} sudah ada di konfigurasi`);
+      return;
+    }
+    setEditingType(null);
+    setTypeForm({
+      ...defaultTypeForm,
+      code: String(s.code || '').toLowerCase(),
+      name: s.name || '',
+      description: s.description || '',
+      category: s.category || 'regular',
+      max_days_per_year: s.max_days_per_year ?? 12,
+      min_days_per_request: s.min_days_per_request ?? 1,
+      max_days_per_request: s.max_days_per_request ?? 14,
+      is_paid: s.is_paid !== false,
+      salary_deduction_percent: s.salary_deduction_percent || 0,
+      carry_forward: !!s.carry_forward,
+      max_carry_forward_days: s.max_carry_forward_days || 0,
+      requires_attachment: !!s.requires_attachment,
+      requires_medical_cert: !!s.requires_medical_cert,
+      applicable_gender: s.applicable_gender || '',
+      min_service_months: s.min_service_months || 0,
+      color: s.color || '#3B82F6',
+      icon: s.icon || 'calendar',
+      is_active: true,
+      sort_order: leaveTypes.length + 1,
+    });
+    setShowTypeModal(true);
+  };
+
+  const applyApprovalSuggestion = (s: any) => {
+    if (s.alreadyConfigured) {
+      showToast('success', 'Skema serupa sudah ada');
+      return;
+    }
+    setEditingConfig(null);
+    setConfigForm({
+      name: s.name || '',
+      description: s.description || '',
+      department: '',
+      division: '',
+      minDaysTrigger: s.trigger_days ?? 1,
+      maxAutoApproveDays: 0,
+      escalationHours: 48,
+      levels: (s.levels || []).map((l: any, i: number) => ({
+        level: l.level || i + 1,
+        role: String(l.role || 'SUPERVISOR').toUpperCase(),
+        title: l.label || l.title || l.role || `Level ${i + 1}`,
+        required: true,
+        can_delegate: true,
+      })),
+    });
+    setShowConfigModal(true);
+  };
+
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => { if (mounted) fetchData(inboxScope); }, [mounted, inboxScope]);
+  useEffect(() => {
+    if (mounted && (activeTab === 'leave-types' || activeTab === 'approval-config')) {
+      loadAiSuggestions();
+    }
+  }, [mounted, activeTab, leaveTypes.length, approvalConfigs.length]);
 
   const filtered = useMemo(() => {
     let list = requests;
@@ -786,11 +877,39 @@ export default function LeaveManagementPage() {
                   <h3 className="font-semibold text-lg">Konfigurasi Persetujuan Berjenjang</h3>
                   <p className="text-sm text-gray-500">Atur alur persetujuan cuti per departemen, divisi, atau tipe cuti</p>
                 </div>
-                <button onClick={openNewConfig}
-                  className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]">
-                  <Plus className="w-4 h-4" /> Tambah Konfigurasi
-                </button>
+                <div className="flex items-center gap-2">
+                  <button onClick={loadAiSuggestions} disabled={suggestLoading}
+                    className="flex items-center gap-2 px-3 py-2 border border-[var(--hf-brand-200)] text-[color:var(--hf-brand-600)] rounded-lg text-sm hover:bg-[var(--hf-brand-50)]">
+                    <Sparkles className="w-4 h-4" /> {suggestLoading ? 'Memuat…' : 'Saran AI'}
+                  </button>
+                  <button onClick={openNewConfig}
+                    className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]">
+                    <Plus className="w-4 h-4" /> Tambah Konfigurasi
+                  </button>
+                </div>
               </div>
+
+              {approvalSuggestions.length > 0 && (
+                <div className="rounded-xl border border-violet-100 bg-gradient-to-r from-violet-50 to-fuchsia-50 p-4">
+                  <div className="flex items-start gap-2 mb-3">
+                    <Wand2 className="w-4 h-4 text-violet-600 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold text-violet-900">Saran alur persetujuan untuk HR</p>
+                      {approvalSuggestTip && <p className="text-xs text-violet-700 mt-0.5">{approvalSuggestTip}</p>}
+                    </div>
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    {approvalSuggestions.filter((s) => !s.alreadyConfigured).slice(0, 4).map((s) => (
+                      <button key={s.id || s.name} type="button" onClick={() => applyApprovalSuggestion(s)}
+                        className="text-left rounded-lg border border-white/80 bg-white/90 px-3 py-2 hover:border-violet-300 hover:shadow-sm transition">
+                        <p className="text-sm font-medium text-slate-800">{s.name}</p>
+                        <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5">{s.rationale || s.description}</p>
+                        <p className="text-[10px] text-violet-600 mt-1 font-medium">Terapkan →</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {approvalConfigs.map(cfg => (
@@ -859,11 +978,48 @@ export default function LeaveManagementPage() {
                   <h3 className="font-semibold text-lg">Tipe Cuti</h3>
                   <p className="text-sm text-gray-500">{leaveTypes.length} tipe cuti terdaftar &mdash; hover kartu untuk aksi</p>
                 </div>
-                <button onClick={openNewType}
-                  className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]">
-                  <Plus className="w-4 h-4" /> Tambah Tipe Cuti
-                </button>
+                <div className="flex items-center gap-2">
+                  <button onClick={loadAiSuggestions} disabled={suggestLoading}
+                    className="flex items-center gap-2 px-3 py-2 border border-[var(--hf-brand-200)] text-[color:var(--hf-brand-600)] rounded-lg text-sm hover:bg-[var(--hf-brand-50)]">
+                    <Sparkles className="w-4 h-4" /> {suggestLoading ? 'Memuat…' : 'Saran AI'}
+                  </button>
+                  <button onClick={openNewType}
+                    className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]">
+                    <Plus className="w-4 h-4" /> Tambah Tipe Cuti
+                  </button>
+                </div>
               </div>
+
+              {typeSuggestions.length > 0 && (
+                <div className="rounded-xl border border-sky-100 bg-gradient-to-r from-sky-50 to-[var(--hf-brand-50)] p-4">
+                  <div className="flex items-start gap-2 mb-3">
+                    <Sparkles className="w-4 h-4 text-[color:var(--hf-brand-600)] mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">Saran tipe cuti (AI HR)</p>
+                      {typeSuggestTip && <p className="text-xs text-slate-600 mt-0.5">{typeSuggestTip}</p>}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {typeSuggestions.map((s) => (
+                      <button
+                        key={s.id || s.code}
+                        type="button"
+                        onClick={() => applyTypeSuggestion(s)}
+                        disabled={s.alreadyConfigured}
+                        className={`rounded-full px-3 py-1.5 text-xs font-medium border transition ${
+                          s.alreadyConfigured
+                            ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-default'
+                            : 'bg-white text-slate-700 border-slate-200 hover:border-[var(--hf-brand-400)] hover:text-[color:var(--hf-brand)]'
+                        }`}
+                        title={s.rationale || s.description}
+                      >
+                        {s.alreadyConfigured ? '✓ ' : '+ '}{s.name}
+                        {s.priority === 'compliance' && !s.alreadyConfigured ? ' · wajib' : ''}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {leaveTypes.map(lt => {

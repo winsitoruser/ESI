@@ -107,6 +107,87 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       if (!tenantId) return res.status(403).json(errorResponse(ErrorCodes.FORBIDDEN, 'NO_TENANT'));
       const body = req.body;
 
+      if (type === 'seed-defaults') {
+        const { KPI_TEMPLATES, STANDARD_SCORING_LEVELS } = await import('../../../lib/hq/kpi-calculator');
+        let created = 0;
+        let skipped = 0;
+        for (const t of KPI_TEMPLATES as any[]) {
+          try {
+            const [existing]: any = await sequelize.query(
+              `SELECT id FROM kpi_templates WHERE tenant_id = :tid AND code = :code LIMIT 1`,
+              { replacements: { tid: tenantId, code: t.code } },
+            );
+            if (existing?.[0]?.id) { skipped++; continue; }
+            await sequelize.query(`
+              INSERT INTO kpi_templates (tenant_id, code, name, description, category, unit, data_type,
+                formula_type, formula, default_weight, measurement_frequency, applicable_to, parameters, is_active)
+              VALUES (:tid, :code, :name, :desc, :cat, :unit, :dataType, :formulaType, :formula,
+                :defaultWeight, :freq, :applicableTo, :params, true)
+            `, {
+              replacements: {
+                tid: tenantId,
+                code: t.code,
+                name: t.name,
+                desc: t.description || `${t.name} — template bawaan Humanify`,
+                cat: t.category,
+                unit: t.unit || '%',
+                dataType: t.dataType || 'number',
+                formulaType: t.formulaType || 'simple',
+                formula: t.formula || '(actual / target) * 100',
+                defaultWeight: t.defaultWeight || 100,
+                freq: t.measurementFrequency || 'monthly',
+                applicableTo: JSON.stringify(t.applicableTo || ['all']),
+                params: JSON.stringify(t.parameters || []),
+              },
+            });
+            created++;
+          } catch {
+            skipped++;
+          }
+        }
+        // Ensure at least one scoring scheme
+        const [schemes]: any = await sequelize.query(
+          `SELECT id FROM kpi_scoring_schemes WHERE tenant_id = :tid LIMIT 1`,
+          { replacements: { tid: tenantId } },
+        );
+        let schemeCreated = false;
+        if (!schemes?.[0]?.id) {
+          const [schemeRows]: any = await sequelize.query(`
+            INSERT INTO kpi_scoring_schemes (tenant_id, name, description, is_default, is_active)
+            VALUES (:tid, 'Standard 5-Level', 'Skala penilaian standar 5 level (template bawaan)', true, true)
+            RETURNING id
+          `, { replacements: { tid: tenantId } });
+          const schemeId = schemeRows?.[0]?.id;
+          if (schemeId) {
+            for (let i = 0; i < STANDARD_SCORING_LEVELS.length; i++) {
+              const lv = STANDARD_SCORING_LEVELS[i];
+              await sequelize.query(`
+                INSERT INTO kpi_scoring_levels (scheme_id, level, label, min_percent, max_percent, score, color, multiplier, sort_order)
+                VALUES (:schemeId, :level, :label, :minP, :maxP, :score, :color, :mult, :sort)
+              `, {
+                replacements: {
+                  schemeId,
+                  level: lv.level,
+                  label: lv.label,
+                  minP: lv.minPercent,
+                  maxP: lv.maxPercent,
+                  score: lv.level,
+                  color: lv.color,
+                  mult: lv.multiplier,
+                  sort: i + 1,
+                },
+              });
+            }
+            schemeCreated = true;
+          }
+        }
+        return res.status(HttpStatus.OK).json(successResponse(
+          { created, skipped, schemeCreated, totalCatalog: (KPI_TEMPLATES as any[]).length },
+          undefined,
+          `Template bawaan dipasang: ${created} baru, ${skipped} sudah ada`,
+        ));
+      }
+
       if (type === 'template') {
         if (!body.name || !body.category || !body.code) {
           return res.status(HttpStatus.BAD_REQUEST).json(errorResponse(ErrorCodes.MISSING_REQUIRED_FIELDS, 'code, name and category are required'));

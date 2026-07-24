@@ -146,7 +146,8 @@ export default function KPISettings() {
           setTemplates(apiTemplates.map(mapApiTemplate));
           setDataSource('live');
         } else if (!USE_MOCK_UI) {
-          setTemplates([]);
+          // Preview katalog bawaan (termasuk HR) sampai HR menekan "Pasang Template Bawaan"
+          setTemplates(KPI_TEMPLATES as KPITemplate[]);
           setDataSource('empty');
         }
         if (payload.scoringSchemes?.length > 0) setScoringSchemes(payload.scoringSchemes);
@@ -227,16 +228,16 @@ export default function KPISettings() {
     );
   }
 
-  const tabConfig: { id: TabKey; label: string; icon: any }[] = [
-    { id: 'templates', label: 'Template KPI', icon: Target },
-    { id: 'scoring', label: 'Standar Penilaian', icon: Award },
-    { id: 'ai-analysis', label: 'AI Analisis Bobot', icon: Brain },
-    { id: 'presets', label: 'Preset Role', icon: Users },
-    { id: 'calculator', label: 'Kalkulator KPI', icon: Calculator },
+  const tabConfig: { key: TabKey; label: string; icon: any }[] = [
+    { key: 'templates', label: 'Template KPI', icon: Target },
+    { key: 'scoring', label: 'Standar Penilaian', icon: Award },
+    { key: 'ai-analysis', label: 'AI Analisis Bobot', icon: Brain },
+    { key: 'presets', label: 'Preset Role', icon: Users },
+    { key: 'calculator', label: 'Kalkulator KPI', icon: Calculator },
   ];
 
   return (
-    <HQLayout title="Pengaturan KPI" subtitle="Konfigurasi template, bobot penilaian, dan analisis AI untuk KPI Sales & Marketing">
+    <HQLayout title="Pengaturan KPI" subtitle="Template metrik (Sales, Marketing, HR, Ops), skema penilaian, preset role, dan kalkulator bobot">
       <div className="space-y-6">
         <PerformanceModuleChrome
           active="kpi-settings"
@@ -277,9 +278,49 @@ export default function KPISettings() {
                     return <option key={key} value={key}>{val.name} ({count})</option>;
                   })}
                 </select>
-                <button onClick={() => { setEditingTemplate(null); setShowTemplateModal(true); }}
-                  className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)] text-sm"><Plus className="w-4 h-4" /> Tambah Template</button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        setLoading(true);
+                        const res = await fetch('/api/humanify/kpi-settings?type=seed-defaults', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({}),
+                        });
+                        const json = await res.json();
+                        if (!res.ok || json.success === false) {
+                          showToast('error', json.error?.message || json.error || 'Gagal memasang template');
+                        } else {
+                          const d = json.data || {};
+                          showToast('success', json.message || `Template: ${d.created || 0} baru`);
+                          await fetchData();
+                        }
+                      } catch {
+                        showToast('error', 'Gagal memasang template bawaan');
+                      } finally {
+                        setLoading(false);
+                      }
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 border border-[var(--hf-brand-200)] bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-700)] rounded-lg hover:bg-[var(--hf-brand-100)] text-sm"
+                  >
+                    <Zap className="w-4 h-4" /> Pasang Template Bawaan
+                  </button>
+                  <button onClick={() => { setEditingTemplate(null); setShowTemplateModal(true); }}
+                    className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)] text-sm"><Plus className="w-4 h-4" /> Tambah Template</button>
+                </div>
               </div>
+
+              {dataSource === 'empty' && (
+                <div className="mb-6 rounded-xl border border-dashed border-[var(--hf-brand-200)] bg-[var(--hf-brand-50)]/50 p-6 text-center">
+                  <Lightbulb className="mx-auto mb-2 h-8 w-8 text-[color:var(--hf-brand-600)]" />
+                  <h4 className="font-semibold text-slate-800">Pratinjau katalog bawaan</h4>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Template di bawah masih pratinjau. Tekan <strong>Pasang Template Bawaan</strong> agar tersimpan ke tenant Anda (sales, marketing, operasi, HR, kualitas).
+                  </p>
+                </div>
+              )}
 
               {/* Category Summary */}
               <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">

@@ -143,6 +143,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         if (action === 'approval-configs') return getApprovalConfigs(req, res, session, tenantId);
         if (action === 'requests') return getLeaveRequests(req, res, session);
         if (action === 'pending-approvals') return getPendingApprovals(req, res, session, tenantId);
+        if (action === 'suggest-types' || action === 'suggest-approvals') {
+          return suggestLeaveConfig(req, res, session, action);
+        }
         // Default: return all overview data
         return getOverview(req, res, session);
       case 'POST':
@@ -152,6 +155,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         if (action === 'reject') return rejectRequest(req, res, session);
         if (action === 'type') return createLeaveType(req, res, session);
         if (action === 'balance-init') return initializeBalances(req, res, session);
+        if (action === 'suggest-types' || action === 'suggest-approvals') {
+          return suggestLeaveConfig(req, res, session, action);
+        }
         return res.status(400).json({ error: 'Unknown action' });
       case 'PUT':
         if (action === 'approval-config') return updateApprovalConfig(req, res, session);
@@ -959,6 +965,63 @@ function getMockLeaveTypes() {
     { id: '7', code: 'personal', name: 'Keperluan Pribadi', category: 'regular', max_days_per_year: 3, is_paid: true, color: '#F59E0B', icon: 'coffee' },
     { id: '8', code: 'bereavement', name: 'Duka Cita', category: 'special', max_days_per_year: 3, is_paid: true, color: '#6B7280', icon: 'heart' },
   ];
+}
+
+async function suggestLeaveConfig(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  session: any,
+  action: string,
+) {
+  try {
+    const { suggestLeaveTypes, suggestApprovalFlows } = await import('@/lib/hris/leave-type-suggestions');
+    if (action === 'suggest-types') {
+      const codes = (await getLeaveTypesList(session)).map((t: any) => t.code);
+      return res.json({ success: true, data: suggestLeaveTypes(codes) });
+    }
+    const names = (await getApprovalConfigNames(session)).map((n: any) => String(n));
+    return res.json({ success: true, data: suggestApprovalFlows(names) });
+  } catch (e: any) {
+    return res.status(500).json({ success: false, error: e?.message || 'Gagal memuat saran AI' });
+  }
+}
+
+async function getLeaveTypesList(session: any): Promise<any[]> {
+  const tenantId = session?.user?.tenantId;
+  try {
+    if (LeaveType && tenantId) {
+      const rows = await LeaveType.findAll({
+        where: { tenantId },
+        attributes: ['code'],
+        raw: true,
+      });
+      if (rows?.length) return rows;
+    }
+  } catch { /* fall through */ }
+  if (sequelize && tenantId) {
+    try {
+      const [rows]: any = await sequelize.query(
+        `SELECT code FROM leave_types WHERE tenant_id = :tid OR tenant_id IS NULL`,
+        { replacements: { tid: tenantId } },
+      );
+      return rows || [];
+    } catch { /* ignore */ }
+  }
+  return [];
+}
+
+async function getApprovalConfigNames(session: any): Promise<string[]> {
+  const tenantId = session?.user?.tenantId;
+  if (!sequelize || !tenantId) return [];
+  try {
+    const [rows]: any = await sequelize.query(
+      `SELECT name FROM leave_approval_configs WHERE tenant_id = :tid`,
+      { replacements: { tid: tenantId } },
+    );
+    return (rows || []).map((r: any) => r.name);
+  } catch {
+    return [];
+  }
 }
 
 function getMockApprovalConfigs() {

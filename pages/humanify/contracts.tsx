@@ -4,8 +4,9 @@ import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
 import {
   FileText, Plus, Search, Filter, Calendar, AlertTriangle, CheckCircle,
-  X, Edit, Trash2, RefreshCw, XCircle, Clock, DollarSign, User, Building2, Download, Bell
+  X, Edit, Trash2, RefreshCw, XCircle, Clock, DollarSign, User, Building2, Download, Bell, Link2, Paperclip
 } from 'lucide-react';
+import Link from 'next/link';
 import EmployeePicker, { type PickedEmployee } from '@/components/humanify/EmployeePicker';
 import { HRIS_DEPARTMENTS, getDepartmentLabel } from '@/lib/hris/master-data';
 
@@ -24,6 +25,7 @@ interface Contract {
   department?: string;
   renewalCount?: number;
   notes?: string;
+  documentId?: string | null;
 }
 
 const TYPE_LABELS: Record<string, { label: string; color: string }> = {
@@ -102,6 +104,7 @@ export default function ContractsPage() {
         department: c.department,
         renewalCount: c.renewalCount || c.renewal_count || 0,
         notes: c.notes,
+        documentId: c.documentId || c.document_id || null,
       }));
       setContracts(list);
       setDataSource(list.length ? 'live' : 'empty');
@@ -238,6 +241,16 @@ export default function ContractsPage() {
         <div className="flex justify-end">
           <DataSourceBadge source={dataSource} />
         </div>
+        <div className="rounded-xl border border-[var(--hf-brand-100)] bg-[var(--hf-brand-50)]/60 px-4 py-3 text-sm text-slate-700 flex flex-wrap items-start gap-2">
+          <Link2 className="w-4 h-4 text-[color:var(--hf-brand-600)] mt-0.5 shrink-0" />
+          <p>
+            <span className="font-medium">Terintegrasi dengan upload dokumen karyawan.</span>{' '}
+            Saat HR mengunggah <strong>Kontrak Kerja / PKWT / PKWTT</strong> di{' '}
+            <Link href="/humanify/employees" className="text-[color:var(--hf-brand-700)] underline underline-offset-2">Database Karyawan</Link>
+            {' '}dengan nomor kontrak, data otomatis masuk ke riwayat kontrak di halaman ini (keseragaman nomor &amp; tanggal).
+          </p>
+        </div>
+
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <StatCard icon={FileText} label="Total Kontrak" value={overview.total || contracts.length} color="text-[color:var(--hf-brand-600)]" bg="bg-[var(--hf-brand-100)]" />
           <StatCard icon={CheckCircle} label="Aktif" value={overview.active || contracts.filter(c => c.status === 'active').length} color="text-green-600" bg="bg-green-100" />
@@ -317,7 +330,16 @@ export default function ContractsPage() {
                 const dLeft = daysUntil(c.endDate);
                 return (
                   <tr key={c.id} className="border-t hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium">{c.contractNumber || '-'}</td>
+                    <td className="px-4 py-3 font-medium">
+                      <div className="flex items-center gap-1.5">
+                        <span>{c.contractNumber || '-'}</span>
+                        {c.documentId && (
+                          <span title="Tersambung ke dokumen kontrak" className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+                            <Paperclip className="w-3 h-3" /> Dokumen
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-3">
                       <div className="text-sm">{c.employeeName || `EMP-${c.employeeId}`}</div>
                       <div className="text-xs text-gray-500">{c.position || ''} {c.department ? `• ${c.department}` : ''}</div>

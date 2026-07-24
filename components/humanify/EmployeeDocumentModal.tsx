@@ -53,6 +53,7 @@ export default function EmployeeDocumentModal({
 
   const typeMeta = getDocumentTypeMeta(form.document_type || '');
   const isEdit = Boolean(form.id);
+  const isContractDoc = ['KONTRAK_KERJA', 'PKWT', 'PKWTT'].includes(String(form.document_type || ''));
   const fileMissing = Boolean(form.file_missing || (form.file_url && form.file_exists === false));
   const hasExistingType = !isEdit && form.document_type &&
     (existingDocuments || []).some((d) => d.document_type === form.document_type && d.file_url);
@@ -132,6 +133,10 @@ export default function EmployeeDocumentModal({
       showToast('error', fileMissing ? 'File fisik hilang — unggah ulang dokumen' : 'Pilih file dokumen untuk diunggah');
       return;
     }
+    if (isContractDoc && !String(form.document_number || '').trim()) {
+      showToast('error', 'No. Kontrak wajib diisi agar sinkron ke Riwayat Kontrak');
+      return;
+    }
 
     setSaving(true);
     setUploadProgress(selectedFile ? 0 : null);
@@ -151,7 +156,15 @@ export default function EmployeeDocumentModal({
 
       const { ok, json } = await uploadWithProgress(fd);
       if (ok && json.success) {
-        showToast('success', json.message || 'Dokumen berhasil disimpan');
+        const sync = json.data?.contractSync || json.data?.contract_sync || json.contract_sync;
+        const syncMsg = sync
+          ? sync.action === 'created'
+            ? ' · terhubung ke Riwayat Kontrak (baru)'
+            : ' · terhubung ke Riwayat Kontrak (diperbarui)'
+          : isContractDoc
+            ? ' · nomor/tanggal akan sinkron ke Kontrak jika tersedia'
+            : '';
+        showToast('success', (json.message || 'Dokumen berhasil disimpan') + syncMsg);
         setSelectedFile(null);
         setUploadProgress(null);
         if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -249,19 +262,28 @@ export default function EmployeeDocumentModal({
           </div>
 
           <div>
-            <label className="text-xs font-medium text-gray-500">No. Dokumen</label>
+            <label className="text-xs font-medium text-gray-500">
+              {isContractDoc ? 'No. Kontrak *' : 'No. Dokumen'}
+            </label>
             <input
               type="text"
               value={form.document_number || ''}
               onChange={(e) => setForm((f) => ({ ...f, document_number: e.target.value }))}
-              placeholder={typeMeta?.hasNumber ? 'Nomor identitas / referensi' : 'Opsional'}
+              placeholder={isContractDoc ? 'Contoh: PKWT/2026/001' : typeMeta?.hasNumber ? 'Nomor identitas / referensi' : 'Opsional'}
               className="w-full px-3 py-2 border rounded-lg text-sm mt-1"
             />
+            {isContractDoc && (
+              <p className="text-[11px] text-[color:var(--hf-brand-600)] mt-1">
+                Nomor & tanggal akan disinkronkan ke menu Kontrak & Reminder serta Riwayat Kontrak karyawan.
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-gray-500">Tanggal Terbit</label>
+              <label className="text-xs font-medium text-gray-500">
+                {isContractDoc ? 'Mulai Kontrak' : 'Tanggal Terbit'}
+              </label>
               <input
                 type="date"
                 value={form.issue_date || ''}
@@ -271,7 +293,8 @@ export default function EmployeeDocumentModal({
             </div>
             <div>
               <label className="text-xs font-medium text-gray-500">
-                Tanggal Kadaluarsa{typeMeta?.hasExpiry ? ' *' : ''}
+                {isContractDoc ? 'Akhir Kontrak' : 'Tanggal Kadaluarsa'}
+                {(typeMeta?.hasExpiry || (isContractDoc && form.document_type === 'PKWT')) ? ' *' : ''}
               </label>
               <input
                 type="date"

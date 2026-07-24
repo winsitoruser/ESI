@@ -1,6 +1,20 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 24 Juli 2026 — **Wave-71** · Soft-fail `/api/business/config` (no `business_types`)
+> Diperbarui: 25 Juli 2026 — **Wave-72** · Kontrak sync · leave suggestions · KPI seed
+
+## Wave-72 (25 Jul 2026) — HR config depth (contracts · leave · KPI)
+
+| ID | Item | Status |
+|---|---|---|
+| BE-1 | `lib/hris/contract-document-sync.ts` (canonical; fixes missing module on HEAD) | Done |
+| BE-2 | Leave `suggest-types` / `suggest-approvals` (rule-based UU 13/2003) | Done |
+| BE-3 | KPI `seed-defaults` templates + scoring scheme | Done |
+| FE-1 | Leave AI-assist panel; contracts integration banner; KPI seed CTA | Done |
+| QA-1 | `npm run smoke:hr-wave-uat` | Pending deploy |
+
+Scripts: `npm run smoke:hr-wave-uat`
+
+**Note:** Wave-71 deploy referenced `@/lib/hris/contract-document-sync` without committing the file — Wave-72 ships it.
 
 ## Wave-71 (24 Jul 2026) — ESS residual: business config soft-fail
 

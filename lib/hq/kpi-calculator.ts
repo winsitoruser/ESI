@@ -434,6 +434,97 @@ export const KPI_TEMPLATES = [
       { name: 'budget', label: 'Budget Bulanan', type: 'currency', required: true },
       { name: 'target', label: 'Target Penghematan (%)', type: 'percentage', default: 10 }
     ]
+  },
+  // HR / People Ops KPIs — template bawaan untuk staf HR
+  {
+    code: 'KPI-HR-001',
+    name: 'Tingkat Retensi Karyawan',
+    category: 'hr',
+    unit: '%',
+    dataType: 'percentage',
+    formulaType: 'ratio',
+    formula: '((headcountStart + hires - exits) / headcountStart) * 100',
+    defaultWeight: 20,
+    measurementFrequency: 'quarterly',
+    applicableTo: ['hr_staff', 'hr_manager'],
+    parameters: [
+      { name: 'target', label: 'Target Retensi (%)', type: 'percentage', required: true, default: 90 }
+    ]
+  },
+  {
+    code: 'KPI-HR-002',
+    name: 'Time-to-Hire',
+    category: 'hr',
+    unit: 'hari',
+    dataType: 'number',
+    formulaType: 'inverse',
+    formula: 'avgDaysFromOpenToOffer',
+    defaultWeight: 15,
+    measurementFrequency: 'monthly',
+    applicableTo: ['hr_staff', 'hr_manager'],
+    parameters: [
+      { name: 'target', label: 'Target Hari (maks)', type: 'number', required: true, default: 30 }
+    ]
+  },
+  {
+    code: 'KPI-HR-003',
+    name: 'Penyelesaian Training / LMS',
+    category: 'hr',
+    unit: '%',
+    dataType: 'percentage',
+    formulaType: 'ratio',
+    formula: '(completedAssignments / assigned) * 100',
+    defaultWeight: 15,
+    measurementFrequency: 'monthly',
+    applicableTo: ['hr_staff', 'hr_manager', 'branch_manager'],
+    parameters: [
+      { name: 'target', label: 'Target Completion (%)', type: 'percentage', required: true, default: 85 }
+    ]
+  },
+  {
+    code: 'KPI-HR-004',
+    name: 'Utilisasi Cuti (Kepatuhan)',
+    category: 'hr',
+    unit: '%',
+    dataType: 'percentage',
+    formulaType: 'ratio',
+    formula: '(leaveDaysUsed / leaveDaysEntitled) * 100',
+    defaultWeight: 10,
+    measurementFrequency: 'quarterly',
+    applicableTo: ['hr_staff', 'hr_manager'],
+    parameters: [
+      { name: 'target', label: 'Target Utilisasi Sehat (%)', type: 'percentage', default: 70 }
+    ]
+  },
+  {
+    code: 'KPI-HR-005',
+    name: 'Skor Engagement / eNPS',
+    category: 'hr',
+    unit: 'poin',
+    dataType: 'number',
+    formulaType: 'simple',
+    formula: '(actual / target) * 100',
+    defaultWeight: 20,
+    measurementFrequency: 'quarterly',
+    applicableTo: ['hr_manager', 'branch_manager'],
+    parameters: [
+      { name: 'target', label: 'Target eNPS / skor', type: 'number', required: true, default: 40 }
+    ]
+  },
+  {
+    code: 'KPI-HR-006',
+    name: 'Absensi / Kehadiran Tim',
+    category: 'hr',
+    unit: '%',
+    dataType: 'percentage',
+    formulaType: 'ratio',
+    formula: '(presentDays / workingDays) * 100',
+    defaultWeight: 20,
+    measurementFrequency: 'monthly',
+    applicableTo: ['hr_staff', 'hr_manager', 'branch_manager'],
+    parameters: [
+      { name: 'target', label: 'Target Kehadiran (%)', type: 'percentage', required: true, default: 95 }
+    ]
   }
 ];
 
@@ -618,6 +709,28 @@ export const ROLE_KPI_PRESETS: Record<string, { role: string; label: string; kpi
       { code: 'KPI-CUST-001', weight: 15 },
       { code: 'KPI-CUST-002', weight: 10 },
       { code: 'KPI-OPS-002', weight: 20 },
+    ]
+  },
+  hr_staff: {
+    role: 'hr_staff',
+    label: 'Staff HR / People Ops',
+    kpis: [
+      { code: 'KPI-HR-002', weight: 20 },
+      { code: 'KPI-HR-003', weight: 20 },
+      { code: 'KPI-HR-004', weight: 15 },
+      { code: 'KPI-HR-006', weight: 25 },
+      { code: 'KPI-OPS-002', weight: 20 },
+    ]
+  },
+  hr_manager: {
+    role: 'hr_manager',
+    label: 'HR Manager / Head of People',
+    kpis: [
+      { code: 'KPI-HR-001', weight: 25 },
+      { code: 'KPI-HR-002', weight: 15 },
+      { code: 'KPI-HR-003', weight: 15 },
+      { code: 'KPI-HR-005', weight: 25 },
+      { code: 'KPI-HR-006', weight: 20 },
     ]
   },
 };

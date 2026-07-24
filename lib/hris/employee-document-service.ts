@@ -16,6 +16,7 @@ import {
   STORAGE_KEY_PREFIX,
   storedFileExists,
 } from './document-storage';
+import { isContractDocumentType, syncContractFromDocument } from './contract-document-sync';
 
 /** @deprecated Prefer getLocalStorageRoot(); kept for formidable temp dir. */
 export const EMPLOYEE_DOC_UPLOAD_DIR = getLocalStorageRoot();
@@ -283,7 +284,20 @@ export async function saveEmployeeDocument(input: SaveDocumentInput) {
 
     await sequelize.query(`UPDATE employee_documents SET ${setParts.join(', ')} ${whereClause}`, { replacements });
     const [rows]: any = await sequelize.query(`SELECT * FROM employee_documents WHERE id = :id`, { replacements: { id: existingId } });
-    return rows?.[0];
+    const saved = rows?.[0];
+    const contractSync = await maybeSyncContract({
+      sequelize,
+      tenantId,
+      employeeId,
+      documentType,
+      documentNumber,
+      issueDate,
+      expiryDate,
+      createdBy,
+      documentId: String(existingId),
+      title,
+    });
+    return contractSync ? { ...saved, contract_sync: contractSync } : saved;
   }
 
   const [result]: any = await sequelize.query(
@@ -317,7 +331,55 @@ export async function saveEmployeeDocument(input: SaveDocumentInput) {
     }
   );
 
-  return result?.[0] || result;
+  const saved = result?.[0] || result;
+  if (!saved?.id) return saved;
+  const contractSync = await maybeSyncContract({
+    sequelize,
+    tenantId,
+    employeeId,
+    documentType,
+    documentNumber,
+    issueDate,
+    expiryDate,
+    createdBy,
+    documentId: String(saved.id),
+    title,
+  });
+  return contractSync ? { ...saved, contract_sync: contractSync } : saved;
+}
+
+async function maybeSyncContract(opts: {
+  sequelize: any;
+  tenantId: string | null;
+  employeeId: string;
+  documentType: string;
+  documentNumber?: string | null;
+  issueDate?: string | null;
+  expiryDate?: string | null;
+  createdBy?: string | null;
+  documentId: string;
+  title?: string | null;
+}) {
+  if (!isContractDocumentType(opts.documentType)) return null;
+  try {
+    return await syncContractFromDocument({
+      sequelize: opts.sequelize,
+      tenantId: opts.tenantId,
+      employeeId: opts.employeeId,
+      document: {
+        id: opts.documentId,
+        document_type: opts.documentType,
+        document_number: opts.documentNumber,
+        title: opts.title,
+        issue_date: opts.issueDate,
+        expiry_date: opts.expiryDate,
+      },
+      createdBy: opts.createdBy,
+    });
+  } catch (e) {
+    console.warn('[syncContractFromDocument]', (e as Error)?.message || e);
+    return null;
+  }
 }
 
 export async function listEmployeeDocuments(
