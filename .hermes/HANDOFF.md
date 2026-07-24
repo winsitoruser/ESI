@@ -10,7 +10,8 @@
 | BE-2 | Leave `suggest-types` / `suggest-approvals` (rule-based UU 13/2003) | Done |
 | BE-3 | KPI `seed-defaults` templates + scoring scheme | Done |
 | FE-1 | Leave AI-assist panel; contracts integration banner; KPI seed CTA | Done |
-| QA-1 | `npm run smoke:hr-wave-uat` | Pending deploy |
+| QA-1 | `npm run smoke:hr-wave-uat` | Done — staging+prod **12/0** |
+| OPS | Deploy `494e40c` staging+prod | Done |
 
 Scripts: `npm run smoke:hr-wave-uat`
 
