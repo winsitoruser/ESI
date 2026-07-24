@@ -7,7 +7,9 @@
 | ID | Item | Status |
 |---|---|---|
 | BE-1 | `/api/business/config` no longer 500 when `business_types` missing (Humanify DB) | Done |
+| BE-2 | SWC-safe `employee-documents` (`??`/`||` mix broke VPS build) | Done |
 | QA-1 | Prod claim-proof after Wave-70 deploy | Done — **25/0** |
+| OPS | Prod rebuild after Wave-71 build fail → health 200 · config soft-OK | Done |
 
 **ADR ceilings unchanged:** prod FORCE RLS · Sentry.io · Midtrans auto-payout · Privy unhide.
 
