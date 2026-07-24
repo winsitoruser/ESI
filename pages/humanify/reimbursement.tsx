@@ -385,7 +385,7 @@ export default function ReimbursementPage() {
                       <p className="text-sm font-medium text-emerald-800">Lampirkan bukti reimbursement</p>
                       <p className="text-xs text-emerald-700">{uploading ? 'Mengupload…' : 'Foto/PDF — tersimpan aman (private storage)'}</p>
                     </div>
-                    <input type="file" accept="image/*,application/pdf" multiple className="hidden" onChange={handleClaimFileUpload} disabled={uploading} />
+                    <input type="file" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,.jpg,.jpeg,.png,.webp,.gif,.pdf" multiple className="hidden" onChange={handleClaimFileUpload} disabled={uploading} />
                   </label>
                   {uploadedFiles.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-2">

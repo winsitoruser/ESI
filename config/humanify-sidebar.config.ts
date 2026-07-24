@@ -44,7 +44,8 @@ export const humanifySidebarConfig: SidebarConfig = {
         { id: 'humanify-offboarding', name: 'Offboarding', href: '/humanify/offboarding', icon: KeyRound, modules: ['humanify', 'hris'] },
         { id: 'humanify-contracts', name: 'Kontrak & Reminder', href: '/humanify/contracts', icon: FileText, modules: ['humanify', 'hris'] },
         { id: 'humanify-assets', name: 'Manajemen Aset', href: '/humanify/assets', icon: Package, modules: ['humanify', 'hris'] },
-        { id: 'humanify-esign', name: 'E-Sign · Simulasi', href: '/humanify/esign', icon: PenLine, modules: ['humanify', 'hris'] },
+        // Sementara disembunyikan — aktifkan lagi saat Privy/e-sign siap GA
+        { id: 'humanify-esign', name: 'E-Sign · Simulasi', href: '/humanify/esign', icon: PenLine, modules: ['humanify', 'hris'], hidden: true },
       ],
     },
     {
@@ -139,7 +140,7 @@ export const humanifySidebarConfig: SidebarConfig = {
         { id: 'humanify-activities', name: 'Aktivitas HR', href: '/humanify/activities', icon: Activity, modules: ['humanify', 'hris'] },
         { id: 'humanify-mutations', name: 'Mutasi & Penugasan', href: '/humanify/mutations', icon: ArrowRightLeft, modules: ['humanify', 'hris'] },
         { id: 'humanify-travel', name: 'Perjalanan Dinas', href: '/humanify/travel-expense', icon: Plane, modules: ['humanify', 'hris'] },
-        { id: 'humanify-project', name: 'Proyek HR', href: '/humanify/project-management', icon: Briefcase, modules: ['humanify', 'hris'] },
+        { id: 'humanify-project', name: 'Proyek HR', href: '/humanify/project-management', icon: Briefcase, modules: ['humanify', 'hris'], hidden: true },
         { id: 'humanify-ir', name: 'Hubungan Industrial', href: '/humanify/industrial-relations', icon: Scale, modules: ['humanify', 'hris'] },
         { id: 'humanify-disciplinary', name: 'Surat Disiplin', href: '/humanify/disciplinary-letters', icon: Ban, modules: ['humanify', 'hris'] },
       ],
@@ -148,8 +149,8 @@ export const humanifySidebarConfig: SidebarConfig = {
       id: 'ai',
       title: 'AI & Otomasi',
       items: [
-        /* Hub punya tab Copilot + Otomasi — satu entry cukup di sidebar */
-        { id: 'humanify-ai-hub', name: 'AI Center · Lab', href: '/humanify/ai', icon: Sparkles, modules: ['humanify', 'hris'] },
+        /* Lab — URL /humanify/ai tetap; sembunyikan dari IA day-1 */
+        { id: 'humanify-ai-hub', name: 'AI Center · Lab', href: '/humanify/ai', icon: Sparkles, modules: ['humanify', 'hris'], hidden: true },
       ],
     },
     {

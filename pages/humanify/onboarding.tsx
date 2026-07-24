@@ -65,6 +65,8 @@ export default function OnboardingPage() {
   const [viewing, setViewing] = useState<OnboardingEntry | null>(null);
   const [form, setForm] = useState<any>({});
   const [toast, setToast] = useState<{ type: string; message: string } | null>(null);
+  const [availableAssets, setAvailableAssets] = useState<any[]>([]);
+  const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
 
   const showToast = (type: string, message: string) => {
     setToast({ type, message });
@@ -72,6 +74,17 @@ export default function OnboardingPage() {
   };
 
   useEffect(() => { setMounted(true); fetchAll(); }, []);
+
+  useEffect(() => {
+    if (!viewing) {
+      setSelectedAssetIds([]);
+      return;
+    }
+    fetch('/api/humanify/assets?status=available', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((j) => setAvailableAssets(j.data || []))
+      .catch(() => setAvailableAssets([]));
+  }, [viewing?.id]);
 
   async function fetchAll() {
     setLoading(true);
@@ -111,16 +124,38 @@ export default function OnboardingPage() {
   }
 
   async function toggleTask(entry: OnboardingEntry, task: TaskItem) {
+    const nextCompleted = !task.completed;
     try {
+      const body: any = { taskKey: task.key, completed: nextCompleted };
+      if (task.key === 'asset_issue' && nextCompleted) {
+        if (!selectedAssetIds.length) {
+          showToast('error', 'Pilih minimal 1 aset available sebelum menandai serah terima');
+          return;
+        }
+        body.assetIds = selectedAssetIds;
+      }
       const res = await fetch(`/api/humanify/lifecycle?action=onboarding-task&id=${entry.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ taskKey: task.key, completed: !task.completed }),
+        body: JSON.stringify(body),
       });
       const json = await res.json();
+      if (!res.ok || json.success === false) {
+        showToast('error', json.error || 'Gagal update task');
+        return;
+      }
       if (json?.data) {
         setItems((p) => p.map(i => i.id === entry.id ? json.data : i));
         if (viewing?.id === entry.id) setViewing(json.data);
+      }
+      const n = json.assetIntegration?.assigned?.length;
+      if (n) {
+        showToast('success', `${n} aset di-assign ke ${entry.employeeName}`);
+        setSelectedAssetIds([]);
+        fetch('/api/humanify/assets?status=available', { credentials: 'include' })
+          .then((r) => r.json())
+          .then((j) => setAvailableAssets(j.data || []))
+          .catch(() => {});
       }
     } catch {
       showToast('error', 'Gagal update task');
@@ -262,17 +297,50 @@ export default function OnboardingPage() {
                 const Icon = CATEGORY_ICONS[t.category] || User;
                 const cColor = CATEGORY_COLORS[t.category] || 'text-gray-600 bg-gray-100';
                 return (
-                  <label key={t.key} className={`flex items-start gap-3 p-3 rounded-lg border hover:bg-gray-50 cursor-pointer ${t.completed ? 'bg-green-50/40' : ''}`}>
-                    <input type="checkbox" checked={!!t.completed} onChange={() => toggleTask(viewing, t)} className="mt-0.5 w-4 h-4 rounded accent-purple-600" />
-                    <div className={`p-1.5 rounded-lg ${cColor}`}><Icon className="w-4 h-4" /></div>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-medium ${t.completed ? 'line-through text-gray-400' : ''}`}>
-                        {t.label}
-                        {t.required && <span className="ml-1 text-xs text-red-500">*</span>}
-                      </p>
-                      {t.completedAt && <p className="text-xs text-green-600 mt-0.5">Selesai {new Date(t.completedAt).toLocaleDateString('id-ID')}</p>}
-                    </div>
-                  </label>
+                  <div key={t.key} className={`rounded-lg border ${t.completed ? 'bg-green-50/40' : ''}`}>
+                    <label className="flex items-start gap-3 p-3 hover:bg-gray-50 cursor-pointer">
+                      <input type="checkbox" checked={!!t.completed} onChange={() => toggleTask(viewing, t)} className="mt-0.5 w-4 h-4 rounded accent-purple-600" />
+                      <div className={`p-1.5 rounded-lg ${cColor}`}><Icon className="w-4 h-4" /></div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-medium ${t.completed ? 'line-through text-gray-400' : ''}`}>
+                          {t.label}
+                          {t.required && <span className="ml-1 text-xs text-red-500">*</span>}
+                        </p>
+                        {t.completedAt && <p className="text-xs text-green-600 mt-0.5">Selesai {new Date(t.completedAt).toLocaleDateString('id-ID')}</p>}
+                      </div>
+                    </label>
+                    {t.key === 'asset_issue' && !t.completed && (
+                      <div className="px-3 pb-3 pl-12 space-y-2">
+                        <p className="text-xs text-gray-500">
+                          Pilih aset dari inventori lalu centang task —{' '}
+                          <a href="/humanify/assets" className="text-[color:var(--hf-brand-600)] underline">Manajemen Aset</a>
+                        </p>
+                        {availableAssets.length === 0 ? (
+                          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5">
+                            Belum ada aset available. Tambah dulu di Manajemen Aset.
+                          </p>
+                        ) : (
+                          <div className="max-h-36 overflow-y-auto space-y-1 border rounded-lg p-2 bg-white">
+                            {availableAssets.map((a) => (
+                              <label key={a.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-gray-50 rounded px-1 py-0.5">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedAssetIds.includes(a.id)}
+                                  onChange={(e) => {
+                                    setSelectedAssetIds((prev) =>
+                                      e.target.checked ? [...prev, a.id] : prev.filter((id) => id !== a.id),
+                                    );
+                                  }}
+                                />
+                                <span className="font-mono text-gray-400">{a.assetCode}</span>
+                                <span className="font-medium truncate">{a.name}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>

@@ -1,6 +1,23 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 21 Juli 2026 — **Wave-68** · Cron tenant-context + prod RLS flip runbook (prod still soft)
+> Diperbarui: 24 Juli 2026 — **Wave-69** · Chase readiness 100% (assets↔lifecycle + IA hide)
+
+## Wave-69 (24 Jul 2026) — Readiness chase (closable gaps)
+
+| ID | Item | Status |
+|---|---|---|
+| BE-1 | Onboarding `asset_issue` → `assignAsset` (multi assetIds) | Done |
+| BE-2 | Offboarding `asset_return` → `returnAllAssetsForEmployee` | Done |
+| FE-1 | Onboarding checklist asset picker + Assets CRUD UI | Done |
+| FE-2 | Offboarding return confirm toast | Done |
+| IA-1 | Hide AI lab + Proyek HR from sidebar (URL tetap) | Done |
+| IA-2 | E-Sign tetap hidden; devices `/humanify/devices` alias | Done (prior) |
+| QA-1 | `npm run smoke:assets-lifecycle` (12/0) | Done |
+| DOC | `docs/humanify-product-brd-prd.md` + readiness canvas scores ↑ | Done |
+
+**Not flipped (ADR ceilings):** prod FORCE RLS · Sentry.io · Midtrans auto-payout · Privy unhide.
+
+Scripts: `npm run smoke:assets-lifecycle`
 
 ## Wave-68 (21 Jul 2026) — Cron RLS readiness · gated prod flip runbook
 

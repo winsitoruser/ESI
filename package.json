@@ -55,6 +55,7 @@
     "smoke:wave66": "node scripts/smoke-test-humanify-claim-proof.js",
     "smoke:wave67": "node scripts/smoke-test-humanify-wave67.js",
     "smoke:wave68": "node scripts/smoke-test-humanify-wave68.js",
+    "smoke:assets-lifecycle": "node scripts/smoke-test-humanify-assets-lifecycle.js",
     "smoke:claim-proof": "node scripts/smoke-test-humanify-claim-proof.js",
     "smoke:multi-role": "node scripts/smoke-test-humanify-multi-role.js",
     "smoke:employees-bulk": "node scripts/smoke-test-humanify-employees-bulk.js",

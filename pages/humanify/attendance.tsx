@@ -473,7 +473,7 @@ export default function AttendancePage() {
                             action={
                               <div className="flex flex-wrap items-center justify-center gap-2">
                                 <a
-                                  href="/humanify/devices"
+                                  href="/humanify/attendance/devices"
                                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white"
                                   style={{ background: 'var(--hf-brand-600)' }}
                                 >

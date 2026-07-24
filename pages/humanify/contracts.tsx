@@ -4,7 +4,7 @@ import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
 import {
   FileText, Plus, Search, Filter, Calendar, AlertTriangle, CheckCircle,
-  X, Edit, Trash2, RefreshCw, XCircle, Clock, DollarSign, User, Building2, Download, Bell, PenLine
+  X, Edit, Trash2, RefreshCw, XCircle, Clock, DollarSign, User, Building2, Download, Bell
 } from 'lucide-react';
 import EmployeePicker, { type PickedEmployee } from '@/components/humanify/EmployeePicker';
 import { HRIS_DEPARTMENTS, getDepartmentLabel } from '@/lib/hris/master-data';
@@ -158,21 +158,6 @@ export default function ContractsPage() {
     }
   }
 
-  async function handleSendESign(contract: Contract) {
-    try {
-      const res = await fetch('/api/humanify/lifecycle?action=contract-send-esign', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contractId: contract.id }),
-      });
-      const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.error || 'Gagal membuat e-sign');
-      showToast('success', 'Dokumen e-sign dibuat — buka modul E-Sign untuk tindak lanjut');
-    } catch (err: any) {
-      showToast('error', err?.message || 'Gagal membuat e-sign');
-    }
-  }
-
   async function handleRenew() {
     if (!selected) return;
     try {
@@ -275,13 +260,6 @@ export default function ContractsPage() {
                     <span className={`text-xs font-bold ${(c.daysLeft as number) <= 7 ? 'text-red-600' : 'text-orange-600'}`}>
                       {c.daysLeft} hari
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => handleSendESign(c)}
-                      className="text-xs px-2 py-1 border border-[var(--hf-brand-100)] text-[color:var(--hf-brand)] rounded hover:bg-[var(--hf-brand-50)] flex items-center gap-1"
-                    >
-                      <PenLine className="w-3 h-3" /> E-Sign
-                    </button>
                   </div>
                 </div>
               ))}

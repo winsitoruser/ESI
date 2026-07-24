@@ -24,7 +24,34 @@ const STATUS_COLORS: Record<string, string> = {
   completed: 'bg-green-100 text-green-700',
 };
 
+/** Sementara disembunyikan dari produk — set true saat e-sign siap dibuka lagi. */
+const ESIGN_UI_ENABLED = false;
+
 export default function ESignPage() {
+  if (!ESIGN_UI_ENABLED) {
+    return (
+      <PageGuard anyPermission={['employees.view', 'employees.*']} title="E-Sign" description="Tanda tangan elektronik HR">
+        <HQLayout title="E-Sign" subtitle="Sementara tidak tersedia">
+          <div className="mx-auto max-w-lg rounded-xl border border-amber-200 bg-amber-50 px-6 py-8 text-center">
+            <PenTool className="mx-auto mb-3 h-8 w-8 text-amber-700" />
+            <p className="text-sm font-medium text-amber-950">Modul E-Sign sementara disembunyikan.</p>
+            <p className="mt-1 text-xs text-amber-800">Fitur akan diaktifkan kembali setelah integrasi siap.</p>
+            <Link
+              href="/humanify"
+              className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-[var(--hf-brand-600)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+            >
+              <ArrowLeft className="h-4 w-4" /> Kembali ke beranda
+            </Link>
+          </div>
+        </HQLayout>
+      </PageGuard>
+    );
+  }
+
+  return <ESignPageInner />;
+}
+
+function ESignPageInner() {
   const [docs, setDocs] = useState<any[]>([]);
   const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [integration, setIntegration] = useState<{ mode: string; configured: boolean } | null>(null);

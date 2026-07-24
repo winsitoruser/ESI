@@ -9,6 +9,7 @@ import {
   getOnboardingById, getOffboardingById,
 } from '../../../lib/hris/lifecycle-store';
 import { findScopedById, destroyScoped, updateScoped, tenantIdFromSession } from '@/lib/saas/tenant-scope';
+import { assignAsset, listAssets, returnAllAssetsForEmployee } from '@/lib/hris/asset-store';
 
 let EmployeeContract: any, ContractReminder: any;
 try { EmployeeContract = require('../../../models/EmployeeContract'); } catch (e) { /* noop */ }
@@ -352,16 +353,53 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, action: stri
     }
 
     case 'onboarding-task': {
-      const { taskKey, completed } = body;
+      const { taskKey, completed, assetId, assetIds } = body;
       const item = await getOnboardingById(id, tenantId);
       if (!item) return res.status(404).json({ error: 'Not found' });
+
+      let assetResult: { assigned: any[]; warnings: string[] } | undefined;
+      if (taskKey === 'asset_issue' && completed && tenantId) {
+        const ids: string[] = Array.isArray(assetIds)
+          ? assetIds.map(String).filter(Boolean)
+          : assetId
+            ? [String(assetId)]
+            : [];
+        const assigned: any[] = [];
+        const warnings: string[] = [];
+        if (!ids.length) {
+          warnings.push(
+            'Checklist ditandai selesai tanpa aset. Assign dari Manajemen Aset atau kirim assetId.',
+          );
+        } else {
+          for (const aid of ids) {
+            const row = await assignAsset(
+              aid,
+              String(item.employeeId),
+              String(item.employeeName || ''),
+              `onboarding:${id}`,
+              tenantId,
+            );
+            if (row) assigned.push(row);
+            else warnings.push(`Aset ${aid} tidak bisa di-assign (tidak tersedia / bukan milik tenant).`);
+          }
+          if (!assigned.length) {
+            return res.status(400).json({
+              success: false,
+              error: 'Tidak ada aset yang berhasil di-assign. Pilih aset available dulu.',
+              warnings,
+            });
+          }
+        }
+        assetResult = { assigned, warnings };
+      }
+
       const tasks = (item.tasks || []).map((t: any) =>
         t.key === taskKey ? { ...t, completed: !!completed, completedAt: completed ? new Date().toISOString() : null } : t
       );
       const allReq = tasks.filter((t: any) => t.required);
       const status = allReq.length > 0 && allReq.every((t: any) => t.completed) ? 'completed' : item.status;
       const updated = await updateOnboarding(id, { tasks, status }, tenantId);
-      return res.json({ success: true, data: updated });
+      return res.json({ success: true, data: updated, assetIntegration: assetResult });
     }
 
     case 'offboarding': {
@@ -374,13 +412,29 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, action: stri
       const { taskKey, completed } = body;
       const item = await getOffboardingById(id, tenantId);
       if (!item) return res.status(404).json({ error: 'Not found' });
+
+      let assetResult: { returned: any[]; pending: any[] } | undefined;
+      if (taskKey === 'asset_return' && completed && tenantId) {
+        const pending = await listAssets({
+          assignedTo: String(item.employeeId),
+          tenantId,
+          status: 'assigned',
+        });
+        const returned = await returnAllAssetsForEmployee(
+          String(item.employeeId),
+          tenantId,
+          `offboarding:${id}`,
+        );
+        assetResult = { returned, pending };
+      }
+
       const tasks = (item.tasks || []).map((t: any) =>
         t.key === taskKey ? { ...t, completed: !!completed, completedAt: completed ? new Date().toISOString() : null } : t
       );
       const allReq = tasks.filter((t: any) => t.required);
       const status = allReq.length > 0 && allReq.every((t: any) => t.completed) ? 'completed' : item.status;
       const updated = await updateOffboarding(id, { tasks, status }, tenantId);
-      return res.json({ success: true, data: updated });
+      return res.json({ success: true, data: updated, assetIntegration: assetResult });
     }
 
     default:

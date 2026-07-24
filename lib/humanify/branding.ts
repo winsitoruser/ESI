@@ -74,7 +74,7 @@ export const HUMANIFY_BRAND = {
 } as const;
 
 export const HUMANIFY_FEATURES = [
-  { title: 'Rekrutmen & Onboarding', desc: 'Pipeline kandidat, webhook job board, onboarding checklist, integrasi e-sign (Privy) tersedia.', href: '/humanify/recruitment' },
+  { title: 'Rekrutmen & Onboarding', desc: 'Pipeline kandidat, webhook job board, onboarding checklist, dan handover ke HR ops.', href: '/humanify/recruitment' },
   { title: 'Database Karyawan', desc: 'Org chart, mutasi, contract expiry alert, custom data, genealogy.', href: '/humanify/employees' },
   { title: 'Payroll, Tax, BPJS', desc: 'Perhitungan terintegrasi, THR, bonus, kasbon, pinjaman, slip gaji, laporan pajak & BPJS.', href: '/humanify/payroll' },
   { title: 'OKR / KPI', desc: 'Cascading alignment, monitoring, check-in, dan pengingat in-app.', href: '/humanify/kpi' },

@@ -36,7 +36,7 @@ const STATS = [
 
 const MARQUEE_ITEMS = [
   'AIMAN AI Copilot', 'AI Screening Kandidat', 'Prediksi Cuti', 'OCR Reimbursement',
-  'Hire-to-Retire', 'Dealls & LinkedIn', 'E-Sign Privy', 'OKR Cascading', 'Payroll Otomatis',
+  'Hire-to-Retire', 'Dealls & LinkedIn', 'OKR Cascading', 'Payroll Otomatis',
   'Rekrutmen AI Search', 'Onboarding & Asset', 'Offboarding & Exit', 'BPJS & THR', 'PPh 21',
   'Reimbursement', 'Bonus & Pinjaman', '360° Appraisal', 'Certificate Tracker', 'Geofence Absensi',
   'Workforce Analytics', 'Multi-approval Workflow', 'Portal Karyawan',
@@ -78,8 +78,8 @@ const WHY_ITEMS = [
 const PROCESS_STEPS = [
   {
     step: '01',
-    title: 'Rekrutmen → E-Sign → Onboarding',
-    desc: 'Dealls, LinkedIn, Indeed, Google Jobs, WhatsApp 1-click, Privy e-sign, checklist onboarding & asset issue.',
+    title: 'Rekrutmen → Onboarding',
+    desc: 'Dealls, LinkedIn, Indeed, Google Jobs, WhatsApp 1-click, checklist onboarding & asset issue.',
     duration: 'Minggu 1–2',
   },
   {

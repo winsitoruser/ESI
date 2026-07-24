@@ -133,14 +133,18 @@ Setiap request bisnis membawa **tenant_id** dari session. Data tenant A tidak bi
 ### Karyawan
 - Database Karyawan, Impor, Struktur Organisasi
 - Onboarding, Offboarding, Kontrak & Reminder
-- Aset, E-Sign, Pengaturan Organisasi, ESS/MSS config
+- **Manajemen Aset** (inventori + assign onboarding / return offboarding)
+- Pengaturan Organisasi, ESS/MSS config
+- **E-Sign (Privy)** — sementara **disembunyikan** dari sidebar hingga GA PSrE; jangan dijual sebagai fitur aktif
 
 ### Kehadiran & Cuti
 - Absensi, Jadwal & Shift, Rekap Harian
-- Perangkat Absensi, Pengaturan Absensi, Manajemen Cuti
+- Perangkat Absensi (\`/humanify/attendance/devices\` — alias \`/humanify/devices\` redirect)
+- Pengaturan Absensi, Manajemen Cuti
 
 ### Kinerja
 - OKR/KPI, KPI Karyawan, Pengaturan KPI, Penilaian Kinerja
+- Keterlibatan & Budaya — lab/hidden
 
 ### Payroll
 - Dasbor, Proses Gaji, Slip, THR, PPh21, BPJS
@@ -148,7 +152,8 @@ Setiap request bisnis membawa **tenant_id** dari session. Data tenant A tidak bi
 - Reimbursement, Casual Workforce
 
 ### Rekrutmen & LMS
-- Rekrutmen, Training/LMS (academy, courses, analytics)
+- Rekrutmen, Training/LMS core (courses, tests, competency, analytics)
+- LMS lanjutan & **AI Center** — lab; sidebar AI disembunyikan (URL \`/humanify/ai\` tetap)
 
 ### Laporan & Analitik
 - HR Analytics, Laporan HRIS, Workforce Analytics
@@ -240,7 +245,12 @@ Gunakan dokumen ini sebagai **peta** sebelum masuk detail tiap modul.`,
 - Card summary: Unit, Golongan, Total Karyawan, Departemen
 
 ### Kontrak & Reminder
-- \`/humanify/contracts\` — masa berlaku, e-sign, reminder kedaluwarsa
+- \`/humanify/contracts\` — masa berlaku, reminder kedaluwarsa (e-sign UI sementara disembunyikan)
+
+### Aset
+- \`/humanify/assets\` — inventori tenant; assign ke karyawan; return
+- Onboarding checklist **Serah terima aset** → pilih aset available lalu centang
+- Offboarding checklist **Pengembalian aset** → return semua aset assigned
 
 ### Offboarding
 - \`/humanify/offboarding\` — checklist exit, aset dikembalikan, akses dicabut

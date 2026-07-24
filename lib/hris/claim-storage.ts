@@ -99,11 +99,23 @@ function signSecret(): string {
   return process.env.NEXTAUTH_SECRET || process.env.HUMANIFY_DOC_SIGN_SECRET || 'dev-claim-sign';
 }
 
-/** Short-lived signed download path (same-origin). */
-export function buildSignedClaimUrl(storageKey: string, ttlSec = 3600): string {
-  const key = storageKey.startsWith(CLAIM_KEY_PREFIX)
+/** Raw storage key without `claim:` prefix (tenantSeg/fileName). */
+export function claimKeyWithoutPrefix(storageKey: string): string {
+  return storageKey.startsWith(CLAIM_KEY_PREFIX)
     ? storageKey.slice(CLAIM_KEY_PREFIX.length)
     : storageKey;
+}
+
+/**
+ * View/download URL for claim files.
+ * - Browser (client): session cookie auth — no HMAC (secret is server-only).
+ * - Server: short-lived HMAC for email / unauthenticated contexts.
+ */
+export function buildSignedClaimUrl(storageKey: string, ttlSec = 3600): string {
+  const key = claimKeyWithoutPrefix(storageKey);
+  if (typeof window !== 'undefined') {
+    return `/api/humanify/claim-file?key=${encodeURIComponent(key)}`;
+  }
   const exp = Math.floor(Date.now() / 1000) + ttlSec;
   const payload = `${key}.${exp}`;
   const sig = createHmac('sha256', signSecret()).update(payload).digest('hex').slice(0, 32);

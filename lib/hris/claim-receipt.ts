@@ -14,6 +14,7 @@ export type ClaimReceiptAttachment = {
   filename: string;
   mimetype: string;
   isImage: boolean;
+  isPdf?: boolean;
   legacy?: boolean;
 };
 
@@ -30,6 +31,11 @@ export type PortalClaimAttachmentInput = {
 function isImageMime(mime: string, name: string) {
   if (mime.startsWith('image/')) return true;
   return /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(name);
+}
+
+export function isPdfMime(mime: string, name: string) {
+  if (mime === 'application/pdf' || mime === 'application/x-pdf') return true;
+  return /\.pdf$/i.test(name);
 }
 
 export function resolveClaimAttachmentUrl(item: {
@@ -75,6 +81,7 @@ export function parseClaimReceipts(receiptUrl?: string | null): ClaimReceiptAtta
           filename,
           mimetype,
           isImage: isImageMime(mimetype, filename),
+          isPdf: isPdfMime(mimetype, filename),
         });
         continue;
       }
@@ -83,6 +90,7 @@ export function parseClaimReceipts(receiptUrl?: string | null): ClaimReceiptAtta
         filename: s,
         mimetype: guessClaimMime(s),
         isImage: isImageMime(guessClaimMime(s), s),
+        isPdf: isPdfMime(guessClaimMime(s), s),
         legacy: true,
       });
       continue;
@@ -97,12 +105,17 @@ export function parseClaimReceipts(receiptUrl?: string | null): ClaimReceiptAtta
       const filename = String(obj.filename || obj.name || storageKey.split('/').pop() || 'bukti');
       const mimetype = String(obj.mimetype || obj.type || guessClaimMime(filename));
       if (!url && !storageKey) continue;
+      // Prefer storageKey → fresh session/HMAC URL (stored JSON often omits url)
+      const resolved =
+        (storageKey ? buildSignedClaimUrl(storageKey.startsWith('claim:') ? storageKey : `claim:${storageKey}`) : '') ||
+        url;
       out.push({
         storageKey: storageKey || undefined,
-        url: url || (storageKey ? buildSignedClaimUrl(storageKey) : ''),
+        url: resolved,
         filename,
         mimetype,
         isImage: isImageMime(mimetype, filename),
+        isPdf: isPdfMime(mimetype, filename),
       });
     }
   }
@@ -136,6 +149,7 @@ export async function persistPortalClaimAttachments(
         filename,
         mimetype,
         isImage: isImageMime(mimetype, filename),
+        isPdf: isPdfMime(mimetype, filename),
       });
       continue;
     }
@@ -148,6 +162,7 @@ export async function persistPortalClaimAttachments(
         filename,
         mimetype,
         isImage: isImageMime(mimetype, filename),
+        isPdf: isPdfMime(mimetype, filename),
       });
       continue;
     }
@@ -164,6 +179,7 @@ export async function persistPortalClaimAttachments(
       filename: persisted.fileName,
       mimetype,
       isImage: isImageMime(mimetype, persisted.fileName),
+      isPdf: isPdfMime(mimetype, persisted.fileName),
     });
   }
   return saved;

@@ -125,16 +125,33 @@ export default function OffboardingPage() {
   }
 
   async function toggleTask(entry: OffEntry, task: TaskItem) {
+    const nextCompleted = !task.completed;
     try {
+      if (task.key === 'asset_return' && nextCompleted) {
+        if (!confirm('Tandai pengembalian aset? Semua aset yang di-assign ke karyawan ini akan dikembalikan ke inventori.')) {
+          return;
+        }
+      }
       const res = await fetch(`/api/humanify/lifecycle?action=offboarding-task&id=${entry.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ taskKey: task.key, completed: !task.completed }),
+        body: JSON.stringify({ taskKey: task.key, completed: nextCompleted }),
       });
       const json = await res.json();
+      if (!res.ok || json.success === false) {
+        showToast('error', json.error || 'Gagal update task');
+        return;
+      }
       if (json?.data) {
         setItems((p) => p.map(i => i.id === entry.id ? json.data : i));
         if (viewing?.id === entry.id) setViewing(json.data);
+      }
+      const n = json.assetIntegration?.returned?.length;
+      if (task.key === 'asset_return' && nextCompleted) {
+        showToast(
+          'success',
+          n ? `${n} aset dikembalikan ke inventori` : 'Tidak ada aset assigned — checklist tetap ditandai',
+        );
       }
     } catch {
       showToast('error', 'Gagal update task');

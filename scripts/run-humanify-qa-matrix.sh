@@ -74,6 +74,7 @@ run Sanity payroll-golden "npm run smoke:payroll-golden"
 run Sanity payroll-module "node scripts/smoke-test-humanify-payroll.js"
 run Sanity attendance "node scripts/smoke-test-humanify-attendance.js"
 run Sanity employees-create "node scripts/qa-sanity-employee-create.js"
+run Sanity assets-lifecycle "npm run smoke:assets-lifecycle"
 
 # ─── Regression ───
 run Regression full-qa "bash scripts/run-humanify-full-qa.sh"

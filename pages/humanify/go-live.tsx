@@ -71,6 +71,22 @@ export default function GoLivePage() {
           </div>
         </div>
 
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <p className="font-medium">Cakupan GA (Wave-69)</p>
+          <p className="mt-1 text-xs text-amber-900/90">
+            Aktif: karyawan, absensi/perangkat, cuti, payroll, klaim+bukti, aset↔onboarding/offboarding, ESS/MSS, billing.
+            Sementara disembunyikan: E-Sign Privy, AI Center lab. Detail:{' '}
+            <Link href="/humanify/knowledge-base" className="underline font-medium">
+              Pusat Pengetahuan
+            </Link>
+            {' · '}
+            <a href="/humanify/assets" className="underline font-medium">
+              Manajemen Aset
+            </a>
+            .
+          </p>
+        </div>
+
         <ul className="rounded-2xl border bg-white divide-y">
           {(data?.items || []).map((item: any) => (
             <li key={item.id} className="px-5 py-4 flex items-start gap-3">

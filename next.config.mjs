@@ -157,6 +157,8 @@ const nextConfig = {
       { source: '/hq/hris', destination: '/humanify', permanent: false },
       { source: '/hq/hris/:path*', destination: '/humanify/:path*', permanent: false },
       { source: '/api/hq/hris/:path*', destination: '/api/humanify/:path*', permanent: false },
+      // Alias short URL used in empty-state CTAs → real devices page
+      { source: '/humanify/devices', destination: '/humanify/attendance/devices', permanent: false },
     ];
   },
 };

@@ -689,7 +689,7 @@ export default function LeaveManagementPage() {
                                   Buka portal ESS
                                 </a>
                                 <a
-                                  href="/humanify/devices"
+                                  href="/humanify/attendance/devices"
                                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium border border-slate-200 text-slate-700 hover:bg-white"
                                 >
                                   Kelola perangkat

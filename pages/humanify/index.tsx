@@ -34,7 +34,6 @@ function getHrisModules(t: (key: string) => string) {
         { key: 'onboarding', label: 'Onboarding', desc: 'Alur masuk karyawan baru & checklist', href: '/humanify/onboarding', icon: UserPlus, color: 'bg-[var(--hf-brand-100)]' },
         { key: 'assets', label: 'Manajemen Aset', desc: 'Laptop, HP, ID card — issue & return', href: '/humanify/assets', icon: FolderOpen, color: 'bg-[var(--hf-brand-500)]' },
         { key: 'offboarding', label: 'Offboarding / Exit', desc: 'Alur keluar, clearance, exit interview', href: '/humanify/offboarding', icon: KeyRound, color: 'bg-[var(--hf-brand)]' },
-        { key: 'esign', label: 'E-Sign (Privy)', desc: 'Tanda tangan elektronik kontrak kerja', href: '/humanify/esign', icon: PenTool, color: 'bg-[var(--hf-brand-600)]' },
         { key: 'org-settings', label: 'Pengaturan Organisasi', desc: 'Policy engine, access, workflow', href: '/humanify/org-settings', icon: Settings, color: 'bg-gray-600' },
         { key: 'contracts', label: 'Kontrak & Reminder', desc: 'Masa kontrak, perpanjangan, notifikasi', href: '/humanify/contracts', icon: FileText, color: 'bg-sky-600' },
         { key: 'ess', label: t('hris.employeeSelfService'), desc: t('hris.employeeSelfServiceDesc'), href: '/humanify/ess', icon: UserCheck, color: 'bg-[var(--hf-brand-100)]' },
