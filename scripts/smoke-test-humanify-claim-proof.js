@@ -104,8 +104,8 @@ function isLegacyReceipt(receiptUrl) {
 function staticChecks() {
   console.log('\n── Static / source checks ──');
 
-  if (exists('lib/hris/claim-receipt.ts') && /parseClaimReceipts|resolveClaimAttachmentUrl/.test(read('lib/hris/claim-receipt.ts'))) {
-    ok('claim-receipt parser module');
+  if (exists('lib/hris/claim-receipt.ts') && /parseClaimReceipts|resolveClaimAttachmentUrl|claimHasLegacyReceipt/.test(read('lib/hris/claim-receipt.ts'))) {
+    ok('claim-receipt parser + claimHasLegacyReceipt');
   } else fail('claim-receipt parser module');
 
   if (exists('components/humanify/ClaimReceiptGallery.tsx')) {
@@ -114,10 +114,23 @@ function staticChecks() {
     else ok('ClaimReceiptGallery component');
   } else fail('ClaimReceiptGallery component');
 
+  const portal = read('components/employee/EmployeePortal.tsx');
+  if (/replace-claim-receipt|Upload ulang bukti|claimHasLegacyReceipt/.test(portal)) {
+    ok('ESS replace-claim-receipt + legacy CTA');
+  } else fail('ESS legacy re-upload UI');
+
+  const dash = read('pages/api/employee/dashboard.ts');
+  if (/replaceClaimReceipt|replace-claim-receipt/.test(dash)) ok('API replace-claim-receipt');
+  else fail('API replace-claim-receipt');
+
   const reimb = read('pages/humanify/reimbursement.tsx');
   if (/ClaimReceiptGallery/.test(reimb) && /title="Lihat bukti"/.test(reimb) && /parseClaimReceipts/.test(reimb)) {
     ok('reimbursement: gallery + Aksi Lihat bukti');
   } else fail('reimbursement: gallery + Aksi Lihat bukti');
+
+  if (isLegacyReceipt('kwitansi-old.jpg') && !isLegacyReceipt('claim:t/a.png')) {
+    ok('legacy detector sanity');
+  } else fail('legacy detector sanity');
 
   const mss = read('pages/humanify/mss.tsx');
   if (/ClaimReceiptGallery/.test(mss) && /Lihat bukti/.test(mss) && /setProofClaim/.test(mss)) {

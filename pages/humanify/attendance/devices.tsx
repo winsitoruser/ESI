@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import HrisEmptyState from '@/components/humanify/HrisEmptyState';
 import type { HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import { useHrisMasterData } from '@/hooks/useHrisMasterData';
+import Link from 'next/link';
 import {
   Fingerprint, Wifi, WifiOff, Plus, Settings, RefreshCw, Trash2,
   Edit, Monitor, Server, Smartphone, Clock, CheckCircle, XCircle,
@@ -333,9 +335,30 @@ export default function DeviceManagementPage() {
               </div>
             ))
           ) : filteredDevices.length === 0 ? (
-            <div className="col-span-full text-center py-12 text-gray-500">
-              <Server className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-              <p>Belum ada device terdaftar</p>
+            <div className="col-span-full">
+              <HrisEmptyState
+                source={dataSource}
+                title="Belum ada device terdaftar"
+                description="Tambah mesin fingerprint/face atau aktifkan absensi mobile. Perangkat kosong adalah perilaku sengaja (bukan data demo)."
+                action={
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { setEditDevice(null); setFormData({}); setShowAddModal(true); }}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white"
+                      style={{ background: 'var(--hf-brand-600)' }}
+                    >
+                      <Plus className="w-4 h-4" /> Tambah device pertama
+                    </button>
+                    <Link
+                      href="/humanify/attendance/settings"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium border border-slate-200 text-slate-700 hover:bg-white"
+                    >
+                      <Settings className="w-4 h-4" /> Pengaturan absensi
+                    </Link>
+                  </div>
+                }
+              />
             </div>
           ) : (
             filteredDevices.map((device) => {

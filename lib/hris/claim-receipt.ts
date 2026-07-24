@@ -194,3 +194,8 @@ export function claimDownloadUrl(viewUrl: string): string {
 export function isClaimStorageKey(value: string): boolean {
   return value.startsWith(CLAIM_KEY_PREFIX);
 }
+
+/** True when receipt_url has at least one filename-only (non-previewable) entry. */
+export function claimHasLegacyReceipt(receiptUrl?: string | null): boolean {
+  return parseClaimReceipts(receiptUrl).some((f) => f.legacy);
+}

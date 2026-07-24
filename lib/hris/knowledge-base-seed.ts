@@ -864,4 +864,46 @@ AIMAN sekarang bisa menjalankan **assisted agent** — multi-step workflow yang 
 - Fitur plan \`ai\` (Enterprise) diperlukan
 - Selalu review ringkasan sebelum konfirmasi write`,
   },
+  {
+    slug: 'kampanye-reupload-bukti-klaim-legacy',
+    title: 'Kampanye re-upload bukti klaim (format lama)',
+    summary: 'Cara HR dan karyawan memperbaiki klaim yang hanya menyimpan nama file — agar preview PDF/JPG berfungsi.',
+    category: 'ess',
+    sort_order: 13,
+    tags: ['klaim', 'reimbursement', 'legacy', 'ess', 'bukti'],
+    content: `# Kampanye re-upload bukti klaim legacy
+
+## Masalah
+
+Klaim lama menyimpan \`receipt_url\` sebagai **nama file saja** (contoh: \`kwitansi.jpg\`). File fisik tidak ada di private storage, jadi gallery HR/MSS menampilkan "bukti format lama".
+
+## Alur perbaikan (karyawan — ESS)
+
+\`\`\`flowchart
+[Login /employee → tab Klaim]
+        │
+        ▼
+[Banner: N klaim pending bukti lama?]
+        │
+        ▼
+[Tombol "Upload ulang bukti"]
+        │
+        ▼
+[Pilih PDF/JPG/PNG → Simpan]
+        │
+        ▼
+[HR/manajer bisa preview di Reimbursement / MSS]
+\`\`\`
+
+## Alur HR
+
+1. Jalankan laporan: \`npm run report:legacy-claims\` (staging/prod).
+2. Broadcast ke karyawan yang punya klaim pending legacy.
+3. Verifikasi di \`/humanify/reimbursement\` → **Lihat bukti**.
+
+## Batasan
+
+- Upload ulang hanya untuk status **pending** (klaim ditolak tetap lewat **Ajukan Ulang**).
+- Klaim **approved** historis tidak diubah otomatis — dokumentasikan di audit jika dibutuhkan.`,
+  },
 ];

@@ -23,6 +23,7 @@ import {
   PortalLoading, EnterpriseHero, QuickAction, StatTile,
 } from '@/components/employee/portal-ui';
 import { HumanifyLogo } from '@/components/humanify/HumanifyLogo';
+import { claimHasLegacyReceipt } from '@/lib/hris/claim-receipt';
 
 const TabSkeleton = () => (
   <div className="space-y-3 animate-pulse">
@@ -190,6 +191,7 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
   const [ocrScanning, setOcrScanning] = useState(false);
   const [resubmitClaimId, setResubmitClaimId] = useState<string | null>(null);
   const [resubmitReason, setResubmitReason] = useState<string>('');
+  const [replaceClaimId, setReplaceClaimId] = useState<string | null>(null);
 
   // ── Attendance History state ────────────────────────────────────────────────
   const [attHistory, setAttHistory] = useState<any[]>([]);
@@ -673,6 +675,7 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
   // ── Claim: open resubmit modal pre-filled with rejected claim data ──────────
   const openResubmit = (c: any) => {
     setResubmitClaimId(c.id);
+    setReplaceClaimId(null);
     setResubmitReason(c.rejection_reason || '');
     setClaimForm({ claimType: c.claim_type, amount: String(c.amount || ''), description: c.description || '', receiptDate: c.receipt_date || '' });
     setClaimFiles([]);
@@ -680,8 +683,22 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
     setModal('claim');
   };
 
+  const openReplaceReceipt = (c: any) => {
+    setReplaceClaimId(c.id);
+    setResubmitClaimId(null);
+    setResubmitReason('');
+    setClaimForm({ claimType: c.claim_type, amount: String(c.amount || ''), description: c.description || '', receiptDate: c.receipt_date || '' });
+    setClaimFiles([]);
+    setClaimPreviews([]);
+    setModal('claim');
+  };
+
   const handleSubmitClaim = async () => {
-    if (!claimForm.amount || !claimForm.description) {
+    if (replaceClaimId) {
+      if (claimFiles.length === 0) {
+        toast.error('Lampirkan minimal 1 bukti (PDF/JPG/PNG)'); return;
+      }
+    } else if (!claimForm.amount || !claimForm.description) {
       toast.error('Semua field harus diisi'); return;
     }
     setSubmitting(true);
@@ -693,21 +710,25 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
       })));
 
       let res;
-      if (resubmitClaimId) {
-        // ── Resubmit mode: update rejected claim ──
+      if (replaceClaimId) {
+        res = await api('replace-claim-receipt', 'POST', { claimId: replaceClaimId, attachments });
+      } else if (resubmitClaimId) {
         res = await api('resubmit-claim', 'POST', { claimId: resubmitClaimId, ...claimForm, attachments });
       } else {
-        // ── New claim ──
         res = await api('claim', 'POST', { ...claimForm, attachments });
       }
 
       if (res.success) {
-        toast.success(res.message || (resubmitClaimId ? 'Klaim berhasil diajukan ulang' : 'Klaim berhasil dikirim'));
+        toast.success(
+          res.message
+            || (replaceClaimId ? 'Bukti klaim diunggah ulang' : resubmitClaimId ? 'Klaim berhasil diajukan ulang' : 'Klaim berhasil dikirim'),
+        );
         setModal(null);
         setClaimForm({ claimType: 'medical', amount: '', description: '', receiptDate: '' });
         setClaimFiles([]);
         setClaimPreviews([]);
         setResubmitClaimId(null);
+        setReplaceClaimId(null);
         setResubmitReason('');
         const cRes = await api('claims');
         setClaims(Array.isArray(cRes.data) ? cRes.data : []);
@@ -784,10 +805,16 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
           <div className="sticky top-0 bg-white border-b border-gray-100 p-4 flex items-center justify-between rounded-t-2xl">
             <h3 className="font-bold text-gray-900">
               {modal === 'leave' && 'Ajukan Cuti'}
-              {modal === 'claim' && (resubmitClaimId ? '🔁 Ajukan Ulang Klaim' : 'Klaim Baru')}
+              {modal === 'claim' && (
+                replaceClaimId
+                  ? '📤 Upload Ulang Bukti'
+                  : resubmitClaimId
+                    ? '🔁 Ajukan Ulang Klaim'
+                    : 'Klaim Baru'
+              )}
               {modal === 'travel' && 'Ajukan Perjalanan Dinas'}
             </h3>
-            <button onClick={() => { setModal(null); setClaimFiles([]); setClaimPreviews([]); setResubmitClaimId(null); setResubmitReason(''); }} className="p-1.5 hover:bg-gray-100 rounded-full"><X className="w-5 h-5 text-gray-500" /></button>
+            <button onClick={() => { setModal(null); setClaimFiles([]); setClaimPreviews([]); setResubmitClaimId(null); setReplaceClaimId(null); setResubmitReason(''); }} className="p-1.5 hover:bg-gray-100 rounded-full"><X className="w-5 h-5 text-gray-500" /></button>
           </div>
           <div className="p-4 space-y-4">
             {modal === 'leave' && (
@@ -853,29 +880,45 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
                     <p className="text-[10px] text-red-400 mt-2">Perbaiki data di bawah ini sesuai alasan penolakan, lalu kirim ulang.</p>
                   </div>
                 )}
-                <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Jenis Klaim</label>
-                  <select value={claimForm.claimType} onChange={e => setClaimForm(f => ({ ...f, claimType: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500">
-                    {CLAIM_TYPES.map(ct => <option key={ct.value} value={ct.value}>{ct.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Jumlah (Rp)</label>
-                  <input type="number" value={claimForm.amount} onChange={e => setClaimForm(f => ({ ...f, amount: e.target.value }))}
-                    placeholder="0" className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-green-500" />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Tanggal Kwitansi</label>
-                  <input type="date" value={claimForm.receiptDate} onChange={e => setClaimForm(f => ({ ...f, receiptDate: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-green-500" />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Deskripsi</label>
-                  <textarea value={claimForm.description} onChange={e => setClaimForm(f => ({ ...f, description: e.target.value }))}
-                    rows={3} placeholder="Jelaskan detail klaim..."
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-green-500 resize-none" />
-                </div>
+                {replaceClaimId && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5">
+                    <p className="text-xs font-bold text-amber-800 flex items-center gap-1.5 mb-1">
+                      <AlertTriangle className="w-3.5 h-3.5" /> Bukti format lama
+                    </p>
+                    <p className="text-xs text-amber-800 leading-relaxed">
+                      Bukti sebelumnya hanya nama file (tidak bisa di-preview). Unggah ulang PDF/JPG/PNG agar HR dan manajer bisa melihatnya.
+                    </p>
+                  </div>
+                )}
+                {!replaceClaimId && (
+                  <>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 mb-1 block">Jenis Klaim</label>
+                      <select value={claimForm.claimType} onChange={e => setClaimForm(f => ({ ...f, claimType: e.target.value }))}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500">
+                        {CLAIM_TYPES.map(ct => <option key={ct.value} value={ct.value}>{ct.label}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 mb-1 block">Jumlah (Rp)</label>
+                      <input type="number" value={claimForm.amount} onChange={e => setClaimForm(f => ({ ...f, amount: e.target.value }))}
+                        placeholder="0" className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-green-500" />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 mb-1 block">Tanggal Kwitansi</label>
+                      <input type="date" value={claimForm.receiptDate} onChange={e => setClaimForm(f => ({ ...f, receiptDate: e.target.value }))}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-green-500" />
+                    </div>
+                  </>
+                )}
+                {!replaceClaimId && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">Deskripsi</label>
+                    <textarea value={claimForm.description} onChange={e => setClaimForm(f => ({ ...f, description: e.target.value }))}
+                      rows={3} placeholder="Jelaskan detail klaim..."
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-green-500 resize-none" />
+                  </div>
+                )}
 
                 {/* ── Multiple File Upload ── */}
                 <div>
@@ -940,10 +983,12 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
                   className="w-full bg-green-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2">
                   {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                   {submitting
-                    ? (resubmitClaimId ? 'Mengajukan Ulang...' : 'Mengirim...')
-                    : resubmitClaimId
-                      ? `Ajukan Ulang${claimFiles.length > 0 ? ` (${claimFiles.length} lampiran)` : ''}`
-                      : `Kirim Klaim${claimFiles.length > 0 ? ` (${claimFiles.length} lampiran)` : ''}`
+                    ? (replaceClaimId ? 'Mengunggah bukti...' : resubmitClaimId ? 'Mengajukan Ulang...' : 'Mengirim...')
+                    : replaceClaimId
+                      ? `Simpan Bukti${claimFiles.length > 0 ? ` (${claimFiles.length})` : ''}`
+                      : resubmitClaimId
+                        ? `Ajukan Ulang${claimFiles.length > 0 ? ` (${claimFiles.length} lampiran)` : ''}`
+                        : `Kirim Klaim${claimFiles.length > 0 ? ` (${claimFiles.length} lampiran)` : ''}`
                   }
                 </button>
               </>
@@ -1112,6 +1157,7 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
   const renderClaims = () => {
     const totalApproved = claims.filter((c: any) => c.status === 'approved').reduce((s: number, c: any) => s + parseFloat(c.amount || 0), 0);
     const totalPending = claims.filter((c: any) => c.status === 'pending').reduce((s: number, c: any) => s + parseFloat(c.amount || 0), 0);
+    const legacyPending = claims.filter((c: any) => c.status === 'pending' && claimHasLegacyReceipt(c.receipt_url));
     return (
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
@@ -1124,16 +1170,28 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
             <p className="text-lg font-bold text-yellow-700">{fmtCur(totalPending)}</p>
           </div>
         </div>
+        {legacyPending.length > 0 && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3">
+            <p className="text-xs font-semibold text-amber-900">
+              {legacyPending.length} klaim pending punya bukti format lama
+            </p>
+            <p className="mt-0.5 text-[11px] text-amber-800 leading-relaxed">
+              Upload ulang agar HR/manajer bisa preview. Ketuk &quot;Upload ulang bukti&quot; pada klaim di bawah.
+            </p>
+          </div>
+        )}
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-gray-900">Daftar Klaim</h3>
-            <button onClick={() => setModal('claim')} className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium flex items-center gap-1">
+            <button onClick={() => { setReplaceClaimId(null); setResubmitClaimId(null); setModal('claim'); }} className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium flex items-center gap-1">
               <Plus className="w-3.5 h-3.5" /> Klaim Baru
             </button>
           </div>
           {claims.length === 0 ? <p className="text-sm text-gray-400 text-center py-4">Belum ada klaim</p> : (
             <div className="space-y-2.5">
-              {claims.map((c: any) => (
+              {claims.map((c: any) => {
+                const isLegacy = claimHasLegacyReceipt(c.receipt_url);
+                return (
                 <div key={c.id} className="p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
@@ -1151,12 +1209,25 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
                           <Camera className="w-3 h-3" />{c.attachments_count} lampiran
                         </span>
                       )}
+                      {isLegacy && (
+                        <span className="text-amber-600 font-medium">bukti lama</span>
+                      )}
                       {c.resubmit_count > 0 && (
                         <span className="text-orange-500">🔁 ×{c.resubmit_count}</span>
                       )}
                     </div>
                     <span className="font-semibold text-gray-700">{fmtCur(c.amount)}</span>
                   </div>
+
+                  {c.status === 'pending' && isLegacy && (
+                    <button
+                      type="button"
+                      onClick={() => openReplaceReceipt(c)}
+                      className="mt-2.5 w-full flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white py-2 rounded-lg text-xs font-semibold active:scale-95 transition-all"
+                    >
+                      <Camera className="w-3.5 h-3.5" /> Upload ulang bukti
+                    </button>
+                  )}
 
                   {/* Rejection reason + resubmit button */}
                   {c.status === 'rejected' && (
@@ -1181,7 +1252,7 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
                     </div>
                   )}
                 </div>
-              ))}
+              );})}
             </div>
           )}
         </div>

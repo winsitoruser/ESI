@@ -205,7 +205,7 @@ AC: cross-tenant only for super/platform admin.
 | P0 | Go-live checklist + isi karyawan/aset per tenant | HRD |
 | P0 | Playbook/KB sync modul hidden + uptime alert | PS + DevOps |
 | P1 | Commit/push Wave-69 · empty-state crawl · assets di matrix | DevOps + FE + QA |
-| P1 | Legacy claim re-upload campaign | HRD + PS |
+| P1 | Legacy claim re-upload campaign (ESS CTA + report) | HRD + PS |
 | P1 | ESS mobile 5-journey spot-check | UX + QA |
 | P2 | ADR: FORCE RLS / Sentry / Privy unhide (opsional) | CTO + PM |
 | P2 | Midtrans auto-payout tetap won’t-do | CTO |

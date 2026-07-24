@@ -75,6 +75,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         case 'leave-request': return createLeaveRequest(req, res, userId, tenantId);
         case 'claim': return createClaim(req, res, userId, tenantId);
         case 'resubmit-claim':   return resubmitClaim(req, res, userId, tenantId);
+        case 'replace-claim-receipt': return replaceClaimReceipt(req, res, userId, tenantId);
         case 'submit-overtime':  return submitOvertime(req, res, userId, tenantId);
         case 'cancel-overtime':  return cancelOvertime(req, res, userId, tenantId);
         case 'travel-request': return createTravelRequest(req, res, userId, tenantId);
@@ -874,6 +875,63 @@ async function resubmitClaim(req: NextApiRequest, res: NextApiResponse, userId: 
     return res.json({ success: true, message: 'Klaim berhasil diajukan ulang dan sedang menunggu persetujuan' });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: 'Gagal mengajukan ulang klaim', details: e.message });
+  }
+}
+
+/** Replace receipt attachments on own pending claim (legacy filename-only → private storage). */
+async function replaceClaimReceipt(req: NextApiRequest, res: NextApiResponse, userId: string, tenantId: string) {
+  const { claimId, attachments } = req.body || {};
+  if (!claimId) return res.status(400).json({ success: false, error: 'claimId wajib diisi' });
+  if (!Array.isArray(attachments) || attachments.length === 0) {
+    return res.status(400).json({ success: false, error: 'Lampirkan minimal 1 bukti (PDF/JPG/PNG)' });
+  }
+  if (!sequelize) {
+    if (allowHrMockFallback()) {
+      return res.json({ success: true, message: 'Bukti klaim diperbarui (mock)' });
+    }
+    return res.status(503).json({ success: false, error: 'Database tidak tersedia' });
+  }
+  try {
+    if (!tenantId) return res.status(403).json({ success: false, error: 'Tenant context required' });
+    await ensurePortalSchema(sequelize);
+    const [owned] = await sequelize.query(`
+      SELECT c.id, c.receipt_url FROM employee_claims c
+      LEFT JOIN employees e ON c.employee_id = e.id
+      WHERE c.id = :claimId AND c.status = 'pending' AND c.tenant_id = :tenantId
+        AND e.tenant_id = :tenantId
+        AND (e.user_id = :userId OR e.email = (SELECT email FROM users WHERE id = :userId))
+      LIMIT 1
+    `, { replacements: { claimId, userId, tenantId } });
+    if (!owned || (owned as any[]).length === 0) {
+      return res.status(404).json({ success: false, error: 'Klaim pending tidak ditemukan' });
+    }
+    const { persistPortalClaimAttachments, serializeClaimReceipts } = await import('@/lib/hris/claim-receipt');
+    const savedFiles = await persistPortalClaimAttachments(attachments, tenantId);
+    if (!savedFiles.length) {
+      return res.status(400).json({ success: false, error: 'Gagal menyimpan bukti' });
+    }
+    const receiptUrl = serializeClaimReceipts(savedFiles);
+    await sequelize.query(`
+      UPDATE employee_claims
+      SET receipt_url = :receiptUrl,
+          attachments_count = :attachmentsCount,
+          updated_at = NOW()
+      WHERE id = :claimId AND tenant_id = :tenantId AND status = 'pending'
+    `, {
+      replacements: {
+        claimId,
+        tenantId,
+        receiptUrl,
+        attachmentsCount: savedFiles.length,
+      },
+    });
+    return res.json({
+      success: true,
+      message: 'Bukti klaim berhasil diunggah ulang — sekarang bisa di-preview HR/manajer',
+      data: { attachments_count: savedFiles.length },
+    });
+  } catch (e: any) {
+    return res.status(500).json({ success: false, error: 'Gagal mengganti bukti klaim', details: e?.message });
   }
 }
 

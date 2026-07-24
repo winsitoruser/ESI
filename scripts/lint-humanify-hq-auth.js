@@ -40,6 +40,10 @@ const MUST_HQ_AUTH = [
   'workflow.ts',
   'reminders.ts',
   'esign.ts',
+  'assets.ts',
+  'go-live.ts',
+  'leave-management.ts',
+  'attendance/devices.ts',
 ];
 
 let failed = 0;

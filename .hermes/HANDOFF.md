@@ -1,6 +1,21 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 24 Juli 2026 — **Wave-69** · Deploy + Gate A–D smoke hijau (staging & prod)
+> Diperbarui: 24 Juli 2026 — **Wave-70** · Legacy claim re-upload + empty-state polish
+
+## Wave-70 (24 Jul 2026) — Operate polish (legacy claims · empty states · auth lint)
+
+| ID | Item | Status |
+|---|---|---|
+| BE-1 | ESS `replace-claim-receipt` for pending claims | Done |
+| BE-2 | `claimHasLegacyReceipt` + `npm run report:legacy-claims` | Done |
+| FE-1 | ESS Klaim: banner + CTA upload ulang bukti legacy | Done |
+| UX-1 | Devices/assets empty-state: CTA primer + sekunder | Done |
+| DOC | KB seed kampanye re-upload bukti klaim | Done |
+| QA-1 | claim-proof static checks + lint assets/go-live/devices | Done |
+
+Scripts: `npm run report:legacy-claims` · `npm run smoke:claim-proof` · `npm run lint:humanify-hq-auth`
+
+**HRD next:** jalankan report per tenant → broadcast ESS upload ulang · `/humanify/go-live`.
 
 ## Wave-69 closeout — post-deploy Gate A–D (24 Jul 2026)
 

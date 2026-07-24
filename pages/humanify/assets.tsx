@@ -274,13 +274,21 @@ export default function AssetsPage() {
               <p className="mt-1 text-xs text-gray-500 max-w-md mx-auto">
                 Inventori kosong adalah perilaku sengaja (bukan data demo). Tambah laptop/HP/ID card, lalu assign ke karyawan dari Database Karyawan.
               </p>
-              <button
-                type="button"
-                onClick={() => setShowCreate(true)}
-                className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-[var(--hf-brand-600)] px-4 py-2 text-sm font-medium text-white"
-              >
-                <Plus className="w-4 h-4" /> Tambah aset pertama
-              </button>
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCreate(true)}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--hf-brand-600)] px-4 py-2 text-sm font-medium text-white"
+                >
+                  <Plus className="w-4 h-4" /> Tambah aset pertama
+                </button>
+                <Link
+                  href="/humanify/employees"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Database karyawan
+                </Link>
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
