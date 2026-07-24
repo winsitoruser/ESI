@@ -167,10 +167,40 @@ async function handleUpload(req: NextApiRequest, res: NextApiResponse, tenantId:
       replaceExisting: fieldVal(fields, 'replace_existing') === 'true',
     });
 
+    let contractSync: { action: string; contractId?: string } | null = null;
+    try {
+      const { syncContractFromDocument, isContractDocumentType } = await import('@/lib/hris/contract-document-sync');
+      if (isContractDocumentType(documentType) && data?.id) {
+        contractSync = await syncContractFromDocument({
+          sequelize,
+          tenantId,
+          employeeId,
+          document: {
+            id: String(data.id),
+            document_type: data.document_type || documentType,
+            document_number: data.document_number != null ? data.document_number : (fieldVal(fields, 'document_number') || null),
+            title: data.title || title,
+            issue_date: data.issue_date != null ? data.issue_date : (fieldVal(fields, 'issue_date') || null),
+            expiry_date: data.expiry_date != null ? data.expiry_date : (fieldVal(fields, 'expiry_date') || null),
+          },
+          createdBy: getUserId(req),
+        });
+      }
+    } catch (syncErr: any) {
+      console.warn('[employee-documents] contract sync:', syncErr?.message || syncErr);
+    }
+
+    const syncNote =
+      contractSync?.action === 'created'
+        ? ' · tersinkron ke Riwayat Kontrak (baru)'
+        : contractSync?.action === 'updated'
+          ? ' · tersinkron ke Riwayat Kontrak'
+          : '';
+
     return res.status(existingId ? 200 : 201).json({
       success: true,
-      data,
-      message: existingId ? 'Dokumen berhasil diperbarui' : 'Dokumen berhasil diunggah',
+      data: { ...data, contractSync },
+      message: (existingId ? 'Dokumen berhasil diperbarui' : 'Dokumen berhasil diunggah') + syncNote,
     });
   } catch (error: any) {
     if (error?.code === 'INVALID_FILE') {
