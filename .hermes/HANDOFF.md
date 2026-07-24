@@ -1,6 +1,15 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 24 Juli 2026 — **Wave-70** · Legacy claim re-upload + empty-state polish
+> Diperbarui: 24 Juli 2026 — **Wave-71** · Soft-fail `/api/business/config` (no `business_types`)
+
+## Wave-71 (24 Jul 2026) — ESS residual: business config soft-fail
+
+| ID | Item | Status |
+|---|---|---|
+| BE-1 | `/api/business/config` no longer 500 when `business_types` missing (Humanify DB) | Done |
+| QA-1 | Prod claim-proof after Wave-70 deploy | Done — **25/0** |
+
+**ADR ceilings unchanged:** prod FORCE RLS · Sentry.io · Midtrans auto-payout · Privy unhide.
 
 ## Wave-70 (24 Jul 2026) — Operate polish (legacy claims · empty states · auth lint)
 
@@ -12,6 +21,7 @@
 | UX-1 | Devices/assets empty-state: CTA primer + sekunder | Done |
 | DOC | KB seed kampanye re-upload bukti klaim | Done |
 | QA-1 | claim-proof static checks + lint assets/go-live/devices | Done |
+| OPS | Deploy prod `dbb170f` · health 200 · claim-proof **25/0** | Done |
 
 Scripts: `npm run report:legacy-claims` · `npm run smoke:claim-proof` · `npm run lint:humanify-hq-auth`
 
