@@ -1,6 +1,19 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 25 Juli 2026 — **Wave-73** · Go-live verify · legacy claims clean · asset seed
+> Diperbarui: 25 Juli 2026 — **Wave-74** · Setup wizard wilayah (provinsi/kota)
+
+## Wave-74 (25 Jul 2026) — Company location via wilayah.id
+
+| ID | Item | Status |
+|---|---|---|
+| BE-1 | `/api/humanify/wilayah` proxy (allowlist + cache + withHQAuth) | Done |
+| FE-1 | SaasSetupWizard: province → city/kabupaten selects | Done |
+| QA-1 | `npm run smoke:wilayah` | Done — prod **10/0** |
+| DOC | Kepmendagri source attribution in wizard | Done |
+
+Scripts: `npm run smoke:wilayah`
+
+**ADR ceilings unchanged:** prod FORCE RLS · Sentry.io · Midtrans auto-payout · Privy unhide.
 
 ## Wave-73 (25 Jul 2026) — Sequential ops: go-live → legacy claims
 

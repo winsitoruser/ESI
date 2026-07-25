@@ -11,6 +11,8 @@ import toast from 'react-hot-toast';
 import { HumanifyLogo } from '@/components/humanify/HumanifyLogo';
 import HumanifyBrandLoader from '@/components/humanify/HumanifyBrandLoader';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
+import type { WilayahItem } from '@/lib/humanify/wilayah-id';
+import { WILAYAH_SOURCE } from '@/lib/humanify/wilayah-id';
 
 const DEFAULT_DEPARTMENTS = ['HR', 'Finance', 'Operations', 'IT', 'Sales', 'Marketing'];
 const WORK_DAYS = [
@@ -30,6 +32,9 @@ const STEP_META = [
   { key: 'launch', icon: Rocket, title: 'Go Live' },
 ];
 
+const selectClass =
+  'w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 disabled:bg-slate-50 disabled:text-slate-400';
+
 export default function SaasSetupWizard() {
   const router = useRouter();
   const { data: session, status, update } = useSession();
@@ -43,9 +48,15 @@ export default function SaasSetupWizard() {
   const [company, setCompany] = useState({
     city: '',
     province: '',
+    provinceCode: '',
+    cityCode: '',
     phone: '',
     website: '',
   });
+  const [provinces, setProvinces] = useState<WilayahItem[]>([]);
+  const [regencies, setRegencies] = useState<WilayahItem[]>([]);
+  const [wilayahLoading, setWilayahLoading] = useState(false);
+  const [regenciesLoading, setRegenciesLoading] = useState(false);
   const [departments, setDepartments] = useState<string[]>(['HR', 'Finance', 'Operations', 'IT']);
   const [policies, setPolicies] = useState({
     workDays: [1, 2, 3, 4, 5] as number[],
@@ -89,6 +100,88 @@ export default function SaasSetupWizard() {
     }
     if (status === 'authenticated') load();
   }, [status, load, router]);
+
+  useEffect(() => {
+    if (status !== 'authenticated' || step !== 1) return;
+    let cancelled = false;
+    (async () => {
+      setWilayahLoading(true);
+      try {
+        const res = await fetch('/api/humanify/wilayah?level=provinces');
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+        if (!cancelled) setProvinces(json.data || []);
+      } catch (e: any) {
+        if (!cancelled) toast.error(e.message || 'Gagal memuat daftar provinsi');
+      } finally {
+        if (!cancelled) setWilayahLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [status, step]);
+
+  useEffect(() => {
+    const code = company.provinceCode;
+    if (!code || status !== 'authenticated') {
+      setRegencies([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setRegenciesLoading(true);
+      try {
+        const res = await fetch(`/api/humanify/wilayah?level=regencies&provinceCode=${encodeURIComponent(code)}`);
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+        if (!cancelled) setRegencies(json.data || []);
+      } catch (e: any) {
+        if (!cancelled) {
+          setRegencies([]);
+          toast.error(e.message || 'Gagal memuat daftar kota/kabupaten');
+        }
+      } finally {
+        if (!cancelled) setRegenciesLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [company.provinceCode, status]);
+
+  // Resolve province/city codes from saved names (legacy free-text) once lists load
+  useEffect(() => {
+    if (!provinces.length || !company.province || company.provinceCode) return;
+    const match = provinces.find(
+      (p) => p.name.toLowerCase() === company.province.toLowerCase(),
+    );
+    if (match) setCompany((c) => ({ ...c, provinceCode: match.code, province: match.name }));
+  }, [provinces, company.province, company.provinceCode]);
+
+  useEffect(() => {
+    if (!regencies.length || !company.city || company.cityCode) return;
+    const match = regencies.find(
+      (r) => r.name.toLowerCase() === company.city.toLowerCase(),
+    );
+    if (match) setCompany((c) => ({ ...c, cityCode: match.code, city: match.name }));
+  }, [regencies, company.city, company.cityCode]);
+
+  function onProvinceChange(code: string) {
+    const selected = provinces.find((p) => p.code === code);
+    setCompany((c) => ({
+      ...c,
+      provinceCode: code,
+      province: selected?.name || '',
+      city: '',
+      cityCode: '',
+    }));
+  }
+
+  function onCityChange(code: string) {
+    const selected = regencies.find((r) => r.code === code);
+    setCompany((c) => ({
+      ...c,
+      cityCode: code,
+      city: selected?.name || '',
+    }));
+  }
 
   async function saveStep(stepKey: string, data: Record<string, unknown>, next?: number) {
     setSaving(true);
@@ -208,14 +301,54 @@ export default function SaasSetupWizard() {
               <h2 className="text-lg font-semibold text-slate-900">Lokasi & kontak perusahaan</h2>
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-slate-600 mb-1 block">Kota</label>
-                  <input className="w-full px-4 py-2.5 rounded-xl border border-slate-200" value={company.city} onChange={(e) => setCompany({ ...company, city: e.target.value })} placeholder="Jakarta" />
+                  <label className="text-sm text-slate-600 mb-1 block">Provinsi</label>
+                  <select
+                    className={selectClass}
+                    value={company.provinceCode}
+                    disabled={wilayahLoading}
+                    onChange={(e) => onProvinceChange(e.target.value)}
+                  >
+                    <option value="">
+                      {wilayahLoading ? 'Memuat provinsi…' : 'Pilih provinsi'}
+                    </option>
+                    {provinces.map((p) => (
+                      <option key={p.code} value={p.code}>{p.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
-                  <label className="text-sm text-slate-600 mb-1 block">Provinsi</label>
-                  <input className="w-full px-4 py-2.5 rounded-xl border border-slate-200" value={company.province} onChange={(e) => setCompany({ ...company, province: e.target.value })} placeholder="DKI Jakarta" />
+                  <label className="text-sm text-slate-600 mb-1 block">Kota / Kabupaten</label>
+                  <select
+                    className={selectClass}
+                    value={company.cityCode}
+                    disabled={!company.provinceCode || regenciesLoading}
+                    onChange={(e) => onCityChange(e.target.value)}
+                  >
+                    <option value="">
+                      {!company.provinceCode
+                        ? 'Pilih provinsi dulu'
+                        : regenciesLoading
+                          ? 'Memuat kota/kabupaten…'
+                          : 'Pilih kota/kabupaten'}
+                    </option>
+                    {regencies.map((r) => (
+                      <option key={r.code} value={r.code}>{r.name}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
+              <p className="text-xs text-slate-400">
+                Data daerah dari{' '}
+                <a
+                  href={WILAYAH_SOURCE.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-slate-600"
+                >
+                  {WILAYAH_SOURCE.name}
+                </a>
+                {' '}· {WILAYAH_SOURCE.updatedHint}
+              </p>
               <div>
                 <label className="text-sm text-slate-600 mb-1 block">Telepon HR</label>
                 <input className="w-full px-4 py-2.5 rounded-xl border border-slate-200" value={company.phone} onChange={(e) => setCompany({ ...company, phone: e.target.value })} placeholder="021-xxxx" />
