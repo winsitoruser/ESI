@@ -13,9 +13,11 @@
 | UX-1 | Split `/platform` hub · `/platform/clients` · `/platform/partners` | Done |
 | BE-2 | `POST tenant-create` · `PATCH tenant-profile` · goLive di tenant-detail | Done |
 | FE-3 | Buat klien, edit profil, go-live checklist di detail | Done |
-| QA-1 | `smoke:phase7-golive` + claim-file origin-400 probes | Pending deploy |
+| QA-1 | `smoke:phase7-golive` + claim-file origin-400 probes | Done — prod golive **10/0** · claim-proof **28/0** |
 | QA-2 | `smoke:sidebar-persona` **16/0** (Ops Platform nav) | Done |
 | FIX | Import `parseTenantSettings` + partner-leads di platform API | Done |
+| FIX | Owner query uses `"createdAt"` (Sequelize camelCase) | Done |
+| OPS | Deploy email-verify ops · health 200 | Done |
 
 Akses ops: `/platform` · `/platform/clients` · role `super_admin` / `platform_admin`
 
