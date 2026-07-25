@@ -10,6 +10,7 @@
 | FE-1 | SaasSetupWizard: province → city/kabupaten selects | Done |
 | QA-1 | `npm run smoke:wilayah` | Done — prod **10/0** |
 | DOC | Kepmendagri source attribution in wizard | Done |
+| OPS | Deploy `d0b3553` prod · health 200 · smoke **10/0** | Done |
 
 Scripts: `npm run smoke:wilayah`
 
