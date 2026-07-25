@@ -2,15 +2,22 @@
 
 > Diperbarui: 25 Juli 2026 — **Wave-75** · Go-live email verify UX + platform ops
 
-## Wave-75 (25 Jul 2026) — Close email_verified ops gap
+## Wave-75 (25 Jul 2026) — Close email_verified ops gap + platform ops portal
 
 | ID | Item | Status |
 |---|---|---|
 | FE-1 | Go-live: **Kirim ulang email verifikasi** inline | Done |
 | BE-1 | `markTenantEmailVerified` + platform `tenant-email-verify` / `tenant-email-resend` | Done |
 | FE-2 | Platform tenant detail: badge + mark + resend | Done |
+| IA-1 | Sidebar **Ops Platform** (super_admin / platform_admin only) | Done |
+| UX-1 | Split `/platform` hub · `/platform/clients` · `/platform/partners` | Done |
+| BE-2 | `POST tenant-create` · `PATCH tenant-profile` · goLive di tenant-detail | Done |
+| FE-3 | Buat klien, edit profil, go-live checklist di detail | Done |
 | QA-1 | `smoke:phase7-golive` + claim-file origin-400 probes | Pending deploy |
-| FIX | Import `parseTenantSettings` in platform API (latent) | Done |
+| QA-2 | `smoke:sidebar-persona` **16/0** (Ops Platform nav) | Done |
+| FIX | Import `parseTenantSettings` + partner-leads di platform API | Done |
+
+Akses ops: `/platform` · `/platform/clients` · role `super_admin` / `platform_admin`
 
 **ADR ceilings unchanged:** prod FORCE RLS · Sentry.io · Midtrans auto-payout · Privy unhide.
 
