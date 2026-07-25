@@ -1,14 +1,14 @@
 /**
  * Platform Control Plane API — Humanify SaaS ops
  * GET   ?action=overview|tenants|tenant|tenant-detail|billing-orders|expiring-trials|partners|partner-leads|partner-leads-export|partner-commission-export|partner-commission-summary|commission-preview
- * PATCH ?action=tenant-status|tenant-plan|tenant-mfa-policy|tenant-email-verify
- * POST  ?action=dunning-scan|partner-create|partner-lead-status|cleanup-qa|archive-qa|impersonate|end-impersonate|tenant-email-resend
+ * PATCH ?action=tenant-status|tenant-plan|tenant-mfa-policy|tenant-email-verify|tenant-profile
+ * POST  ?action=dunning-scan|partner-create|partner-lead-status|cleanup-qa|archive-qa|impersonate|end-impersonate|tenant-email-resend|tenant-create
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 import { isPlatformOperator } from '@/lib/middleware/tenantIsolation';
-import { backfillTenantSlugs, ensureTenantSlugColumn } from '@/lib/saas/tenant-slug';
+import { backfillTenantSlugs, ensureTenantSlugColumn, ensureUniqueTenantSlug } from '@/lib/saas/tenant-slug';
 import {
   computePaidOrdersMrr,
   computeTenantHealth,
@@ -19,6 +19,7 @@ import { HUMANIFY_PLANS } from '@/lib/saas/plan-entitlements';
 import { listExpiringTrials, runDunningScan } from '@/lib/saas/humanify-billing';
 import {
   archiveSuspendedQaTenants,
+  attachPartnerToTenant,
   cleanupQaTenants,
   createPartner,
   estimatePartnerCommission,
@@ -42,6 +43,14 @@ import {
   isTenantEmailVerified,
   markTenantEmailVerified,
 } from '@/lib/saas/email-verify';
+import { provisionHumanifyTenant } from '@/lib/saas/humanify-provision';
+import { getGoLiveStatus } from '@/lib/saas/go-live';
+import {
+  exportPartnerLeadsCsv,
+  listPartnerLeads,
+  updatePartnerLeadStatus,
+} from '@/lib/hris/partner-leads';
+import { randomBytes } from 'crypto';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch {}
@@ -372,7 +381,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       try {
         const [ownerRows] = await sequelize.query(`
           SELECT id, email FROM users WHERE tenant_id = :id
-          ORDER BY (CASE WHEN role IN ('owner', 'admin', 'super_admin') THEN 0 ELSE 1 END), created_at ASC
+          ORDER BY (CASE WHEN role IN ('owner', 'admin', 'super_admin') THEN 0 ELSE 1 END), "createdAt" ASC NULLS LAST
           LIMIT 1
         `, { replacements: { id } });
         const owner = ownerRows?.[0];
@@ -510,9 +519,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       let owner: any = null;
       try {
         const [ownerRows] = await sequelize.query(`
-          SELECT id, name, email, role, created_at
+          SELECT id, name, email, role, "createdAt" AS created_at
           FROM users WHERE tenant_id = :id
-          ORDER BY (CASE WHEN role IN ('owner', 'admin', 'super_admin') THEN 0 ELSE 1 END), created_at ASC
+          ORDER BY (CASE WHEN role IN ('owner', 'admin', 'super_admin') THEN 0 ELSE 1 END), "createdAt" ASC NULLS LAST
           LIMIT 1
         `, { replacements: { id } });
         owner = ownerRows?.[0] || null;
@@ -583,6 +592,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const emailVerified = await isTenantEmailVerified(id).catch(() => Boolean(settings.email_verified));
+      const goLive = await getGoLiveStatus(id).catch(() => null);
+      const company = settings.saas_onboarding?.company || settings.company || {};
 
       return res.json({
         success: true,
@@ -601,8 +612,163 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           emailVerified,
           emailVerifiedAt: settings.email_verified_at || null,
           emailVerifiedBy: settings.email_verified_by || null,
+          goLive,
+          profile: {
+            name: tenant.name || tenant.business_name || '',
+            slug: tenant.slug || '',
+            contactName: tenant.contact_name || owner?.name || '',
+            contactEmail: tenant.contact_email || tenant.business_email || owner?.email || '',
+            contactPhone: tenant.contact_phone || '',
+            industry: company.industry || '',
+            employeeRange: company.employeeRange || '',
+          },
         },
       });
+    }
+
+    if (req.method === 'POST' && action === 'tenant-create') {
+      const body = req.body || {};
+      const companyName = String(body.companyName || body.name || '').trim();
+      const ownerName = String(body.ownerName || body.contactName || '').trim();
+      const email = String(body.email || body.contactEmail || '').trim().toLowerCase();
+      let password = String(body.password || '').trim();
+      if (!password) password = `Hf${randomBytes(6).toString('base64url')}!a1`;
+      if (!companyName || !ownerName || !email) {
+        return res.status(400).json({
+          success: false,
+          error: 'companyName, ownerName, dan email wajib',
+        });
+      }
+
+      const result = await provisionHumanifyTenant({
+        companyName,
+        ownerName,
+        email,
+        password,
+        phone: body.phone ? String(body.phone).trim() : undefined,
+        industry: body.industry ? String(body.industry) : undefined,
+        employeeRange: body.employeeRange ? String(body.employeeRange) : undefined,
+      });
+
+      const refCode = String(body.partnerCode || body.ref || '').trim();
+      let partner: { attached: boolean; code?: string } = { attached: false };
+      if (refCode) {
+        partner = await attachPartnerToTenant(result.tenantId, refCode);
+      }
+
+      if (body.markEmailVerified === true || body.verifyEmail === true) {
+        await markTenantEmailVerified({
+          tenantId: result.tenantId,
+          byEmail: String((session.user as any)?.email || 'platform_ops'),
+          reason: 'platform_provision',
+        }).catch(() => null);
+      } else {
+        const origin = (req.headers.origin as string) || process.env.NEXTAUTH_URL || 'https://humanify.id';
+        await createEmailVerification({
+          userId: result.userId,
+          tenantId: result.tenantId,
+          email: result.email,
+          baseUrl: origin,
+        }).catch(() => null);
+      }
+
+      if (body.plan && String(body.plan).toLowerCase() !== 'trial' && cols.has('subscription_plan')) {
+        const plan = String(body.plan).toLowerCase();
+        if (['starter', 'growth', 'enterprise'].includes(plan)) {
+          await sequelize.query(
+            `UPDATE tenants SET subscription_plan = :plan, updated_at = NOW() WHERE id = :id`,
+            { replacements: { id: result.tenantId, plan } },
+          );
+        }
+      }
+
+      return res.status(201).json({
+        success: true,
+        message: `Tenant ${companyName} dibuat`,
+        data: {
+          ...result,
+          passwordGenerated: !body.password,
+          temporaryPassword: !body.password ? password : undefined,
+          partner,
+          redirectTo: `/platform/tenants/${result.tenantId}`,
+        },
+      });
+    }
+
+    if (req.method === 'PATCH' && action === 'tenant-profile') {
+      const id = String(req.body?.id || '');
+      if (!id) return res.status(400).json({ success: false, error: 'id required' });
+
+      const [rows] = await sequelize.query(
+        `SELECT * FROM tenants WHERE id = :id LIMIT 1`,
+        { replacements: { id } },
+      );
+      const tenant = rows?.[0];
+      if (!tenant) return res.status(404).json({ success: false, error: 'Tenant not found' });
+
+      const settings = parseTenantSettings(tenant.settings);
+      const sets: string[] = ['updated_at = NOW()'];
+      const repl: Record<string, unknown> = { id };
+
+      const name = req.body?.name != null ? String(req.body.name).trim() : null;
+      if (name) {
+        if (cols.has('name')) { sets.push('name = :name'); repl.name = name; }
+        if (cols.has('business_name')) { sets.push('business_name = :business_name'); repl.business_name = name; }
+      }
+
+      if (req.body?.contactName != null && cols.has('contact_name')) {
+        sets.push('contact_name = :contact_name');
+        repl.contact_name = String(req.body.contactName).trim() || null;
+      }
+      if (req.body?.contactEmail != null && cols.has('contact_email')) {
+        sets.push('contact_email = :contact_email');
+        repl.contact_email = String(req.body.contactEmail).trim().toLowerCase() || null;
+      }
+      if (req.body?.contactPhone != null && cols.has('contact_phone')) {
+        sets.push('contact_phone = :contact_phone');
+        repl.contact_phone = String(req.body.contactPhone).trim() || null;
+      }
+      if (req.body?.businessEmail != null && cols.has('business_email')) {
+        sets.push('business_email = :business_email');
+        repl.business_email = String(req.body.businessEmail).trim().toLowerCase() || null;
+      }
+
+      if (req.body?.slug != null && cols.has('slug')) {
+        const rawSlug = String(req.body.slug).trim();
+        if (rawSlug && rawSlug !== tenant.slug) {
+          const slug = await ensureUniqueTenantSlug(rawSlug, id);
+          sets.push('slug = :slug');
+          repl.slug = slug;
+        }
+      }
+
+      const industry = req.body?.industry != null ? String(req.body.industry).trim() : null;
+      const employeeRange = req.body?.employeeRange != null ? String(req.body.employeeRange).trim() : null;
+      if (industry != null || employeeRange != null) {
+        settings.saas_onboarding = {
+          ...(settings.saas_onboarding || {}),
+          company: {
+            ...((settings.saas_onboarding || {}).company || {}),
+            ...(industry != null ? { industry } : {}),
+            ...(employeeRange != null ? { employeeRange } : {}),
+          },
+        };
+        if (cols.has('settings')) {
+          sets.push('settings = CAST(:settings AS jsonb)');
+          repl.settings = JSON.stringify(settings);
+        }
+      }
+
+      if (sets.length <= 1) {
+        return res.status(400).json({ success: false, error: 'Tidak ada field untuk diubah' });
+      }
+
+      await sequelize.query(
+        `UPDATE tenants SET ${sets.join(', ')} WHERE id = :id`,
+        { replacements: repl },
+      );
+
+      return res.json({ success: true, message: 'Profil perusahaan diperbarui', data: { id } });
     }
 
     if (req.method === 'GET' && action === 'billing-orders') {
