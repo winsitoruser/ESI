@@ -91,9 +91,20 @@ async function main() {
   }
 
   await login(email, [password]);
+
+  const resend = await api('POST', '/api/humanify/email-verify?action=resend');
+  if (resend.status === 200 && resend.json?.success) {
+    ok(`email-verify resend (emailed=${Boolean(resend.json.data?.emailed)})`);
+  } else {
+    fail('email-verify resend', resend.json?.error || `HTTP ${resend.status}`);
+  }
+
   const gl = await api('GET', '/api/humanify/go-live');
   if (gl.json?.success && Array.isArray(gl.json.data?.items)) {
     ok(`go-live ${gl.json.data.score}/${gl.json.data.total} pct=${gl.json.data.pct}`);
+    const emailItem = gl.json.data.items.find((i) => i.id === 'email_verified');
+    if (emailItem) ok(`go-live email_verified item done=${Boolean(emailItem.done)}`);
+    else fail('go-live email_verified item missing');
   } else fail('go-live', gl.json?.error);
 
   const ack = await api('POST', '/api/humanify/go-live?action=ack-billing');
@@ -105,6 +116,35 @@ async function main() {
   if (ctx.json?.data?.emailVerified === true) ok('saas-context emailVerified');
   else if (emailedOnly) ok('emailVerified pending (prod SMTP — expected until user clicks email)');
   else fail('emailVerified flag', String(ctx.json?.data?.emailVerified));
+
+  // Platform ops: mark + resend on the signup tenant (superadmin)
+  await login(EMAIL, PASSWORDS);
+  const tenantId = regJ.data?.tenantId || regJ.data?.tenant_id || null;
+  if (tenantId) {
+    const mark = await api('PATCH', '/api/platform?action=tenant-email-verify', {
+      id: tenantId,
+      reason: 'wave75_smoke',
+    });
+    if (mark.json?.success) ok('platform tenant-email-verify mark');
+    else fail('platform mark', mark.json?.error || `HTTP ${mark.status}`);
+
+    const platResend = await api('POST', '/api/platform?action=tenant-email-resend', { id: tenantId });
+    if (platResend.json?.success) ok('platform tenant-email-resend');
+    else fail('platform resend', platResend.json?.error || `HTTP ${platResend.status}`);
+  } else {
+    const tenants = await api('GET', '/api/platform?action=tenants&limit=5');
+    const fallbackId = tenants.json?.data?.tenants?.[0]?.id || null;
+    if (fallbackId) {
+      const mark = await api('PATCH', '/api/platform?action=tenant-email-verify', {
+        id: fallbackId,
+        reason: 'wave75_smoke_fallback',
+      });
+      if (mark.json?.success) ok('platform tenant-email-verify mark (fallback)');
+      else fail('platform mark', mark.json?.error || `HTTP ${mark.status}`);
+    } else {
+      ok('platform email ops skipped (no tenant id)');
+    }
+  }
 
   console.log(`\nRESULT: ${passed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);

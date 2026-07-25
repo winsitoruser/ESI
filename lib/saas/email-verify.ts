@@ -161,3 +161,37 @@ export async function isTenantEmailVerified(tenantId: string | null | undefined)
     return true;
   }
 }
+
+/** Platform ops: mark tenant email verified without inbox click (support override). */
+export async function markTenantEmailVerified(opts: {
+  tenantId: string;
+  byEmail?: string | null;
+  reason?: string;
+}): Promise<{ verified: true; at: string }> {
+  if (!sequelize) throw new Error('Database unavailable');
+  const tenantId = String(opts.tenantId || '').trim();
+  if (!tenantId) throw new Error('tenantId required');
+
+  const cols = await getTenantColumns();
+  if (!cols.has('settings')) throw new Error('tenants.settings column missing');
+
+  const [trows] = await sequelize.query(
+    `SELECT settings FROM tenants WHERE id = :id LIMIT 1`,
+    { replacements: { id: tenantId } },
+  );
+  if (!trows?.length) throw new Error('Tenant not found');
+
+  const at = new Date().toISOString();
+  const settings = parseTenantSettings(trows[0].settings);
+  settings.email_verified = true;
+  settings.email_verified_at = at;
+  settings.email_verified_by = opts.byEmail || 'platform_ops';
+  if (opts.reason) settings.email_verified_reason = String(opts.reason).slice(0, 240);
+
+  await sequelize.query(
+    `UPDATE tenants SET settings = CAST(:settings AS jsonb), updated_at = NOW() WHERE id = :id`,
+    { replacements: { id: tenantId, settings: JSON.stringify(settings) } },
+  );
+
+  return { verified: true, at };
+}

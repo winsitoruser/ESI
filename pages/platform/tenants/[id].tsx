@@ -285,6 +285,74 @@ export default function TenantDetailPage() {
               ) : (
                 <p className="text-sm text-slate-400">Belum ada user terdaftar.</p>
               )}
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <span className={`text-[11px] font-bold uppercase px-2 py-1 rounded ${
+                  tenant.emailVerified ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'
+                }`}>
+                  {tenant.emailVerified ? 'Email terverifikasi' : 'Email belum verifikasi'}
+                </span>
+                {!tenant.emailVerified && (
+                  <>
+                    <button
+                      type="button"
+                      disabled={acting}
+                      onClick={async () => {
+                        setActing(true);
+                        try {
+                          const res = await fetch('/api/platform?action=tenant-email-resend', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id }),
+                          });
+                          const j = await res.json();
+                          if (j.success) setToast(j.message || 'Link verifikasi dikirim');
+                          else setToast(j.error || 'Gagal resend');
+                        } catch {
+                          setToast('Gagal resend verifikasi');
+                        } finally {
+                          setActing(false);
+                        }
+                      }}
+                      className="text-xs px-3 py-1.5 rounded border text-[color:var(--hf-brand)] border-[var(--hf-brand-100)] hover:bg-[var(--hf-brand-50)] disabled:opacity-50"
+                    >
+                      Kirim ulang verifikasi
+                    </button>
+                    <button
+                      type="button"
+                      disabled={acting}
+                      onClick={async () => {
+                        if (!window.confirm('Tandai email pemilik sebagai terverifikasi? (override support)')) return;
+                        setActing(true);
+                        try {
+                          const res = await fetch('/api/platform?action=tenant-email-verify', {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id, reason: 'platform_support_override' }),
+                          });
+                          const j = await res.json();
+                          if (j.success) {
+                            setToast(j.message || 'Ditandai terverifikasi');
+                            await load();
+                          } else setToast(j.error || 'Gagal mark verified');
+                        } catch {
+                          setToast('Gagal mark verified');
+                        } finally {
+                          setActing(false);
+                        }
+                      }}
+                      className="text-xs px-3 py-1.5 rounded bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                    >
+                      Tandai terverifikasi
+                    </button>
+                  </>
+                )}
+              </div>
+              {tenant.emailVerifiedAt && (
+                <p className="text-[11px] text-slate-400 mt-2">
+                  Verified {new Date(tenant.emailVerifiedAt).toLocaleString('id-ID')}
+                  {tenant.emailVerifiedBy ? ` · ${tenant.emailVerifiedBy}` : ''}
+                </p>
+              )}
               {tenant.partnerCode && (
                 <p className="text-xs text-slate-500 mt-1">
                   Partner ref: <code className="bg-slate-100 px-1 rounded">{tenant.partnerCode}</code>

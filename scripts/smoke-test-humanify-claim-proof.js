@@ -203,6 +203,18 @@ async function apiChecks() {
   } else {
     fail('claim-file traversal guard', `HTTP ${bad.status}`);
   }
+
+  // CF-safe origin probes (no `..`) — must hit app and return 400
+  for (const probe of ['bad', 'a/b/c', '']) {
+    const qs = probe === '' ? 'key=' : `key=${encodeURIComponent(probe)}`;
+    const r = await fetch(`${BASE}/api/humanify/claim-file?${qs}`);
+    if (r.status === 400) ok(`claim-file origin-400 key=${probe || '(empty)'}`);
+    else if ([401, 403, 404].includes(r.status) && probe === 'a/b/c') {
+      ok(`claim-file rejects bad format (HTTP ${r.status})`);
+    } else {
+      fail(`claim-file origin-400 key=${probe || '(empty)'}`, `HTTP ${r.status}`);
+    }
+  }
 }
 
 async function e2eClaimJourney() {

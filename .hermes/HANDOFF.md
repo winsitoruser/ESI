@@ -1,6 +1,18 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 25 Juli 2026 — **Wave-74** · Setup wizard wilayah (provinsi/kota)
+> Diperbarui: 25 Juli 2026 — **Wave-75** · Go-live email verify UX + platform ops
+
+## Wave-75 (25 Jul 2026) — Close email_verified ops gap
+
+| ID | Item | Status |
+|---|---|---|
+| FE-1 | Go-live: **Kirim ulang email verifikasi** inline | Done |
+| BE-1 | `markTenantEmailVerified` + platform `tenant-email-verify` / `tenant-email-resend` | Done |
+| FE-2 | Platform tenant detail: badge + mark + resend | Done |
+| QA-1 | `smoke:phase7-golive` + claim-file origin-400 probes | Pending deploy |
+| FIX | Import `parseTenantSettings` in platform API (latent) | Done |
+
+**ADR ceilings unchanged:** prod FORCE RLS · Sentry.io · Midtrans auto-payout · Privy unhide.
 
 ## Wave-74 (25 Jul 2026) — Company location via wilayah.id
 
@@ -24,7 +36,7 @@ Scripts: `npm run smoke:wilayah`
 | QA-2 | `report:legacy-claims` live scan | Done — staging **0** legacy · prod **0** legacy |
 | QA-3 | `smoke:claim-proof` | Done — staging+prod **25/0** |
 | OPS-1 | Seed inventori aset demo (`LT-001`) → go-live **5/6** ready=true | Done |
-| OPS-2 | Gap tersisa: `email_verified` (pemilik tenant — verifikasi inbox) | Open (HRD) |
+| OPS-2 | Gap tersisa: `email_verified` (pemilik tenant — verifikasi inbox) | Closed → Wave-75 |
 
 **Go-live tenant demo (`c692477a-…`):** setup · karyawan · aset · karir · billing ✅ · email pemilik ⏳  
 

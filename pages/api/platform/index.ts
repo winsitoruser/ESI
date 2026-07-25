@@ -1,8 +1,8 @@
 /**
  * Platform Control Plane API — Humanify SaaS ops
  * GET   ?action=overview|tenants|tenant|tenant-detail|billing-orders|expiring-trials|partners|partner-leads|partner-leads-export|partner-commission-export|partner-commission-summary|commission-preview
- * PATCH ?action=tenant-status|tenant-plan|tenant-mfa-policy
- * POST  ?action=dunning-scan|partner-create|partner-lead-status|cleanup-qa|archive-qa|impersonate|end-impersonate
+ * PATCH ?action=tenant-status|tenant-plan|tenant-mfa-policy|tenant-email-verify
+ * POST  ?action=dunning-scan|partner-create|partner-lead-status|cleanup-qa|archive-qa|impersonate|end-impersonate|tenant-email-resend
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
@@ -36,6 +36,12 @@ import {
 } from '@/lib/saas/partner-payouts';
 import { getSeatUsage } from '@/lib/saas/seat-metering';
 import { isTenantMfaRequired, setTenantMfaRequired } from '@/lib/saas/mfa-policy';
+import { parseTenantSettings } from '@/lib/saas/tenant-schema';
+import {
+  createEmailVerification,
+  isTenantEmailVerified,
+  markTenantEmailVerified,
+} from '@/lib/saas/email-verify';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch {}
@@ -343,6 +349,63 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
+    if (req.method === 'PATCH' && action === 'tenant-email-verify') {
+      const id = String(req.body?.id || req.query.id || '');
+      if (!id) return res.status(400).json({ success: false, error: 'id required' });
+      const reason = String(req.body?.reason || 'platform_ops_mark').slice(0, 240);
+      const byEmail = String((session.user as any).email || 'platform_ops');
+      try {
+        const result = await markTenantEmailVerified({ tenantId: id, byEmail, reason });
+        return res.json({
+          success: true,
+          data: result,
+          message: 'Email pemilik ditandai terverifikasi',
+        });
+      } catch (e: any) {
+        return res.status(400).json({ success: false, error: e?.message || 'Gagal mark email verified' });
+      }
+    }
+
+    if (req.method === 'POST' && action === 'tenant-email-resend') {
+      const id = String(req.body?.id || req.query.id || '');
+      if (!id) return res.status(400).json({ success: false, error: 'id required' });
+      try {
+        const [ownerRows] = await sequelize.query(`
+          SELECT id, email FROM users WHERE tenant_id = :id
+          ORDER BY (CASE WHEN role IN ('owner', 'admin', 'super_admin') THEN 0 ELSE 1 END), created_at ASC
+          LIMIT 1
+        `, { replacements: { id } });
+        const owner = ownerRows?.[0];
+        if (!owner?.email || !owner?.id) {
+          return res.status(404).json({ success: false, error: 'Owner email tidak ditemukan' });
+        }
+        const origin = (req.headers.origin as string) || process.env.NEXTAUTH_URL || 'https://humanify.id';
+        const created = await createEmailVerification({
+          userId: owner.id,
+          tenantId: id,
+          email: String(owner.email).toLowerCase(),
+          baseUrl: origin,
+        });
+        const exposeToken =
+          process.env.NODE_ENV !== 'production'
+          || process.env.HUMANIFY_EMAIL_VERIFY_RETURN_TOKEN === 'true'
+          || !created.emailed;
+        return res.json({
+          success: true,
+          message: created.emailed
+            ? `Link verifikasi dikirim ke ${owner.email}`
+            : `Link verifikasi dibuat untuk ${owner.email}`,
+          data: {
+            emailed: created.emailed,
+            email: owner.email,
+            verifyUrl: exposeToken ? created.verifyUrl : undefined,
+          },
+        });
+      } catch (e: any) {
+        return res.status(400).json({ success: false, error: e?.message || 'Gagal resend verifikasi' });
+      }
+    }
+
     if (req.method === 'POST' && action === 'dunning-scan') {
       const result = await runDunningScan();
       return res.json({ success: true, data: result, message: `Suspended ${result.suspended}, trials expired ${result.trialsExpired}` });
@@ -519,6 +582,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         } catch { /* */ }
       }
 
+      const emailVerified = await isTenantEmailVerified(id).catch(() => Boolean(settings.email_verified));
+
       return res.json({
         success: true,
         data: {
@@ -533,6 +598,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           careersUrl: tenant.slug ? `/c/${tenant.slug}/careers` : null,
           seats,
           mfa: { requireMfa, enrolledUsers: mfaEnrolled },
+          emailVerified,
+          emailVerifiedAt: settings.email_verified_at || null,
+          emailVerifiedBy: settings.email_verified_by || null,
         },
       });
     }

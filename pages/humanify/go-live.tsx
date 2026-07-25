@@ -14,6 +14,7 @@ export default function GoLivePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
+  const [resending, setResending] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -44,6 +45,21 @@ export default function GoLivePage() {
       setData(j.data);
       toast.success('Billing checklist dicentang');
     } else toast.error(j.error || 'Gagal');
+  }
+
+  async function resendVerify() {
+    setResending(true);
+    try {
+      const res = await fetch('/api/humanify/email-verify?action=resend', { method: 'POST' });
+      const j = await res.json();
+      if (!j.success) throw new Error(j.error || 'Gagal kirim ulang');
+      toast.success(j.message || 'Link verifikasi dikirim');
+      await load();
+    } catch (e: any) {
+      toast.error(e.message || 'Gagal kirim ulang verifikasi');
+    } finally {
+      setResending(false);
+    }
   }
 
   if (status === 'loading' || loading) {
@@ -109,7 +125,22 @@ export default function GoLivePage() {
                     Saya sudah cek halaman billing
                   </button>
                 )}
-                {!item.done && item.id !== 'billing_aware' && (
+                {!item.done && item.id === 'email_verified' && (
+                  <div className="mt-2 flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      disabled={resending}
+                      onClick={resendVerify}
+                      className="text-xs font-semibold text-[color:var(--hf-brand-600)] underline disabled:opacity-50"
+                    >
+                      {resending ? 'Mengirim…' : 'Kirim ulang email verifikasi'}
+                    </button>
+                    <Link href={item.href || '/humanify/verify-email'} className="text-xs text-slate-500 underline">
+                      Buka halaman verifikasi
+                    </Link>
+                  </div>
+                )}
+                {!item.done && item.id !== 'billing_aware' && item.id !== 'email_verified' && (
                   <Link href={item.href} className="mt-2 inline-block text-xs text-[color:var(--hf-brand-600)] underline">
                     Selesaikan
                   </Link>
