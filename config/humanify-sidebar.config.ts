@@ -10,7 +10,7 @@ import {
   Briefcase, Plane, BookOpen, Ban, Calculator, Banknote,
   Percent, Gift, Clock, Network, Fingerprint, Sparkles,
   Wallet, Package, CreditCard, Crosshair, PenLine, Scale, Globe, Home,
-  CheckCircle2, Lock, Upload, LifeBuoy, Library, Building2, Handshake,
+  CheckCircle2, Lock, Upload, LifeBuoy, Library, Building2, HelpingHand,
 } from 'lucide-react';
 import type { SidebarConfig, MenuGroup } from './sidebar.config';
 
@@ -167,7 +167,7 @@ export const humanifySidebarConfig: SidebarConfig = {
       items: [
         { id: 'platform-ops-hub', name: 'Control Plane', href: '/platform', icon: LayoutDashboard, modules: ['humanify', 'hris'] },
         { id: 'platform-ops-clients', name: 'Klien / Perusahaan', href: '/platform/clients', icon: Building2, modules: ['humanify', 'hris'] },
-        { id: 'platform-ops-partners', name: 'Partner & Billing', href: '/platform/partners', icon: Handshake, modules: ['humanify', 'hris'] },
+        { id: 'platform-ops-partners', name: 'Partner & Billing', href: '/platform/partners', icon: HelpingHand, modules: ['humanify', 'hris'] },
         { id: 'platform-ops-observability', name: 'Observability', href: '/platform/observability', icon: Activity, modules: ['humanify', 'hris'] },
       ],
     },

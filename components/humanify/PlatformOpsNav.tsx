@@ -1,13 +1,13 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import {
-  LayoutDashboard, Building2, Handshake, Activity, ClipboardList,
+  LayoutDashboard, Building2, HelpingHand, Activity, ClipboardList,
 } from 'lucide-react';
 
 const LINKS = [
   { href: '/platform', label: 'Ringkasan', icon: LayoutDashboard, exact: true },
   { href: '/platform/clients', label: 'Klien', icon: Building2 },
-  { href: '/platform/partners', label: 'Partner & Billing', icon: Handshake },
+  { href: '/platform/partners', label: 'Partner & Billing', icon: HelpingHand },
   { href: '/platform/observability', label: 'Observability', icon: Activity },
   { href: '/platform/demo-checklist', label: 'Demo checklist', icon: ClipboardList },
 ];
