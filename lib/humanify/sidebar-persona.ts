@@ -6,6 +6,17 @@ import type { MenuGroup, MenuItem, SidebarConfig, UserRole } from '@/config/side
 
 const PLATFORM_OPS = new Set(['super_admin', 'superadmin', 'platform_admin', 'owner', 'superhero']);
 
+/** Strict platform control-plane roles (not tenant owner). */
+const STRICT_PLATFORM_OPS = new Set(['super_admin', 'superadmin', 'platform_admin']);
+
+/** Sidebar items only for Humanify platform operators. */
+export const PLATFORM_CONTROL_ITEMS = new Set([
+  'platform-ops-hub',
+  'platform-ops-clients',
+  'platform-ops-partners',
+  'platform-ops-observability',
+]);
+
 /** Item IDs safe for employee/staff (ESS-first). Marketing welcome hidden — use public `/`. */
 const STAFF_ITEMS = new Set([
   'humanify-home',
@@ -63,6 +74,10 @@ function normalizeRole(role?: string | null): string {
   return String(role || '').toLowerCase().trim();
 }
 
+export function isStrictPlatformOperator(role?: string | null): boolean {
+  return STRICT_PLATFORM_OPS.has(normalizeRole(role));
+}
+
 export type HumanifyPersona = 'platform' | 'hr_admin' | 'manager' | 'staff';
 
 export function resolveHumanifyPersona(role?: string | null): HumanifyPersona {
@@ -93,12 +108,27 @@ export function filterHumanifySidebarByPersona(
   config: SidebarConfig,
   userRole?: UserRole | string | null
 ): SidebarConfig {
+  // Platform control plane: only strict ops (super_admin / platform_admin), not tenant owner
+  let working = config;
+  if (!isStrictPlatformOperator(userRole)) {
+    working = {
+      ...config,
+      groups: config.groups
+        .map((g) => ({
+          ...g,
+          items: filterItems(g.items, (id) => !PLATFORM_CONTROL_ITEMS.has(id)),
+        }))
+        .filter((g) => g.items.length > 0),
+    };
+  }
+
   const persona = resolveHumanifyPersona(userRole);
   if (persona === 'platform' || persona === 'hr_admin') {
-    return config; // full IA (lab items labeled/hidden in sidebar config)
+    return working;
   }
 
   const allow = (id: string) => {
+    if (PLATFORM_CONTROL_ITEMS.has(id)) return false;
     if (persona === 'staff') return STAFF_ITEMS.has(id);
     // manager
     if (ADMIN_ONLY.has(id)) return false;
@@ -110,9 +140,9 @@ export function filterHumanifySidebarByPersona(
     return !ADMIN_ONLY.has(id) && !id.includes('billing') && !id.includes('sso') && !id.includes('enterprise');
   };
 
-  const groups: MenuGroup[] = config.groups
+  const groups: MenuGroup[] = working.groups
     .map((g) => ({ ...g, items: filterItems(g.items, allow) }))
     .filter((g) => g.items.length > 0);
 
-  return { ...config, groups };
+  return { ...working, groups };
 }

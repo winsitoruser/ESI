@@ -10,7 +10,7 @@ import {
   Briefcase, Plane, BookOpen, Ban, Calculator, Banknote,
   Percent, Gift, Clock, Network, Fingerprint, Sparkles,
   Wallet, Package, CreditCard, Crosshair, PenLine, Scale, Globe, Home,
-  CheckCircle2, Lock, Upload, LifeBuoy, Library, Building2,
+  CheckCircle2, Lock, Upload, LifeBuoy, Library, Building2, Handshake,
 } from 'lucide-react';
 import type { SidebarConfig, MenuGroup } from './sidebar.config';
 
@@ -147,10 +147,9 @@ export const humanifySidebarConfig: SidebarConfig = {
     },
     {
       id: 'ai',
-      title: 'AI & Otomasi',
+      title: 'AIMAN',
       items: [
-        /* Lab — URL /humanify/ai tetap; sembunyikan dari IA day-1 */
-        { id: 'humanify-ai-hub', name: 'AI Center · Lab', href: '/humanify/ai', icon: Sparkles, modules: ['humanify', 'hris'], hidden: true },
+        { id: 'humanify-ai-hub', name: 'AIMAN · AI Guide', href: '/humanify/ai', icon: Sparkles, modules: ['humanify', 'hris'] },
       ],
     },
     {
@@ -160,6 +159,16 @@ export const humanifySidebarConfig: SidebarConfig = {
         { id: 'humanify-hr-analytics', name: 'Dasbor Analitik HR', href: '/humanify/hr-analytics', icon: Activity, modules: ['humanify', 'hris'] },
         { id: 'humanify-reports', name: 'Laporan HRIS', href: '/humanify/reports', icon: FileBarChart, modules: ['humanify', 'hris'] },
         { id: 'humanify-analytics', name: 'Analitik Tenaga Kerja', href: '/humanify/workforce-analytics', icon: BarChart3, modules: ['humanify', 'hris'] },
+      ],
+    },
+    {
+      id: 'platform-ops',
+      title: 'Ops Platform',
+      items: [
+        { id: 'platform-ops-hub', name: 'Control Plane', href: '/platform', icon: LayoutDashboard, modules: ['humanify', 'hris'] },
+        { id: 'platform-ops-clients', name: 'Klien / Perusahaan', href: '/platform/clients', icon: Building2, modules: ['humanify', 'hris'] },
+        { id: 'platform-ops-partners', name: 'Partner & Billing', href: '/platform/partners', icon: Handshake, modules: ['humanify', 'hris'] },
+        { id: 'platform-ops-observability', name: 'Observability', href: '/platform/observability', icon: Activity, modules: ['humanify', 'hris'] },
       ],
     },
     {

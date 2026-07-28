@@ -48,8 +48,10 @@ else bad('offboarding UI return confirm');
 const side = read('config/humanify-sidebar.config.ts');
 if (/humanify-esign[\s\S]*hidden:\s*true/.test(side)) ok('e-sign hidden');
 else bad('e-sign hidden');
-if (/humanify-ai-hub[\s\S]*hidden:\s*true/.test(side)) ok('AI lab hidden');
-else bad('AI lab hidden');
+if (/humanify-ai-hub/.test(side) && !/humanify-ai-hub[\s\S]*?hidden:\s*true/.test(side)) ok('AIMAN sidebar visible');
+else bad('AIMAN sidebar should be visible');
+if (/AIMAN · AI Guide/.test(side)) ok('AIMAN sidebar label');
+else bad('AIMAN sidebar label');
 
 const devices = read('pages/humanify/devices.tsx');
 if (/attendance\/devices/.test(devices)) ok('devices alias redirect page');

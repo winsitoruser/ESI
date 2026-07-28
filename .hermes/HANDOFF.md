@@ -1,6 +1,42 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 25 Juli 2026 — **Wave-75** · Go-live email verify UX + platform ops
+> Diperbarui: 28 Juli 2026 — **Wave-77** · AIMAN kembali di portal + floating
+
+## Wave-77 (28 Jul 2026) — Restore AIMAN post-login
+
+| ID | Item | Status |
+|---|---|---|
+| IA-1 | Unhide sidebar **AIMAN · AI Guide** (`/humanify/ai`) | Done |
+| FE-1 | Floating AIMAN di `HumanifyLayout` (live `/api/humanify/ai-hub`) | Done |
+| UX-1 | Platform ops split tetap: `/platform` · `/clients` · `/partners` | Done |
+| QA-1 | `smoke:sidebar-persona` · `smoke:assets-lifecycle` (AIMAN visible) | Done |
+
+**ADR ceilings unchanged:** prod FORCE RLS · Sentry.io · Midtrans auto-payout · Privy unhide.
+
+## OPS (27 Jul 2026) — Production users reset
+
+| Item | Detail |
+|---|---|
+| Action | `DELETE` all rows in `users` (+ related invitations) |
+| Wiped | **542 → 1** |
+| Script | `scripts/wipe-prod-users-create-superadmin.js` (`CONFIRM_PROD_WIPE_USERS=YES`) |
+| New login | `superadmin@humanify.id` (password delivered to operator — rotate if shared) |
+| Preserved | tenants, employees, payroll, claims, etc. (FK `employees.user_id` / `branches.manager_id` nullified) |
+
+**ADR ceilings unchanged:** prod FORCE RLS · Sentry.io · Midtrans auto-payout · Privy unhide.
+
+## Wave-76 (26 Jul 2026) — Foto karyawan bulat di pengajuan / approval
+
+| ID | Item | Status |
+|---|---|---|
+| FE-1 | Shared `EmployeeAvatar` (round photo + initials) | Done |
+| BE-1 | `e.photo_url` on leave / OT / claims / mutations / SP / manager / dashboard JOINs | Done |
+| FE-2 | MSS, leave, reimbursement, employees, mutations, Manager Hub, picker, HR inbox | Done |
+| QA-1 | `npm run smoke:employee-avatar` | Done — **15/0** |
+
+Sumber foto: `employees.photo_url` (master data karyawan). Fallback: inisial.
+
+**ADR ceilings unchanged:** prod FORCE RLS · Sentry.io · Midtrans auto-payout · Privy unhide.
 
 ## Wave-75 (25 Jul 2026) — Close email_verified ops gap + platform ops portal
 

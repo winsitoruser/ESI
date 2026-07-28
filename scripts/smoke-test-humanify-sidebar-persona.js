@@ -38,6 +38,10 @@ console.log('Sidebar IA checks');
   ['Pusat Pengetahuan label', /Pusat Pengetahuan/],
   ['Attendance nested group', /id:\s*'humanify-attendance-group'/],
   ['AI lab single entry', /humanify-ai-hub/],
+  ['AIMAN sidebar label', /AIMAN · AI Guide/],
+  ['Ops Platform group', /id:\s*'platform-ops'/],
+  ['Klien / Perusahaan nav', /platform-ops-clients/],
+  ['PLATFORM_CONTROL_ITEMS', /PLATFORM_CONTROL_ITEMS/],
   ['No duplicate AI copilot in config', /(?!)/], // placeholder replaced below
 ].forEach(([label, re]) => {
   if (label.startsWith('No duplicate')) {
@@ -46,7 +50,9 @@ console.log('Sidebar IA checks');
     else fail(label);
     return;
   }
-  const src = label.startsWith('STAFF') || label.startsWith('ADMIN') ? personaSrc : configSrc;
+  const src = label.startsWith('STAFF') || label.startsWith('ADMIN') || label.startsWith('PLATFORM_CONTROL')
+    ? personaSrc
+    : configSrc;
   if (re.test(src)) ok(label);
   else fail(label);
 });

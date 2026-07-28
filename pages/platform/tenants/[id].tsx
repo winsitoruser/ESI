@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import HumanifyLayout from '@/components/humanify/HumanifyLayout';
+import PlatformOpsNav from '@/components/humanify/PlatformOpsNav';
 import {
   ArrowLeft, Building2, Users, Briefcase, HeartPulse, Eye, Clock,
   PauseCircle, CheckCircle2, Loader2, RefreshCw, ExternalLink, Receipt,
+  Circle, Pencil,
 } from 'lucide-react';
 
 /**
@@ -24,6 +26,17 @@ export default function TenantDetailPage() {
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
   const [toast, setToast] = useState('');
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    name: '',
+    slug: '',
+    contactName: '',
+    contactEmail: '',
+    contactPhone: '',
+    industry: '',
+    employeeRange: '',
+  });
+  const [savingProfile, setSavingProfile] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -33,8 +46,19 @@ export default function TenantDetailPage() {
         fetch(`/api/platform?action=tenant-detail&id=${encodeURIComponent(id)}`).then((r) => r.json()),
         fetch(`/api/platform?action=billing-orders&tenantId=${encodeURIComponent(id)}&limit=25`).then((r) => r.json()),
       ]);
-      if (tRes.success) setTenant(tRes.data);
-      else setToast(tRes.error || 'Gagal memuat tenant');
+      if (tRes.success) {
+        setTenant(tRes.data);
+        const p = tRes.data?.profile || {};
+        setProfileForm({
+          name: p.name || tRes.data?.name || '',
+          slug: p.slug || tRes.data?.slug || '',
+          contactName: p.contactName || '',
+          contactEmail: p.contactEmail || '',
+          contactPhone: p.contactPhone || '',
+          industry: p.industry || '',
+          employeeRange: p.employeeRange || '',
+        });
+      } else setToast(tRes.error || 'Gagal memuat tenant');
       if (bRes.success) {
         setOrders(bRes.data?.orders || []);
         setOrdersAvailable(bRes.data?.available !== false);
@@ -67,10 +91,8 @@ export default function TenantDetailPage() {
         body: JSON.stringify({ id, status: next }),
       });
       const j = await res.json();
-      if (j.success) {
-        setToast(j.message);
-        load();
-      } else setToast(j.error || 'Gagal update status');
+      if (j.success) { setToast(j.message); load(); }
+      else setToast(j.error || 'Gagal update status');
     } finally {
       setActing(false);
       setTimeout(() => setToast(''), 2500);
@@ -86,10 +108,8 @@ export default function TenantDetailPage() {
         body: JSON.stringify({ id, plan }),
       });
       const j = await res.json();
-      if (j.success) {
-        setToast(j.message);
-        load();
-      } else setToast(j.error || 'Gagal update plan');
+      if (j.success) { setToast(j.message); load(); }
+      else setToast(j.error || 'Gagal update plan');
     } finally {
       setActing(false);
       setTimeout(() => setToast(''), 2500);
@@ -105,10 +125,7 @@ export default function TenantDetailPage() {
         body: JSON.stringify({ tenantId: id }),
       });
       const j = await res.json();
-      if (!j.success) {
-        setToast(j.error || 'Impersonate gagal');
-        return;
-      }
+      if (!j.success) { setToast(j.error || 'Impersonate gagal'); return; }
       await updateSession(j.data.sessionPatch);
       setToast(j.message || 'Support mode aktif');
       router.push(j.data.redirectTo || '/humanify');
@@ -116,6 +133,29 @@ export default function TenantDetailPage() {
       setToast('Impersonate gagal');
     } finally {
       setActing(false);
+      setTimeout(() => setToast(''), 2500);
+    }
+  }
+
+  async function saveProfile(e: FormEvent) {
+    e.preventDefault();
+    setSavingProfile(true);
+    try {
+      const res = await fetch('/api/platform?action=tenant-profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...profileForm }),
+      });
+      const j = await res.json();
+      if (j.success) {
+        setToast(j.message || 'Profil disimpan');
+        setEditingProfile(false);
+        load();
+      } else setToast(j.error || 'Gagal simpan profil');
+    } catch {
+      setToast('Gagal simpan profil');
+    } finally {
+      setSavingProfile(false);
       setTimeout(() => setToast(''), 2500);
     }
   }
@@ -129,18 +169,21 @@ export default function TenantDetailPage() {
   }
 
   const health = tenant?.health;
+  const goLive = tenant?.goLive;
   const amountFmt = (n: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n || 0);
 
   return (
-    <HumanifyLayout title={tenant?.name || 'Tenant'} subtitle="Detail tenant & operasi" >
+    <HumanifyLayout title={tenant?.name || 'Tenant'} subtitle="Detail tenant & operasi">
       <div className="space-y-6">
         {toast && (
           <div className="fixed top-4 right-4 z-50 bg-slate-900 text-white text-sm px-4 py-2 rounded-lg shadow">{toast}</div>
         )}
 
+        <PlatformOpsNav />
+
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <Link href="/platform" className="inline-flex items-center gap-1 text-sm text-[color:var(--hf-brand-600)] hover:underline">
-            <ArrowLeft className="w-4 h-4" /> Kembali ke Platform
+          <Link href="/platform/clients" className="inline-flex items-center gap-1 text-sm text-[color:var(--hf-brand-600)] hover:underline">
+            <ArrowLeft className="w-4 h-4" /> Kembali ke Klien
           </Link>
           <button onClick={load} className="flex items-center gap-2 text-sm px-3 py-2 border rounded-lg hover:bg-slate-50">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
@@ -192,25 +235,13 @@ export default function TenantDetailPage() {
                   className="text-xs px-3 py-1.5 rounded border border-[var(--hf-brand-100)] text-[color:var(--hf-brand)] hover:bg-[var(--hf-brand-50)] disabled:opacity-50 inline-flex items-center gap-1"
                 ><Eye className="w-3.5 h-3.5" /> Buka sebagai support</button>
                 {tenant.status !== 'active' && (
-                  <button
-                    disabled={acting}
-                    onClick={() => setTenantStatus('active')}
-                    className="text-xs px-3 py-1.5 rounded bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
-                  >Activate</button>
+                  <button disabled={acting} onClick={() => setTenantStatus('active')} className="text-xs px-3 py-1.5 rounded bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50">Activate</button>
                 )}
                 {tenant.status !== 'suspended' && (
-                  <button
-                    disabled={acting}
-                    onClick={() => setTenantStatus('suspended')}
-                    className="text-xs px-3 py-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 inline-flex items-center gap-1"
-                  ><PauseCircle className="w-3.5 h-3.5" /> Suspend</button>
+                  <button disabled={acting} onClick={() => setTenantStatus('suspended')} className="text-xs px-3 py-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 inline-flex items-center gap-1"><PauseCircle className="w-3.5 h-3.5" /> Suspend</button>
                 )}
                 {tenant.status !== 'trial' && (
-                  <button
-                    disabled={acting}
-                    onClick={() => setTenantStatus('trial')}
-                    className="text-xs px-3 py-1.5 rounded border text-slate-600 hover:bg-slate-50 disabled:opacity-50 inline-flex items-center gap-1"
-                  ><Clock className="w-3.5 h-3.5" /> Set trial</button>
+                  <button disabled={acting} onClick={() => setTenantStatus('trial')} className="text-xs px-3 py-1.5 rounded border text-slate-600 hover:bg-slate-50 disabled:opacity-50 inline-flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> Set trial</button>
                 )}
                 <select
                   disabled={acting}
@@ -224,13 +255,91 @@ export default function TenantDetailPage() {
                   <option value="enterprise">enterprise</option>
                 </select>
                 {tenant.slug && (
-                  <Link
-                    href={`/c/${tenant.slug}/careers`}
-                    target="_blank"
-                    className="text-xs px-3 py-1.5 rounded border text-slate-600 hover:bg-slate-50 inline-flex items-center gap-1"
-                  >Careers <ExternalLink className="w-3 h-3" /></Link>
+                  <Link href={`/c/${tenant.slug}/careers`} target="_blank" className="text-xs px-3 py-1.5 rounded border text-slate-600 hover:bg-slate-50 inline-flex items-center gap-1">Careers <ExternalLink className="w-3 h-3" /></Link>
                 )}
               </div>
+            </div>
+
+            {goLive && (
+              <div className="bg-white border rounded-xl p-4">
+                <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800">Go-live checklist</p>
+                    <p className="text-xs text-slate-500">
+                      {goLive.score}/{goLive.total} · {goLive.pct}%
+                      {goLive.ready ? ' · siap beroperasi' : ' · belum siap'}
+                    </p>
+                  </div>
+                  <span className={`text-[11px] font-bold uppercase px-2 py-1 rounded ${
+                    goLive.ready ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'
+                  }`}>{goLive.ready ? 'Ready' : 'In progress'}</span>
+                </div>
+                <div className="h-2 bg-slate-100 rounded-full overflow-hidden mb-3">
+                  <div
+                    className={`h-full rounded-full ${goLive.ready ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                    style={{ width: `${goLive.pct || 0}%` }}
+                  />
+                </div>
+                <ul className="space-y-2">
+                  {(goLive.items || []).map((item: any) => (
+                    <li key={item.id} className="flex items-start gap-2 text-sm">
+                      {item.done
+                        ? <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
+                        : <Circle className="w-4 h-4 text-slate-300 mt-0.5 shrink-0" />}
+                      <div>
+                        <p className={item.done ? 'text-slate-700' : 'text-slate-900 font-medium'}>{item.title}</p>
+                        {item.hint && !item.done && (
+                          <p className="text-[11px] text-slate-400">{item.hint}</p>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                {goLive.subdomainHint && (
+                  <p className="text-[11px] text-slate-400 mt-3">
+                    Subdomain: <code className="bg-slate-100 px-1 rounded">{goLive.subdomainHint}</code>
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="bg-white border rounded-xl p-4">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <p className="text-sm font-semibold text-slate-800">Profil perusahaan</p>
+                <button
+                  type="button"
+                  onClick={() => setEditingProfile((v) => !v)}
+                  className="text-xs px-2.5 py-1.5 border rounded-lg inline-flex items-center gap-1 hover:bg-slate-50"
+                >
+                  <Pencil className="w-3 h-3" /> {editingProfile ? 'Tutup' : 'Edit'}
+                </button>
+              </div>
+              {!editingProfile ? (
+                <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                  <div><dt className="text-xs text-slate-400">Nama</dt><dd>{profileForm.name || '—'}</dd></div>
+                  <div><dt className="text-xs text-slate-400">Slug</dt><dd>/{profileForm.slug || '—'}</dd></div>
+                  <div><dt className="text-xs text-slate-400">Kontak</dt><dd>{profileForm.contactName || '—'}</dd></div>
+                  <div><dt className="text-xs text-slate-400">Email</dt><dd>{profileForm.contactEmail || '—'}</dd></div>
+                  <div><dt className="text-xs text-slate-400">Telepon</dt><dd>{profileForm.contactPhone || '—'}</dd></div>
+                  <div><dt className="text-xs text-slate-400">Industri</dt><dd>{profileForm.industry || '—'}</dd></div>
+                </dl>
+              ) : (
+                <form onSubmit={saveProfile} className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <input className="border rounded-lg px-3 py-2 text-sm" placeholder="Nama perusahaan" value={profileForm.name} onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })} />
+                  <input className="border rounded-lg px-3 py-2 text-sm" placeholder="Slug" value={profileForm.slug} onChange={(e) => setProfileForm({ ...profileForm, slug: e.target.value })} />
+                  <input className="border rounded-lg px-3 py-2 text-sm" placeholder="Nama kontak" value={profileForm.contactName} onChange={(e) => setProfileForm({ ...profileForm, contactName: e.target.value })} />
+                  <input className="border rounded-lg px-3 py-2 text-sm" placeholder="Email kontak" value={profileForm.contactEmail} onChange={(e) => setProfileForm({ ...profileForm, contactEmail: e.target.value })} />
+                  <input className="border rounded-lg px-3 py-2 text-sm" placeholder="Telepon" value={profileForm.contactPhone} onChange={(e) => setProfileForm({ ...profileForm, contactPhone: e.target.value })} />
+                  <input className="border rounded-lg px-3 py-2 text-sm" placeholder="Industri" value={profileForm.industry} onChange={(e) => setProfileForm({ ...profileForm, industry: e.target.value })} />
+                  <input className="border rounded-lg px-3 py-2 text-sm md:col-span-2" placeholder="Employee range (mis. 1-50)" value={profileForm.employeeRange} onChange={(e) => setProfileForm({ ...profileForm, employeeRange: e.target.value })} />
+                  <div className="md:col-span-2 flex gap-2">
+                    <button type="submit" disabled={savingProfile} className="px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm disabled:opacity-50">
+                      {savingProfile ? 'Menyimpan…' : 'Simpan profil'}
+                    </button>
+                    <button type="button" onClick={() => setEditingProfile(false)} className="px-3 py-2 border rounded-lg text-sm">Batal</button>
+                  </div>
+                </form>
+              )}
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -239,20 +348,12 @@ export default function TenantDetailPage() {
                 <p className="text-2xl font-bold">
                   {tenant.seats ? `${tenant.seats.users}/${tenant.seats.maxUsers}` : (tenant.user_count ?? 0)}
                 </p>
-                {tenant.seats && (
-                  <p className={`text-[11px] mt-1 ${tenant.seats.overLimit ? 'text-red-600' : tenant.seats.nearLimit ? 'text-amber-600' : 'text-slate-400'}`}>
-                    {tenant.seats.usersPct}% kuota · {tenant.seats.planId}
-                  </p>
-                )}
               </div>
               <div className="bg-white border rounded-xl p-4">
                 <div className="flex items-center gap-2 text-xs text-slate-500 mb-1"><Briefcase className="w-3.5 h-3.5" /> Employees</div>
                 <p className="text-2xl font-bold">
                   {tenant.seats ? `${tenant.seats.employees}/${tenant.seats.maxEmployees}` : (tenant.employee_count ?? 0)}
                 </p>
-                {tenant.seats?.upgradeHint && (
-                  <p className="text-[11px] text-amber-600 mt-1">{tenant.seats.upgradeHint}</p>
-                )}
               </div>
               <div className="bg-white border rounded-xl p-4">
                 <div className="flex items-center gap-2 text-xs text-slate-500 mb-1"><HeartPulse className="w-3.5 h-3.5 text-[color:var(--hf-brand-600)]" /> Health</div>
@@ -260,18 +361,10 @@ export default function TenantDetailPage() {
                   health?.label === 'healthy' ? 'text-emerald-600' :
                   health?.label === 'watch' ? 'text-amber-600' : 'text-red-600'
                 }`}>{health?.score ?? '—'} · {health?.label || '—'}</p>
-                <p className="text-[11px] text-slate-400 mt-1 truncate" title={(health?.factors || []).join(', ')}>
-                  {(health?.factors || []).join(', ') || '—'}
-                </p>
               </div>
               <div className="bg-white border rounded-xl p-4">
                 <p className="text-xs text-slate-500 mb-1">Aktivitas 30 hari</p>
                 <p className="text-sm text-slate-800">{tenant.leaveRequests30d ?? 0} cuti · {tenant.overtimeRequests30d ?? 0} lembur</p>
-                {tenant.trialEndsAt && (
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    Trial s.d. {new Date(tenant.trialEndsAt).toLocaleDateString('id-ID')}
-                  </p>
-                )}
               </div>
             </div>
 
@@ -347,21 +440,9 @@ export default function TenantDetailPage() {
                   </>
                 )}
               </div>
-              {tenant.emailVerifiedAt && (
-                <p className="text-[11px] text-slate-400 mt-2">
-                  Verified {new Date(tenant.emailVerifiedAt).toLocaleString('id-ID')}
-                  {tenant.emailVerifiedBy ? ` · ${tenant.emailVerifiedBy}` : ''}
-                </p>
-              )}
               {tenant.partnerCode && (
                 <p className="text-xs text-slate-500 mt-1">
                   Partner ref: <code className="bg-slate-100 px-1 rounded">{tenant.partnerCode}</code>
-                  {tenant.partnerCommission && (
-                    <span>
-                      {' '}· {tenant.partnerCommission.commissionPct}% · est.{' '}
-                      {amountFmt(tenant.partnerCommission.sampleCommissionIdr)} / {amountFmt(tenant.partnerCommission.sampleAmountIdr)}
-                    </span>
-                  )}
                 </p>
               )}
             </div>

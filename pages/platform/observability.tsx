@@ -3,6 +3,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import HumanifyLayout from '@/components/humanify/HumanifyLayout';
+import PlatformOpsNav from '@/components/humanify/PlatformOpsNav';
 import {
   ArrowLeft, Activity, Database, Cpu, Clock, RefreshCw, Loader2,
   AlertTriangle, CheckCircle2, XCircle,
@@ -117,6 +118,7 @@ export default function PlatformObservabilityPage() {
   return (
     <HumanifyLayout title="Observability" subtitle="Process health, memory & recent errors" >
       <div className="space-y-6">
+        <PlatformOpsNav />
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <Link href="/platform" className="inline-flex items-center gap-1 text-sm text-[color:var(--hf-brand-600)] hover:underline">
             <ArrowLeft className="w-4 h-4" /> Kembali ke Platform

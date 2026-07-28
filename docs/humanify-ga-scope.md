@@ -24,7 +24,7 @@
 | Item | Status |
 |---|---|
 | E-Sign Privy | Sidebar + UI gated (`ESIGN_UI_ENABLED=false`) |
-| AI Center | Sidebar hidden · URL `/humanify/ai` tetap |
+| AI Center / AIMAN | Sidebar **AIMAN · AI Guide** · floating chat post-login · URL `/humanify/ai` |
 | Engagement / Proyek HR | Sidebar hidden |
 | LMS advanced | URL-only · lab gate `HUMANIFY_LMS_LAB` |
 

@@ -1,5 +1,6 @@
 import HQLayout from '@/components/hq/HQLayout';
 import HumanifyErrorBoundary from '@/components/humanify/HumanifyErrorBoundary';
+import AimanAppFloatingChat from '@/components/humanify/AimanAppFloatingChat';
 
 type HumanifyLayoutProps = {
   children: React.ReactNode;
@@ -13,6 +14,7 @@ export default function HumanifyLayout(props: HumanifyLayoutProps) {
   return (
     <HumanifyErrorBoundary>
       <HQLayout {...props} platform="humanify" />
+      <AimanAppFloatingChat />
     </HumanifyErrorBoundary>
   );
 }
