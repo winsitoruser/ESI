@@ -604,6 +604,12 @@ export function getKPIStatus(achievementPercent: number): 'exceeded' | 'achieved
 
 // Trend Calculation
 export function calculateTrend(current: number, previous: number): 'up' | 'down' | 'stable' {
+  if (!Number.isFinite(current) || !Number.isFinite(previous)) return 'stable';
+  if (previous === 0) {
+    if (current > 0) return 'up';
+    if (current < 0) return 'down';
+    return 'stable';
+  }
   const change = ((current - previous) / previous) * 100;
   if (change > 5) return 'up';
   if (change < -5) return 'down';

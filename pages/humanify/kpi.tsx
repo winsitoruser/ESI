@@ -344,6 +344,11 @@ export default function KPIDashboard() {
     return 'bg-red-500';
   };
 
+  const getAchievementPercent = (actual: number, target: number) => {
+    if (!Number.isFinite(actual) || !Number.isFinite(target) || target <= 0) return 0;
+    return Math.round((actual / target) * 100);
+  };
+
   const formatValue = (value: number, unit: string) => {
     if (unit === 'Rp') {
       return `Rp ${(value / 1000000).toFixed(0)} Jt`;
@@ -674,7 +679,7 @@ export default function KPIDashboard() {
                 <div className="flex justify-between items-start">
                   <div className="text-white">
                     <h3 className="text-xl font-bold">{selectedKPI?.employeeName}</h3>
-                    <p className="text-[color:var(--hf-brand-600)]">{selectedKPI?.position} • {selectedKPI?.branchName}</p>
+                    <p className="text-white/80">{selectedKPI?.position} • {selectedKPI?.branchName}</p>
                   </div>
                   <button onClick={() => setSelectedKPI(null)} className="text-white/70 hover:text-white text-2xl">×</button>
                 </div>
@@ -764,17 +769,17 @@ export default function KPIDashboard() {
                           max: 120,
                           labels: { formatter: (val: string) => `${val}%` }
                         },
-                        colors: selectedKPI?.metrics?.map(m => 
-                          (m.actual / m.target) * 100 >= 100 ? '#10B981' : 
-                          (m.actual / m.target) * 100 >= 80 ? '#F59E0B' : '#EF4444'
-                        ) || [],
+                        colors: selectedKPI?.metrics?.map((m) => {
+                          const achievement = getAchievementPercent(m.actual, m.target);
+                          return achievement >= 100 ? '#10B981' : achievement >= 80 ? '#F59E0B' : '#EF4444';
+                        }) || [],
                         legend: { show: false },
                         grid: { borderColor: '#f1f1f1', xaxis: { lines: { show: true } } },
                         annotations: {
                           xaxis: [{ x: 100, borderColor: '#10B981', strokeDashArray: 4, label: { text: 'Target', style: { color: '#10B981' } } }]
                         }
                       }}
-                      series={[{ data: selectedKPI?.metrics?.map(m => Math.round((m.actual / m.target) * 100)) || [] }]}
+                      series={[{ data: selectedKPI?.metrics?.map((m) => getAchievementPercent(m.actual, m.target)) || [] }]}
                     />
                   )}
                 </div>
@@ -784,7 +789,7 @@ export default function KPIDashboard() {
                   <h4 className="font-semibold mb-4">Detail per Metrik</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {selectedKPI?.metrics?.map((metric) => {
-                      const achievement = (metric.actual / metric.target) * 100;
+                      const achievement = getAchievementPercent(metric.actual, metric.target);
                       return (
                         <div key={metric.id} className="border rounded-xl p-4 hover:shadow-md transition-all">
                           <div className="flex justify-between items-start mb-3">
