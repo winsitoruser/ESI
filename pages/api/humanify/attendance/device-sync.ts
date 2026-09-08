@@ -1,22 +1,23 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { v4 as uuidv4 } from 'uuid';
-import { withHQAuth } from '../../../../lib/middleware/withHQAuth';
+import { evaluateClockIn, evaluateClockOut } from '@/lib/hris/work-time-policy';
+import { loadWorkTimePolicy } from '@/lib/hris/work-time-policy-store';
 import { allowHrMockFallback } from '@/lib/hris/data-source';
 import { pullZktecoAttendance } from '@/lib/hris/device-adapters/zkteco';
 import { claimDeviceSyncEvent, storeDeviceSyncResult } from '@/lib/hris/device-sync-idempotency';
+import { withHQAuth } from '@/lib/middleware/withHQAuth';
 import crypto from 'crypto';
 
 let sequelize: any;
 try { sequelize = require('../../../../lib/sequelize'); } catch (_) {}
 
-let AttendanceDevice: any, AttendanceDeviceLog: any, EmployeeAttendance: any, Employee: any, AttendanceSettings: any;
+let AttendanceDevice: any, AttendanceDeviceLog: any, EmployeeAttendance: any, Employee: any;
 try {
   const models = require('../../../../models');
   AttendanceDevice = models.AttendanceDevice;
   AttendanceDeviceLog = models.AttendanceDeviceLog;
   EmployeeAttendance = models.EmployeeAttendance;
   Employee = models.Employee;
-  AttendanceSettings = models.AttendanceSettings;
 } catch (e) {
   console.warn('Models not available for device sync');
 }
@@ -28,6 +29,7 @@ export const config = {
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   }
 
@@ -183,11 +185,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     const errors: any[] = [];
 
     // Get attendance settings for this branch
-    const settings = await AttendanceSettings.findOne({
-      where: { tenantId: device.tenantId, branchId: device.branchId }
-    }) || await AttendanceSettings.findOne({
-      where: { tenantId: device.tenantId, branchId: null }
-    });
+    const settings = sequelize
+      ? await loadWorkTimePolicy(sequelize, device.tenantId, device.branchId)
+      : null;
 
     for (const record of recordList) {
       try {
@@ -423,32 +423,16 @@ async function determinePunchType(
 }
 
 function calculateAttendanceStatus(clockIn: Date, settings: any): string {
-  if (!settings) return 'present';
-  const startTime = settings.workStartTime || '08:00:00';
-  const graceMinutes = settings.lateGraceMinutes || 15;
-  const [h, m] = startTime.split(':').map(Number);
-  const scheduledStart = new Date(clockIn);
-  scheduledStart.setHours(h, m, 0, 0);
-  const graceEnd = new Date(scheduledStart.getTime() + graceMinutes * 60000);
-  return clockIn > graceEnd ? 'late' : 'present';
+  return evaluateClockIn(settings, clockIn).status;
 }
 
 function calculateLateMinutes(clockIn: Date, settings: any): number {
-  if (!settings) return 0;
-  const startTime = settings.workStartTime || '08:00:00';
-  const [h, m] = startTime.split(':').map(Number);
-  const scheduledStart = new Date(clockIn);
-  scheduledStart.setHours(h, m, 0, 0);
-  const diff = clockIn.getTime() - scheduledStart.getTime();
-  return diff > 0 ? Math.floor(diff / 60000) : 0;
+  return evaluateClockIn(settings, clockIn).lateMinutes;
 }
 
-function calculateEarlyLeave(clockOut: Date, settings: any, date: string): number {
-  if (!settings) return 0;
-  const scheduledEnd = parseTimeToDate(settings.workEndTime || '17:00:00', date);
-  const diff = scheduledEnd.getTime() - clockOut.getTime();
-  const graceMs = (settings.earlyLeaveGraceMinutes || 15) * 60000;
-  return diff > graceMs ? Math.floor(diff / 60000) : 0;
+function calculateEarlyLeave(clockOut: Date, settings: any, _date: string): number {
+  const dummyIn = new Date(clockOut.getTime() - 8 * 3600000);
+  return evaluateClockOut(settings, dummyIn, clockOut).earlyLeaveMinutes;
 }
 
 function parseTimeToDate(time: string, date: string): Date {

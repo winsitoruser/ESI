@@ -88,8 +88,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       department: d.department,
       total: d.total,
       active: d.active,
-      perf: avgPerf || 80,
-      attend: attendanceToday || 95,
+      perf: avgPerf || 0,
+      attend: attendanceToday || 0,
       color: colors[i % colors.length],
     }));
 
@@ -98,7 +98,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     const [pendingLeave] = await sequelize.query(`
       SELECT lr.id, lr.leave_type, lr.start_date, lr.end_date, lr.total_days, lr.status, lr.created_at,
-             e.name AS employee_name
+             e.name AS employee_name, e.photo_url
       FROM leave_requests lr
       LEFT JOIN employees e ON lr.employee_id = e.id
       WHERE lr.status = 'pending' AND lr.tenant_id = :tenantId
@@ -115,11 +115,13 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       createdAt: l.created_at,
       href: '/humanify/leave',
       color: l.leave_type === 'sick' ? 'red' : 'yellow',
+      employee_name: l.employee_name,
+      photo_url: l.photo_url || null,
     })));
 
     try {
       const [pendingOt] = await sequelize.query(`
-        SELECT o.id, o.date, o.duration_hours, o.status, o.created_at, e.name AS employee_name
+        SELECT o.id, o.date, o.duration_hours, o.status, o.created_at, e.name AS employee_name, e.photo_url
         FROM overtime_requests o
         LEFT JOIN employees e ON o.employee_id = e.id
         WHERE o.status = 'pending' AND o.tenant_id = :tenantId
@@ -135,12 +137,14 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         createdAt: o.created_at,
         href: '/humanify/payroll/lembur',
         color: 'blue',
+        employee_name: o.employee_name,
+        photo_url: o.photo_url || null,
       })));
     } catch { /* overtime_requests may not exist */ }
 
     try {
       const [pendingClaims] = await sequelize.query(`
-        SELECT c.id, c.claim_type, c.amount, c.claim_date, c.status, c.created_at, e.name AS employee_name
+        SELECT c.id, c.claim_type, c.amount, c.claim_date, c.status, c.created_at, e.name AS employee_name, e.photo_url
         FROM employee_claims c
         LEFT JOIN employees e ON c.employee_id::text = e.id::text
         WHERE c.status = 'pending' AND c.tenant_id = :tenantId
@@ -156,6 +160,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         createdAt: c.created_at,
         href: '/humanify/reimbursement',
         color: 'green',
+        employee_name: c.employee_name,
+        photo_url: c.photo_url || null,
       })));
     } catch { /* claims table may not exist */ }
 
@@ -164,7 +170,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         SELECT tr.id, tr.destination, COALESCE(tr.departure_date, tr.start_date) AS departure_date,
                COALESCE(tr.return_date, tr.end_date) AS return_date,
                tr.estimated_budget, tr.status, tr.created_at,
-               e.name AS employee_name
+               e.name AS employee_name, e.photo_url
         FROM travel_requests tr
         LEFT JOIN employees e ON tr.employee_id::text = e.id::text
         WHERE tr.status = 'pending' AND tr.tenant_id = :tenantId
@@ -180,12 +186,14 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         createdAt: t.created_at,
         href: '/humanify/travel-expense',
         color: 'cyan',
+        employee_name: t.employee_name,
+        photo_url: t.photo_url || null,
       })));
     } catch { /* travel_requests may not exist */ }
 
     try {
       const [pendingMutations] = await sequelize.query(`
-        SELECT m.id, m.mutation_type, m.effective_date, m.status, m.created_at, e.name AS employee_name
+        SELECT m.id, m.mutation_type, m.effective_date, m.status, m.created_at, e.name AS employee_name, e.photo_url
         FROM employee_mutations m
         LEFT JOIN employees e ON m.employee_id::text = e.id::text
         WHERE m.status = 'pending' AND m.tenant_id = :tenantId
@@ -201,13 +209,15 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         createdAt: m.created_at,
         href: '/humanify/mutations',
         color: 'purple',
+        employee_name: m.employee_name,
+        photo_url: m.photo_url || null,
       })));
     } catch { /* mutations table may not exist */ }
 
     // ── Action inbox extras: contracts / docs / attendance ──
     try {
       const [expiringContracts] = await sequelize.query(`
-        SELECT ec.id, ec.end_date, ec.contract_type, e.name AS employee_name, e.id AS employee_id
+        SELECT ec.id, ec.end_date, ec.contract_type, e.name AS employee_name, e.photo_url, e.id AS employee_id
         FROM employee_contracts ec
         LEFT JOIN employees e ON ec.employee_id::text = e.id::text
         WHERE ec.tenant_id = :tenantId
@@ -227,6 +237,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         href: '/humanify/contracts',
         color: 'orange',
         actionable: false,
+        employee_name: c.employee_name,
+        photo_url: c.photo_url || null,
       })));
     } catch { /* contracts may not exist */ }
 
@@ -313,20 +325,27 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     const payrollDay = new Date();
     payrollDay.setDate(28);
     if (payrollDay < new Date()) payrollDay.setMonth(payrollDay.getMonth() + 1);
-    const upcoming = [
+
+    const upcoming: Array<{ id: string; title: string; date: string; color: string }> = [
       ...upcomingLeave.map((u: any) => ({
         id: u.id,
         title: `Cuti ${u.employee_name}`,
         date: u.date,
         color: 'yellow',
       })),
-      {
+    ];
+
+    // Only show payroll reminder when tenant has active employees (avoid fake agenda on Day-1)
+    if (stats.active > 0) {
+      upcoming.push({
         id: 'payroll',
         title: 'Proses Payroll Bulanan',
         date: payrollDay.toISOString().split('T')[0],
         color: 'blue',
-      },
-    ].slice(0, 6);
+      });
+    }
+
+    const upcomingLimited = upcoming.slice(0, 6);
 
     // Filter snoozed inbox items
     let visibleApprovals = pendingApprovals;
@@ -377,7 +396,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       },
       documentCompliance,
       recentActivities: activities,
-      upcoming,
+      upcoming: upcomingLimited,
       period,
     });
   } catch (e: any) {

@@ -35,7 +35,7 @@ export default function EngagementPage() {
 
   const [surveyForm, setSurveyForm] = useState({ title: '', description: '', surveyType: 'engagement', isAnonymous: true, isMandatory: false, questions: [] as any[] });
   const [recForm, setRecForm] = useState({ toEmployeeId: '', recognitionType: 'kudos', title: '', message: '', points: 10, badge: 'star', category: 'general' });
-  const [annForm, setAnnForm] = useState({ title: '', content: '', category: 'general', priority: 'normal', isPinned: false });
+  const [annForm, setAnnForm] = useState({ title: '', content: '', category: 'general', priority: 'normal', isPinned: false, status: 'published' as const, targetAudience: 'all' as const });
   const [newQuestion, setNewQuestion] = useState({ text: '', type: 'rating' });
   const [employees, setEmployees] = useState<any[]>([]);
 
@@ -94,7 +94,7 @@ export default function EngagementPage() {
     setEditingItem(null); setModalType(type); setShowModal(true);
     if (type === 'survey') setSurveyForm({ title: '', description: '', surveyType: 'engagement', isAnonymous: true, isMandatory: false, questions: [] });
     if (type === 'recognition') setRecForm({ toEmployeeId: '', recognitionType: 'kudos', title: '', message: '', points: 10, badge: 'star', category: 'general' });
-    if (type === 'announcement') setAnnForm({ title: '', content: '', category: 'general', priority: 'normal', isPinned: false });
+    if (type === 'announcement') setAnnForm({ title: '', content: '', category: 'general', priority: 'normal', isPinned: false, status: 'published', targetAudience: 'all' });
   };
 
   const handleSave = async () => {
@@ -148,7 +148,7 @@ export default function EngagementPage() {
   ];
 
   return (
-    <HQLayout title={t('hris.engagementTitle')} subtitle="Survei, penghargaan, dan komunikasi internal">
+    <HQLayout>
     <div className="space-y-6">
       {toast && <div className={`fixed top-4 right-4 z-50 rounded-xl px-4 py-3 text-sm text-white shadow-lg ${toast.type === 'error' ? 'bg-rose-500' : 'bg-emerald-500'}`}>{toast.msg}</div>}
 
@@ -157,11 +157,11 @@ export default function EngagementPage() {
         title="Keterlibatan Karyawan & Budaya"
         subtitle="Pulse survey, peer recognition, dan pengumuman internal — ukur dan tingkatkan employee experience"
         icon={Heart}
-        gradient="emerald"
+        gradient="corporate"
         actions={
           <div className="flex items-center gap-2">
             <DataSourceBadge source={dataSource} />
-            <button onClick={loadData} disabled={loading} className="flex items-center gap-2 rounded-xl bg-white/15 px-4 py-2 text-sm text-white backdrop-blur-sm hover:bg-white/25 disabled:opacity-60">
+            <button onClick={loadData} disabled={loading} className="flex items-center gap-2 rounded-[var(--hf-radius)] bg-[var(--hf-brand-600)] px-4 py-2 text-sm text-white hover:bg-[var(--hf-brand)] disabled:opacity-60">
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
             </button>
           </div>
@@ -194,7 +194,7 @@ export default function EngagementPage() {
           </div>
           <div className="grid md:grid-cols-2 gap-4">
             {surveys.map(s => (
-              <div key={s.id} className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md">
+              <div key={s.id} className="hf-tile hf-tile-interactive p-5">
                 <div className="flex justify-between items-start mb-2">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
@@ -380,7 +380,7 @@ export default function EngagementPage() {
       {/* MODAL */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+          <div className="hf-card w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center p-5 border-b">
               <h3 className="text-lg font-semibold">
                 {editingItem ? 'Edit' : 'Buat'} {modalType === 'survey' ? 'Survei' : modalType === 'recognition' ? 'Penghargaan' : 'Pengumuman'}

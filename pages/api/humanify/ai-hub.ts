@@ -21,25 +21,54 @@ function asUuid(v: unknown): string | null {
   return UUID_RE.test(s) ? s : null;
 }
 
-async function gatherBatchContext(period: string) {
+async function gatherBatchContext(period: string, tenantId: string | null) {
+  if (!sequelize || !tenantId) return [];
   const modules = ['recruitment', 'attendance', 'kpi', 'reimbursement', 'workforce'] as const;
+  const tid = { tid: tenantId, period };
   const contexts = await Promise.all(modules.map(async (module) => {
     let context: Record<string, unknown> = {};
     try {
       if (module === 'recruitment') {
-        const [rows] = await sequelize.query(`SELECT (SELECT COUNT(*)::int FROM hris_candidates) AS total_candidates, (SELECT COUNT(*)::int FROM hris_job_openings WHERE status = 'open') AS open_positions`);
+        const [rows] = await sequelize.query(
+          `SELECT
+             (SELECT COUNT(*)::int FROM hris_candidates WHERE tenant_id = :tid) AS total_candidates,
+             (SELECT COUNT(*)::int FROM hris_job_openings WHERE status = 'open' AND tenant_id = :tid) AS open_positions`,
+          { replacements: tid },
+        );
         context = rows[0] || {};
       } else if (module === 'attendance') {
-        const [rows] = await sequelize.query(`SELECT ROUND(COUNT(*) FILTER (WHERE status IN ('present','late'))::numeric / NULLIF(COUNT(*),0) * 100, 1) AS attendance_rate FROM employee_attendance WHERE TO_CHAR(date, 'YYYY-MM') = :period`, { replacements: { period } });
+        const [rows] = await sequelize.query(
+          `SELECT ROUND(
+             COUNT(*) FILTER (WHERE ea.status IN ('present','late'))::numeric
+             / NULLIF(COUNT(*),0) * 100, 1
+           ) AS attendance_rate
+           FROM employee_attendance ea
+           JOIN employees e ON e.id = ea.employee_id
+           WHERE e.tenant_id = :tid AND TO_CHAR(ea.date, 'YYYY-MM') = :period`,
+          { replacements: tid },
+        );
         context = rows[0] || {};
       } else if (module === 'kpi') {
-        const [rows] = await sequelize.query(`SELECT ROUND(AVG(CASE WHEN target > 0 THEN actual/target*100 ELSE 0 END)::numeric, 1) AS avg_achievement FROM employee_kpis WHERE period = :period`, { replacements: { period } });
+        const [rows] = await sequelize.query(
+          `SELECT ROUND(AVG(CASE WHEN ek.target > 0 THEN ek.actual/ek.target*100 ELSE 0 END)::numeric, 1) AS avg_achievement
+           FROM employee_kpis ek
+           JOIN employees e ON e.id = ek.employee_id
+           WHERE e.tenant_id = :tid AND ek.period = :period`,
+          { replacements: tid },
+        );
         context = rows[0] || {};
       } else if (module === 'reimbursement') {
-        const [rows] = await sequelize.query(`SELECT COUNT(*) FILTER (WHERE status = 'pending')::int AS pending FROM employee_claims`);
+        const [rows] = await sequelize.query(
+          `SELECT COUNT(*) FILTER (WHERE status = 'pending')::int AS pending
+           FROM employee_claims WHERE tenant_id = :tid`,
+          { replacements: tid },
+        );
         context = rows[0] || {};
       } else if (module === 'workforce') {
-        const [rows] = await sequelize.query(`SELECT COUNT(*)::int AS total FROM employees WHERE is_active = true`);
+        const [rows] = await sequelize.query(
+          `SELECT COUNT(*)::int AS total FROM employees WHERE is_active = true AND tenant_id = :tid`,
+          { replacements: tid },
+        );
         context = rows[0] || {};
       }
     } catch { /* partial */ }
@@ -50,6 +79,11 @@ async function gatherBatchContext(period: string) {
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
+    const { isHumanifyAiEnabled, humanifyAiDisabledPayload } = await import('@/lib/hris/ai-enabled');
+    if (!isHumanifyAiEnabled()) {
+      return res.status(503).json(humanifyAiDisabledPayload());
+    }
+
     const session = (req as any).session;
     if (!session?.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
@@ -70,7 +104,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method === 'GET') {
       if (action === 'dashboard') {
         const dash = await getAutomationDashboard(tenantId);
-        const contexts = sequelize ? await gatherBatchContext(period) : [];
+        const contexts = sequelize ? await gatherBatchContext(period, tenantId) : [];
         const insights = contexts.length
           ? await generateModuleInsightsBatchAsync(contexts as any)
           : { insights: [], source: 'rules' as const };
@@ -99,7 +133,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       }
 
       if (action === 'insights') {
-        const contexts = sequelize ? await gatherBatchContext(period) : [];
+        const contexts = sequelize ? await gatherBatchContext(period, tenantId) : [];
         const result = await generateModuleInsightsBatchAsync(contexts as any);
         return res.json({ success: true, ...result, count: result.insights.length });
       }

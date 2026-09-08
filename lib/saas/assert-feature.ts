@@ -43,6 +43,10 @@ export async function assertHumanifyFeature(
   if (feature === 'core') return true;
 
   const plan = await resolveTenantPlan(opts.tenantId);
+  try {
+    const { refreshPlanCatalogCache } = await import('@/lib/saas/plan-pricing-store');
+    await refreshPlanCatalogCache();
+  } catch { /* catalog optional */ }
   if (planHasFeature(plan, feature)) return true;
 
   res.status(403).json({

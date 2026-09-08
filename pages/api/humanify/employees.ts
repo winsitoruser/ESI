@@ -277,12 +277,22 @@ async function createEmployee(req: NextApiRequest, res: NextApiResponse) {
     const seat = await assertEmployeeSeatAvailable(tenantId, role);
     if (!seat.ok) return res.status(seat.status).json(seat.body);
   } catch (e) {
+    const { mustFailClosed } = await import('@/lib/saas/fail-closed');
+    if (mustFailClosed()) {
+      return res.status(503).json(
+        errorResponse(ErrorCodes.INTERNAL_SERVER_ERROR, 'Seat metering unavailable'),
+      );
+    }
     console.warn('[employees] seat check skipped:', (e as Error).message);
   }
 
   // Remove tenantId from body if present - user cannot override this
   const { name, email, phone, position, department, workLocation, branchId, branchName,
     employmentCategory, contractType } = req.body;
+
+  const { resolveDepartmentOption } = await import('@/lib/hris/master-data');
+  const deptResolved = resolveDepartmentOption(department);
+  const departmentCode = deptResolved.code || 'ADMINISTRATION';
 
   const validation = validateRequiredFields(req.body, ['name', 'email', 'position', 'department']);
   if (!validation.isValid) {
@@ -330,7 +340,7 @@ async function createEmployee(req: NextApiRequest, res: NextApiResponse) {
     add('email', email);
     add('phone', phone || null);
     add('position', position);
-    add('department', department || 'ADMINISTRATION');
+    add('department', departmentCode);
     add('work_location', workLocation || 'ADMIN_OFFICE');
     add('work_role', 'staff');
     add('status', 'ACTIVE');
@@ -338,6 +348,13 @@ async function createEmployee(req: NextApiRequest, res: NextApiResponse) {
     add('hire_date', now);
     add('employment_category', employmentCategory || 'permanent');
     add('tenant_id', tenantId || null);
+    if (tenantId) {
+      try {
+        const { resolveOrgStructureId } = await import('@/lib/hris/sync-org-departments');
+        const orgId = await resolveOrgStructureId(sequelize, tenantId, departmentCode);
+        if (orgId) add('org_structure_id', orgId);
+      } catch { /* org link best-effort */ }
+    }
     add('created_at', now);
     add('updated_at', now);
 
@@ -358,7 +375,7 @@ async function createEmployee(req: NextApiRequest, res: NextApiResponse) {
       email,
       phoneNumber: phone || null,
       position,
-      department: department || 'ADMINISTRATION',
+      department: departmentCode,
       workLocation: workLocation || 'ADMIN_OFFICE',
       status: 'ACTIVE',
       joinDate: now.toISOString(),
@@ -373,7 +390,7 @@ async function createEmployee(req: NextApiRequest, res: NextApiResponse) {
           'employee.created',
           employee.id,
           name,
-          { email, phone, position, department, branchId, tenantId },
+          { email, phone, position, department: departmentCode, branchId, tenantId },
           branchId,
           branchName
         );
@@ -403,6 +420,11 @@ async function createEmployee(req: NextApiRequest, res: NextApiResponse) {
     } catch (autoErr) {
       console.warn('Onboarding automation failed:', (autoErr as Error).message);
     }
+
+    try {
+      const { recordFunnelEvent } = await import('@/lib/saas/activation-funnel');
+      await recordFunnelEvent(tenantId, 'first_employee', { employeeId: employee.id });
+    } catch { /* funnel best-effort */ }
 
     return res.status(HttpStatus.CREATED).json(
       successResponse(employee, undefined, 'Employee created successfully')

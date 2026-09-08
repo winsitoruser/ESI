@@ -87,6 +87,7 @@ async function smokePages() {
     '/humanify/lms/analytics',
     '/humanify/lms/academy',
     '/humanify/lms/ai-assistant',
+    '/humanify/billing',
     '/humanify/training',
     '/humanify/training-development',
     '/humanify/training-scoring',
@@ -94,28 +95,58 @@ async function smokePages() {
     '/employee/training',
   ];
   for (const p of pages) await page(p);
+
+  // Frontend marker checks (SSR / __NEXT_DATA__ / HTML shell)
+  const lmsHtml = await (await fetch(`${BASE}/humanify/lms`, { headers: { Cookie: COOKIE } })).text();
+  if (/Learning Hub|lmsTitle|Pembelajaran|LMS/i.test(lmsHtml)) ok('FE marker LMS hub');
+  else fail('FE marker LMS hub');
+
+  const billingHtml = await (await fetch(`${BASE}/humanify/billing`, { headers: { Cookie: COOKIE } })).text();
+  if (/Billing|Upgrade|Langganan|billing/i.test(billingHtml)) ok('FE marker billing');
+  else fail('FE marker billing');
+
+  // Ops Platform moved to ops.humanify.id — should not appear as tenant sidebar label in HTML
+  if (/\bOps Platform\b/.test(lmsHtml)) fail('Ops Platform still visible in LMS HTML');
+  else ok('Ops Platform not in LMS HTML shell');
 }
 
 async function smokeApis() {
   console.log('\n══ Smoke: APIs ══');
   const reads = [
-    ['LMS dashboard', '/api/humanify/lms?action=dashboard'],
-    ['LMS courses', '/api/humanify/lms/courses?action=list'],
-    ['LMS sync overview', '/api/humanify/lms/sync?action=overview'],
-    ['LMS integrations', '/api/humanify/lms/integrations?action=overview'],
-    ['LMS analytics', '/api/humanify/lms/analytics?action=overview'],
-    ['LMS blueprints', '/api/humanify/lms/blueprints?action=list'],
-    ['LMS academy', '/api/humanify/lms/academy?action=settings'],
-    ['training programs', '/api/humanify/training?action=programs'],
-    ['training dev curricula', '/api/humanify/training-development?action=curricula'],
-    ['training scoring configs', '/api/humanify/training-scoring?action=configs'],
-    ['certificates registry', '/api/humanify/certificates'],
-    ['employee LMS', '/api/employee/lms?action=my-courses'],
+    ['LMS dashboard', '/api/humanify/lms?action=dashboard', 'core'],
+    ['LMS courses', '/api/humanify/lms/courses?action=list', 'core'],
+    ['LMS sync overview', '/api/humanify/lms/sync?action=overview', 'lab'],
+    ['LMS integrations', '/api/humanify/lms/integrations?action=overview', 'lab'],
+    ['LMS analytics', '/api/humanify/lms/analytics?action=overview', 'core'],
+    ['LMS blueprints', '/api/humanify/lms/blueprints?action=list', 'lab'],
+    ['LMS academy', '/api/humanify/lms/academy?action=settings', 'lab'],
+    ['billing plans', '/api/humanify/billing?action=plans', 'core'],
+    ['billing current', '/api/humanify/billing?action=current', 'core'],
+    ['training programs', '/api/humanify/training?action=programs', 'core'],
+    ['training dev curricula', '/api/humanify/training-development?action=curricula', 'core'],
+    ['training scoring configs', '/api/humanify/training-scoring?action=configs', 'core'],
+    ['certificates registry', '/api/humanify/certificates', 'core'],
+    ['employee LMS', '/api/employee/lms?action=my-courses', 'core'],
   ];
-  for (const [name, path] of reads) {
+  for (const [name, path, kind] of reads) {
     const { res, json } = await api('GET', path);
     if (res.status === 200 && json.success !== false) ok(`API ${name}`);
-    else fail(`API ${name}`, `HTTP ${res.status}${json.error ? ': ' + json.error : ''}`);
+    else if (kind === 'lab' && res.status === 403 && (json.error === 'LMS_LAB_GATED' || json.error === 'FEATURE_NOT_IN_PLAN')) {
+      ok(`API ${name} lab-gated (${json.error})`);
+    } else fail(`API ${name}`, `HTTP ${res.status}${json.error ? ': ' + json.error : ''}`);
+  }
+
+  const dash = await api('GET', '/api/humanify/lms?action=dashboard');
+  const d = dash.json?.data || {};
+  if (dash.res.status === 200 && dash.json.success) {
+    const required = ['courses', 'exams', 'results', 'passRate', 'topCourses', 'recentResults', 'activitySeries', 'passFail'];
+    const missing = required.filter((k) => d[k] === undefined);
+    if (!missing.length) ok(`dashboard hub shape (${required.length} fields)`);
+    else fail('dashboard hub shape', `missing ${missing.join(',')}`);
+    if (Array.isArray(d.activitySeries) && d.activitySeries.length >= 7) ok(`activitySeries length=${d.activitySeries.length}`);
+    else fail('activitySeries', `len=${d.activitySeries?.length}`);
+    if (Array.isArray(d.topCourses)) ok(`topCourses array (${d.topCourses.length})`);
+    else fail('topCourses not array');
   }
 }
 
@@ -125,11 +156,15 @@ async function userFlows() {
   const overview = await api('GET', '/api/humanify/lms/sync?action=overview');
   if (overview.json.success && overview.json.data) {
     ok(`flow: unified overview (programs=${overview.json.data.programs}, curricula=${overview.json.data.curricula})`);
+  } else if (overview.res.status === 403 && overview.json.error === 'LMS_LAB_GATED') {
+    ok('flow: unified overview lab-gated (expected when HUMANIFY_LMS_LAB off)');
   } else fail('flow: unified overview');
 
   const sync = await api('POST', '/api/humanify/lms/sync?action=sync-all');
   if (sync.json.success) {
     ok(`flow: sync-all (certs=${sync.json.data?.certificates?.migrated || 0}, exams=${sync.json.data?.exam_scores?.synced || 0})`);
+  } else if (sync.res.status === 403 && sync.json.error === 'LMS_LAB_GATED') {
+    ok('flow: sync-all lab-gated (expected)');
   } else fail('flow: sync-all', sync.json.error);
 
   const certs = await api('GET', '/api/humanify/certificates');
@@ -144,6 +179,8 @@ async function userFlows() {
   const rules = await api('GET', '/api/humanify/lms/integrations?action=rules');
   if (rules.json.success && Array.isArray(rules.json.data)) {
     ok(`flow: integration rules (${rules.json.data.length} rules)`);
+  } else if (rules.res.status === 403 && rules.json.error === 'LMS_LAB_GATED') {
+    ok('flow: integration rules lab-gated (expected)');
   } else fail('flow: integration rules');
 
   const verify = await fetch(`${BASE}/api/verify/certificate?token=invalid-token-test`);
@@ -154,7 +191,19 @@ async function userFlows() {
 
 async function stressTests() {
   console.log('\n══ Stress Tests ══');
-  await stress('LMS sync overview', '/api/humanify/lms/sync?action=overview', 20);
+  // Lab endpoint: expect consistent 403 when lab off, or 200 when lab on
+  {
+    const n = 20;
+    const start = Date.now();
+    const results = await Promise.all(Array.from({ length: n }, () => api('GET', '/api/humanify/lms/sync?action=overview')));
+    const elapsed = Date.now() - start;
+    const okCount = results.filter((r) =>
+      (r.res.status === 200 && r.json.success !== false) ||
+      (r.res.status === 403 && r.json.error === 'LMS_LAB_GATED')
+    ).length;
+    if (okCount === n) ok(`LMS sync overview stress ${n}x — ${elapsed}ms (lab-aware)`);
+    else fail('LMS sync overview stress', `${okCount}/${n} ok in ${elapsed}ms`);
+  }
   await stress('LMS dashboard', '/api/humanify/lms?action=dashboard', 15);
   await stress('certificates', '/api/humanify/certificates', 15);
   await stress('training programs', '/api/humanify/training?action=programs', 10);
@@ -189,9 +238,13 @@ async function pentest() {
 
   const xssBody = '<script>alert(1)</script>';
   const ai = await api('POST', '/api/humanify/lms/ai?action=generate-questions', { sop_text: xssBody.repeat(10) });
-  if (ai.res.status === 400 || (ai.res.status === 200 && !String(ai.json.data).includes('<script>'))) {
-    ok('XSS in AI input handled');
-  } else fail('XSS in AI input');
+  if (
+    ai.res.status === 400 ||
+    ai.res.status === 403 ||
+    (ai.res.status === 200 && !String(JSON.stringify(ai.json.data || '')).includes('<script>'))
+  ) {
+    ok(`XSS in AI input handled (${ai.res.status}${ai.json.error ? ':' + ai.json.error : ''})`);
+  } else fail('XSS in AI input', `HTTP ${ai.res.status}`);
 
   const extLearn = await fetch(`${BASE}/api/external/learn?token=${'a'.repeat(64)}`);
   if (extLearn.status === 404 || extLearn.status === 400) ok('external learn invalid token rejected');

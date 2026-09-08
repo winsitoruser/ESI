@@ -97,7 +97,18 @@ export default function TenantCareersPage() {
               <span className="text-sm text-slate-400">|</span>
               <span className="text-sm font-medium text-slate-700">{companyName}</span>
             </div>
-            <Link href="/humanify/login" className="text-sm hover:underline" style={{ color: primary }}>Masuk HR</Link>
+            <div className="flex items-center gap-4">
+              <Link
+                href="/humanify/recruitment?create=1"
+                className="text-sm font-medium hover:underline"
+                style={{ color: primary }}
+              >
+                Kelola lowongan
+              </Link>
+              <Link href="/humanify/login" className="text-sm hover:underline" style={{ color: primary }}>
+                Masuk HR
+              </Link>
+            </div>
           </div>
         </header>
 
@@ -118,7 +129,17 @@ export default function TenantCareersPage() {
           {!loading && !error && jobs.length === 0 && (
             <div className="bg-white rounded-xl border p-12 text-center text-slate-500">
               <Briefcase className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-              <p>Belum ada lowongan terbuka saat ini.</p>
+              <p className="font-medium text-slate-700">Belum ada lowongan terbuka saat ini.</p>
+              <p className="mt-2 text-sm max-w-md mx-auto">
+                Tim HR menambah lowongan dari menu Rekrutmen. Setelah dipublikasikan, posisi akan muncul di halaman ini.
+              </p>
+              <Link
+                href="/humanify/recruitment?create=1"
+                className="mt-5 inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium text-white"
+                style={{ backgroundColor: primary }}
+              >
+                Tambah lowongan (HR)
+              </Link>
             </div>
           )}
 

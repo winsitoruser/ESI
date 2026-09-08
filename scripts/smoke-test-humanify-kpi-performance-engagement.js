@@ -195,6 +195,48 @@ async function testBusinessFlows(emp, tpl) {
   return { tplId, metricId, reviewId, surveyId };
 }
 
+async function testLogicGuards() {
+  section('Logic guards (KPI)');
+  const bad = await api('GET', '/api/humanify/kpi?period=not-a-period');
+  if (bad.res.status === 400) ok('invalid period → 400');
+  else if (bad.res.status === 200 && bad.json?.success !== false) {
+    ok('invalid period soft-handled (200, no crash)');
+  } else fail('invalid period', `expected 400/soft-200 got ${bad.res.status}`);
+
+  const kpi = await api('GET', `/api/humanify/kpi?period=${month}`);
+  if (!expect('logic: KPI GET for branch/score checks', kpi)) return;
+  const branches = kpi.json.branchKPIs || [];
+  const emps = kpi.json.employeeKPIs || [];
+  if (emps.length > 0 && branches.length === 0) {
+    fail('logic: branch KPIs derived', 'employee KPIs exist but branchKPIs empty');
+  } else if (branches.length > 0) {
+    ok(`logic: branch KPIs present (${branches.length})`);
+    const fakeInflated = branches.some((b) => b.operationsKPI === 95 && b.customerKPI === 90 && b.overallAchievement >= 90 && !emps.length);
+    if (fakeInflated) fail('logic: no fake default 95/90 branch scores');
+    else ok('logic: branch scores not inflated with defaults');
+    const liveBranch = branches.find((b) => Number(b.overallAchievement) > 0 || Number(b.employeeCount) > 0);
+    if (liveBranch) ok(`logic: branch has real metrics (${liveBranch.branchName || liveBranch.branchId}: ${liveBranch.overallAchievement}%)`);
+    else fail('logic: branch metrics populated', 'all branches show 0 achievement/employeeCount');
+  } else {
+    ok('logic: empty KPI set (no employees with KPIs)');
+  }
+
+  if ((kpi.json.employees || []).length > 0) ok(`logic: employees picker list (${kpi.json.employees.length})`);
+  else fail('logic: employees picker list', 'empty — assign KPI UI broken');
+  if ((kpi.json.templates || []).length > 0) ok(`logic: templates list (${kpi.json.templates.length})`);
+  else fail('logic: templates list', 'empty');
+
+  for (const e of emps.slice(0, 5)) {
+    if (typeof e.overallScore === 'number' && typeof e.overallAchievement === 'number') {
+      // Score should track achievement (no 0.92 discount)
+      if (Math.abs(e.overallScore - Math.min(e.overallAchievement, 200)) <= 1) {
+        ok(`logic: score≈achievement for ${e.employeeName || e.employeeId}`);
+        break;
+      }
+    }
+  }
+}
+
 async function testBacktestConsistency() {
   section('Backtest (read consistency)');
   const paths = [
@@ -270,6 +312,7 @@ async function main() {
   }
 
   await testBusinessFlows(emp, tpl);
+  await testLogicGuards();
   await testSecurity();
   await testBacktestConsistency();
   await testStress();

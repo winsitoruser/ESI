@@ -1,7 +1,8 @@
-﻿import {
+import {
   AlertTriangle, CheckCircle, Clock, FileText, MessageSquare, Scale,
   Shield, UserX, XCircle, Ban, Gavel, type LucideIcon,
 } from 'lucide-react';
+import EmployeeAvatarShared from '@/components/humanify/EmployeeAvatar';
 import {
   LETTER_TYPE_LABELS,
   STATUS_LABELS,
@@ -38,13 +39,18 @@ export function getInitials(name?: string) {
   return name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('');
 }
 
-export function EmployeeAvatar({ name, size = 'md' }: { name?: string; size?: 'sm' | 'md' | 'lg' }) {
-  const sz = size === 'sm' ? 'w-8 h-8 text-xs' : size === 'lg' ? 'w-14 h-14 text-lg' : 'w-10 h-10 text-sm';
-  return (
-    <div className={`${sz} rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-bold flex items-center justify-center flex-shrink-0 shadow-sm`}>
-      {getInitials(name)}
-    </div>
-  );
+export function EmployeeAvatar({
+  name,
+  size = 'md',
+  photoUrl,
+  photo_url,
+}: {
+  name?: string;
+  size?: 'sm' | 'md' | 'lg';
+  photoUrl?: string | null;
+  photo_url?: string | null;
+}) {
+  return <EmployeeAvatarShared name={name} size={size} photoUrl={photoUrl} photo_url={photo_url} />;
 }
 
 export function TypeBadge({ type, size = 'sm' }: { type: string; size?: 'sm' | 'md' }) {

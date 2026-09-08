@@ -113,7 +113,7 @@ export default function SOPConfigModal({ open, template, onClose, onSave }: SOPC
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+      <div className="hf-card w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 py-4 border-b flex items-center justify-between bg-indigo-50">
           <div>
             <h3 className="font-bold text-gray-900">{template?.id ? 'Edit Template SOP' : 'Buat Template SOP Baru'}</h3>

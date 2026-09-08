@@ -5,7 +5,7 @@
  * Fresh tenants must start with an empty org chart until they configure it.
  * Pass `{ seedDefaults: true }` only for explicit platform/demo bootstrap.
  */
-import { HRIS_DEPARTMENTS, getDepartmentLabel } from './master-data';
+import { HRIS_DEPARTMENTS, getDepartmentLabel, resolveDepartmentOption } from './master-data';
 
 export const ROOT_ORG_CODE = 'NAINCODE-GROUP';
 export const ROOT_ORG_NAME = 'Naincode Inti Teknologi';
@@ -178,4 +178,120 @@ export async function fetchDepartmentsFromOrg(sequelize: any, tenantId?: string 
     code: r.code,
     label: r.name || getDepartmentLabel(r.code),
   }));
+}
+
+export const TENANT_ORG_ROOT_CODE = 'ORG-ROOT';
+
+export async function resolveOrgStructureId(
+  sequelize: any,
+  tenantId: string | null | undefined,
+  departmentCode?: string | null,
+): Promise<string | null> {
+  if (!sequelize || !tenantId || !departmentCode) return null;
+  const resolved = resolveDepartmentOption(departmentCode);
+  const [rows] = await sequelize.query(
+    `SELECT id FROM org_structures
+     WHERE tenant_id = :tenantId AND is_active = true
+       AND (
+         UPPER(TRIM(code)) = UPPER(TRIM(:code))
+         OR UPPER(TRIM(name)) = UPPER(TRIM(:code))
+         OR UPPER(TRIM(name)) = UPPER(TRIM(:label))
+       )
+     ORDER BY CASE WHEN parent_id IS NULL THEN 1 ELSE 0 END, level ASC
+     LIMIT 1`,
+    { replacements: { tenantId, code: resolved.code, label: resolved.label } },
+  );
+  return rows?.[0]?.id || null;
+}
+
+/**
+ * Seed org chart from wizard department picks. Idempotent: reuses existing
+ * tenant root, inserts missing children, never overwrites user-customized units.
+ */
+export async function seedTenantOrgFromDepartments(
+  sequelize: any,
+  tenantId: string,
+  departments: unknown,
+  opts?: { companyName?: string | null },
+): Promise<{ rootId: string | null; created: number; reused: number }> {
+  if (!sequelize || !tenantId) return { rootId: null, created: 0, reused: 0 };
+  await ensureOrgTables(sequelize);
+
+  const picks = Array.isArray(departments) ? departments : [];
+  const unique = new Map<string, { code: string; label: string }>();
+  for (const raw of picks) {
+    const opt = resolveDepartmentOption(String(raw || ''));
+    if (!opt.code || unique.has(opt.code)) continue;
+    unique.set(opt.code, opt);
+  }
+
+  const companyName = String(opts?.companyName || '').trim() || 'Organisasi';
+
+  let [[root]] = await sequelize.query(
+    `SELECT id, metadata FROM org_structures
+     WHERE tenant_id = :tenantId AND parent_id IS NULL AND is_active = true
+     ORDER BY created_at ASC LIMIT 1`,
+    { replacements: { tenantId } },
+  );
+
+  if (!root?.id) {
+    const [ins] = await sequelize.query(
+      `INSERT INTO org_structures (tenant_id, name, code, parent_id, level, sort_order, is_active, metadata)
+       VALUES (:tenantId, :name, :code, NULL, 0, 0, true, '{"source":"wizard"}'::jsonb)
+       RETURNING id`,
+      { replacements: { tenantId, name: companyName, code: TENANT_ORG_ROOT_CODE } },
+    );
+    root = ins[0];
+  }
+
+  const rootId = root?.id || null;
+  if (!rootId) return { rootId: null, created: 0, reused: 0 };
+
+  let created = 0;
+  let reused = 0;
+  let order = 0;
+  for (const dept of unique.values()) {
+    order += 1;
+    const [[existing]] = await sequelize.query(
+      `SELECT id, metadata FROM org_structures
+       WHERE tenant_id = :tenantId AND UPPER(TRIM(code)) = UPPER(TRIM(:code))
+       LIMIT 1`,
+      { replacements: { tenantId, code: dept.code } },
+    );
+    if (existing?.id) {
+      reused += 1;
+      const meta = typeof existing.metadata === 'string'
+        ? (() => { try { return JSON.parse(existing.metadata); } catch { return {}; } })()
+        : (existing.metadata || {});
+      const source = meta?.source;
+      if (source !== 'user') {
+        await sequelize.query(
+          `UPDATE org_structures SET
+             parent_id = COALESCE(parent_id, :rootId),
+             is_active = true,
+             sort_order = CASE WHEN sort_order IS NULL OR sort_order = 0 THEN :sortOrder ELSE sort_order END,
+             updated_at = NOW()
+           WHERE id = :id AND tenant_id = :tenantId`,
+          { replacements: { rootId, sortOrder: order, id: existing.id, tenantId } },
+        );
+      }
+      continue;
+    }
+    await sequelize.query(
+      `INSERT INTO org_structures (tenant_id, name, code, parent_id, level, sort_order, is_active, metadata)
+       VALUES (:tenantId, :name, :code, :rootId, 1, :sortOrder, true, '{"source":"wizard"}'::jsonb)`,
+      {
+        replacements: {
+          tenantId,
+          name: dept.label,
+          code: dept.code,
+          rootId,
+          sortOrder: order,
+        },
+      },
+    );
+    created += 1;
+  }
+
+  return { rootId, created, reused };
 }

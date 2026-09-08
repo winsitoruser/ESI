@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { KeyRound, Loader2, ShieldCheck, Info, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import HumanifyLayout from '@/components/humanify/HumanifyLayout';
+import { PlatformAccessShell } from '@/components/humanify/PlatformAccessNav';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
 
 export default function HumanifySsoPage() {
@@ -100,8 +101,9 @@ export default function HumanifySsoPage() {
   if (status === 'loading' || loading) {
     return (
       <HumanifyLayout title="SSO">
-        <div className="flex justify-center py-20 text-slate-500">
-          <Loader2 className="w-6 h-6 animate-spin mr-2" /> Memuat…
+        <div className="hf-analytics-stage space-y-4">
+          <div className="h-32 animate-pulse hf-card" />
+          <div className="h-56 animate-pulse hf-card" />
         </div>
       </HumanifyLayout>
     );
@@ -110,14 +112,19 @@ export default function HumanifySsoPage() {
   if (featureBlocked) {
     return (
       <HumanifyLayout title="SSO (Enterprise)" subtitle="Single Sign-On SAML">
-        <div className="max-w-2xl mx-auto bg-white border border-slate-200 rounded-2xl p-8 text-center">
-          <KeyRound className="w-10 h-10 mx-auto text-slate-300 mb-3" />
-          <h2 className="text-lg font-bold text-slate-900">SSO tersedia di paket Enterprise</h2>
-          <p className="text-sm text-slate-500 mt-2">Upgrade paket untuk mengaktifkan Single Sign-On SAML bagi tim Anda.</p>
-          <a href="/humanify/billing" className="inline-block mt-4 px-4 py-2 rounded-xl bg-[var(--hf-brand-600)] text-white text-sm font-semibold hover:bg-[var(--hf-brand)]">
-            Lihat paket
-          </a>
-        </div>
+        <PlatformAccessShell
+            current="sso"
+            title="SSO (SAML)"
+            subtitle="Single Sign-On tersedia di paket Enterprise."
+            icon={KeyRound}
+          >
+          <div className="hf-card rounded-2xl border border-[var(--hf-border)] bg-white p-8 text-center">
+            <KeyRound className="w-10 h-10 mx-auto text-[color:var(--hf-ink-faint)] mb-3" />
+            <h2 className="text-lg font-bold text-[color:var(--hf-ink)]">Upgrade untuk mengaktifkan SSO</h2>
+            <p className="text-sm text-[color:var(--hf-ink-muted)] mt-2">Sambungkan Okta, Azure AD, atau Google Workspace tanpa hard-redirect dari halaman ini.</p>
+            <a href="/humanify/billing" className="hf-btn-primary mt-4 inline-block text-sm">Lihat paket</a>
+          </div>
+        </PlatformAccessShell>
       </HumanifyLayout>
     );
   }
@@ -129,7 +136,12 @@ export default function HumanifySsoPage() {
         <meta name="robots" content="noindex, nofollow" />
       </Head>
       <HumanifyLayout title="Single Sign-On (SAML)" subtitle="Konfigurasi Identity Provider enterprise Anda">
-        <div className="max-w-3xl mx-auto space-y-6">
+        <PlatformAccessShell
+          current="sso"
+          title="SSO (SAML)"
+          subtitle="Daftarkan Service Provider Humanify di IdP, lalu simpan metadata IdP di sini."
+          icon={KeyRound}
+        >
           <div className="flex items-start gap-2 rounded-xl border border-[var(--hf-brand-100)] bg-[var(--hf-brand-50)] px-4 py-3 text-sm text-[color:var(--hf-brand-600)]">
             <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
             <span>
@@ -138,20 +150,18 @@ export default function HumanifySsoPage() {
             </span>
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
-            <p className="font-semibold text-slate-900 mb-1">QC IdP (internal)</p>
-            <p className="text-slate-500 mb-2">
-              Gate rilis pakai synthetic ACS — tidak butuh kredensial customer.
-              QC Okta / Azure / Google Workspace: satu tenant staging per keluarga IdP (lihat runbook).
-            </p>
-            <ul className="list-disc pl-5 text-xs text-slate-600 space-y-1">
-              <li>Synthetic: <code className="bg-slate-100 px-1 rounded">npm run smoke:sso-acs</code> + <code className="bg-slate-100 px-1 rounded">smoke:sso-idp-checklist</code></li>
-              <li>Runbook: <a className="text-[color:var(--hf-brand-600)] hover:underline" href="/docs/humanify-sso-idp-runbook.md" target="_blank" rel="noreferrer">humanify-sso-idp-runbook.md</a></li>
-            </ul>
+          <div className="rounded-xl border border-[var(--hf-border)] bg-white px-4 py-3 text-sm text-[color:var(--hf-ink-secondary)]">
+            <p className="font-semibold text-[color:var(--hf-ink)] mb-1">Cara pasang di IdP</p>
+            <ol className="list-decimal pl-5 text-xs text-[color:var(--hf-ink-secondary)] space-y-1">
+              <li>Salin Entity ID, ACS URL, dan metadata SP di bawah.</li>
+              <li>Buat aplikasi SAML di Okta / Azure AD / Google Workspace memakai nilai tersebut.</li>
+              <li>Tempel SSO URL, Entity ID, dan sertifikat X.509 IdP, lalu aktifkan SSO.</li>
+              <li>Uji dari halaman login Humanify (slug tenant + tombol SSO). Login password tetap berjalan.</li>
+            </ol>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-2xl p-6">
-            <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+          <div className="hf-card p-5">
+            <h3 className="font-semibold text-[color:var(--hf-ink)] mb-3 flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-emerald-600" /> Detail Service Provider (SP)
             </h3>
             <div className="space-y-2 text-sm">
@@ -162,8 +172,8 @@ export default function HumanifySsoPage() {
                 ['SP metadata', sp?.metadataUrl],
               ].map(([label, val]) => (
                 <div key={label} className="flex items-center gap-2">
-                  <span className="w-32 text-slate-500 flex-shrink-0">{label}</span>
-                  <code className="flex-1 bg-slate-100 rounded px-2 py-1 text-xs truncate">{val || '—'}</code>
+                  <span className="w-32 text-[color:var(--hf-ink-muted)] flex-shrink-0">{label}</span>
+                  <code className="flex-1 bg-[var(--hf-surface-muted)] rounded px-2 py-1 text-xs truncate">{val || '—'}</code>
                   {val && (
                     <button type="button" onClick={() => copy(String(val))} className="text-xs text-[color:var(--hf-brand-600)] hover:underline">Salin</button>
                   )}
@@ -182,7 +192,7 @@ export default function HumanifySsoPage() {
                 <button
                   type="button"
                   onClick={() => copy(String(sp.metadataUrl))}
-                  className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-700 hover:bg-slate-50"
+                  className="hf-btn-secondary inline-flex items-center gap-2 text-sm"
                 >
                   Salin URL metadata
                 </button>
@@ -190,49 +200,49 @@ export default function HumanifySsoPage() {
             )}
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
+          <div className="hf-card space-y-4 p-5">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-slate-900">Konfigurasi Identity Provider (IdP)</h3>
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${config?.enabled ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+              <h3 className="font-semibold text-[color:var(--hf-ink)]">Konfigurasi Identity Provider (IdP)</h3>
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${config?.enabled ? 'bg-emerald-100 text-emerald-700' : 'bg-[var(--hf-surface-muted)] text-[color:var(--hf-ink-muted)]'}`}>
                 {config?.enabled ? 'Aktif' : 'Nonaktif'}
               </span>
             </div>
 
             <label className="block">
-              <span className="text-sm text-slate-600">IdP SSO URL (entryPoint)</span>
+              <span className="text-sm text-[color:var(--hf-ink-secondary)]">IdP SSO URL (entryPoint)</span>
               <input
                 type="url"
                 value={form.entryPoint}
                 onChange={(e) => setForm({ ...form, entryPoint: e.target.value })}
                 placeholder="https://idp.example.com/sso/saml"
-                className="mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                className="hf-input mt-1 w-full"
               />
             </label>
 
             <label className="block">
-              <span className="text-sm text-slate-600">IdP Entity ID / Issuer</span>
+              <span className="text-sm text-[color:var(--hf-ink-secondary)]">IdP Entity ID / Issuer</span>
               <input
                 type="text"
                 value={form.idpEntityId}
                 onChange={(e) => setForm({ ...form, idpEntityId: e.target.value })}
                 placeholder="https://idp.example.com/entity"
-                className="mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                className="hf-input mt-1 w-full"
               />
             </label>
 
             <label className="block">
-              <span className="text-sm text-slate-600">Domain email (opsional, untuk auto-route)</span>
+              <span className="text-sm text-[color:var(--hf-ink-secondary)]">Domain email (opsional, untuk auto-route)</span>
               <input
                 type="text"
                 value={form.emailDomain}
                 onChange={(e) => setForm({ ...form, emailDomain: e.target.value })}
                 placeholder="example.com"
-                className="mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                className="hf-input mt-1 w-full"
               />
             </label>
 
             <label className="block">
-              <span className="text-sm text-slate-600">
+              <span className="text-sm text-[color:var(--hf-ink-secondary)]">
                 Sertifikat X.509 IdP {config?.certPresent ? '(tersimpan — isi untuk mengganti)' : ''}
               </span>
               <textarea
@@ -240,10 +250,10 @@ export default function HumanifySsoPage() {
                 onChange={(e) => setForm({ ...form, cert: e.target.value })}
                 placeholder="-----BEGIN CERTIFICATE-----&#10;…&#10;-----END CERTIFICATE-----"
                 rows={5}
-                className="mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono"
+                className="hf-input mt-1 w-full font-mono text-xs"
               />
               {config?.certFingerprint && (
-                <span className="text-xs text-slate-400">SHA-256: {config.certFingerprint}</span>
+                <span className="text-xs text-[color:var(--hf-ink-faint)]">SHA-256: {config.certFingerprint}</span>
               )}
             </label>
 
@@ -253,7 +263,7 @@ export default function HumanifySsoPage() {
                 checked={form.enabled}
                 onChange={(e) => setForm({ ...form, enabled: e.target.checked })}
               />
-              <span className="text-sm text-slate-700">Aktifkan SSO untuk tenant ini</span>
+              <span className="text-sm text-[color:var(--hf-ink-secondary)]">Aktifkan SSO untuk tenant ini</span>
             </label>
 
             <div className="flex items-center gap-3 pt-2">
@@ -261,7 +271,7 @@ export default function HumanifySsoPage() {
                 type="button"
                 disabled={saving}
                 onClick={save}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--hf-brand-600)] text-white text-sm font-semibold hover:bg-[var(--hf-brand)] disabled:opacity-50"
+                className="hf-btn-primary inline-flex items-center gap-2 text-sm disabled:opacity-50"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Simpan konfigurasi
               </button>
@@ -270,14 +280,14 @@ export default function HumanifySsoPage() {
                   type="button"
                   disabled={saving}
                   onClick={disable}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
+                  className="hf-btn-secondary inline-flex items-center gap-2 text-sm disabled:opacity-50"
                 >
                   Nonaktifkan
                 </button>
               )}
             </div>
           </div>
-        </div>
+        </PlatformAccessShell>
       </HumanifyLayout>
     </>
   );

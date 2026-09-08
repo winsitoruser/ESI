@@ -3,10 +3,12 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useSession } from 'next-auth/react';
 import {
-  Copy, Download, KeyRound, Loader2, Palette, Trash2, Plus,
+  Copy, Download, KeyRound, Palette, Trash2, Plus,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import HumanifyLayout from '@/components/humanify/HumanifyLayout';
+import { PlatformAccessShell } from '@/components/humanify/PlatformAccessNav';
+import HrisEmptyState from '@/components/humanify/HrisEmptyState';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
 
 export default function HumanifyEnterprisePage() {
@@ -25,6 +27,7 @@ export default function HumanifyEnterprisePage() {
   const [newKeyName, setNewKeyName] = useState('Integration');
   const [revealedKey, setRevealedKey] = useState('');
   const [docs, setDocs] = useState<any>(null);
+  const [featureBlocked, setFeatureBlocked] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -32,8 +35,7 @@ export default function HumanifyEnterprisePage() {
       const res = await fetch('/api/humanify/enterprise?action=overview');
       const j = await res.json();
       if (res.status === 403) {
-        toast.error(j.message || 'Fitur Enterprise — upgrade paket');
-        router.replace('/humanify/billing');
+        setFeatureBlocked(true);
         return;
       }
       if (!j.success) throw new Error(j.error || 'Gagal memuat');
@@ -145,9 +147,30 @@ export default function HumanifyEnterprisePage() {
   if (status === 'loading' || loading) {
     return (
       <HumanifyLayout title="Enterprise">
-        <div className="flex justify-center py-20 text-slate-500">
-          <Loader2 className="w-6 h-6 animate-spin mr-2" /> Memuat…
+        <div className="hf-analytics-stage space-y-4">
+          <div className="h-32 animate-pulse hf-card" />
+          <div className="h-56 animate-pulse hf-card" />
         </div>
+      </HumanifyLayout>
+    );
+  }
+
+  if (featureBlocked) {
+    return (
+      <HumanifyLayout title="Enterprise">
+        <PlatformAccessShell
+          current="enterprise"
+          title="Enterprise (API & Brand)"
+          subtitle="White-label karir, API keys, dan export data."
+          icon={KeyRound}
+        >
+          <div className="hf-card p-8 text-center">
+            <KeyRound className="mx-auto mb-3 h-10 w-10 text-[color:var(--hf-ink-faint)]" />
+            <h2 className="text-lg font-semibold text-[color:var(--hf-ink)]">Tersedia di paket Enterprise</h2>
+            <p className="mt-2 text-sm text-[color:var(--hf-ink-muted)]">Upgrade untuk API keys, branding portal karir, dan export karyawan.</p>
+            <a href="/humanify/billing" className="hf-btn-primary mt-4 inline-block text-sm">Lihat paket</a>
+          </div>
+        </PlatformAccessShell>
       </HumanifyLayout>
     );
   }
@@ -158,43 +181,41 @@ export default function HumanifyEnterprisePage() {
         <title>Enterprise · {HUMANIFY_BRAND.name}</title>
         <meta name="robots" content="noindex, nofollow" />
       </Head>
-      <div className="max-w-4xl mx-auto space-y-10 py-6">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-[color:var(--hf-brand-600)] font-semibold">Phase 5</p>
-          <h1 className="text-2xl font-semibold text-slate-900 mt-1">Enterprise tools</h1>
-          <p className="text-slate-600 mt-1 text-sm">
-            White-label karir, API keys, dan export data portability.
-          </p>
-        </div>
+      <PlatformAccessShell
+          current="enterprise"
+          title="Enterprise (API & Brand)"
+          subtitle="White-label portal karir, API keys, dan export data portability."
+          icon={KeyRound}
+        >
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 space-y-4">
-          <div className="flex items-center gap-2 text-slate-900 font-medium">
+        <section className="hf-card space-y-4 p-5">
+          <div className="flex items-center gap-2 text-[color:var(--hf-ink)] font-medium">
             <Palette className="w-5 h-5 text-[color:var(--hf-brand-600)]" /> Branding portal karir
           </div>
           <div className="grid sm:grid-cols-2 gap-4">
             <label className="block text-sm">
-              <span className="text-slate-600">Logo URL</span>
+              <span className="text-[color:var(--hf-ink-secondary)]">Logo URL</span>
               <input
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+                className="hf-input mt-1 w-full"
                 value={branding.logoUrl}
                 onChange={(e) => setBranding({ ...branding, logoUrl: e.target.value })}
                 placeholder="https://…/logo.png"
               />
             </label>
             <label className="block text-sm">
-              <span className="text-slate-600">Headline karir</span>
+              <span className="text-[color:var(--hf-ink-secondary)]">Headline karir</span>
               <input
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+                className="hf-input mt-1 w-full"
                 value={branding.careersHeadline}
                 onChange={(e) => setBranding({ ...branding, careersHeadline: e.target.value })}
                 placeholder="Bergabung dengan tim kami"
               />
             </label>
             <label className="block text-sm">
-              <span className="text-slate-600">Warna utama</span>
+              <span className="text-[color:var(--hf-ink-secondary)]">Warna utama</span>
               <input
                 type="color"
-                className="mt-1 h-10 w-full rounded-lg border border-slate-200"
+                className="mt-1 h-10 w-full rounded-lg border border-[var(--hf-border)]"
                 value={branding.primaryColor}
                 onChange={(e) => setBranding({ ...branding, primaryColor: e.target.value })}
               />
@@ -212,18 +233,18 @@ export default function HumanifyEnterprisePage() {
             type="button"
             disabled={acting}
             onClick={saveBranding}
-            className="rounded-lg bg-[var(--hf-brand-600)] text-white px-4 py-2 text-sm font-medium hover:bg-[var(--hf-brand)] disabled:opacity-50"
+            className="hf-btn-primary text-sm disabled:opacity-50"
           >
             Simpan branding
           </button>
         </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 space-y-4">
-          <div className="flex items-center gap-2 text-slate-900 font-medium">
+        <section className="hf-card space-y-4 p-5">
+          <div className="flex items-center gap-2 text-[color:var(--hf-ink)] font-medium">
             <KeyRound className="w-5 h-5 text-[color:var(--hf-brand-600)]" /> API keys
           </div>
           {docs && (
-            <p className="text-xs text-slate-500 font-mono">
+            <p className="text-xs text-[color:var(--hf-ink-muted)] font-mono">
               {docs.authHeader} → GET {docs.employeesEndpoint}
             </p>
           )}
@@ -245,7 +266,7 @@ export default function HumanifyEnterprisePage() {
           )}
           <div className="flex flex-wrap gap-2">
             <input
-              className="rounded-lg border border-slate-200 px-3 py-2 text-sm flex-1 min-w-[160px]"
+              className="hf-input flex-1 min-w-[160px] text-sm"
               value={newKeyName}
               onChange={(e) => setNewKeyName(e.target.value)}
               placeholder="Nama key"
@@ -254,7 +275,7 @@ export default function HumanifyEnterprisePage() {
               type="button"
               disabled={acting}
               onClick={createKey}
-              className="inline-flex items-center gap-1 rounded-lg bg-slate-900 text-white px-4 py-2 text-sm"
+              className="hf-btn-primary inline-flex items-center gap-1 text-sm"
             >
               <Plus className="w-4 h-4" /> Buat key
             </button>
@@ -263,8 +284,8 @@ export default function HumanifyEnterprisePage() {
             {keys.map((k) => (
               <li key={k.id} className="py-3 flex items-center justify-between gap-3 text-sm">
                 <div>
-                  <p className="font-medium text-slate-800">{k.name}</p>
-                  <p className="text-slate-500 font-mono text-xs">
+                  <p className="font-medium text-[color:var(--hf-ink)]">{k.name}</p>
+                  <p className="text-[color:var(--hf-ink-muted)] font-mono text-xs">
                     {k.keyPrefix}… {k.revokedAt ? '(revoked)' : ''}
                   </p>
                 </div>
@@ -279,25 +300,31 @@ export default function HumanifyEnterprisePage() {
                 )}
               </li>
             ))}
-            {!keys.length && <li className="py-2 text-slate-500 text-sm">Belum ada API key.</li>}
           </ul>
+          {!keys.length && (
+            <HrisEmptyState
+              source="empty"
+              title="Belum ada API key"
+              description="Buat key untuk integrasi HRIS eksternal. Simpan secret hanya sekali saat dibuat."
+            />
+          )}
         </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 space-y-3">
-          <div className="flex items-center gap-2 text-slate-900 font-medium">
+        <section className="hf-card space-y-3 p-5">
+          <div className="flex items-center gap-2 text-[color:var(--hf-ink)] font-medium">
             <Download className="w-5 h-5 text-[color:var(--hf-brand-600)]" /> Export data
           </div>
-          <p className="text-sm text-slate-600">Unduh CSV karyawan (hingga 5.000 baris) untuk portability.</p>
+          <p className="text-sm text-[color:var(--hf-ink-secondary)]">Unduh CSV karyawan (hingga 5.000 baris) untuk portability.</p>
           <button
             type="button"
             disabled={acting}
             onClick={exportCsv}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+            className="hf-btn-secondary inline-flex items-center gap-2 text-sm"
           >
             <Download className="w-4 h-4" /> Export employees CSV
           </button>
         </section>
-      </div>
+        </PlatformAccessShell>
     </HumanifyLayout>
   );
 }

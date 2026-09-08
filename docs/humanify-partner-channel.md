@@ -46,4 +46,14 @@ Program mitra implementasi untuk konsultan payroll, BPJS, dan payroll outsourcin
 - [x] Export CSV komisi paid (`?action=partner-commission-export`) + filter `billing-orders?partnerCode=`  
 - [x] Filter tanggal CSV komisi (`from` / `to`) + ringkasan bulanan di `/platform`  
 - [x] Partner stabil `DEMO` (10%) — `npm run ensure:demo-partner` (deploy auto)  
-- [ ] Revenue share otomatis + payout di billing — wave berikutnya  
+- [x] Ops payout ledger + CSV + partner status portal — **manual mark-paid** (D-015b)  
+- [ ] Revenue share / disbursement **otomatis Midtrans** — **won't-do** until D-015 reopen (Track B)
+
+## Payout honesty (BD-83-1)
+
+| Apa yang GA | Apa yang bukan |
+|---|---|
+| Ledger `saas_partner_payouts` + mark-paid di `/platform` | Auto Midtrans transfer ke rekening partner |
+| CSV export + status di `/humanify/partners/status` | Janji “payout realtime” di sales deck |
+
+Sales sheet: `docs/humanify-sales-feature-status.md` · ADR: D-015 / D-015b.

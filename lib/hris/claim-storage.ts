@@ -96,7 +96,12 @@ export function readClaimBytes(storageKeyOrUrl: string): Buffer | null {
 }
 
 function signSecret(): string {
-  return process.env.NEXTAUTH_SECRET || process.env.HUMANIFY_DOC_SIGN_SECRET || 'dev-claim-sign';
+  const secret = process.env.NEXTAUTH_SECRET || process.env.HUMANIFY_DOC_SIGN_SECRET || '';
+  if (secret) return secret;
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('CLAIM_SIGN_SECRET_MISSING');
+  }
+  return 'dev-claim-sign';
 }
 
 /** Raw storage key without `claim:` prefix (tenantSeg/fileName). */
@@ -126,9 +131,9 @@ export function verifyClaimSignature(key: string, exp: string | number, sig: str
   const expNum = typeof exp === 'number' ? exp : parseInt(String(exp), 10);
   if (!key || !sig || !expNum || expNum < Math.floor(Date.now() / 1000)) return false;
   if (key.includes('..') || key.includes('\\')) return false;
-  const payload = `${key}.${expNum}`;
-  const expected = createHmac('sha256', signSecret()).update(payload).digest('hex').slice(0, 32);
   try {
+    const payload = `${key}.${expNum}`;
+    const expected = createHmac('sha256', signSecret()).update(payload).digest('hex').slice(0, 32);
     const a = Buffer.from(String(sig));
     const b = Buffer.from(expected);
     return a.length === b.length && timingSafeEqual(a, b);

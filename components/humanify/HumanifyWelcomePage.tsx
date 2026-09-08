@@ -12,6 +12,9 @@ import Image from 'next/image';
 import { HumanifyLogo } from '@/components/humanify/HumanifyLogo';
 import { NaincodeFooter } from '@/components/humanify/NaincodeFooter';
 import AimanFloatingChat from '@/components/humanify/AimanFloatingChat';
+import MarketingBannerCarousel from '@/components/humanify/MarketingBannerCarousel';
+import type { PublicBanner } from '@/lib/saas/landing-banners';
+import type { PublicFaq } from '@/lib/saas/cms-content';
 
 const ICONS = [Users, Clock, DollarSign, Target, GraduationCap, Smartphone, PieChart, Activity];
 const MODULE_ICON_BG = [
@@ -381,7 +384,7 @@ function AimanChatMockup() {
   );
 }
 
-export default function HumanifyWelcomePage() {
+export default function HumanifyWelcomePage({ banners = [], faqs = [] }: { banners?: PublicBanner[]; faqs?: PublicFaq[] }) {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -417,6 +420,9 @@ export default function HumanifyWelcomePage() {
             <Link href={HUMANIFY_BRAND.roiCalculatorPath} className="hidden text-sm text-violet-200/60 transition hover:text-white md:inline">
               Kalkulator ROI
             </Link>
+            <Link href="/humanify/blog" className="hidden text-sm text-violet-200/60 transition hover:text-white md:inline">
+              Blog
+            </Link>
             <Link href={HUMANIFY_BRAND.partnersPath} className="hidden text-sm text-violet-200/60 transition hover:text-white md:inline">
               Partner
             </Link>
@@ -441,7 +447,7 @@ export default function HumanifyWelcomePage() {
 
       <main className="relative z-10">
         {/* Hero */}
-        <section className="relative pt-32 sm:pt-40 overflow-hidden border-b border-white/[0.08]">
+        <section id="hero" className="relative pt-32 sm:pt-40 overflow-hidden border-b border-white/[0.08]">
           <div className="pointer-events-none absolute inset-0" aria-hidden="true">
             <div className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-[0.05]" style={{ backgroundImage: "url('/images/humanify-hero-bg.png')" }} />
 
@@ -508,6 +514,12 @@ export default function HumanifyWelcomePage() {
             </div>
           </div>
 
+          {banners.length > 0 && (
+            <div className="relative z-20 mx-auto mt-12 max-w-6xl px-6 pb-4">
+              <MarketingBannerCarousel banners={banners} variant="landing" />
+            </div>
+          )}
+
           <DashboardMockup />
         </section>
 
@@ -559,7 +571,7 @@ export default function HumanifyWelcomePage() {
         </section>
 
         {/* AI — Fitur Unggulan */}
-        <section className="relative overflow-hidden border-b border-white/[0.08]">
+        <section id="ai" className="relative overflow-hidden border-b border-white/[0.08] scroll-mt-20">
           <div className="pointer-events-none absolute inset-0" aria-hidden="true">
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-violet-600/15 rounded-full blur-[120px]" />
             <div className="absolute bottom-0 right-0 w-[500px] h-[300px] bg-fuchsia-600/10 rounded-full blur-[100px]" />
@@ -698,7 +710,7 @@ export default function HumanifyWelcomePage() {
         </section>
 
         {/* Modules Bento Grid */}
-        <section className="mx-auto max-w-7xl px-6 py-24 sm:py-32">
+        <section id="modules" className="mx-auto max-w-7xl px-6 py-24 sm:py-32 scroll-mt-20">
           <FadeIn className="mb-16 text-center">
             <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-violet-400">Our Modules</p>
             <h2 className="mb-4 text-3xl font-bold tracking-tight text-white sm:text-5xl">
@@ -758,7 +770,7 @@ export default function HumanifyWelcomePage() {
         </section>
 
         {/* Why Humanify */}
-        <section className="border-y border-white/[0.08] bg-white/[0.01]">
+        <section id="why" className="border-y border-white/[0.08] bg-white/[0.01] scroll-mt-20">
           <div className="mx-auto max-w-7xl px-6 py-24 sm:py-32">
             <div className="grid items-center gap-16 lg:grid-cols-5">
               <div className="lg:col-span-2">
@@ -797,7 +809,7 @@ export default function HumanifyWelcomePage() {
         </section>
 
         {/* Process */}
-        <section className="mx-auto max-w-7xl px-6 py-24 sm:py-32 relative">
+        <section id="workflow" className="mx-auto max-w-7xl px-6 py-24 sm:py-32 relative scroll-mt-20">
           <FadeIn className="mb-20 text-center relative z-10">
             <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-violet-400">Workflow</p>
             <h2 className="mb-4 text-3xl font-bold tracking-tight text-white sm:text-5xl">
@@ -832,6 +844,27 @@ export default function HumanifyWelcomePage() {
             </div>
           </div>
         </section>
+
+        {faqs.length > 0 && (
+          <section id="faq" className="border-t border-white/[0.08] bg-white/[0.01] scroll-mt-20">
+            <div className="mx-auto max-w-3xl px-6 py-24 sm:py-32">
+              <FadeIn className="mb-12 text-center">
+                <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-violet-400">FAQ</p>
+                <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">Pertanyaan yang sering diajukan</h2>
+              </FadeIn>
+              <div className="space-y-3">
+                {faqs.map((faq) => (
+                  <details key={faq.id} className="group rounded-2xl border border-white/[0.08] bg-[#110e1b] px-5 py-4">
+                    <summary className="cursor-pointer list-none text-left text-base font-semibold text-white">
+                      {faq.question}
+                    </summary>
+                    <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-violet-200/70">{faq.answer}</p>
+                  </details>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* CTA */}
         <section className="mx-auto max-w-7xl px-6 py-24 sm:py-32">

@@ -19,6 +19,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const token = String(req.body?.token || req.query.token || '');
       if (!token) return res.status(400).json({ success: false, error: 'token required' });
       const result = await verifyEmailToken(token);
+      try {
+        const { recordFunnelEvent } = await import('@/lib/saas/activation-funnel');
+        await recordFunnelEvent(result.tenantId, 'verified', { email: result.email });
+      } catch { /* funnel best-effort */ }
       return res.json({
         success: true,
         message: 'Email terverifikasi',

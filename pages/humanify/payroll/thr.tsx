@@ -2,13 +2,15 @@ import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import HrisEmptyState from '@/components/humanify/HrisEmptyState';
+import HRStatCard from '@/components/humanify/HRStatCard';
+import { OpsKpiShell } from '@/components/humanify/OpsPageChrome';
+import { PayrollShell } from '@/components/humanify/PayrollModuleChrome';
+import { EnterpriseTabBar } from '@/components/humanify/PerformanceModuleChrome';
 import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
-import { useTranslation } from '@/lib/i18n';
 import {
-  Gift, Users, DollarSign, Calculator, Calendar, CheckCircle, AlertCircle,
-  Search, Eye, X, ArrowLeft, TrendingUp, Clock, Settings, Save, FileText
+  Gift, Users, Calculator, CheckCircle, AlertCircle,
+  Search, Clock, Settings, FileText
 } from 'lucide-react';
-import Link from 'next/link';
 
 const fmtCurrency = (n: number) => `Rp ${(n || 0).toLocaleString('id-ID')}`;
 
@@ -45,7 +47,6 @@ const MOCK_THR: THRItem[] = [
 ];
 
 export default function THRPage() {
-  const { t } = useTranslation();
   const [mounted, setMounted] = useState(false);
   const [items, setItems] = useState<THRItem[]>([]);
   const [dataSource, setDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
@@ -111,66 +112,64 @@ export default function THRPage() {
 
   return (
     <HQLayout title="THR - Tunjangan Hari Raya" subtitle="Perhitungan dan manajemen THR karyawan">
-      <div className="space-y-6">
-        <div className="flex items-center gap-3">
-          <Link href="/humanify/payroll" className="p-2 border rounded-lg hover:bg-gray-50"><ArrowLeft className="w-4 h-4" /></Link>
-          <div className="flex-1"><h2 className="text-lg font-bold">Tunjangan Hari Raya (THR)</h2><p className="text-sm text-gray-500">Perhitungan THR sesuai PP No. 36/2021</p></div>
-          <DataSourceBadge source={dataSource} />
-          <a href={`/api/humanify/payroll?action=export&type=thr&year=${config.year}&minimumMonths=${config.minimumMonths}&includeAllowances=${config.includeAllowances}&refDate=${config.payDate}`} download className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg text-sm hover:bg-amber-700"><FileText className="w-4 h-4" /> Export CSV</a>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          {[
-            { label: 'Eligible', value: eligible.length, icon: CheckCircle, bg: 'bg-green-100', color: 'text-green-600' },
-            { label: 'Prorata', value: prorata.length, icon: Clock, bg: 'bg-[var(--hf-brand-100)]', color: 'text-[color:var(--hf-brand-600)]' },
-            { label: 'Tidak Eligible', value: notEligible.length, icon: AlertCircle, bg: 'bg-red-100', color: 'text-red-600' },
-            { label: 'Total Karyawan', value: items.length, icon: Users, bg: 'bg-purple-100', color: 'text-purple-600' },
-            { label: 'Total THR', value: totalTHR, icon: Gift, bg: 'bg-amber-100', color: 'text-amber-600', fmt: true },
-          ].map(s => (
-            <div key={s.label} className="bg-white rounded-xl p-4 shadow-sm border">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 ${s.bg} rounded-lg`}><s.icon className={`w-5 h-5 ${s.color}`} /></div>
-                <div><p className="text-xs text-gray-500">{s.label}</p><p className={`text-lg font-bold ${s.color}`}>{'fmt' in s && s.fmt ? fmtCurrency(s.value as number) : s.value}</p></div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border">
-          <div className="flex border-b">
-            {[{ key: 'list', label: 'Daftar THR', icon: FileText }, { key: 'config', label: 'Konfigurasi', icon: Settings }].map(tab => (
-              <button key={tab.key} onClick={() => setActiveTab(tab.key as any)} className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 ${activeTab === tab.key ? 'border-[var(--hf-brand-600)] text-[color:var(--hf-brand-600)]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}><tab.icon className="w-4 h-4" />{tab.label}</button>
-            ))}
+      <PayrollShell
+        current="thr"
+        title="Tunjangan Hari Raya"
+        subtitle="Hitung THR sesuai PP No. 36/2021, lalu ekspor untuk proses gaji."
+        icon={Gift}
+        actions={(
+          <div className="flex flex-wrap items-center gap-2">
+            <DataSourceBadge source={dataSource} />
+            <a href={`/api/humanify/payroll?action=export&type=thr&year=${config.year}&minimumMonths=${config.minimumMonths}&includeAllowances=${config.includeAllowances}&refDate=${config.payDate}`} download className="hf-btn-secondary inline-flex items-center gap-2">
+              <FileText className="h-4 w-4" /> Export CSV
+            </a>
           </div>
+        )}
+      >
 
-          {activeTab === 'config' && (
-            <div className="p-6 max-w-2xl space-y-5">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+          <OpsKpiShell><HRStatCard icon={CheckCircle} label="Eligible" value={eligible.length} accent="emerald" /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard icon={Clock} label="Prorata" value={prorata.length} accent="violet" /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard icon={AlertCircle} label="Tidak eligible" value={notEligible.length} accent="rose" /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard icon={Users} label="Total karyawan" value={items.length} accent="violet" /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard icon={Gift} label="Total THR" value={fmtCurrency(totalTHR)} accent="amber" /></OpsKpiShell>
+        </div>
+
+        <EnterpriseTabBar
+          tabs={[
+            { key: 'list', label: 'Daftar THR', icon: FileText, count: filtered.length || undefined },
+            { key: 'config', label: 'Konfigurasi', icon: Settings },
+          ]}
+          active={activeTab}
+          onChange={setActiveTab}
+        />
+
+        {activeTab === 'config' && (
+            <div className="hf-card max-w-2xl space-y-5 p-6">
               <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-sm font-medium mb-1">Tahun</label><input type="number" value={config.year} onChange={e => setConfig(c => ({ ...c, year: +e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm" /></div>
-                <div><label className="block text-sm font-medium mb-1">Hari Raya</label><select value={config.religiousDay} onChange={e => setConfig(c => ({ ...c, religiousDay: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm">{RELIGIOUS_DAYS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}</select></div>
-                <div><label className="block text-sm font-medium mb-1">Tanggal Bayar THR</label><input type="date" value={config.payDate} onChange={e => setConfig(c => ({ ...c, payDate: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm" /></div>
-                <div><label className="block text-sm font-medium mb-1">Minimum Masa Kerja (bulan)</label><input type="number" value={config.minimumMonths} onChange={e => setConfig(c => ({ ...c, minimumMonths: +e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm" min={1} /></div>
+                <div><label className="mb-1 block text-sm font-medium text-[color:var(--hf-ink)]">Tahun</label><input type="number" value={config.year} onChange={e => setConfig(c => ({ ...c, year: +e.target.value }))} className="hf-input w-full" /></div>
+                <div><label className="mb-1 block text-sm font-medium text-[color:var(--hf-ink)]">Hari raya</label><select value={config.religiousDay} onChange={e => setConfig(c => ({ ...c, religiousDay: e.target.value }))} className="hf-input w-full">{RELIGIOUS_DAYS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}</select></div>
+                <div><label className="mb-1 block text-sm font-medium text-[color:var(--hf-ink)]">Tanggal bayar THR</label><input type="date" value={config.payDate} onChange={e => setConfig(c => ({ ...c, payDate: e.target.value }))} className="hf-input w-full" /></div>
+                <div><label className="mb-1 block text-sm font-medium text-[color:var(--hf-ink)]">Minimum masa kerja (bulan)</label><input type="number" value={config.minimumMonths} onChange={e => setConfig(c => ({ ...c, minimumMonths: +e.target.value }))} className="hf-input w-full" min={1} /></div>
               </div>
-              <div className="flex items-center gap-4">
-                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={config.includeAllowances} onChange={e => setConfig(c => ({ ...c, includeAllowances: e.target.checked }))} className="rounded" /> Sertakan Tunjangan Tetap</label>
-              </div>
-              <div className="bg-[var(--hf-brand-50)] border border-[var(--hf-brand-100)] rounded-lg p-4 text-sm text-[color:var(--hf-brand-600)] space-y-1">
-                <p className="font-semibold">Aturan Perhitungan THR (PP No. 36/2021):</p>
+              <label className="flex items-center gap-2 text-sm text-[color:var(--hf-ink)]"><input type="checkbox" checked={config.includeAllowances} onChange={e => setConfig(c => ({ ...c, includeAllowances: e.target.checked }))} className="rounded" /> Sertakan tunjangan tetap</label>
+              <div className="space-y-1 rounded-[var(--hf-radius)] border border-[var(--hf-brand-100)] bg-[var(--hf-brand-50)] p-4 text-sm text-[color:var(--hf-brand-600)]">
+                <p className="font-semibold">Aturan perhitungan THR (PP No. 36/2021)</p>
                 <p>• Masa kerja ≥ 12 bulan: THR = 1 bulan gaji</p>
-                <p>• Masa kerja 1-12 bulan: THR = masa kerja / 12 × gaji</p>
-                <p>• Masa kerja &lt; 1 bulan: Tidak mendapatkan THR</p>
-                <p>• Gaji = Gaji pokok + tunjangan tetap</p>
+                <p>• Masa kerja 1–12 bulan: THR = masa kerja / 12 × gaji</p>
+                <p>• Masa kerja &lt; 1 bulan: tidak mendapatkan THR</p>
+                <p>• Gaji = gaji pokok + tunjangan tetap</p>
                 <p>• THR dibayar paling lambat 7 hari sebelum hari raya</p>
               </div>
-              <button onClick={handleCalculate} className="flex items-center gap-2 px-6 py-3 bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)] font-medium"><Calculator className="w-4 h-4" /> Hitung THR</button>
+              <button type="button" onClick={handleCalculate} className="hf-btn-primary inline-flex items-center gap-2"><Calculator className="h-4 w-4" /> Hitung THR</button>
             </div>
           )}
 
           {activeTab === 'list' && (
-            <div>
-              <div className="p-4 flex flex-wrap gap-3 border-b justify-between items-center">
-                <div className="relative flex-1 min-w-[200px]"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" /><input type="text" placeholder="Cari karyawan..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm" /></div>
-                <button onClick={handleCalculate} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700"><Calculator className="w-4 h-4" /> Hitung Ulang</button>
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="relative min-w-[200px] flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--hf-ink-faint)]" /><input type="text" placeholder="Cari karyawan..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="hf-input w-full pl-9" /></div>
+                <button type="button" onClick={handleCalculate} className="hf-btn-primary inline-flex items-center gap-2"><Calculator className="h-4 w-4" /> Hitung ulang</button>
               </div>
               {!loading && items.length === 0 ? (
                 <HrisEmptyState
@@ -179,36 +178,36 @@ export default function THRPage() {
                   description='Klik "Hitung THR" untuk menghitung tunjangan hari raya karyawan.'
                 />
               ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
+              <div className="hf-table-wrap overflow-x-auto">
+                <table>
+                  <thead>
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Karyawan</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Masa Kerja</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Gaji Pokok</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Tunjangan</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">THR</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Perhitungan</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
+                      <th>Karyawan</th>
+                      <th className="text-center">Masa kerja</th>
+                      <th className="text-right">Gaji pokok</th>
+                      <th className="text-right">Tunjangan</th>
+                      <th className="text-right">THR</th>
+                      <th>Perhitungan</th>
+                      <th className="text-center">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y">
+                  <tbody>
                     {filtered.map(item => (
-                      <tr key={item.id} className={`hover:bg-gray-50 ${item.status === 'not_eligible' ? 'opacity-50' : ''}`}>
-                        <td className="px-4 py-3"><p className="font-medium text-sm">{item.employee_name}</p><p className="text-xs text-gray-500">{item.position} · {item.department}</p></td>
-                        <td className="px-4 py-3 text-center text-sm">{item.months_worked} bln</td>
-                        <td className="px-4 py-3 text-right text-sm">{fmtCurrency(item.base_salary)}</td>
-                        <td className="px-4 py-3 text-right text-sm text-gray-600">{fmtCurrency(item.allowances)}</td>
-                        <td className="px-4 py-3 text-right text-sm font-bold text-green-600">{item.thr_amount > 0 ? fmtCurrency(item.thr_amount) : '-'}</td>
-                        <td className="px-4 py-3 text-xs text-gray-500">{item.calculation}</td>
-                        <td className="px-4 py-3 text-center"><span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${item.status === 'eligible' ? 'bg-green-100 text-green-700' : item.status === 'prorata' ? 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]' : 'bg-red-100 text-red-700'}`}>{item.status === 'eligible' ? 'Penuh' : item.status === 'prorata' ? 'Prorata' : 'Tidak Eligible'}</span></td>
+                      <tr key={item.id} className={item.status === 'not_eligible' ? 'opacity-50' : ''}>
+                        <td><p className="font-medium text-[color:var(--hf-ink)]">{item.employee_name}</p><p className="text-xs text-[color:var(--hf-ink-muted)]">{item.position} · {item.department}</p></td>
+                        <td className="text-center">{item.months_worked} bln</td>
+                        <td className="text-right tabular-nums">{fmtCurrency(item.base_salary)}</td>
+                        <td className="text-right tabular-nums">{fmtCurrency(item.allowances)}</td>
+                        <td className="text-right font-semibold tabular-nums text-[color:var(--hf-success)]">{item.thr_amount > 0 ? fmtCurrency(item.thr_amount) : '-'}</td>
+                        <td className="text-xs text-[color:var(--hf-ink-muted)]">{item.calculation}</td>
+                        <td className="text-center"><span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${item.status === 'eligible' ? 'bg-emerald-50 text-[color:var(--hf-success)]' : item.status === 'prorata' ? 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)]' : 'bg-rose-50 text-[color:var(--hf-danger)]'}`}>{item.status === 'eligible' ? 'Penuh' : item.status === 'prorata' ? 'Prorata' : 'Tidak eligible'}</span></td>
                       </tr>
                     ))}
                   </tbody>
-                  <tfoot className="bg-gray-50 font-bold">
+                  <tfoot className="bg-[var(--hf-surface-muted)] font-semibold">
                     <tr>
                       <td className="px-4 py-3 text-sm" colSpan={4}>Total THR ({filtered.filter(f => f.thr_amount > 0).length} karyawan)</td>
-                      <td className="px-4 py-3 text-right text-sm text-green-600">{fmtCurrency(totalTHR)}</td>
+                      <td className="px-4 py-3 text-right text-sm tabular-nums text-[color:var(--hf-success)]">{fmtCurrency(totalTHR)}</td>
                       <td colSpan={2}></td>
                     </tr>
                   </tfoot>
@@ -217,8 +216,7 @@ export default function THRPage() {
               )}
             </div>
           )}
-        </div>
-      </div>
+      </PayrollShell>
       {toast && (<div className={`fixed bottom-6 right-6 z-[60] px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 text-white text-sm ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>{toast.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}{toast.message}</div>)}
     </HQLayout>
   );

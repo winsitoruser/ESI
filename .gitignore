@@ -26,8 +26,10 @@ humanify-repo/
 public/uploads/
 storage/
 
-# cursor IDE (local agent rules)
-.cursor/
+# cursor IDE (local agent rules) — keep shared skills trackable
+.cursor/*
+!.cursor/skills/
+!.cursor/skills/**/
 *.pem
 
 # debug

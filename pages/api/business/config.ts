@@ -37,13 +37,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const { User, Tenant, BusinessType, TenantModule, Module } = db;
 
-    // Humanify SaaS DB may lack Bedagang `business_types` — never nest that include.
+    // Humanify SaaS DB may lack Bedagang `business_types` / `business_type_id`.
     const user = await User.findOne({
       where: { email: session.user.email },
       include: [{
         model: Tenant,
         as: 'tenant',
         required: false,
+        // Humanify `tenants` lacks Bedagang columns (business_name, business_type_id, …)
+        attributes: [
+          'id', 'name', 'code', 'slug', 'status', 'settings',
+          'subscriptionPlan', 'subscriptionStart', 'subscriptionEnd',
+          'maxUsers', 'maxBranches', 'isActive',
+          'contactName', 'contactEmail', 'contactPhone',
+          'address', 'city', 'province', 'postalCode',
+        ],
       }],
     });
 

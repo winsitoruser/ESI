@@ -156,15 +156,7 @@ export default function EmployeeDocumentModal({
 
       const { ok, json } = await uploadWithProgress(fd);
       if (ok && json.success) {
-        const sync = json.data?.contractSync || json.data?.contract_sync || json.contract_sync;
-        const syncMsg = sync
-          ? sync.action === 'created'
-            ? ' · terhubung ke Riwayat Kontrak (baru)'
-            : ' · terhubung ke Riwayat Kontrak (diperbarui)'
-          : isContractDoc
-            ? ' · nomor/tanggal akan sinkron ke Kontrak jika tersedia'
-            : '';
-        showToast('success', (json.message || 'Dokumen berhasil disimpan') + syncMsg);
+        showToast('success', json.message || 'Dokumen berhasil disimpan');
         setSelectedFile(null);
         setUploadProgress(null);
         if (previewUrl) URL.revokeObjectURL(previewUrl);

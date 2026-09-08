@@ -1,0 +1,83 @@
+#!/usr/bin/env node
+/**
+ * Product Readiness static gate — Launch Exit Criteria (Sep 2026 tracker).
+ * Usage: npm run smoke:product-readiness
+ */
+const fs = require('fs');
+const path = require('path');
+
+const root = path.join(__dirname, '..');
+const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8');
+const exists = (rel) => fs.existsSync(path.join(root, rel));
+
+let passed = 0;
+let failed = 0;
+const ok = (m) => { console.log('  ✓', m); passed++; };
+const fail = (m) => { console.log('  ✗', m); failed++; };
+
+console.log('Humanify product-readiness (PR-001…PR-050 / launch exit)');
+
+function has(rel, re, label) {
+  if (!exists(rel)) return fail(`${label} (missing ${rel})`);
+  if (re.test(read(rel))) ok(label);
+  else fail(label);
+}
+
+// Pricing truth
+has('lib/saas/plan-entitlements.ts', /HUMANIFY_CANONICAL_PRICES_IDR/, 'PR-001 canonical price book');
+has('lib/humanify/roi-calculator.ts', /HUMANIFY_PLANS/, 'PR-001 ROI uses HUMANIFY_PLANS');
+has('docs/humanify-sales-feature-status.md', /Rp499\.000/, 'PR-001 sales sheet list price');
+if (!/1_800_000|9_500_000/.test(read('lib/humanify/roi-calculator.ts'))) ok('PR-001 no legacy ROI prices');
+else fail('PR-001 legacy ROI prices');
+
+// Packaging
+has('lib/saas/plan-entitlements.ts', /normalizeHumanifyPlan[\s\S]*return 'starter'/, 'PR-003 unknown plan → starter');
+has('lib/saas/plan-change.ts', /return 'starter'/, 'PR-003 plan-change least privilege');
+has('components/hq/HQLayout.tsx', /planId \|\| 'starter'/, 'PR-003 sidebar default starter');
+has('middleware.ts', /subscriptionPlan as string \| null\) \?\? 'starter'/, 'PR-003 middleware null plan');
+
+// Scope / lab
+has('config/humanify-sidebar.config.ts', /humanify-engagement[\s\S]{0,220}hidden:\s*true/, 'PR-005 engagement hidden');
+has('config/humanify-sidebar.config.ts', /humanify-project[\s\S]{0,220}hidden:\s*true/, 'PR-005 projects hidden');
+has('pages/humanify/esign.tsx', /=== 'true'/, 'PR-005 e-sign opt-in');
+has('docs/humanify-sales-feature-status.md', /Hidden \/ Deferred/, 'PR-004 GA/lab matrix');
+
+// Journeys
+has('components/humanify/SaasSetupWizard.tsx', /Karyawan Pertama/, 'PR-008 employee wizard step');
+has('lib/saas/humanify-onboarding.ts', /key: 'employee'/, 'PR-008 onboarding employee step');
+has('lib/saas/go-live.ts', /attendance_settings/, 'PR-010 go-live attendance_settings signal');
+has('lib/hris/ensure-leave-types-schema.ts', /description/, 'leave_types description self-heal');
+has('lib/saas/plan-entitlements.ts', /trialDays:\s*14/, 'PR-007 14-day trial');
+has('pages/api/employee/dashboard.ts', /PAYSLIP_FORBIDDEN/, 'PR-014 payslip IDOR deny');
+has('pages/api/employee/manager.ts', /assertPendingOnTeam/, 'PR-019 manager team scope');
+
+// Security
+has('lib/saas/fail-closed.ts', /mustFailClosed/, 'PR-022 fail-closed helper');
+has('lib/hris/aiman-agent.ts', /aiman\.agent_confirm_attempt/, 'PR-033 AIMAN audit before write');
+has('lib/hris/ai-service.ts', /payroll\/compliance numbers stay rule-engine/, 'PR-032 payroll not LLM');
+has('scripts/deploy-humanify-vps.sh', /HUMANIFY_SEED_DEMO/, 'PR-030 demo seed gated');
+has('scripts/humanify-healthcheck.sh', /\/api\/health/, 'PR-028 health endpoint in post-deploy');
+has('scripts/run-humanify-gate-ae.sh', /E-backup-freshness/, 'PR-025 Gate E backup check');
+
+// P1 / P2 docs
+[
+  ['docs/humanify-price-book.md', 'PR-001 decision memo'],
+  ['docs/humanify-production-rls-truth.md', 'PR-023 RLS truth'],
+  ['docs/humanify-mfa-login-guard-policy.md', 'PR-024 MFA policy'],
+  ['docs/humanify-cs-implementation-runbook.md', 'PR-044 CS runbook'],
+  ['docs/humanify-recruitment-connector-matrix.md', 'PR-043 connector matrix'],
+  ['docs/humanify-privy-lms-commercialization.md', 'PR-050 commercialization'],
+  ['docs/humanify-off-vps-build.md', 'PR-048 off-VPS build'],
+  ['docs/humanify-product-readiness.md', 'Tracker closeout'],
+  ['lib/saas/activation-funnel.ts', 'PR-045 funnel'],
+].forEach(([rel, label]) => {
+  if (exists(rel)) ok(label);
+  else fail(label);
+});
+
+has('playwright.config.ts', /firefox|webkit|Pixel 5/, 'PR-036/018 extra browser/mobile projects');
+has('.github/workflows/ci.yml', /smoke:product-readiness/, 'PR-027 product-readiness in CI');
+has('.github/workflows/ci.yml', /upload-artifact/, 'PR-026 CI artifact upload');
+
+console.log(`\nRESULT: ${passed} passed / ${failed} failed`);
+process.exit(failed ? 1 : 0);

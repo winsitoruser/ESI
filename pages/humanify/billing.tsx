@@ -1,10 +1,30 @@
 import { useCallback, useEffect, useState } from 'react';
 import Head from 'next/head';
+import Link from 'next/link';
+import Script from 'next/script';
 import { useRouter } from 'next/router';
 import { useSession } from 'next-auth/react';
-import { Check, CreditCard, Loader2, Sparkles, Download, AlertTriangle, X } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowUpRight,
+  Calendar,
+  Check,
+  CreditCard,
+  Download,
+  Loader2,
+  RefreshCw,
+  Shield,
+  Sparkles,
+  Ticket,
+  Users,
+  X,
+  Zap,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import HumanifyLayout from '@/components/humanify/HumanifyLayout';
+import HRStatCard from '@/components/humanify/HRStatCard';
+import { OpsKpiShell } from '@/components/humanify/OpsPageChrome';
+import { PlatformAccessShell } from '@/components/humanify/PlatformAccessNav';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
 import { generatePDF } from '@/lib/documents';
 import { mapApiJsonError, humanifyErrorMessage } from '@/lib/humanify/api-error';
@@ -16,10 +36,46 @@ import {
 } from '@/lib/saas/plan-entitlements';
 
 function formatIdr(n: number) {
-  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n || 0);
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    maximumFractionDigits: 0,
+  }).format(n || 0);
 }
 
 const PLAN_RANK: Record<string, number> = { trial: 0, starter: 1, growth: 2, enterprise: 3 };
+
+function statusBadge(status?: string) {
+  const s = String(status || '').toLowerCase();
+  if (s === 'paid' || s === 'active') {
+    return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+  }
+  if (s === 'pending' || s === 'trial') {
+    return 'bg-amber-50 text-amber-800 border-amber-200';
+  }
+  if (s === 'failed' || s === 'cancelled' || s === 'expired') {
+    return 'bg-rose-50 text-rose-700 border-rose-200';
+  }
+  return 'bg-slate-50 text-slate-600 border-slate-200';
+}
+
+function BillingSkeleton() {
+  return (
+    <div className="mx-auto max-w-6xl space-y-6 animate-pulse">
+      <div className="h-24 rounded-[var(--hf-radius-xl)] bg-slate-100" />
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="h-28 rounded-[var(--hf-radius-xl)] bg-slate-100" />
+        ))}
+      </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-80 rounded-[var(--hf-radius-xl)] bg-slate-100" />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function HumanifyBillingPage() {
   const { data: session, status } = useSession();
@@ -30,6 +86,9 @@ export default function HumanifyBillingPage() {
   const [current, setCurrent] = useState<any>(null);
   const [interval, setInterval] = useState<'monthly' | 'yearly'>('monthly');
   const [midtransConfigured, setMidtransConfigured] = useState(false);
+  const [midtrans, setMidtrans] = useState<any>(null);
+  const [voucherCode, setVoucherCode] = useState('');
+  const [voucherHint, setVoucherHint] = useState('');
   const [offboarding, setOffboarding] = useState<any>(null);
 
   const load = useCallback(async () => {
@@ -42,10 +101,24 @@ export default function HumanifyBillingPage() {
       ]);
       if (p.success) {
         setPlans(p.data.plans || []);
-        setMidtransConfigured(Boolean(p.data.midtransConfigured));
+        setMidtransConfigured(Boolean(p.data.midtransConfigured || p.data.midtrans?.configured));
+        if (p.data.midtrans) setMidtrans(p.data.midtrans);
       }
-      if (c.success) setCurrent(c.data);
+      if (c.success) {
+        setCurrent(c.data);
+        if (c.data && !p.data?.midtrans) {
+          setMidtransConfigured(Boolean(c.data.configured || c.data.midtransConfigured));
+          setMidtrans((prev: any) => prev || {
+            configured: c.data.configured,
+            clientKey: c.data.clientKey,
+            isProduction: c.data.isProduction,
+            snapJsUrl: c.data.snapJsUrl,
+            methods: c.data.methods,
+          });
+        }
+      }
       if (ob?.success) setOffboarding(ob.data);
+      fetch('/api/humanify/go-live?action=ack-billing', { method: 'POST' }).catch(() => {});
     } catch {
       toast.error('Gagal memuat billing');
     } finally {
@@ -62,11 +135,73 @@ export default function HumanifyBillingPage() {
   }, [status, load, router]);
 
   useEffect(() => {
-    if (router.query.paid === '1') {
-      toast.success('Pembayaran diterima — paket akan aktif setelah konfirmasi Midtrans');
-      load();
+    if (router.query.paid !== '1' || status !== 'authenticated') return;
+    toast.success('Kembali dari Midtrans — menyinkronkan status pembayaran…');
+    (async () => {
+      try {
+        const c = await fetch('/api/humanify/billing?action=current').then((r) => r.json());
+        const pending = (c.data?.orders || []).find((o: any) => o.status === 'pending');
+        if (pending?.order_code) {
+          await fetch('/api/humanify/billing?action=sync-order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderCode: pending.order_code }),
+          });
+        }
+      } catch { /* still reload */ }
+      await load();
+    })();
+  }, [router.query.paid, status, load]);
+
+  async function syncOrder(orderCode: string) {
+    const res = await fetch('/api/humanify/billing?action=sync-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderCode }),
+    });
+    return res.json();
+  }
+
+  function openSnap(token: string, orderCode: string, redirectUrl?: string | null) {
+    const snap = (typeof window !== 'undefined' && (window as any).snap) || null;
+    if (snap?.pay) {
+      snap.pay(token, {
+        onSuccess: async () => {
+          await syncOrder(orderCode);
+          toast.success('Pembayaran berhasil — paket diaktifkan');
+          load();
+        },
+        onPending: async () => {
+          await syncOrder(orderCode);
+          toast('Menunggu pembayaran (VA/QRIS). Status akan update otomatis.', { icon: '⏳' });
+          load();
+        },
+        onError: () => toast.error('Pembayaran gagal atau ditolak'),
+        onClose: () => setActing(null),
+      });
+      return true;
     }
-  }, [router.query.paid, load]);
+    if (redirectUrl) {
+      window.location.href = redirectUrl;
+      return true;
+    }
+    return false;
+  }
+
+  async function previewVoucher() {
+    const code = voucherCode.trim();
+    if (!code) {
+      setVoucherHint('');
+      return;
+    }
+    const planId = 'growth';
+    const res = await fetch(
+      `/api/humanify/billing?action=voucher-preview&code=${encodeURIComponent(code)}&plan=${planId}&interval=${interval}`,
+    );
+    const j = await res.json();
+    if (!j.success) setVoucherHint(j.error || 'Voucher tidak valid');
+    else setVoucherHint(`Diskon ${formatIdr(j.data.discountIdr)} · bayar ${formatIdr(j.data.payableIdr)}`);
+  }
 
   async function checkout(planId: string) {
     setActing(planId);
@@ -74,18 +209,34 @@ export default function HumanifyBillingPage() {
       const res = await fetch('/api/humanify/billing?action=checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: planId, interval }),
+        body: JSON.stringify({
+          plan: planId,
+          interval,
+          voucherCode: voucherCode.trim() || undefined,
+        }),
       });
       const j = await res.json();
       if (!j.success) throw new Error(mapApiJsonError(j, 'Checkout gagal'));
 
       const data = j.data;
-      if (data.provider === 'midtrans' && data.redirectUrl) {
-        window.location.href = data.redirectUrl;
+      if (data.activated) {
+        toast.success(`Paket ${planId} aktif`);
+        load();
         return;
       }
 
-      // Manual path (no Midtrans key yet)
+      if (data.provider === 'midtrans' && (data.snapToken || data.redirectUrl)) {
+        const opened = openSnap(data.snapToken, data.orderCode, data.redirectUrl);
+        if (!opened) throw new Error('Snap Midtrans belum siap. Muat ulang halaman, lalu coba lagi.');
+        return;
+      }
+
+      if (midtransConfigured) {
+        toast('Order dibuat. Menunggu konfirmasi Midtrans…', { icon: '💳' });
+        load();
+        return;
+      }
+
       toast('Order dibuat (manual). Mengaktifkan paket…', { icon: '💳' });
       const conf = await fetch('/api/humanify/billing?action=confirm-manual', {
         method: 'POST',
@@ -228,12 +379,20 @@ export default function HumanifyBillingPage() {
     }
   }
 
+  const planName = current?.planName || current?.plan || '—';
+  const subEnd = current?.subscriptionEnd
+    ? new Date(current.subscriptionEnd).toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      })
+    : '—';
+  const paidOrders = (current?.orders || []).filter((o: any) => o.status === 'paid').length;
+
   if (status === 'loading' || loading) {
     return (
       <HumanifyLayout title="Billing">
-        <div className="flex justify-center py-20 text-slate-500">
-          <Loader2 className="w-6 h-6 animate-spin mr-2" /> Memuat paket…
-        </div>
+        <BillingSkeleton />
       </HumanifyLayout>
     );
   }
@@ -244,200 +403,477 @@ export default function HumanifyBillingPage() {
         <title>Billing — {HUMANIFY_BRAND.name}</title>
         <meta name="robots" content="noindex, nofollow" />
       </Head>
-      <HumanifyLayout title="Billing & Upgrade" subtitle="Pilih paket Humanify sesuai kebutuhan HR Anda">
-        <div className="max-w-5xl mx-auto space-y-8">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-[color:var(--hf-brand-600)] font-semibold">Paket saat ini</p>
-                <h2 className="text-2xl font-bold text-slate-900 capitalize">{current?.planName || current?.plan || '—'}</h2>
-                <p className="text-sm text-slate-500 mt-1">
-                  Status tenant: {current?.status || '—'}
-                  {current?.subscriptionEnd ? ` · berlaku s/d ${new Date(current.subscriptionEnd).toLocaleDateString('id-ID')}` : ''}
-                </p>
-              </div>
-              <div className="text-xs text-slate-500 max-w-xs text-right">
-                {midtransConfigured
-                  ? 'Pembayaran via Midtrans Snap'
-                  : 'Mode manual aktif (MIDTRANS_SERVER_KEY belum di-set di server)'}
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-[var(--hf-brand-50)] bg-[var(--hf-brand-50)]/60 px-5 py-4 text-sm text-slate-700">
-            <p className="font-semibold text-slate-900 mb-1">Kenapa Humanify?</p>
-            <p className="text-slate-600">
-              Multi-tenant SaaS + Action Inbox + payroll fiscal audit + SSO enterprise — bukan HRIS generik saja.
-              Ringkas positioning: lihat{' '}
-              <a className="text-[color:var(--hf-brand)] font-medium hover:underline" href="/humanify/pricing/roi-calculator">
-                ROI calculator
-              </a>
-              {' '}· docs <code className="text-xs bg-white/80 px-1 rounded">humanify-positioning.md</code>
-              {' '}· partner channel{' '}
-              <a className="text-[color:var(--hf-brand)] font-medium hover:underline" href="/humanify/partners">
-                daftar mitra
-              </a>
-              {' '}(<code className="text-xs bg-white/80 px-1 rounded">humanify-partner-channel.md</code>).
-            </p>
-          </div>
-
-          {current && (current.trialExpired || current.trialExpiringSoon || (current.plan === 'trial' && current.trialDaysLeft != null && current.trialDaysLeft <= 14)) && (
-            <div className={`rounded-2xl border px-5 py-4 text-sm flex flex-wrap items-center justify-between gap-3 ${
-              current.trialExpired ? 'border-red-200 bg-red-50 text-red-900' : 'border-amber-200 bg-amber-50 text-amber-950'
-            }`}>
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4" />
-                <span>
-                  {current.trialExpired
-                    ? 'Trial berakhir — pilih paket di bawah untuk mengaktifkan kembali fitur penuh.'
-                    : `Trial berakhir dalam ${current.trialDaysLeft} hari (${current.trialEndsAt ? new Date(current.trialEndsAt).toLocaleDateString('id-ID') : '—'}).`}
-                </span>
-              </div>
-            </div>
-          )}
-
-          <div className="flex items-center justify-center gap-2">
-            <button
-              type="button"
-              onClick={() => setInterval('monthly')}
-              className={`px-4 py-2 rounded-xl text-sm font-medium ${interval === 'monthly' ? 'bg-[var(--hf-brand-600)] text-white' : 'bg-white border text-slate-600'}`}
+      {midtrans?.snapJsUrl && midtrans?.clientKey && (
+        <Script
+          src={midtrans.snapJsUrl}
+          data-client-key={midtrans.clientKey}
+          strategy="afterInteractive"
+        />
+      )}
+      <HumanifyLayout title="Billing & Upgrade" subtitle="Kelola paket langganan Humanify">
+        <PlatformAccessShell
+          current="billing"
+          title="Billing & Upgrade"
+          subtitle="Pilih paket sesuai skala tim HR Anda — upgrade kapan saja, invoice siap unduh."
+          icon={CreditCard}
+          actions={
+            <Link
+              href="/humanify/pricing/roi-calculator"
+              className="hf-btn-secondary inline-flex items-center gap-1.5 text-sm"
             >
-              Bulanan
-            </button>
-            <button
-              type="button"
-              onClick={() => setInterval('yearly')}
-              className={`px-4 py-2 rounded-xl text-sm font-medium ${interval === 'yearly' ? 'bg-[var(--hf-brand-600)] text-white' : 'bg-white border text-slate-600'}`}
-            >
-              Tahunan (−20%)
-            </button>
+              Hitung ROI
+              <ArrowUpRight className="h-3.5 w-3.5" />
+            </Link>
+          }
+        >
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <OpsKpiShell>
+            <HRStatCard
+              label="Paket aktif"
+              value={String(planName).replace(/^\w/, (c) => c.toUpperCase())}
+              sub={`Status: ${current?.status || '—'}`}
+              icon={Sparkles}
+              accent="violet"
+            />
+            </OpsKpiShell>
+            <OpsKpiShell>
+            <HRStatCard
+              label="Berlaku hingga"
+              value={subEnd}
+              sub={current?.plan === 'trial' && current?.trialDaysLeft != null
+                ? `${current.trialDaysLeft} hari trial tersisa`
+                : 'Periode langganan'}
+              icon={Calendar}
+              accent="blue"
+            />
+            </OpsKpiShell>
+            <OpsKpiShell>
+            <HRStatCard
+              label="Pembayaran"
+              value={midtransConfigured ? (midtrans?.isProduction ? 'Midtrans Live' : 'Midtrans Sandbox') : 'Manual'}
+              sub={midtransConfigured ? 'Snap: QRIS, VA, e-wallet, kartu' : 'Konfirmasi admin'}
+              icon={Shield}
+              accent="emerald"
+            />
+            </OpsKpiShell>
+            <OpsKpiShell>
+            <HRStatCard
+              label="Invoice lunas"
+              value={paidOrders}
+              sub={`${(current?.orders || []).length} order total`}
+              icon={CreditCard}
+              accent="amber"
+            />
+            </OpsKpiShell>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-4">
-            {plans.map((plan) => {
-              const price = interval === 'yearly' ? plan.priceYearlyIdr : plan.priceMonthlyIdr;
-              const isCurrent = current?.plan === plan.id;
-              const currentRank = PLAN_RANK[current?.plan] ?? 0;
-              const isDowngrade = (PLAN_RANK[plan.id] ?? 0) < currentRank;
-              return (
-                <div
-                  key={plan.id}
-                  className={`relative bg-white border rounded-2xl p-6 ${isCurrent ? 'border-[var(--hf-brand-500)] ring-2 ring-[var(--hf-brand-500)]' : 'border-slate-200'}`}
-                >
-                  {plan.id === 'growth' && (
-                    <span className="absolute -top-2 right-4 text-[10px] font-bold uppercase bg-[var(--hf-brand-600)] text-white px-2 py-0.5 rounded-full">
-                      Populer
-                    </span>
-                  )}
-                  <div className="flex items-center gap-2 mb-2">
-                    <Sparkles className="w-4 h-4 text-[color:var(--hf-brand-600)]" />
-                    <h3 className="font-bold text-slate-900">{plan.name}</h3>
+          {current &&
+            (current.trialExpired ||
+              current.trialExpiringSoon ||
+              (current.plan === 'trial' && current.trialDaysLeft != null && current.trialDaysLeft <= 14)) && (
+              <div
+                className={`flex flex-wrap items-center justify-between gap-3 rounded-[var(--hf-radius-xl)] border px-5 py-4 text-sm ${
+                  current.trialExpired
+                    ? 'border-rose-200 bg-rose-50 text-rose-950'
+                    : 'border-amber-200 bg-amber-50 text-amber-950'
+                }`}
+              >
+                <div className="flex items-start gap-2.5">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div>
+                    <p className="font-semibold">
+                      {current.trialExpired ? 'Trial telah berakhir' : 'Trial hampir habis'}
+                    </p>
+                    <p className="mt-0.5 text-[color:inherit] opacity-90">
+                      {current.trialExpired
+                        ? 'Pilih paket di bawah untuk mengaktifkan kembali fitur penuh.'
+                        : `Berakhir dalam ${current.trialDaysLeft} hari${
+                            current.trialEndsAt
+                              ? ` · ${new Date(current.trialEndsAt).toLocaleDateString('id-ID')}`
+                              : ''
+                          }.`}
+                    </p>
                   </div>
-                  <p className="text-sm text-slate-500 mb-4 min-h-[40px]">{plan.description}</p>
-                  <p className="text-2xl font-bold text-slate-900 mb-1">{formatIdr(price)}</p>
-                  <p className="text-xs text-slate-400 mb-4">/{interval === 'yearly' ? 'tahun' : 'bulan'}</p>
-                  <ul className="space-y-1.5 mb-6">
-                    {(plan.features || []).map((f: string) => (
-                      <li key={f} className="text-sm text-slate-600 flex items-center gap-2">
-                        <Check className="w-3.5 h-3.5 text-emerald-500" /> {f}
-                      </li>
-                    ))}
-                    <li className="text-sm text-slate-600 flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-emerald-500" /> Max {plan.maxEmployees} karyawan
-                    </li>
-                  </ul>
+                </div>
+              </div>
+            )}
+
+          {(() => {
+            const pending = (current?.orders || []).find(
+              (o: any) => o.status === 'pending' && (o.provider === 'midtrans' || o.snap_token),
+            );
+            if (!pending) return null;
+            return (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--hf-radius-xl)] border border-[color:var(--hf-brand-500)]/20 bg-[var(--hf-brand-50)] px-5 py-4 text-sm text-[color:var(--hf-ink)]">
+                <div>
+                  <p className="font-semibold">Pembayaran menunggu</p>
+                  <p className="mt-0.5 text-[color:var(--hf-ink-muted)]">
+                    Order <span className="font-mono text-xs">{pending.order_code}</span>
+                    {' · '}
+                    {formatIdr(pending.amount_idr)}
+                    {pending.payment_type ? ` · ${pending.payment_type}` : ''}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    disabled={isCurrent || acting === plan.id}
-                    onClick={() => (isDowngrade ? changePlan(plan.id) : checkout(plan.id))}
-                    className={`w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 ${
-                      isDowngrade
-                        ? 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'
-                        : 'bg-[var(--hf-brand-600)] text-white hover:bg-[var(--hf-brand)]'
+                    disabled={!!acting}
+                    onClick={async () => {
+                      setActing('sync');
+                      try {
+                        const j = await syncOrder(pending.order_code);
+                        if (j.data?.paid || j.data?.alreadyPaid) toast.success('Pembayaran sudah lunas');
+                        else toast('Belum lunas — selesaikan di Midtrans atau cek lagi nanti', { icon: '⏳' });
+                        load();
+                      } finally {
+                        setActing(null);
+                      }
+                    }}
+                    className="hf-btn-secondary inline-flex items-center gap-1.5 text-sm"
+                  >
+                    {acting === 'sync' ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                    Cek status
+                  </button>
+                  {(pending.snap_token || pending.redirect_url) && (
+                    <button
+                      type="button"
+                      disabled={!!acting}
+                      onClick={() => openSnap(pending.snap_token, pending.order_code, pending.redirect_url)}
+                      className="hf-btn-primary inline-flex items-center gap-1.5 text-sm"
+                    >
+                      <CreditCard className="h-4 w-4" />
+                      Lanjutkan bayar
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
+          <section className="space-y-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="hf-section-label">Paket</p>
+                <h2 className="mt-1 text-lg font-semibold tracking-tight text-[color:var(--hf-ink)]">
+                  Pilih yang cocok untuk tim Anda
+                </h2>
+                <p className="mt-1 text-sm text-[color:var(--hf-ink-muted)]">
+                  Semua paket multi-tenant, Action Inbox, dan kepatuhan Indonesia.
+                  {midtransConfigured
+                    ? ' Bayar via Midtrans Snap (QRIS, VA, GoPay, ShopeePay, kartu).'
+                    : ''}
+                </p>
+                <div className="mt-3 flex max-w-md flex-col gap-1.5">
+                  <label className="text-xs font-medium text-[color:var(--hf-ink-muted)]" htmlFor="hf-voucher">
+                    Kode voucher
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      id="hf-voucher"
+                      value={voucherCode}
+                      onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
+                      onBlur={previewVoucher}
+                      placeholder="CONTOH: HFPROMO"
+                      className="hf-input min-w-0 flex-1 font-mono text-sm uppercase"
+                    />
+                    <button type="button" onClick={previewVoucher} className="hf-btn-secondary inline-flex items-center gap-1.5 text-sm">
+                      <Ticket className="h-3.5 w-3.5" />
+                      Cek
+                    </button>
+                  </div>
+                  {voucherHint ? (
+                    <p className="text-xs text-[color:var(--hf-ink-muted)]">{voucherHint}</p>
+                  ) : null}
+                </div>
+              </div>
+
+              <div
+                className="inline-flex rounded-[var(--hf-radius-lg)] border border-[var(--hf-border)] bg-[var(--hf-surface-muted)] p-1"
+                role="group"
+                aria-label="Interval tagihan"
+              >
+                <button
+                  type="button"
+                  onClick={() => setInterval('monthly')}
+                  className={`rounded-[calc(var(--hf-radius-lg)-2px)] px-4 py-2 text-sm font-medium transition ${
+                    interval === 'monthly'
+                      ? 'bg-white text-[color:var(--hf-ink)] shadow-[var(--hf-shadow)]'
+                      : 'text-[color:var(--hf-ink-muted)] hover:text-[color:var(--hf-ink)]'
+                  }`}
+                >
+                  Bulanan
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInterval('yearly')}
+                  className={`inline-flex items-center gap-1.5 rounded-[calc(var(--hf-radius-lg)-2px)] px-4 py-2 text-sm font-medium transition ${
+                    interval === 'yearly'
+                      ? 'bg-white text-[color:var(--hf-ink)] shadow-[var(--hf-shadow)]'
+                      : 'text-[color:var(--hf-ink-muted)] hover:text-[color:var(--hf-ink)]'
+                  }`}
+                >
+                  Tahunan
+                  <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                    −20%
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {midtransConfigured && Array.isArray(midtrans?.methods) && midtrans.methods.length > 0 && (
+              <p className="flex flex-wrap items-center gap-1.5 text-xs text-[color:var(--hf-ink-faint)]">
+                Metode:
+                {midtrans.methods.map((m: any) => (
+                  <span
+                    key={m.id}
+                    className="rounded-md border border-[var(--hf-border)] bg-white px-1.5 py-0.5 font-medium text-[color:var(--hf-ink-muted)]"
+                  >
+                    {m.label}
+                  </span>
+                ))}
+              </p>
+            )}
+
+            <div className="grid gap-4 md:grid-cols-3">
+              {plans.map((plan) => {
+                const price = interval === 'yearly' ? plan.priceYearlyIdr : plan.priceMonthlyIdr;
+                const monthlyEquiv =
+                  interval === 'yearly' && plan.priceYearlyIdr
+                    ? Math.round(plan.priceYearlyIdr / 12)
+                    : null;
+                const isCurrent = current?.plan === plan.id;
+                const currentRank = PLAN_RANK[current?.plan] ?? 0;
+                const isDowngrade = (PLAN_RANK[plan.id] ?? 0) < currentRank;
+                const isFeatured = plan.id === 'growth';
+
+                return (
+                  <div
+                    key={plan.id}
+                    className={`hf-tile hf-tile-interactive relative flex flex-col overflow-hidden ${
+                      isCurrent ? 'ring-2 ring-[var(--hf-brand-500)]/25' : ''
                     }`}
                   >
-                    {acting === plan.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
-                    {isCurrent ? 'Paket aktif' : isDowngrade ? 'Turunkan' : 'Upgrade'}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+                    <span className="absolute inset-y-3 left-0 w-[3px] rounded-r-full bg-[var(--hf-brand-500)]" aria-hidden />
 
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 overflow-x-auto">
-            <h3 className="font-semibold text-slate-900 mb-1">Matriks fitur paket</h3>
-            <p className="text-sm text-slate-500 mb-4">Perbandingan entitlement — sumber: plan matrix Humanify.</p>
-            <table className="w-full text-sm min-w-[560px]">
-              <thead>
-                <tr className="text-left text-slate-500 border-b">
-                  <th className="py-2 pr-3 font-medium">Fitur</th>
-                  {(['starter', 'growth', 'enterprise'] as HumanifyPlanId[]).map((pid) => (
-                    <th key={pid} className="py-2 px-2 font-medium capitalize text-center">{HUMANIFY_PLANS[pid].name}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {HUMANIFY_FEATURE_ORDER.map((feat) => (
-                  <tr key={feat} className="border-b border-slate-100">
-                    <td className="py-2 pr-3 text-slate-700">{HUMANIFY_FEATURE_LABELS[feat]}</td>
+                    <div className="flex flex-1 flex-col p-6 pl-7">
+                      <div className="mb-4 flex items-start justify-between gap-2">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="text-lg font-semibold tracking-tight text-[color:var(--hf-ink)]">
+                              {plan.name}
+                            </h3>
+                            {isFeatured && (
+                              <span className="inline-flex items-center gap-1 rounded-md bg-[var(--hf-brand-50)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[color:var(--hf-brand-600)]">
+                                <Zap className="h-3 w-3" /> Populer
+                              </span>
+                            )}
+                            {isCurrent && (
+                              <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                                Aktif
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-1.5 text-sm leading-relaxed text-[color:var(--hf-ink-muted)]">
+                            {plan.description}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mb-5">
+                        <p className="text-3xl font-semibold tracking-tight text-[color:var(--hf-ink)] tabular-nums">
+                          {formatIdr(price)}
+                        </p>
+                        <p className="mt-1 text-xs text-[color:var(--hf-ink-faint)]">
+                          per {interval === 'yearly' ? 'tahun' : 'bulan'}
+                          {monthlyEquiv != null ? ` · ~${formatIdr(monthlyEquiv)}/bln` : ''}
+                        </p>
+                      </div>
+
+                      <ul className="mb-6 flex-1 space-y-2.5">
+                        {(plan.features || []).map((f: string) => (
+                          <li key={f} className="flex items-start gap-2 text-sm text-[color:var(--hf-ink-secondary)]">
+                            <Check className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--hf-success)]" />
+                            <span>{f}</span>
+                          </li>
+                        ))}
+                        <li className="flex items-start gap-2 text-sm text-[color:var(--hf-ink-secondary)]">
+                          <Users className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--hf-brand-600)]" />
+                          <span>Maks. {plan.maxEmployees?.toLocaleString('id-ID')} karyawan</span>
+                        </li>
+                      </ul>
+
+                      <button
+                        type="button"
+                        disabled={isCurrent || acting === plan.id}
+                        onClick={() => (isDowngrade ? changePlan(plan.id) : checkout(plan.id))}
+                        className={`inline-flex w-full items-center justify-center gap-2 rounded-[var(--hf-radius)] py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                          isCurrent
+                            ? 'border border-[var(--hf-border)] bg-[var(--hf-surface-muted)] text-[color:var(--hf-ink-muted)]'
+                            : isDowngrade
+                              ? 'hf-btn-secondary'
+                              : isFeatured
+                                ? 'hf-btn-primary'
+                                : 'bg-[color:var(--hf-ink)] text-white hover:bg-slate-800'
+                        }`}
+                      >
+                        {acting === plan.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <CreditCard className="h-4 w-4" />
+                        )}
+                        {isCurrent ? 'Paket aktif' : isDowngrade ? 'Turunkan paket' : 'Upgrade sekarang'}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="hf-card overflow-hidden !p-0">
+            <div className="border-b border-[var(--hf-border)] px-6 py-5">
+              <p className="hf-section-label">Perbandingan</p>
+              <h3 className="mt-1 text-base font-semibold text-[color:var(--hf-ink)]">Matriks fitur paket</h3>
+              <p className="mt-1 text-sm text-[color:var(--hf-ink-muted)]">
+                Entitlement resmi Humanify — centang = termasuk di paket.
+              </p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[560px] text-sm">
+                <thead>
+                  <tr className="bg-[var(--hf-surface-muted)] text-left">
+                    <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-wide text-[color:var(--hf-ink-muted)]">
+                      Fitur
+                    </th>
                     {(['starter', 'growth', 'enterprise'] as HumanifyPlanId[]).map((pid) => {
-                      const on = HUMANIFY_PLANS[pid].features.includes(feat);
+                      const active = current?.plan === pid;
                       return (
-                        <td key={pid} className="py-2 px-2 text-center">
-                          {on ? (
-                            <Check className="w-4 h-4 text-emerald-500 inline-block" />
-                          ) : (
-                            <X className="w-4 h-4 text-slate-300 inline-block" />
-                          )}
-                        </td>
+                        <th
+                          key={pid}
+                          className={`px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wide ${
+                            active
+                              ? 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)]'
+                              : 'text-[color:var(--hf-ink-muted)]'
+                          }`}
+                        >
+                          {HUMANIFY_PLANS[pid].name}
+                        </th>
                       );
                     })}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {HUMANIFY_FEATURE_ORDER.map((feat, idx) => (
+                    <tr
+                      key={feat}
+                      className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}
+                    >
+                      <td className="px-6 py-3 text-[color:var(--hf-ink-secondary)]">
+                        {HUMANIFY_FEATURE_LABELS[feat]}
+                      </td>
+                      {(['starter', 'growth', 'enterprise'] as HumanifyPlanId[]).map((pid) => {
+                        const on = HUMANIFY_PLANS[pid].features.includes(feat);
+                        const active = current?.plan === pid;
+                        return (
+                          <td
+                            key={pid}
+                            className={`px-4 py-3 text-center ${active ? 'bg-[var(--hf-brand-50)]/50' : ''}`}
+                          >
+                            {on ? (
+                              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50">
+                                <Check className="h-3.5 w-3.5 text-[color:var(--hf-success)]" />
+                              </span>
+                            ) : (
+                              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-100">
+                                <X className="h-3.5 w-3.5 text-slate-300" />
+                              </span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
 
           {(current?.orders || []).length > 0 && (
-            <div className="bg-white border border-slate-200 rounded-2xl p-6">
-              <h3 className="font-semibold text-slate-900 mb-3">Riwayat order</h3>
+            <section className="hf-card overflow-hidden !p-0">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--hf-border)] px-6 py-5">
+                <div>
+                  <p className="hf-section-label">Riwayat</p>
+                  <h3 className="mt-1 text-base font-semibold text-[color:var(--hf-ink)]">Order & invoice</h3>
+                </div>
+                <p className="text-xs text-[color:var(--hf-ink-faint)]">
+                  Invoice PDF termasuk PPN untuk order lunas
+                </p>
+              </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="text-left text-slate-500 border-b">
-                    <tr>
-                      <th className="py-2 pr-3">Order</th>
-                      <th className="py-2 pr-3">Plan</th>
-                      <th className="py-2 pr-3">Jumlah</th>
-                      <th className="py-2 pr-3">Provider</th>
-                      <th className="py-2 pr-3">Status</th>
-                      <th className="py-2">Invoice</th>
+                <table className="w-full min-w-[640px] text-sm">
+                  <thead>
+                    <tr className="bg-[var(--hf-surface-muted)] text-left">
+                      <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-wide text-[color:var(--hf-ink-muted)]">
+                        Order
+                      </th>
+                      <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-[color:var(--hf-ink-muted)]">
+                        Plan
+                      </th>
+                      <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-[color:var(--hf-ink-muted)]">
+                        Jumlah
+                      </th>
+                      <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-[color:var(--hf-ink-muted)]">
+                        Provider
+                      </th>
+                      <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-[color:var(--hf-ink-muted)]">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-wide text-[color:var(--hf-ink-muted)]">
+                        Invoice
+                      </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y">
+                  <tbody>
                     {current.orders.map((o: any) => (
-                      <tr key={o.id}>
-                        <td className="py-2 pr-3 font-mono text-xs">{o.order_code}</td>
-                        <td className="py-2 pr-3 capitalize">{o.plan}</td>
-                        <td className="py-2 pr-3">{formatIdr(o.amount_idr)}</td>
-                        <td className="py-2 pr-3">{o.provider}</td>
-                        <td className="py-2 pr-3 capitalize">{o.status}</td>
-                        <td className="py-2">
+                      <tr key={o.id} className="border-t border-[var(--hf-border-subtle)] hover:bg-slate-50/80">
+                        <td className="px-6 py-3 font-mono text-xs text-[color:var(--hf-ink)]">{o.order_code}</td>
+                        <td className="px-4 py-3 capitalize text-[color:var(--hf-ink-secondary)]">{o.plan}</td>
+                        <td className="px-4 py-3 tabular-nums font-medium text-[color:var(--hf-ink)]">
+                          {formatIdr(o.amount_idr)}
+                        </td>
+                        <td className="px-4 py-3 capitalize text-[color:var(--hf-ink-muted)]">{o.provider}</td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`inline-flex rounded-md border px-2 py-0.5 text-[11px] font-semibold capitalize ${statusBadge(o.status)}`}
+                          >
+                            {o.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-3">
                           {o.status === 'paid' ? (
                             <button
                               type="button"
                               disabled={acting === `inv-${o.order_code}`}
                               onClick={() => downloadInvoice(o.order_code)}
-                              className="inline-flex items-center gap-1 text-[color:var(--hf-brand)] hover:underline text-xs font-medium disabled:opacity-50"
+                              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[color:var(--hf-brand-600)] hover:underline disabled:opacity-50"
                             >
                               {acting === `inv-${o.order_code}` ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
                               ) : (
-                                <Download className="w-3.5 h-3.5" />
+                                <Download className="h-3.5 w-3.5" />
                               )}
-                              PDF + PPN
+                              Unduh PDF
+                            </button>
+                          ) : o.status === 'pending' && (o.snap_token || o.redirect_url) ? (
+                            <button
+                              type="button"
+                              onClick={() => openSnap(o.snap_token, o.order_code, o.redirect_url)}
+                              className="text-xs font-semibold text-[color:var(--hf-brand-600)] hover:underline"
+                            >
+                              Bayar
                             </button>
                           ) : (
-                            <span className="text-slate-300 text-xs">—</span>
+                            <span className="text-xs text-slate-300">—</span>
                           )}
                         </td>
                       </tr>
@@ -445,62 +881,77 @@ export default function HumanifyBillingPage() {
                   </tbody>
                 </table>
               </div>
-            </div>
+            </section>
           )}
 
-          <div className="bg-white border border-red-200 rounded-2xl p-6">
-            <div className="flex items-center gap-2 mb-1">
-              <AlertTriangle className="w-4 h-4 text-red-600" />
-              <h3 className="font-semibold text-slate-900">Zona berbahaya — Data & penutupan akun</h3>
-            </div>
-            <p className="text-sm text-slate-500 mb-4">
-              Ekspor seluruh data karyawan Anda kapan saja, atau jadwalkan penutupan akun (masa tenggang 14 hari, bisa dibatalkan).
-            </p>
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                disabled={acting === 'export'}
-                onClick={exportAccountData}
-                className="inline-flex items-center gap-2 py-2 px-4 rounded-xl bg-white border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
-              >
-                {acting === 'export' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                Ekspor data (JSON)
-              </button>
-              {offboarding?.status === 'requested' ? (
-                <>
-                  <span className="text-sm text-red-700">
-                    Penutupan dijadwalkan
-                    {offboarding.graceUntil ? ` · s/d ${new Date(offboarding.graceUntil).toLocaleDateString('id-ID')}` : ''}
+          <section className="hf-card p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="max-w-xl">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--hf-radius)] bg-rose-100 text-rose-700">
+                    <AlertTriangle className="h-4 w-4" />
                   </span>
+                  <div>
+                    <p className="hf-section-label !text-rose-400">Zona berbahaya</p>
+                    <h3 className="text-base font-semibold text-[color:var(--hf-ink)]">Data & penutupan akun</h3>
+                  </div>
+                </div>
+                <p className="mt-3 text-sm leading-relaxed text-[color:var(--hf-ink-muted)]">
+                  Ekspor data karyawan kapan saja, atau jadwalkan penutupan akun dengan masa tenggang 14 hari
+                  (bisa dibatalkan).
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                <button
+                  type="button"
+                  disabled={acting === 'export'}
+                  onClick={exportAccountData}
+                  className="hf-btn-secondary inline-flex items-center gap-2 text-sm disabled:opacity-50"
+                >
+                  {acting === 'export' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  Ekspor JSON
+                </button>
+                {offboarding?.status === 'requested' ? (
+                  <>
+                    <span className="text-sm text-rose-700">
+                      Ditutup
+                      {offboarding.graceUntil
+                        ? ` s/d ${new Date(offboarding.graceUntil).toLocaleDateString('id-ID')}`
+                        : ''}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={acting === 'offboard'}
+                      onClick={cancelClose}
+                      className="inline-flex items-center gap-2 rounded-[var(--hf-radius)] bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                    >
+                      {acting === 'offboard' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      Batalkan penutupan
+                    </button>
+                  </>
+                ) : (
                   <button
                     type="button"
                     disabled={acting === 'offboard'}
-                    onClick={cancelClose}
-                    className="inline-flex items-center gap-2 py-2 px-4 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50"
+                    onClick={requestClose}
+                    className="inline-flex items-center gap-2 rounded-[var(--hf-radius)] bg-[color:var(--hf-danger)] px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-50"
                   >
-                    {acting === 'offboard' ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                    Batalkan penutupan
+                    {acting === 'offboard' ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <AlertTriangle className="h-4 w-4" />
+                    )}
+                    Tutup akun
                   </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  disabled={acting === 'offboard'}
-                  onClick={requestClose}
-                  className="inline-flex items-center gap-2 py-2 px-4 rounded-xl bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50"
-                >
-                  {acting === 'offboard' ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlertTriangle className="w-4 h-4" />}
-                  Tutup akun
-                </button>
-              )}
+                )}
+              </div>
             </div>
-          </div>
+          </section>
 
-          <p className="text-xs text-slate-400 text-center">
-            Login sebagai {session?.user?.email}. Setelah Midtrans dikonfigurasi, webhook:
-            <code className="ml-1 bg-slate-100 px-1 rounded">/api/humanify/billing/webhook</code>
+          <p className="pb-2 text-center text-xs text-[color:var(--hf-ink-faint)]">
+            Masuk sebagai {session?.user?.email}
           </p>
-        </div>
+        </PlatformAccessShell>
       </HumanifyLayout>
     </>
   );

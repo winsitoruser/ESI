@@ -1,17 +1,17 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
 import { withHQAuth } from '@/lib/middleware/withHQAuth';
+import { markGoLiveFlagSafe } from '@/lib/saas/go-live';
+import { normalizeWorkTimePolicy } from '@/lib/hris/work-time-policy';
 
 const POLICY_KEY = 'policy';
 
 function getDefaultSettings() {
+  const work = normalizeWorkTimePolicy({});
   return {
-    workStartTime: '08:00:00', workEndTime: '17:00:00',
-    breakStartTime: '12:00:00', breakEndTime: '13:00:00',
-    breakDurationMinutes: 60, workDays: [1, 2, 3, 4, 5],
-    lateGraceMinutes: 15, earlyLeaveGraceMinutes: 15,
-    autoAbsentAfterMinutes: 120,
-    overtimeEnabled: true, overtimeMinMinutes: 30, overtimeRequiresApproval: true,
+    ...work,
+    workStartTime: work.workStartTime, workEndTime: work.workEndTime,
+    breakStartTime: work.breakStartTime, breakEndTime: work.breakEndTime,
     gpsAttendanceEnabled: true, geoFenceRadius: 100,
     requireSelfie: false, allowOutsideGeofence: false,
     fingerprintEnabled: true, autoProcessDeviceLogs: true, punchTypeDetection: 'auto',
@@ -96,10 +96,11 @@ async function getSettings(req: NextApiRequest, res: NextApiResponse, session: a
 
     const branchOverrides = (rows as any[]).filter((r) => r.branch_id);
     const effective = mapLegacyRows(rows as any[]);
+    const work = normalizeWorkTimePolicy(effective);
 
     return res.status(200).json({
       success: true,
-      data: effective,
+      data: { ...effective, ...work },
       branchOverrides,
     });
   } catch (error: any) {
@@ -115,43 +116,29 @@ async function upsertSettings(req: NextApiRequest, res: NextApiResponse, session
   if (!tenantId) {
     return res.status(400).json({ success: false, error: 'Tenant context required' });
   }
-  const {
-    branchId, workStartTime, workEndTime, breakStartTime, breakEndTime,
-    breakDurationMinutes, workDays, lateGraceMinutes, earlyLeaveGraceMinutes,
-    autoAbsentAfterMinutes, overtimeEnabled, overtimeMinMinutes, overtimeRequiresApproval,
-    gpsAttendanceEnabled, geoFenceRadius, requireSelfie, allowOutsideGeofence,
-    fingerprintEnabled, autoProcessDeviceLogs, punchTypeDetection,
-    annualLeaveQuota, sickLeaveQuota, leaveRequiresApproval,
-    notifyLateToManager, notifyAbsentToManager, notifyOvertimeToHr,
-  } = req.body;
-
+  const body = req.body || {};
+  const work = normalizeWorkTimePolicy(body);
   const policy = {
-    workStartTime: workStartTime || '08:00:00',
-    workEndTime: workEndTime || '17:00:00',
-    breakStartTime: breakStartTime || '12:00:00',
-    breakEndTime: breakEndTime || '13:00:00',
-    breakDurationMinutes: breakDurationMinutes ?? 60,
-    workDays: workDays || [1, 2, 3, 4, 5],
-    lateGraceMinutes: lateGraceMinutes ?? 15,
-    earlyLeaveGraceMinutes: earlyLeaveGraceMinutes ?? 15,
-    autoAbsentAfterMinutes: autoAbsentAfterMinutes ?? 120,
-    overtimeEnabled: overtimeEnabled ?? true,
-    overtimeMinMinutes: overtimeMinMinutes ?? 30,
-    overtimeRequiresApproval: overtimeRequiresApproval ?? true,
-    gpsAttendanceEnabled: gpsAttendanceEnabled ?? true,
-    geoFenceRadius: geoFenceRadius ?? 100,
-    requireSelfie: requireSelfie ?? false,
-    allowOutsideGeofence: allowOutsideGeofence ?? false,
-    fingerprintEnabled: fingerprintEnabled ?? true,
-    autoProcessDeviceLogs: autoProcessDeviceLogs ?? true,
-    punchTypeDetection: punchTypeDetection || 'auto',
-    annualLeaveQuota: annualLeaveQuota ?? 12,
-    sickLeaveQuota: sickLeaveQuota ?? 14,
-    leaveRequiresApproval: leaveRequiresApproval ?? true,
-    notifyLateToManager: notifyLateToManager ?? true,
-    notifyAbsentToManager: notifyAbsentToManager ?? true,
-    notifyOvertimeToHr: notifyOvertimeToHr ?? false,
+    ...work,
+    workStartTime: body.workStartTime || work.workStartTime,
+    workEndTime: body.workEndTime || work.workEndTime,
+    breakStartTime: body.breakStartTime || work.breakStartTime,
+    breakEndTime: body.breakEndTime || work.breakEndTime,
+    gpsAttendanceEnabled: body.gpsAttendanceEnabled ?? true,
+    geoFenceRadius: body.geoFenceRadius ?? 100,
+    requireSelfie: body.requireSelfie ?? false,
+    allowOutsideGeofence: body.allowOutsideGeofence ?? false,
+    fingerprintEnabled: body.fingerprintEnabled ?? true,
+    autoProcessDeviceLogs: body.autoProcessDeviceLogs ?? true,
+    punchTypeDetection: body.punchTypeDetection || 'auto',
+    annualLeaveQuota: body.annualLeaveQuota ?? 12,
+    sickLeaveQuota: body.sickLeaveQuota ?? 14,
+    leaveRequiresApproval: body.leaveRequiresApproval ?? true,
+    notifyLateToManager: body.notifyLateToManager ?? true,
+    notifyAbsentToManager: body.notifyAbsentToManager ?? true,
+    notifyOvertimeToHr: body.notifyOvertimeToHr ?? false,
   };
+  const branchId = body.branchId;
 
   const sequelize = await getSequelize();
   await sequelize.query(`
@@ -160,6 +147,7 @@ async function upsertSettings(req: NextApiRequest, res: NextApiResponse, session
     ON CONFLICT (tenant_id, branch_id, setting_key)
     DO UPDATE SET setting_value = EXCLUDED.setting_value, updated_at = NOW()
   `, { replacements: { tenantId, branchId: branchId || null, policyKey: POLICY_KEY, policy: JSON.stringify(policy) } });
+  await markGoLiveFlagSafe(tenantId, 'attendanceConfigured');
 
   return res.status(200).json({
     success: true,

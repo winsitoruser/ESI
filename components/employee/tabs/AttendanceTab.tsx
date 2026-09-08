@@ -67,7 +67,7 @@ export default function AttendanceTab({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 shadow-sm border border-gray-100">
+      <div className="hf-card flex items-center justify-between px-4 py-3">
         <button type="button" onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-gray-100 active:scale-95 transition-all">
           <ChevronRight className="w-4 h-4 text-gray-600 rotate-180" />
         </button>
@@ -123,7 +123,7 @@ export default function AttendanceTab({
         ))}
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="hf-card border-gray-100 overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
           <h3 className="font-semibold text-gray-900 text-sm">Riwayat Harian</h3>
           <button

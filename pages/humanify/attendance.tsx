@@ -19,6 +19,7 @@ import {
   Sun, Coffee, TrendingUp, XCircle,
   Upload, FileSpreadsheet, FileText, AlertTriangle
 } from 'lucide-react';
+import EnterprisePageHeader from '@/components/humanify/EnterprisePageHeader';
 
 // ===== Types =====
 interface DailyRecord {
@@ -294,9 +295,14 @@ export default function AttendancePage() {
   return (
     <HQLayout title={t('hris.attendanceTitle')} subtitle={t('hris.attendanceSubtitle')}>
       <div className="space-y-6">
-        <div className="flex justify-end">
-          <DataSourceBadge source={dataSource} />
-        </div>
+        <EnterprisePageHeader
+          title={t('hris.attendanceTitle')}
+          subtitle={t('hris.attendanceSubtitle')}
+          badge="Attendance"
+          icon={Clock}
+          variant="corporate"
+          actions={<DataSourceBadge source={dataSource} />}
+        />
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
@@ -308,7 +314,7 @@ export default function AttendancePage() {
             { label: 'Cuti/Sakit', value: todayStats.leave || dLeave, icon: Coffee, bg: 'bg-purple-100', color: 'text-purple-600' },
             { label: 'Masih Kerja', value: todayStats.clockedIn || dClockedIn, icon: Timer, bg: 'bg-cyan-100', color: 'text-cyan-600' },
           ].map(s => (
-            <div key={s.label} className="bg-white rounded-xl p-3 shadow-sm border">
+            <div key={s.label} className="hf-card p-3">
               <div className="flex items-center gap-2">
                 <div className={`p-1.5 ${s.bg} rounded-lg`}><s.icon className={`w-4 h-4 ${s.color}`} /></div>
                 <div><p className="text-[10px] text-gray-500">{s.label}</p><p className={`text-lg font-bold ${s.color}`}>{s.value}</p></div>
@@ -328,7 +334,7 @@ export default function AttendancePage() {
         </div>
 
         {/* Tabs */}
-        <div className="bg-white rounded-xl shadow-sm border">
+        <div className="hf-card">
           <div className="flex border-b overflow-x-auto">
             {TABS.map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key)}

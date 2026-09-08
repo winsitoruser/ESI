@@ -11,6 +11,7 @@ import {
   UserCircle2,
 } from 'lucide-react';
 import { AIMAN_GREETING, AIMAN_SUGGESTIONS, AIMAN_THINKING_LABEL } from '@/lib/hris/ai-persona';
+import { isHumanifyAiUiEnabled } from '@/lib/hris/ai-enabled';
 
 const API = '/api/humanify/ai-hub';
 
@@ -26,6 +27,7 @@ const PRIORITY_COLORS: Record<string, string> = {
 export default function AiHubPage() {
   const { t } = useTranslation();
   const router = useRouter();
+  const aiOn = isHumanifyAiUiEnabled();
   const [tab, setTab] = useState<Tab>('overview');
   const [loading, setLoading] = useState(true);
   const [dashboard, setDashboard] = useState<any>(null);
@@ -68,12 +70,31 @@ export default function AiHubPage() {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (aiOn) load(); else setLoading(false); }, [load, aiOn]);
   useEffect(() => {
     const q = router.query.tab as Tab | undefined;
     if (q && ['overview', 'copilot', 'automation', 'insights'].includes(q)) setTab(q);
   }, [router.query.tab]);
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatHistory]);
+
+  if (!aiOn) {
+    return (
+      <PageGuard>
+        <HumanifyLayout title="AIMAN" subtitle="AI Management Advisor">
+          <div className="mx-auto max-w-lg hf-card p-8 text-center">
+            <Sparkles className="mx-auto mb-3 h-10 w-10 text-slate-300" />
+            <h1 className="text-lg font-semibold text-slate-800">AIMAN dinonaktifkan</h1>
+            <p className="mt-2 text-sm text-slate-500">
+              Fitur AI / AIMAN sedang dimatikan sementara di production. Modul HRIS lain tetap berjalan normal.
+            </p>
+            <Link href="/humanify" className="mt-6 inline-flex text-sm font-medium text-[color:var(--hf-brand-600)] hover:underline">
+              Kembali ke dashboard
+            </Link>
+          </div>
+        </HumanifyLayout>
+      </PageGuard>
+    );
+  }
 
   const sendChat = async (preset?: string) => {
     const msg = (preset ?? chatInput).trim();

@@ -40,6 +40,8 @@ export interface AccountAlertSignals {
   > | null;
   emailVerified?: boolean;
   goLivePct?: number | null;
+  /** Operational core is done — do not nag even if recommended items keep pct < 100. */
+  goLiveReady?: boolean;
 }
 
 const SEVERITY_RANK: Record<AlertSeverity, number> = {
@@ -52,6 +54,12 @@ function toMillis(value?: string | Date | null): number | null {
   if (!value) return null;
   const t = new Date(value).getTime();
   return Number.isFinite(t) ? t : null;
+}
+
+/** Banner/bell nag only while core go-live is incomplete. 6/9 (67%) with ready=true must not alert. */
+export function shouldShowGoLiveIncompleteAlert(signals: Pick<AccountAlertSignals, 'goLivePct' | 'goLiveReady'>): boolean {
+  if (signals.goLiveReady === true) return false;
+  return typeof signals.goLivePct === 'number' && signals.goLivePct >= 0 && signals.goLivePct < 100;
 }
 
 /** Derive ranked alerts from already-known account signals (no DB access). */
@@ -145,7 +153,7 @@ export function buildAccountAlerts(signals: AccountAlertSignals): AccountAlert[]
     });
   }
 
-  if (typeof signals.goLivePct === 'number' && signals.goLivePct >= 0 && signals.goLivePct < 100) {
+  if (shouldShowGoLiveIncompleteAlert(signals)) {
     alerts.push({
       id: 'go_live_incomplete',
       severity: 'info',
@@ -229,7 +237,12 @@ export async function getAccountAlerts(
   try { emailVerified = await isTenantEmailVerified(tenantId); } catch { /* */ }
 
   let goLivePct: number | null = null;
-  try { goLivePct = (await getGoLiveStatus(tenantId)).pct; } catch { /* */ }
+  let goLiveReady = false;
+  try {
+    const goLive = await getGoLiveStatus(tenantId);
+    goLivePct = goLive.pct;
+    goLiveReady = goLive.ready;
+  } catch { /* */ }
 
   return buildAccountAlerts({
     planId,
@@ -240,5 +253,6 @@ export async function getAccountAlerts(
     seats,
     emailVerified,
     goLivePct,
+    goLiveReady,
   });
 }

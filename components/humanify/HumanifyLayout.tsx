@@ -1,6 +1,7 @@
 import HQLayout from '@/components/hq/HQLayout';
 import HumanifyErrorBoundary from '@/components/humanify/HumanifyErrorBoundary';
 import AimanAppFloatingChat from '@/components/humanify/AimanAppFloatingChat';
+import { isHumanifyAiEnabled } from '@/lib/hris/ai-enabled';
 
 type HumanifyLayoutProps = {
   children: React.ReactNode;
@@ -14,7 +15,7 @@ export default function HumanifyLayout(props: HumanifyLayoutProps) {
   return (
     <HumanifyErrorBoundary>
       <HQLayout {...props} platform="humanify" />
-      <AimanAppFloatingChat />
+      {isHumanifyAiEnabled() ? <AimanAppFloatingChat /> : null}
     </HumanifyErrorBoundary>
   );
 }

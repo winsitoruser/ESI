@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Wallet, ChevronDown, ChevronUp, Loader2, Receipt, TrendingDown, TrendingUp, Printer } from 'lucide-react';
 import { printPayslipHtml } from '@/components/employee/payslip-print';
+import { isDemoRecordId, looksLikeEssMockPayload } from '@/lib/hris/data-source';
 
 const fmtCur = (n: number) => `Rp ${(n || 0).toLocaleString('id-ID')}`;
 const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-';
@@ -18,7 +19,9 @@ export default function PayslipTab() {
       const params = month ? `&month=${month}` : '';
       const res = await fetch(`/api/employee/dashboard?action=payslip${params}`);
       const data = await res.json();
-      setPayslips(Array.isArray(data.data) ? data.data : []);
+      const rows = Array.isArray(data.data) ? data.data : [];
+      if (looksLikeEssMockPayload(rows)) setPayslips([]);
+      else setPayslips(rows.filter((r: any) => r && !isDemoRecordId(r.id)));
     } catch { setPayslips([]); }
     finally { setLoading(false); }
   }, []);
@@ -69,7 +72,7 @@ export default function PayslipTab() {
         const deductions = Array.isArray(ps.deductions) ? ps.deductions : [];
 
         return (
-          <div key={ps.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          <div key={ps.id} className="hf-card overflow-hidden">
             <button
               onClick={() => setExpanded(isOpen ? null : ps.id)}
               className="w-full p-4 text-left active:bg-slate-50"

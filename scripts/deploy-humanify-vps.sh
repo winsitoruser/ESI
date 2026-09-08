@@ -105,12 +105,15 @@ rsync_cmd --delete \
   --exclude .env --exclude .env.local --exclude .env.*.local \
   --exclude 'public/uploads/' \
   --exclude 'storage/' \
+  --exclude artifacts --exclude .cursor --exclude docs/pdf \
   --filter='protect public/uploads/' \
   --filter='protect storage/' \
   --filter='protect node_modules/' \
   --exclude node_modules --exclude .next --exclude .git \
   "$APP_SRC/" "$VPS_USER@$VPS_HOST:$APP_DIR/"
 ssh_cmd "mkdir -p $APP_DIR/storage/employee-documents $APP_DIR/public/uploads/employee-documents"
+# Next.js loads .env.local over .env — quarantine leftover local-tunnel env on VPS
+ssh_cmd "if [ -f $APP_DIR/.env.local ]; then mv $APP_DIR/.env.local $APP_DIR/.env.local.bak-deploy-\$(date +%Y%m%d%H%M%S); echo '  quarantined stray .env.local'; fi"
 fi
 
 echo "=== [2/6] Install system packages ==="
@@ -271,6 +274,9 @@ else
   echo "  (skip — set SUMOPOD_AI_API_KEY or ~/.hermes/.env)"
 fi
 
+echo "=== [3c2/6] Ensure Midtrans billing ==="
+ssh_cmd "ENV_FILE=$APP_DIR/.env MIDTRANS_SERVER_KEY='${MIDTRANS_SERVER_KEY:-}' MIDTRANS_CLIENT_KEY='${MIDTRANS_CLIENT_KEY:-}' MIDTRANS_IS_PRODUCTION='${MIDTRANS_IS_PRODUCTION:-}' bash -s" < "$SRC/scripts/ensure-humanify-midtrans.sh" || true
+
 echo "=== [3d/6] Ensure Sentry env keys ==="
 ssh_cmd "ENV_FILE=$APP_DIR/.env HUMANIFY_SENTRY_INTERNAL=true bash -s" < "$SRC/scripts/ensure-humanify-sentry.sh" || true
 ssh_cmd "ENV_FILE=$APP_DIR/.env bash -s" < "$SRC/scripts/enable-humanify-rls-request-bound.sh" || true
@@ -279,6 +285,9 @@ ssh_cmd "ENV_FILE=$APP_DIR/.env HUMANIFY_FISCAL_SIGNED_OFF=true bash -s" < "$SRC
 echo "=== [3d2/6] Ensure Redis (rate-limit + login-guard) ==="
 ssh_cmd "ENV_FILE=$APP_DIR/.env bash -s" < "$SRC/scripts/ensure-humanify-redis.sh" || true
 ssh_cmd "ENV_FILE=$APP_DIR/.env bash -s" < "$SRC/scripts/ensure-humanify-obs-alerts.sh" || true
+
+echo "=== [3d3/6] Ensure SMTP (signup / reset / invite) ==="
+ssh_cmd "ENV_FILE=$APP_DIR/.env bash -s" < "$SRC/scripts/ensure-humanify-smtp.sh" || true
 
 echo "=== [3e/6] Ensure platform crons (purge / hard-delete / health) ==="
 if [ "$HUMANIFY_DEPLOY_SLOT" = staging ] && [ "$USE_DOMAIN" = true ]; then
@@ -357,14 +366,22 @@ npm run db:org-migrate
 npm run db:employee-portal-migrate
 npm run db:employee-lifecycle-migrate || node scripts/migrate-employee-lifecycle.js || true
 npm run db:hris-smoke-deps || true
-for script in migrate-team-members-tables migrate-mutation-workflow migrate-casual-workforce migrate-casual-supervision migrate-hris-field-integration migrate-workforce-analytics migrate-kpi-scoring migrate-employee-genealogy migrate-payroll-align migrate-payroll-enhance; do
+for script in migrate-team-members-tables migrate-mutation-workflow migrate-casual-workforce migrate-casual-supervision migrate-hris-field-integration migrate-workforce-analytics migrate-kpi-scoring migrate-employee-genealogy migrate-payroll-align migrate-payroll-enhance migrate-leave-types-columns migrate-employee-face-liveness; do
   node scripts/\${script}.js 2>&1 | tail -1 || true
 done
-node scripts/seed-payroll-demo-data.js 2>&1 | tail -3 || true
+if [ "${HUMANIFY_SEED_DEMO:-false}" = true ]; then
+  node scripts/seed-payroll-demo-data.js 2>&1 | tail -3 || true
+else
+  echo "  skip payroll demo seed (set HUMANIFY_SEED_DEMO=true for lab only)"
+fi
 node scripts/migrate-recruitment-training-align.js 2>&1 | tail -1 || true
 node scripts/migrate-disciplinary-letter-workflow.js 2>&1 | tail -3 || true
 node scripts/run-humanify-pending-migrations.js 2>&1 | tail -1 || true
-node scripts/seed-recruitment-training-demo.js 2>&1 | tail -3 || true
+if [ "${HUMANIFY_SEED_DEMO:-false}" = true ]; then
+  node scripts/seed-recruitment-training-demo.js 2>&1 | tail -3 || true
+else
+  echo "  skip recruitment demo seed"
+fi
 node scripts/migrate-multifinance-workforce.js 2>&1 | tail -1 || true
 node scripts/migrate-humanify-vps-deps.js 2>&1 | tail -3 || true
 node scripts/migrate-saas-partner-payouts.js 2>&1 | tail -2 || true
@@ -373,7 +390,11 @@ node scripts/create-super-user.js || true
 node scripts/ensure-superadmin.js || true
 node scripts/ensure-humanify-superadmin.js || true
 node scripts/sync-org-departments.js || true
-node scripts/seed-hris-demo-data.js 2>&1 | tail -3 || true
+if [ "${HUMANIFY_SEED_DEMO:-false}" = true ]; then
+  node scripts/seed-hris-demo-data.js 2>&1 | tail -3 || true
+else
+  echo "  skip HRIS demo seed (production must stay empty-tenant safe)"
+fi
 fi
 REMOTE_BUILD
 fi
@@ -451,7 +472,7 @@ if [ "$USE_DOMAIN" = true ]; then
   if [ "$HUMANIFY_DEPLOY_SLOT" = staging ]; then
     SERVER_NAMES="$DOMAIN"
   else
-    SERVER_NAMES="$DOMAIN www.$DOMAIN"
+    SERVER_NAMES="$DOMAIN www.$DOMAIN ops.$DOMAIN admin.$DOMAIN"
   fi
   LISTEN_DEFAULT=""
 else
@@ -563,7 +584,7 @@ if [ -n "$_PM2_STARTUP" ]; then
 fi
 pm2 save
 sleep 3
-HUMANIFY_PM2_NAME="${HUMANIFY_PM2_NAME}" bash humanify-healthcheck.sh "http://127.0.0.1:${HUMANIFY_PORT}" || true
+HUMANIFY_PM2_NAME="${HUMANIFY_PM2_NAME}" bash humanify-healthcheck.sh "http://127.0.0.1:${HUMANIFY_PORT}"
 REMOTE_PM2
 
 PUBLIC_SCHEME="http"

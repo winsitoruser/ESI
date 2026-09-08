@@ -4,9 +4,12 @@ import {
   getDefaultApprovalLevels,
   inferMutationScope,
   buildMutationLetterData,
+  buildEmployeeMutationUpdates,
   type MutationType,
 } from '../../../lib/hris/mutation-workflow';
 import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
+import { resolveOrgStructureId } from '../../../lib/hris/sync-org-departments';
+import { wouldCreateCycle } from '../../../lib/hris/employee-genealogy';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch (e) {}
@@ -17,6 +20,20 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (!session?.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     const { action } = req.query;
+
+    const claimActions = new Set([
+      'claims', 'claim-detail', 'claim', 'approve-claim', 'reject-claim', 'resubmit-claim',
+    ]);
+    if (claimActions.has(String(action || ''))) {
+      const { assertHumanifyFeature } = await import('@/lib/saas/assert-feature');
+      const ok = await assertHumanifyFeature(req, res, {
+        tenantId: tenantIdFromSession(session),
+        role: (session.user as any).role,
+        feature: 'payroll',
+        path: '/api/humanify/workflow?action=claim',
+      });
+      if (!ok) return;
+    }
 
     if (req.method === 'GET') {
       if (action === 'claims') return getClaims(req, res, session);
@@ -53,6 +70,36 @@ function getTenantId(session: any): string | null {
   return tenantIdFromSession(session);
 }
 
+let mutationPlacementReady = false;
+async function ensureMutationPlacementColumns() {
+  if (!sequelize || mutationPlacementReady) return;
+  try {
+    await sequelize.query(`ALTER TABLE employee_mutations ADD COLUMN IF NOT EXISTS from_supervisor_id UUID`);
+    await sequelize.query(`ALTER TABLE employee_mutations ADD COLUMN IF NOT EXISTS to_supervisor_id UUID`);
+    mutationPlacementReady = true;
+  } catch (e) {
+    console.warn('[workflow] mutation placement columns:', (e as Error)?.message);
+  }
+}
+
+const MUTATION_SELECT = `
+  SELECT m.*, e.name as employee_name, e.employee_code, e.photo_url,
+    fb.name as from_branch_name, tb.name as to_branch_name,
+    fg.name as from_grade_name, tg.name as to_grade_name,
+    fs.name as from_supervisor_name, ts.name as to_supervisor_name,
+    fo.name as from_org_name, torg.name as to_org_name
+  FROM employee_mutations m
+  LEFT JOIN employees e ON m.employee_id = e.id
+  LEFT JOIN branches fb ON m.from_branch_id = fb.id
+  LEFT JOIN branches tb ON m.to_branch_id = tb.id
+  LEFT JOIN job_grades fg ON m.from_job_grade_id = fg.id
+  LEFT JOIN job_grades tg ON m.to_job_grade_id = tg.id
+  LEFT JOIN employees fs ON m.from_supervisor_id = fs.id
+  LEFT JOIN employees ts ON m.to_supervisor_id = ts.id
+  LEFT JOIN org_structures fo ON m.from_org_structure_id = fo.id
+  LEFT JOIN org_structures torg ON m.to_org_structure_id = torg.id
+`;
+
 // ===== CLAIMS (unchanged) =====
 async function getClaims(req: NextApiRequest, res: NextApiResponse, session: any) {
   if (!sequelize) return res.json({ success: true, data: [] });
@@ -66,7 +113,7 @@ async function getClaims(req: NextApiRequest, res: NextApiResponse, session: any
 
   try {
     const [rows] = await sequelize.query(`
-      SELECT c.*, e.name as employee_name, e.employee_code, e.department, e.position
+      SELECT c.*, e.name as employee_name, e.employee_code, e.department, e.position, e.photo_url
       FROM employee_claims c
       LEFT JOIN employees e ON c.employee_id::text = e.id::text
       ${where}
@@ -83,7 +130,7 @@ async function getClaimDetail(req: NextApiRequest, res: NextApiResponse) {
   const { id } = req.query;
   try {
     const [claims] = await sequelize.query(`
-      SELECT c.*, e.name as employee_name, e.employee_code, e.department
+      SELECT c.*, e.name as employee_name, e.employee_code, e.department, e.photo_url
       FROM employee_claims c LEFT JOIN employees e ON c.employee_id::text = e.id::text WHERE c.id = :id
     `, { replacements: { id } });
     if (!claims[0]) return res.status(404).json({ error: 'Claim not found' });
@@ -183,22 +230,11 @@ async function resubmitClaim(req: NextApiRequest, res: NextApiResponse, session:
 }
 
 // ===== MUTATIONS =====
-const MUTATION_SELECT = `
-  SELECT m.*, e.name as employee_name, e.employee_code,
-    fb.name as from_branch_name, tb.name as to_branch_name,
-    fg.name as from_grade_name, tg.name as to_grade_name
-  FROM employee_mutations m
-  LEFT JOIN employees e ON m.employee_id = e.id
-  LEFT JOIN branches fb ON m.from_branch_id = fb.id
-  LEFT JOIN branches tb ON m.to_branch_id = tb.id
-  LEFT JOIN job_grades fg ON m.from_job_grade_id = fg.id
-  LEFT JOIN job_grades tg ON m.to_job_grade_id = tg.id
-`;
-
 async function getMutations(req: NextApiRequest, res: NextApiResponse, session: any) {
   if (!sequelize) return res.json({ success: true, data: [] });
   const tenantId = getTenantId(session);
   if (!tenantId) return res.json({ success: true, data: [] });
+  await ensureMutationPlacementColumns();
   const { status, employee_id, mutation_type } = req.query;
   let where = 'WHERE m.tenant_id = :tenantId';
   const replacements: any = { tenantId };
@@ -216,6 +252,7 @@ async function getMutations(req: NextApiRequest, res: NextApiResponse, session: 
 
 async function getMutationDetail(req: NextApiRequest, res: NextApiResponse) {
   if (!sequelize) return res.json({ success: true, data: null });
+  await ensureMutationPlacementColumns();
   const { id } = req.query;
   try {
     const [mutations] = await sequelize.query(`${MUTATION_SELECT} WHERE m.id = :id`, { replacements: { id } });
@@ -237,6 +274,7 @@ async function getMutationDetail(req: NextApiRequest, res: NextApiResponse) {
 async function getMutationLetterData(req: NextApiRequest, res: NextApiResponse) {
   const { id } = req.query;
   if (!id) return res.status(400).json({ success: false, error: 'id required' });
+  await ensureMutationPlacementColumns();
   try {
     const [mutations] = await sequelize.query(`${MUTATION_SELECT} WHERE m.id = :id`, { replacements: { id } });
     if (!mutations[0]) return res.status(404).json({ success: false, error: 'Not found' });
@@ -278,7 +316,7 @@ async function getApprovalConfig(req: NextApiRequest, res: NextApiResponse, sess
 async function snapshotEmployee(employeeId: string) {
   const [rows] = await sequelize.query(`
     SELECT e.id, e.department, e.position, e.branch_id, e.salary, e.job_grade_id, e.org_structure_id,
-      b.name as branch_name
+      e.supervisor_id, b.name as branch_name
     FROM employees e LEFT JOIN branches b ON e.branch_id = b.id WHERE e.id = :id
   `, { replacements: { id: employeeId } });
   return rows[0] || null;
@@ -286,12 +324,13 @@ async function snapshotEmployee(employeeId: string) {
 
 async function createMutation(req: NextApiRequest, res: NextApiResponse, session: any) {
   if (!sequelize) return res.json({ success: true });
+  await ensureMutationPlacementColumns();
   const tenantId = getTenantId(session);
   const userId = (session.user as any)?.id;
   const {
     employee_id, mutation_type, effective_date, mutation_scope,
     to_branch_id, to_department, to_position, to_job_grade_id, to_org_structure_id,
-    salary_change, new_salary, reason, notes,
+    to_supervisor_id, salary_change, new_salary, reason, notes,
   } = req.body;
 
   if (!employee_id || !mutation_type || !effective_date) {
@@ -300,6 +339,9 @@ async function createMutation(req: NextApiRequest, res: NextApiResponse, session
 
   const emp = await snapshotEmployee(String(employee_id));
   if (!emp) return res.status(404).json({ success: false, error: 'Karyawan tidak ditemukan' });
+
+  const resolvedOrgId = to_org_structure_id
+    || await resolveOrgStructureId(sequelize, tenantId, to_department);
 
   const mType = mutation_type as MutationType;
   const levels = getDefaultApprovalLevels(mType);
@@ -322,12 +364,14 @@ async function createMutation(req: NextApiRequest, res: NextApiResponse, session
       tenant_id, employee_id, mutation_type, mutation_scope, mutation_number, effective_date, status,
       from_branch_id, from_department, from_position, from_job_grade_id, from_org_structure_id,
       to_branch_id, to_department, to_position, to_job_grade_id, to_org_structure_id,
+      from_supervisor_id, to_supervisor_id,
       salary_change, new_salary, reason, notes, requested_by,
       current_approval_step, total_approval_steps
     ) VALUES (
       :tenantId, :employee_id, :mutation_type, :mutation_scope, :mutationNumber, :effective_date, 'pending',
       :from_branch_id, :from_department, :from_position, :from_job_grade_id, :from_org_structure_id,
       :to_branch_id, :to_department, :to_position, :to_job_grade_id, :to_org_structure_id,
+      :from_supervisor_id, :to_supervisor_id,
       :salary_change, :new_salary, :reason, :notes, :requested_by,
       1, :totalSteps
     ) RETURNING *
@@ -338,7 +382,9 @@ async function createMutation(req: NextApiRequest, res: NextApiResponse, session
       from_job_grade_id: emp.job_grade_id || null, from_org_structure_id: emp.org_structure_id || null,
       to_branch_id: to_branch_id || null, to_department: to_department || null,
       to_position: to_position || null, to_job_grade_id: to_job_grade_id || null,
-      to_org_structure_id: to_org_structure_id || null,
+      to_org_structure_id: resolvedOrgId || null,
+      from_supervisor_id: emp.supervisor_id || null,
+      to_supervisor_id: to_supervisor_id || null,
       salary_change: salary_change || 0, new_salary: new_salary || null,
       reason: reason || null, notes: notes || null, requested_by: userId || null, totalSteps,
     },
@@ -417,7 +463,7 @@ async function approveMutationStep(req: NextApiRequest, res: NextApiResponse, se
   }
 
   // Final approval — apply changes + e-file
-  await applyMutationToEmployee(mut);
+  await applyMutationToEmployee(mut, tenantId);
   const eFileId = await createMutationEFile(mut);
   const finalStatus = new Date(mut.effective_date) <= new Date() ? 'executed' : 'approved';
 
@@ -436,16 +482,61 @@ async function approveMutationStep(req: NextApiRequest, res: NextApiResponse, se
   return res.json({ success: true, message: 'Mutasi disetujui & diterapkan. E-Letter siap diunduh.', eFileId });
 }
 
-async function applyMutationToEmployee(mut: any) {
-  const updates: string[] = ['updated_at = NOW()'];
-  const rep: any = { empId: mut.employee_id };
-  if (mut.to_department) { updates.push('department = :dept'); rep.dept = mut.to_department; }
-  if (mut.to_position) { updates.push('position = :pos'); rep.pos = mut.to_position; }
-  if (mut.to_branch_id) { updates.push('branch_id = :branchId'); rep.branchId = mut.to_branch_id; }
-  if (mut.to_job_grade_id) { updates.push('job_grade_id = :gradeId'); rep.gradeId = mut.to_job_grade_id; }
-  if (mut.new_salary) { updates.push('salary = :salary'); rep.salary = mut.new_salary; }
-  if (updates.length > 1) {
-    await sequelize.query(`UPDATE employees SET ${updates.join(', ')} WHERE id = :empId`, { replacements: rep });
+async function applyMutationToEmployee(mut: any, tenantId?: string | null) {
+  let orgId = mut.to_org_structure_id || null;
+  if (!orgId && mut.to_department) {
+    orgId = await resolveOrgStructureId(sequelize, tenantId || mut.tenant_id, mut.to_department);
+  }
+
+  let supervisorId = mut.to_supervisor_id || null;
+  if (supervisorId && String(supervisorId) === String(mut.employee_id)) {
+    supervisorId = null;
+  }
+  if (supervisorId) {
+    try {
+      const [rows] = await sequelize.query(
+        `SELECT id, supervisor_id FROM employees
+         WHERE tenant_id = :tenantId AND COALESCE(is_active, true) = true`,
+        { replacements: { tenantId: tenantId || mut.tenant_id } },
+      );
+      if (wouldCreateCycle(String(mut.employee_id), String(supervisorId), rows || [])) {
+        console.warn('[workflow] skip supervisor update — would create cycle');
+        supervisorId = null;
+      }
+    } catch (e) {
+      console.warn('[workflow] supervisor cycle check skipped:', (e as Error)?.message);
+    }
+  }
+
+  const { setClauses, replacements } = buildEmployeeMutationUpdates({
+    to_department: mut.to_department,
+    to_position: mut.to_position,
+    to_branch_id: mut.to_branch_id,
+    to_job_grade_id: mut.to_job_grade_id,
+    new_salary: mut.new_salary,
+    to_org_structure_id: orgId,
+    to_supervisor_id: supervisorId,
+  });
+  if (setClauses.length <= 1) return;
+  try {
+    await sequelize.query(
+      `UPDATE employees SET ${setClauses.join(', ')} WHERE id = :empId`,
+      { replacements: { ...replacements, empId: mut.employee_id } },
+    );
+  } catch (e) {
+    console.warn('[workflow] placement update retry without org/supervisor:', (e as Error)?.message);
+    const fallback = buildEmployeeMutationUpdates({
+      to_department: mut.to_department,
+      to_position: mut.to_position,
+      to_branch_id: mut.to_branch_id,
+      to_job_grade_id: mut.to_job_grade_id,
+      new_salary: mut.new_salary,
+    });
+    if (fallback.setClauses.length <= 1) return;
+    await sequelize.query(
+      `UPDATE employees SET ${fallback.setClauses.join(', ')} WHERE id = :empId`,
+      { replacements: { ...fallback.replacements, empId: mut.employee_id } },
+    );
   }
 }
 

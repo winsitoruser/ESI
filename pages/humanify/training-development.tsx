@@ -396,7 +396,7 @@ export default function TrainingDevelopmentPage() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-1.5">
+        <div className="hf-card border-gray-200 shadow-sm p-1.5">
           <div className="flex gap-1 overflow-x-auto scrollbar-thin">
             {tabs.map(tb => (
               <button
@@ -417,7 +417,7 @@ export default function TrainingDevelopmentPage() {
         </div>
 
         {loading && (
-          <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-gray-200">
+          <div className="flex flex-col items-center justify-center py-16 hf-card border-gray-200">
             <Loader2 className="w-8 h-8 animate-spin text-[color:var(--hf-brand-600)]" />
             <span className="mt-3 text-sm text-gray-500">Memuat data...</span>
           </div>
@@ -485,7 +485,7 @@ export default function TrainingDevelopmentPage() {
                     { label: 'Selesai Kontrak', value: pipeline.completed || 0, color: 'bg-slate-400', light: 'bg-slate-50 text-slate-600' },
                   ].map((stage, i, arr) => (
                     <div key={stage.label} className="flex items-center gap-2">
-                      <div className="min-w-[128px] bg-white rounded-xl p-4 text-center border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="hf-tile hf-tile-interactive min-w-[128px] p-4 text-center">
                         <p className="text-2xl font-bold tabular-nums text-gray-900">{stage.value}</p>
                         <p className={`text-[11px] font-medium mt-1 px-2 py-0.5 rounded-full inline-block ${stage.light}`}>{stage.label}</p>
                         <div className={`h-1 rounded-full mt-3 ${stage.color}`} />
@@ -1540,7 +1540,7 @@ function EmptyState({ message, icon: Icon = HelpCircle }: { message: string; ico
 
 function Toolbar({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
+    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 p-4 hf-card border-gray-200 shadow-sm">
       {children}
     </div>
   );
@@ -1606,7 +1606,7 @@ function SearchInput({ value, onChange, placeholder }: { value: string; onChange
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
+      <div className="hf-card w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
         <div className="px-5 py-4 border-b bg-gradient-to-r from-[var(--hf-brand-600)] to-purple-50 flex justify-between items-center shrink-0">
           <h3 className="font-bold text-lg text-gray-900">{title}</h3>
           <button type="button" onClick={onClose} className="p-1.5 hover:bg-white/80 rounded-lg transition-colors"><X className="w-5 h-5 text-gray-500" /></button>

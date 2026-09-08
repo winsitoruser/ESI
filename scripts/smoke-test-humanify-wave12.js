@@ -26,10 +26,27 @@ function mapPrivyStatusToEsign(status) {
   return null;
 }
 
-function validatePrivyWebhookSecret(reqSecret, envSecret) {
+function isFailClosed(env) {
+  if (String(env.HUMANIFY_WEBHOOK_ALLOW_OPEN || '').toLowerCase() === 'true') return false;
+  return env.NODE_ENV === 'production';
+}
+
+function validatePrivyWebhookSecret(reqSecret, envSecret, env = process.env) {
   const expected = String(envSecret ?? '').trim();
-  if (!expected) return true;
+  if (!expected) {
+    if (isFailClosed(env)) return false;
+    return true;
+  }
   return String(reqSecret || '').trim() === expected;
+}
+
+function validateRecruitmentWebhook(signature, secret, env = process.env) {
+  if (!secret) {
+    if (isFailClosed(env)) return false;
+    return true;
+  }
+  if (!signature) return false;
+  return true; // shape-only in this unit smoke (HMAC covered elsewhere)
 }
 
 function buildPrivyIdempotencyKey(body) {
@@ -53,12 +70,20 @@ else fail('privy partial');
 if (mapPrivyStatusToEsign('weird') === null) ok('privy unknown null');
 else fail('privy unknown');
 
-if (validatePrivyWebhookSecret(null, '') === true) ok('secret open when unset');
-else fail('secret open');
+if (validatePrivyWebhookSecret(null, '', { NODE_ENV: 'development' }) === true) ok('secret open when unset (non-prod)');
+else fail('secret open non-prod');
+if (validatePrivyWebhookSecret(null, '', { NODE_ENV: 'production' }) === false) ok('secret fail-closed prod when unset');
+else fail('secret fail-closed prod');
+if (validatePrivyWebhookSecret(null, '', { NODE_ENV: 'production', HUMANIFY_WEBHOOK_ALLOW_OPEN: 'true' }) === true) ok('ALLOW_OPEN overrides prod');
+else fail('ALLOW_OPEN override');
 if (validatePrivyWebhookSecret('x', 'x') === true) ok('secret match');
 else fail('secret match');
 if (validatePrivyWebhookSecret('bad', 'x') === false) ok('secret reject');
 else fail('secret reject');
+if (validateRecruitmentWebhook(undefined, undefined, { NODE_ENV: 'production' }) === false) ok('recruitment fail-closed prod');
+else fail('recruitment fail-closed');
+if (validateRecruitmentWebhook(undefined, undefined, { NODE_ENV: 'development' }) === true) ok('recruitment open non-prod');
+else fail('recruitment open non-prod');
 
 const k1 = buildPrivyIdempotencyKey({ doc_token: 'T1', status: 'completed' });
 const k2 = buildPrivyIdempotencyKey({ doc_token: 'T1', status: 'completed' });

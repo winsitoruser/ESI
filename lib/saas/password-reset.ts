@@ -103,9 +103,9 @@ export async function requestPasswordReset(opts: {
   const resetUrl = `${base}/humanify/reset-password?token=${encodeURIComponent(token)}`;
 
   let emailed = false;
-  if (process.env.SMTP_USER && process.env.SMTP_PASSWORD) {
+  const { isSmtpConfigured, sendEmail } = await import('../email/sender');
+  if (isSmtpConfigured()) {
     try {
-      const { sendEmail } = await import('../email/sender');
       const { humanifyResetPasswordEmail } = await import('../email/humanify-mails');
       const mail = humanifyResetPasswordEmail({ resetUrl });
       emailed = await sendEmail({

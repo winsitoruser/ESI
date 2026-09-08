@@ -17,6 +17,8 @@ import { withHQAuth } from '@/lib/middleware/withHQAuth';
 import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
 import { allowHrMockFallback } from '@/lib/hris/data-source';
 import { enforceHumanifyPlanFeature } from '@/lib/saas/assert-feature';
+import { resolveEffectiveTenantId } from '@/lib/hris/resolve-employee-tenant';
+import { markGoLiveFlagSafe } from '@/lib/saas/go-live';
 
 const sequelize = require('../../../lib/sequelize');
 
@@ -26,7 +28,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (!session?.user) return res.status(401).json({ error: 'Unauthorized' });
     if (!(await enforceHumanifyPlanFeature(req, res, session))) return;
 
-    const tenantId = tenantIdFromSession(session);
+    const tenantId = await resolveEffectiveTenantId({
+      sequelize,
+      session,
+      sessionTenantId: tenantIdFromSession(session) || session?.user?.tenantId,
+    });
     const { action } = req.query;
     const method = req.method;
 
@@ -208,6 +214,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             deadline: body.deadline || null
           }
         });
+        await markGoLiveFlagSafe(tenantId, 'careersConfigured');
         return res.status(201).json({ success: true, data: rows[0] });
       }
 

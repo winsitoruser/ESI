@@ -150,6 +150,9 @@ export async function resolveTenantById(id: string): Promise<ResolvedTenant | nu
  * Default: session-level (is_local=false) + clear in finally (pool-safe soft RLS).
  * When HUMANIFY_RLS_REQUEST_BOUND=true (and CLS transaction wrap): use is_local=true
  * so values never leak across the pool after commit/rollback.
+ *
+ * Safety: if is_local would be used outside an open transaction, fall back to
+ * session-level — otherwise FORCE/strict RLS sees empty context and denies all rows.
  */
 export async function setDbTenantContext(
   tenantId: string | null,
@@ -166,10 +169,28 @@ export async function setDbTenantContext(
       isLocal = false;
     }
   }
+  if (isLocal) {
+    try {
+      const [rows] = await sequelize.query(
+        `SELECT txid_current_if_assigned() IS NOT NULL AS in_tx`,
+      );
+      if (!rows?.[0]?.in_tx) isLocal = false;
+    } catch {
+      isLocal = false;
+    }
+  }
   const localFlag = isLocal ? 'true' : 'false';
   try {
     if (isSuperAdmin) {
-      await sequelize.query(`SELECT set_config('app.current_tenant', '', ${localFlag})`);
+      // Superadmin bypasses RLS via is_super_admin; still bind tenant when known
+      // so WITH CHECK inserts land in the right tenant when writing as platform ops.
+      if (tenantId) {
+        await sequelize.query(`SELECT set_config('app.current_tenant', :tid, ${localFlag})`, {
+          replacements: { tid: String(tenantId) },
+        });
+      } else {
+        await sequelize.query(`SELECT set_config('app.current_tenant', '', ${localFlag})`);
+      }
       await sequelize.query(`SELECT set_config('app.is_super_admin', 'true', ${localFlag})`);
       return;
     }

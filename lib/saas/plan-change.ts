@@ -46,9 +46,9 @@ export interface PlanChangePreview {
 }
 
 async function readTenantPlan(tenantId: string): Promise<HumanifyPlanId> {
-  if (!sequelize) return 'enterprise';
+  if (!sequelize) return 'starter';
   const cols = await getTenantColumns();
-  if (!cols.has('subscription_plan')) return 'enterprise';
+  if (!cols.has('subscription_plan')) return 'starter';
   const [rows] = await sequelize.query(
     `SELECT subscription_plan FROM tenants WHERE id = :id LIMIT 1`,
     { replacements: { id: tenantId } },

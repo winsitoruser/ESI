@@ -1,6 +1,8 @@
 /**
  * Phase 17 — login rate-limit + lockout.
- * Memory by default; Redis when REDIS_URL is set. Always fail-open.
+ * Memory by default; Redis when REDIS_URL is set.
+ * Fail-open on storage errors is an approved availability policy (PR-024).
+ * MFA / seat / webhook controls fail-closed in production — see docs/humanify-mfa-login-guard-policy.md
  */
 import { getRedis } from '@/lib/redis/client';
 

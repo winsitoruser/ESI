@@ -230,9 +230,15 @@ export default function EmployeeExamPage() {
   if (submitted && result) {
     return (
       <div className="min-h-screen bg-slate-50 p-6 max-w-lg mx-auto text-center">
-        <CheckCircle2 className={`w-16 h-16 mx-auto mb-4 ${result.is_passed ? 'text-green-500' : 'text-red-500'}`} />
-        <h1 className="text-xl font-bold">{result.is_passed ? 'Lulus!' : result.needs_manual ? 'Dikumpulkan' : 'Belum Lulus'}</h1>
-        <p className="text-3xl font-bold mt-2">{result.percentage?.toFixed?.(1) ?? result.percentage}%</p>
+        <CheckCircle2 className={`w-16 h-16 mx-auto mb-4 ${result.needs_manual ? 'text-teal-500' : result.is_passed ? 'text-green-500' : 'text-red-500'}`} />
+        <h1 className="text-xl font-bold">
+          {result.needs_manual ? 'Jawaban terkumpul' : result.is_passed ? 'Lulus!' : 'Belum Lulus'}
+        </h1>
+        {result.needs_manual ? (
+          <p className="mt-2 text-sm text-gray-500">Essay Anda menunggu penilaian pengajar. Skor akhir akan muncul setelah dinilai.</p>
+        ) : (
+          <p className="text-3xl font-bold mt-2">{result.percentage?.toFixed?.(1) ?? result.percentage}%</p>
+        )}
         {result.integrity_score != null && <p className="text-sm text-gray-500 mt-2">Integrity: {result.integrity_score}</p>}
         <Link href="/employee/training" className="mt-6 inline-block px-6 py-2 bg-teal-600 text-white rounded-xl">Kembali</Link>
       </div>
@@ -261,7 +267,20 @@ export default function EmployeeExamPage() {
               <Flag className="w-5 h-5" />
             </button>
           </div>
-          <p className="text-gray-900 font-medium mb-4">{q.question_text}</p>
+          <p className="text-gray-900 font-medium mb-1">{q.question_text}</p>
+          {(q.question_type === 'essay' || q.question_type === 'situational') && (
+            <p className="mb-3 text-xs font-medium text-teal-700">
+              {q.question_type === 'essay' ? 'Essay — tulis jawaban Anda' : 'Situational — jelaskan pilihan dan alasan Anda'} · {q.score} poin
+            </p>
+          )}
+          {q.question_type === 'essay' || q.question_type === 'situational' ? (
+            <textarea
+              className="min-h-[160px] w-full rounded-xl border-2 border-gray-200 p-3 text-sm focus:border-teal-500 focus:outline-none"
+              placeholder="Tulis jawaban di sini…"
+              value={answers[q.id] || ''}
+              onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.value })}
+            />
+          ) : (
           <div className="space-y-2">
             {(Array.isArray(q.options) ? q.options : []).map((o: any) => (
               <button
@@ -274,6 +293,7 @@ export default function EmployeeExamPage() {
               </button>
             ))}
           </div>
+          )}
         </div>
 
         <div className="border-t p-4 flex gap-2 max-w-2xl mx-auto w-full">

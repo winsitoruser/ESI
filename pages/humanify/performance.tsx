@@ -189,7 +189,7 @@ export default function PerformancePage() {
 
   if (!mounted) {
     return (
-      <HQLayout title={t('hris.performanceTitle')} subtitle={t('hris.performanceSubtitle')}>
+      <HQLayout>
         <PerformanceModuleChrome active="performance" title={t('hris.performanceTitle')} subtitle="Memuat..." icon={Award} />
       </HQLayout>
     );
@@ -379,7 +379,7 @@ export default function PerformancePage() {
   // Form modal content (shared between create/edit)
   const renderFormModal = (isEdit: boolean) => (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+      <div className="hf-card max-h-[90vh] w-full max-w-3xl overflow-y-auto">
         <div className="p-5 border-b flex items-center justify-between sticky top-0 bg-white z-10">
           <h2 className="text-lg font-bold">{isEdit ? 'Edit Evaluasi Kinerja' : 'Buat Evaluasi Baru'}</h2>
           <button onClick={() => { setShowCreateModal(false); setShowEditModal(false); }}
@@ -560,18 +560,18 @@ export default function PerformancePage() {
   );
 
   return (
-    <HQLayout title={t('hris.performanceTitle')} subtitle={t('hris.performanceSubtitle')}>
+    <HQLayout>
       <div className="space-y-6">
         <PerformanceModuleChrome
           active="performance"
           title={t('hris.performanceTitle')}
           subtitle="Evaluasi kinerja, feedback 360°, dan nine-box matrix untuk keputusan talent management"
           icon={Award}
-          gradient="indigo"
+          gradient="corporate"
           actions={
             <>
-              <DataSourceBadge source={pageTab === 'ninebox' ? nineBoxDataSource : performanceDataSource} className="!bg-white/90" />
-              <button onClick={openCreate} className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-medium text-[color:var(--hf-brand)] hover:bg-[var(--hf-brand-50)]">
+              <DataSourceBadge source={pageTab === 'ninebox' ? nineBoxDataSource : performanceDataSource} />
+              <button onClick={openCreate} className="flex items-center gap-2 rounded-[var(--hf-radius)] bg-[var(--hf-brand-600)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--hf-brand)]">
                 <Plus className="h-4 w-4" /> Buat Evaluasi
               </button>
             </>
@@ -586,7 +586,7 @@ export default function PerformancePage() {
         </div>
 
         {/* Toolbar */}
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+        <div className="hf-card p-4">
           <EnterpriseTabBar
             tabs={[
               { key: 'reviews' as const, label: 'Evaluasi Kinerja', icon: FileText, count: reviews.length },
@@ -717,13 +717,13 @@ export default function PerformancePage() {
                 { label: 'Develop Pool', value: nineBoxData.summary?.develop || 0, color: 'text-[color:var(--hf-brand-600)]' },
                 { label: 'At Risk', value: nineBoxData.summary?.risk || 0, color: 'text-red-600' },
               ].map(s => (
-                <div key={s.label} className="bg-white rounded-xl p-4 border shadow-sm">
+                <div key={s.label} className="hf-card p-4">
                   <p className="text-xs text-gray-500">{s.label}</p>
                   <p className={`text-2xl font-bold ${s.color || ''}`}>{s.value}</p>
                 </div>
               ))}
             </div>
-            <div className="bg-white rounded-xl border shadow-sm p-6">
+            <div className="hf-card p-6">
               <NineBoxMatrix
                 employees={nineBoxData.employees || []}
                 onSelect={setSelectedNineBox}
@@ -762,7 +762,7 @@ export default function PerformancePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredReviews.map((review) => (
               <div key={review.id}
-                className="bg-white rounded-xl shadow-sm border p-5 hover:shadow-md transition-all cursor-pointer"
+                className="hf-tile hf-tile-interactive cursor-pointer p-5"
                 onClick={() => setSelectedReview(review)}>
                 <div className="flex justify-between items-start mb-3">
                   <div>
@@ -797,7 +797,7 @@ export default function PerformancePage() {
         {/* Detail Modal */}
         {selectedReview && !showEditModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <div className="hf-card max-h-[90vh] w-full max-w-3xl overflow-y-auto">
               <div className="p-5 border-b flex items-center justify-between sticky top-0 bg-white z-10">
                 <div>
                   <h3 className="text-lg font-bold">{selectedReview.employeeName}</h3>
@@ -933,7 +933,7 @@ export default function PerformancePage() {
         {/* 360° Feedback Modal */}
         {show360Modal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-lg">
+            <div className="hf-card w-full max-w-lg">
               <div className="flex justify-between items-center p-5 border-b">
                 <h2 className="text-lg font-semibold">Tambah Feedback 360°</h2>
                 <button onClick={() => setShow360Modal(false)}><X className="w-5 h-5 text-gray-400" /></button>

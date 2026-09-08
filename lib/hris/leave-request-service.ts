@@ -1,26 +1,27 @@
 /**
  * Shared leave request workflow for employee portal + manager approvals.
+ *
+ * IMPORTANT: when HUMANIFY_RLS_REQUEST_BOUND wraps the request in a TX,
+ * a failed query + JS `.catch()` still leaves Postgres in aborted state.
+ * All best-effort / schema-probe queries MUST use SAVEPOINT (withDbSavepoint).
  */
 
+import { withDbSavepoint } from '@/lib/saas/tenant-request-bound';
+
 let sequelize: any;
-let Op: any;
 let LeaveApprovalConfig: any;
 
 try {
   sequelize = require('../sequelize');
-  Op = require('sequelize').Op;
   LeaveApprovalConfig = require('../../models/LeaveApprovalConfig');
 } catch (_) {}
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** Prefer columns that exist on prod leave_balances (avoid missing-column abort). */
 function balanceRemainingExpr(): string {
   return `COALESCE(lb.remaining,
-    COALESCE(lb.entitled, lb.entitled_days, 0)
-    + COALESCE(lb.carried_forward_days, 0)
-    + COALESCE(lb.adjustment_days, 0)
-    - COALESCE(lb.used, lb.used_days, 0)
-    - COALESCE(lb.pending, lb.pending_days, 0)
+    COALESCE(lb.entitled, 0) - COALESCE(lb.used, 0) - COALESCE(lb.pending, 0)
   )`;
 }
 
@@ -38,19 +39,18 @@ export function calcBusinessDays(startDate: string, endDate: string): number {
 
 async function getLeaveBalanceRemaining(empId: string, leaveTypeCode: string, year: number): Promise<number | null> {
   if (!sequelize) return null;
-  try {
+  const rows = await withDbSavepoint(sequelize, async () => {
     const [balanceRows] = await sequelize.query(`
-      SELECT lb.*, ${balanceRemainingExpr()} AS remaining_calc
+      SELECT ${balanceRemainingExpr()} AS remaining_calc, lb.remaining
       FROM leave_balances lb
       WHERE lb.employee_id::text = :empId AND lb.year = :year
       AND lb.leave_type_id = (SELECT id FROM leave_types WHERE code = :code LIMIT 1)
     `, { replacements: { empId: String(empId), year, code: leaveTypeCode } });
-    const balance = balanceRows?.[0];
-    if (!balance) return null;
-    return parseFloat(balance.remaining_calc ?? balance.remaining ?? 0);
-  } catch {
-    return null;
-  }
+    return balanceRows as any[];
+  }, 'leave_bal_rem');
+  const balance = rows?.[0];
+  if (!balance) return null;
+  return parseFloat(balance.remaining_calc ?? balance.remaining ?? 0);
 }
 
 export async function adjustLeaveBalancePending(
@@ -64,36 +64,42 @@ export async function adjustLeaveBalancePending(
   const sql =
     mode === 'add'
       ? `UPDATE leave_balances SET
-          pending = COALESCE(pending, pending_days, 0) + :days,
-          remaining = GREATEST(0, COALESCE(remaining, entitled, entitled_days, 0) - :days),
+          pending = COALESCE(pending, 0) + :days,
+          remaining = GREATEST(0, COALESCE(remaining, entitled, 0) - COALESCE(used, 0) - (COALESCE(pending, 0) + :days)),
           updated_at = NOW()
         WHERE employee_id::text = :empId AND year = :year
         AND leave_type_id = (SELECT id FROM leave_types WHERE code = :code LIMIT 1)`
       : mode === 'remove'
         ? `UPDATE leave_balances SET
-            pending = GREATEST(0, COALESCE(pending, pending_days, 0) - :days),
+            pending = GREATEST(0, COALESCE(pending, 0) - :days),
             updated_at = NOW()
           WHERE employee_id::text = :empId AND year = :year
           AND leave_type_id = (SELECT id FROM leave_types WHERE code = :code LIMIT 1)`
         : `UPDATE leave_balances SET
-            pending = GREATEST(0, COALESCE(pending, pending_days, 0) - :days),
-            used = COALESCE(used, used_days, 0) + :days,
-            remaining = GREATEST(0, COALESCE(remaining, entitled, entitled_days, 0) - :days),
+            pending = GREATEST(0, COALESCE(pending, 0) - :days),
+            used = COALESCE(used, 0) + :days,
+            remaining = GREATEST(0, COALESCE(remaining, entitled, 0) - (COALESCE(used, 0) + :days) - GREATEST(0, COALESCE(pending, 0) - :days)),
             updated_at = NOW()
           WHERE employee_id::text = :empId AND year = :year
           AND leave_type_id = (SELECT id FROM leave_types WHERE code = :code LIMIT 1)`;
-  await sequelize.query(sql, {
-    replacements: { days, empId: String(empId), year, code: leaveTypeCode },
-  }).catch(() => {});
+  await withDbSavepoint(sequelize, async () => {
+    await sequelize.query(sql, {
+      replacements: { days, empId: String(empId), year, code: leaveTypeCode },
+    });
+  }, 'leave_bal_adj');
 }
 
 async function findApprovalConfig(employee: any, leaveType: string, totalDays: number) {
-  if (!LeaveApprovalConfig) return { config: null, levels: [] };
+  const fallback = { config: null as any, levels: [{ level: 1, role: 'MANAGER', title: 'Atasan Langsung' }] };
+  if (!LeaveApprovalConfig || !sequelize) return fallback;
 
-  try {
+  const resolved = await withDbSavepoint(sequelize, async () => {
     const configs = await LeaveApprovalConfig.findAll({
       where: { isActive: true },
       order: [['priority', 'DESC']],
+      attributes: {
+        exclude: ['division'],
+      },
     });
 
     let approvalConfig: any = null;
@@ -109,18 +115,19 @@ async function findApprovalConfig(employee: any, leaveType: string, totalDays: n
     }
 
     if (!approvalConfig) {
-      const fallback = configs.find((c: any) => {
+      const fb = configs.find((c: any) => {
         const j = c.toJSON ? c.toJSON() : c;
         return !j.department && !(j.leave_type_code || j.leaveTypeCode);
       });
-      if (fallback) approvalConfig = fallback.toJSON ? fallback.toJSON() : fallback;
+      if (fb) approvalConfig = fb.toJSON ? fb.toJSON() : fb;
     }
 
     const levels = approvalConfig?.approval_levels || approvalConfig?.approvalLevels || [];
-    return { config: approvalConfig, levels };
-  } catch {
-    return { config: null, levels: [{ level: 1, role: 'MANAGER', title: 'Atasan Langsung' }] };
-  }
+    if (levels.length) return { config: approvalConfig, levels };
+    return { config: approvalConfig, levels: fallback.levels };
+  }, 'leave_appr_cfg');
+
+  return resolved || fallback;
 }
 
 export type PortalLeaveInput = {
@@ -143,16 +150,14 @@ export async function resolveLeaveApproverId(
   if (!seq) return null;
   const roleUpper = String(role || '').toUpperCase();
   if (!['SUPERVISOR', 'MANAGER', 'DIRECT_MANAGER', 'ATASAN'].includes(roleUpper)) return null;
-  try {
+  const sid = await withDbSavepoint(seq, async () => {
     const [rows] = await seq.query(
       `SELECT supervisor_id::text AS sid FROM employees WHERE id::text = :empId LIMIT 1`,
       { replacements: { empId: String(employeeId) } },
     );
-    const sid = rows?.[0]?.sid;
-    return sid && UUID_RE.test(String(sid)) ? String(sid) : null;
-  } catch {
-    return null;
-  }
+    return rows?.[0]?.sid || null;
+  }, 'leave_approver');
+  return sid && UUID_RE.test(String(sid)) ? String(sid) : null;
 }
 
 export async function createPortalLeaveRequest(input: PortalLeaveInput) {
@@ -168,12 +173,17 @@ export async function createPortalLeaveRequest(input: PortalLeaveInput) {
     };
   }
 
-  await sequelize.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"').catch(() => {});
+  if (!tenantId) {
+    return { success: false, error: 'Tenant context required' };
+  }
 
-  // Schema drift: older DBs lack attachment_url — ensure before INSERT
-  await sequelize.query(
-    `ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS attachment_url TEXT`,
-  ).catch(() => {});
+  // Best-effort schema probes — never abort the request TX
+  await withDbSavepoint(sequelize, async () => {
+    await sequelize.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
+  }, 'uuid_ext');
+  await withDbSavepoint(sequelize, async () => {
+    await sequelize.query(`ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS attachment_url TEXT`);
+  }, 'leave_attach_col');
 
   const remaining = await getLeaveBalanceRemaining(String(employeeId), leaveType, new Date().getFullYear());
   if (remaining !== null && remaining < totalDays) {
@@ -184,9 +194,15 @@ export async function createPortalLeaveRequest(input: PortalLeaveInput) {
   }
 
   const [empRows] = await sequelize.query(`
-    SELECT id, name, department, branch_id, position, supervisor_id FROM employees WHERE id::text = :empId LIMIT 1
-  `, { replacements: { empId: String(employeeId) } });
+    SELECT id, name, department, branch_id, position, supervisor_id
+    FROM employees
+    WHERE id::text = :empId AND tenant_id = :tenantId
+    LIMIT 1
+  `, { replacements: { empId: String(employeeId), tenantId } });
   const employee = empRows?.[0];
+  if (!employee) {
+    return { success: false, error: 'Profil karyawan tidak ditemukan di tenant ini' };
+  }
 
   const { config: approvalConfig, levels: approvalLevels } = await findApprovalConfig(employee, leaveType, totalDays);
   const totalSteps = approvalLevels.length || 1;
@@ -213,7 +229,7 @@ export async function createPortalLeaveRequest(input: PortalLeaveInput) {
       reason,
       attachmentUrl: attachmentUrl || null,
       status: autoApprove ? 'approved' : 'pending',
-      tenantId: tenantId || null,
+      tenantId,
       configId: approvalConfig?.id || null,
       totalSteps,
     },
@@ -227,18 +243,20 @@ export async function createPortalLeaveRequest(input: PortalLeaveInput) {
   if (!autoApprove && approvalLevels.length > 0) {
     for (const level of approvalLevels) {
       const approverId = await resolveLeaveApproverId(employeeId, level.role);
-      await sequelize.query(`
-        INSERT INTO leave_approval_steps (id, leave_request_id, step_order, approver_role, approver_id, status, created_at, updated_at)
-        VALUES (uuid_generate_v4(), :requestId, :stepOrder, :role, :approverId, :status, NOW(), NOW())
-      `, {
-        replacements: {
-          requestId: leaveRequest.id,
-          stepOrder: level.level,
-          role: level.role,
-          approverId,
-          status: level.level === 1 ? 'pending' : 'waiting',
-        },
-      });
+      await withDbSavepoint(sequelize, async () => {
+        await sequelize.query(`
+          INSERT INTO leave_approval_steps (id, leave_request_id, step_order, approver_role, approver_id, status, created_at, updated_at)
+          VALUES (uuid_generate_v4(), :requestId, :stepOrder, :role, :approverId, :status, NOW(), NOW())
+        `, {
+          replacements: {
+            requestId: leaveRequest.id,
+            stepOrder: level.level,
+            role: level.role,
+            approverId,
+            status: level.level === 1 ? 'pending' : 'waiting',
+          },
+        });
+      }, 'leave_step_ins');
     }
     await adjustLeaveBalancePending(String(employeeId), leaveType, new Date().getFullYear(), totalDays, 'add');
   }
@@ -367,11 +385,13 @@ export async function rejectLeaveRequest(params: {
     WHERE id::text = :id AND status = 'pending' AND tenant_id = :tenantId
   `, { replacements: { id: requestId, reason, tenantId } });
 
-  await sequelize.query(`
-    UPDATE leave_approval_steps SET status = 'rejected', approver_id = :approverId,
-      comments = :reason, acted_at = NOW(), updated_at = NOW()
-    WHERE leave_request_id::text = :id AND status IN ('pending', 'waiting')
-  `, { replacements: { id: requestId, approverId: approverId || null, reason } });
+  await withDbSavepoint(sequelize, async () => {
+    await sequelize.query(`
+      UPDATE leave_approval_steps SET status = 'rejected', approver_id = :approverId,
+        comments = :reason, acted_at = NOW(), updated_at = NOW()
+      WHERE leave_request_id::text = :id AND status IN ('pending', 'waiting')
+    `, { replacements: { id: requestId, approverId: approverId || null, reason } });
+  }, 'leave_reject_steps');
 
   if (leaveData.status === 'pending') {
     await adjustLeaveBalancePending(
@@ -388,8 +408,9 @@ export async function rejectLeaveRequest(params: {
 
 export async function attachApprovalSteps(requests: any[]) {
   if (!sequelize || !requests?.length) return requests;
-  try {
-    const ids = requests.map((r) => `'${r.id}'`).join(',');
+  const enriched = await withDbSavepoint(sequelize, async () => {
+    const ids = requests.map((r) => `'${String(r.id).replace(/'/g, '')}'`).join(',');
+    if (!ids) return requests;
     const [steps] = await sequelize.query(`
       SELECT * FROM leave_approval_steps WHERE leave_request_id IN (${ids}) ORDER BY step_order
     `);
@@ -403,7 +424,6 @@ export async function attachApprovalSteps(requests: any[]) {
       approval_steps: map[r.id] || [],
       current_step: (map[r.id] || []).find((s: any) => s.status === 'pending'),
     }));
-  } catch {
-    return requests;
-  }
+  }, 'leave_attach_steps');
+  return enriched || requests;
 }

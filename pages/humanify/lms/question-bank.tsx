@@ -1,131 +1,192 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import HumanifyLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import HrisEmptyState from '@/components/humanify/HrisEmptyState';
 import { PageGuard } from '@/components/permissions';
-import { LmsPageNav, lmsFetch, Modal, LmsStatusBadge } from '@/components/humanify/lms/shared';
-import { QUESTION_TYPE_LABELS, PSYCHOMETRIC_LABELS } from '@/lib/hris/lms/types';
+import { Modal, LmsStatusBadge, LmsQuestionForm, EMPTY_QUESTION_FORM } from '@/components/humanify/lms/shared';
+import { TalentShell } from '@/components/humanify/TalentModuleChrome';
+import { QUESTION_TYPE_LABELS } from '@/lib/hris/lms/types';
 import type { HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
-import { Plus, Search, Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { Plus, Search, Trash2, Library } from 'lucide-react';
 
 export default function QuestionBankPage() {
   const { t } = useTranslation();
   const [items, setItems] = useState<any[]>([]);
+  const [courses, setCourses] = useState<any[]>([]);
+  const [modules, setModules] = useState<any[]>([]);
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [courseFilter, setCourseFilter] = useState('');
   const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState<any>({ question_type: 'multiple_choice', options: [{ label: 'A', text: '', isCorrect: true }, { label: 'B', text: '', isCorrect: false }] });
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState<any>({ ...EMPTY_QUESTION_FORM });
+
+  const loadMeta = useCallback(async () => {
+    const [c, m] = await Promise.all([
+      fetch('/api/humanify/lms/courses?action=list').then((r) => r.json()),
+      fetch('/api/humanify/lms?action=modules').then((r) => r.json()),
+    ]);
+    setCourses(c.data || []);
+    setModules(m.data || []);
+  }, []);
 
   const load = useCallback(async () => {
     const q = new URLSearchParams({ action: 'question-bank' });
     if (search) q.set('search', search);
-    if (filter) q.set('psychometric_type', filter);
+    if (typeFilter) q.set('question_type', typeFilter);
+    if (courseFilter) q.set('curriculum_id', courseFilter);
     const d = await fetch(`/api/humanify/lms?${q}`).then((r) => r.json());
     setItems(d.data || []);
     setDataSource(d.data?.length ? 'live' : 'empty');
-  }, [search, filter]);
+  }, [search, typeFilter, courseFilter]);
 
+  useEffect(() => { loadMeta(); }, [loadMeta]);
   useEffect(() => { load(); }, [load]);
 
   const save = async () => {
-    await fetch('/api/humanify/lms?action=create-question', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
-    setModal(false);
-    setForm({ question_type: 'multiple_choice', options: [{ label: 'A', text: '', isCorrect: true }, { label: 'B', text: '', isCorrect: false }] });
-    load();
+    if (!form.question_text?.trim()) {
+      toast.error('Teks soal wajib');
+      return;
+    }
+    if (form.question_type === 'multiple_choice' && !(form.options || []).some((o: any) => o.isCorrect && o.text?.trim())) {
+      toast.error('Pilih kunci jawaban dan isi opsi');
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch('/api/humanify/lms?action=create-question', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || j.success === false) throw new Error(j.error || 'Gagal menyimpan');
+      toast.success('Soal masuk bank');
+      setModal(false);
+      setForm({ ...EMPTY_QUESTION_FORM });
+      load();
+    } catch (e: any) {
+      toast.error(e.message || 'Gagal');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const remove = async (id: string) => {
-    if (!confirm('Hapus soal ini?')) return;
+    if (!confirm('Hapus soal ini dari bank?')) return;
     await fetch(`/api/humanify/lms?action=delete-question&id=${id}`, { method: 'DELETE' });
     load();
   };
 
+  const stats = useMemo(() => ({
+    total: items.length,
+    mc: items.filter((x) => x.question_type === 'multiple_choice' || x.question_type === 'true_false').length,
+    essay: items.filter((x) => x.question_type === 'essay' || x.question_type === 'situational').length,
+  }), [items]);
+
+  const courseTitle = (id?: string) => courses.find((c) => c.id === id)?.title;
+  const moduleTitle = (id?: string) => modules.find((m) => m.id === id)?.title;
+
   return (
     <PageGuard anyPermission={['lms.view', 'lms.*', 'training.*']}>
-      <HumanifyLayout title={t('hris.lmsQuestionBank')} subtitle="Bank soal terpusat untuk semua jenis assessment">
-        <LmsPageNav active="question-bank" />
-        <div className="flex flex-wrap gap-3 mb-4 justify-between">
-          <div className="flex gap-2 flex-1">
-            <div className="relative flex-1 max-w-xs">
-              <Search className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
-              <input className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm" placeholder="Cari soal..." value={search} onChange={(e) => setSearch(e.target.value)} />
+      <HumanifyLayout title={t('hris.lmsQuestionBank')} subtitle="Bank soal terpusat — pilihan ganda dan essay per modul">
+        <TalentShell
+          current="bank"
+          title="Bank Soal"
+          subtitle="Kelola inventory soal pilihan ganda dan essay, tautkan ke kursus/modul, lalu impor ke tes."
+          icon={Library}
+          chips={[{ label: `${stats.total} soal` }, { label: `${stats.essay} essay` }]}
+          actions={(
+            <div className="flex flex-wrap items-center gap-2">
+              <DataSourceBadge source={dataSource} />
+              <button type="button" onClick={() => { setForm({ ...EMPTY_QUESTION_FORM }); setModal(true); }} className="hf-btn-primary inline-flex items-center gap-1.5 text-sm">
+                <Plus className="h-4 w-4" /> Tambah soal
+              </button>
             </div>
-            <select className="border rounded-lg px-3 text-sm" value={filter} onChange={(e) => setFilter(e.target.value)}>
-              <option value="">Semua Tipe</option>
-              <option value="cognitive">Kognitif</option>
-              <option value="personality">Kepribadian</option>
-              <option value="integrity">Integritas</option>
+          )}
+        >
+          <div className="flex flex-wrap gap-2">
+            <div className="relative min-w-[200px] flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--hf-ink-faint)]" />
+              <input className="hf-input w-full pl-9" placeholder="Cari teks, kode, atau kategori…" value={search} onChange={(e) => setSearch(e.target.value)} />
+            </div>
+            <select className="hf-input w-auto" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+              <option value="">Semua tipe</option>
+              <option value="multiple_choice">Pilihan ganda</option>
+              <option value="true_false">Benar/salah</option>
+              <option value="essay">Essay</option>
+              <option value="situational">Situational</option>
+            </select>
+            <select className="hf-input w-auto" value={courseFilter} onChange={(e) => setCourseFilter(e.target.value)}>
+              <option value="">Semua kursus</option>
+              {courses.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
             </select>
           </div>
-          <div className="flex gap-2 items-center">
-            <DataSourceBadge source={dataSource} />
-            <button type="button" onClick={() => setModal(true)} className="flex items-center gap-1 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm">
-              <Plus className="w-4 h-4" /> Tambah Soal
+
+          {!items.length ? (
+            <HrisEmptyState
+              source={dataSource}
+              title="Bank soal masih kosong"
+              description="Tambah pilihan ganda atau essay, tautkan ke modul, lalu impor ke tes ujian."
+              action={(
+                <button type="button" onClick={() => setModal(true)} className="hf-btn-primary inline-flex items-center gap-1.5 text-sm">
+                  <Plus className="h-4 w-4" /> Soal pertama
+                </button>
+              )}
+            />
+          ) : (
+            <div className="hf-table-wrap">
+              <table className="hf-table w-full text-sm">
+                <thead>
+                  <tr>
+                    <th className="text-left">Soal</th>
+                    <th>Tipe</th>
+                    <th>Pemetaan</th>
+                    <th>Poin</th>
+                    <th>Status</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((q) => {
+                    const meta = q.metadata || {};
+                    return (
+                      <tr key={q.id}>
+                        <td>
+                          <p className="font-mono text-[11px] text-[color:var(--hf-ink-faint)]">{q.code}</p>
+                          <p className="max-w-lg truncate font-medium text-[color:var(--hf-ink)]">{q.question_text}</p>
+                          <p className="text-[11px] text-[color:var(--hf-ink-muted)]">{q.category} · {q.difficulty}</p>
+                        </td>
+                        <td>{QUESTION_TYPE_LABELS[q.question_type] || q.question_type}</td>
+                        <td className="text-xs text-[color:var(--hf-ink-muted)]">
+                          {courseTitle(meta.curriculum_id) || '—'}
+                          {meta.module_id ? ` · ${moduleTitle(meta.module_id) || 'modul'}` : ''}
+                        </td>
+                        <td className="tabular-nums">{q.score}</td>
+                        <td><LmsStatusBadge status={q.status} /></td>
+                        <td>
+                          <button type="button" onClick={() => remove(q.id)} className="text-rose-600 hover:text-rose-800" aria-label="Hapus">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <Modal open={modal} onClose={() => setModal(false)} title="Tambah soal ke bank">
+            <LmsQuestionForm form={form} onChange={setForm} courses={courses} modules={modules} />
+            <button type="button" disabled={saving} onClick={save} className="hf-btn-primary mt-4 w-full disabled:opacity-50">
+              {saving ? 'Menyimpan…' : 'Simpan ke bank'}
             </button>
-          </div>
-        </div>
-
-        <div className="bg-white border rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-left">
-              <tr>
-                <th className="p-3">Kode</th>
-                <th className="p-3">Soal</th>
-                <th className="p-3">Tipe</th>
-                <th className="p-3">Psikotes</th>
-                <th className="p-3">Skor</th>
-                <th className="p-3">Status</th>
-                <th className="p-3 w-16" />
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((q) => (
-                <tr key={q.id} className="border-t hover:bg-gray-50">
-                  <td className="p-3 font-mono text-xs">{q.code}</td>
-                  <td className="p-3 max-w-md truncate">{q.question_text}</td>
-                  <td className="p-3">{QUESTION_TYPE_LABELS[q.question_type] || q.question_type}</td>
-                  <td className="p-3">{q.psychometric_type ? PSYCHOMETRIC_LABELS[q.psychometric_type] : '-'}</td>
-                  <td className="p-3">{q.score}</td>
-                  <td className="p-3"><LmsStatusBadge status={q.status} /></td>
-                  <td className="p-3">
-                    <button type="button" onClick={() => remove(q.id)} className="text-red-500 hover:text-red-700"><Trash2 className="w-4 h-4" /></button>
-                  </td>
-                </tr>
-              ))}
-              {!items.length && <tr><td colSpan={7} className="p-8 text-center text-gray-400">Belum ada soal — tambahkan dari bank soal</td></tr>}
-            </tbody>
-          </table>
-        </div>
-
-        <Modal open={modal} onClose={() => setModal(false)} title="Tambah Soal">
-          <div className="space-y-3">
-            <input className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Kategori" value={form.category || ''} onChange={(e) => setForm({ ...form, category: e.target.value })} />
-            <select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.question_type} onChange={(e) => setForm({ ...form, question_type: e.target.value })}>
-              {Object.entries(QUESTION_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
-            <select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.psychometric_type || ''} onChange={(e) => setForm({ ...form, psychometric_type: e.target.value || null })}>
-              <option value="">Umum (bukan psikotes)</option>
-              <option value="cognitive">Kognitif</option>
-              <option value="personality">Kepribadian</option>
-              <option value="integrity">Integritas</option>
-            </select>
-            <textarea className="w-full border rounded-lg px-3 py-2 text-sm min-h-[80px]" placeholder="Teks soal" value={form.question_text || ''} onChange={(e) => setForm({ ...form, question_text: e.target.value })} />
-            {form.question_type === 'multiple_choice' && form.options?.map((o: any, i: number) => (
-              <div key={i} className="flex gap-2 items-center">
-                <span className="font-mono w-6">{o.label}</span>
-                <input className="flex-1 border rounded px-2 py-1 text-sm" value={o.text} onChange={(e) => {
-                  const opts = [...form.options]; opts[i] = { ...o, text: e.target.value }; setForm({ ...form, options: opts });
-                }} />
-                <input type="radio" name="correct" checked={o.isCorrect} onChange={() => {
-                  const opts = form.options.map((x: any, j: number) => ({ ...x, isCorrect: j === i }));
-                  setForm({ ...form, options: opts, correct_answer: o.label });
-                }} />
-              </div>
-            ))}
-            <button type="button" onClick={save} className="w-full py-2 bg-[var(--hf-brand-600)] text-white rounded-lg">Simpan</button>
-          </div>
-        </Modal>
+          </Modal>
+        </TalentShell>
       </HumanifyLayout>
     </PageGuard>
   );

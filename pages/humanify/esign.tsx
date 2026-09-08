@@ -24,8 +24,8 @@ const STATUS_COLORS: Record<string, string> = {
   completed: 'bg-green-100 text-green-700',
 };
 
-/** Sementara disembunyikan dari produk — set true saat e-sign siap dibuka lagi. */
-const ESIGN_UI_ENABLED = false;
+/** PR-005: E-Sign is lab/hidden by default. Set NEXT_PUBLIC_ESIGN_UI_ENABLED=true to unhide. */
+const ESIGN_UI_ENABLED = String(process.env.NEXT_PUBLIC_ESIGN_UI_ENABLED || 'false').toLowerCase() === 'true';
 
 export default function ESignPage() {
   if (!ESIGN_UI_ENABLED) {
@@ -132,7 +132,7 @@ function ESignPageInner() {
               { label: 'Partially Signed', value: docs.filter(d => d.status === 'partially_signed').length },
               { label: 'Completed', value: docs.filter(d => d.status === 'completed').length },
             ].map(s => (
-              <div key={s.label} className="bg-white rounded-xl p-4 border shadow-sm">
+              <div key={s.label} className="hf-card p-4">
                 <p className="text-xs text-gray-500">{s.label}</p>
                 <p className="text-2xl font-bold">{s.value}</p>
               </div>
@@ -141,7 +141,7 @@ function ESignPageInner() {
 
           <div className="space-y-3">
             {docs.map(doc => (
-              <div key={doc.id} className="bg-white rounded-xl border shadow-sm p-5">
+              <div key={doc.id} className="hf-card p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
@@ -171,7 +171,7 @@ function ESignPageInner() {
 
           {showCreate && (
             <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-              <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-5">
+              <div className="hf-card w-full max-w-md p-5">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="font-semibold">Buat Dokumen E-Sign</h3>
                   <button onClick={() => setShowCreate(false)}><X className="w-5 h-5 text-gray-400" /></button>

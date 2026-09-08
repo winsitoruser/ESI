@@ -9,6 +9,7 @@ import { calcCurriculumProgress, parseMaterials } from '../../../lib/hris/lms/co
 import { issueCourseCertificate } from '../../../lib/hris/lms/certificate-issue';
 import { buildPsychometricReport } from '../../../lib/hris/lms/psychometric-report';
 import { shouldFlagSession } from '../../../lib/hris/lms/proctoring';
+import { withEmployeeAuth } from '@/lib/middleware/withEmployeeAuth';
 
 const sequelize = require('../../../lib/sequelize');
 
@@ -30,7 +31,7 @@ async function resolveEmployee(session: any) {
   return byEmail[0] ? { ...byEmail[0], tenantId } : null;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     const session = await getServerSession(req, res, authOptions);
     if (!session?.user) return res.status(401).json({ error: 'Unauthorized' });
@@ -556,3 +557,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: err.message || 'Internal error' });
   }
 }
+
+export default withEmployeeAuth(handler);

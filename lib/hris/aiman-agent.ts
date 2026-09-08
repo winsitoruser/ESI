@@ -276,6 +276,23 @@ export async function confirmAimanAgentAction(opts: {
   actorEmail?: string | null;
 }): Promise<{ reply: string; result: AgentToolResult; step: AgentStep }> {
   const meta = toolMeta(opts.tool);
+  const { logAdminAction } = await import('@/lib/saas/admin-audit');
+  const { mustFailClosed } = await import('@/lib/saas/fail-closed');
+
+  try {
+    await logAdminAction({
+      tenantId: opts.tenantId,
+      actorUserId: opts.actorUserId,
+      actorEmail: opts.actorEmail,
+      action: 'aiman.agent_confirm_attempt',
+      resourceType: 'aiman_tool',
+      resourceId: opts.tool,
+      meta: { kind: meta.kind, label: meta.label },
+    });
+  } catch (err) {
+    if (mustFailClosed()) throw err;
+  }
+
   const result = await executeAgentTool(opts.tool, opts.tenantId, {
     confirm: meta.kind === 'write',
   });
@@ -292,7 +309,6 @@ export async function confirmAimanAgentAction(opts: {
     : `✗ Gagal menjalankan ${meta.label}: ${result.summary}`;
 
   try {
-    const { logAdminAction } = await import('@/lib/saas/admin-audit');
     await logAdminAction({
       tenantId: opts.tenantId,
       actorUserId: opts.actorUserId,
@@ -302,7 +318,9 @@ export async function confirmAimanAgentAction(opts: {
       resourceId: opts.tool,
       meta: { ok: result.ok, summary: result.summary, kind: meta.kind },
     });
-  } catch { /* audit best-effort */ }
+  } catch (err) {
+    if (mustFailClosed()) throw err;
+  }
 
   return { reply, result, step };
 }

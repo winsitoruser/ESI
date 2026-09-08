@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, User, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { getDepartmentLabel, getWorkLocationLabel } from '@/lib/hris/master-data';
+import EmployeeAvatar from '@/components/humanify/EmployeeAvatar';
 
 export interface PickedEmployee {
   id: string;
@@ -12,6 +13,7 @@ export interface PickedEmployee {
   branch_name: string;
   work_location: string;
   join_date?: string;
+  photo_url?: string | null;
 }
 
 interface EmployeePickerProps {
@@ -59,6 +61,7 @@ export default function EmployeePicker({
             branch_name: e.branch_name || e.branchName || '',
             work_location: e.work_location || e.workLocation || '',
             join_date: e.join_date || e.joinDate,
+            photo_url: e.photo_url || null,
           })));
         }
       } catch {
@@ -194,9 +197,7 @@ export default function EmployeePicker({
                     idx === highlight || value === e.id ? 'bg-indigo-50' : 'hover:bg-gray-50'
                   }`}
                 >
-                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-700">
-                    <User className="w-4 h-4" />
-                  </span>
+                  <EmployeeAvatar name={e.name} photoUrl={e.photo_url} size="sm" className="mt-0.5" />
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-medium text-gray-900 truncate">{e.name}</span>
                     <span className="block text-xs text-indigo-600 font-mono">{e.employee_id}</span>

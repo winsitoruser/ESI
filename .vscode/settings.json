@@ -1,3 +1,31 @@
 {
-    "git.ignoreLimitWarning": true
+  "git.ignoreLimitWarning": true,
+
+  // Workspace Humanify/SIMESI — heap & TS server berat
+  "typescript.tsserver.maxTsServerMemory": 8192,
+  "files.maxMemoryForLargeFilesMB": 4096,
+  "terminal.integrated.env.osx": {
+    "NODE_OPTIONS": "--max-old-space-size=8192"
+  },
+  "terminal.integrated.env.linux": {
+    "NODE_OPTIONS": "--max-old-space-size=8192"
+  },
+
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/.next/**": true,
+    "**/artifacts/**": true,
+    "**/docs/pdf/**": true,
+    "**/admin-panel/node_modules/**": true,
+    "**/backend/node_modules/**": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/.next": true,
+    "**/artifacts": true,
+    "**/docs/pdf": true
+  },
+  "files.exclude": {
+    "**/.next": true
+  }
 }

@@ -34,12 +34,12 @@ export function Card({ children, className = '', variant = 'default' }: {
     variant?: 'default' | 'elevated' | 'accent';
 }) {
   const variants = {
-    default: `${EP.surface} ${EP.border} border ${EP.shadow}`,
-    elevated: `${EP.surface} border border-slate-100 ${EP.shadowLg}`,
-    accent: 'bg-gradient-to-br from-slate-900 via-slate-800 to-teal-950 text-white border border-white/10 shadow-xl shadow-teal-950/20',
+    default: 'hf-card',
+    elevated: 'hf-card',
+    accent: 'overflow-hidden rounded-[var(--hf-radius-xl)] border border-slate-800 bg-slate-900 text-white shadow-[var(--hf-shadow-md)]',
   };
   return (
-    <div className={`${EP.radiusLg} overflow-hidden ${variants[variant]} ${className}`}>
+    <div className={`${variant === 'accent' ? '' : 'overflow-hidden'} ${variants[variant]} ${className}`}>
       {children}
     </div>
   );

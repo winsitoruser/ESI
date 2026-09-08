@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import HumanifyLayout from '@/components/humanify/HumanifyLayout';
-import PlatformOpsNav from '@/components/humanify/PlatformOpsNav';
+import OpsLayout from '@/components/humanify/OpsLayout';
+import { OpsPageIntro, OpsBadge, OpsPageSkeleton } from '@/components/humanify/ops-ui';
+import OpsDataTable from '@/components/humanify/OpsDataTable';
+import { usePlatformOperator } from '@/lib/humanify/use-platform-operator';
 import {
-  ArrowLeft, Activity, Database, Cpu, Clock, RefreshCw, Loader2,
+  Activity, Database, Cpu, Clock, RefreshCw,
   AlertTriangle, CheckCircle2, XCircle,
 } from 'lucide-react';
 
@@ -14,10 +15,8 @@ import {
  * Auto-refreshes every 30s.
  */
 export default function PlatformObservabilityPage() {
-  const { data: session, status } = useSession();
+  const { gating } = usePlatformOperator('/platform/observability');
   const router = useRouter();
-  const role = ((session?.user as any)?.role || '').toLowerCase();
-  const allowed = role === 'super_admin' || role === 'superadmin' || role === 'platform_admin';
 
   const [obs, setObs] = useState<any>(null);
   const [health, setHealth] = useState<any>(null);
@@ -28,25 +27,12 @@ export default function PlatformObservabilityPage() {
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [refHighlight, setRefHighlight] = useState('');
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const eventRowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
 
   // Wave-55 OBS-L4-2 — deep-link ?ref=<requestId|eventId>
   useEffect(() => {
     const raw = String(router.query.ref || '').trim();
     setRefHighlight(raw);
-    if (!raw || !obs?.recent?.length) return;
-    const match = (obs.recent as any[]).find(
-      (ev) =>
-        String(ev.id || '') === raw ||
-        String(ev.requestId || ev.request_id || '') === raw,
-    );
-    if (!match) return;
-    const key = String(match.id || match.requestId || '');
-    const el = eventRowRefs.current[key];
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  }, [router.query.ref, obs?.recent]);
+  }, [router.query.ref]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -80,30 +66,22 @@ export default function PlatformObservabilityPage() {
   }, [load]);
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.replace('/humanify/login?callbackUrl=/platform/observability');
-      return;
-    }
-    if (status === 'authenticated' && !allowed) {
-      router.replace('/humanify');
-      return;
-    }
-    if (status === 'authenticated' && allowed) load();
-  }, [status, allowed, load, router]);
+    if (!gating) load();
+  }, [gating, load]);
 
   useEffect(() => {
-    if (status !== 'authenticated' || !allowed) return;
+    if (gating) return;
     timerRef.current = setInterval(load, 30_000);
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [status, allowed, load]);
+  }, [gating, load]);
 
-  if (status === 'loading' || (status === 'authenticated' && !allowed)) {
+  if (gating || (loading && !obs && !health)) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-slate-500">
-        <Loader2 className="w-6 h-6 animate-spin mr-2" /> Memuat...
-      </div>
+      <OpsLayout title="Observability" subtitle="Health, errors & alerts">
+        <OpsPageSkeleton />
+      </OpsLayout>
     );
   }
 
@@ -116,33 +94,38 @@ export default function PlatformObservabilityPage() {
   };
 
   return (
-    <HumanifyLayout title="Observability" subtitle="Process health, memory & recent errors" >
-      <div className="space-y-6">
-        <PlatformOpsNav />
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <Link href="/platform" className="inline-flex items-center gap-1 text-sm text-[color:var(--hf-brand-600)] hover:underline">
-            <ArrowLeft className="w-4 h-4" /> Kembali ke Platform
-          </Link>
-          <div className="flex items-center gap-3 text-xs text-slate-400">
-            {lastRefresh && <span>Update terakhir: {lastRefresh.toLocaleTimeString('id-ID')} · auto-refresh 30s</span>}
-            <button
-              onClick={runAlertCheck}
-              disabled={alertBusy}
-              className="flex items-center gap-2 text-sm px-3 py-2 border rounded-lg hover:bg-amber-50 text-amber-800 border-amber-200"
-            >
-              <AlertTriangle className={`w-4 h-4 ${alertBusy ? 'animate-pulse' : ''}`} /> Cek alert
-            </button>
-            <Link
-              href="/platform/email-preview"
-              className="flex items-center gap-2 text-sm px-3 py-2 border rounded-lg hover:bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)] border-[var(--hf-brand-100)]"
-            >
-              Preview email
-            </Link>
-            <button onClick={load} className="flex items-center gap-2 text-sm px-3 py-2 border rounded-lg hover:bg-slate-50 text-slate-700">
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
-            </button>
-          </div>
-        </div>
+    <OpsLayout title="Observability" subtitle="Health, errors & alerts">
+      <div className="space-y-5">
+        <OpsPageIntro
+          eyebrow="Reliability"
+          title="Observability"
+          description="Pulse proses, memori, Redis, buffer error, backup freshness, dan alert spike — plus preview email branded."
+          actions={
+            <>
+              {lastRefresh && (
+                <span className="text-[11px] text-slate-400">
+                  Update {lastRefresh.toLocaleTimeString('id-ID')} · auto 30s
+                </span>
+              )}
+              <button
+                onClick={runAlertCheck}
+                disabled={alertBusy}
+                className="flex items-center gap-2 text-sm px-3 py-2 border border-amber-200 rounded-xl bg-amber-50 text-amber-900 hover:bg-amber-100"
+              >
+                <AlertTriangle className={`w-4 h-4 ${alertBusy ? 'animate-pulse' : ''}`} /> Cek alert
+              </button>
+              <Link
+                href="/platform/email-preview"
+                className="flex items-center gap-2 text-sm px-3 py-2 border border-slate-200 rounded-xl bg-white text-slate-700 hover:bg-slate-50"
+              >
+                Preview email
+              </Link>
+              <button onClick={load} className="flex items-center gap-2 text-sm px-3 py-2 border border-slate-200 rounded-xl bg-white hover:bg-slate-50 text-slate-700">
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+              </button>
+            </>
+          }
+        />
 
         {alertInfo?.alert && (
           <div className={`rounded-xl border px-4 py-3 text-sm ${
@@ -431,8 +414,8 @@ export default function PlatformObservabilityPage() {
           <p className="text-[11px] text-slate-400 mt-3">Notifikasi Humanify: SSE ~15s (fallback poll 60s)</p>
         </div>
 
-        <div className="bg-white border rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b flex items-center gap-2 flex-wrap">
+        <div className="bg-white border rounded-xl p-4 sm:p-5">
+          <div className="mb-3 flex items-center gap-2 flex-wrap">
             <AlertTriangle className="w-4 h-4 text-amber-500" />
             <p className="text-sm font-semibold text-slate-800">Event terbaru (live ring + Postgres)</p>
             {refHighlight && (
@@ -441,57 +424,96 @@ export default function PlatformObservabilityPage() {
               </span>
             )}
           </div>
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left">
-              <tr>
-                <th className="px-4 py-2">Waktu</th>
-                <th className="px-4 py-2">Level</th>
-                <th className="px-4 py-2">Route</th>
-                <th className="px-4 py-2">Pesan</th>
-                <th className="px-4 py-2 text-right">Durasi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {(!obs?.recent || obs.recent.length === 0) && (
-                <tr><td colSpan={5} className="px-4 py-6 text-center text-slate-400">Belum ada event tercatat.</td></tr>
-              )}
-              {(obs?.recent || [])
-                .filter((ev: any) => {
-                  if (!refHighlight) return true;
-                  return (
-                    String(ev.id || '') === refHighlight ||
-                    String(ev.requestId || ev.request_id || '') === refHighlight
-                  );
-                })
-                .map((ev: any) => {
-                  const key = String(ev.id || ev.requestId || Math.random());
-                  const hit =
-                    refHighlight &&
-                    (String(ev.id || '') === refHighlight ||
-                      String(ev.requestId || ev.request_id || '') === refHighlight);
-                  return (
-                <tr
-                  key={key}
-                  ref={(el) => { eventRowRefs.current[key] = el; }}
-                  className={hit ? 'bg-amber-50' : undefined}
-                >
-                  <td className="px-4 py-2 text-xs text-slate-500 whitespace-nowrap">{ev.at ? new Date(ev.at).toLocaleString('id-ID') : '—'}</td>
-                  <td className="px-4 py-2">
-                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
-                      ev.level === 'error' ? 'bg-red-100 text-red-700' :
-                      ev.level === 'warn' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'
-                    }`}>{ev.level}</span>
-                  </td>
-                  <td className="px-4 py-2 text-xs font-mono text-slate-600">{ev.route || '—'} {ev.method ? `(${ev.method})` : ''}</td>
-                  <td className="px-4 py-2 text-xs text-slate-700 max-w-[420px] truncate" title={ev.msg}>{ev.msg}</td>
-                  <td className="px-4 py-2 text-xs text-right text-slate-500">{ev.durationMs != null ? `${ev.durationMs}ms` : '—'}</td>
-                </tr>
-                  );
-                })}
-            </tbody>
-          </table>
+          <OpsDataTable
+            rows={(obs?.recent || []).filter((ev: any) => {
+              if (!refHighlight) return true;
+              return (
+                String(ev.id || '') === refHighlight ||
+                String(ev.requestId || ev.request_id || '') === refHighlight
+              );
+            })}
+            loading={loading}
+            rowKey={(ev) => String(ev.id || ev.requestId || `${ev.at}-${ev.route}`)}
+            searchPlaceholder="Cari level / route / pesan / requestId…"
+            exportFileName="humanify-ops-observability-events"
+            exportSheetName="Events"
+            emptyTitle="Belum ada event tercatat"
+            defaultPageSize={25}
+            filters={[
+              {
+                id: 'level',
+                label: 'Semua level',
+                getValue: (ev) => String(ev.level || 'info'),
+                options: [
+                  { value: 'error', label: 'error' },
+                  { value: 'warn', label: 'warn' },
+                  { value: 'info', label: 'info' },
+                ],
+              },
+            ]}
+            columns={[
+              {
+                id: 'at',
+                header: 'Waktu',
+                exportWidth: 20,
+                exportValue: (ev) => (ev.at ? new Date(ev.at).toLocaleString('id-ID') : ''),
+                cell: (ev) => (
+                  <span className="text-xs text-slate-500 whitespace-nowrap">
+                    {ev.at ? new Date(ev.at).toLocaleString('id-ID') : '—'}
+                  </span>
+                ),
+              },
+              {
+                id: 'level',
+                header: 'Level',
+                exportValue: (ev) => ev.level || '',
+                cell: (ev) => (
+                  <OpsBadge tone={ev.level === 'error' ? 'danger' : ev.level === 'warn' ? 'warning' : 'neutral'}>
+                    {ev.level}
+                  </OpsBadge>
+                ),
+              },
+              {
+                id: 'route',
+                header: 'Route',
+                exportWidth: 28,
+                exportValue: (ev) => `${ev.route || ''}${ev.method ? ` (${ev.method})` : ''}`,
+                cell: (ev) => (
+                  <span className="text-xs font-mono text-slate-600">
+                    {ev.route || '—'} {ev.method ? `(${ev.method})` : ''}
+                  </span>
+                ),
+              },
+              {
+                id: 'msg',
+                header: 'Pesan',
+                exportWidth: 40,
+                exportValue: (ev) => ev.msg || '',
+                cell: (ev) => (
+                  <span className="text-xs text-slate-700 max-w-[420px] truncate block" title={ev.msg}>{ev.msg}</span>
+                ),
+              },
+              {
+                id: 'durationMs',
+                header: 'Durasi',
+                align: 'right',
+                exportValue: (ev) => (ev.durationMs != null ? ev.durationMs : ''),
+                cell: (ev) => (
+                  <span className="text-xs text-slate-500">{ev.durationMs != null ? `${ev.durationMs}ms` : '—'}</span>
+                ),
+              },
+              {
+                id: 'requestId',
+                header: 'Request ID',
+                exportValue: (ev) => ev.requestId || ev.request_id || '',
+                cell: (ev) => (
+                  <span className="text-[10px] font-mono text-slate-400">{ev.requestId || ev.request_id || '—'}</span>
+                ),
+              },
+            ]}
+          />
         </div>
       </div>
-    </HumanifyLayout>
+    </OpsLayout>
   );
 }

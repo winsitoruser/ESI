@@ -2,12 +2,14 @@ import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import HrisEmptyState from '@/components/humanify/HrisEmptyState';
+import HRStatCard from '@/components/humanify/HRStatCard';
+import { OpsKpiShell, OpsToolbar } from '@/components/humanify/OpsPageChrome';
+import { PayrollShell } from '@/components/humanify/PayrollModuleChrome';
+import { EnterpriseTabBar } from '@/components/humanify/PerformanceModuleChrome';
 import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import {
-  Shield, Users, DollarSign, CheckCircle, AlertCircle, Search, ArrowLeft,
-  TrendingUp, Eye, X, Heart, Building2, FileText, Settings
+  Shield, Users, DollarSign, Search, Eye, X, Heart, Building2, FileText, Settings
 } from 'lucide-react';
-import Link from 'next/link';
 
 const fmtCurrency = (n: number) => `Rp ${(n || 0).toLocaleString('id-ID')}`;
 
@@ -126,49 +128,41 @@ export default function BPJSPage() {
 
   return (
     <HQLayout title="BPJS Management" subtitle="Pengelolaan BPJS Kesehatan dan Ketenagakerjaan">
-      <div className="space-y-6">
-        <div className="flex items-center gap-3">
-          <Link href="/humanify/payroll" className="p-2 border rounded-lg hover:bg-gray-50"><ArrowLeft className="w-4 h-4" /></Link>
-          <div className="flex-1"><h2 className="text-lg font-bold">BPJS Kesehatan & Ketenagakerjaan</h2><p className="text-sm text-gray-500">Iuran BPJS karyawan dan perusahaan</p></div>
-          <DataSourceBadge source={dataSource} />
-          <div className="flex gap-2">
-            <a href="/api/humanify/compliance-export?action=bpjs&format=csv" download className="flex items-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700"><FileText className="w-4 h-4" /> CSV</a>
-            <a href="/api/humanify/compliance-export?action=bpjs&format=edabu" download className="flex items-center gap-2 px-3 py-2 bg-purple-800 text-white rounded-lg text-sm hover:bg-purple-900"><FileText className="w-4 h-4" /> EDABU</a>
+      <PayrollShell
+        current="bpjs"
+        title="BPJS Kesehatan & Ketenagakerjaan"
+        subtitle="Iuran karyawan dan perusahaan, siap ekspor CSV atau EDABU."
+        icon={Shield}
+        actions={(
+          <div className="flex flex-wrap items-center gap-2">
+            <DataSourceBadge source={dataSource} />
+            <a href="/api/humanify/compliance-export?action=bpjs&format=csv" download className="hf-btn-secondary inline-flex items-center gap-2"><FileText className="h-4 w-4" /> CSV</a>
+            <a href="/api/humanify/compliance-export?action=bpjs&format=edabu" download className="hf-btn-primary inline-flex items-center gap-2"><FileText className="h-4 w-4" /> EDABU</a>
           </div>
+        )}
+      >
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <OpsKpiShell><HRStatCard icon={Users} label="Peserta aktif" value={items.filter(i => i.status === 'active').length} accent="violet" /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard icon={DollarSign} label="Iuran karyawan / bln" value={fmtCurrency(totals.total_e)} accent="amber" /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard icon={Building2} label="Iuran perusahaan / bln" value={fmtCurrency(totals.total_c)} accent="emerald" /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard icon={Shield} label="Total iuran / bln" value={fmtCurrency(totals.total_e + totals.total_c)} accent="violet" /></OpsKpiShell>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: 'Peserta Aktif', value: items.filter(i => i.status === 'active').length, icon: Users, bg: 'bg-[var(--hf-brand-100)]', color: 'text-[color:var(--hf-brand-600)]' },
-            { label: 'Iuran Karyawan/Bln', value: totals.total_e, icon: DollarSign, bg: 'bg-amber-100', color: 'text-amber-600', fmt: true },
-            { label: 'Iuran Perusahaan/Bln', value: totals.total_c, icon: Building2, bg: 'bg-green-100', color: 'text-green-600', fmt: true },
-            { label: 'Total Iuran/Bln', value: totals.total_e + totals.total_c, icon: Shield, bg: 'bg-purple-100', color: 'text-purple-600', fmt: true },
-          ].map(s => (
-            <div key={s.label} className="bg-white rounded-xl p-4 shadow-sm border">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 ${s.bg} rounded-lg`}><s.icon className={`w-5 h-5 ${s.color}`} /></div>
-                <div><p className="text-xs text-gray-500">{s.label}</p><p className={`text-lg font-bold ${s.color}`}>{'fmt' in s && s.fmt ? fmtCurrency(s.value as number) : s.value}</p></div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border">
-          <div className="flex border-b overflow-x-auto">
-            {[
-              { key: 'kesehatan', label: 'BPJS Kesehatan', icon: Heart },
-              { key: 'ketenagakerjaan', label: 'BPJS Ketenagakerjaan', icon: Shield },
-              { key: 'tarif', label: 'Tarif & Ketentuan', icon: Settings },
-            ].map(tab => (
-              <button key={tab.key} onClick={() => setActiveTab(tab.key as any)} className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 whitespace-nowrap ${activeTab === tab.key ? 'border-[var(--hf-brand-600)] text-[color:var(--hf-brand-600)]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}><tab.icon className="w-4 h-4" />{tab.label}</button>
-            ))}
-          </div>
+        <EnterpriseTabBar
+          tabs={[
+            { key: 'kesehatan', label: 'BPJS Kesehatan', icon: Heart },
+            { key: 'ketenagakerjaan', label: 'BPJS Ketenagakerjaan', icon: Shield },
+            { key: 'tarif', label: 'Tarif & ketentuan', icon: Settings },
+          ]}
+          active={activeTab}
+          onChange={setActiveTab}
+        />
 
           {activeTab === 'kesehatan' && (
-            <div>
-              <div className="p-4 flex flex-wrap gap-3 border-b">
-                <div className="relative flex-1 min-w-[200px]"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" /><input type="text" placeholder="Cari karyawan..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm" /></div>
-              </div>
+            <div className="space-y-3">
+              <OpsToolbar>
+                <div className="relative min-w-[200px] flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--hf-ink-faint)]" /><input type="text" placeholder="Cari karyawan..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="hf-input w-full pl-9" /></div>
+              </OpsToolbar>
               {items.length === 0 ? (
                 <HrisEmptyState
                   source={dataSource}
@@ -176,34 +170,34 @@ export default function BPJSPage() {
                   description="Data iuran BPJS Kesehatan akan muncul setelah konfigurasi gaji karyawan selesai."
                 />
               ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full"><thead className="bg-gray-50"><tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Karyawan</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">No. BPJS Kes</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Tanggungan</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Gaji Pokok</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Karyawan (1%)</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Perusahaan (4%)</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Aksi</th>
+              <div className="hf-table-wrap overflow-x-auto">
+                <table><thead><tr>
+                  <th>Karyawan</th>
+                  <th>No. BPJS Kes</th>
+                  <th className="text-center">Tanggungan</th>
+                  <th className="text-right">Gaji pokok</th>
+                  <th className="text-right">Karyawan (1%)</th>
+                  <th className="text-right">Perusahaan (4%)</th>
+                  <th className="text-right">Total</th>
+                  <th className="text-center">Aksi</th>
                 </tr></thead>
-                <tbody className="divide-y">{filtered.map(i => (
-                  <tr key={i.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3"><p className="font-medium text-sm">{i.employee_name}</p><p className="text-xs text-gray-500">{i.position}</p></td>
-                    <td className="px-4 py-3 text-xs font-mono">{i.bpjs_kes_no || '-'}</td>
-                    <td className="px-4 py-3 text-center text-sm">{i.dependents}</td>
-                    <td className="px-4 py-3 text-right text-sm">{fmtCurrency(Math.min(i.base_salary, 12000000))}</td>
-                    <td className="px-4 py-3 text-right text-sm text-amber-600">{fmtCurrency(i.kes_employee)}</td>
-                    <td className="px-4 py-3 text-right text-sm text-[color:var(--hf-brand-600)]">{fmtCurrency(i.kes_company)}</td>
-                    <td className="px-4 py-3 text-right text-sm font-semibold">{fmtCurrency(i.kes_employee + i.kes_company)}</td>
-                    <td className="px-4 py-3 text-center"><button onClick={() => setSelectedItem(i)} className="p-1.5 text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded"><Eye className="w-4 h-4" /></button></td>
+                <tbody>{filtered.map(i => (
+                  <tr key={i.id}>
+                    <td><p className="font-medium text-[color:var(--hf-ink)]">{i.employee_name}</p><p className="text-xs text-[color:var(--hf-ink-muted)]">{i.position}</p></td>
+                    <td className="font-mono text-xs">{i.bpjs_kes_no || '-'}</td>
+                    <td className="text-center">{i.dependents}</td>
+                    <td className="text-right tabular-nums">{fmtCurrency(Math.min(i.base_salary, 12000000))}</td>
+                    <td className="text-right tabular-nums text-amber-700">{fmtCurrency(i.kes_employee)}</td>
+                    <td className="text-right tabular-nums text-[color:var(--hf-brand-600)]">{fmtCurrency(i.kes_company)}</td>
+                    <td className="text-right font-semibold tabular-nums">{fmtCurrency(i.kes_employee + i.kes_company)}</td>
+                    <td className="text-center"><button type="button" onClick={() => setSelectedItem(i)} className="hf-btn-secondary inline-flex items-center gap-1 !px-2.5 !py-1 text-xs"><Eye className="h-3.5 w-3.5" /> Detail</button></td>
                   </tr>
                 ))}</tbody>
-                <tfoot className="bg-gray-50 font-bold"><tr>
+                <tfoot className="bg-[var(--hf-surface-muted)] font-semibold"><tr>
                   <td className="px-4 py-3 text-sm" colSpan={4}>Total ({filtered.length} karyawan)</td>
-                  <td className="px-4 py-3 text-right text-sm text-amber-600">{fmtCurrency(totals.kes_e)}</td>
-                  <td className="px-4 py-3 text-right text-sm text-[color:var(--hf-brand-600)]">{fmtCurrency(totals.kes_c)}</td>
-                  <td className="px-4 py-3 text-right text-sm">{fmtCurrency(totals.kes_e + totals.kes_c)}</td>
+                  <td className="px-4 py-3 text-right text-sm tabular-nums text-amber-700">{fmtCurrency(totals.kes_e)}</td>
+                  <td className="px-4 py-3 text-right text-sm tabular-nums text-[color:var(--hf-brand-600)]">{fmtCurrency(totals.kes_c)}</td>
+                  <td className="px-4 py-3 text-right text-sm tabular-nums">{fmtCurrency(totals.kes_e + totals.kes_c)}</td>
                   <td></td>
                 </tr></tfoot></table>
               </div>
@@ -212,10 +206,10 @@ export default function BPJSPage() {
           )}
 
           {activeTab === 'ketenagakerjaan' && (
-            <div>
-              <div className="p-4 flex flex-wrap gap-3 border-b">
-                <div className="relative flex-1 min-w-[200px]"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" /><input type="text" placeholder="Cari karyawan..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm" /></div>
-              </div>
+            <div className="space-y-3">
+              <OpsToolbar>
+                <div className="relative min-w-[200px] flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--hf-ink-faint)]" /><input type="text" placeholder="Cari karyawan..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="hf-input w-full pl-9" /></div>
+              </OpsToolbar>
               {items.length === 0 ? (
                 <HrisEmptyState
                   source={dataSource}
@@ -223,40 +217,40 @@ export default function BPJSPage() {
                   description="Data iuran JHT, JP, JKK, dan JKM akan muncul setelah konfigurasi gaji karyawan selesai."
                 />
               ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full"><thead className="bg-gray-50"><tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Karyawan</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">No. BPJS TK</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">JHT (2%)</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">JHT (3.7%)</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">JP (1%)</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">JP (2%)</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">JKK</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">JKM</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total</th>
+              <div className="hf-table-wrap overflow-x-auto">
+                <table><thead><tr>
+                  <th>Karyawan</th>
+                  <th>No. BPJS TK</th>
+                  <th className="text-right">JHT (2%)</th>
+                  <th className="text-right">JHT (3.7%)</th>
+                  <th className="text-right">JP (1%)</th>
+                  <th className="text-right">JP (2%)</th>
+                  <th className="text-right">JKK</th>
+                  <th className="text-right">JKM</th>
+                  <th className="text-right">Total</th>
                 </tr></thead>
-                <tbody className="divide-y">{filtered.map(i => (
-                  <tr key={i.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3"><p className="font-medium text-sm">{i.employee_name}</p><p className="text-xs text-gray-500">{i.position}</p></td>
-                    <td className="px-4 py-3 text-xs font-mono">{i.bpjs_tk_no || '-'}</td>
-                    <td className="px-4 py-3 text-right text-xs text-amber-600">{fmtCurrency(i.jht_employee)}</td>
-                    <td className="px-4 py-3 text-right text-xs text-[color:var(--hf-brand-600)]">{fmtCurrency(i.jht_company)}</td>
-                    <td className="px-4 py-3 text-right text-xs text-amber-600">{fmtCurrency(i.jp_employee)}</td>
-                    <td className="px-4 py-3 text-right text-xs text-[color:var(--hf-brand-600)]">{fmtCurrency(i.jp_company)}</td>
-                    <td className="px-4 py-3 text-right text-xs text-[color:var(--hf-brand-600)]">{fmtCurrency(i.jkk)}</td>
-                    <td className="px-4 py-3 text-right text-xs text-[color:var(--hf-brand-600)]">{fmtCurrency(i.jkm)}</td>
-                    <td className="px-4 py-3 text-right text-xs font-bold">{fmtCurrency(i.total_employee + i.total_company)}</td>
+                <tbody>{filtered.map(i => (
+                  <tr key={i.id}>
+                    <td><p className="font-medium text-[color:var(--hf-ink)]">{i.employee_name}</p><p className="text-xs text-[color:var(--hf-ink-muted)]">{i.position}</p></td>
+                    <td className="font-mono text-xs">{i.bpjs_tk_no || '-'}</td>
+                    <td className="text-right text-xs tabular-nums text-amber-700">{fmtCurrency(i.jht_employee)}</td>
+                    <td className="text-right text-xs tabular-nums text-[color:var(--hf-brand-600)]">{fmtCurrency(i.jht_company)}</td>
+                    <td className="text-right text-xs tabular-nums text-amber-700">{fmtCurrency(i.jp_employee)}</td>
+                    <td className="text-right text-xs tabular-nums text-[color:var(--hf-brand-600)]">{fmtCurrency(i.jp_company)}</td>
+                    <td className="text-right text-xs tabular-nums text-[color:var(--hf-brand-600)]">{fmtCurrency(i.jkk)}</td>
+                    <td className="text-right text-xs tabular-nums text-[color:var(--hf-brand-600)]">{fmtCurrency(i.jkm)}</td>
+                    <td className="text-right text-xs font-semibold tabular-nums">{fmtCurrency(i.total_employee + i.total_company)}</td>
                   </tr>
                 ))}</tbody>
-                <tfoot className="bg-gray-50 font-bold text-xs"><tr>
+                <tfoot className="bg-[var(--hf-surface-muted)] font-semibold text-xs"><tr>
                   <td className="px-4 py-3" colSpan={2}>Total</td>
-                  <td className="px-4 py-3 text-right text-amber-600">{fmtCurrency(totals.jht_e)}</td>
-                  <td className="px-4 py-3 text-right text-[color:var(--hf-brand-600)]">{fmtCurrency(totals.jht_c)}</td>
-                  <td className="px-4 py-3 text-right text-amber-600">{fmtCurrency(totals.jp_e)}</td>
-                  <td className="px-4 py-3 text-right text-[color:var(--hf-brand-600)]">{fmtCurrency(totals.jp_c)}</td>
-                  <td className="px-4 py-3 text-right text-[color:var(--hf-brand-600)]">{fmtCurrency(totals.jkk)}</td>
-                  <td className="px-4 py-3 text-right text-[color:var(--hf-brand-600)]">{fmtCurrency(totals.jkm)}</td>
-                  <td className="px-4 py-3 text-right">{fmtCurrency(totals.total_e + totals.total_c)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-amber-700">{fmtCurrency(totals.jht_e)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-[color:var(--hf-brand-600)]">{fmtCurrency(totals.jht_c)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-amber-700">{fmtCurrency(totals.jp_e)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-[color:var(--hf-brand-600)]">{fmtCurrency(totals.jp_c)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-[color:var(--hf-brand-600)]">{fmtCurrency(totals.jkk)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-[color:var(--hf-brand-600)]">{fmtCurrency(totals.jkm)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">{fmtCurrency(totals.total_e + totals.total_c)}</td>
                 </tr></tfoot></table>
               </div>
               )}
@@ -264,34 +258,35 @@ export default function BPJSPage() {
           )}
 
           {activeTab === 'tarif' && (
-            <div className="p-6 max-w-3xl space-y-6">
-              <div className="border rounded-xl overflow-hidden">
-                <div className="px-4 py-3 bg-green-50 border-b"><h4 className="font-semibold text-green-800 flex items-center gap-2"><Heart className="w-4 h-4" /> BPJS Kesehatan</h4></div>
-                <div className="p-4 space-y-2 text-sm">
-                  <div className="flex justify-between"><span>Iuran Karyawan</span><span className="font-bold">1% dari upah (maks {fmtCurrency(12000000)})</span></div>
-                  <div className="flex justify-between"><span>Iuran Perusahaan</span><span className="font-bold">4% dari upah (maks {fmtCurrency(12000000)})</span></div>
-                  <div className="flex justify-between border-t pt-2 text-gray-500"><span>Batas upah tertinggi</span><span>{fmtCurrency(12000000)}</span></div>
-                  <div className="flex justify-between text-gray-500"><span>Tanggungan</span><span>Pekerja + 4 anggota keluarga</span></div>
+            <div className="max-w-3xl space-y-4">
+              <div className="hf-card overflow-hidden">
+                <div className="border-b border-[var(--hf-border)] bg-emerald-50 px-4 py-3"><h4 className="flex items-center gap-2 font-semibold text-emerald-800"><Heart className="h-4 w-4" /> BPJS Kesehatan</h4></div>
+                <div className="space-y-2 p-4 text-sm">
+                  <div className="flex justify-between"><span>Iuran karyawan</span><span className="font-semibold">1% dari upah (maks {fmtCurrency(12000000)})</span></div>
+                  <div className="flex justify-between"><span>Iuran perusahaan</span><span className="font-semibold">4% dari upah (maks {fmtCurrency(12000000)})</span></div>
+                  <div className="flex justify-between border-t border-[var(--hf-border)] pt-2 text-[color:var(--hf-ink-muted)]"><span>Batas upah tertinggi</span><span>{fmtCurrency(12000000)}</span></div>
+                  <div className="flex justify-between text-[color:var(--hf-ink-muted)]"><span>Tanggungan</span><span>Pekerja + 4 anggota keluarga</span></div>
                 </div>
               </div>
-              <div className="border rounded-xl overflow-hidden">
-                <div className="px-4 py-3 bg-[var(--hf-brand-50)] border-b"><h4 className="font-semibold text-[color:var(--hf-brand-600)] flex items-center gap-2"><Shield className="w-4 h-4" /> BPJS Ketenagakerjaan</h4></div>
-                <table className="w-full text-sm"><thead className="bg-gray-50"><tr><th className="px-4 py-2 text-left">Program</th><th className="px-4 py-2 text-right">Karyawan</th><th className="px-4 py-2 text-right">Perusahaan</th><th className="px-4 py-2 text-left">Keterangan</th></tr></thead>
-                <tbody className="divide-y">
-                  <tr><td className="px-4 py-2 font-medium">JHT</td><td className="px-4 py-2 text-right">2%</td><td className="px-4 py-2 text-right">3.7%</td><td className="px-4 py-2 text-xs text-gray-500">Dicairkan saat pensiun/PHK</td></tr>
-                  <tr><td className="px-4 py-2 font-medium">JP</td><td className="px-4 py-2 text-right">1%</td><td className="px-4 py-2 text-right">2%</td><td className="px-4 py-2 text-xs text-gray-500">Maks upah {fmtCurrency(10042300)}</td></tr>
-                  <tr><td className="px-4 py-2 font-medium">JKK</td><td className="px-4 py-2 text-right">-</td><td className="px-4 py-2 text-right">0.24%</td><td className="px-4 py-2 text-xs text-gray-500">Risiko rendah</td></tr>
-                  <tr><td className="px-4 py-2 font-medium">JKM</td><td className="px-4 py-2 text-right">-</td><td className="px-4 py-2 text-right">0.3%</td><td className="px-4 py-2 text-xs text-gray-500">Santunan kematian</td></tr>
+              <div className="hf-card overflow-hidden">
+                <div className="border-b border-[var(--hf-brand-100)] bg-[var(--hf-brand-50)] px-4 py-3"><h4 className="flex items-center gap-2 font-semibold text-[color:var(--hf-brand-600)]"><Shield className="h-4 w-4" /> BPJS Ketenagakerjaan</h4></div>
+                <div className="hf-table-wrap !rounded-none !border-0 !shadow-none">
+                <table><thead><tr><th>Program</th><th className="text-right">Karyawan</th><th className="text-right">Perusahaan</th><th>Keterangan</th></tr></thead>
+                <tbody>
+                  <tr><td className="font-medium">JHT</td><td className="text-right">2%</td><td className="text-right">3.7%</td><td className="text-xs text-[color:var(--hf-ink-muted)]">Dicairkan saat pensiun/PHK</td></tr>
+                  <tr><td className="font-medium">JP</td><td className="text-right">1%</td><td className="text-right">2%</td><td className="text-xs text-[color:var(--hf-ink-muted)]">Maks upah {fmtCurrency(10042300)}</td></tr>
+                  <tr><td className="font-medium">JKK</td><td className="text-right">-</td><td className="text-right">0.24%</td><td className="text-xs text-[color:var(--hf-ink-muted)]">Risiko rendah</td></tr>
+                  <tr><td className="font-medium">JKM</td><td className="text-right">-</td><td className="text-right">0.3%</td><td className="text-xs text-[color:var(--hf-ink-muted)]">Santunan kematian</td></tr>
                 </tbody></table>
+                </div>
               </div>
             </div>
           )}
-        </div>
-      </div>
+      </PayrollShell>
 
       {selectedItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg m-4">
+          <div className="hf-card w-full max-w-lg m-4">
             <div className="px-6 py-4 border-b flex justify-between items-center"><h3 className="font-semibold">Detail BPJS - {selectedItem.employee_name}</h3><button onClick={() => setSelectedItem(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button></div>
             <div className="p-6 space-y-4 text-sm">
               <div className="bg-gray-50 rounded-lg p-4 grid grid-cols-2 gap-3">

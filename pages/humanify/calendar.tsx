@@ -234,7 +234,7 @@ export default function HRISCalendarPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border shadow-sm p-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="hf-card p-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <button type="button" onClick={() => setCurrent(new Date(year, month - 1, 1))}
               className="p-2 border rounded-lg hover:bg-gray-50"><ChevronLeft className="w-4 h-4" /></button>
@@ -259,7 +259,7 @@ export default function HRISCalendarPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+        <div className="hf-card overflow-hidden">
           <div className="grid grid-cols-7 border-b bg-gray-50 text-xs font-semibold text-gray-600">
             {['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'].map((d, i) => (
               <div key={d} className={`py-2 text-center ${i === 0 || i === 6 ? 'text-red-500' : ''}`}>{d}</div>
@@ -328,7 +328,7 @@ export default function HRISCalendarPage() {
 
       {selectedDay && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-end md:items-center justify-center p-4" onClick={() => setSelectedDay(null)}>
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
+          <div className="hf-card w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-3 border-b">
               <h3 className="font-semibold">
                 {new Date(selectedDay + 'T12:00:00').toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}

@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
-  Building2, Users, Calendar, Rocket, ArrowRight, ArrowLeft,
+  Building2, Users, Calendar, UserPlus, Rocket, ArrowRight, ArrowLeft,
   CheckCircle2, ExternalLink,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -13,8 +13,16 @@ import HumanifyBrandLoader from '@/components/humanify/HumanifyBrandLoader';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
 import type { WilayahItem } from '@/lib/humanify/wilayah-id';
 import { WILAYAH_SOURCE } from '@/lib/humanify/wilayah-id';
+import { resolveDepartmentOption } from '@/lib/hris/master-data';
 
-const DEFAULT_DEPARTMENTS = ['HR', 'Finance', 'Operations', 'IT', 'Sales', 'Marketing'];
+const WIZARD_DEPARTMENTS = [
+  { code: 'HR', label: 'SDM' },
+  { code: 'FINANCE', label: 'Keuangan' },
+  { code: 'OPERATIONS', label: 'Operasional' },
+  { code: 'IT', label: 'IT' },
+  { code: 'SALES', label: 'Penjualan' },
+  { code: 'MARKETING', label: 'Pemasaran' },
+];
 const WORK_DAYS = [
   { value: 1, label: 'Sen' },
   { value: 2, label: 'Sel' },
@@ -29,6 +37,7 @@ const STEP_META = [
   { key: 'company', icon: Building2, title: 'Profil Perusahaan' },
   { key: 'organization', icon: Users, title: 'Struktur Organisasi' },
   { key: 'policies', icon: Calendar, title: 'Kebijakan Dasar' },
+  { key: 'employee', icon: UserPlus, title: 'Karyawan Pertama' },
   { key: 'launch', icon: Rocket, title: 'Go Live' },
 ];
 
@@ -57,11 +66,17 @@ export default function SaasSetupWizard() {
   const [regencies, setRegencies] = useState<WilayahItem[]>([]);
   const [wilayahLoading, setWilayahLoading] = useState(false);
   const [regenciesLoading, setRegenciesLoading] = useState(false);
-  const [departments, setDepartments] = useState<string[]>(['HR', 'Finance', 'Operations', 'IT']);
+  const [departments, setDepartments] = useState<string[]>(['HR', 'FINANCE', 'OPERATIONS', 'IT']);
   const [policies, setPolicies] = useState({
     workDays: [1, 2, 3, 4, 5] as number[],
     defaultShift: '09:00-18:00',
     leaveTypes: ['annual', 'sick'] as string[],
+  });
+  const [firstEmployee, setFirstEmployee] = useState({
+    name: '',
+    email: '',
+    position: 'Staff',
+    department: 'HR',
   });
 
   const load = useCallback(async () => {
@@ -81,10 +96,20 @@ export default function SaasSetupWizard() {
       setCareersUrl(d.tenant?.careersUrl || null);
       if (d.saasOnboarding?.company) setCompany((c) => ({ ...c, ...d.saasOnboarding.company }));
       if (d.saasOnboarding?.organization?.departments) {
-        setDepartments(d.saasOnboarding.organization.departments);
+        setDepartments(
+          (d.saasOnboarding.organization.departments as string[]).map((x) => resolveDepartmentOption(x).code),
+        );
       }
       if (d.saasOnboarding?.policies) {
         setPolicies((p) => ({ ...p, ...d.saasOnboarding.policies }));
+      }
+      if (d.saasOnboarding?.employee) {
+        const emp = d.saasOnboarding.employee;
+        setFirstEmployee((e) => ({
+          ...e,
+          ...emp,
+          department: resolveDepartmentOption(String(emp.department || e.department)).code,
+        }));
       }
     } catch (e: any) {
       toast.error(e.message || 'Gagal memuat setup');
@@ -254,13 +279,13 @@ export default function SaasSetupWizard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-violet-50">
       <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-3 min-w-0">
           <HumanifyLogo href={HUMANIFY_BRAND.appPath} size="sm" variant="withText" />
-          <span className="text-xs text-slate-500">{session?.user?.email}</span>
+          <span className="text-xs text-slate-500 truncate max-w-[50%]">{session?.user?.email}</span>
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-6 py-10">
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         <div className="mb-8">
           <p className="text-sm font-medium text-violet-600 mb-1">Setup workspace</p>
           <h1 className="text-2xl font-bold text-slate-900 mb-2">
@@ -359,20 +384,20 @@ export default function SaasSetupWizard() {
           {step === 2 && (
             <div className="space-y-4">
               <h2 className="text-lg font-semibold text-slate-900">Departemen awal</h2>
-              <p className="text-sm text-slate-500">Pilih departemen yang akan digunakan di org chart (bisa diubah nanti).</p>
+              <p className="text-sm text-slate-500">Pilih departemen yang akan digunakan di org chart. Unit ini langsung tersimpan ke struktur organisasi.</p>
               <div className="flex flex-wrap gap-2">
-                {DEFAULT_DEPARTMENTS.map((d) => (
+                {WIZARD_DEPARTMENTS.map((d) => (
                   <button
-                    key={d}
+                    key={d.code}
                     type="button"
-                    onClick={() => toggleDept(d)}
+                    onClick={() => toggleDept(d.code)}
                     className={`px-4 py-2 rounded-xl text-sm font-medium border transition ${
-                      departments.includes(d)
+                      departments.includes(d.code)
                         ? 'bg-violet-600 text-white border-violet-600'
                         : 'bg-white text-slate-600 border-slate-200 hover:border-violet-300'
                     }`}
                   >
-                    {d}
+                    {d.label}
                   </button>
                 ))}
               </div>
@@ -417,6 +442,61 @@ export default function SaasSetupWizard() {
           )}
 
           {step === 4 && (
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold text-slate-900">Tambah karyawan pertama</h2>
+              <p className="text-sm text-slate-600">
+                Satu catatan karyawan cukup untuk membuka go-live. Anda bisa impor sisanya nanti.
+              </p>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm text-slate-600 mb-1 block" htmlFor="setup-emp-name">Nama lengkap</label>
+                  <input
+                    id="setup-emp-name"
+                    className={selectClass}
+                    value={firstEmployee.name}
+                    onChange={(e) => setFirstEmployee((emp) => ({ ...emp, name: e.target.value }))}
+                    placeholder="Nama karyawan"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-slate-600 mb-1 block" htmlFor="setup-emp-email">Email kerja</label>
+                  <input
+                    id="setup-emp-email"
+                    type="email"
+                    className={selectClass}
+                    value={firstEmployee.email}
+                    onChange={(e) => setFirstEmployee((emp) => ({ ...emp, email: e.target.value }))}
+                    placeholder="nama@perusahaan.com"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-slate-600 mb-1 block" htmlFor="setup-emp-position">Jabatan</label>
+                  <input
+                    id="setup-emp-position"
+                    className={selectClass}
+                    value={firstEmployee.position}
+                    onChange={(e) => setFirstEmployee((emp) => ({ ...emp, position: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-slate-600 mb-1 block" htmlFor="setup-emp-dept">Departemen</label>
+                  <select
+                    id="setup-emp-dept"
+                    className={selectClass}
+                    value={firstEmployee.department}
+                    onChange={(e) => setFirstEmployee((emp) => ({ ...emp, department: e.target.value }))}
+                  >
+                    {departments.map((code) => {
+                      const opt = resolveDepartmentOption(code);
+                      return <option key={opt.code} value={opt.code}>{opt.label}</option>;
+                    })}
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === 5 && (
             <div className="space-y-4 text-center">
               <div className="relative mx-auto flex h-20 w-20 items-center justify-center">
                 <span className="absolute inset-0 animate-ping rounded-2xl bg-violet-400/20" />
@@ -463,7 +543,7 @@ export default function SaasSetupWizard() {
               Kembali
             </button>
 
-            {step < 4 ? (
+            {step < 5 ? (
               <button
                 type="button"
                 disabled={saving}
@@ -472,7 +552,33 @@ export default function SaasSetupWizard() {
                     if (step === 1) await saveStep('company', company, 2);
                     else if (step === 2) await saveStep('organization', { departments }, 3);
                     else if (step === 3) await saveStep('policies', policies, 4);
-                  } catch { /* toast shown */ }
+                    else if (step === 4) {
+                      if (!firstEmployee.name.trim() || !firstEmployee.email.trim()) {
+                        toast.error('Nama dan email karyawan wajib diisi');
+                        return;
+                      }
+                      const create = await fetch('/api/humanify/employees', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(firstEmployee),
+                      });
+                      const created = await create.json();
+                      if (create.status === 409) {
+                        await saveStep('employee', { ...firstEmployee, created: true, duplicate: true }, 5);
+                        return;
+                      }
+                      if (!create.ok || created.success === false) {
+                        throw new Error(
+                          (typeof created.error === 'string' ? created.error : created.error?.message)
+                          || created.message
+                          || 'Gagal membuat karyawan',
+                        );
+                      }
+                      await saveStep('employee', { ...firstEmployee, created: true }, 5);
+                    }
+                  } catch (e: any) {
+                    toast.error(e?.message || 'Gagal menyimpan langkah ini');
+                  }
                 }}
                 className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 disabled:opacity-50"
               >

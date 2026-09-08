@@ -23,7 +23,7 @@ export interface LeaveTabProps {
 export default function LeaveTab({ leaveBalance, leaveRequests, onOpenApply }: LeaveTabProps) {
   return (
     <div className="space-y-4">
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+      <div className="hf-card p-4 border-gray-100">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold text-gray-900">Saldo Cuti</h3>
           <button
@@ -55,7 +55,7 @@ export default function LeaveTab({ leaveBalance, leaveRequests, onOpenApply }: L
           ))}
         </div>
       </div>
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+      <div className="hf-card p-4 border-gray-100">
         <h3 className="font-semibold text-gray-900 mb-3">Riwayat Pengajuan</h3>
         {leaveRequests.length === 0 ? (
           <p className="text-sm text-gray-400 text-center py-4">Belum ada pengajuan cuti</p>

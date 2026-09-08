@@ -5,6 +5,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
+import { assertOpsApiHost } from '@/lib/humanify/assert-ops-host';
 import { isPlatformOperator } from '@/lib/middleware/tenantIsolation';
 import { getObservabilitySnapshotAsync } from '@/lib/observability';
 import { getBackupFreshness } from '@/lib/saas/backup-freshness';
@@ -15,6 +16,7 @@ import { getUptimeLastRun } from '@/lib/saas/uptime-last';
 import { getPrivyWebhookHealth } from '@/lib/hris/privy-webhook';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (!assertOpsApiHost(req, res)) return;
   if (req.method !== 'GET') {
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   }

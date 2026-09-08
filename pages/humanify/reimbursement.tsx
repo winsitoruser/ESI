@@ -4,6 +4,7 @@ import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
 import EmployeePicker, { type PickedEmployee } from '@/components/humanify/EmployeePicker';
 import ClaimReceiptGallery, { parseClaimReceipts } from '@/components/humanify/ClaimReceiptGallery';
+import EmployeeAvatar from '@/components/humanify/EmployeeAvatar';
 import { PageGuard } from '@/components/permissions';
 import Link from 'next/link';
 import HRStatCard from '@/components/humanify/HRStatCard';
@@ -12,6 +13,7 @@ import {
   Plane, Stethoscope, Car, Utensils, Upload, RefreshCw, DollarSign,
   AlertCircle, CheckCircle2, Ban, Eye, Paperclip,
 } from 'lucide-react';
+import EnterprisePageHeader from '@/components/humanify/EnterprisePageHeader';
 
 const CATEGORIES = [
   { key: 'medical', label: 'Medis & Kesehatan', icon: Stethoscope, limit: 2000000 },
@@ -79,6 +81,7 @@ export default function ReimbursementPage() {
           claim_number: c.claim_number,
           employee_name: c.employee_name || `Karyawan`,
           employee_id: c.employee_id,
+          photo_url: c.photo_url || null,
           claim_type: c.claim_type,
           description: c.description,
           amount: parseFloat(c.amount) || 0,
@@ -237,20 +240,25 @@ export default function ReimbursementPage() {
         {toast && <div className={`fixed top-4 right-4 z-50 rounded-xl px-4 py-3 text-white shadow-lg ${toast.type === 'error' ? 'bg-rose-500' : 'bg-emerald-500'}`}>{toast.msg}</div>}
 
         <div className="space-y-6">
-          <div className="flex flex-wrap items-center gap-3">
-            <Link href="/humanify/ess" className="rounded-xl border p-2 hover:bg-gray-50"><ArrowLeft className="h-4 w-4" /></Link>
-            <div className="flex-1">
-              <h2 className="flex items-center gap-2 text-xl font-bold"><Wallet className="h-5 w-5 text-emerald-600" /> Reimbursement Karyawan</h2>
-              <p className="text-sm text-gray-500">Ajukan klaim, pantau approval, otomatis masuk payroll</p>
-            </div>
-            <button onClick={load} className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm hover:bg-gray-50">
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-            <button onClick={() => setShowModal(true)} className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">
-              <Plus className="h-4 w-4" /> Ajukan Klaim
-            </button>
-            <DataSourceBadge source={dataSource} />
-          </div>
+          <EnterprisePageHeader
+            title="Reimbursement Karyawan"
+            subtitle="Ajukan klaim, pantau approval, otomatis masuk payroll"
+            badge="Claims"
+            icon={Wallet}
+            variant="corporate"
+            actions={
+              <>
+                <Link href="/humanify/ess" className="rounded-xl border p-2 hover:bg-gray-50"><ArrowLeft className="h-4 w-4" /></Link>
+                <button type="button" onClick={load} className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm hover:bg-gray-50">
+                  <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                </button>
+                <button type="button" onClick={() => setShowModal(true)} className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">
+                  <Plus className="h-4 w-4" /> Ajukan Klaim
+                </button>
+                <DataSourceBadge source={dataSource} />
+              </>
+            }
+          />
 
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <HRStatCard label="Menunggu Approval" value={pending.length} sub={fmt(totalPending)} icon={Clock} gradient="from-amber-500 to-orange-600" />
@@ -280,7 +288,7 @@ export default function ReimbursementPage() {
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari karyawan, no. klaim, atau deskripsi..." className="w-full rounded-xl border py-2 pl-9 pr-4 text-sm" />
           </div>
 
-          <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
+          <div className="overflow-hidden hf-card">
             <table className="w-full text-sm">
               <thead className="border-b bg-gray-50">
                 <tr>
@@ -308,8 +316,13 @@ export default function ReimbursementPage() {
                     <tr key={c.id} className="border-b hover:bg-gray-50/80">
                       <td className="p-3 font-mono text-xs text-gray-500">{c.claim_number || c.id.slice(0, 8)}</td>
                       <td className="p-3">
-                        <p className="font-medium">{c.employee_name}</p>
-                        {c.department && <p className="text-xs text-gray-400">{c.department}</p>}
+                        <div className="flex items-center gap-2.5">
+                          <EmployeeAvatar name={c.employee_name} photoUrl={c.photo_url} size="sm" />
+                          <div>
+                            <p className="font-medium">{c.employee_name}</p>
+                            {c.department && <p className="text-xs text-gray-400">{c.department}</p>}
+                          </div>
+                        </div>
                       </td>
                       <td className="p-3 capitalize">{c.claim_type}</td>
                       <td className="p-3 text-gray-600 max-w-[200px] truncate" title={c.description || ''}>{c.description || '-'}</td>
@@ -445,10 +458,13 @@ export default function ReimbursementPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setDetailClaim(null)}>
             <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
               <div className="mb-4 flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="text-lg font-bold">{detailClaim.claim_number || 'Detail Klaim'}</h3>
-                  <p className="text-sm text-gray-500">{detailClaim.employee_name} · {detailClaim.claim_type}</p>
-                  <p className="mt-1 text-lg font-semibold text-emerald-700">{fmt(detailClaim.amount)}</p>
+                <div className="flex items-center gap-3 min-w-0">
+                  <EmployeeAvatar name={detailClaim.employee_name} photoUrl={detailClaim.photo_url} size="lg" />
+                  <div className="min-w-0">
+                    <h3 className="text-lg font-bold">{detailClaim.claim_number || 'Detail Klaim'}</h3>
+                    <p className="text-sm text-gray-500 truncate">{detailClaim.employee_name} · {detailClaim.claim_type}</p>
+                    <p className="mt-1 text-lg font-semibold text-emerald-700">{fmt(detailClaim.amount)}</p>
+                  </div>
                 </div>
                 <button type="button" onClick={() => setDetailClaim(null)} className="rounded-lg p-1 hover:bg-gray-100"><X className="h-5 w-5" /></button>
               </div>

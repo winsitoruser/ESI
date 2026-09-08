@@ -54,9 +54,13 @@ export default function PartnerStatusPage() {
           </Link>
           <div className="rounded-2xl bg-white text-slate-900 p-6 sm:p-8 shadow-xl">
             <h1 className="text-2xl font-bold mb-2">Status lead & payout</h1>
-            <p className="text-slate-600 text-sm mb-6">
+            <p className="text-slate-600 text-sm mb-4">
               Masukkan email dan ID lead yang Anda terima saat submit formulir.
             </p>
+            <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900">
+              <strong>Payout jujur:</strong> komisi partner dibayar lewat ledger ops (manual mark-paid).
+              Bukan transfer otomatis Midtrans (ADR D-015). Status di bawah = catatan internal, bukan bukti transfer bank.
+            </div>
             <form onSubmit={lookup} className="space-y-3">
               <input
                 type="email"

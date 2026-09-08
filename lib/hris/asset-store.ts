@@ -164,18 +164,21 @@ export async function listAssets(filters?: {
     return allowHrMockFallback() ? getMockAssets(filters) : [];
   }
   await ensureAssetTables();
-  let sql = 'SELECT * FROM hris_assets WHERE tenant_id = $1';
+  let sql = 'SELECT * FROM hris_assets WHERE tenant_id IS NOT NULL AND tenant_id = $1';
   const params: any[] = [filters.tenantId];
   if (filters?.status) { params.push(filters.status); sql += ` AND status = $${params.length}`; }
   if (filters?.category) { params.push(filters.category); sql += ` AND category = $${params.length}`; }
   if (filters?.assignedTo) { params.push(filters.assignedTo); sql += ` AND assigned_to = $${params.length}`; }
   sql += ' ORDER BY asset_code ASC';
   const [rows] = await sequelize.query(sql, { bind: params });
+  const scoped = (rows || []).filter(
+    (r: any) => r.tenant_id != null && String(r.tenant_id) === String(filters.tenantId),
+  );
   // Empty tenant inventory must stay empty in production (no MacBook demos).
-  if (!rows?.length) {
+  if (!scoped.length) {
     return allowHrMockFallback() ? getMockAssets(filters) : [];
   }
-  return rows.map(mapAsset);
+  return scoped.map(mapAsset);
 }
 
 export async function assignAsset(

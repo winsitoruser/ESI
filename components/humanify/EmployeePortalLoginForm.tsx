@@ -28,10 +28,10 @@ type Props = {
 };
 
 const ESS_FEATURES = [
-  { icon: Fingerprint, title: 'Absensi', desc: 'GPS, selfie & geofence' },
-  { icon: Calendar, title: 'Cuti & Izin', desc: 'Ajukan & pantau status' },
-  { icon: Wallet, title: 'Slip Gaji', desc: 'Payslip bulanan aman' },
-  { icon: FileText, title: 'Klaim', desc: 'Reimbursement digital' },
+  { icon: Fingerprint, title: 'Absensi', short: 'Absensi', desc: 'GPS, selfie & geofence' },
+  { icon: Calendar, title: 'Cuti & Izin', short: 'Cuti', desc: 'Ajukan & pantau status' },
+  { icon: Wallet, title: 'Slip Gaji', short: 'Slip', desc: 'Payslip bulanan aman' },
+  { icon: FileText, title: 'Klaim', short: 'Klaim', desc: 'Reimbursement digital' },
 ] as const;
 
 const TRUST_BADGES = [
@@ -77,12 +77,17 @@ export default function EmployeePortalLoginForm({ csrfToken }: Props) {
     }
   };
 
+  const inputClass =
+    'w-full min-h-11 pl-11 pr-4 text-base lg:text-sm rounded-xl outline-none transition-all ' +
+    'bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 ' +
+    'focus:border-[color:var(--ep-accent)] focus:ring-2 focus:ring-teal-500/20 ' +
+    'lg:bg-white/[0.04] lg:border-white/[0.08] lg:text-white lg:placeholder:text-slate-600 ' +
+    'lg:focus:bg-white/[0.06] lg:focus:border-indigo-500/40 lg:focus:ring-indigo-500/15';
+
   return (
-    <div className="min-h-screen flex bg-[#080b14] text-white overflow-hidden">
-      {/* Ambient background */}
-      <div className="pointer-events-none fixed inset-0">
+    <div className="min-h-[100dvh] lg:min-h-screen flex flex-col lg:flex-row bg-[#f8fafc] text-slate-900 lg:bg-[#080b14] lg:text-white overflow-x-hidden">
+      <div className="pointer-events-none fixed inset-0 hidden lg:block">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(99,102,241,0.18),transparent)]" />
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMiI+PHBhdGggZD0iTTM2IDM0djItaDJ2LTJoLTJ6bTAtNHYyaDJ2LTJoLTJ6bTAtNHYyaDJ2LTJoLTJ6bTAtNHYyaDJ2LTJoLTJ6bTAtNHYyaDJ2LTJoLTJ6bTAtNHYyaDJ2LTJoLTJ6bTAtNHYyaDJ2LTJoLTJ6bTAtNHYyaDJ2LTJoLTJ6bTAtNHYyaDJ2LTJoLTJ6bTAtNHYyaDJ2LTJoLTJ6bTAtNHYyaDJ2LTJoLTJ6bTAtNHYyaDJ2LTJoLTJ6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-40" />
         <motion.div
           className="absolute top-[-5%] right-[10%] w-[500px] h-[500px] bg-indigo-600/15 rounded-full blur-[120px]"
           animate={{ opacity: [0.4, 0.6, 0.4] }}
@@ -95,7 +100,7 @@ export default function EmployeePortalLoginForm({ csrfToken }: Props) {
         />
       </div>
 
-      {/* Left — enterprise branding */}
+      {/* Left — enterprise branding (desktop only) */}
       <div className="hidden lg:flex lg:w-[54%] relative z-10 flex-col justify-between p-12 xl:p-16 border-r border-white/[0.06]">
         <HumanifyLogo
           href={HUMANIFY_BRAND.welcomePath}
@@ -162,50 +167,75 @@ export default function EmployeePortalLoginForm({ csrfToken }: Props) {
         </p>
       </div>
 
-      {/* Right — login form */}
-      <div className="flex-1 relative z-10 flex items-center justify-center p-5 sm:p-8 lg:p-12">
+      {/* Form column — phone shell on mobile, card on desktop */}
+      <div className="flex-1 relative z-10 flex flex-col lg:items-center lg:justify-center min-h-[100dvh] lg:min-h-0 lg:p-12">
         <motion.div
           initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="w-full max-w-[420px]"
+          className="w-full max-w-none lg:max-w-[420px] flex flex-col flex-1 lg:flex-none px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] lg:p-0"
         >
-          <div className="lg:hidden mb-8 text-center">
+          <header className="lg:hidden mb-5">
             <HumanifyLogo
               href={HUMANIFY_BRAND.welcomePath}
-              size="md"
+              size="sm"
               variant="full"
               src={HUMANIFY_BRAND.welcomeLogoPath}
               aspect={HUMANIFY_BRAND.welcomeLogoAspect}
-              className="rounded-lg mx-auto"
+              className="rounded-md h-8 w-auto"
             />
-            <p className="text-xs text-slate-500 mt-3 font-medium">Employee Self-Service</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-teal-700 mt-3">
+              Employee Self-Service
+            </p>
+            <h1 className="text-[1.65rem] font-bold tracking-tight text-slate-900 leading-tight mt-1">
+              Portal Karyawan
+            </h1>
+            <p className="text-sm text-slate-500 mt-1 leading-snug">
+              Masuk untuk absensi, cuti, slip gaji, dan klaim.
+            </p>
+          </header>
+
+          <div className="lg:hidden grid grid-cols-4 gap-2 mb-5">
+            {ESS_FEATURES.map((f) => (
+              <div
+                key={f.title}
+                className="flex flex-col items-center gap-1.5 rounded-2xl border border-slate-200/80 bg-white px-1 py-2.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+              >
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
+                  <f.icon className="h-4 w-4" aria-hidden />
+                </div>
+                <p className="text-[10px] font-semibold text-slate-700 text-center leading-tight">{f.short}</p>
+              </div>
+            ))}
           </div>
 
-          <div className="relative rounded-3xl border border-white/[0.1] bg-white/[0.04] backdrop-blur-2xl shadow-2xl shadow-black/40 overflow-hidden">
-            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-400/40 to-transparent" />
+          <div className="relative flex-1 lg:flex-none rounded-2xl lg:rounded-3xl border border-slate-200/90 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.06)] lg:border-white/[0.1] lg:bg-white/[0.04] lg:backdrop-blur-2xl lg:shadow-2xl lg:shadow-black/40 overflow-hidden">
+            <div className="hidden lg:block absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-400/40 to-transparent" />
 
-            <div className="relative p-8 sm:p-9">
-              <div className="mb-7">
-                <h2 className="text-xl font-bold tracking-tight text-white">Masuk ke akun Anda</h2>
+            <div className="relative p-5 sm:p-6 lg:p-9">
+              <div className="mb-5 lg:mb-7">
+                <h2 className="text-lg lg:text-xl font-bold tracking-tight text-slate-900 lg:text-white">
+                  Masuk ke akun Anda
+                </h2>
                 <p className="text-slate-500 text-sm mt-1">Gunakan kredensial karyawan perusahaan</p>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-5">
+              <form onSubmit={handleSubmit} className="space-y-4 lg:space-y-5">
                 <input type="hidden" name="csrfToken" value={csrfToken} />
 
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 lg:text-slate-400 mb-2">
                     Email karyawan
                   </label>
                   <div className="relative group">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-[17px] h-[17px] text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-[17px] h-[17px] text-slate-400 lg:text-slate-500 group-focus-within:text-teal-600 lg:group-focus-within:text-indigo-400 transition-colors" />
                     <input
                       type="email"
                       name="email"
+                      inputMode="email"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full pl-11 pr-4 py-3.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-white placeholder:text-slate-600 outline-none focus:bg-white/[0.06] focus:border-indigo-500/40 focus:ring-2 focus:ring-indigo-500/15 transition-all text-sm"
+                      className={inputClass}
                       placeholder="nama@perusahaan.com"
                       required
                       autoComplete="email"
@@ -214,17 +244,17 @@ export default function EmployeePortalLoginForm({ csrfToken }: Props) {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 lg:text-slate-400 mb-2">
                     Password
                   </label>
                   <div className="relative group">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-[17px] h-[17px] text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-[17px] h-[17px] text-slate-400 lg:text-slate-500 group-focus-within:text-teal-600 lg:group-focus-within:text-indigo-400 transition-colors" />
                     <input
                       type={showPassword ? 'text' : 'password'}
                       name="password"
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      className="w-full pl-11 pr-12 py-3.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-white placeholder:text-slate-600 outline-none focus:bg-white/[0.06] focus:border-indigo-500/40 focus:ring-2 focus:ring-indigo-500/15 transition-all text-sm"
+                      className={`${inputClass} pr-12`}
                       placeholder="Masukkan password"
                       required
                       autoComplete="current-password"
@@ -232,7 +262,7 @@ export default function EmployeePortalLoginForm({ csrfToken }: Props) {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 min-h-11 min-w-11 inline-flex items-center justify-center text-slate-400 hover:text-slate-700 lg:text-slate-500 lg:hover:text-slate-300 transition-colors"
                       aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
                     >
                       {showPassword ? <EyeOff className="w-[17px] h-[17px]" /> : <Eye className="w-[17px] h-[17px]" />}
@@ -245,9 +275,9 @@ export default function EmployeePortalLoginForm({ csrfToken }: Props) {
                   disabled={isLoading}
                   whileHover={{ scale: isLoading ? 1 : 1.01 }}
                   whileTap={{ scale: isLoading ? 1 : 0.99 }}
-                  className="relative w-full mt-1 py-3.5 rounded-xl font-semibold text-white overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed group text-sm"
+                  className="relative w-full mt-1 min-h-11 rounded-xl font-semibold text-white overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed group text-base lg:text-sm"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 via-violet-600 to-indigo-600 bg-[length:200%_100%] group-hover:animate-[shimmer_2s_ease_infinite]" />
+                  <div className="absolute inset-0 bg-[color:var(--ep-accent)] lg:bg-gradient-to-r lg:from-indigo-600 lg:via-violet-600 lg:to-indigo-600 lg:bg-[length:200%_100%] lg:group-hover:animate-[shimmer_2s_ease_infinite]" />
                   <span className="relative flex items-center justify-center gap-2">
                     {isLoading ? (
                       <>
@@ -268,25 +298,25 @@ export default function EmployeePortalLoginForm({ csrfToken }: Props) {
                 </motion.button>
               </form>
 
-              <div className="mt-8 pt-6 border-t border-white/[0.06] space-y-3">
-                <p className="text-center text-xs text-slate-500">
-                  <Link href="/humanify/forgot-password" className="hover:text-indigo-400 transition-colors">
+              <div className="mt-6 lg:mt-8 pt-5 lg:pt-6 border-t border-slate-100 lg:border-white/[0.06] space-y-3">
+                <p className="text-center text-sm lg:text-xs text-slate-500">
+                  <Link href="/humanify/forgot-password" className="inline-flex min-h-10 items-center hover:text-teal-700 lg:hover:text-indigo-400 transition-colors">
                     Lupa password?
                   </Link>
                 </p>
                 <Link
                   href={HUMANIFY_BRAND.loginPath}
-                  className="flex items-center justify-between p-3.5 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-indigo-500/20 transition-all group"
+                  className="flex items-center justify-between min-h-11 p-3.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 lg:border-white/[0.06] lg:bg-white/[0.02] lg:hover:bg-white/[0.05] lg:hover:border-indigo-500/20 transition-all group"
                 >
                   <div>
-                    <p className="text-sm font-medium text-slate-300">Login HR / Admin</p>
-                    <p className="text-xs text-slate-600 mt-0.5">Untuk tim SDM & manajemen</p>
+                    <p className="text-sm font-medium text-slate-800 lg:text-slate-300">Login HR / Admin</p>
+                    <p className="text-xs text-slate-500 lg:text-slate-600 mt-0.5">Untuk tim SDM & manajemen</p>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-indigo-400 group-hover:translate-x-0.5 transition-all" />
+                  <ChevronRight className="w-4 h-4 text-slate-400 lg:text-slate-600 group-hover:text-teal-700 lg:group-hover:text-indigo-400 group-hover:translate-x-0.5 transition-all" />
                 </Link>
                 <Link
                   href={HUMANIFY_BRAND.welcomePath}
-                  className="block text-center text-xs text-slate-600 hover:text-indigo-400 transition-colors"
+                  className="flex min-h-10 items-center justify-center text-center text-xs text-slate-500 hover:text-teal-700 lg:text-slate-600 lg:hover:text-indigo-400 transition-colors"
                 >
                   Kembali ke beranda Humanify
                 </Link>
@@ -294,7 +324,7 @@ export default function EmployeePortalLoginForm({ csrfToken }: Props) {
             </div>
           </div>
 
-          <p className="lg:hidden text-center text-xs text-slate-600 mt-6 flex items-center justify-center gap-1.5">
+          <p className="lg:hidden text-center text-[11px] text-slate-400 mt-4 flex items-center justify-center gap-1.5">
             <Clock className="w-3.5 h-3.5" />
             Absensi · Cuti · Slip Gaji · Klaim
           </p>

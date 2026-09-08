@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { allowHrMockFallback } from '@/lib/hris/data-source';
-import { findScopedById, tenantIdFromSession } from '@/lib/saas/tenant-scope';
+import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
 import { withObservability } from '@/lib/observability';
 import { withHQAuth } from '@/lib/middleware/withHQAuth';
 
@@ -227,13 +227,19 @@ async function updateLeaveRequest(req: NextApiRequest, res: NextApiResponse, ses
     if (!tenantId) {
       return res.status(403).json({ success: false, error: 'NO_TENANT', message: 'Tenant context required' });
     }
-    const leave = await findScopedById(LeaveRequest, id, tenantId);
+    const sequelize = require('../../../lib/sequelize');
+    const [rows] = await sequelize.query(
+      `SELECT * FROM leave_requests WHERE id = :id AND tenant_id = :tenantId LIMIT 1`,
+      { replacements: { id, tenantId } },
+    );
+    const leave = rows?.[0];
     if (!leave) return res.status(404).json({ success: false, error: 'Leave request not found' });
 
-    const updateData: any = { status };
+    const empId = leave.employee_id;
+    const leaveType = leave.leave_type;
+    const totalDays = leave.total_days;
+
     if (status === 'approved') {
-      // Validate leave balance before approving
-      const sequelize = require('../../../lib/sequelize');
       try {
         const [balanceRows] = await sequelize.query(`
           SELECT lb.*,
@@ -242,51 +248,78 @@ async function updateLeaveRequest(req: NextApiRequest, res: NextApiResponse, ses
           FROM leave_balances lb
           WHERE lb.employee_id = :empId AND lb.year = :year
           AND lb.leave_type_id = (SELECT id FROM leave_types WHERE code = :code LIMIT 1)
-        `, { replacements: { empId: leave.employeeId, year: new Date().getFullYear(), code: leave.leaveType } });
+        `, { replacements: { empId, year: new Date().getFullYear(), code: leaveType } });
         const balance = balanceRows?.[0];
         if (balance) {
           const remaining = parseFloat(balance.remaining);
-          if (remaining < leave.totalDays) {
+          if (remaining < totalDays) {
             return res.status(400).json({
               success: false,
-              error: `Saldo cuti tidak mencukupi. Sisa: ${Math.max(0, remaining)} hari, dibutuhkan: ${leave.totalDays} hari`
+              error: `Saldo cuti tidak mencukupi. Sisa: ${Math.max(0, remaining)} hari, dibutuhkan: ${totalDays} hari`
             });
           }
         }
       } catch (e) {}
-      updateData.approvedBy = session.user.id;
-      updateData.approvedAt = new Date();
-    }
-    if (status === 'rejected' && rejectionReason) {
-      updateData.rejectionReason = rejectionReason;
     }
 
-    await leave.update(updateData);
+    const approverRaw = session?.user?.id != null ? String(session.user.id) : null;
+    const approverIsUuid = !!approverRaw && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(approverRaw);
 
-    // If approved, deduct from leave balance
+    let sql = `UPDATE leave_requests SET status = :status, updated_at = NOW()`;
+    const replacements: Record<string, unknown> = { id, tenantId, status };
+    if (status === 'approved') {
+      sql += `, approved_at = NOW()`;
+      if (approverIsUuid) {
+        sql += `, approved_by = :approvedBy`;
+        replacements.approvedBy = approverRaw;
+      }
+    }
+    if (status === 'rejected') {
+      sql += `, rejection_reason = :rejectionReason`;
+      replacements.rejectionReason = rejectionReason || null;
+    }
+    sql += ` WHERE id = :id AND tenant_id = :tenantId RETURNING *`;
+
+    const [updated] = await sequelize.query(sql, { replacements });
+    const row = updated?.[0] || leave;
+
     if (status === 'approved') {
       try {
-        const db = require('../../../lib/sequelize');
-        await db.query(`
+        await sequelize.query(`
           UPDATE leave_balances SET
             pending_days = GREATEST(0, pending_days - :days),
             used_days = used_days + :days,
             updated_at = NOW()
           WHERE employee_id = :empId AND year = :year
           AND leave_type_id = (SELECT id FROM leave_types WHERE code = :code LIMIT 1)
-        `, { replacements: { days: leave.totalDays, empId: leave.employeeId, year: new Date().getFullYear(), code: leave.leaveType } });
+        `, { replacements: { days: totalDays, empId, year: new Date().getFullYear(), code: leaveType } });
       } catch (e) {
         console.warn('Failed to update leave balance on approval: (table may not exist):', (e as any)?.message || e);
       }
     }
 
-    const eventType = status === 'approved' ? 'leave.approved' : 'leave.rejected';
-    await triggerHRISWebhook(eventType, leave.employeeId, 'Employee', leave);
+    if (status === 'approved' || status === 'rejected') {
+      try {
+        const eventType = status === 'approved' ? 'leave.approved' : 'leave.rejected';
+        await triggerHRISWebhook(eventType, empId, 'Employee', row);
+      } catch (whErr) {
+        console.warn('leave webhook skipped:', (whErr as any)?.message || whErr);
+      }
+    }
 
     return res.status(200).json({
       success: true,
       message: status === 'approved' ? 'Cuti disetujui' : status === 'rejected' ? 'Cuti ditolak' : 'Cuti dibatalkan',
-      data: leave
+      data: {
+        id: row.id,
+        employeeId: row.employee_id,
+        leaveType: row.leave_type,
+        startDate: row.start_date,
+        endDate: row.end_date,
+        totalDays: row.total_days,
+        status: row.status,
+        tenantId: row.tenant_id,
+      },
     });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: 'Failed to update leave', details: e.message });

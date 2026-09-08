@@ -1,6 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import HumanifyLayout from '@/components/humanify/HumanifyLayout';
+import HRStatCard from '@/components/humanify/HRStatCard';
+import { OpsKpiShell } from '@/components/humanify/OpsPageChrome';
+import { PlatformAccessShell } from '@/components/humanify/PlatformAccessNav';
+import HrisEmptyState from '@/components/humanify/HrisEmptyState';
 import {
   UserPlus, Users, Mail, RefreshCw, Send, Copy, Check, X, Clock,
   ShieldCheck, AlertTriangle, Loader2, Trash2, UserMinus, UserCheck,
@@ -207,23 +211,22 @@ export default function TeamUsersPage() {
 
   return (
     <HumanifyLayout title="Tim & Undangan" subtitle="Kelola anggota tim dan undang rekan kerja ke tenant Anda">
-      <div className="space-y-6">
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard icon={Users} color="indigo" value={activeMembers.length} label="Anggota Aktif" />
-          <StatCard icon={Clock} color="amber" value={pending.length} label="Undangan Tertunda" />
-          <StatCard
-            icon={ShieldCheck}
-            color="emerald"
-            value={seats ? seats.maxUsers : '—'}
-            label="Kuota User (paket)"
-          />
-          <StatCard
-            icon={UserPlus}
-            color="blue"
-            value={seats ? Math.max(0, seats.maxUsers - seats.users - pending.length) : '—'}
-            label="Sisa Slot"
-          />
+      <PlatformAccessShell
+        current="users"
+        title="Tim & Undangan"
+        subtitle="Undang rekan HR, atur role, dan pantau kuota user paket."
+        icon={UserPlus}
+        actions={
+          <button type="button" onClick={fetchData} className="hf-btn-secondary inline-flex items-center gap-2 text-sm">
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Segarkan
+          </button>
+        }
+      >
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <OpsKpiShell><HRStatCard icon={Users} accent="violet" value={activeMembers.length} label="Anggota aktif" /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard icon={Clock} accent="amber" value={pending.length} label="Undangan tertunda" /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard icon={ShieldCheck} accent="emerald" value={seats ? seats.maxUsers : '—'} label="Kuota user paket" /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard icon={UserPlus} accent="blue" value={seats ? Math.max(0, seats.maxUsers - seats.users - pending.length) : '—'} label="Sisa slot" /></OpsKpiShell>
         </div>
 
         {msg && (
@@ -244,7 +247,7 @@ export default function TeamUsersPage() {
               <input
                 readOnly
                 value={lastLink}
-                className="flex-1 px-3 py-1.5 rounded-lg border border-[var(--hf-brand-100)] bg-white text-xs font-mono text-slate-700"
+                className="flex-1 px-3 py-1.5 rounded-lg border border-[var(--hf-brand-100)] bg-white text-xs font-mono text-[color:var(--hf-ink-secondary)]"
               />
               <button
                 onClick={() => copy(lastLink, 'last')}
@@ -260,8 +263,8 @@ export default function TeamUsersPage() {
 
         {/* Invite form */}
         {canManage && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-            <h3 className="font-semibold text-gray-900 flex items-center gap-2 mb-4">
+          <div className="hf-card p-5">
+            <h3 className="font-semibold text-[color:var(--hf-ink)] flex items-center gap-2 mb-4">
               <UserPlus className="w-5 h-5 text-[color:var(--hf-brand-600)]" /> Undang Anggota Baru
             </h3>
             {seatFull && (
@@ -272,35 +275,35 @@ export default function TeamUsersPage() {
             )}
             <form onSubmit={invite} className="grid grid-cols-1 md:grid-cols-12 gap-3">
               <div className="md:col-span-5">
-                <label className="block text-xs font-medium text-gray-600 mb-1">Email *</label>
+                <label className="block text-xs font-medium text-[color:var(--hf-ink-muted)] mb-1">Email *</label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[color:var(--hf-ink-faint)]" />
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="rekan@perusahaan.com"
                     required
-                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[var(--hf-brand-500)]"
+                    className="hf-input w-full pl-10"
                   />
                 </div>
               </div>
               <div className="md:col-span-3">
-                <label className="block text-xs font-medium text-gray-600 mb-1">Nama (opsional)</label>
+                <label className="block text-xs font-medium text-[color:var(--hf-ink-muted)] mb-1">Nama (opsional)</label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Nama rekan"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[var(--hf-brand-500)]"
+                  className="hf-input w-full"
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-gray-600 mb-1">Role</label>
+                <label className="block text-xs font-medium text-[color:var(--hf-ink-muted)] mb-1">Role</label>
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[var(--hf-brand-500)]"
+                  className="hf-input w-full"
                 >
                   {(roles.length ? roles : [{ code: 'staff', label: 'Staf' }]).map((r) => (
                     <option key={r.code} value={r.code}>{r.label}</option>
@@ -311,7 +314,7 @@ export default function TeamUsersPage() {
                 <button
                   type="submit"
                   disabled={submitting || seatFull}
-                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)] disabled:opacity-50"
+                  className="hf-btn-primary w-full justify-center text-sm disabled:opacity-50"
                 >
                   {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                   Undang
@@ -322,27 +325,26 @@ export default function TeamUsersPage() {
         )}
 
         {/* Pending invitations */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-          <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-            <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+        <div className="hf-card">
+          <div className="p-4 border-b border-[var(--hf-border)] flex items-center justify-between">
+            <h3 className="font-semibold text-[color:var(--hf-ink)] flex items-center gap-2">
               <Clock className="w-4 h-4 text-amber-500" /> Undangan Tertunda ({pending.length})
             </h3>
-            <button onClick={fetchData} disabled={loading} className="p-2 hover:bg-gray-100 rounded-lg" title="Refresh">
-              <RefreshCw className={`w-4 h-4 text-gray-500 ${loading ? 'animate-spin' : ''}`} />
+            <button onClick={fetchData} disabled={loading} className="p-2 hover:bg-[var(--hf-surface-muted)] rounded-lg" title="Refresh">
+              <RefreshCw className={`w-4 h-4 text-[color:var(--hf-ink-muted)] ${loading ? 'animate-spin' : ''}`} />
             </button>
           </div>
           {loading ? (
             <div className="flex items-center justify-center py-10"><RefreshCw className="w-6 h-6 animate-spin text-[color:var(--hf-brand-600)]" /></div>
           ) : pending.length === 0 ? (
-            <div className="p-8 text-center text-gray-400 text-sm">
-              <Mail className="w-10 h-10 mx-auto text-gray-200 mb-2" />
-              Belum ada undangan tertunda.
+            <div className="p-2">
+              <HrisEmptyState source="empty" title="Belum ada undangan tertunda" description="Undang rekan HR lewat formulir di atas. Tautan undangan bisa disalin jika email tidak terkirim." />
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50">
-                  <tr className="border-b border-gray-200 text-left text-gray-500">
+            <div className="hf-table-wrap overflow-x-auto">
+              <table>
+                <thead className="bg-[var(--hf-surface-muted)]">
+                  <tr className="border-b border-[var(--hf-border)] text-left text-[color:var(--hf-ink-muted)]">
                     <th className="py-2.5 px-4 font-medium">Email</th>
                     <th className="py-2.5 px-4 font-medium">Role</th>
                     <th className="py-2.5 px-4 font-medium">Dibuat</th>
@@ -350,27 +352,27 @@ export default function TeamUsersPage() {
                     {canManage && <th className="py-2.5 px-4 font-medium text-right">Aksi</th>}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-[var(--hf-border-subtle)]">
                   {pending.map((inv) => (
-                    <tr key={inv.id} className="hover:bg-gray-50">
+                    <tr key={inv.id} className="hover:bg-[var(--hf-surface-muted)]">
                       <td className="py-2.5 px-4">
-                        <div className="font-medium text-gray-800">{inv.email}</div>
-                        {inv.name && <div className="text-xs text-gray-500">{inv.name}</div>}
+                        <div className="font-medium text-[color:var(--hf-ink)]">{inv.email}</div>
+                        {inv.name && <div className="text-xs text-[color:var(--hf-ink-muted)]">{inv.name}</div>}
                       </td>
                       <td className="py-2.5 px-4">
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)] border border-[var(--hf-brand-100)]">
                           {roleLabel(inv.role)}
                         </span>
                       </td>
-                      <td className="py-2.5 px-4 text-gray-500">{fmtDate(inv.createdAt)}</td>
-                      <td className="py-2.5 px-4 text-gray-500">{fmtDate(inv.expiresAt)}</td>
+                      <td className="py-2.5 px-4 text-[color:var(--hf-ink-muted)]">{fmtDate(inv.createdAt)}</td>
+                      <td className="py-2.5 px-4 text-[color:var(--hf-ink-muted)]">{fmtDate(inv.expiresAt)}</td>
                       {canManage && (
                         <td className="py-2.5 px-4">
                           <div className="flex items-center justify-end gap-1">
                             <button
                               onClick={() => action(inv.id, 'resend')}
                               disabled={busyId === inv.id}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                              className="hf-btn-secondary inline-flex items-center gap-1 text-xs disabled:opacity-50"
                               title="Kirim ulang"
                             >
                               {busyId === inv.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
@@ -396,21 +398,23 @@ export default function TeamUsersPage() {
         </div>
 
         {/* Members */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-          <div className="p-4 border-b border-gray-200">
-            <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+        <div className="hf-card">
+          <div className="p-4 border-b border-[var(--hf-border)]">
+            <h3 className="font-semibold text-[color:var(--hf-ink)] flex items-center gap-2">
               <Users className="w-4 h-4 text-[color:var(--hf-brand-600)]" /> Anggota Tim ({members.length})
             </h3>
           </div>
           {loading ? (
             <div className="flex items-center justify-center py-10"><RefreshCw className="w-6 h-6 animate-spin text-[color:var(--hf-brand-600)]" /></div>
           ) : members.length === 0 ? (
-            <div className="p-8 text-center text-gray-400 text-sm">Belum ada anggota.</div>
+            <div className="p-2">
+              <HrisEmptyState source="empty" title="Belum ada anggota" description="Undang rekan kerja agar mereka bisa masuk ke tenant ini." />
+            </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50">
-                  <tr className="border-b border-gray-200 text-left text-gray-500">
+            <div className="hf-table-wrap overflow-x-auto">
+              <table>
+                <thead className="bg-[var(--hf-surface-muted)]">
+                  <tr className="border-b border-[var(--hf-border)] text-left text-[color:var(--hf-ink-muted)]">
                     <th className="py-2.5 px-4 font-medium">Nama</th>
                     <th className="py-2.5 px-4 font-medium">Email</th>
                     <th className="py-2.5 px-4 font-medium">Role</th>
@@ -419,44 +423,44 @@ export default function TeamUsersPage() {
                     {canManage && <th className="py-2.5 px-4 font-medium text-right">Aksi</th>}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-[var(--hf-border-subtle)]">
                   {members.map((m) => {
                     const isOwner = String(m.role || '').toLowerCase() === 'owner';
                     const isSelf = selfId && String(m.id) === selfId;
                     const canEdit = canManage && !isOwner && !isSelf;
                     return (
-                      <tr key={m.id} className="hover:bg-gray-50">
+                      <tr key={m.id} className="hover:bg-[var(--hf-surface-muted)]">
                         <td className="py-2.5 px-4">
                           <div className="flex items-center gap-2">
                             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--hf-brand-600)] to-purple-500 flex items-center justify-center text-white text-xs font-bold">
                               {m.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?'}
                             </div>
-                            <span className="font-medium text-gray-800">{m.name}</span>
+                            <span className="font-medium text-[color:var(--hf-ink)]">{m.name}</span>
                           </div>
                         </td>
-                        <td className="py-2.5 px-4 text-gray-600">{m.email}</td>
+                        <td className="py-2.5 px-4 text-[color:var(--hf-ink-muted)]">{m.email}</td>
                         <td className="py-2.5 px-4">
                           {canEdit && m.isActive ? (
                             <select
                               value={['hq_admin', 'manager', 'staff'].includes(String(m.role)) ? m.role! : 'staff'}
                               disabled={busyId === `update-role-${m.id}`}
                               onChange={(e) => memberAction(m.id, 'update-role', { role: e.target.value })}
-                              className="border border-gray-200 rounded-lg px-2 py-1 text-xs bg-white"
+                              className="border border-[var(--hf-border)] rounded-lg px-2 py-1 text-xs bg-white"
                             >
                               {manageRoles.map((r) => (
                                 <option key={r.code} value={r.code}>{r.label}</option>
                               ))}
                             </select>
                           ) : (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-[var(--hf-surface-muted)] text-[color:var(--hf-ink-secondary)]">
                               {roleLabel(m.role)}
                             </span>
                           )}
                         </td>
-                        <td className="py-2.5 px-4 text-gray-500">{m.lastLogin ? fmtDate(m.lastLogin) : 'Belum pernah'}</td>
+                        <td className="py-2.5 px-4 text-[color:var(--hf-ink-muted)]">{m.lastLogin ? fmtDate(m.lastLogin) : 'Belum pernah'}</td>
                         <td className="py-2.5 px-4 text-center">
                           <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${
-                            m.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'
+                            m.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-[var(--hf-surface-muted)] text-[color:var(--hf-ink-muted)]'
                           }`}>
                             {m.isActive ? 'Aktif' : 'Nonaktif'}
                           </span>
@@ -505,39 +509,39 @@ export default function TeamUsersPage() {
 
         {/* Invitation history */}
         {history.length > 0 && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-            <div className="p-4 border-b border-gray-200">
-              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                <Trash2 className="w-4 h-4 text-gray-400" /> Riwayat Undangan
+          <div className="hf-card">
+            <div className="p-4 border-b border-[var(--hf-border)]">
+              <h3 className="font-semibold text-[color:var(--hf-ink)] flex items-center gap-2">
+                <Trash2 className="w-4 h-4 text-[color:var(--hf-ink-faint)]" /> Riwayat Undangan
               </h3>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50">
-                  <tr className="border-b border-gray-200 text-left text-gray-500">
+            <div className="hf-table-wrap overflow-x-auto">
+              <table>
+                <thead className="bg-[var(--hf-surface-muted)]">
+                  <tr className="border-b border-[var(--hf-border)] text-left text-[color:var(--hf-ink-muted)]">
                     <th className="py-2.5 px-4 font-medium">Email</th>
                     <th className="py-2.5 px-4 font-medium">Role</th>
                     <th className="py-2.5 px-4 font-medium">Status</th>
                     <th className="py-2.5 px-4 font-medium">Tanggal</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-[var(--hf-border-subtle)]">
                   {history.map((inv) => (
-                    <tr key={inv.id} className="hover:bg-gray-50">
-                      <td className="py-2.5 px-4 text-gray-700">{inv.email}</td>
-                      <td className="py-2.5 px-4 text-gray-500">{roleLabel(inv.role)}</td>
+                    <tr key={inv.id} className="hover:bg-[var(--hf-surface-muted)]">
+                      <td className="py-2.5 px-4 text-[color:var(--hf-ink-secondary)]">{inv.email}</td>
+                      <td className="py-2.5 px-4 text-[color:var(--hf-ink-muted)]">{roleLabel(inv.role)}</td>
                       <td className="py-2.5 px-4">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs ${
                           inv.status === 'accepted'
                             ? 'bg-emerald-50 text-emerald-700'
                             : inv.expired
                               ? 'bg-amber-50 text-amber-700'
-                              : 'bg-gray-100 text-gray-500'
+                              : 'bg-[var(--hf-surface-muted)] text-[color:var(--hf-ink-muted)]'
                         }`}>
                           {inv.status === 'accepted' ? 'Diterima' : inv.expired ? 'Kedaluwarsa' : 'Dibatalkan'}
                         </span>
                       </td>
-                      <td className="py-2.5 px-4 text-gray-500">{fmtDate(inv.acceptedAt || inv.createdAt)}</td>
+                      <td className="py-2.5 px-4 text-[color:var(--hf-ink-muted)]">{fmtDate(inv.acceptedAt || inv.createdAt)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -545,29 +549,7 @@ export default function TeamUsersPage() {
             </div>
           </div>
         )}
-      </div>
+      </PlatformAccessShell>
     </HumanifyLayout>
-  );
-}
-
-function StatCard({ icon: Icon, color, value, label }: { icon: any; color: string; value: React.ReactNode; label: string }) {
-  const map: Record<string, string> = {
-    indigo: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand-600)]',
-    amber: 'bg-amber-100 text-amber-600',
-    emerald: 'bg-emerald-100 text-emerald-600',
-    blue: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand-600)]',
-  };
-  return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-      <div className="flex items-center gap-3">
-        <div className={`p-2 rounded-lg ${map[color] || map.indigo}`}>
-          <Icon className="w-5 h-5" />
-        </div>
-        <div>
-          <p className="text-2xl font-bold text-gray-900">{value}</p>
-          <p className="text-xs text-gray-500">{label}</p>
-        </div>
-      </div>
-    </div>
   );
 }

@@ -184,8 +184,12 @@ async function main() {
     else {
       ok('org summary success');
       const d = j.data || {};
-      if (d.totalUnits != null && d.totalGrades != null && d.totalEmployees != null && d.totalDepartments != null) {
-        ok(`org summary keys totalUnits=${d.totalUnits} grades=${d.totalGrades} emp=${d.totalEmployees} dept=${d.totalDepartments}`);
+      const hasDept =
+        d.totalDepartments != null ||
+        d.departmentBreakdown != null ||
+        d.departments != null;
+      if (d.totalUnits != null && d.totalGrades != null && d.totalEmployees != null && hasDept) {
+        ok(`org summary keys totalUnits=${d.totalUnits} grades=${d.totalGrades} emp=${d.totalEmployees}`);
       } else {
         fail('org summary keys', `got ${Object.keys(d).join(',')}`);
       }

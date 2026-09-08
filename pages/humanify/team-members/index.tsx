@@ -167,7 +167,7 @@ export default function TeamMembersPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="hf-card p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600">
                 <UserCheck className="w-5 h-5" />
@@ -178,7 +178,7 @@ export default function TeamMembersPage() {
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="hf-card p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)]">
                 <Target className="w-5 h-5" />
@@ -189,7 +189,7 @@ export default function TeamMembersPage() {
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="hf-card p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-purple-50 text-purple-600">
                 <Star className="w-5 h-5" />
@@ -200,7 +200,7 @@ export default function TeamMembersPage() {
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="hf-card p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-amber-50 text-amber-600">
                 <Briefcase className="w-5 h-5" />
@@ -214,7 +214,7 @@ export default function TeamMembersPage() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-4">
+        <div className="hf-card p-4 space-y-4">
           <div className="flex items-center gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -277,7 +277,7 @@ export default function TeamMembersPage() {
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="hf-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>

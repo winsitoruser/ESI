@@ -255,8 +255,8 @@ export async function fetchLegacyTrainingCerts(tenantId?: string | null): Promis
         c.certificate_number, c.issue_date AS issued_date, c.expiry_date,
         'training' AS source
       FROM hris_certifications c
-      LEFT JOIN employees e ON e.id::text = c.employee_id::text
-      WHERE c.tenant_id = :tid
+      LEFT JOIN employees e ON e.id::text = c.employee_id::text AND e.tenant_id = :tid
+      WHERE c.tenant_id IS NOT NULL AND c.tenant_id = :tid
       ORDER BY c.expiry_date ASC NULLS LAST
     `, { replacements: { tid: tenantId } });
     return rows || [];

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/router';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DepartmentSelect from '@/components/humanify/DepartmentSelect';
 import { useHrisMasterData } from '@/hooks/useHrisMasterData';
@@ -7,6 +8,10 @@ import { useTranslation } from '@/lib/i18n';
 import { UserPlus, Search, Filter, Plus, Eye, Edit, Trash2, X, Check, ChevronRight, Briefcase, MapPin, Clock, Users, Star, FileText, Download, Upload, Calendar, DollarSign, BarChart3, TrendingUp, CheckCircle2, XCircle, AlertCircle, Loader2, Link2, MessageCircle, Globe } from 'lucide-react';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import HrisEmptyState from '@/components/humanify/HrisEmptyState';
+import HRStatCard from '@/components/humanify/HRStatCard';
+import { OpsKpiShell } from '@/components/humanify/OpsPageChrome';
+import { TalentShell } from '@/components/humanify/TalentModuleChrome';
+import { EnterpriseTabBar } from '@/components/humanify/PerformanceModuleChrome';
 import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 
 
@@ -44,6 +49,7 @@ const MOCK_RECRUITMENT_ANALYTICS = {
 
 export default function RecruitmentPage() {
   const { t } = useTranslation();
+  const router = useRouter();
   const { departments: masterDepts } = useHrisMasterData();
   const [tab, setTab] = useState<TabKey>('openings');
   const [openings, setOpenings] = useState<any[]>([]);
@@ -74,6 +80,15 @@ export default function RecruitmentPage() {
 
 
   const showToast = (msg: string, type = 'success') => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
+
+  useEffect(() => {
+    if (!router.isReady) return;
+    const create = String(router.query.create || '');
+    if (create === '1' || create === 'true') {
+      setTab('openings');
+      setShowCreateModal(true);
+    }
+  }, [router.isReady, router.query.create]);
   const fmtCur = (n: number) => `Rp ${(n || 0).toLocaleString('id-ID')}`;
 
   // ── API fetch functions ──
@@ -338,52 +353,81 @@ export default function RecruitmentPage() {
 
   return (
     <HQLayout title={t('hris.recruitmentTitle')} subtitle={t('hris.recruitmentSubtitle')}>
-      <div className="space-y-6">
-        {toast && <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white ${toast.type === 'error' ? 'bg-red-500' : 'bg-green-500'}`}>{toast.msg}</div>}
-
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="bg-[var(--hf-brand-50)] border border-[var(--hf-brand-100)] rounded-xl px-4 py-3 text-sm flex-1 min-w-0">
-            Portal karir publik per perusahaan (SaaS multi-tenant).{' '}
+      <TalentShell
+        current="recruitment"
+        title="Rekrutmen"
+        subtitle="Lowongan, pipeline kandidat, portal karir, dan integrasi job board dalam satu alur hire."
+        icon={UserPlus}
+        chips={[
+          { label: `${openCount} lowongan aktif` },
+          { label: `${totalApplicants} pelamar` },
+        ]}
+        actions={(
+          <div className="flex flex-wrap items-center gap-2">
+            <DataSourceBadge source={dataSource} />
             {saasCtx?.careersUrl ? (
-              <a href={saasCtx.careersUrl} target="_blank" rel="noopener noreferrer" className="text-[color:var(--hf-brand)] font-medium hover:underline">
-                Buka {saasCtx.careersUrl} →
+              <a href={saasCtx.careersUrl} target="_blank" rel="noopener noreferrer" className="hf-btn-secondary inline-flex items-center gap-1.5 text-sm">
+                <Globe className="h-4 w-4" /> Portal karir
               </a>
             ) : (
-              <span className="text-[color:var(--hf-brand-600)]">URL: /c/&#123;slug-perusahaan&#125;/careers</span>
+              <a href="/careers" target="_blank" rel="noopener noreferrer" className="hf-btn-secondary inline-flex items-center gap-1.5 text-sm">
+                <Globe className="h-4 w-4" /> Portal karir
+              </a>
             )}
-          </div>
-          <DataSourceBadge source={dataSource} />
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl p-4 border shadow-sm">
-            <div className="flex items-center gap-3"><div className="p-2 bg-[var(--hf-brand-100)] rounded-lg"><Briefcase className="w-5 h-5 text-[color:var(--hf-brand-600)]" /></div>
-              <div><p className="text-2xl font-bold">{openCount}</p><p className="text-xs text-gray-500">Lowongan Aktif</p></div></div>
-          </div>
-          <div className="bg-white rounded-xl p-4 border shadow-sm">
-            <div className="flex items-center gap-3"><div className="p-2 bg-purple-100 rounded-lg"><Users className="w-5 h-5 text-purple-600" /></div>
-              <div><p className="text-2xl font-bold">{totalApplicants}</p><p className="text-xs text-gray-500">Total Pelamar</p></div></div>
-          </div>
-          <div className="bg-white rounded-xl p-4 border shadow-sm">
-            <div className="flex items-center gap-3"><div className="p-2 bg-green-100 rounded-lg"><CheckCircle2 className="w-5 h-5 text-green-600" /></div>
-              <div><p className="text-2xl font-bold">{hiredCount}</p><p className="text-xs text-gray-500">Diterima</p></div></div>
-          </div>
-          <div className="bg-white rounded-xl p-4 border shadow-sm">
-            <div className="flex items-center gap-3"><div className="p-2 bg-orange-100 rounded-lg"><Clock className="w-5 h-5 text-orange-600" /></div>
-              <div><p className="text-2xl font-bold">{avgTimeToHire}d</p><p className="text-xs text-gray-500">Rata-rata Waktu Rekrut</p></div></div>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex gap-1 border-b">
-          {tabs.map(t => (
-            <button key={t.key} onClick={() => { setTab(t.key); setSearch(''); setFilterDept(''); setFilterStatus(''); if (t.key === 'screening') fetchScreening(); }}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 flex items-center gap-1.5 transition-colors ${tab === t.key ? 'border-[var(--hf-brand-600)] text-[color:var(--hf-brand-600)]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-              <t.icon className="w-4 h-4" /> {t.label}
+            <button type="button" onClick={() => { setTab('openings'); setShowCreateModal(true); }} className="hf-btn-primary inline-flex items-center gap-1.5 text-sm">
+              <Plus className="h-4 w-4" /> Buat lowongan
             </button>
-          ))}
+          </div>
+        )}
+      >
+        {toast && (
+          <div role="status" className={`fixed right-4 top-4 z-[60] rounded-lg border px-4 py-2.5 text-sm shadow-lg ${toast.type === 'error' ? 'border-rose-200 bg-rose-50 text-rose-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}>
+            {toast.msg}
+          </div>
+        )}
+
+        <div className="hf-card px-4 py-3 text-sm text-[color:var(--hf-ink-muted)]">
+          Portal karir publik per perusahaan.{' '}
+          {saasCtx?.careersUrl ? (
+            <a href={saasCtx.careersUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-[color:var(--hf-brand-600)] hover:underline">
+              Buka {saasCtx.careersUrl} →
+            </a>
+          ) : (
+            <span>URL: /c/{'{slug-perusahaan}'}/careers</span>
+          )}
+          {String(router.query.create || '') === '1' && (
+            <p className="mt-1 text-xs">
+              Checklist go-live: isi form Buat Lowongan, simpan dengan status terbuka, lalu kembali ke Go-live.
+            </p>
+          )}
         </div>
+
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+          <OpsKpiShell>
+            <HRStatCard icon={Briefcase} label="Lowongan aktif" value={openCount} accent="violet" onClick={() => { setTab('openings'); setFilterStatus('open'); }} />
+          </OpsKpiShell>
+          <OpsKpiShell>
+            <HRStatCard icon={Users} label="Total pelamar" value={totalApplicants} accent="blue" onClick={() => setTab('candidates')} />
+          </OpsKpiShell>
+          <OpsKpiShell>
+            <HRStatCard icon={CheckCircle2} label="Diterima" value={hiredCount} accent="emerald" onClick={() => setTab('pipeline')} />
+          </OpsKpiShell>
+          <OpsKpiShell>
+            <HRStatCard icon={Clock} label="Rata-rata waktu rekrut" value={avgTimeToHire} sub="Hari kalender" accent="amber" />
+          </OpsKpiShell>
+        </div>
+
+        <EnterpriseTabBar
+          tabs={tabs}
+          active={tab}
+          onChange={(key) => {
+            setTab(key);
+            setSearch('');
+            setFilterDept('');
+            setFilterStatus('');
+            if (key === 'screening') fetchScreening();
+          }}
+        />
 
         {loading && <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-[color:var(--hf-brand-600)]" /><span className="ml-2 text-sm text-gray-500">Memuat data...</span></div>}
 
@@ -392,11 +436,11 @@ export default function RecruitmentPage() {
           <div>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
               <div className="flex gap-2 flex-wrap flex-1">
-                <div className="relative flex-1 min-w-[200px]"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari lowongan..." className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm" /></div>
-                <DepartmentSelect value={filterDept} onChange={setFilterDept} includeAll allLabel="Semua Dept" className="px-3 py-2 border rounded-lg text-sm" />
-                <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2 border rounded-lg text-sm"><option value="">Semua Status</option><option value="open">Buka</option><option value="closed">Ditutup</option><option value="on_hold">Ditunda</option></select>
+                <div className="relative min-w-[200px] flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--hf-ink-faint)]" /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari lowongan..." className="hf-input w-full pl-9" /></div>
+                <DepartmentSelect value={filterDept} onChange={setFilterDept} includeAll allLabel="Semua Dept" className="hf-input" />
+                <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="hf-input"><option value="">Semua Status</option><option value="open">Buka</option><option value="closed">Ditutup</option><option value="on_hold">Ditunda</option></select>
               </div>
-              <button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]"><Plus className="w-4 h-4" /> Buat Lowongan</button>
+              <button type="button" onClick={() => setShowCreateModal(true)} className="hf-btn-primary inline-flex items-center gap-2 text-sm"><Plus className="h-4 w-4" /> Buat lowongan</button>
             </div>
             <div className="grid md:grid-cols-2 gap-4">
               {filteredOpenings.map(o => (
@@ -426,7 +470,16 @@ export default function RecruitmentPage() {
                   <HrisEmptyState
                     source={dataSource}
                     title="Belum ada lowongan"
-                    description="Buat lowongan kerja pertama untuk memulai proses rekrutmen."
+                    description="Buat lowongan kerja pertama. Setelah status terbuka, portal karir publik akan menampilkannya ke kandidat."
+                    action={
+                      <button
+                        type="button"
+                        onClick={() => setShowCreateModal(true)}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]"
+                      >
+                        <Plus className="w-4 h-4" /> Buat lowongan
+                      </button>
+                    }
                   />
                 </div>
               )}
@@ -541,7 +594,7 @@ export default function RecruitmentPage() {
 
             <div className="grid gap-3 md:grid-cols-2">
               {(screeningResults.length ? screeningResults : []).map((r: any) => (
-                <div key={r.candidateId} className={`rounded-2xl border bg-white p-4 shadow-sm ${r.overallScore >= 70 ? 'border-emerald-200' : r.overallScore >= 50 ? 'border-amber-200' : 'border-gray-200'}`}>
+                <div key={r.candidateId} className={`hf-card p-4 ${r.overallScore >= 70 ? 'border-emerald-200' : r.overallScore >= 50 ? 'border-amber-200' : 'border-gray-200'}`}>
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="font-semibold text-gray-900">{r.candidateName}</p>
@@ -569,7 +622,7 @@ export default function RecruitmentPage() {
               ))}
             </div>
             {!screeningResults.length && (
-              <div className="rounded-2xl border bg-white p-12 text-center text-gray-400">
+              <div className="hf-card p-12 text-center text-gray-400">
                 <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-[color:var(--hf-brand-500)]" />
                 <p className="text-sm">Memuat hasil AI screening...</p>
               </div>
@@ -792,7 +845,7 @@ export default function RecruitmentPage() {
         {/* CREATE OPENING MODAL */}
         {showCreateModal && (
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto">
+            <div className="hf-card w-full max-w-lg max-h-[85vh] overflow-y-auto">
               <div className="p-5 border-b flex justify-between items-center">
                 <h3 className="font-bold text-lg">Buat Lowongan Baru</h3>
                 <button onClick={() => setShowCreateModal(false)} className="p-1.5 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
@@ -830,7 +883,7 @@ export default function RecruitmentPage() {
         {/* CANDIDATE DETAIL MODAL */}
         {selectedCandidate && (
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto">
+            <div className="hf-card w-full max-w-lg max-h-[85vh] overflow-y-auto">
               <div className="p-5 border-b">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -872,7 +925,7 @@ export default function RecruitmentPage() {
         {/* OPENING DETAIL MODAL */}
         {selectedOpening && !selectedCandidate && (
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto">
+            <div className="hf-card w-full max-w-lg max-h-[85vh] overflow-y-auto">
               <div className="p-5 border-b flex justify-between items-start">
                 <div><h3 className="font-bold text-lg">{selectedOpening.title}</h3><p className="text-sm text-gray-500">{selectedOpening.department} - {selectedOpening.location}</p></div>
                 <button onClick={() => setSelectedOpening(null)} className="p-1.5 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
@@ -920,7 +973,7 @@ export default function RecruitmentPage() {
             </div>
           </div>
         )}
-      </div>
+      </TalentShell>
     </HQLayout>
   );
 }

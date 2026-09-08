@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, type CSSProperties } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/router';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
@@ -14,10 +15,13 @@ import {
   Filter, Download, RefreshCw, Clock, CheckCircle, XCircle, ChevronDown,
   UserCheck, UserX, ArrowRightLeft, TrendingUp, Star, Zap, BarChart3,
   Banknote, CalendarDays, Timer, Target, PrinterIcon, Camera,
-  ClipboardList, History, ChevronUp, Minus, GitBranch, Network,
+  ClipboardList, History, ChevronUp, Minus, GitBranch, Network, Upload,
 } from 'lucide-react';
 import EmployeeGenealogyPanel from '@/components/humanify/EmployeeGenealogyPanel';
 import EmployeeDocumentsPanel from '@/components/humanify/EmployeeDocumentsPanel';
+import { getEmployeeDocumentDownloadUrl } from '@/lib/hris/employee-document-types';
+import EmployeeAvatar from '@/components/humanify/EmployeeAvatar';
+import EnterprisePageHeader from '@/components/humanify/EnterprisePageHeader';
 import {
   HRIS_DEPARTMENTS,
   HRIS_WORK_LOCATIONS,
@@ -106,6 +110,50 @@ export default function EmployeeManagementPage() {
     setTimeout(() => setToast(null), 3000);
   };
 
+  /** Primary CTA — solid violet, soft 10px radius (not full pill) */
+  const btnPrimary: CSSProperties = {
+    background: '#5b21b6',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '10px',
+    boxShadow: '0 2px 8px rgba(76, 29, 149, 0.28)',
+  };
+  const btnSecondary: CSSProperties = {
+    borderRadius: '10px',
+  };
+  const AddBtn = ({
+    label,
+    onClick,
+    size = 'md',
+  }: { label: string; onClick: () => void; size?: 'sm' | 'md' | 'lg' }) => (
+    <button
+      type="button"
+      onClick={onClick}
+      style={btnPrimary}
+      className={`inline-flex items-center justify-center gap-1.5 font-semibold shrink-0 transition-all duration-150 hover:brightness-110 hover:-translate-y-0.5 active:translate-y-0 ${
+        size === 'lg' ? 'px-6 py-2.5 text-sm' : size === 'sm' ? 'px-3.5 py-1.5 text-xs' : 'px-5 py-2 text-sm'
+      }`}
+    >
+      <Plus className={size === 'sm' ? 'w-3.5 h-3.5' : 'w-4 h-4'} strokeWidth={2.5} />
+      {label}
+    </button>
+  );
+
+  const EmptyAdd = ({
+    icon: Icon,
+    message,
+    label,
+    onClick,
+  }: { icon: any; message: string; label: string; onClick: () => void }) => (
+    <div className="text-center py-12 px-4 rounded-2xl border-2 border-dashed border-violet-200 bg-violet-50/40">
+      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-violet-100 ring-4 ring-violet-50">
+        <Icon className="w-6 h-6 text-violet-600" />
+      </div>
+      <p className="text-sm text-slate-600 mb-4">{message}</p>
+      <AddBtn label={label} onClick={onClick} size="lg" />
+    </div>
+  );
+
   // Derived stats from employees list
   const statsData = {
     total:    employees.length,
@@ -148,8 +196,27 @@ export default function EmployeeManagementPage() {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(createForm)
       });
       const json = await res.json();
-      if (json.success) { showToast('success', json.message || 'Karyawan berhasil ditambahkan'); setShowCreateModal(false); fetchEmployees(); setCreateForm({ name: '', email: '', phone_number: '', department: '', position: '', branch_name: '', branch_id: '', work_location: 'ADMIN_OFFICE', contract_type: 'PKWTT', join_date: '', gender: 'male', nik: '' }); }
-      else showToast('error', json.error || 'Gagal menambahkan karyawan');
+      if (json.success) {
+        showToast('success', json.message || 'Karyawan berhasil ditambahkan');
+        setShowCreateModal(false);
+        setCreateForm({
+          name: '', email: '', phone_number: '', department: '', position: '',
+          branch_name: '', branch_id: '', work_location: 'ADMIN_OFFICE',
+          contract_type: 'PKWTT', employment_category: 'permanent', join_date: '', gender: 'male', nik: '',
+        });
+        await fetchEmployees();
+        const newId = json.data?.id;
+        if (newId) {
+          try {
+            await fetchDetail(newId, 'family');
+          } catch {
+            setActiveTab('list');
+          }
+        }
+        if (router.query.add === '1') {
+          router.replace('/humanify/employees', undefined, { shallow: true });
+        }
+      } else showToast('error', json.error || 'Gagal menambahkan karyawan');
     } catch { showToast('error', 'Gagal menambahkan karyawan'); }
     setCreateLoading(false);
   };
@@ -318,15 +385,24 @@ export default function EmployeeManagementPage() {
   };
 
   const fetchDetail = async (empId: string | number, tab: DetailTab = 'personal') => {
-    setLoading(true);
+    if (activeTab !== 'detail') setLoading(true);
     try {
       const res = await fetch(`/api/humanify/employee-profile?action=detail&employeeId=${empId}`);
       const json = await res.json();
-      setSelectedEmployee(json.data);
-      setPersonalForm(json.data || {});
-      setActiveTab('detail');
-      setDetailTab(tab);
-    } catch (e) { console.error(e); }
+      if (json.success && json.data?.id) {
+        setSelectedEmployee(json.data);
+        setPersonalForm(json.data || {});
+        setActiveTab('detail');
+        setDetailTab(tab);
+      } else {
+        showToast('error', json.error || 'Gagal memuat detail karyawan');
+        setActiveTab('list');
+      }
+    } catch (e) {
+      console.error(e);
+      showToast('error', 'Gagal memuat detail karyawan');
+      setActiveTab('list');
+    }
     setLoading(false);
   };
 
@@ -346,17 +422,50 @@ export default function EmployeeManagementPage() {
   };
 
   const saveSubData = async () => {
+    if (!selectedEmployee?.id) {
+      showToast('error', 'Pilih karyawan terlebih dahulu');
+      return;
+    }
+    // Client-side required checks
+    if (subModalType === 'family' && (!subForm.name || !subForm.relationship)) {
+      showToast('error', 'Nama dan hubungan wajib diisi'); return;
+    }
+    if (subModalType === 'education' && (!subForm.level || !subForm.institution)) {
+      showToast('error', 'Jenjang dan institusi wajib diisi'); return;
+    }
+    if (subModalType === 'certification' && !subForm.name) {
+      showToast('error', 'Nama sertifikasi wajib diisi'); return;
+    }
+    if (subModalType === 'experience' && (!subForm.company_name || !subForm.position)) {
+      showToast('error', 'Perusahaan dan posisi wajib diisi'); return;
+    }
+    if (subModalType === 'contract' && (!subForm.contract_type || !subForm.start_date)) {
+      showToast('error', 'Tipe kontrak dan tanggal mulai wajib diisi'); return;
+    }
     try {
+      const payload: Record<string, unknown> = { ...subForm, employee_id: selectedEmployee.id };
+      // Strip UI-only / nested fields that break INSERT
+      for (const k of ['created_at', 'updated_at', 'tenant_id', 'employees', 'file_exists', 'file_missing']) {
+        delete payload[k];
+      }
+      // Normalize dates for HTML date inputs / ISO strings
+      for (const k of Object.keys(payload)) {
+        const v = payload[k];
+        if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(v)) {
+          payload[k] = v.slice(0, 10);
+        }
+        if (v === '') payload[k] = null;
+      }
       const res = await fetch(`/api/humanify/employee-profile?action=${subModalType}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...subForm, employee_id: selectedEmployee.id })
+        body: JSON.stringify(payload)
       });
       const json = await res.json();
       if (json.success) {
         showToast('success', t('hris.dataSaved'));
         setShowSubModal(false);
         setSubForm({});
-        fetchDetail(selectedEmployee.id);
+        fetchDetail(selectedEmployee.id, detailTab);
       } else showToast('error', json.error || t('hris.saveFailed'));
     } catch (e) { showToast('error', t('hris.saveFailed')); }
   };
@@ -382,7 +491,18 @@ export default function EmployeeManagementPage() {
 
   const openSubModal = (type: string, data?: any) => {
     setSubModalType(type);
-    setSubForm(data ? { ...data } : {});
+    if (data) {
+      const normalized: Record<string, any> = { ...data };
+      for (const k of Object.keys(normalized)) {
+        const v = normalized[k];
+        if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(v)) {
+          normalized[k] = v.slice(0, 10);
+        }
+      }
+      setSubForm(normalized);
+    } else {
+      setSubForm({});
+    }
     setShowSubModal(true);
   };
 
@@ -439,9 +559,7 @@ export default function EmployeeManagementPage() {
       header: t('hris.employee'),
       render: (emp) => (
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-[var(--hf-brand-100)] flex items-center justify-center text-[color:var(--hf-brand-600)] font-bold text-sm">
-            {(emp.name || '?')[0]}
-          </div>
+          <EmployeeAvatar name={emp.name} photoUrl={emp.photo_url} size="sm" />
           <div>
             <p className="font-medium text-gray-800">{emp.name}</p>
             <p className="text-xs text-gray-400">{emp.employee_id} • {emp.email}</p>
@@ -507,14 +625,18 @@ export default function EmployeeManagementPage() {
       header: t('hris.actions'),
       align: 'center',
       render: (emp) => (
-        <button 
-          onClick={(e) => { e.stopPropagation(); fetchDetail(emp.id); }}
-          aria-label={`Lihat detail karyawan ${emp.name || ''}`}
-          className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded"
-          title={`Lihat detail: ${emp.name || ''}`}
-        >
-          <Eye className="w-4 h-4" aria-hidden="true" />
-        </button>
+        <div className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            onClick={() => fetchDetail(emp.id)}
+            aria-label={`Lihat detail karyawan ${emp.name || ''}`}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200"
+            style={{ borderRadius: '10px' }}
+            title={`Lihat & edit data: ${emp.name || ''}`}
+          >
+            <Eye className="w-3.5 h-3.5" aria-hidden="true" /> Detail
+          </button>
+        </div>
       )
     }
   ];
@@ -531,32 +653,47 @@ export default function EmployeeManagementPage() {
     <HQLayout title={t('hris.employeeDbTitle')} currentMenu="hris">
       {/* Toast */}
       {toast && (
-        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white text-sm ${toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
+        <div className={`fixed top-3 left-3 right-3 sm:left-auto sm:right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white text-sm ${toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
           {toast.message}
         </div>
       )}
 
-      <div className="p-4 md:p-6 space-y-4">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-              <Users className="w-6 h-6 text-[color:var(--hf-brand-600)]" /> {t('hris.employeeDbTitle')}
-            </h1>
-            <p className="text-sm text-gray-500 mt-0.5">{t('hris.employeeDbSubtitle')}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <DataSourceBadge source={dataSource} />
-            {activeTab === 'list' && (
-              <>
-                <CanAccess permission="employees.create">
-                  <button
-                    onClick={() => setShowCreateModal(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)] text-sm font-medium"
-                  >
-                    <Plus className="w-4 h-4" /> Tambah Karyawan
-                  </button>
-                </CanAccess>
+      <div className="space-y-4 min-w-0">
+        <EnterprisePageHeader
+          title={t('hris.employeeDbTitle')}
+          subtitle={t('hris.employeeDbSubtitle')}
+          badge="Master Data"
+          icon={Users}
+          variant="corporate"
+          actions={
+            <>
+              <DataSourceBadge source={dataSource} />
+              {activeTab === 'detail' && (
+                <button
+                  type="button"
+                  onClick={() => { setActiveTab('list'); setSelectedEmployee(null); setDetailTab('personal'); }}
+                  className="hf-btn-secondary inline-flex items-center gap-1"
+                  style={btnSecondary}
+                >
+                  {t('hris.backToList')}
+                </button>
+              )}
+              <CanAccess
+                anyPermission={['employees.create', 'employees.update', 'employees.*', 'hris.*']}
+                optimistic
+              >
+                <AddBtn label="Tambah Karyawan" onClick={() => setShowCreateModal(true)} size="lg" />
+              </CanAccess>
+              {activeTab === 'list' && (
+                <Link
+                  href="/humanify/employees-import"
+                  className="hf-btn-secondary inline-flex items-center gap-2"
+                  style={btnSecondary}
+                >
+                  <Upload className="w-4 h-4" /> Impor
+                </Link>
+              )}
+              {activeTab === 'list' && (
                 <button
                   type="button"
                   onClick={async () => {
@@ -583,27 +720,22 @@ export default function EmployeeManagementPage() {
                       showToast('error', 'Export gagal');
                     }
                   }}
-                  className="flex items-center gap-2 px-3 py-2 border rounded-lg hover:bg-gray-50 text-sm text-gray-700"
+                  className="hf-btn-secondary inline-flex items-center gap-2"
+                  style={btnSecondary}
                   title="Export CSV"
                 >
                   <Download className="w-4 h-4" /> Export
                 </button>
-              </>
-            )}
-            {activeTab === 'detail' && (
-              <button onClick={() => { setActiveTab('list'); setSelectedEmployee(null); }}
-                className="px-3 py-2 text-sm border rounded-lg hover:bg-gray-50 flex items-center gap-1">
-                {t('hris.backToList')}
-              </button>
-            )}
-          </div>
-        </div>
+              )}
+            </>
+          }
+        />
 
         {/* ===== LIST VIEW ===== */}
         {activeTab === 'list' && (
           <div className="space-y-4">
             {/* Filters */}
-            <div className="bg-white rounded-xl border p-4">
+            <div className="hf-card p-4">
               <div className="flex flex-col gap-3">
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="flex-1 min-w-[200px]">
@@ -651,7 +783,7 @@ export default function EmployeeManagementPage() {
             </div>
 
             {listView === 'genealogy' ? (
-              <div className="bg-white rounded-xl border p-5">
+              <div className="hf-card p-5">
                 <EmployeeGenealogyPanel
                   mode="tree"
                   showToast={showToast}
@@ -730,7 +862,7 @@ export default function EmployeeManagementPage() {
               </div>
             )}
             {/* Employee Table — kolom Gaji/NIK otomatis disembunyikan via useFilteredColumns */}
-            <div className="bg-white rounded-xl border overflow-hidden">
+            <div className="hf-card overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 border-b">
@@ -757,22 +889,15 @@ export default function EmployeeManagementPage() {
                             description="Tambahkan karyawan manual atau impor massal dari CSV untuk mengisi database."
                             action={
                               <div className="flex flex-wrap items-center justify-center gap-2">
-                                <CanAccess permission="employees.create">
-                                  <button
-                                    type="button"
-                                    onClick={() => setShowCreateModal(true)}
-                                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white"
-                                    style={{ background: 'var(--hf-brand-600)' }}
-                                  >
-                                    <Plus className="w-4 h-4" /> Tambah Karyawan
-                                  </button>
+                                <CanAccess anyPermission={['employees.create', 'employees.update', 'employees.*', 'hris.*']} optimistic>
+                                  <AddBtn label="Tambah Karyawan" onClick={() => setShowCreateModal(true)} size="lg" />
                                 </CanAccess>
-                                <a
+                                <Link
                                   href="/humanify/employees-import"
-                                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium border border-slate-200 text-slate-700 hover:bg-white"
+                                  className="hf-btn-secondary inline-flex items-center gap-1.5"
                                 >
-                                  Impor CSV
-                                </a>
+                                  <Upload className="h-4 w-4" /> Impor CSV
+                                </Link>
                               </div>
                             }
                           />
@@ -815,13 +940,11 @@ export default function EmployeeManagementPage() {
         {activeTab === 'detail' && selectedEmployee && (
           <div className="space-y-4">
             {/* Employee Header Card */}
-            <div className="bg-white rounded-xl border p-5">
-              <div className="flex items-start gap-4">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[var(--hf-brand-500)] to-[var(--hf-brand-600)] flex items-center justify-center text-white font-bold text-2xl flex-shrink-0">
-                  {(selectedEmployee.name || '?')[0]}
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-3">
+            <div className="hf-card p-4 sm:p-5 min-w-0">
+              <div className="flex flex-col sm:flex-row items-start gap-4">
+                <EmployeeAvatar name={selectedEmployee.name} photoUrl={selectedEmployee.photo_url} size="xl" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                     <h2 className="text-lg font-bold text-gray-800">{selectedEmployee.name}</h2>
                     {statusBadge(selectedEmployee.status)}
                   </div>
@@ -847,7 +970,7 @@ export default function EmployeeManagementPage() {
             </div>
 
             {/* Detail Tabs */}
-            <div className="bg-white rounded-xl border">
+            <div className="hf-card">
               <div className="border-b overflow-x-auto">
                 <div className="flex min-w-max">
                   {([
@@ -892,16 +1015,25 @@ export default function EmployeeManagementPage() {
                   <div>
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="font-semibold text-gray-800">{t('hris.personalInfo')}</h3>
-                      <CanAccess permission="employees.update">
+                      <CanAccess anyPermission={['employees.update', 'employees.*', 'hris.*']} optimistic>
                         {!editMode ? (
-                          <button onClick={() => { setEditMode(true); setPersonalForm({ ...selectedEmployee }); }}
-                            className="flex items-center gap-1 px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50">
+                          <button
+                            type="button"
+                            onClick={() => { setEditMode(true); setPersonalForm({ ...selectedEmployee }); }}
+                            className="hf-btn-secondary inline-flex items-center gap-1.5"
+                            style={btnSecondary}
+                          >
                             <Edit className="w-3.5 h-3.5" /> {t('hris.edit')}
                           </button>
                         ) : (
                           <div className="flex gap-2">
-                            <button onClick={() => setEditMode(false)} className="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50">{t('hris.cancel')}</button>
-                            <button onClick={savePersonal} className="flex items-center gap-1 px-3 py-1.5 text-sm bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)]">
+                            <button type="button" onClick={() => setEditMode(false)} className="hf-btn-secondary" style={btnSecondary}>{t('hris.cancel')}</button>
+                            <button
+                              type="button"
+                              onClick={savePersonal}
+                              style={btnPrimary}
+                              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold"
+                            >
                               <Save className="w-3.5 h-3.5" /> {t('hris.save')}
                             </button>
                           </div>
@@ -1046,15 +1178,17 @@ export default function EmployeeManagementPage() {
                 {/* ===== FAMILY TAB ===== */}
                 {detailTab === 'family' && (
                   <div>
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between mb-4 gap-3">
                       <h3 className="font-semibold text-gray-800">{t('hris.familyData')}</h3>
-                      <button onClick={() => openSubModal('family')}
-                        className="flex items-center gap-1 px-3 py-1.5 text-sm bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)]">
-                        <Plus className="w-3.5 h-3.5" /> {t('hris.add')}
-                      </button>
+                      <AddBtn label="Tambah Keluarga" onClick={() => openSubModal('family')} />
                     </div>
                     {(selectedEmployee.families || []).length === 0 ? (
-                      <p className="text-center text-gray-400 py-8">{t('hris.noFamilyData')}</p>
+                      <EmptyAdd
+                        icon={Heart}
+                        message={t('hris.noFamilyData')}
+                        label="Tambah Data Keluarga"
+                        onClick={() => openSubModal('family')}
+                      />
                     ) : (
                       <div className="space-y-3">
                         {selectedEmployee.families.map((f: any) => (
@@ -1071,8 +1205,8 @@ export default function EmployeeManagementPage() {
                                 </div>
                               </div>
                               <div className="flex gap-1">
-                                <button onClick={() => openSubModal('family', f)} className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded"><Edit className="w-3.5 h-3.5" /></button>
-                                <button onClick={() => deleteSubData('family', f.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
+                                <button type="button" onClick={() => openSubModal('family', f)} className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded" title="Edit"><Edit className="w-3.5 h-3.5" /></button>
+                                <button type="button" onClick={() => deleteSubData('family', f.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded" title="Hapus"><Trash2 className="w-3.5 h-3.5" /></button>
                               </div>
                             </div>
                           </div>
@@ -1085,15 +1219,17 @@ export default function EmployeeManagementPage() {
                 {/* ===== EDUCATION TAB ===== */}
                 {detailTab === 'education' && (
                   <div>
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between mb-4 gap-3">
                       <h3 className="font-semibold text-gray-800">{t('hris.educationHistory')}</h3>
-                      <button onClick={() => openSubModal('education')}
-                        className="flex items-center gap-1 px-3 py-1.5 text-sm bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)]">
-                        <Plus className="w-3.5 h-3.5" /> {t('hris.add')}
-                      </button>
+                      <AddBtn label="Tambah Pendidikan" onClick={() => openSubModal('education')} />
                     </div>
                     {(selectedEmployee.educations || []).length === 0 ? (
-                      <p className="text-center text-gray-400 py-8">{t('hris.noEducationData')}</p>
+                      <EmptyAdd
+                        icon={GraduationCap}
+                        message={t('hris.noEducationData')}
+                        label="Tambah Pendidikan"
+                        onClick={() => openSubModal('education')}
+                      />
                     ) : (
                       <div className="space-y-3">
                         {selectedEmployee.educations.map((e: any) => (
@@ -1109,8 +1245,8 @@ export default function EmployeeManagementPage() {
                                 <p className="text-xs text-gray-400">{e.start_year || '?'} - {e.end_year || 'sekarang'} {e.gpa ? `• IPK: ${e.gpa}` : ''}</p>
                               </div>
                               <div className="flex gap-1">
-                                <button onClick={() => openSubModal('education', e)} className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded"><Edit className="w-3.5 h-3.5" /></button>
-                                <button onClick={() => deleteSubData('education', e.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
+                                <button type="button" onClick={() => openSubModal('education', e)} className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded"><Edit className="w-3.5 h-3.5" /></button>
+                                <button type="button" onClick={() => deleteSubData('education', e.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
                               </div>
                             </div>
                           </div>
@@ -1123,15 +1259,17 @@ export default function EmployeeManagementPage() {
                 {/* ===== CERTIFICATION TAB ===== */}
                 {detailTab === 'certification' && (
                   <div>
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between mb-4 gap-3">
                       <h3 className="font-semibold text-gray-800">{t('hris.certificationLicense')}</h3>
-                      <button onClick={() => openSubModal('certification')}
-                        className="flex items-center gap-1 px-3 py-1.5 text-sm bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)]">
-                        <Plus className="w-3.5 h-3.5" /> {t('hris.add')}
-                      </button>
+                      <AddBtn label="Tambah Sertifikasi" onClick={() => openSubModal('certification')} />
                     </div>
                     {(selectedEmployee.certifications || []).length === 0 ? (
-                      <p className="text-center text-gray-400 py-8">{t('hris.noCertificationData')}</p>
+                      <EmptyAdd
+                        icon={Award}
+                        message={t('hris.noCertificationData')}
+                        label="Tambah Sertifikasi"
+                        onClick={() => openSubModal('certification')}
+                      />
                     ) : (
                       <div className="space-y-3">
                         {selectedEmployee.certifications.map((c: any) => (
@@ -1151,8 +1289,8 @@ export default function EmployeeManagementPage() {
                                 ) : (
                                   <span className="px-2 py-0.5 bg-green-50 text-green-600 text-[10px] rounded-full">Aktif</span>
                                 )}
-                                <button onClick={() => openSubModal('certification', c)} className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded"><Edit className="w-3.5 h-3.5" /></button>
-                                <button onClick={() => deleteSubData('certification', c.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
+                                <button type="button" onClick={() => openSubModal('certification', c)} className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded"><Edit className="w-3.5 h-3.5" /></button>
+                                <button type="button" onClick={() => deleteSubData('certification', c.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
                               </div>
                             </div>
                           </div>
@@ -1165,15 +1303,17 @@ export default function EmployeeManagementPage() {
                 {/* ===== EXPERIENCE TAB ===== */}
                 {detailTab === 'experience' && (
                   <div>
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between mb-4 gap-3">
                       <h3 className="font-semibold text-gray-800">{t('hris.workExperience')}</h3>
-                      <button onClick={() => openSubModal('experience')}
-                        className="flex items-center gap-1 px-3 py-1.5 text-sm bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)]">
-                        <Plus className="w-3.5 h-3.5" /> {t('hris.add')}
-                      </button>
+                      <AddBtn label="Tambah Pengalaman" onClick={() => openSubModal('experience')} />
                     </div>
                     {(selectedEmployee.experiences || []).length === 0 ? (
-                      <p className="text-center text-gray-400 py-8">{t('hris.noExperienceData')}</p>
+                      <EmptyAdd
+                        icon={Briefcase}
+                        message={t('hris.noExperienceData')}
+                        label="Tambah Pengalaman"
+                        onClick={() => openSubModal('experience')}
+                      />
                     ) : (
                       <div className="space-y-3">
                         {selectedEmployee.experiences.map((e: any) => (
@@ -1188,8 +1328,8 @@ export default function EmployeeManagementPage() {
                                 {e.description && <p className="text-xs text-gray-500 mt-1">{e.description}</p>}
                               </div>
                               <div className="flex gap-1">
-                                <button onClick={() => openSubModal('experience', e)} className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded"><Edit className="w-3.5 h-3.5" /></button>
-                                <button onClick={() => deleteSubData('experience', e.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
+                                <button type="button" onClick={() => openSubModal('experience', e)} className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded"><Edit className="w-3.5 h-3.5" /></button>
+                                <button type="button" onClick={() => deleteSubData('experience', e.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
                               </div>
                             </div>
                           </div>
@@ -1215,15 +1355,17 @@ export default function EmployeeManagementPage() {
                   <div>
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="font-semibold text-gray-800">{t('hris.contractHistory')}</h3>
-                      <CanAccess permission="employees.update">
-                        <button onClick={() => openSubModal('contract')}
-                          className="flex items-center gap-1 px-3 py-1.5 text-sm bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)]">
-                          <Plus className="w-3.5 h-3.5" /> {t('hris.add')}
-                        </button>
+                      <CanAccess anyPermission={['employees.update', 'employees.create', 'employees.*', 'hris.*']} optimistic>
+                        <AddBtn label="Tambah Kontrak" onClick={() => openSubModal('contract')} />
                       </CanAccess>
                     </div>
                     {(selectedEmployee.contracts || []).length === 0 ? (
-                      <p className="text-center text-gray-400 py-8">{t('hris.noContractData')}</p>
+                      <EmptyAdd
+                        icon={Shield}
+                        message={t('hris.noContractData')}
+                        label="Tambah Kontrak"
+                        onClick={() => openSubModal('contract')}
+                      />
                     ) : (
                       <div className="space-y-3">
                         {selectedEmployee.contracts.map((c: any) => (
@@ -1239,6 +1381,16 @@ export default function EmployeeManagementPage() {
                                 <p className="text-xs text-gray-400 mt-1">
                                   {fmtDate(c.start_date)} - {c.end_date ? fmtDate(c.end_date) : 'Tidak Terbatas'}
                                 </p>
+                                {c.document_id && (
+                                  <a
+                                    href={getEmployeeDocumentDownloadUrl(c.document_id)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-xs text-[color:var(--hf-brand-600)] mt-1 hover:underline"
+                                  >
+                                    <FileText className="w-3 h-3" /> Lihat file kontrak
+                                  </a>
+                                )}
                                 {c.position && <p className="text-xs text-gray-400">Posisi: {c.position} {c.department ? `• ${c.department}` : ''}</p>}
                                 {c.salary && (
                                   <CanAccess
@@ -1326,8 +1478,8 @@ export default function EmployeeManagementPage() {
 
       {/* ===== CREATE EMPLOYEE MODAL ===== */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowCreateModal(false)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg m-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" onClick={() => setShowCreateModal(false)}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full max-w-lg max-h-[min(92dvh,100%)] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="px-6 py-4 border-b flex justify-between items-center sticky top-0 bg-white z-10">
               <h3 className="text-lg font-semibold">Tambah Karyawan Baru</h3>
               <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-gray-600">
@@ -1348,7 +1500,7 @@ export default function EmployeeManagementPage() {
                 <input type="email" value={createForm.email} onChange={e => setCreateForm(f => ({ ...f, email: e.target.value }))}
                   className="w-full px-3 py-2 border rounded-lg text-sm mt-1" placeholder="email@perusahaan.com" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-gray-500">No. Telepon</label>
                   <input type="text" value={createForm.phone_number} onChange={e => setCreateForm(f => ({ ...f, phone_number: e.target.value }))}
@@ -1360,7 +1512,7 @@ export default function EmployeeManagementPage() {
                     className="w-full px-3 py-2 border rounded-lg text-sm mt-1" placeholder="Nomor Induk Kependudukan" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-gray-500">Departemen *</label>
                   <select value={createForm.department} onChange={e => setCreateForm(f => ({ ...f, department: e.target.value }))}
@@ -1375,7 +1527,7 @@ export default function EmployeeManagementPage() {
                     className="w-full px-3 py-2 border rounded-lg text-sm mt-1" placeholder="Posisi / jabatan" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-gray-500">Lokasi Kerja</label>
                   <select value={createForm.work_location} onChange={e => setCreateForm(f => ({ ...f, work_location: e.target.value }))}
@@ -1394,7 +1546,7 @@ export default function EmployeeManagementPage() {
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-gray-500">Kategori Hubungan Kerja</label>
                   <select value={createForm.employment_category} onChange={e => setCreateForm(f => ({ ...f, employment_category: e.target.value }))}
@@ -1413,7 +1565,7 @@ export default function EmployeeManagementPage() {
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-gray-500">Tanggal Masuk</label>
                   <input type="date" value={createForm.join_date} onChange={e => setCreateForm(f => ({ ...f, join_date: e.target.value }))}
@@ -1430,10 +1582,15 @@ export default function EmployeeManagementPage() {
               </div>
             </div>
             <div className="px-6 py-4 border-t flex justify-end gap-3 sticky bottom-0 bg-white">
-              <button onClick={() => setShowCreateModal(false)}
-                className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">Batal</button>
-              <button onClick={handleCreateEmployee} disabled={createLoading}
-                className="px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)] flex items-center gap-2">
+              <button type="button" onClick={() => setShowCreateModal(false)}
+                className="hf-btn-secondary" style={btnSecondary}>Batal</button>
+              <button
+                type="button"
+                onClick={handleCreateEmployee}
+                disabled={createLoading}
+                style={btnPrimary}
+                className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold disabled:opacity-60"
+              >
                 {createLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Simpan Karyawan
               </button>
@@ -1444,8 +1601,8 @@ export default function EmployeeManagementPage() {
 
       {/* ===== SUB-DATA MODAL ===== */}
       {showSubModal && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setShowSubModal(false)}>
-          <div className="bg-white rounded-xl w-full max-w-lg max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setShowSubModal(false)}>
+          <div className="bg-white rounded-t-2xl sm:rounded-xl w-full max-w-lg max-h-[min(92dvh,100%)] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white">
               <h3 className="font-semibold text-gray-800">
                 {subForm.id ? 'Edit' : 'Tambah'} {
@@ -1463,7 +1620,7 @@ export default function EmployeeManagementPage() {
               {subModalType === 'family' && <>
                 <div><label className="text-xs font-medium text-gray-500">Nama *</label>
                   <input type="text" value={subForm.name || ''} onChange={e => setSubForm((f: any) => ({ ...f, name: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm mt-1" /></div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div><label className="text-xs font-medium text-gray-500">Hubungan *</label>
                     <select value={subForm.relationship || ''} onChange={e => setSubForm((f: any) => ({ ...f, relationship: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm mt-1">
                       <option value="">Pilih</option>
@@ -1474,7 +1631,7 @@ export default function EmployeeManagementPage() {
                       <option value="">-</option><option value="MALE">Laki-laki</option><option value="FEMALE">Perempuan</option>
                     </select></div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div><label className="text-xs font-medium text-gray-500">Tanggal Lahir</label>
                     <input type="date" value={subForm.date_of_birth || ''} onChange={e => setSubForm((f: any) => ({ ...f, date_of_birth: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm mt-1" /></div>
                   <div><label className="text-xs font-medium text-gray-500">No. Telepon</label>
@@ -1489,7 +1646,7 @@ export default function EmployeeManagementPage() {
               </>}
 
               {subModalType === 'education' && <>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div><label className="text-xs font-medium text-gray-500">Jenjang *</label>
                     <select value={subForm.level || ''} onChange={e => setSubForm((f: any) => ({ ...f, level: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm mt-1">
                       <option value="">Pilih</option>
@@ -1502,7 +1659,7 @@ export default function EmployeeManagementPage() {
                   <input type="text" value={subForm.institution || ''} onChange={e => setSubForm((f: any) => ({ ...f, institution: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm mt-1" /></div>
                 <div><label className="text-xs font-medium text-gray-500">Jurusan</label>
                   <input type="text" value={subForm.major || ''} onChange={e => setSubForm((f: any) => ({ ...f, major: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm mt-1" /></div>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div><label className="text-xs font-medium text-gray-500">Tahun Masuk</label>
                     <input type="number" value={subForm.start_year || ''} onChange={e => setSubForm((f: any) => ({ ...f, start_year: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm mt-1" /></div>
                   <div><label className="text-xs font-medium text-gray-500">Tahun Lulus</label>
@@ -1520,7 +1677,7 @@ export default function EmployeeManagementPage() {
                   <input type="text" value={subForm.issuing_organization || ''} onChange={e => setSubForm((f: any) => ({ ...f, issuing_organization: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm mt-1" /></div>
                 <div><label className="text-xs font-medium text-gray-500">ID Kredensial</label>
                   <input type="text" value={subForm.credential_id || ''} onChange={e => setSubForm((f: any) => ({ ...f, credential_id: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm mt-1" /></div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div><label className="text-xs font-medium text-gray-500">Tanggal Terbit</label>
                     <input type="date" value={subForm.issue_date || ''} onChange={e => setSubForm((f: any) => ({ ...f, issue_date: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm mt-1" /></div>
                   <div><label className="text-xs font-medium text-gray-500">Tanggal Kadaluarsa</label>
@@ -1531,13 +1688,13 @@ export default function EmployeeManagementPage() {
               {subModalType === 'experience' && <>
                 <div><label className="text-xs font-medium text-gray-500">Nama Perusahaan *</label>
                   <input type="text" value={subForm.company_name || ''} onChange={e => setSubForm((f: any) => ({ ...f, company_name: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm mt-1" /></div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div><label className="text-xs font-medium text-gray-500">Posisi *</label>
                     <input type="text" value={subForm.position || ''} onChange={e => setSubForm((f: any) => ({ ...f, position: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm mt-1" /></div>
                   <div><label className="text-xs font-medium text-gray-500">Departemen</label>
                     <input type="text" value={subForm.department || ''} onChange={e => setSubForm((f: any) => ({ ...f, department: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm mt-1" /></div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div><label className="text-xs font-medium text-gray-500">Mulai</label>
                     <input type="date" value={subForm.start_date || ''} onChange={e => setSubForm((f: any) => ({ ...f, start_date: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm mt-1" /></div>
                   <div><label className="text-xs font-medium text-gray-500">Selesai</label>
@@ -1548,7 +1705,7 @@ export default function EmployeeManagementPage() {
               </>}
 
               {subModalType === 'contract' && <>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div><label className="text-xs font-medium text-gray-500">Tipe Kontrak *</label>
                     <select value={subForm.contract_type || 'PKWTT'} onChange={e => setSubForm((f: any) => ({ ...f, contract_type: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm mt-1">
                       {['PKWT','PKWTT','MAGANG','FREELANCE'].map(t => <option key={t} value={t}>{t}</option>)}
@@ -1556,13 +1713,13 @@ export default function EmployeeManagementPage() {
                   <div><label className="text-xs font-medium text-gray-500">No. Kontrak</label>
                     <input type="text" value={subForm.contract_number || ''} onChange={e => setSubForm((f: any) => ({ ...f, contract_number: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm mt-1" /></div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div><label className="text-xs font-medium text-gray-500">Tanggal Mulai *</label>
                     <input type="date" value={subForm.start_date || ''} onChange={e => setSubForm((f: any) => ({ ...f, start_date: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm mt-1" /></div>
                   <div><label className="text-xs font-medium text-gray-500">Tanggal Berakhir</label>
                     <input type="date" value={subForm.end_date || ''} onChange={e => setSubForm((f: any) => ({ ...f, end_date: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm mt-1" /></div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div><label className="text-xs font-medium text-gray-500">Posisi</label>
                     <input type="text" value={subForm.position || ''} onChange={e => setSubForm((f: any) => ({ ...f, position: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm mt-1" /></div>
                   <div><label className="text-xs font-medium text-gray-500">Departemen</label>
@@ -1571,7 +1728,7 @@ export default function EmployeeManagementPage() {
                       {deptOptions.map(d => <option key={d.code} value={d.code}>{d.label}</option>)}
                     </select></div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <CanAccess
                     permission="employees.view_salary"
                     fallback={
@@ -1588,8 +1745,15 @@ export default function EmployeeManagementPage() {
               </>}
             </div>
             <div className="flex justify-end gap-2 p-4 border-t sticky bottom-0 bg-white">
-              <button onClick={() => setShowSubModal(false)} className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">{t('hris.cancel')}</button>
-              <button onClick={saveSubData} className="px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]">{t('hris.save')}</button>
+              <button type="button" onClick={() => setShowSubModal(false)} className="hf-btn-secondary" style={btnSecondary}>{t('hris.cancel')}</button>
+              <button
+                type="button"
+                onClick={saveSubData}
+                style={btnPrimary}
+                className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold"
+              >
+                <Save className="w-4 h-4" /> {t('hris.save')}
+              </button>
             </div>
           </div>
         </div>

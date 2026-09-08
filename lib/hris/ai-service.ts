@@ -137,12 +137,17 @@ export async function generateAIInsights(req: AIInsightRequest): Promise<{
   const ruleInsights = generateRuleBasedInsights(req);
   const cfg = getSumopodConfig();
 
+  // PR-032: payroll/compliance numbers stay rule-engine only — never LLM fabrication.
+  if (req.module === 'payroll' || req.module === 'reimbursement') {
+    return { insights: ruleInsights, source: 'rules' };
+  }
+
   if (!cfg.llmEnabled) {
     return { insights: ruleInsights, source: 'rules' };
   }
 
   const llmText = await sumopodChat({
-    system: `Anda adalah AI HR advisor untuk platform Humanify HRIS. ${MODULE_PROMPTS[req.module]}. Berikan 1 insight singkat dalam bahasa Indonesia, maksimal 2 kalimat.`,
+    system: `Anda adalah AI HR advisor untuk platform Humanify HRIS. ${MODULE_PROMPTS[req.module]}. Berikan 1 insight singkat dalam bahasa Indonesia, maksimal 2 kalimat. Jangan mengarang angka payroll, pajak, atau BPJS.`,
     user: JSON.stringify(req.context),
     maxTokens: 200,
     model: cfg.chatModel,
@@ -175,14 +180,15 @@ export async function generateModuleInsightsBatchAsync(
 ): Promise<{ insights: AIInsight[]; source: 'rules' | 'llm' | 'hybrid' }> {
   const ruleInsights = generateModuleInsightsBatch(modules);
   const cfg = getSumopodConfig();
+  const narrativeModules = modules.filter((m) => m.module !== 'payroll' && m.module !== 'reimbursement');
 
-  if (!cfg.llmEnabled) {
+  if (!cfg.llmEnabled || narrativeModules.length === 0) {
     return { insights: ruleInsights, source: 'rules' };
   }
 
-  const summaryContext = modules.map(m => ({ module: m.module, ...m.context }));
+  const summaryContext = narrativeModules.map(m => ({ module: m.module, ...m.context }));
   const text = await sumopodChat({
-    system: 'Anda AI HR advisor Humanify (AIMAN). Berikan 2 insight singkat bahasa Indonesia dari data HR berikut. Format: [MODUL] judul: ringkasan',
+    system: 'Anda AI HR advisor Humanify (AIMAN). Berikan 2 insight singkat bahasa Indonesia dari data HR berikut. Format: [MODUL] judul: ringkasan. Jangan mengarang angka payroll, pajak, atau BPJS.',
     user: JSON.stringify(summaryContext),
     maxTokens: 400,
     model: cfg.chatModel,

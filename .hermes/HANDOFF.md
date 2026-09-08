@@ -1,6 +1,431 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 28 Juli 2026 — **Wave-77** · AIMAN kembali di portal + floating
+> Diperbarui: 8 September 2026 — **Humanify multi-company** (switcher header)
+
+## Humanify multi-company (8 Sep 2026)
+
+Owner/admin dapat mengelola beberapa perusahaan (tenant) dari satu login.
+
+| Item | Status |
+|---|---|
+| Membership | `saas_company_memberships` (user ↔ tenant, role owner/admin/member) |
+| Switcher | Header `/humanify` di kiri profil — `CompanySwitcher` |
+| Tambah perusahaan | Modal di switcher jika belum punya / ingin menambah |
+| Isolasi | Tetap `tenant_id` + RLS; switch hanya mengganti tenant aktif di JWT |
+| Privilege | `owner`, `admin`, `hq_admin`, `hr_admin`, platform ops |
+| API | `GET/POST /api/humanify/companies` (`switch` \| `create`) |
+| Tests | `__tests__/company-membership.test.ts` |
+
+Bukan impersonate support. Impersonate ops tetap di `/platform`. Staf tanpa privilege tidak melihat switcher.
+
+---
+
+> Sebelumnya: 6 September 2026 — **Admin Total** gelombang 3 (Roles, Blog, Insight)
+
+## Admin Control Center gelombang 3 (6 Sep 2026)
+
+| Modul | Route | UI |
+|---|---|---|
+| Roles & permissions | `/platform/roles` | Matriks desk CS/Finance/Sales + assign |
+| Blog CMS | `/platform/content?tab=blog` | Artikel draft→publish · publik `/humanify/blog` |
+| Insight / forecast | `/platform/insights` | MRR 30/90 hari, rekomendasi, jejak operator |
+
+API mutasi sensitif (refund, plan, suspend user, publish) dicek desk. Super Admin dan staf tanpa desk tetap akses penuh.
+
+Belum: RBAC per-action di UI nav (filter menu), export PDF, LLM forecast.
+
+---
+
+> Sebelumnya: 6 September 2026 — **Admin Total** Control Center gelombang 2 (CRM, Finance, Marketing, FAQ, Analytics, Approval)
+
+## Admin Control Center gelombang 2 (6 Sep 2026)
+
+Spec: `docs/humanify-admin-management-planning.md`.
+
+| Modul | Route | UI |
+|---|---|---|
+| CRM pipeline | `/platform/crm` | Kanban New→Won/Lost + form lead |
+| Finance | `/platform/finance` | Transaksi, revenue, refund, export |
+| Marketing | `/platform/marketing` | Campaign + funnel + tautan voucher |
+| Konten FAQ | `/platform/content` | Workflow draft→publish; landing accordion |
+| Analytics | `/platform/analytics` | KPI + tanggal custom + CSV |
+| Approval | `/platform/approvals` | Setujui/tolak refund besar |
+
+Nav **Lainnya** dikelompokkan: Commercial · Growth · Admin. ⌘K memuat modul baru.
+
+Belum: RBAC staf internal (CS/Finance/Sales), blog CMS, export PDF, forecasting AI.
+
+---
+
+> Sebelumnya: 6 September 2026 — **Admin Total** Control Center (langganan, tiket, notifikasi, periode)
+
+## Admin Control Center (6 Sep 2026)
+
+Spec: `docs/humanify-admin-management-planning.md` (Drive).
+
+| Sudah ada | Baru di gelombang ini |
+|---|---|
+| Ringkasan, Klien, Billing, Partner, Audit, Users, Sistem, Banner | **Langganan** `/platform/subscriptions` (upgrade, +14 hari trial, churn) |
+| Support antrean | **Tiket CS** tab di Support |
+| | **Produk** `/platform/products` (katalog paket) |
+| | **Notification bell** di chrome Admin Total |
+| | Filter periode dashboard (hari ini / 7h / 30h / kuartal / YTD) |
+
+Belum di gelombang ini (Phase 3–4 spec): campaign marketing, blog/FAQ CMS, RBAC staf internal, approval refund besar, forecasting AI.
+
+---
+
+> Sebelumnya: 6 September 2026 — **Admin Total** manajemen banner + carousel landing/dashboard
+
+## Banner CMS (6 Sep 2026)
+
+| Item | Status |
+|---|---|
+| Admin | `/platform/banners` — CRUD, upload JPG/PNG/WebP, jadwal, lokasi tayang |
+| Landing | Carousel di `humanify.id/` (hero, di atas mockup dashboard) |
+| Dashboard | Carousel di beranda HR `/humanify` |
+| API | `GET /api/humanify/banners?placement=` (publik) · ops `action=banners\|banner` |
+| Table | `saas_landing_banners` (platform-wide, tanpa tenant_id) |
+
+---
+
+> Sebelumnya: 6 September 2026 — **Admin Total** modul Support / Pengguna / Sistem
+
+## Admin Total modules (6 Sep 2026)
+
+| Item | Status |
+|---|---|
+| Support | `/platform/support` — antrean trial, unpaid, at-risk, email belum verifikasi |
+| Pengguna | `/platform/users` — direktori operator + tenant; toggle `isActive` (bukan diri sendiri / operator terakhir) |
+| Sistem | `/platform/system` — SMTP, RLS, Redis, Midtrans, backup, cron (tanpa secret) |
+| Nav | 7 primer (Demo diganti Support); Lainnya: Pengguna · Sistem · Demo · Email |
+| API | `GET support-queue` · `GET users` · `PATCH user-status` · `GET system-status` |
+
+---
+
+> Sebelumnya: 6 September 2026 — **Admin Total** chrome profesional (Cmd+K, audit, skeleton)
+
+## Admin Total UX (6 Sep 2026)
+
+| Item | Status |
+|---|---|
+| Chrome | `OpsLayout` + `⌘K` command palette (modul + cari klien) |
+| Modul baru | `/platform/audit` — jejak `saas_admin_audit` lintas tenant |
+| Loading | Skeleton di layout (bukan spinner full-page) |
+| Konfirmasi | Modal untuk suspend, impersonate, batal order, mark verified |
+| Login CSRF | GSSP `/platform/login` bind `NEXTAUTH_URL` ke host request |
+
+---
+
+> Sebelumnya: 6 September 2026 — **Admin Total** (`admin.humanify.id`) = superadmin platform
+
+## Admin Total host (6 Sep 2026)
+
+| Item | Status |
+|---|---|
+| URL | https://admin.humanify.id/login · https://admin.humanify.id/platform |
+| Who | **super_admin / platform_admin only** (bukan HR tenant) |
+| Same plane | Alias control plane dengan `ops.humanify.id` |
+| Tenant HR | Tetap `https://humanify.id/humanify` |
+| Docs | `docs/humanify-admin-subdomain.md` |
+| Smoke | `npm run smoke:admin-host` |
+
+```bash
+SMOKE_BASE_URL=https://humanify.id SMOKE_ADMIN_URL=https://admin.humanify.id npm run smoke:admin-host
+```
+
+---
+
+> Sebelumnya: 1 September 2026 — **org ↔ karyawan ↔ mutasi** (departemen, unit, rantai komando)
+
+## Org chart sync (1 Sep 2026)
+
+| Item | Status |
+|---|---|
+| Wizard | Step organisasi men-seed `org_structures` (kode master, bukan label bebas) |
+| Mutasi | Form pakai departemen tenant; field unit org + atasan baru |
+| Eksekusi SK | `applyMutationToEmployee` menulis `department`, `org_structure_id`, `supervisor_id` |
+| Karyawan baru | `department` dinormalisasi + `org_structure_id` di-link ke unit |
+| Backfill | Org tree kosong + `hris_defaults.departments` → seed wizard |
+| Tests | `__tests__/org-department-sync.test.ts` |
+
+---
+
+## Platform ops tanpa tenantId (1 Sep 2026)
+
+| Item | Status |
+|---|---|
+| Symptom | Superadmin login `tenant: none` → Tambah Karyawan 403, payroll/leave `NO_TENANT` |
+| Fix | `lookupDefaultTenantId` (karyawan dulu, lalu `tenants`); JWT + authorize; `ensure-humanify-superadmin` bind |
+| Create/delete | `employee-profile` create pakai tenant efektif; delete pakai `employeeId` |
+| Verify | `SMOKE_BASE_URL=https://humanify.id node scripts/smoke-test-employee-documents.js` (create+delete+payroll) |
+
+---
+
+## Upload kontrak (1 Sep 2026)
+
+| Item | Status |
+|---|---|
+| Symptom | Toast sukses, dokumen/kontrak tidak muncul |
+| Root cause 1 | RLS TX abort (kolom `employees.contract_*` hilang) |
+| Root cause 2 | `superadmin@humanify.id` session **tanpa tenantId** → detail 403, upload 404 |
+| Fix | SAVEPOINT + kolom kontrak; `resolveEffectiveTenantId` dari baris karyawan |
+| Verify | `SMOKE_BASE_URL=https://humanify.id node scripts/smoke-test-employee-documents.js` |
+
+---
+
+## Signup email (1 Sep 2026)
+
+| Item | Status |
+|---|---|
+| Root cause | Prod `.env` had **no** `SMTP_*` keys — `createEmailVerification` skipped send |
+| Fix | Restore SumoPod `smtp.sumopod.com:465` SSL on VPS `.env`; PM2 restart |
+| Code | `lib/email/sender.ts` — port 465 implicit TLS; `SMTP_PASS` alias; skip log |
+| Guard | `scripts/ensure-humanify-smtp.sh` on deploy (warns if SMTP missing) |
+| Probe | `cd /root/humanify && node scripts/probe-humanify-smtp.js` |
+
+---
+
+## Product Readiness (1 Sep 2026)
+
+| Item | Status |
+|---|---|
+| Tracker | Google Sheet Product Readiness · `docs/humanify-product-readiness.md` |
+| Price book | `HUMANIFY_CANONICAL_PRICES_IDR` · Trial/Starter/Growth/Enterprise |
+| Lab IA | E-Sign / LMS lab / engagement / projects hidden unless opt-in |
+| Null plan | starter (middleware, HQLayout, plan-change) |
+| Wizard | company → org → policies → **karyawan pertama** → Go Live |
+| AIMAN | confirm + audit fail-closed; payroll insights rules-only |
+| Deploy | no demo seed unless `HUMANIFY_SEED_DEMO=true`; healthcheck blocking |
+| CI | `smoke:product-readiness` + SHA artifact upload |
+| Smoke | `npm run smoke:product-readiness` |
+
+---
+
+> Sebelumnya: 11 Agustus 2026 — **Certificate registry** · expiry hub · rare credentials · HR actions
+
+## Certificate registry (11 Aug 2026)
+
+| Item | Status |
+|---|---|
+| URL | https://humanify.id/humanify/certificates |
+| Analytics | critical30 · warning60 · rareCount · actionQueue · rare insights |
+| HR actions | remind · renew · transfer/move · revoke · create manual |
+| Rarity | critical (1) · rare (≤2) · uncommon (≤5) · common |
+| API | `GET/POST /api/humanify/certificates` (+ `?action=analytics`) |
+| Smoke | `npm run smoke:certificates` |
+
+## LMS depth (10 Aug 2026 · sore)
+
+| Item | Status |
+|---|---|
+| Tests UI | KPI · search/filter · open/close/delete · toast forms |
+| Analytics UI | Header · KPI · bar/pie charts · heatmap + skill gap |
+| Courses UI | Archive button · hide archived · toast create |
+| API | `POST /api/humanify/lms/courses?action=archive` (+ hard delete opt) |
+| Charts | `OpsBarChart` added to `ops-charts.tsx` |
+| UAT suite | includes `B-functional-crud` |
+| Smoke | `smoke:functional-crud` post-deploy |
+
+## Full recheck (10 Aug 2026 · 12:07 WIB)
+
+| Item | Status |
+|---|---|
+| Result | **21/21 PASS · 0 FAIL** |
+| Artifacts | `artifacts/full-recheck-20260810T050715Z/` |
+| Visual | canvas `humanify-full-recheck-report.canvas.tsx` |
+| Highlights | LMS 56/0 · CRUD 52/0 · modules 67/0 · employees 48/0 · prod-readiness **213/0** · E2E auth 12/12 |
+
+## UAT / QA (10 Aug 2026)
+
+| Item | Status |
+|---|---|
+| Command | `npm run uat:humanify` · `npm run smoke:lms-integration` · `npm run smoke:functional-crud` |
+| LMS hub API | dashboard shape + activitySeries 14d · stress ~12ms |
+| LMS lab | 403 `LMS_LAB_GATED` expected when lab off |
+| Billing | phase4 + idempotency PASS |
+| FE E2E | health 8/8 · modules PASS · HR auth-gate 12/12 |
+| Report | `artifacts/uat-9cdf544-20260809T213719Z/UAT-REPORT.md` |
+
+## Tenant sidebar (9 Aug 2026) — Ops Platform group removed
+
+| Item | Status |
+|---|---|
+| Change | Hapus group `platform-ops` dari `config/humanify-sidebar.config.ts` |
+| Why | Control plane sudah di https://ops.humanify.id — jangan double-nav di tenant app |
+| Keep | Group `platform` (ESS/MSS/org/users/billing tenant) tetap |
+| Smoke | `npm run smoke:sidebar-persona` — Ops Platform group removed |
+
+## Ops control plane host (9 Aug 2026) — DEPLOYED + UI enrich
+
+| Item | Status |
+|---|---|
+| URL | https://ops.humanify.id/login · https://ops.humanify.id/platform |
+| Billing | https://ops.humanify.id/platform/billing — paid/unpaid · voucher · plan catalog |
+| Charts | Pie / line / area di Ringkasan + Billing overview |
+| Apex | `humanify.id/platform` → **308** ops · `/api/platform` → **403** |
+| Nav | Ringkasan · Klien · Billing · Partner · Observability · Demo |
+| Smoke | `smoke:ops-host` green (host isolation) |
+| Incident | Manual rsync tanpa exclude menimpa prod `.env` → restored dari staging creds + DB `humanify` |
+| Guard | Jangan rsync `.env` ke VPS; deploy script harus exclude |
+
+```bash
+SMOKE_BASE_URL=https://humanify.id SMOKE_OPS_URL=https://ops.humanify.id npm run smoke:ops-host
+```
+
+---
+
+> Sebelumnya: 4 Agustus 2026 — **SEC-87 ESS/tenant isolation DEPLOYED** · health **200**
+
+## Hotfix (4 Aug 2026) — ESS portal + fresh-tenant isolation (P0)
+
+| Item | Status |
+|---|---|
+| Symptom | Tenant baru di `/employee` melihat mock/data bersama (Budi Santoso, KPI 87, Hybrid 2026, org Naincode, LT-001) |
+| Fix | Mock kill-switch · tenant-scoped ESS · org/assets/certs guards · FE sanitize · request-bound · no-store cache |
+| Deploy | **Done** — PM2 online · health **200** |
+| Smoke post-deploy | `smoke:ess-empty-state` **23/0** · leave create→list **OK** |
+| Leave hotfix | SAVEPOINT release recovery · notify without `u.is_active` · LeaveApprovalConfig no `division` |
+
+```bash
+SMOKE_BASE_URL=https://humanify.id npm run smoke:ess-empty-state   # 23/0
+```
+
+---
+
+> Sebelumnya: 3 Agustus 2026 — **QC-86-1 signed · TB-85-1 FORCE RLS live** · BUILD_ID `xg-n2O9rRtu6NGQCY3djs`
+
+## Closeout (3 Aug 2026) — QC-86-1 · TB-85-1 · TB-85-2
+
+| ID | Status | Notes |
+|---|---|---|
+| QC-86-1 | **Done** | `docs/releases/QC-SIGNOFF-2026-08-03-prod-readiness.md` — Winner Harry / Naincode Dev |
+| TB-85-1 | **Done** | Staging chaos green → FORCE strict on **29** tables · `HUMANIFY_RLS_MODE=strict` · post-verify GA **15/0** · multi-role **18/0** |
+| TB-85-1 fix | **Done** | `setDbTenantContext` falls back to session-level when `is_local` outside TX; always clear in `withHQAuth` finally |
+| TB-85-2 | **Done (self-hosted)** | `SENTRY_MODE=internal` · UI `/platform/observability` · **no Sentry.io** (owner choice) |
+| SEC-86-1 | **Done** | OWASP **47/0** |
+
+## Prod readiness recheck (3 Aug 2026)
+
+| Item | Status |
+|---|---|
+| Megatest | **213/0** · `artifacts/prod-readiness-recheck.log` |
+| OWASP | **47/0** · `artifacts/owasp-recheck-20260803.log` |
+| FORCE post-verify | employees total=43 · leave/payroll 200 · GA/multi-role green |
+| BUILD_ID | `xg-n2O9rRtu6NGQCY3djs` · health **200** |
+| Track B open | **TB-85-3 Iris only** (Sentry.io tidak dipakai) |
+
+## Hotfix (3 Aug 2026) — Leave create/cancel + finance invite
+
+| Item | Status |
+|---|---|
+| Root cause | Prod `LeaveRequest.create` tanpa `underscored` → `column "employeeId"`; invitations tanpa `finance_staff` |
+| Fix | Raw SQL insert/update di `leave.ts` · `models/LeaveRequest.js` underscored · sync `lib/saas/invitations.ts` |
+| Smoke | GA journey **15/0** · multi-role **18/0** · leave probe create→cancel |
+| Deploy | Done |
+
+## Hotfix (3 Aug 2026) — Tambah data keluarga / detail karyawan
+
+| Item | Status |
+|---|---|
+| Root cause | Tabel `employee_families` / educations / certifications / skills / work_experiences **tidak ada** di prod; `withDbSavepoint` mengembalikan `[]` saat di luar TX |
+| Fix | Ensure tables (UUID) + sanitize empty dates + savepoint fallback + FE validation |
+| Smoke | `npm run smoke:employee-profile-subdata` · prod **6/0** |
+| Deploy | Done — health **200** (prior BUILD same day) |
+
+---
+
+> Sebelumnya: 2 Agustus 2026 — **Wave-85 Track B + FE polish deployed** · BUILD_ID `FvosRTTUO3a3Gaikb1-JB`
+
+## Wave-85 (2 Aug 2026) — Track B + FE-83-1
+
+| ID | Item | Status |
+|---|---|---|
+| FE-83-1 | EnterprisePageHeader on 7 GA pages | Done · deployed |
+| TB-85-4 | Privy / E-Sign unhide | Done |
+| TB-85-5 | Engagement + LMS advanced + HR projects IA | Done |
+| TB-85-3 | Partner payout disburse queue / Iris opt-in | Done |
+| TB-85-2 | Sentry.io still opt-in (needs DSN) | Path ready · prod stays internal |
+| TB-85-1 | FORCE RLS prod | **Gated** — prod remains soft |
+| QA | `npm run smoke:wave85` | **10/0** |
+| DO | Prod deploy | Done — health **200** · `FvosRTTUO3a3Gaikb1-JB` |
+
+**ADR:** D-030 · runbook `docs/humanify-wave85-track-b.md`
+
+## Track A close (2 Aug 2026)
+
+All roles **100 Track A** per `docs/humanify-multi-role-system-audit.md` v1.1.  
+**Prod deploy Waves 80–84:** Done — health **200**, prior BUILD_ID `QVn80tU5GM8Q0w-kZuwRG`.  
+**SEC-79-1 Midtrans follow-up deploy:** Done — BUILD_ID `dqhNru7b8t4HrHOvaXq7o` (missing `signature_key` → `MIDTRANS_SIGNATURE_REQUIRED`; lab escape `HUMANIFY_MIDTRANS_ALLOW_UNSIGNED=true`).  
+**QC pack:** `docs/releases/QC-SIGNOFF-2026-08-02-track-a.md` (human countersign pending).
+
+| Wave | Item | Local |
+|---|---|---|
+| 79 | Blockers **including Midtrans signature** | Deploy follow-up |
+| 80 | Finance SoD / MSS / go-live / plan default | Deployed |
+| 81 | ESS GUC / MFA / claim HMAC / fail-closed | Deployed |
+| 82 | Gate A–E / deny-matrix / CI / QC template | Deployed |
+| 83 | NPS pulse / commercial / hire-to-retire / payout honesty | Deployed |
+| 84 | Deploy runbook / a11y / capacity / ESS plan gate / audit v1.1 | Deployed |
+
+```bash
+npm run smoke:wave79-entitlements && npm run smoke:wave80 && npm run smoke:wave81
+npm run smoke:wave82 && npm run smoke:wave83 && npm run smoke:wave84
+npm run smoke:deny-matrix
+HUMANIFY_GATE_NETWORK=false npm run gate:ae
+# then: docs/humanify-deploy-runbook.md
+```
+
+**ADR ceilings unchanged:** prod FORCE RLS · Sentry.io · Midtrans auto-payout · Privy unhide.
+
+## Wave-80 (1 Aug 2026) — Workflow truth & SoD
+
+| ID | Item | Status |
+|---|---|---|
+| BE-80-1 | Finance SoD on payroll approve / paid / released | Done — `lib/saas/payroll-finance-sod.ts` |
+| BE-80-2 | Invite role `finance_staff` | Done |
+| FE-80-1 | MSS vs ESS Manager Hub scope labels + team-scoped approve | Done |
+| FE-80-2 | Remove dashboard engagement CTA (Hidden IA) | Done |
+| PRD-80-1 | Go-live: attendance / leave / payroll readiness | Done |
+| PRD-80-2 | AIMAN sidebar + FAB “Confirm-required” language | Done |
+| BE-80-3 | Null/unknown plan → `starter` (least privilege) | Done |
+| PRD-80-3 | KPI / performance / OKR gated as `analytics` | Done |
+| QA-1 | `npm run smoke:wave80` | Local **11/0** |
+| DO-1 | Prod deploy Wave-80 | Bundled with Track A deploy |
+
+**Still deferred:** Midtrans signature (SEC-79-1 admin).  
+**ADR ceilings unchanged:** prod FORCE RLS · Sentry.io · Midtrans auto-payout · Privy unhide.
+
+## Wave-79 (1 Aug 2026) — Blockers except Midtrans
+
+| ID | Item | Status |
+|---|---|---|
+| SEC-79-1 | Midtrans reject missing `signature_key` | **Done** — prod fail-closed; `HUMANIFY_MIDTRANS_ALLOW_UNSIGNED` lab escape |
+| SEC-79-2 | Recruitment + Privy webhook fail-closed in production | Done — `lib/hris/webhook-security.ts` |
+| SEC-79-3 | Claim actions + overtime/travel gated as payroll | Done — workflow claim* + plan-entitlements |
+| SEC-79-4 | AI hub aggregates require `tenant_id` | Done — `pages/api/humanify/ai-hub.ts` |
+| FE-79-1 | Travel FE route → payroll entitlement | Done — `ROUTE_FEATURE_RULES` |
+| BD-79-1 | ROI price book = `HUMANIFY_PLANS` list price | Done |
+| BD-79-2 | Sales one-pager GA/Partial/Hidden | Done — `docs/humanify-sales-feature-status.md` |
+| QA-1 | `npm run smoke:wave12` + `smoke:wave79-entitlements` | Local green |
+| DO-1 | Prod deploy Wave-79 (sync + nohup build + PM2) | Done — health **200** (Midtrans still deferred) |
+
+**Task board:** `docs/humanify-roles-to-100-tasklist.md` **v1.2** (gap board updated 2 Aug) · audit v1.2 · canvas `humanify-roles-to-100.canvas.tsx`  
+**ADR ceilings unchanged:** prod FORCE RLS · Sentry.io · Midtrans auto-payout · Privy unhide.  
+**Note:** Midtrans signature harden awaits admin completion — do not claim closed.
+
+## Wave-78 (28 Jul 2026) — `/humanify/kpi` smoke/logic/stress + fixes
+
+| ID | Item | Status |
+|---|---|---|
+| QA-1 | `npm run smoke:kpi-performance` on prod | Done — **55/0** |
+| BUG-1 | Branch KPI empty → derive from employee branch refs | Done |
+| BUG-2 | Fake scores (`*0.92`, default 95/90, `Math.random`) removed | Done |
+| BUG-3 | Optional SQL aborting withHQAuth txn → `SAVEPOINT`/`softQuery` | Done |
+| FE-1 | EmployeeAvatar + empty-state CTAs | Done |
+| BE-1 | Period `YYYY-MM` validation → 400 | Done |
+
+**ADR ceilings unchanged:** prod FORCE RLS · Sentry.io · Midtrans auto-payout · Privy unhide.
 
 ## Wave-77 (28 Jul 2026) — Restore AIMAN post-login
 
@@ -1354,7 +1779,7 @@ phase23-invitations 21/0 · employee-hardening 12/0 · phase18-observability 5/0
 
 > ℹ️ **`phase15-password-reset` di prod**: endpoint dengan sengaja **tidak** mengembalikan reset token (aman) — token dikirim via email. Smoke butuh token untuk lanjut → "gagal" hanya keterbatasan harness terhadap prod yang di-hardening, **bukan** regresi. Untuk verifikasi flow reset: jalankan smoke di non-prod atau set `HUMANIFY_PASSWORD_RESET_RETURN_TOKEN=true` sementara.
 
-> ✅ **SMTP produksi AKTIF (15 Jul 2026)** — provider **SumoPod** (`smtp.sumopod.com:465` SSL) di `.env` VPS (`SMTP_HOST/PORT/SECURE/USER/PASSWORD/FROM/FROM_NAME`). Verified via `nodemailer.verify()` + test send (messageId diterima relay), dan end-to-end lewat app: signup → `verification.emailed=true`, password-reset request → `emailed=true`. Email SaaS (verifikasi P7, reset P15, undangan P23, digest P12) kini terkirim. `SMTP_FROM=noreply@humanify.id`, `SMTP_FROM_NAME=Humanify`.
+> ✅ **SMTP produksi restored (1 Sep 2026)** — keys had gone missing from VPS `.env` (signup verification silently skipped). Provider **SumoPod** (`smtp.sumopod.com:465` SSL) rewritten to `.env` + PM2 restart. Probe: `node scripts/probe-humanify-smtp.js`. `SMTP_FROM=noreply@humanify.id`, `SMTP_FROM_NAME=Humanify`. Deploy now runs `scripts/ensure-humanify-smtp.sh` and warns if keys vanish again.
 >
 > ⚠️ **Deliverability DNS (SPF/DKIM/DMARC)** — record resmi SumoPod (dashboard) siap di `scripts/setup-humanify-email-dns.sh`:
 > - TXT `@` → `v=spf1 mx include:spf.kirim.email ~all` (`spf.kirim.email` → IP 103.171.18/19)

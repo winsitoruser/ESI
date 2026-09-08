@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import HRStatCard from '@/components/humanify/HRStatCard';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import EmployeeAvatar from '@/components/humanify/EmployeeAvatar';
 import type { HrisDataSource } from '@/lib/hris/data-source';
 import PerformanceModuleChrome, { EnterpriseTabBar } from '@/components/humanify/PerformanceModuleChrome';
 import { useTranslation } from '@/lib/i18n';
@@ -31,12 +32,16 @@ interface KPIMetric {
 interface EmployeeKPI {
   employeeId: string;
   employeeName: string;
+  photo_url?: string | null;
   position: string;
   branchName: string;
   department: string;
   period?: string;
   overallScore: number;
   overallAchievement: number;
+  scoreLabel?: string | null;
+  weightBalanced?: boolean;
+  weightSum?: number;
   metrics: KPIMetric[];
   status: 'exceeded' | 'achieved' | 'partial' | 'not_achieved';
   lastUpdated: string;
@@ -109,7 +114,7 @@ export default function KPIDashboard() {
   const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'templates' | 'assign'>('dashboard');
-  const [viewMode, setViewMode] = useState<'employee' | 'branch'>('branch');
+  const [viewMode, setViewMode] = useState<'employee' | 'branch'>('employee');
   const [periodFilter, setPeriodFilter] = useState('current');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -344,11 +349,6 @@ export default function KPIDashboard() {
     return 'bg-red-500';
   };
 
-  const getAchievementPercent = (actual: number, target: number) => {
-    if (!Number.isFinite(actual) || !Number.isFinite(target) || target <= 0) return 0;
-    return Math.round((actual / target) * 100);
-  };
-
   const formatValue = (value: number, unit: string) => {
     if (unit === 'Rp') {
       return `Rp ${(value / 1000000).toFixed(0)} Jt`;
@@ -356,26 +356,41 @@ export default function KPIDashboard() {
     return `${value}${unit === '%' ? '%' : ` ${unit}`}`;
   };
 
+  const metricAchievementPct = (actual: number, target: number) =>
+    target > 0 ? Math.round((actual / target) * 100) : 0;
+
+  const metricBarColor = (pct: number) =>
+    pct >= 100 ? '#059669' : pct >= 80 ? '#d97706' : '#dc2626';
+
+  const selectedMetricChart = useMemo(() => {
+    if (!selectedKPI?.metrics?.length) return [];
+    return selectedKPI.metrics.map((m) => {
+      const pct = metricAchievementPct(m.actual, m.target);
+      const shortName = m.name.length > 32 ? `${m.name.slice(0, 30)}…` : m.name;
+      return { ...m, pct, shortName, color: metricBarColor(pct) };
+    });
+  }, [selectedKPI]);
+
   return (
-    <HQLayout title={t('hris.kpiTitle')} subtitle={t('hris.kpiSubtitle')}>
+    <HQLayout>
       <div className="space-y-6">
         <PerformanceModuleChrome
           active="kpi"
           title={t('hris.kpiTitle')}
           subtitle="Pantau pencapaian KPI per cabang & karyawan — assign, update aktual, dan ekspor laporan"
           icon={Target}
-          gradient="violet"
+          gradient="corporate"
           actions={
             <>
-              <DataSourceBadge source={dataSource} className="!bg-white/90" />
-              <select value={periodFilter} onChange={(e) => setPeriodFilter(e.target.value)} className="rounded-xl border-0 bg-white/15 px-3 py-2 text-sm text-white backdrop-blur-sm">
-                <option value="current" className="text-slate-900">{t('hris.thisMonth')}</option>
-                <option value="last" className="text-slate-900">{t('hris.lastMonth')}</option>
+              <DataSourceBadge source={dataSource} />
+              <select value={periodFilter} onChange={(e) => setPeriodFilter(e.target.value)} className="rounded-[var(--hf-radius)] border border-[var(--hf-border)] bg-white px-3 py-2 text-sm text-[color:var(--hf-ink)]">
+                <option value="current">{t('hris.thisMonth')}</option>
+                <option value="last">{t('hris.lastMonth')}</option>
               </select>
-              <button onClick={handleExportCSV} className="flex items-center gap-2 rounded-xl bg-white/15 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm hover:bg-white/25">
+              <button onClick={handleExportCSV} className="flex items-center gap-2 rounded-[var(--hf-radius)] border border-[var(--hf-border)] bg-white px-4 py-2 text-sm font-medium text-[color:var(--hf-ink-secondary)] hover:bg-[var(--hf-surface-muted)]">
                 <Download className="h-4 w-4" />{t('hris.exportCsv')}
               </button>
-              <button onClick={fetchData} disabled={loading} className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-medium text-[color:var(--hf-brand)] hover:bg-[var(--hf-brand-50)] disabled:opacity-60">
+              <button onClick={fetchData} disabled={loading} className="flex items-center gap-2 rounded-[var(--hf-radius)] bg-[var(--hf-brand-600)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--hf-brand)] disabled:opacity-60">
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
               </button>
             </>
@@ -393,7 +408,7 @@ export default function KPIDashboard() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+        <div className="hf-card p-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <EnterpriseTabBar
               tabs={[
@@ -440,13 +455,26 @@ export default function KPIDashboard() {
             {loading ? (
               <div className="text-center py-16 text-gray-400">Memuat data KPI cabang...</div>
             ) : branchKPIs.length === 0 ? (
-              <div className="text-center py-16 text-gray-400 bg-white rounded-xl border">Belum ada data KPI cabang untuk periode ini</div>
+              <div className="text-center py-16 hf-card space-y-3">
+                <Building2 className="w-10 h-10 mx-auto text-slate-300" />
+                <p className="text-gray-500">Belum ada agregasi KPI per cabang untuk periode ini</p>
+                <p className="text-xs text-gray-400 max-w-md mx-auto">
+                  Pastikan karyawan memiliki cabang, lalu assign KPI. Atau buka tampilan Per Karyawan untuk update aktual.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('employee')}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[var(--hf-brand)] px-4 py-2 text-sm font-medium text-white"
+                >
+                  <Users className="w-4 h-4" /> Lihat Per Karyawan
+                </button>
+              </div>
             ) : (
             <>
             {/* KPI Comparison Chart */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Branch Comparison Bar Chart */}
-              <div className="bg-white rounded-xl shadow-sm border p-6">
+              <div className="hf-card p-6">
                 <h3 className="font-semibold text-lg mb-4">{t('hris.branchKpiComparison')}</h3>
                 {typeof window !== 'undefined' && (
                   <Chart
@@ -473,7 +501,7 @@ export default function KPIDashboard() {
               </div>
 
               {/* Overall Achievement Radar Chart */}
-              <div className="bg-white rounded-xl shadow-sm border p-6">
+              <div className="hf-card p-6">
                 <h3 className="font-semibold text-lg mb-4">{t('hris.radarKpiBranch')}</h3>
                 {typeof window !== 'undefined' && (
                   <Chart
@@ -500,7 +528,7 @@ export default function KPIDashboard() {
             {/* Branch Cards with Radial Charts */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {branchKPIs.map((branch) => (
-                <div key={branch.branchId} className="bg-white rounded-xl shadow-sm border p-6 hover:shadow-lg transition-all">
+                <div key={branch.branchId} className="hf-card p-6 hover:shadow-lg transition-all">
                   <div className="flex justify-between items-start mb-2">
                     <div>
                       <h3 className="font-semibold text-lg">{branch.branchName}</h3>
@@ -600,11 +628,21 @@ export default function KPIDashboard() {
 
         {/* Employee KPI View */}
         {activeTab === 'dashboard' && viewMode === 'employee' && (
-          <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+          <div className="hf-card overflow-hidden">
             {loading ? (
               <div className="text-center py-16 text-gray-400">Memuat data KPI karyawan...</div>
             ) : filteredEmployees.length === 0 ? (
-              <div className="text-center py-16 text-gray-400">Tidak ada data KPI karyawan untuk periode ini</div>
+              <div className="text-center py-16 space-y-3">
+                <Target className="w-10 h-10 mx-auto text-slate-300" />
+                <p className="text-gray-500">Tidak ada data KPI karyawan untuk periode ini</p>
+                <button
+                  type="button"
+                  onClick={() => setShowAssignDialog(true)}
+                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white"
+                >
+                  <UserPlus className="w-4 h-4" /> Assign KPI
+                </button>
+              </div>
             ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -623,9 +661,12 @@ export default function KPIDashboard() {
                   {filteredEmployees.map((emp) => (
                     <tr key={emp.employeeId} className="hover:bg-gray-50">
                       <td className="px-4 py-3">
-                        <div>
-                          <p className="font-medium">{emp.employeeName}</p>
-                          <p className="text-sm text-gray-500">{emp.position}</p>
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <EmployeeAvatar name={emp.employeeName} photoUrl={(emp as any).photo_url} size="sm" />
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{emp.employeeName}</p>
+                            <p className="text-sm text-gray-500 truncate">{emp.position}</p>
+                          </div>
                         </div>
                       </td>
                       <td className="px-4 py-3">
@@ -673,171 +714,331 @@ export default function KPIDashboard() {
 
         {/* KPI Detail Modal with Charts */}
         {selectedKPI && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto m-4">
-              <div className="p-6 border-b bg-gradient-to-r from-[var(--hf-brand-600)] to-[var(--hf-brand-600)] rounded-t-xl">
-                <div className="flex justify-between items-start">
-                  <div className="text-white">
-                    <h3 className="text-xl font-bold">{selectedKPI?.employeeName}</h3>
-                    <p className="text-white/80">{selectedKPI?.position} • {selectedKPI?.branchName}</p>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-3 backdrop-blur-[2px] sm:p-4" onClick={() => { setSelectedKPI(null); setMetricEdits({}); }}>
+            <div
+              className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden hf-card"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-3 border-b border-[var(--hf-border)] bg-[var(--hf-surface-muted)] px-5 py-4 md:px-6">
+                <div className="flex min-w-0 items-center gap-3">
+                  <EmployeeAvatar name={selectedKPI.employeeName} photoUrl={selectedKPI.photo_url} size="lg" />
+                  <div className="min-w-0">
+                    <p className="hf-section-label mb-0.5">Detail KPI Karyawan</p>
+                    <h3 className="truncate text-lg font-semibold tracking-tight text-[color:var(--hf-ink)]">{selectedKPI.employeeName}</h3>
+                    <p className="truncate text-sm text-[color:var(--hf-ink-muted)]">
+                      {selectedKPI.position} · {selectedKPI.branchName}
+                      {selectedKPI.period ? ` · ${selectedKPI.period}` : ''}
+                    </p>
+                    {selectedKPI.scoreLabel && (
+                      <p className="mt-1 text-xs text-[color:var(--hf-ink-faint)]">Level skor: {selectedKPI.scoreLabel}</p>
+                    )}
                   </div>
-                  <button onClick={() => setSelectedKPI(null)} className="text-white/70 hover:text-white text-2xl">×</button>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => { setSelectedKPI(null); setMetricEdits({}); }}
+                  className="rounded-[var(--hf-radius)] p-2 text-[color:var(--hf-ink-muted)] hover:bg-white hover:text-[color:var(--hf-ink)]"
+                  aria-label="Tutup"
+                >
+                  <X className="h-5 w-5" />
+                </button>
               </div>
-              <div className="p-6 space-y-6">
-                {/* Summary Cards with Radial Charts */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-gradient-to-br from-[var(--hf-brand-600)] to-[var(--hf-brand)] rounded-xl p-4 text-center">
-                    {typeof window !== 'undefined' && (
+
+              <div className="space-y-5 overflow-y-auto px-5 py-5 md:px-6">
+                {selectedKPI.weightBalanced === false && (
+                  <div className="rounded-[var(--hf-radius-lg)] border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                    Total bobot metrik = {selectedKPI.weightSum ?? '—'} (ideal 100). Skor memakai normalisasi bobot relatif.
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="hf-card p-4 text-center">
+                    {mounted && (
                       <Chart
                         type="radialBar"
-                        height={150}
+                        height={140}
                         options={{
-                          chart: { sparkline: { enabled: true } },
+                          chart: { sparkline: { enabled: true }, fontFamily: 'inherit' },
                           plotOptions: {
                             radialBar: {
-                              hollow: { size: '65%' },
-                              track: { background: '#dbeafe' },
+                              hollow: { size: '62%' },
+                              track: { background: '#f1f5f9' },
                               dataLabels: {
                                 name: { show: false },
-                                value: { fontSize: '24px', fontWeight: 700, color: '#2563eb', offsetY: 5 }
-                              }
-                            }
+                                value: {
+                                  fontSize: '22px',
+                                  fontWeight: 650,
+                                  color: '#0f172a',
+                                  offsetY: 6,
+                                  formatter: (val: number) => `${Math.round(val)}`,
+                                },
+                              },
+                            },
                           },
-                          colors: ['#2563eb']
+                          colors: ['#5b21b6'],
                         }}
-                        series={[selectedKPI?.overallScore || 0]}
+                        series={[Math.min(selectedKPI.overallScore || 0, 100)]}
                       />
                     )}
-                    <p className="text-sm text-gray-600 font-medium">Skor Keseluruhan</p>
+                    <p className="mt-1 text-xs font-medium text-[color:var(--hf-ink-muted)]">Skor keseluruhan</p>
                   </div>
-                  <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 text-center">
-                    {typeof window !== 'undefined' && (
+                  <div className="hf-card p-4 text-center">
+                    {mounted && (
                       <Chart
                         type="radialBar"
-                        height={150}
+                        height={140}
                         options={{
-                          chart: { sparkline: { enabled: true } },
+                          chart: { sparkline: { enabled: true }, fontFamily: 'inherit' },
                           plotOptions: {
                             radialBar: {
-                              hollow: { size: '65%' },
-                              track: { background: '#dcfce7' },
+                              hollow: { size: '62%' },
+                              track: { background: '#f1f5f9' },
                               dataLabels: {
                                 name: { show: false },
-                                value: { fontSize: '24px', fontWeight: 700, color: '#16a34a', offsetY: 5, formatter: (val: number) => `${val}%` }
-                              }
-                            }
+                                value: {
+                                  fontSize: '22px',
+                                  fontWeight: 650,
+                                  color: '#0f172a',
+                                  offsetY: 6,
+                                  formatter: (val: number) => `${Math.round(val)}%`,
+                                },
+                              },
+                            },
                           },
-                          colors: ['#16a34a']
+                          colors: [metricBarColor(selectedKPI.overallAchievement || 0)],
                         }}
-                        series={[Math.min(selectedKPI?.overallAchievement || 0, 100)]}
+                        series={[Math.min(selectedKPI.overallAchievement || 0, 100)]}
                       />
                     )}
-                    <p className="text-sm text-gray-600 font-medium">Pencapaian</p>
+                    <p className="mt-1 text-xs font-medium text-[color:var(--hf-ink-muted)]">Pencapaian</p>
                   </div>
-                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 flex flex-col items-center justify-center">
-                    <div className="mb-2">{getStatusBadge(selectedKPI?.status)}</div>
-                    <p className="text-sm text-gray-600 font-medium mt-2">Status KPI</p>
-                    <p className="text-xs text-gray-400 mt-1">Terakhir diperbarui: {selectedKPI?.lastUpdated}</p>
+                  <div className="flex flex-col items-center justify-center gap-2 hf-card p-4">
+                    {getStatusBadge(selectedKPI.status)}
+                    <p className="text-xs font-medium text-[color:var(--hf-ink-muted)]">Status KPI</p>
+                    <p className="text-[11px] text-[color:var(--hf-ink-faint)]">Update: {selectedKPI.lastUpdated || '—'}</p>
                   </div>
                 </div>
 
-                {/* Metrics Bar Chart */}
-                <div className="bg-white border rounded-xl p-4">
-                  <h4 className="font-semibold mb-4">Ringkasan Metrik KPI</h4>
-                  {typeof window !== 'undefined' && (
+                <div className="hf-card p-4 md:p-5">
+                  <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <h4 className="text-sm font-semibold text-[color:var(--hf-ink)]">Ringkasan Metrik KPI</h4>
+                      <p className="mt-0.5 text-xs text-[color:var(--hf-ink-muted)]">
+                        Persentase aktual vs target per metrik. Garis hijau putus-putus = 100% target.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-3 text-[11px] text-[color:var(--hf-ink-secondary)]">
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="h-2.5 w-2.5 rounded-sm bg-emerald-600" aria-hidden /> ≥100% Tercapai
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="h-2.5 w-2.5 rounded-sm bg-amber-600" aria-hidden /> 80–99% Mendekati
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="h-2.5 w-2.5 rounded-sm bg-red-600" aria-hidden /> &lt;80% Di bawah
+                      </span>
+                    </div>
+                  </div>
+
+                  {selectedMetricChart.length === 0 ? (
+                    <p className="py-8 text-center text-sm text-[color:var(--hf-ink-faint)]">Belum ada metrik untuk karyawan ini.</p>
+                  ) : mounted ? (
                     <Chart
                       type="bar"
-                      height={250}
+                      height={Math.max(220, selectedMetricChart.length * 48)}
                       options={{
-                        chart: { toolbar: { show: false }, fontFamily: 'inherit' },
-                        plotOptions: { 
-                          bar: { 
-                            horizontal: true, 
-                            barHeight: '70%', 
-                            borderRadius: 6,
-                            distributed: true
-                          } 
+                        chart: {
+                          toolbar: { show: false },
+                          fontFamily: 'inherit',
+                          animations: { enabled: true, speed: 400 },
                         },
-                        dataLabels: { 
-                          enabled: true, 
+                        plotOptions: {
+                          bar: {
+                            horizontal: true,
+                            barHeight: '58%',
+                            borderRadius: 4,
+                            distributed: true,
+                            dataLabels: { position: 'top' },
+                          },
+                        },
+                        dataLabels: {
+                          enabled: true,
                           formatter: (val: number) => `${val}%`,
-                          style: { fontSize: '12px', fontWeight: 600 }
+                          offsetX: 28,
+                          style: {
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            colors: ['#334155'],
+                          },
+                          background: {
+                            enabled: true,
+                            foreColor: '#0f172a',
+                            padding: 4,
+                            borderRadius: 4,
+                            borderWidth: 0,
+                            opacity: 0.08,
+                          },
                         },
-                        xaxis: { 
-                          categories: selectedKPI?.metrics?.map(m => m.name) || [],
-                          max: 120,
-                          labels: { formatter: (val: string) => `${val}%` }
+                        xaxis: {
+                          categories: selectedMetricChart.map((m) => m.shortName),
+                          min: 0,
+                          max: Math.max(120, ...selectedMetricChart.map((m) => m.pct), 100),
+                          tickAmount: 6,
+                          labels: {
+                            style: { colors: '#64748b', fontSize: '11px' },
+                            formatter: (val: string) => `${val}%`,
+                          },
+                          axisBorder: { show: false },
+                          axisTicks: { show: false },
                         },
-                        colors: selectedKPI?.metrics?.map((m) => {
-                          const achievement = getAchievementPercent(m.actual, m.target);
-                          return achievement >= 100 ? '#10B981' : achievement >= 80 ? '#F59E0B' : '#EF4444';
-                        }) || [],
+                        yaxis: {
+                          labels: {
+                            maxWidth: 160,
+                            style: { colors: '#334155', fontSize: '12px', fontWeight: 500 },
+                          },
+                        },
+                        colors: selectedMetricChart.map((m) => m.color),
                         legend: { show: false },
-                        grid: { borderColor: '#f1f1f1', xaxis: { lines: { show: true } } },
+                        grid: {
+                          borderColor: '#e2e8f0',
+                          strokeDashArray: 3,
+                          xaxis: { lines: { show: true } },
+                          yaxis: { lines: { show: false } },
+                          padding: { left: 8, right: 40 },
+                        },
+                        tooltip: {
+                          theme: 'light',
+                          y: {
+                            formatter: (val: number, opts: { dataPointIndex: number }) => {
+                              const m = selectedMetricChart[opts.dataPointIndex];
+                              if (!m) return `${val}%`;
+                              return `${val}% · Aktual ${formatValue(m.actual, m.unit)} / Target ${formatValue(m.target, m.unit)} · Bobot ${m.weight}%`;
+                            },
+                            title: {
+                              formatter: (_: string, opts: { dataPointIndex: number }) =>
+                                selectedMetricChart[opts.dataPointIndex]?.name || 'Metrik',
+                            },
+                          },
+                        },
                         annotations: {
-                          xaxis: [{ x: 100, borderColor: '#10B981', strokeDashArray: 4, label: { text: 'Target', style: { color: '#10B981' } } }]
-                        }
+                          xaxis: [
+                            {
+                              x: 100,
+                              borderColor: '#059669',
+                              strokeDashArray: 5,
+                              label: {
+                                text: 'Target 100%',
+                                orientation: 'horizontal',
+                                position: 'top',
+                                borderColor: 'transparent',
+                                style: {
+                                  color: '#047857',
+                                  background: '#ecfdf5',
+                                  fontSize: '10px',
+                                  fontWeight: 600,
+                                  padding: { left: 6, right: 6, top: 2, bottom: 2 },
+                                },
+                              },
+                            },
+                          ],
+                        },
                       }}
-                      series={[{ data: selectedKPI?.metrics?.map((m) => getAchievementPercent(m.actual, m.target)) || [] }]}
+                      series={[{ name: 'Pencapaian', data: selectedMetricChart.map((m) => m.pct) }]}
                     />
+                  ) : null}
+
+                  {selectedMetricChart.length > 0 && (
+                    <div className="mt-4 overflow-x-auto rounded-[var(--hf-radius-lg)] border border-[var(--hf-border-subtle)]">
+                      <table className="w-full min-w-[480px] text-left text-xs">
+                        <thead className="bg-[var(--hf-surface-muted)] text-[color:var(--hf-ink-muted)]">
+                          <tr>
+                            <th className="px-3 py-2 font-semibold">Metrik</th>
+                            <th className="px-3 py-2 font-semibold text-right">Aktual</th>
+                            <th className="px-3 py-2 font-semibold text-right">Target</th>
+                            <th className="px-3 py-2 font-semibold text-right">%</th>
+                            <th className="px-3 py-2 font-semibold">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedMetricChart.map((m) => (
+                            <tr key={m.id} className="border-t border-[var(--hf-border-subtle)]">
+                              <td className="px-3 py-2.5 font-medium text-[color:var(--hf-ink)]">{m.name}</td>
+                              <td className="px-3 py-2.5 text-right tabular-nums text-[color:var(--hf-ink-secondary)]">{formatValue(m.actual, m.unit)}</td>
+                              <td className="px-3 py-2.5 text-right tabular-nums text-[color:var(--hf-ink-secondary)]">{formatValue(m.target, m.unit)}</td>
+                              <td className="px-3 py-2.5 text-right tabular-nums font-semibold" style={{ color: m.color }}>{m.pct}%</td>
+                              <td className="px-3 py-2.5">
+                                <span className="inline-flex items-center gap-1.5">
+                                  <span className="h-2 w-2 rounded-full" style={{ background: m.color }} />
+                                  {m.pct >= 100 ? 'Tercapai' : m.pct >= 80 ? 'Mendekati' : 'Di bawah'}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   )}
                 </div>
 
-                {/* Detailed Metrics Cards */}
                 <div>
-                  <h4 className="font-semibold mb-4">Detail per Metrik</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {selectedKPI?.metrics?.map((metric) => {
-                      const achievement = getAchievementPercent(metric.actual, metric.target);
+                  <h4 className="mb-3 text-sm font-semibold text-[color:var(--hf-ink)]">Detail per Metrik</h4>
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    {selectedKPI.metrics.map((metric) => {
+                      const achievement = metricAchievementPct(metric.actual, metric.target);
+                      const color = metricBarColor(achievement);
                       return (
-                        <div key={metric.id} className="border rounded-xl p-4 hover:shadow-md transition-all">
-                          <div className="flex justify-between items-start mb-3">
-                            <div>
-                              <p className="font-medium text-gray-900">{metric.name}</p>
-                              <p className="text-xs text-gray-500">Bobot: {metric.weight}% • {CATEGORY_LABELS[metric.category] || metric.category}</p>
+                        <div key={metric.id} className="hf-card p-4">
+                          <div className="mb-3 flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="truncate font-medium text-[color:var(--hf-ink)]">{metric.name}</p>
+                              <p className="text-xs text-[color:var(--hf-ink-muted)]">
+                                Bobot {metric.weight}% · {CATEGORY_LABELS[metric.category] || metric.category}
+                              </p>
                             </div>
-                            <div className={`flex items-center gap-1 text-sm font-semibold ${metric.trend === 'up' ? 'text-green-600' : metric.trend === 'down' ? 'text-red-600' : 'text-gray-500'}`}>
-                              {metric.trend === 'up' ? <TrendingUp className="w-4 h-4" /> : metric.trend === 'down' ? <TrendingDown className="w-4 h-4" /> : null}
+                            <div className={`flex shrink-0 items-center gap-1 text-xs font-semibold ${metric.trend === 'up' ? 'text-emerald-600' : metric.trend === 'down' ? 'text-red-600' : 'text-slate-500'}`}>
+                              {metric.trend === 'up' ? <TrendingUp className="h-3.5 w-3.5" /> : metric.trend === 'down' ? <TrendingDown className="h-3.5 w-3.5" /> : null}
                               {metric.trend === 'up' ? 'Naik' : metric.trend === 'down' ? 'Turun' : 'Stabil'}
                             </div>
                           </div>
-                          <div className="flex items-center gap-4">
-                            {typeof window !== 'undefined' && (
+                          <div className="flex items-center gap-3">
+                            {mounted && (
                               <Chart
                                 type="radialBar"
-                                height={80}
-                                width={80}
+                                height={72}
+                                width={72}
                                 options={{
                                   chart: { sparkline: { enabled: true } },
                                   plotOptions: {
                                     radialBar: {
-                                      hollow: { size: '50%' },
+                                      hollow: { size: '48%' },
                                       track: { background: '#f1f5f9' },
                                       dataLabels: {
                                         name: { show: false },
-                                        value: { fontSize: '14px', fontWeight: 700, color: achievement >= 100 ? '#10B981' : achievement >= 80 ? '#F59E0B' : '#EF4444', offsetY: 5 }
-                                      }
-                                    }
+                                        value: { fontSize: '12px', fontWeight: 700, color, offsetY: 4, formatter: (v: number) => `${Math.round(v)}%` },
+                                      },
+                                    },
                                   },
-                                  colors: [achievement >= 100 ? '#10B981' : achievement >= 80 ? '#F59E0B' : '#EF4444']
+                                  colors: [color],
                                 }}
-                                series={[Math.min(Math.round(achievement), 100)]}
+                                series={[Math.min(achievement, 100)]}
                               />
                             )}
-                            <div className="flex-1 space-y-2">
-                              <div className="flex justify-between text-sm items-center gap-2">
-                                <span className="text-gray-500">Aktual</span>
+                            <div className="min-w-0 flex-1 space-y-2">
+                              <div className="flex items-center justify-between gap-2 text-sm">
+                                <span className="text-[color:var(--hf-ink-muted)]">Aktual</span>
                                 <input
                                   type="number"
                                   value={metricEdits[metric.id] ?? String(metric.actual)}
-                                  onChange={e => setMetricEdits(prev => ({ ...prev, [metric.id]: e.target.value }))}
-                                  className="w-28 px-2 py-1 border rounded text-sm text-right"
+                                  onChange={(e) => setMetricEdits((prev) => ({ ...prev, [metric.id]: e.target.value }))}
+                                  className="w-28 rounded-[var(--hf-radius)] border border-[var(--hf-border)] px-2 py-1 text-right text-sm tabular-nums focus:border-[var(--hf-brand-500)] focus:outline-none focus:shadow-[var(--hf-focus-ring)]"
                                 />
                               </div>
                               <div className="flex justify-between text-sm">
-                                <span className="text-gray-500">Target</span>
-                                <span className="font-medium">{formatValue(metric.target, metric.unit)}</span>
+                                <span className="text-[color:var(--hf-ink-muted)]">Target</span>
+                                <span className="font-medium tabular-nums text-[color:var(--hf-ink)]">{formatValue(metric.target, metric.unit)}</span>
+                              </div>
+                              <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
+                                <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(achievement, 100)}%`, background: color }} />
                               </div>
                             </div>
                           </div>
@@ -846,17 +1047,17 @@ export default function KPIDashboard() {
                     })}
                   </div>
                 </div>
+              </div>
 
-                <div className="flex justify-end gap-2 pt-4 border-t">
-                  <button onClick={() => { setSelectedKPI(null); setMetricEdits({}); }} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Tutup</button>
-                  <button onClick={() => handleExportKPIPdf(selectedKPI)} className="px-4 py-2 border rounded-lg hover:bg-gray-50 flex items-center gap-2">
-                    <Download className="w-4 h-4" /> Ekspor PDF
-                  </button>
-                  <button onClick={handleSaveMetricActuals} disabled={saving} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
-                    {saving ? 'Menyimpan...' : 'Simpan Aktual'}
-                  </button>
-                  <button onClick={() => handleEditKPI(selectedKPI)} className="px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg hover:bg-[var(--hf-brand)]">Edit Target</button>
-                </div>
+              <div className="flex flex-wrap justify-end gap-2 border-t border-[var(--hf-border)] bg-[var(--hf-surface-muted)] px-5 py-3 md:px-6">
+                <button type="button" onClick={() => { setSelectedKPI(null); setMetricEdits({}); }} className="hf-btn-secondary">Tutup</button>
+                <button type="button" onClick={() => handleExportKPIPdf(selectedKPI)} className="hf-btn-secondary inline-flex items-center gap-2">
+                  <Download className="h-4 w-4" /> Ekspor PDF
+                </button>
+                <button type="button" onClick={handleSaveMetricActuals} disabled={saving} className="rounded-[var(--hf-radius)] bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
+                  {saving ? 'Menyimpan...' : 'Simpan Aktual'}
+                </button>
+                <button type="button" onClick={() => handleEditKPI(selectedKPI)} className="hf-btn-primary">Edit Target</button>
               </div>
             </div>
           </div>
@@ -864,7 +1065,7 @@ export default function KPIDashboard() {
 
         {/* ========== TEMPLATES TAB ========== */}
         {activeTab === 'templates' && (
-          <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+          <div className="hf-card overflow-hidden">
             <div className="p-4 border-b flex justify-between items-center">
               <h3 className="font-semibold text-lg">Template KPI Standar</h3>
               <span className="text-sm text-gray-500">{templates.length} template tersedia</span>
@@ -919,7 +1120,7 @@ export default function KPIDashboard() {
         {/* ========== ASSIGN KPI DIALOG ========== */}
         {showAssignDialog && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl w-full max-w-lg m-4 shadow-2xl">
+            <div className="hf-card m-4 w-full max-w-lg">
               <div className="p-5 border-b flex justify-between items-center">
                 <h3 className="font-semibold text-lg flex items-center gap-2">
                   <UserPlus className="w-5 h-5 text-green-600" /> {t('hris.assignKpi')}
@@ -987,7 +1188,7 @@ export default function KPIDashboard() {
         {/* Branch Detail Modal */}
         {selectedBranch && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setSelectedBranch(null)}>
-            <div className="bg-white rounded-xl w-full max-w-lg m-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="hf-card m-4 w-full max-w-lg" onClick={e => e.stopPropagation()}>
               <div className="p-5 border-b flex justify-between items-center">
                 <div>
                   <h3 className="font-semibold text-lg">{selectedBranch.branchName}</h3>

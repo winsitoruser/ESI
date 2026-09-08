@@ -38,12 +38,22 @@ console.log('Sidebar IA checks');
   ['Pusat Pengetahuan label', /Pusat Pengetahuan/],
   ['Attendance nested group', /id:\s*'humanify-attendance-group'/],
   ['AI lab single entry', /humanify-ai-hub/],
-  ['AIMAN sidebar label', /AIMAN · AI Guide/],
-  ['Ops Platform group', /id:\s*'platform-ops'/],
-  ['Klien / Perusahaan nav', /platform-ops-clients/],
+  ['AIMAN sidebar label', /AIMAN · Confirm/],
+  ['Ops Platform group removed', /(?!)/], // custom below
+  ['No platform-ops-clients', /(?!)/],
   ['PLATFORM_CONTROL_ITEMS', /PLATFORM_CONTROL_ITEMS/],
   ['No duplicate AI copilot in config', /(?!)/], // placeholder replaced below
 ].forEach(([label, re]) => {
+  if (label === 'Ops Platform group removed') {
+    if (!/id:\s*'platform-ops'/.test(configSrc)) ok(label);
+    else fail(label);
+    return;
+  }
+  if (label === 'No platform-ops-clients') {
+    if (!/platform-ops-clients/.test(configSrc)) ok(label);
+    else fail(label);
+    return;
+  }
   if (label.startsWith('No duplicate')) {
     const hasCopilot = /id:\s*'humanify-ai-copilot'/.test(configSrc);
     if (!hasCopilot) ok(label);

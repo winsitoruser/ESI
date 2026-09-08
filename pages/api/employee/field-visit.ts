@@ -17,6 +17,7 @@ import { authOptions } from '../auth/[...nextauth]';
 import { ensureVisitLinkedTask, syncTaskStatusFromVisit } from '../../../lib/sfa/visitTaskSync';
 import { loadActiveGeofences, matchGeofences, geofenceStatusLabel } from '../../../lib/hris/geofence-utils';
 import { allowHrMockFallback } from '@/lib/hris/data-source';
+import { withEmployeeAuth } from '@/lib/middleware/withEmployeeAuth';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch {}
@@ -90,7 +91,7 @@ const q = async (sql: string, params: any = {}) => {
   return rows as any[];
 };
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     const session = await getServerSession(req, res, authOptions);
     if (!session?.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
@@ -474,3 +475,5 @@ async function updateVisit(req: NextApiRequest, res: NextApiResponse, tenantId: 
     return res.status(500).json({ success: false, error: 'Gagal memperbarui kunjungan' });
   }
 }
+
+export default withEmployeeAuth(handler);

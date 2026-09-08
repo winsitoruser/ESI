@@ -235,7 +235,7 @@ export default function TeamMemberDetailSheet({ employeeId, employeeName, onClos
                       { label: 'Hadir', value: att?.summary?.present ?? 0, color: 'text-blue-600' },
                       { label: 'Terlambat', value: att?.summary?.late ?? 0, color: 'text-amber-600' },
                     ].map((s) => (
-                      <div key={s.label} className="bg-white rounded-xl border border-slate-100 p-3 text-center">
+                      <div key={s.label} className="hf-card border-slate-100 p-3 text-center">
                         <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
                         <p className="text-[10px] text-slate-500 font-medium">{s.label}</p>
                       </div>
@@ -243,7 +243,7 @@ export default function TeamMemberDetailSheet({ employeeId, employeeName, onClos
                   </div>
 
                   {att?.today && (
-                    <div className="bg-white rounded-xl border border-slate-100 p-3">
+                    <div className="hf-card border-slate-100 p-3">
                       <p className="text-xs font-semibold text-slate-700 mb-2">Hari Ini</p>
                       <div className="flex items-center gap-4 text-xs text-slate-600">
                         <span className="flex items-center gap-1">
@@ -304,7 +304,7 @@ export default function TeamMemberDetailSheet({ employeeId, employeeName, onClos
                     const TrendIcon = m.trend === 'up' ? TrendingUp : m.trend === 'down' ? TrendingDown : Minus;
                     const trendColor = m.trend === 'up' ? 'text-emerald-500' : m.trend === 'down' ? 'text-rose-500' : 'text-slate-400';
                     return (
-                      <div key={i} className="bg-white rounded-xl border border-slate-100 p-3">
+                      <div key={i} className="hf-card border-slate-100 p-3">
                         <div className="flex items-center justify-between mb-2">
                           <p className="text-sm font-semibold text-slate-800">{m.name}</p>
                           <div className="flex items-center gap-1">
@@ -352,7 +352,7 @@ export default function TeamMemberDetailSheet({ employeeId, employeeName, onClos
                   {!att?.records?.length ? (
                     <p className="text-center text-sm text-slate-400 py-6">Belum ada data absensi untuk periode ini</p>
                   ) : att.records.map((r: any) => (
-                    <div key={r.date} className="flex items-center gap-3 bg-white rounded-xl border border-slate-100 p-3">
+                    <div key={r.date} className="flex items-center gap-3 hf-card border-slate-100 p-3">
                       <div className="text-center w-12 shrink-0">
                         <p className="text-xs font-bold text-slate-800">
                           {new Date(r.date).getDate()}
@@ -407,7 +407,7 @@ export default function TeamMemberDetailSheet({ employeeId, employeeName, onClos
                       key={v.id}
                       type="button"
                       onClick={() => openVisitDetail(v.id)}
-                      className="w-full text-left bg-white rounded-xl border border-slate-100 p-3 active:scale-[0.99] transition-transform"
+                      className="w-full text-left hf-card border-slate-100 p-3 active:scale-[0.99] transition-transform"
                     >
                       <div className="flex gap-3">
                         {v.thumbnail_url ? (

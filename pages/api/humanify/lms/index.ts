@@ -3,8 +3,9 @@
  * Question bank, tests, psychometric, schedules, grading, reports, competency
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { gradeExam, computeIntegrityScore } from '../../../../lib/hris/lms/grading';
+import { gradeExam, computeIntegrityScore, applyManualScores } from '../../../../lib/hris/lms/grading';
 import { withHQAuth } from '@/lib/middleware/withHQAuth';
+import { ensureLmsAssessmentSchema } from '@/lib/hris/lms/assessment-schema';
 
 const sequelize = require('../../../../lib/sequelize');
 
@@ -35,11 +36,23 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     const method = req.method;
 
     const hasLms = await tableExists('hris_lms_question_bank');
+    if (hasLms) await ensureLmsAssessmentSchema();
 
     // ═══ GET ═══
     if (method === 'GET') {
       if (action === 'dashboard') {
-        const stats: any = { questionBank: 0, exams: 0, schedules: 0, results: 0, competencies: 0, passRate: 0 };
+        const stats: any = {
+          questionBank: 0,
+          exams: 0,
+          schedules: 0,
+          results: 0,
+          competencies: 0,
+          passRate: 0,
+          courses: 0,
+          enrollments: 0,
+          learners: 0,
+          avgScore: 0,
+        };
         if (hasLms) {
           const [qb] = await sequelize.query(`SELECT COUNT(*)::int as c FROM hris_lms_question_bank WHERE tenant_id = :tid`, { replacements: { tid: tenantId } });
           stats.questionBank = qb[0]?.c || 0;
@@ -47,34 +60,117 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           stats.schedules = sch[0]?.c || 0;
           const [comp] = await sequelize.query(`SELECT COUNT(*)::int as c FROM hris_lms_competency_history WHERE tenant_id = :tid`, { replacements: { tid: tenantId } });
           stats.competencies = comp[0]?.c || 0;
+          const [enr] = await sequelize.query(
+            `SELECT COUNT(*)::int as c, COUNT(DISTINCT employee_id)::int as learners
+             FROM hris_lms_enrollments WHERE tenant_id = :tid`,
+            { replacements: { tid: tenantId } },
+          ).catch(() => [[{ c: 0, learners: 0 }]]);
+          stats.enrollments = enr[0]?.c || 0;
+          stats.learners = enr[0]?.learners || 0;
         }
+        const [crs] = await sequelize.query(
+          `SELECT COUNT(*)::int as c FROM hris_training_curricula WHERE tenant_id = :tid`,
+          { replacements: { tid: tenantId } },
+        ).catch(() => [[{ c: 0 }]]);
+        stats.courses = crs[0]?.c || 0;
+        stats.curricula = stats.courses;
+
         const [ex] = await sequelize.query(`SELECT COUNT(*)::int as c FROM hris_training_exams WHERE tenant_id = :tid`, { replacements: { tid: tenantId } });
         stats.exams = ex[0]?.c || 0;
         const [resultStats] = await sequelize.query(`
           SELECT COUNT(*)::int as total,
-            COALESCE(AVG(CASE WHEN is_passed=true THEN 1 ELSE 0 END)*100,0)::decimal(5,2) as pass_rate
+            COALESCE(AVG(CASE WHEN is_passed=true THEN 1 ELSE 0 END)*100,0)::decimal(5,2) as pass_rate,
+            COALESCE(AVG(score),0)::decimal(5,2) as avg_score
           FROM hris_training_exam_results WHERE tenant_id = :tid
         `, { replacements: { tid: tenantId } });
         stats.results = resultStats[0]?.total || 0;
         stats.passRate = Number(resultStats[0]?.pass_rate) || 0;
+        stats.avgScore = Number(resultStats[0]?.avg_score) || 0;
 
         const [psycho] = await sequelize.query(`
           SELECT psychometric_type, COUNT(*)::int as count FROM hris_training_exams
           WHERE tenant_id = :tid AND psychometric_type IS NOT NULL
           GROUP BY psychometric_type
         `, { replacements: { tid: tenantId } }).catch(() => [[]]);
-        return res.json({ success: true, data: { ...stats, psychometric: psycho } });
+
+        const [topCourses] = await sequelize.query(`
+          SELECT c.id, c.title, c.category, c.status, c.code,
+            (SELECT COUNT(*)::int FROM hris_training_modules m WHERE m.curriculum_id = c.id) as module_count,
+            (SELECT COUNT(*)::int FROM hris_lms_enrollments e WHERE e.curriculum_id = c.id) as enrollment_count
+          FROM hris_training_curricula c
+          WHERE c.tenant_id = :tid
+          ORDER BY enrollment_count DESC NULLS LAST, c.created_at DESC
+          LIMIT 6
+        `, { replacements: { tid: tenantId } }).catch(() => [[]]);
+
+        const [recentResults] = await sequelize.query(`
+          SELECT r.id, r.employee_name, r.score, r.is_passed, r.status, r.submitted_at, r.created_at,
+            e.title as exam_title
+          FROM hris_training_exam_results r
+          LEFT JOIN hris_training_exams e ON r.exam_id = e.id
+          WHERE r.tenant_id = :tid
+          ORDER BY COALESCE(r.submitted_at, r.created_at) DESC NULLS LAST
+          LIMIT 8
+        `, { replacements: { tid: tenantId } }).catch(() => [[]]);
+
+        const [activitySeries] = await sequelize.query(`
+          SELECT to_char(d::date, 'DD Mon') as label, d::date as day,
+            (
+              SELECT COUNT(*)::int FROM hris_training_exam_results r
+              WHERE r.tenant_id = :tid
+                AND COALESCE(r.submitted_at, r.created_at)::date = d::date
+            ) as attempts,
+            (
+              SELECT COUNT(*)::int FROM hris_lms_enrollments e
+              WHERE e.tenant_id = :tid AND e.enrolled_at::date = d::date
+            ) as enrollments
+          FROM generate_series(CURRENT_DATE - INTERVAL '13 days', CURRENT_DATE, '1 day') d
+          ORDER BY d
+        `, { replacements: { tid: tenantId } }).catch(() => [[]]);
+
+        const [categoryBreakdown] = await sequelize.query(`
+          SELECT COALESCE(NULLIF(TRIM(category), ''), 'general') as name, COUNT(*)::int as value
+          FROM hris_training_curricula
+          WHERE tenant_id = :tid
+          GROUP BY 1 ORDER BY value DESC LIMIT 6
+        `, { replacements: { tid: tenantId } }).catch(() => [[]]);
+
+        const passFail = [
+          { name: 'Lulus', value: Math.round((stats.passRate / 100) * stats.results) || 0 },
+          { name: 'Tidak lulus', value: Math.max(0, stats.results - Math.round((stats.passRate / 100) * stats.results)) },
+        ];
+
+        return res.json({
+          success: true,
+          data: {
+            ...stats,
+            psychometric: psycho,
+            topCourses: topCourses || [],
+            recentResults: recentResults || [],
+            activitySeries: (activitySeries || []).map((r: any) => ({
+              label: r.label,
+              attempts: Number(r.attempts) || 0,
+              enrollments: Number(r.enrollments) || 0,
+            })),
+            categoryBreakdown: categoryBreakdown || [],
+            passFail: stats.results > 0 ? passFail : [],
+          },
+        });
       }
 
       if (action === 'question-bank') {
         if (!hasLms) return res.json({ success: true, data: [] });
-        const { category, psychometric_type, search, status } = req.query;
+        const { category, psychometric_type, search, status, question_type, difficulty, curriculum_id, module_id } = req.query;
         let where = 'WHERE tenant_id = :tid';
         const repl: any = { tid: tenantId };
         if (category) { where += ' AND category = :cat'; repl.cat = category; }
         if (psychometric_type) { where += ' AND psychometric_type = :pt'; repl.pt = psychometric_type; }
         if (status) { where += ' AND status = :st'; repl.st = status; }
-        if (search) { where += ' AND (question_text ILIKE :q OR code ILIKE :q)'; repl.q = `%${search}%`; }
+        if (question_type) { where += ' AND question_type = :qt'; repl.qt = question_type; }
+        if (difficulty) { where += ' AND difficulty = :diff'; repl.diff = difficulty; }
+        if (curriculum_id) { where += ` AND metadata->>'curriculum_id' = :cid`; repl.cid = String(curriculum_id); }
+        if (module_id) { where += ` AND metadata->>'module_id' = :mid`; repl.mid = String(module_id); }
+        if (search) { where += ' AND (question_text ILIKE :q OR code ILIKE :q OR category ILIKE :q)'; repl.q = `%${search}%`; }
         const [rows] = await sequelize.query(`SELECT * FROM hris_lms_question_bank ${where} ORDER BY created_at DESC`, { replacements: repl });
         return res.json({ success: true, data: rows });
       }
@@ -88,9 +184,15 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         if (search) { where += ' AND e.title ILIKE :q'; repl.q = `%${search}%`; }
         const [rows] = await sequelize.query(`
           SELECT e.*,
+            c.title as curriculum_title,
+            m.title as module_title,
             (SELECT COUNT(*)::int FROM hris_training_exam_questions q WHERE q.exam_id = e.id) as question_count,
-            (SELECT COUNT(*)::int FROM hris_training_exam_results r WHERE r.exam_id = e.id) as attempt_count
-          FROM hris_training_exams e ${where} ORDER BY e.created_at DESC
+            (SELECT COUNT(*)::int FROM hris_training_exam_results r WHERE r.exam_id = e.id) as attempt_count,
+            (SELECT COUNT(*)::int FROM hris_training_exam_questions q WHERE q.exam_id = e.id AND q.question_type IN ('essay','situational')) as essay_count
+          FROM hris_training_exams e
+          LEFT JOIN hris_training_curricula c ON c.id = e.curriculum_id
+          LEFT JOIN hris_training_modules m ON m.id = e.module_id
+          ${where} ORDER BY e.created_at DESC
         `, { replacements: repl });
         return res.json({ success: true, data: rows });
       }
@@ -216,16 +318,24 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         if (!hasLms) return res.status(503).json({ error: 'LMS tables not migrated' });
         const b = req.body;
         const code = b.code || `QB-${Date.now().toString(36).toUpperCase()}`;
+        const qid = b.id || require('crypto').randomUUID();
+        const meta = {
+          ...(b.metadata || {}),
+          curriculum_id: b.curriculum_id || null,
+          module_id: b.module_id || null,
+          material_id: b.material_id || null,
+        };
         const [rows] = await sequelize.query(`
-          INSERT INTO hris_lms_question_bank (tenant_id, code, category, psychometric_type, question_type, question_text, options, correct_answer, score, difficulty, tags, explanation, status, created_by)
-          VALUES (:tid, :code, :cat, :pt, :qt, :text, :opts::jsonb, :ans, :score, :diff, :tags::jsonb, :exp, :st, :uid)
+          INSERT INTO hris_lms_question_bank (id, tenant_id, code, category, psychometric_type, question_type, question_text, options, correct_answer, score, difficulty, tags, explanation, status, created_by, metadata)
+          VALUES (:id, :tid, :code, :cat, :pt, :qt, :text, :opts::jsonb, :ans, :score, :diff, :tags::jsonb, :exp, :st, :uid, :meta::jsonb)
           RETURNING *
         `, {
           replacements: {
-            tid: tenantId, code, cat: b.category || 'general', pt: b.psychometric_type || null,
+            id: qid, tid: tenantId, code, cat: b.category || 'general', pt: b.psychometric_type || null,
             qt: b.question_type || 'multiple_choice', text: b.question_text, opts: JSON.stringify(b.options || []),
             ans: b.correct_answer || null, score: b.score || 1, diff: b.difficulty || 'medium',
             tags: JSON.stringify(b.tags || []), exp: b.explanation || null, st: b.status || 'active', uid: userId,
+            meta: JSON.stringify(meta),
           },
         });
         return res.json({ success: true, data: rows[0] });
@@ -241,18 +351,18 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           if (!qb.length) continue;
           const q = qb[0];
           await sequelize.query(`
-            INSERT INTO hris_training_exam_questions (exam_id, question_number, question_text, question_type, options, correct_answer, score, difficulty, explanation)
-            VALUES (:eid, :num, :text, :qt, :opts::jsonb, :ans, :score, :diff, :exp)
+            INSERT INTO hris_training_exam_questions (exam_id, question_bank_id, question_number, question_text, question_type, options, correct_answer, score, difficulty, explanation)
+            VALUES (:eid, :bid, :num, :text, :qt, :opts::jsonb, :ans, :score, :diff, :exp)
           `, {
             replacements: {
-              eid: exam_id, num, text: q.question_text, qt: q.question_type,
+              eid: exam_id, bid: q.id, num, text: q.question_text, qt: q.question_type,
               opts: JSON.stringify(q.options || []), ans: q.correct_answer, score: q.score,
               diff: q.difficulty, exp: q.explanation,
             },
           });
           num++;
         }
-        await sequelize.query('UPDATE hris_training_exams SET total_questions = (SELECT COUNT(*) FROM hris_training_exam_questions WHERE exam_id = :eid) WHERE id = :eid', { replacements: { eid: exam_id } });
+        await sequelize.query('UPDATE hris_training_exams SET total_questions = (SELECT COUNT(*) FROM hris_training_exam_questions WHERE exam_id = :eid), manual_grading_required = EXISTS (SELECT 1 FROM hris_training_exam_questions WHERE exam_id = :eid AND question_type IN (\'essay\',\'situational\')) WHERE id = :eid', { replacements: { eid: exam_id } });
         return res.json({ success: true });
       }
 
@@ -267,7 +377,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           RETURNING *
         `, {
           replacements: {
-            tid: tenantId, cid: b.curriculum_id || null, mid: b.module_id || null, bid: b.batch_id || null,
+            tid: tenantId, cid: asUuid(b.curriculum_id), mid: asUuid(b.module_id), bid: asUuid(b.batch_id),
             title: b.title, desc: b.description || null, etype: b.exam_type || 'online', escope: b.exam_scope || 'competency',
             tscore: b.total_score || 100, pscore: b.passing_score || 70, dur: b.duration_minutes || 60,
             maxa: b.max_attempts || 1, shuffle: b.shuffle_questions ?? true, shuffleo: b.shuffle_options ?? false,
@@ -277,35 +387,54 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             st: b.status || 'draft', uid: userId,
           },
         });
-        return res.json({ success: true, data: rows[0] });
+        const created = rows[0];
+        const moduleId = asUuid(b.module_id);
+        if (created?.id && moduleId) {
+          await sequelize.query(
+            `UPDATE hris_training_modules SET has_exam = true, exam_id = :eid, passing_score = COALESCE(:ps, passing_score, 70), updated_at = NOW()
+             WHERE id = :mid AND tenant_id = :tid`,
+            { replacements: { eid: created.id, mid: moduleId, ps: b.passing_score || 70, tid: tenantId } },
+          ).catch(() => null);
+        }
+        return res.json({ success: true, data: created });
       }
 
       if (action === 'create-exam-question') {
         const b = req.body;
+        const qt = b.question_type || 'multiple_choice';
         const [mx] = await sequelize.query('SELECT COALESCE(MAX(question_number),0)::int as mx FROM hris_training_exam_questions WHERE exam_id = :eid', { replacements: { eid: b.exam_id } });
         const [rows] = await sequelize.query(`
-          INSERT INTO hris_training_exam_questions (exam_id, question_number, question_text, question_type, options, correct_answer, score, difficulty, explanation)
-          VALUES (:eid, :num, :text, :qt, :opts::jsonb, :ans, :score, :diff, :exp) RETURNING *
+          INSERT INTO hris_training_exam_questions (exam_id, question_bank_id, question_number, question_text, question_type, options, correct_answer, score, difficulty, explanation)
+          VALUES (:eid, :bid, :num, :text, :qt, :opts::jsonb, :ans, :score, :diff, :exp) RETURNING *
         `, {
           replacements: {
-            eid: b.exam_id, num: (mx[0]?.mx || 0) + 1, text: b.question_text, qt: b.question_type || 'multiple_choice',
-            opts: JSON.stringify(b.options || []), ans: b.correct_answer, score: b.score || 1,
-            diff: b.difficulty || 'medium', exp: b.explanation,
+            eid: b.exam_id, bid: b.question_bank_id || null, num: (mx[0]?.mx || 0) + 1, text: b.question_text, qt,
+            opts: JSON.stringify(b.options || []), ans: b.correct_answer || null, score: b.score || 1,
+            diff: b.difficulty || 'medium', exp: b.explanation || null,
           },
         });
-        await sequelize.query('UPDATE hris_training_exams SET total_questions = total_questions + 1 WHERE id = :eid', { replacements: { eid: b.exam_id } });
+        await sequelize.query(
+          `UPDATE hris_training_exams SET
+             total_questions = (SELECT COUNT(*) FROM hris_training_exam_questions WHERE exam_id = :eid),
+             manual_grading_required = EXISTS (
+               SELECT 1 FROM hris_training_exam_questions WHERE exam_id = :eid AND question_type IN ('essay','situational')
+             )
+           WHERE id = :eid`,
+          { replacements: { eid: b.exam_id } },
+        );
         return res.json({ success: true, data: rows[0] });
       }
 
       if (action === 'create-schedule') {
         if (!hasLms) return res.status(503).json({ error: 'LMS tables not migrated' });
         const b = req.body;
+        const sid = b.id || require('crypto').randomUUID();
         const [rows] = await sequelize.query(`
-          INSERT INTO hris_lms_test_schedules (tenant_id, exam_id, title, scheduled_start, scheduled_end, target_type, target_ids, location, proctor_id, status, created_by)
-          VALUES (:tid, :eid, :title, :start, :end, :tt, :tids::jsonb, :loc, :proctor, :st, :uid) RETURNING *
+          INSERT INTO hris_lms_test_schedules (id, tenant_id, exam_id, title, scheduled_start, scheduled_end, target_type, target_ids, location, proctor_id, status, created_by)
+          VALUES (:id, :tid, :eid, :title, :start, :end, :tt, :tids::jsonb, :loc, :proctor, :st, :uid) RETURNING *
         `, {
           replacements: {
-            tid: tenantId, eid: b.exam_id, title: b.title, start: b.scheduled_start, end: b.scheduled_end,
+            id: sid, tid: tenantId, eid: b.exam_id, title: b.title, start: b.scheduled_start, end: b.scheduled_end,
             tt: b.target_type || 'all', tids: JSON.stringify(b.target_ids || []), loc: b.location || null,
             proctor: b.proctor_id || null, st: b.status || 'scheduled', uid: userId,
           },
@@ -321,23 +450,32 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         const [results] = await sequelize.query('SELECT * FROM hris_training_exam_results WHERE id = :rid AND tenant_id = :tid', { replacements: { rid: result_id, tid: tenantId } });
         if (!results.length) return res.status(404).json({ error: 'Result not found' });
         const r = results[0];
+        const [questions] = await sequelize.query(
+          'SELECT * FROM hris_training_exam_questions WHERE exam_id = :eid ORDER BY question_number',
+          { replacements: { eid: r.exam_id } },
+        );
         const answers = typeof r.answers === 'string' ? JSON.parse(r.answers) : (r.answers || []);
-        let total = Number(r.score) || 0;
-        for (const s of scores || []) {
-          const idx = answers.findIndex((a: any) => a.questionId === s.question_id);
-          if (idx >= 0) { answers[idx].score = s.score; answers[idx].manualGraded = true; }
-          total += Number(s.score) || 0;
-        }
         const [exam] = await sequelize.query('SELECT passing_score FROM hris_training_exams WHERE id = :eid', { replacements: { eid: r.exam_id } });
         const passing = Number(exam[0]?.passing_score) || 70;
-        const isPassed = total >= passing;
+        const graded = applyManualScores(questions, answers, scores || [], passing);
         await sequelize.query(`
           UPDATE hris_training_exam_results SET score = :score, answers = :ans::jsonb, is_passed = :pass,
-            status = 'graded', graded_at = NOW(), graded_by = :uid, feedback = :fb,
-            metadata = COALESCE(metadata,'{}'::jsonb) || '{"needs_manual":false}'::jsonb
+            status = :st, graded_at = NOW(), graded_by = :uid, feedback = :fb,
+            metadata = COALESCE(metadata,'{}'::jsonb) || :meta::jsonb
           WHERE id = :rid
-        `, { replacements: { score: total, ans: JSON.stringify(answers), pass: isPassed, uid: userId, fb: feedback || null, rid: result_id } });
-        return res.json({ success: true, data: { score: total, is_passed: isPassed } });
+        `, {
+          replacements: {
+            score: graded.pct,
+            ans: JSON.stringify(graded.answers),
+            pass: graded.isPassed,
+            st: graded.needsManual ? 'submitted' : 'graded',
+            uid: userId,
+            fb: feedback || null,
+            meta: JSON.stringify({ needs_manual: graded.needsManual, percentage: graded.pct, max_score: graded.maxScore, total_score: graded.totalScore }),
+            rid: result_id,
+          },
+        });
+        return res.json({ success: true, data: { score: graded.pct, is_passed: graded.isPassed, needs_manual: graded.needsManual } });
       }
 
       if (action === 'record-competency') {
@@ -358,9 +496,57 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       }
 
       if (action === 'open-exam' || action === 'close-exam') {
-        const { exam_id } = req.body;
+        const exam_id = req.body?.exam_id || req.body?.id;
+        if (!exam_id) return res.status(400).json({ error: 'exam_id required' });
         const st = action === 'open-exam' ? 'open' : 'closed';
-        await sequelize.query('UPDATE hris_training_exams SET status = :st, updated_by = :uid WHERE id = :eid AND tenant_id = :tid', { replacements: { st, uid: userId, eid: exam_id, tid: tenantId } });
+        await sequelize.query(
+          'UPDATE hris_training_exams SET status = :st, updated_by = :uid, updated_at = NOW() WHERE id = :eid AND tenant_id = :tid',
+          { replacements: { st, uid: userId, eid: exam_id, tid: tenantId } },
+        );
+        return res.json({ success: true });
+      }
+
+      // Convenience aliases (UI forms often POST updates)
+      if (action === 'update-test') {
+        const { id, ...b } = req.body || {};
+        if (!id) return res.status(400).json({ error: 'id required' });
+        await sequelize.query(`
+          UPDATE hris_training_exams SET title = COALESCE(:title, title), description = :desc,
+            passing_score = COALESCE(:pscore, passing_score), duration_minutes = COALESCE(:dur, duration_minutes),
+            max_attempts = COALESCE(:maxa, max_attempts), shuffle_questions = COALESCE(:shuffle, shuffle_questions),
+            shuffle_options = COALESCE(:shuffleo, shuffle_options), anti_cheat_enabled = COALESCE(:anticheat, anti_cheat_enabled),
+            fullscreen_required = COALESCE(:fullscreen, fullscreen_required), psychometric_type = :psycho,
+            status = COALESCE(:st, status), updated_by = :uid, updated_at = NOW()
+          WHERE id = :id AND tenant_id = :tid
+        `, {
+          replacements: {
+            id, tid: tenantId, title: b.title ?? null, desc: b.description ?? null, pscore: b.passing_score ?? null,
+            dur: b.duration_minutes ?? null, maxa: b.max_attempts ?? null, shuffle: b.shuffle_questions ?? null,
+            shuffleo: b.shuffle_options ?? null, anticheat: b.anti_cheat_enabled ?? null,
+            fullscreen: b.fullscreen_required ?? null, psycho: b.psychometric_type ?? null, st: b.status ?? null, uid: userId,
+          },
+        });
+        return res.json({ success: true });
+      }
+
+      if (action === 'update-question') {
+        const { id, ...b } = req.body || {};
+        if (!id) return res.status(400).json({ error: 'id required' });
+        await sequelize.query(`
+          UPDATE hris_lms_question_bank SET category = COALESCE(:cat, category), psychometric_type = :pt,
+            question_type = COALESCE(:qt, question_type), question_text = COALESCE(:text, question_text),
+            options = COALESCE(:opts::jsonb, options), correct_answer = :ans, score = COALESCE(:score, score),
+            difficulty = COALESCE(:diff, difficulty), tags = COALESCE(:tags::jsonb, tags), explanation = :exp,
+            status = COALESCE(:st, status), updated_by = :uid, updated_at = NOW()
+          WHERE id = :id AND tenant_id = :tid
+        `, {
+          replacements: {
+            id, tid: tenantId, cat: b.category ?? null, pt: b.psychometric_type ?? null, qt: b.question_type ?? null,
+            text: b.question_text ?? null, opts: b.options ? JSON.stringify(b.options) : null,
+            ans: b.correct_answer ?? null, score: b.score ?? null, diff: b.difficulty ?? null,
+            tags: b.tags ? JSON.stringify(b.tags) : null, exp: b.explanation ?? null, st: b.status ?? null, uid: userId,
+          },
+        });
         return res.json({ success: true });
       }
 

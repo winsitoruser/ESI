@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ClaimReceiptGallery, { parseClaimReceipts } from '@/components/humanify/ClaimReceiptGallery';
+import EmployeeAvatar from '@/components/humanify/EmployeeAvatar';
 import TeamMemberDetailSheet from './TeamMemberDetailSheet';
 import VisitDetailModal from './VisitDetailModal';
 import SpRequestModal from './SpRequestModal';
@@ -323,7 +324,10 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
             <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-semibold">Super Admin</span>
           )}
         </div>
-        <p className="text-violet-100 text-xs">Persetujuan tim, KPI & absensi karyawan</p>
+        <p className="text-violet-100 text-xs">Persetujuan tim langsung · cuti, klaim & lembur bawahan Anda</p>
+        <p className="mt-2 text-[11px] text-violet-50/90 bg-white/10 rounded-lg px-2.5 py-1.5">
+          Lingkup <strong>tim saja</strong>. Antrian HR tenant-wide ada di MSS HQ (`/humanify/mss`).
+        </p>
         {summary.total > 0 && (
           <p className="mt-2 text-sm font-semibold">{summary.total} pengajuan menunggu persetujuan</p>
         )}
@@ -398,13 +402,16 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
               <p className="text-sm">Tidak ada pengajuan menunggu</p>
             </div>
           ) : allPending.map(item => (
-            <div key={`${item.approval_type}-${item.id}`} className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm">
+            <div key={`${item.approval_type}-${item.id}`} className="hf-card p-4">
               <div className="flex items-start justify-between mb-2">
-                <div>
-                  <p className="font-semibold text-sm text-slate-900">{item.employee_name}</p>
-                  <p className="text-[11px] text-slate-500">{item.position} · {item.department}</p>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <EmployeeAvatar name={item.employee_name} photoUrl={item.photo_url} size="sm" />
+                  <div className="min-w-0">
+                    <p className="font-semibold text-sm text-slate-900 truncate">{item.employee_name}</p>
+                    <p className="text-[11px] text-slate-500 truncate">{item.position} · {item.department}</p>
+                  </div>
                 </div>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 ring-1 ring-amber-200">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 ring-1 ring-amber-200 shrink-0">
                   {item.approval_type === 'leave' ? 'Cuti' : item.approval_type === 'claim' ? 'Klaim' : 'Lembur'}
                 </span>
               </div>
@@ -483,13 +490,16 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
               <p className="text-xs mt-1">Ajukan permohonan SP untuk karyawan tim Anda</p>
             </div>
           ) : letters.map(letter => (
-            <div key={letter.id} className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm overflow-hidden">
+            <div key={letter.id} className="hf-card overflow-hidden p-4">
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2">
-                <div className="min-w-0">
-                  <p className="font-semibold text-sm text-slate-900 truncate">
-                    {SP_TYPES.find(t => t.value === letter.letter_type)?.label || letter.letter_type} — {letter.employee_name}
-                  </p>
-                  <p className="text-[11px] text-slate-500 truncate">{letter.employee_code} · {letter.department}</p>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <EmployeeAvatar name={letter.employee_name} photoUrl={letter.photo_url} size="sm" />
+                  <div className="min-w-0">
+                    <p className="font-semibold text-sm text-slate-900 truncate">
+                      {SP_TYPES.find(t => t.value === letter.letter_type)?.label || letter.letter_type} — {letter.employee_name}
+                    </p>
+                    <p className="text-[11px] text-slate-500 truncate">{letter.employee_code} · {letter.department}</p>
+                  </div>
                 </div>
                 <span className={`self-start shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-full ring-1 ${
                   SP_STATUS_COLOR[letter.status] || 'bg-slate-100 text-slate-600 ring-slate-200'
@@ -556,7 +566,7 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
               <p className="text-sm">Tidak ada anggota tim</p>
             </div>
           ) : team.map(member => (
-            <div key={member.id} className="flex items-center gap-3 bg-white rounded-xl border border-slate-100 p-3">
+            <div key={member.id} className="flex items-center gap-3 hf-card border-slate-100 p-3">
               <button
                 type="button"
                 onClick={() => setSelectedMember({ id: String(member.id), name: member.name })}
@@ -606,7 +616,7 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
                 { label: 'Aktif', value: visitSummary.checked_in, color: 'text-blue-600' },
                 { label: 'Bukti', value: visitSummary.with_photos, color: 'text-amber-600' },
               ].map(s => (
-                <div key={s.label} className="bg-white rounded-xl border border-slate-100 p-2 text-center">
+                <div key={s.label} className="hf-card border-slate-100 p-2 text-center">
                   <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
                   <p className="text-[9px] text-slate-500">{s.label}</p>
                 </div>
@@ -624,7 +634,7 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
               key={v.id}
               type="button"
               onClick={() => openVisitDetail(v.id)}
-              className="w-full text-left bg-white rounded-xl border border-slate-100 p-3 shadow-sm active:scale-[0.99]"
+              className="w-full text-left hf-card border-slate-100 p-3 shadow-sm active:scale-[0.99]"
             >
               <div className="flex gap-3">
                 {v.thumbnail_url ? (
@@ -711,9 +721,12 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setProofClaim(null)}>
           <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-3 mb-4">
-              <div>
-                <h3 className="font-semibold text-slate-900">Bukti Klaim</h3>
-                <p className="text-sm text-slate-500">{proofClaim.employee_name} · {fmtCur(proofClaim.amount)}</p>
+              <div className="flex items-center gap-3 min-w-0">
+                <EmployeeAvatar name={proofClaim.employee_name} photoUrl={proofClaim.photo_url} size="md" />
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-slate-900">Bukti Klaim</h3>
+                  <p className="text-sm text-slate-500 truncate">{proofClaim.employee_name} · {fmtCur(proofClaim.amount)}</p>
+                </div>
               </div>
               <button type="button" onClick={() => setProofClaim(null)} className="p-1.5 rounded-lg hover:bg-slate-100">
                 <X className="w-5 h-5" />

@@ -18,6 +18,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** Roles an owner/admin may hand out — never privileged/platform roles. */
 export const INVITE_ROLES: Array<{ code: string; label: string }> = [
   { code: 'hq_admin', label: 'Admin' },
+  { code: 'finance_staff', label: 'Finance' },
   { code: 'manager', label: 'Manajer' },
   { code: 'staff', label: 'Staf' },
   { code: 'viewer', label: 'Viewer (baca saja)' },
@@ -315,10 +316,11 @@ export async function createInvitation(opts: {
         throw new Error(`Batas user paket ${usage.planId} tercapai (${usage.users}/${usage.maxUsers}). Upgrade untuk menambah anggota.`);
       }
     }
-  } catch (e: any) {
-    if (/Batas user/.test(String(e?.message))) throw e;
-    // otherwise fail-open on seat metering errors
-  }
+    } catch (e: any) {
+      if (/Batas user/.test(String(e?.message))) throw e;
+      const { mustFailClosed } = await import('@/lib/saas/fail-closed');
+      if (mustFailClosed()) throw e;
+    }
 
   // Refresh any existing pending invite for the same email.
   await sequelize.query(
@@ -343,9 +345,9 @@ export async function createInvitation(opts: {
   const inviteUrl = `${base}/humanify/join?token=${encodeURIComponent(token)}`;
 
   let emailed = false;
-  if (process.env.SMTP_USER && process.env.SMTP_PASSWORD) {
+  const { isSmtpConfigured, sendEmail } = await import('../email/sender');
+  if (isSmtpConfigured()) {
     try {
-      const { sendEmail } = await import('../email/sender');
       const { humanifyInviteEmail } = await import('../email/humanify-mails');
       const mail = humanifyInviteEmail({ inviteUrl });
       emailed = await sendEmail({
@@ -509,9 +511,9 @@ export async function resendInvitation(
 
   const inviteUrl = `${base}/humanify/join?token=${encodeURIComponent(token)}`;
   let emailed = false;
-  if (process.env.SMTP_USER && process.env.SMTP_PASSWORD) {
+  const { isSmtpConfigured, sendEmail } = await import('../email/sender');
+  if (isSmtpConfigured()) {
     try {
-      const { sendEmail } = await import('../email/sender');
       const { humanifyInviteEmail } = await import('../email/humanify-mails');
       const mail = humanifyInviteEmail({ inviteUrl, resend: true });
       emailed = await sendEmail({
@@ -621,6 +623,16 @@ export async function acceptInvitation(opts: {
   });
 
   await assignUserRoleId(user.id, normalizeRole(inv.role));
+
+  try {
+    const { grantCompanyMembership, membershipRoleForUserRole } = await import('./company-membership');
+    await grantCompanyMembership({
+      userId: user.id,
+      tenantId: inv.tenant_id,
+      role: membershipRoleForUserRole(legacyRole),
+      isDefault: true,
+    });
+  } catch { /* membership table may not exist yet */ }
 
   await sequelize.query(
     `UPDATE saas_invitations SET status = 'accepted', accepted_at = NOW() WHERE id = :id`,

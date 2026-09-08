@@ -1,15 +1,19 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, type FormEvent } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import HRStatCard from '@/components/humanify/HRStatCard';
+import HrisEmptyState from '@/components/humanify/HrisEmptyState';
+import EmployeePicker, { type PickedEmployee } from '@/components/humanify/EmployeePicker';
+import { OpsKpiShell, OpsPageHero, OpsStage, OpsToolbar } from '@/components/humanify/OpsPageChrome';
 import type { HrisDataSource } from '@/lib/hris/data-source';
 import { PageGuard } from '@/components/permissions';
 import Link from 'next/link';
 import {
   Package, Laptop, Smartphone, CreditCard, Key, ArrowLeftRight,
-  ArrowLeft, Plus, UserPlus, X, Loader2,
+  Plus, UserPlus, X, Loader2, Search, Users, RotateCcw,
 } from 'lucide-react';
 
-const CATEGORY_ICONS: Record<string, any> = {
+const CATEGORY_ICONS: Record<string, typeof Package> = {
   laptop: Laptop, phone: Smartphone, id_card: CreditCard, access_card: Key, other: Package, uniform: Package, vehicle: Package,
 };
 const CATEGORIES = [
@@ -21,11 +25,17 @@ const CATEGORIES = [
   { value: 'vehicle', label: 'Kendaraan' },
   { value: 'other', label: 'Lainnya' },
 ];
+const STATUS_LABEL: Record<string, string> = {
+  available: 'Tersedia',
+  assigned: 'Dipakai',
+  returned: 'Dikembalikan',
+  maintenance: 'Perawatan',
+};
 const STATUS_COLORS: Record<string, string> = {
-  available: 'bg-green-100 text-green-700',
-  assigned: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]',
-  returned: 'bg-gray-100 text-gray-700',
-  maintenance: 'bg-amber-100 text-amber-700',
+  available: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+  assigned: 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)] border-[var(--hf-brand-100)]',
+  returned: 'bg-slate-100 text-slate-600 border-slate-200',
+  maintenance: 'bg-amber-50 text-amber-800 border-amber-100',
 };
 
 type Emp = { id: string; name: string; employee_code?: string };
@@ -47,12 +57,15 @@ export default function AssetsPage() {
   const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [summary, setSummary] = useState<any>({});
   const [filter, setFilter] = useState('');
+  const [category, setCategory] = useState('');
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: string } | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [assignTarget, setAssignTarget] = useState<any | null>(null);
   const [assignEmpId, setAssignEmpId] = useState('');
+  const [assignEmp, setAssignEmp] = useState<PickedEmployee | null>(null);
   const [form, setForm] = useState(emptyForm);
 
   const showToast = (msg: string, type = 'success') => {
@@ -99,12 +112,40 @@ export default function AssetsPage() {
       .catch(() => setEmployees([]));
   }, []);
 
-  const filtered = filter
-    ? assets.filter((a) => (filter === 'available' ? a.status === 'available' || a.status === 'returned' : a.status === filter))
-    : assets;
-  const fmt = (n: number) => (n ? `Rp ${n.toLocaleString('id-ID')}` : '-');
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || busy) return;
+      setShowCreate(false);
+      setAssignTarget(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [busy]);
 
-  async function handleCreate(e: React.FormEvent) {
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return assets.filter((a) => {
+      if (filter === 'available' && !(a.status === 'available' || a.status === 'returned')) return false;
+      if (filter && filter !== 'available' && a.status !== filter) return false;
+      if (category && a.category !== category) return false;
+      if (!term) return true;
+      const hay = [a.name, a.assetCode, a.brand, a.serialNumber, a.assignedToName]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return hay.includes(term);
+    });
+  }, [assets, filter, category, search]);
+
+  const fmt = (n: number) => (n ? `Rp ${n.toLocaleString('id-ID')}` : '—');
+  const totalValue = summary.totalValue || assets.reduce((s: number, a: any) => s + (a.purchaseValue || 0), 0);
+  const assignedCount = summary.assigned ?? assets.filter((a) => a.status === 'assigned').length;
+  const availableCount = summary.available ?? assets.filter((a) => a.status === 'available' || a.status === 'returned').length;
+  const health = assets.length
+    ? Math.round((availableCount / Math.max(assets.length, 1)) * 100)
+    : null;
+
+  async function handleCreate(e: FormEvent) {
     e.preventDefault();
     if (!form.name.trim()) {
       showToast('Nama aset wajib diisi', 'error');
@@ -129,7 +170,7 @@ export default function AssetsPage() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok || json.success === false) throw new Error(json.error || 'Gagal menyimpan');
-      showToast('Aset ditambahkan ke inventori tenant');
+      showToast('Aset ditambahkan ke inventori');
       setShowCreate(false);
       setForm(emptyForm);
       await load();
@@ -153,14 +194,15 @@ export default function AssetsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           employeeId: assignEmpId,
-          employeeName: emp?.name || '',
+          employeeName: assignEmp?.name || emp?.name || '',
         }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok || json.success === false) throw new Error(json.error || 'Gagal assign');
-      showToast(`Aset di-assign ke ${emp?.name || 'karyawan'}`);
+      showToast(`Aset di-assign ke ${assignEmp?.name || emp?.name || 'karyawan'}`);
       setAssignTarget(null);
       setAssignEmpId('');
+      setAssignEmp(null);
       await load();
     } catch (err: any) {
       showToast(err?.message || 'Gagal assign', 'error');
@@ -189,216 +231,276 @@ export default function AssetsPage() {
   }
 
   return (
-    <PageGuard anyPermission={['employees.view', 'employees.*']} title="Asset Management" description="Manajemen aset karyawan">
-      <HQLayout title="Manajemen Aset" subtitle="Inventori tenant · assign ke database karyawan · return offboarding">
-        <div className="space-y-6">
+    <PageGuard anyPermission={['employees.view', 'employees.*']} title="Manajemen Aset" description="Inventori aset karyawan">
+      <HQLayout title="Manajemen Aset" subtitle="Inventori tenant · assign ke karyawan · return offboarding">
+        <OpsStage>
           {toast && (
             <div
-              className={`fixed top-4 right-4 z-50 rounded-lg px-4 py-2 text-sm text-white shadow-lg ${
-                toast.type === 'error' ? 'bg-red-600' : 'bg-emerald-600'
+              role="status"
+              className={`fixed right-4 top-4 z-[60] rounded-lg border px-4 py-2.5 text-sm shadow-lg ${
+                toast.type === 'error' ? 'border-rose-200 bg-rose-50 text-rose-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800'
               }`}
             >
               {toast.msg}
             </div>
           )}
 
-          <div className="flex flex-wrap items-center gap-3">
-            <Link href="/humanify/employees" className="p-2 border rounded-lg hover:bg-gray-50" title="Database karyawan">
-              <ArrowLeft className="w-4 h-4" />
-            </Link>
-            <div className="flex-1 min-w-[200px]">
-              <h2 className="text-xl font-bold flex items-center gap-2">
-                <Package className="w-5 h-5 text-[color:var(--hf-brand-600)]" /> Manajemen Aset Karyawan
-              </h2>
-              <p className="text-sm text-gray-500">
-                Data live di <code className="text-xs bg-gray-100 px-1 rounded">hris_assets</code> per tenant — di-assign ke karyawan dari Database Karyawan
-              </p>
-            </div>
-            <Link href="/humanify/onboarding" className="px-3 py-2 text-sm border rounded-lg hover:bg-gray-50">
-              Onboarding
-            </Link>
-            <Link href="/humanify/offboarding" className="px-3 py-2 text-sm border rounded-lg hover:bg-gray-50">
-              Offboarding
-            </Link>
-            <button
-              type="button"
-              onClick={() => {
-                setForm(emptyForm);
-                setShowCreate(true);
-              }}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--hf-brand-600)] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
-            >
-              <Plus className="w-4 h-4" /> Tambah Aset
-            </button>
-            <DataSourceBadge source={dataSource} />
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { label: 'Total Aset', value: summary.total || assets.length },
-              { label: 'Assigned', value: summary.assigned ?? assets.filter((a) => a.status === 'assigned').length },
-              { label: 'Available', value: summary.available ?? assets.filter((a) => a.status === 'available' || a.status === 'returned').length },
-              {
-                label: 'Total Nilai',
-                value: fmt(summary.totalValue || assets.reduce((s: number, a: any) => s + (a.purchaseValue || 0), 0)),
-              },
-            ].map((s) => (
-              <div key={s.label} className="bg-white rounded-xl p-4 border shadow-sm">
-                <p className="text-xs text-gray-500">{s.label}</p>
-                <p className="text-xl font-bold">{s.value}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {['', 'assigned', 'available'].map((s) => (
-              <button
-                key={s || 'all'}
-                type="button"
-                onClick={() => setFilter(s)}
-                className={`px-3 py-1.5 rounded-lg text-sm ${filter === s ? 'bg-[var(--hf-brand-600)] text-white' : 'bg-gray-100'}`}
-              >
-                {s === '' ? 'Semua' : s === 'assigned' ? 'Assigned (perlu return)' : 'Available'}
-              </button>
-            ))}
-          </div>
-
-          {loading ? (
-            <div className="text-center py-12 text-gray-400 flex items-center justify-center gap-2">
-              <Loader2 className="w-4 h-4 animate-spin" /> Memuat...
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-gray-300 bg-white px-6 py-12 text-center">
-              <Package className="mx-auto mb-3 h-10 w-10 text-gray-300" />
-              <p className="text-sm font-medium text-gray-800">Belum ada aset di tenant ini</p>
-              <p className="mt-1 text-xs text-gray-500 max-w-md mx-auto">
-                Inventori kosong adalah perilaku sengaja (bukan data demo). Tambah laptop/HP/ID card, lalu assign ke karyawan dari Database Karyawan.
-              </p>
-              <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+          <OpsPageHero
+            title="Manajemen Aset Karyawan"
+            subtitle="Inventori per tenant — assign laptop, HP, dan kartu akses ke database karyawan, lalu tandai dikembalikan saat offboarding."
+            badge="Karyawan"
+            liveLabel="People ops"
+            icon={Package}
+            chips={[
+              { label: `${summary.total || assets.length} aset` },
+              { label: `${assignedCount} dipakai` },
+              { label: `${availableCount} tersedia` },
+            ]}
+            score={health}
+            scoreLabel="Tersedia"
+            actions={(
+              <div className="flex flex-wrap items-center gap-2">
+                <DataSourceBadge source={dataSource} />
+                <Link href="/humanify/employees" className="hf-btn-secondary inline-flex items-center gap-1.5 text-sm">
+                  <Users className="h-4 w-4" /> Database karyawan
+                </Link>
+                <Link href="/humanify/offboarding" className="hf-btn-secondary inline-flex items-center gap-1.5 text-sm">
+                  Offboarding
+                </Link>
                 <button
                   type="button"
-                  onClick={() => setShowCreate(true)}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--hf-brand-600)] px-4 py-2 text-sm font-medium text-white"
+                  onClick={() => {
+                    setForm(emptyForm);
+                    setShowCreate(true);
+                  }}
+                  className="hf-btn-primary inline-flex items-center gap-1.5 text-sm"
                 >
-                  <Plus className="w-4 h-4" /> Tambah aset pertama
+                  <Plus className="h-4 w-4" /> Tambah aset
                 </button>
-                <Link
-                  href="/humanify/employees"
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                >
-                  Database karyawan
-                </Link>
+              </div>
+            )}
+          />
+
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+            <OpsKpiShell>
+              <HRStatCard icon={Package} label="Total aset" value={summary.total || assets.length} accent="violet" />
+            </OpsKpiShell>
+            <OpsKpiShell>
+              <HRStatCard
+                icon={UserPlus}
+                label="Dipakai karyawan"
+                value={assignedCount}
+                accent="blue"
+                onClick={() => setFilter('assigned')}
+              />
+            </OpsKpiShell>
+            <OpsKpiShell>
+              <HRStatCard
+                icon={RotateCcw}
+                label="Siap di-assign"
+                value={availableCount}
+                accent="emerald"
+                onClick={() => setFilter('available')}
+              />
+            </OpsKpiShell>
+            <OpsKpiShell>
+              <HRStatCard icon={Laptop} label="Nilai beli" value={fmt(totalValue)} accent="amber" />
+            </OpsKpiShell>
+          </div>
+
+          <OpsToolbar>
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+              <div className="relative min-w-[200px] flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--hf-ink-faint)]" />
+                <input
+                  className="hf-input w-full pl-9"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Cari nama, kode, serial, atau pemegang…"
+                />
+              </div>
+              <select className="hf-input w-auto" value={category} onChange={(e) => setCategory(e.target.value)}>
+                <option value="">Semua kategori</option>
+                {CATEGORIES.map((c) => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
+              </select>
+              <div className="flex flex-wrap gap-1">
+                {[
+                  { id: '', label: 'Semua' },
+                  { id: 'assigned', label: 'Dipakai' },
+                  { id: 'available', label: 'Tersedia' },
+                ].map((s) => (
+                  <button
+                    key={s.id || 'all'}
+                    type="button"
+                    onClick={() => setFilter(s.id)}
+                    className={`rounded-[var(--hf-radius)] px-3 py-1.5 text-sm font-medium ${
+                      filter === s.id
+                        ? 'bg-[var(--hf-brand-600)] text-white'
+                        : 'bg-[var(--hf-surface-muted)] text-[color:var(--hf-ink-muted)] hover:text-[color:var(--hf-ink)]'
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
               </div>
             </div>
+            <Link href="/humanify/onboarding" className="hf-btn-secondary text-sm">Onboarding</Link>
+          </OpsToolbar>
+
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 py-16 text-sm text-[color:var(--hf-ink-muted)]">
+              <Loader2 className="h-4 w-4 animate-spin" /> Memuat inventori…
+            </div>
+          ) : assets.length === 0 ? (
+            <HrisEmptyState
+              source={dataSource}
+              title="Belum ada aset di tenant ini"
+              description="Inventori kosong adalah perilaku sengaja (bukan data demo). Tambah laptop, HP, atau kartu akses, lalu assign ke karyawan dari Database Karyawan."
+              action={(
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <button type="button" onClick={() => setShowCreate(true)} className="hf-btn-primary inline-flex items-center gap-1.5 text-sm">
+                    <Plus className="h-4 w-4" /> Tambah aset pertama
+                  </button>
+                  <Link href="/humanify/employees" className="hf-btn-secondary inline-flex items-center gap-1.5 text-sm">
+                    Database karyawan
+                  </Link>
+                </div>
+              )}
+            />
+          ) : filtered.length === 0 ? (
+            <p className="py-12 text-center text-sm text-[color:var(--hf-ink-muted)]">Tidak ada aset yang cocok dengan filter.</p>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filtered.map((a) => {
-                const Icon = CATEGORY_ICONS[a.category] || Package;
-                const canAssign = a.status === 'available' || a.status === 'returned';
-                return (
-                  <div key={a.id} className="bg-white rounded-xl border shadow-sm p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="p-2 bg-[var(--hf-brand-100)] rounded-lg">
-                        <Icon className="w-5 h-5 text-[color:var(--hf-brand-600)]" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs text-gray-400">{a.assetCode}</span>
-                          <span className={`px-1.5 py-0.5 text-[10px] rounded font-medium ${STATUS_COLORS[a.status] || 'bg-gray-100'}`}>
-                            {a.status}
+            <div className="hf-table-wrap">
+              <table className="hf-table w-full text-sm">
+                <thead>
+                  <tr>
+                    <th className="text-left">Aset</th>
+                    <th className="text-left">Kategori</th>
+                    <th className="text-left">Status</th>
+                    <th className="text-left">Pemegang</th>
+                    <th className="text-right">Nilai</th>
+                    <th className="text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((a) => {
+                    const Icon = CATEGORY_ICONS[a.category] || Package;
+                    const canAssign = a.status === 'available' || a.status === 'returned';
+                    return (
+                      <tr key={a.id}>
+                        <td>
+                          <div className="flex items-center gap-3">
+                            <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--hf-radius)] bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)]">
+                              <Icon className="h-4 w-4" />
+                            </span>
+                            <div className="min-w-0">
+                              <p className="font-medium text-[color:var(--hf-ink)]">{a.name}</p>
+                              <p className="font-mono text-[11px] text-[color:var(--hf-ink-faint)]">
+                                {a.assetCode || '—'}
+                                {a.serialNumber ? ` · ${a.serialNumber}` : ''}
+                                {a.brand ? ` · ${a.brand}` : ''}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="capitalize text-[color:var(--hf-ink-muted)]">
+                          {CATEGORIES.find((c) => c.value === a.category)?.label || a.category}
+                        </td>
+                        <td>
+                          <span className={`inline-flex rounded-md border px-2 py-0.5 text-[11px] font-semibold ${STATUS_COLORS[a.status] || 'bg-slate-100 text-slate-600'}`}>
+                            {STATUS_LABEL[a.status] || a.status}
                           </span>
-                        </div>
-                        <h3 className="font-semibold text-sm mt-0.5">{a.name}</h3>
-                        {(a.brand || a.serialNumber) && (
-                          <p className="text-xs text-gray-500">
-                            {[a.brand, a.serialNumber].filter(Boolean).join(' · ')}
-                          </p>
-                        )}
-                        {a.assignedToName && (
-                          <p className="text-xs text-[color:var(--hf-brand-600)] mt-1 flex items-center gap-1">
-                            <ArrowLeftRight className="w-3 h-3" />
-                            {a.assignedToName}
-                          </p>
-                        )}
-                        {a.purchaseValue != null && a.purchaseValue > 0 && (
-                          <p className="text-xs text-gray-400 mt-1">{fmt(a.purchaseValue)}</p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="mt-3 flex gap-2">
-                      {a.status === 'assigned' && (
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => handleReturn(a)}
-                          className="flex-1 py-1.5 text-xs border border-[var(--hf-brand-100)] text-[color:var(--hf-brand-600)] rounded-lg hover:bg-[var(--hf-brand-50)] disabled:opacity-50"
-                        >
-                          Tandai Dikembalikan
-                        </button>
-                      )}
-                      {canAssign && (
-                        <button
-                          type="button"
-                          disabled={busy || employees.length === 0}
-                          onClick={() => {
-                            setAssignTarget(a);
-                            setAssignEmpId('');
-                          }}
-                          className="flex-1 py-1.5 text-xs bg-[var(--hf-brand-600)] text-white rounded-lg hover:opacity-90 disabled:opacity-50 inline-flex items-center justify-center gap-1"
-                        >
-                          <UserPlus className="w-3 h-3" /> Assign ke karyawan
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+                        </td>
+                        <td>
+                          {a.assignedToName ? (
+                            <span className="inline-flex items-center gap-1 text-[color:var(--hf-brand-600)]">
+                              <ArrowLeftRight className="h-3.5 w-3.5" />
+                              {a.assignedToName}
+                            </span>
+                          ) : (
+                            <span className="text-[color:var(--hf-ink-faint)]">—</span>
+                          )}
+                        </td>
+                        <td className="text-right tabular-nums text-[color:var(--hf-ink-muted)]">{fmt(a.purchaseValue || 0)}</td>
+                        <td className="text-right">
+                          <div className="inline-flex gap-1.5">
+                            {a.status === 'assigned' && (
+                              <button
+                                type="button"
+                                disabled={busy}
+                                onClick={() => handleReturn(a)}
+                                className="hf-btn-secondary px-2.5 py-1 text-xs disabled:opacity-50"
+                              >
+                                Kembalikan
+                              </button>
+                            )}
+                            {canAssign && (
+                              <button
+                                type="button"
+                                disabled={busy}
+                                onClick={() => {
+                                  setAssignTarget(a);
+                                  setAssignEmpId('');
+                                  setAssignEmp(null);
+                                }}
+                                className="hf-btn-primary inline-flex items-center gap-1 px-2.5 py-1 text-xs disabled:opacity-50"
+                              >
+                                <UserPlus className="h-3 w-3" /> Assign
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
-        </div>
+        </OpsStage>
 
         {showCreate && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !busy && setShowCreate(false)}>
             <form
               onSubmit={handleCreate}
-              className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl space-y-3"
+              className="hf-card w-full max-w-md space-y-3 p-5"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-gray-900">Tambah aset inventori</h3>
-                <button type="button" onClick={() => setShowCreate(false)} className="p-1 rounded hover:bg-gray-100">
-                  <X className="w-4 h-4" />
+                <h3 className="font-semibold text-[color:var(--hf-ink)]">Tambah aset inventori</h3>
+                <button type="button" onClick={() => setShowCreate(false)} className="rounded p-1 hover:bg-[var(--hf-surface-muted)]" aria-label="Tutup">
+                  <X className="h-4 w-4" />
                 </button>
               </div>
               <div>
-                <label className="text-xs text-gray-500">Nama *</label>
+                <label className="text-xs text-[color:var(--hf-ink-muted)]">Nama *</label>
                 <input
-                  className="mt-0.5 w-full rounded-lg border px-3 py-2 text-sm"
+                  className="hf-input mt-0.5 w-full"
                   value={form.name}
                   onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  placeholder="MacBook Pro 14&quot;"
+                  placeholder='MacBook Pro 14"'
                   required
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-gray-500">Kategori</label>
+                  <label className="text-xs text-[color:var(--hf-ink-muted)]">Kategori</label>
                   <select
-                    className="mt-0.5 w-full rounded-lg border px-3 py-2 text-sm"
+                    className="hf-input mt-0.5 w-full"
                     value={form.category}
                     onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
                   >
                     {CATEGORIES.map((c) => (
-                      <option key={c.value} value={c.value}>
-                        {c.label}
-                      </option>
+                      <option key={c.value} value={c.value}>{c.label}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Kode (opsional)</label>
+                  <label className="text-xs text-[color:var(--hf-ink-muted)]">Kode (opsional)</label>
                   <input
-                    className="mt-0.5 w-full rounded-lg border px-3 py-2 text-sm font-mono"
+                    className="hf-input mt-0.5 w-full font-mono"
                     value={form.assetCode}
                     onChange={(e) => setForm((f) => ({ ...f, assetCode: e.target.value }))}
                     placeholder="Auto LT-001"
@@ -407,55 +509,39 @@ export default function AssetsPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-gray-500">Brand</label>
-                  <input
-                    className="mt-0.5 w-full rounded-lg border px-3 py-2 text-sm"
-                    value={form.brand}
-                    onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))}
-                  />
+                  <label className="text-xs text-[color:var(--hf-ink-muted)]">Brand</label>
+                  <input className="hf-input mt-0.5 w-full" value={form.brand} onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))} />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Serial</label>
-                  <input
-                    className="mt-0.5 w-full rounded-lg border px-3 py-2 text-sm"
-                    value={form.serialNumber}
-                    onChange={(e) => setForm((f) => ({ ...f, serialNumber: e.target.value }))}
-                  />
+                  <label className="text-xs text-[color:var(--hf-ink-muted)]">Serial</label>
+                  <input className="hf-input mt-0.5 w-full" value={form.serialNumber} onChange={(e) => setForm((f) => ({ ...f, serialNumber: e.target.value }))} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-gray-500">Nilai beli (Rp)</label>
+                  <label className="text-xs text-[color:var(--hf-ink-muted)]">Nilai beli (Rp)</label>
                   <input
                     type="number"
-                    className="mt-0.5 w-full rounded-lg border px-3 py-2 text-sm"
+                    className="hf-input mt-0.5 w-full"
                     value={form.purchaseValue}
                     onChange={(e) => setForm((f) => ({ ...f, purchaseValue: e.target.value }))}
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Tanggal beli</label>
+                  <label className="text-xs text-[color:var(--hf-ink-muted)]">Tanggal beli</label>
                   <input
                     type="date"
-                    className="mt-0.5 w-full rounded-lg border px-3 py-2 text-sm"
+                    className="hf-input mt-0.5 w-full"
                     value={form.purchaseDate}
                     onChange={(e) => setForm((f) => ({ ...f, purchaseDate: e.target.value }))}
                   />
                 </div>
               </div>
               <div>
-                <label className="text-xs text-gray-500">Catatan</label>
-                <input
-                  className="mt-0.5 w-full rounded-lg border px-3 py-2 text-sm"
-                  value={form.notes}
-                  onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-                />
+                <label className="text-xs text-[color:var(--hf-ink-muted)]">Catatan</label>
+                <input className="hf-input mt-0.5 w-full" value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
               </div>
-              <button
-                type="submit"
-                disabled={busy}
-                className="w-full rounded-lg bg-[var(--hf-brand-600)] py-2.5 text-sm font-medium text-white disabled:opacity-50"
-              >
+              <button type="submit" disabled={busy} className="hf-btn-primary w-full disabled:opacity-50">
                 {busy ? 'Menyimpan…' : 'Simpan ke inventori'}
               </button>
             </form>
@@ -464,41 +550,29 @@ export default function AssetsPage() {
 
         {assignTarget && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => !busy && setAssignTarget(null)}>
-            <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl space-y-3" onClick={(e) => e.stopPropagation()}>
+            <div className="hf-card w-full max-w-md space-y-3 p-5" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-gray-900">Assign: {assignTarget.name}</h3>
-                <button type="button" onClick={() => setAssignTarget(null)} className="p-1 rounded hover:bg-gray-100">
-                  <X className="w-4 h-4" />
+                <h3 className="font-semibold text-[color:var(--hf-ink)]">Assign: {assignTarget.name}</h3>
+                <button type="button" onClick={() => setAssignTarget(null)} className="rounded p-1 hover:bg-[var(--hf-surface-muted)]" aria-label="Tutup">
+                  <X className="h-4 w-4" />
                 </button>
               </div>
-              <p className="text-xs text-gray-500">Pilih karyawan dari Database Karyawan (tenant Anda).</p>
-              {employees.length === 0 ? (
-                <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                  Belum ada karyawan.{' '}
-                  <Link href="/humanify/employees" className="underline font-medium">
-                    Tambah di Database Karyawan
-                  </Link>
-                </p>
-              ) : (
-                <select
-                  className="w-full rounded-lg border px-3 py-2 text-sm"
-                  value={assignEmpId}
-                  onChange={(e) => setAssignEmpId(e.target.value)}
-                >
-                  <option value="">— Pilih karyawan —</option>
-                  {employees.map((e) => (
-                    <option key={e.id} value={e.id}>
-                      {e.employee_code ? `${e.employee_code} · ` : ''}
-                      {e.name}
-                    </option>
-                  ))}
-                </select>
-              )}
+              <p className="text-xs text-[color:var(--hf-ink-muted)]">Pilih karyawan dari Database Karyawan (tenant Anda).</p>
+              <EmployeePicker
+                value={assignEmpId}
+                onChange={(emp) => {
+                  setAssignEmp(emp);
+                  setAssignEmpId(emp?.id || '');
+                }}
+                label="Karyawan"
+                required
+                placeholder="Cari nama, UID, atau departemen…"
+              />
               <button
                 type="button"
                 disabled={busy || !assignEmpId}
                 onClick={handleAssign}
-                className="w-full rounded-lg bg-[var(--hf-brand-600)] py-2.5 text-sm font-medium text-white disabled:opacity-50"
+                className="hf-btn-primary w-full disabled:opacity-50"
               >
                 {busy ? 'Memproses…' : 'Assign aset'}
               </button>

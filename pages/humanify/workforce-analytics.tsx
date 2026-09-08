@@ -264,7 +264,7 @@ export default function WorkforceAnalyticsPage() {
         <div className="space-y-6">
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             {/* Area Chart — workforce movement trend */}
-            <div className="xl:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="xl:col-span-2 hf-card border-gray-200 p-6">
               <div className="flex items-start justify-between mb-1">
                 <div>
                   <h3 className="font-semibold text-gray-900">Tren Pergerakan Tenaga Kerja</h3>
@@ -307,7 +307,7 @@ export default function WorkforceAnalyticsPage() {
             </div>
 
             {/* Doughnut Chart — department distribution */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="hf-card border-gray-200 p-6">
               <h3 className="font-semibold text-gray-900">Distribusi Departemen</h3>
               <p className="text-sm text-gray-500 mt-0.5 mb-2">Komposisi karyawan aktif</p>
               <div className="h-72 relative">
@@ -360,7 +360,7 @@ export default function WorkforceAnalyticsPage() {
           </div>
 
           {/* Department Table */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="hf-card border-gray-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <div>
                 <h3 className="font-semibold text-gray-900">Ringkasan per Departemen</h3>
@@ -433,7 +433,7 @@ export default function WorkforceAnalyticsPage() {
               { label: 'Keterlambatan', value: `${productivity.lateRate || 0}%`, sub: 'Dari total kehadiran', color: 'text-amber-600', bg: 'bg-amber-50' },
               { label: 'Rencana Headcount', value: String(plans.filter(p => p.status === 'approved').length), sub: `${plans.length} total rencana`, color: 'text-[color:var(--hf-brand-600)]', bg: 'bg-[var(--hf-brand-50)]' },
             ].map((item) => (
-              <div key={item.label} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+              <div key={item.label} className="hf-card p-4 shadow-sm">
                 <p className="text-xs text-gray-500 mb-1">{item.label}</p>
                 <p className={`text-xl font-bold ${item.color}`}>{item.value}</p>
                 <p className="text-[11px] text-gray-400 mt-0.5">{item.sub}</p>
@@ -614,7 +614,7 @@ export default function WorkforceAnalyticsPage() {
       {/* MODAL */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+          <div className="hf-card w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center p-5 border-b">
               <h3 className="text-lg font-semibold">{editingItem ? 'Edit' : 'Tambah'} {modalType === 'plan' ? 'Rencana SDM' : 'Anggaran'}</h3>
               <button onClick={() => setShowModal(false)} className="p-1 hover:bg-gray-100 rounded"><X className="w-5 h-5" /></button>

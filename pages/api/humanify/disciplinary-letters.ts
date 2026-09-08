@@ -24,7 +24,7 @@ let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch (_) {}
 
 const LETTER_SELECT = `
-  SELECT dl.*, e.name as employee_name, e.employee_code, e.department, e.position,
+  SELECT dl.*, e.name as employee_name, e.employee_code, e.department, e.position, e.photo_url,
     e.department as department_code,
     ru.name as requester_name, ru.email as requester_email
   FROM hr_disciplinary_letters dl

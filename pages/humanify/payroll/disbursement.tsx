@@ -4,14 +4,16 @@ import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
 import { PageGuard } from '@/components/permissions';
 import Link from 'next/link';
-import {
-  Banknote, Download, ArrowLeft, Building2, FileText,
-} from 'lucide-react';
+import HRStatCard from '@/components/humanify/HRStatCard';
+import HrisEmptyState from '@/components/humanify/HrisEmptyState';
+import { OpsKpiShell, OpsPanel } from '@/components/humanify/OpsPageChrome';
+import { PayrollShell } from '@/components/humanify/PayrollModuleChrome';
+import { Banknote, Download, Building2, RefreshCw, Users } from 'lucide-react';
 
 const BANKS = [
-  { id: 'bca', label: 'BCA (Auto Credit)', color: 'bg-[var(--hf-brand-600)]' },
-  { id: 'mandiri', label: 'Mandiri (MCM)', color: 'bg-yellow-500' },
-  { id: 'generic', label: 'CSV Generic', color: 'bg-gray-600' },
+  { id: 'bca', label: 'BCA Auto Credit', hint: 'Format KLIRING BCA' },
+  { id: 'mandiri', label: 'Mandiri MCM', hint: 'Multi Cash Management' },
+  { id: 'generic', label: 'CSV generik', hint: 'Nama, rekening, nominal' },
 ];
 
 export default function DisbursementPage() {
@@ -39,61 +41,90 @@ export default function DisbursementPage() {
     window.open(`/api/humanify/disbursement?action=download&format=${format}`, '_blank');
   };
 
+  const missingBank = rows.filter((r) => !r.accountNumber).length;
+
   return (
     <PageGuard anyPermission={['payroll.view', 'payroll.*']} title="Disbursement" description="Transfer gaji ke bank">
-      <HQLayout title="Disbursement / Transfer Bank" subtitle="Generate file transfer BCA, Mandiri, atau CSV">
-        <div className="space-y-6">
-          <div className="flex items-center gap-3">
-            <Link href="/humanify/payroll" className="p-2 border rounded-lg hover:bg-gray-50"><ArrowLeft className="w-4 h-4" /></Link>
-            <div className="flex-1">
-              <h2 className="text-xl font-bold flex items-center gap-2"><Banknote className="w-5 h-5 text-emerald-600" /> Instant Disbursement</h2>
-              <p className="text-sm text-gray-500">Export file transfer bank setelah payroll approved</p>
-            </div>
-            <DataSourceBadge source={dataSource} />
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            <div className="bg-white rounded-xl p-4 border shadow-sm col-span-1">
-              <p className="text-xs text-gray-500">Total Transfer</p>
-              <p className="text-2xl font-bold text-emerald-600">{fmt(total)}</p>
-              <p className="text-xs text-gray-400 mt-1">{rows.length} karyawan</p>
-            </div>
-            <div className="col-span-2 grid grid-cols-3 gap-3">
-              {BANKS.map(b => (
-                <button key={b.id} onClick={() => download(b.id)}
-                  className={`${b.color} text-white rounded-xl p-4 hover:opacity-90 transition-opacity flex flex-col items-center gap-2`}>
-                  <Download className="w-5 h-5" />
-                  <span className="text-xs font-medium text-center">{b.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {!loading && (
-            <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b">
-                  <tr>
-                    <th className="text-left p-3">Karyawan</th>
-                    <th className="text-left p-3">Bank</th>
-                    <th className="text-left p-3">No Rekening</th>
-                    <th className="text-right p-3">Jumlah</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r: any) => (
-                    <tr key={r.employeeId} className="border-b hover:bg-gray-50">
-                      <td className="p-3 font-medium">{r.employeeName}</td>
-                      <td className="p-3">{r.bankName}</td>
-                      <td className="p-3 font-mono text-xs">{r.accountNumber}</td>
-                      <td className="p-3 text-right font-semibold">{fmt(r.amount)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+      <HQLayout title="Transfer Bank" subtitle="Generate file transfer BCA, Mandiri, atau CSV">
+        <PayrollShell
+          current="transfer"
+          title="Transfer bank"
+          subtitle="Unduh file disbursement setelah run gaji disetujui. Lengkapi rekening di database karyawan jika kosong."
+          icon={Banknote}
+          chips={[
+            { icon: Users, label: `${rows.length} karyawan` },
+            { icon: Building2, label: missingBank ? `${missingBank} tanpa rekening` : 'Rekening lengkap', tone: missingBank ? 'text-amber-700' : 'text-emerald-700' },
+          ]}
+          actions={(
+            <div className="flex flex-wrap items-center gap-2">
+              <DataSourceBadge source={dataSource} />
+              <button type="button" onClick={load} className="hf-btn-secondary inline-flex items-center gap-2">
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Segarkan
+              </button>
             </div>
           )}
-        </div>
+        >
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+            <OpsKpiShell>
+              <HRStatCard icon={Banknote} label="Total transfer" value={fmt(total)} sub={`${rows.length} baris`} accent="emerald" />
+            </OpsKpiShell>
+            {BANKS.map((b) => (
+              <button
+                key={b.id}
+                type="button"
+                onClick={() => download(b.id)}
+                disabled={!rows.length}
+                className="hf-card flex flex-col items-start gap-2 p-4 text-left transition hover:border-[var(--hf-brand-100)] hover:shadow-[var(--hf-shadow-md)] disabled:opacity-50"
+              >
+                <span className="flex h-9 w-9 items-center justify-center rounded-[var(--hf-radius)] bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)]">
+                  <Download className="h-4 w-4" />
+                </span>
+                <span className="text-sm font-semibold text-[color:var(--hf-ink)]">{b.label}</span>
+                <span className="text-xs text-[color:var(--hf-ink-muted)]">{b.hint}</span>
+              </button>
+            ))}
+          </div>
+
+          <OpsPanel
+            title="Pratinjau transfer"
+            subtitle="Data dari run gaji terakhir yang disetujui."
+            action={<Link href="/humanify/employees" className="text-xs font-medium text-[color:var(--hf-brand-600)] hover:underline">Lengkapi rekening</Link>}
+          >
+            {loading ? (
+              <div className="h-32 animate-pulse rounded-[var(--hf-radius)] bg-[var(--hf-surface-muted)]" />
+            ) : rows.length === 0 ? (
+              <HrisEmptyState
+                source={dataSource}
+                title="Belum ada data transfer"
+                description="Setujui run penggajian terlebih dahulu, lalu kembali ke halaman ini untuk mengunduh file bank."
+                action={<Link href="/humanify/payroll/main" className="hf-btn-primary">Buka proses gaji</Link>}
+              />
+            ) : (
+              <div className="hf-table-wrap overflow-x-auto">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Karyawan</th>
+                      <th>Bank</th>
+                      <th>No. rekening</th>
+                      <th className="text-right">Jumlah</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((r: any) => (
+                      <tr key={r.employeeId}>
+                        <td className="font-medium text-[color:var(--hf-ink)]">{r.employeeName}</td>
+                        <td>{r.bankName || '—'}</td>
+                        <td className="font-mono text-xs">{r.accountNumber || <span className="text-[color:var(--hf-danger)]">Kosong</span>}</td>
+                        <td className="text-right tabular-nums font-medium">{fmt(r.amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </OpsPanel>
+        </PayrollShell>
       </HQLayout>
     </PageGuard>
   );

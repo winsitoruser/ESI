@@ -60,7 +60,7 @@ export default function ResetPasswordPage() {
         <link rel="icon" href={HUMANIFY_BRAND.welcomeLogoPath} type="image/png" />
       </Head>
       <PublicAuthShell>
-        <div className="w-full max-w-md rounded-2xl border bg-white p-8 shadow-sm" style={{ borderColor: 'var(--hf-border)' }}>
+        <div className="w-full max-w-md hf-card p-8" style={{ borderColor: 'var(--hf-border)' }}>
           <div className="text-center">
             <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-3">
               <ShieldCheck className="w-6 h-6 text-emerald-600" />

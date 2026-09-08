@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { allowHrMockFallback, resolveDataSource } from '@/lib/hris/data-source';
 import { withObservability } from '@/lib/observability';
 import { withHQAuth } from '@/lib/middleware/withHQAuth';
+import { markGoLiveFlagSafe } from '@/lib/saas/go-live';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch (e) {}
@@ -366,6 +367,7 @@ async function upsertEmployeeSalary(req: NextApiRequest, res: NextApiResponse, s
       }
     }
 
+    await markGoLiveFlagSafe(session.user?.tenantId, 'payrollConfigured');
     return res.status(201).json({ success: true, message: 'Konfigurasi gaji berhasil disimpan', data: salary });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: e.message });
@@ -416,6 +418,7 @@ async function createPayrollRun(req: NextApiRequest, res: NextApiResponse, sessi
       }
     });
 
+    await markGoLiveFlagSafe(session.user?.tenantId, 'payrollConfigured');
     return res.status(201).json({ success: true, data: result?.[0] });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: e.message });
@@ -778,6 +781,10 @@ async function approvePayroll(req: NextApiRequest, res: NextApiResponse, session
   if (!runId || !sequelize) return res.status(400).json({ error: 'runId required' });
   const tenantId = session?.user?.tenantId;
   if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
+  const { canPayrollFinanceAction, payrollFinanceDeniedPayload } = await import('@/lib/saas/payroll-finance-sod');
+  if (!canPayrollFinanceAction(session?.user?.role)) {
+    return res.status(403).json(payrollFinanceDeniedPayload('approve'));
+  }
   try {
     const [, meta] = await sequelize.query(`
       UPDATE payroll_runs SET status = 'approved', approved_by = :userId, approved_at = NOW(), updated_at = NOW()
@@ -831,6 +838,12 @@ async function updateRunStatus(req: NextApiRequest, res: NextApiResponse, sessio
   if (!runId || !status || !sequelize) return res.status(400).json({ error: 'runId and status required' });
   const tenantId = session?.user?.tenantId;
   if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
+  if (status === 'paid' || status === 'released') {
+    const { canPayrollFinanceAction, payrollFinanceDeniedPayload } = await import('@/lib/saas/payroll-finance-sod');
+    if (!canPayrollFinanceAction(session?.user?.role)) {
+      return res.status(403).json(payrollFinanceDeniedPayload(status === 'paid' ? 'paid' : 'released'));
+    }
+  }
   try {
     const [beforeRows] = await sequelize.query(
       `SELECT id, status, run_code, period_start, period_end FROM payroll_runs WHERE id = :runId AND tenant_id = :tenantId`,
@@ -851,6 +864,11 @@ async function updateRunStatus(req: NextApiRequest, res: NextApiResponse, sessio
           { replacements: { runId, tenantId } },
         );
       } catch { /* paid_at column may not exist on older schemas */ }
+      try {
+        const { recordFunnelEvent } = await import('@/lib/saas/activation-funnel');
+        await recordFunnelEvent(tenantId, 'paid', { runId });
+        await recordFunnelEvent(tenantId, 'payroll', { runId });
+      } catch { /* funnel best-effort */ }
     }
 
     try {

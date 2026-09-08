@@ -154,7 +154,7 @@ export default function DailyAttendancePage() {
           <DataSourceBadge source={dataSource} />
         </div>
         {/* Date Navigator + Stats */}
-        <div className="bg-white rounded-xl shadow-sm border p-4">
+        <div className="hf-card p-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <button onClick={() => navigateDate(-1)} className="p-2 hover:bg-gray-100 rounded-lg">
@@ -194,7 +194,7 @@ export default function DailyAttendancePage() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-xl shadow-sm border p-4">
+        <div className="hf-card p-4">
           <div className="flex flex-wrap gap-3">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -230,7 +230,7 @@ export default function DailyAttendancePage() {
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+        <div className="hf-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">

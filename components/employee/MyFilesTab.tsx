@@ -131,7 +131,7 @@ export default function MyFilesTab() {
       </div>
 
       {/* Quick upload wajib */}
-      <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm">
+      <div className="hf-card p-4">
         <p className="text-sm font-semibold text-slate-900 mb-3">Dokumen Wajib</p>
         <div className="grid grid-cols-2 gap-2">
           {REQUIRED_DOCUMENT_TYPES.map((req) => {
@@ -164,7 +164,7 @@ export default function MyFilesTab() {
       </div>
 
       {/* Daftar semua */}
-      <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm">
+      <div className="hf-card p-4">
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm font-semibold text-slate-900">Semua Dokumen</p>
           <button

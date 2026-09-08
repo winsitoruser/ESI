@@ -125,42 +125,19 @@ export default function HRISAnnouncementsPage() {
       const res = await fetch(url, {
         method: editing ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form)
+        body: JSON.stringify(form),
       });
-      if (res.ok) {
-        showToast('success', editing ? 'Pengumuman diperbarui' : 'Pengumuman diterbitkan');
-        await fetchAnnouncements();
-        setShowModal(false);
-        setEditing(null);
-        setForm({ title: '', content: '', category: 'general', priority: 'normal', targetAudience: 'all', isPinned: false, status: 'draft' });
-      } else {
-        throw new Error('Gagal simpan');
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || json.success === false) {
+        throw new Error(json.error || json.message || 'Gagal menyimpan pengumuman');
       }
-    } catch {
-      // Optimistic fallback
-      const newItem: Announcement = {
-        id: editing?.id || `local-${Date.now()}`,
-        title: form.title || '',
-        content: form.content || '',
-        category: (form.category as any) || 'general',
-        priority: (form.priority as any) || 'normal',
-        targetAudience: (form.targetAudience as any) || 'all',
-        targetDepartment: form.targetDepartment,
-        targetBranch: form.targetBranch,
-        isPinned: form.isPinned || false,
-        status: (form.status as any) || 'published',
-        publishDate: new Date().toISOString().slice(0, 10),
-        viewCount: 0,
-        createdBy: 'Anda',
-      };
-      if (editing) {
-        setItems((p) => p.map((i) => (i.id === editing.id ? newItem : i)));
-      } else {
-        setItems((p) => [newItem, ...p]);
-      }
-      showToast('success', editing ? 'Pengumuman diperbarui (lokal)' : 'Pengumuman diterbitkan (lokal)');
+      showToast('success', editing ? 'Pengumuman diperbarui' : 'Pengumuman diterbitkan');
+      await fetchAnnouncements();
       setShowModal(false);
       setEditing(null);
+      setForm({ title: '', content: '', category: 'general', priority: 'normal', targetAudience: 'all', isPinned: false, status: 'draft' });
+    } catch (err: any) {
+      showToast('error', err?.message || 'Gagal menyimpan pengumuman');
     }
   }
 
@@ -213,7 +190,7 @@ export default function HRISAnnouncementsPage() {
             { label: 'Mendesak', value: items.filter(i => i.priority === 'high').length, icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-100' },
             { label: 'Draft', value: items.filter(i => i.status === 'draft').length, icon: Edit, color: 'text-gray-600', bg: 'bg-gray-100' },
           ].map((s) => (
-            <div key={s.label} className="bg-white rounded-xl border shadow-sm p-4">
+            <div key={s.label} className="hf-card p-4">
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-lg ${s.bg}`}><s.icon className={`w-5 h-5 ${s.color}`} /></div>
                 <div>
@@ -225,7 +202,7 @@ export default function HRISAnnouncementsPage() {
           ))}
         </div>
 
-        <div className="bg-white rounded-xl border shadow-sm p-4 flex flex-wrap gap-3 items-center justify-between">
+        <div className="hf-card p-4 flex flex-wrap gap-3 items-center justify-between">
           <div className="flex flex-wrap gap-3 flex-1">
             <div className="relative flex-1 min-w-[220px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -264,7 +241,7 @@ export default function HRISAnnouncementsPage() {
           {filtered.map((a) => {
             const catConf = CATEGORY_CONF[a.category] || CATEGORY_CONF.general;
             return (
-              <div key={a.id} className={`bg-white rounded-xl border shadow-sm p-5 hover:shadow-md transition ${a.isPinned ? 'ring-2 ring-orange-200' : ''} ${a.priority === 'high' ? 'border-l-4 border-l-red-500' : ''}`}>
+              <div key={a.id} className={`hf-card p-5 hover:shadow-md transition ${a.isPinned ? 'ring-2 ring-orange-200' : ''} ${a.priority === 'high' ? 'border-l-4 border-l-red-500' : ''}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center flex-wrap gap-2 mb-2">
@@ -300,7 +277,7 @@ export default function HRISAnnouncementsPage() {
       {/* View modal */}
       {viewing && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setViewing(null)}>
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="hf-card max-h-[90vh] w-full max-w-2xl overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between p-5 border-b gap-3">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center flex-wrap gap-2 mb-2">
@@ -320,7 +297,7 @@ export default function HRISAnnouncementsPage() {
       {/* Edit modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setShowModal(false)}>
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="hf-card max-h-[90vh] w-full max-w-2xl overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between p-5 border-b">
               <h3 className="text-lg font-bold">{editing ? 'Edit Pengumuman' : 'Buat Pengumuman Baru'}</h3>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>

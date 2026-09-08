@@ -347,7 +347,7 @@ export default function SupportTicketsPage() {
 
       {showCreate && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl w-full max-w-lg shadow-xl">
+          <div className="hf-card w-full max-w-lg">
             <div className="flex items-center justify-between px-5 py-4 border-b">
               <h3 className="font-semibold text-gray-900">Buat Tiket Support</h3>
               <button type="button" onClick={() => setShowCreate(false)} className="p-1 hover:bg-gray-100 rounded">
@@ -419,7 +419,7 @@ export default function SupportTicketsPage() {
 
       {selected && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-xl">
+          <div className="hf-card flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden">
             <div className="flex items-start justify-between px-5 py-4 border-b gap-3">
               <div>
                 <p className="text-xs font-mono text-gray-500">{selected.ticket_number}</p>

@@ -18,12 +18,42 @@ import {
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import PhotoCaptureField from '@/components/employee/PhotoCaptureField';
+import FaceEnrollmentGate from '@/components/employee/FaceEnrollmentGate';
+import FaceSelfieCapture, { type FaceSelfieResult } from '@/components/employee/FaceSelfieCapture';
 import {
   Card, SectionHeader, StatusBadge, GeofenceBadge,
   PortalLoading, EnterpriseHero, QuickAction, StatTile,
 } from '@/components/employee/portal-ui';
 import { HumanifyLogo } from '@/components/humanify/HumanifyLogo';
 import { claimHasLegacyReceipt } from '@/lib/hris/claim-receipt';
+import { isDemoRecordId, looksLikeEssMockPayload } from '@/lib/hris/data-source';
+import TravelItineraryEditor from '@/components/humanify/TravelItineraryEditor';
+import { isEssModuleEnabled } from '@/lib/hris/ess-portal-config';
+import {
+  COST_CATEGORIES,
+  emptyStop,
+  itineraryBudget,
+  parseTravelPlan,
+  type ItineraryStop,
+  type TravelTripType,
+} from '@/lib/hris/travel-itinerary';
+
+/** Drop classic ESS mock rows if a misconfigured API ever returns them in prod. */
+function sanitizeEssList(rows: any[] | null | undefined): any[] {
+  if (!Array.isArray(rows)) return [];
+  if (looksLikeEssMockPayload(rows)) return [];
+  return rows.filter((r) => {
+    if (!r) return false;
+    // Leave balances etc. often have no id — only strip demo ids when present
+    if (r.id == null || r.id === '') return true;
+    return !isDemoRecordId(r.id);
+  });
+}
+
+function sanitizeEssObject(data: any): any {
+  if (!data || looksLikeEssMockPayload(data)) return null;
+  return data;
+}
 
 const TabSkeleton = () => (
   <div className="space-y-3 animate-pulse">
@@ -71,7 +101,7 @@ interface FieldVisit {
   check_in_geofence_distance_m?: number | null;
   check_out_geofence_name?: string | null; check_out_geofence_status?: string | null;
 }
-type ModalType = 'leave' | 'claim' | 'travel' | null;
+type ModalType = 'leave' | 'claim' | 'travel' | 'travel-expense' | null;
 
 const fmtCur = (n: number) => `Rp ${(n || 0).toLocaleString('id-ID')}`;
 const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
@@ -121,7 +151,22 @@ const api = async (action: string, method = 'GET', body?: any) => {
   const opts: RequestInit = { method, headers: { 'Content-Type': 'application/json' } };
   if (body) opts.body = JSON.stringify(body);
   const r = await fetch(`/api/employee/dashboard?action=${action}`, opts);
-  return r.json();
+  const text = await r.text();
+  let json: any = null;
+  try { json = text ? JSON.parse(text) : null; } catch { json = null; }
+  if (json && typeof json === 'object') return json;
+  if (!r.ok) {
+    return {
+      success: false,
+      error: r.status === 413
+        ? 'Foto terlalu besar. Ambil ulang dari kamera.'
+        : r.status >= 500
+          ? 'Server sibuk. Coba lagi sebentar.'
+          : 'Permintaan gagal. Coba lagi.',
+      code: r.status === 413 ? 'FACE_PHOTO_REQUIRED' : 'REQUEST_FAILED',
+    };
+  }
+  return { success: false, error: 'Respons tidak valid' };
 };
 
 const mgrApi = async (action: string, params?: Record<string, string>) => {
@@ -146,7 +191,7 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
   const [submitting, setSubmitting] = useState(false);
   const [clocking, setClocking] = useState<'in' | 'out' | null>(null);
   const [clockPhotoModal, setClockPhotoModal] = useState<'in' | 'out' | null>(null);
-  const [clockPhoto, setClockPhoto] = useState<string | null>(null);
+  const [needFaceEnroll, setNeedFaceEnroll] = useState(false);
 
   // ── Field Visit state ──────────────────────────────────────────────────────
   const [visits, setVisits] = useState<FieldVisit[]>([]);
@@ -209,7 +254,21 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
   const [otDetail, setOtDetail] = useState<any | null>(null);
   const [otMsg, setOtMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [otForm, setOtForm] = useState({ date: '', start_time: '17:00', end_time: '19:00', reason: '', work_description: '', overtime_type: 'regular' });
-  const [travelForm, setTravelForm] = useState({ destination: '', departureCity: 'Jakarta', purpose: '', departureDate: '', returnDate: '', transportation: 'flight', estimatedBudget: '' });
+  const [travelForm, setTravelForm] = useState({
+    departureCity: 'Jakarta',
+    purpose: '',
+    travelType: 'domestic',
+    tripType: 'single' as TravelTripType,
+    stops: [emptyStop(1)] as ItineraryStop[],
+  });
+  const [travelExpForm, setTravelExpForm] = useState({
+    travelRequestId: '',
+    itineraryStopId: '',
+    category: 'ticket',
+    description: '',
+    amount: '',
+    expenseDate: '',
+  });
 
   // ── Multifinance field team ─────────────────────────────────────────────────
   const [isMfAgent, setIsMfAgent] = useState(false);
@@ -223,14 +282,25 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
   // ─── Data Fetching ───
   const fetchAll = useCallback(async () => {
     try {
-      const [pRes, aRes] = await Promise.all([api('profile'), api('attendance')]);
+      const pRes = await api('profile');
       setProfile(pRes.data || null);
       setIsMfAgent(!!pRes.data?.isMfAgent);
       setIsManagerPortal(!!pRes.data?.isManagerPortal);
       setIsSuperAdmin(!!pRes.data?.isSuperAdmin);
-      setAttendance(aRes.data || null);
+
+      const [aRes, fRes] = await Promise.all([
+        api('attendance'),
+        fetch('/api/employee/face?action=status').then((r) => r.json()).catch(() => null),
+      ]);
+      setAttendance(sanitizeEssObject(aRes.data));
       setDataReady(true);
       setLoading(false);
+      if (fRes?.success && fRes.data && fRes.data.enrolled === false
+        && pRes.data?.portalConfig?.requireFaceEnrollment !== false) {
+        setNeedFaceEnroll(true);
+      } else {
+        setNeedFaceEnroll(false);
+      }
 
       if (pRes.data?.isManagerPortal) {
         fetch('/api/employee/manager?action=summary')
@@ -243,13 +313,13 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
         api('kpi'), api('leave-balance'), api('leave-requests'),
         api('claims'), api('travel'), api('notifications'), api('announcements'),
       ]).then(([kRes, lbRes, lrRes, cRes, trRes, nRes, annRes]) => {
-        setKpi(kRes.data || null);
-        setLeaveBalance(Array.isArray(lbRes.data) ? lbRes.data : []);
-        setLeaveRequests(Array.isArray(lrRes.data) ? lrRes.data : []);
-        setClaims(Array.isArray(cRes.data) ? cRes.data : []);
-        setTravel(Array.isArray(trRes.data) ? trRes.data : []);
-        setNotifications(Array.isArray(nRes.data) ? nRes.data : []);
-        setAnnouncements(Array.isArray(annRes.data) ? annRes.data : []);
+        setKpi(sanitizeEssObject(kRes.data));
+        setLeaveBalance(sanitizeEssList(lbRes.data));
+        setLeaveRequests(sanitizeEssList(lrRes.data));
+        setClaims(sanitizeEssList(cRes.data));
+        setTravel(sanitizeEssList(trRes.data));
+        setNotifications(sanitizeEssList(nRes.data));
+        setAnnouncements(sanitizeEssList(annRes.data));
       }).catch(() => {});
 
       try {
@@ -435,8 +505,8 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
       const res = await fetch(`/api/employee/dashboard?action=overtime-history&month=${month}`);
       const data = await res.json();
       if (data.success && data.data) {
-        setOtRecords(data.data.records || []);
-        setOtRecap(data.data.recap || {});
+        setOtRecords(sanitizeEssList(data.data.records));
+        setOtRecap(looksLikeEssMockPayload(data.data.recap) ? {} : (data.data.recap || {}));
       }
     } catch {}
     finally { setOtLoading(false); }
@@ -554,59 +624,54 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
   };
 
   // ─── Actions ───
-  const handlePhotoClock = async (type: 'in' | 'out') => {
-    if (!clockPhoto) { toast.error('Foto selfie wajib diambil'); return; }
+  const handleSelfieClock = async (type: 'in' | 'out', result: FaceSelfieResult) => {
     setClocking(type);
     try {
       const coords = await getGps().catch(() => null);
-      const body: Record<string, unknown> = { photo_base64: clockPhoto, method: 'photo_mobile' };
+      const body: Record<string, unknown> = {
+        still: result.still,
+        method: 'face_match',
+      };
       if (coords) { body.latitude = coords.lat; body.longitude = coords.lng; body.accuracy = coords.accuracy; }
       const res = await api(type === 'in' ? 'clock-in' : 'clock-out', 'POST', body);
       if (res.success) {
         const gf = res.data?.geofence;
         const gfLabel = gf?.inside ? ` · ${gf.name}` : (gf?.name ? ` · luar geofence ${gf.distanceM}m` : '');
-        toast.success(`${type === 'in' ? 'Clock In' : 'Clock Out'} foto berhasil${gfLabel}`);
+        const score = res.data?.face?.score;
+        const scoreLabel = typeof score === 'number' ? ` · match ${Math.round(score * 100)}%` : '';
+        toast.success(`${type === 'in' ? 'Clock In' : 'Clock Out'} berhasil${gfLabel}${scoreLabel}`);
         const aRes = await api('attendance');
         if (aRes.data) setAttendance(aRes.data);
         setClockPhotoModal(null);
-        setClockPhoto(null);
-      } else toast.error(res.error || `Gagal clock ${type}`);
-    } catch { toast.error(`Gagal clock ${type}`); }
+      } else {
+        if (res.code === 'FACE_ENROLLMENT_REQUIRED') setNeedFaceEnroll(true);
+        const raw = String(res.error || '');
+        const friendly =
+          res.code === 'TX_ABORTED' || /transaction is aborted|25P02|sesi database/i.test(raw)
+            ? 'Sesi database terganggu. Muat ulang halaman lalu coba absen lagi.'
+            : res.code === 'FACE_MISMATCH' || /tidak cocok|tidak terdeteksi/i.test(raw)
+            ? (raw && !/internal server/i.test(raw)
+              ? raw
+              : 'Wajah tidak cocok dengan foto pendaftaran. Ambil ulang dengan wajah menghadap kamera.')
+            : res.code === 'FACE_PHOTO_REQUIRED'
+              ? (raw || 'Foto tidak valid. Ambil ulang dari kamera.')
+              : /internal server|transaction is aborted/i.test(raw)
+                ? 'Verifikasi wajah gagal. Muat ulang lalu ambil ulang foto.'
+                : (raw || `Gagal clock ${type}`);
+        toast.error(friendly);
+      }
+    } catch {
+      toast.error('Verifikasi wajah gagal. Periksa koneksi lalu ambil ulang foto.');
+    }
     setClocking(null);
   };
 
   const handleClockIn = async () => {
-    setClocking('in');
-    try {
-      const coords = await getGps().catch(() => null);
-      const body = coords
-        ? { latitude: coords.lat, longitude: coords.lng, accuracy: coords.accuracy }
-        : {};
-      const res = await api('clock-in', 'POST', body);
-      if (res.success) {
-        toast.success(`Clock In berhasil · ${res.data?.checkIn || ''}`);
-        const aRes = await api('attendance');
-        if (aRes.data) setAttendance(aRes.data);
-      } else toast.error(res.error || 'Gagal clock in');
-    } catch { toast.error('Gagal clock in'); }
-    setClocking(null);
+    setClockPhotoModal('in');
   };
 
   const handleClockOut = async () => {
-    setClocking('out');
-    try {
-      const coords = await getGps().catch(() => null);
-      const body = coords
-        ? { latitude: coords.lat, longitude: coords.lng, accuracy: coords.accuracy }
-        : {};
-      const res = await api('clock-out', 'POST', body);
-      if (res.success) {
-        toast.success(`Clock Out berhasil · ${res.data?.checkOut || ''}`);
-        const aRes = await api('attendance');
-        if (aRes.data) setAttendance(aRes.data);
-      } else toast.error(res.error || 'Gagal clock out');
-    } catch { toast.error('Gagal clock out'); }
-    setClocking(null);
+    setClockPhotoModal('out');
   };
 
   const handleSubmitLeave = async () => {
@@ -738,20 +803,56 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
   };
 
   const handleSubmitTravel = async () => {
-    if (!travelForm.destination || !travelForm.purpose || !travelForm.departureDate || !travelForm.returnDate) {
-      toast.error('Semua field harus diisi'); return;
+    if (!travelForm.purpose || !travelForm.stops.some((s) => s.city)) {
+      toast.error('Isi keperluan dan minimal satu kota'); return;
     }
     setSubmitting(true);
     try {
-      const res = await api('travel-request', 'POST', travelForm);
+      const res = await api('travel-request', 'POST', {
+        departureCity: travelForm.departureCity,
+        purpose: travelForm.purpose,
+        travelType: travelForm.travelType,
+        tripType: travelForm.tripType,
+        transportation: travelForm.stops[0]?.transportMode || 'flight',
+        itinerary: {
+          tripType: travelForm.tripType,
+          originCity: travelForm.departureCity,
+          stops: travelForm.stops,
+        },
+      });
       if (res.success) {
         toast.success(res.message || 'Pengajuan perjalanan berhasil');
         setModal(null);
-        setTravelForm({ destination: '', departureCity: 'Jakarta', purpose: '', departureDate: '', returnDate: '', transportation: 'flight', estimatedBudget: '' });
+        setTravelForm({ departureCity: 'Jakarta', purpose: '', travelType: 'domestic', tripType: 'single', stops: [emptyStop(1)] });
         const trRes = await api('travel');
         setTravel(Array.isArray(trRes.data) ? trRes.data : []);
       } else { toast.error(res.error || 'Gagal mengajukan perjalanan'); }
     } catch { toast.error('Gagal mengajukan perjalanan'); }
+    setSubmitting(false);
+  };
+
+  const handleSubmitTravelExpense = async () => {
+    if (!travelExpForm.travelRequestId || !travelExpForm.amount || !travelExpForm.expenseDate) {
+      toast.error('Lengkapi tanggal dan jumlah biaya'); return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await api('travel-expense', 'POST', {
+        travelRequestId: travelExpForm.travelRequestId,
+        itineraryStopId: travelExpForm.itineraryStopId || null,
+        category: travelExpForm.category,
+        description: travelExpForm.description,
+        amount: parseInt(travelExpForm.amount, 10) || 0,
+        expenseDate: travelExpForm.expenseDate,
+      });
+      if (res.success) {
+        toast.success(res.message || 'Klaim biaya dikirim');
+        setModal(null);
+        setTravelExpForm({ travelRequestId: '', itineraryStopId: '', category: 'ticket', description: '', amount: '', expenseDate: '' });
+        const trRes = await api('travel');
+        setTravel(Array.isArray(trRes.data) ? trRes.data : []);
+      } else { toast.error(res.error || 'Gagal mengirim klaim biaya'); }
+    } catch { toast.error('Gagal mengirim klaim biaya'); }
     setSubmitting(false);
   };
 
@@ -801,7 +902,7 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
     return (
       <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
         <div className="fixed inset-0 bg-black/50" onClick={() => setModal(null)} />
-        <div className="relative bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl max-h-[85vh] overflow-y-auto animate-slide-up">
+        <div className={`relative bg-white w-full ${modal === 'travel' || modal === 'travel-expense' ? 'max-w-2xl' : 'max-w-lg'} rounded-t-2xl sm:rounded-2xl max-h-[85vh] overflow-y-auto animate-slide-up`}>
           <div className="sticky top-0 bg-white border-b border-gray-100 p-4 flex items-center justify-between rounded-t-2xl">
             <h3 className="font-bold text-gray-900">
               {modal === 'leave' && 'Ajukan Cuti'}
@@ -813,6 +914,7 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
                     : 'Klaim Baru'
               )}
               {modal === 'travel' && 'Ajukan Perjalanan Dinas'}
+              {modal === 'travel-expense' && 'Klaim Biaya Perjalanan'}
             </h3>
             <button onClick={() => { setModal(null); setClaimFiles([]); setClaimPreviews([]); setResubmitClaimId(null); setReplaceClaimId(null); setResubmitReason(''); }} className="p-1.5 hover:bg-gray-100 rounded-full"><X className="w-5 h-5 text-gray-500" /></button>
           </div>
@@ -995,60 +1097,86 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
             )}
             {modal === 'travel' && (
               <>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 mb-1 block">Kota Asal</label>
-                    <input type="text" value={travelForm.departureCity} onChange={e => setTravelForm(f => ({ ...f, departureCity: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500" />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 mb-1 block">Tujuan</label>
-                    <input type="text" value={travelForm.destination} onChange={e => setTravelForm(f => ({ ...f, destination: e.target.value }))}
-                      placeholder="Surabaya" className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500" />
-                  </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">Keperluan</label>
+                  <textarea value={travelForm.purpose} onChange={e => setTravelForm(f => ({ ...f, purpose: e.target.value }))}
+                    rows={2} placeholder="Visit cabang, meeting, audit…"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-teal-500 resize-none" />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Tujuan Perjalanan</label>
-                  <textarea value={travelForm.purpose} onChange={e => setTravelForm(f => ({ ...f, purpose: e.target.value }))}
-                    rows={2} placeholder="Visit cabang, meeting, dll..."
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 resize-none" />
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">Tipe perjalanan</label>
+                  <select value={travelForm.travelType} onChange={e => setTravelForm(f => ({ ...f, travelType: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-teal-500">
+                    <option value="domestic">Domestik</option>
+                    <option value="international">Internasional</option>
+                  </select>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 mb-1 block">Berangkat</label>
-                    <input type="date" value={travelForm.departureDate} onChange={e => setTravelForm(f => ({ ...f, departureDate: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500" />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 mb-1 block">Pulang</label>
-                    <input type="date" value={travelForm.returnDate} onChange={e => setTravelForm(f => ({ ...f, returnDate: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 mb-1 block">Transportasi</label>
-                    <select value={travelForm.transportation} onChange={e => setTravelForm(f => ({ ...f, transportation: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500">
-                      <option value="flight">Pesawat</option>
-                      <option value="train">Kereta</option>
-                      <option value="bus">Bus</option>
-                      <option value="car">Mobil</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 mb-1 block">Estimasi Budget</label>
-                    <input type="number" value={travelForm.estimatedBudget} onChange={e => setTravelForm(f => ({ ...f, estimatedBudget: e.target.value }))}
-                      placeholder="0" className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500" />
-                  </div>
-                </div>
+                <TravelItineraryEditor
+                  variant="portal"
+                  originCity={travelForm.departureCity}
+                  onOriginChange={(v) => setTravelForm((f) => ({ ...f, departureCity: v }))}
+                  tripType={travelForm.tripType}
+                  onTripTypeChange={(v) => setTravelForm((f) => ({ ...f, tripType: v }))}
+                  stops={travelForm.stops}
+                  onChange={(stops) => setTravelForm((f) => ({ ...f, stops }))}
+                />
+                <p className="text-sm font-semibold text-right text-slate-800">
+                  Total rencana {fmtCur(itineraryBudget(travelForm.stops))}
+                </p>
                 <button onClick={handleSubmitTravel} disabled={submitting}
-                  className="w-full bg-purple-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-purple-700 disabled:opacity-50 flex items-center justify-center gap-2">
+                  className="w-full bg-teal-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-teal-700 disabled:opacity-50 flex items-center justify-center gap-2">
                   {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                   {submitting ? 'Mengirim...' : 'Ajukan Perjalanan'}
                 </button>
               </>
             )}
+            {modal === 'travel-expense' && (() => {
+              const trip = travel.find((tr: any) => String(tr.id) === String(travelExpForm.travelRequestId));
+              const plan = parseTravelPlan(trip?.itinerary, trip?.departure_city);
+              return (
+                <>
+                  <p className="text-sm text-slate-600">{trip?.destination || trip?.request_number}</p>
+                  {plan.stops.length > 0 && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 mb-1 block">Kota itinerary</label>
+                      <select value={travelExpForm.itineraryStopId} onChange={e => setTravelExpForm(f => ({ ...f, itineraryStopId: e.target.value }))}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-teal-500">
+                        <option value="">Umum / seluruh trip</option>
+                        {plan.stops.map((s) => <option key={s.id} value={s.id}>{s.city || 'Kota'} · {s.arriveDate}</option>)}
+                      </select>
+                    </div>
+                  )}
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">Komponen</label>
+                    <select value={travelExpForm.category} onChange={e => setTravelExpForm(f => ({ ...f, category: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-teal-500">
+                      {COST_CATEGORIES.map((c) => <option key={c.code} value={c.code}>{c.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">Tanggal</label>
+                    <input type="date" value={travelExpForm.expenseDate} onChange={e => setTravelExpForm(f => ({ ...f, expenseDate: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-teal-500" />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">Deskripsi</label>
+                    <input value={travelExpForm.description} onChange={e => setTravelExpForm(f => ({ ...f, description: e.target.value }))}
+                      placeholder="Tiket, hotel, meal…"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-teal-500" />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">Jumlah (Rp)</label>
+                    <input type="number" value={travelExpForm.amount} onChange={e => setTravelExpForm(f => ({ ...f, amount: e.target.value }))}
+                      placeholder="0" className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-teal-500" />
+                  </div>
+                  <button onClick={handleSubmitTravelExpense} disabled={submitting}
+                    className="w-full bg-teal-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-teal-700 disabled:opacity-50 flex items-center justify-center gap-2">
+                    {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    {submitting ? 'Mengirim...' : 'Kirim Klaim Biaya'}
+                  </button>
+                </>
+              );
+            })()}
           </div>
         </div>
       </div>
@@ -1069,8 +1197,6 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
       clocking={clocking}
       handleClockIn={handleClockIn}
       handleClockOut={handleClockOut}
-      setClockPhoto={setClockPhoto}
-      setClockPhotoModal={setClockPhotoModal}
       monthAttendance={monthAttendance}
       lastClockEvent={lastClockEvent}
       lastCheckIn={lastCheckIn}
@@ -1083,6 +1209,7 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
       unreadCount={unreadCount}
       openNotifications={openNotifications}
       announcements={announcements}
+      tenantAnnouncement={profile?.portalConfig?.announcement || ''}
       notifications={notifications}
       kpiScore={kpiScore}
       kpiMetrics={kpiMetrics}
@@ -1099,7 +1226,7 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
   // ─── TAB: KPI ───
   const renderKPI = () => (
     <div className="space-y-4">
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+      <div className="hf-card p-4 border-gray-100">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-gray-900">Skor KPI Keseluruhan</h3>
           <span className="text-xs text-gray-500">Periode: {new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</span>
@@ -1122,7 +1249,7 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
           {kpiScore >= 80 ? '🎯 Di Atas Target' : kpiScore >= 60 ? '⚠️ Perlu Peningkatan' : '❌ Di Bawah Target'}
         </div>
       </div>
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+      <div className="hf-card p-4 border-gray-100">
         <h3 className="font-semibold text-gray-900 mb-3">Detail Metrik</h3>
         <div className="space-y-3">
           {kpiMetrics.map((m: any, i: number) => (
@@ -1180,7 +1307,7 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
             </p>
           </div>
         )}
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="hf-card p-4 border-gray-100">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-gray-900">Daftar Klaim</h3>
             <button onClick={() => { setReplaceClaimId(null); setResubmitClaimId(null); setModal('claim'); }} className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium flex items-center gap-1">
@@ -1263,36 +1390,71 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
   // ─── TAB: TRAVEL ───
   const renderTravel = () => (
     <div className="space-y-4">
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+      <div className="hf-card p-4 border-gray-100">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold text-gray-900">Perjalanan Dinas</h3>
-          <button onClick={() => setModal('travel')} className="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-medium flex items-center gap-1">
+          <button onClick={() => setModal('travel')} className="px-3 py-1.5 bg-teal-600 text-white rounded-lg text-xs font-medium flex items-center gap-1">
             <Plus className="w-3.5 h-3.5" /> Ajukan Baru
           </button>
         </div>
         {travel.length === 0 ? <p className="text-sm text-gray-400 text-center py-4">Belum ada perjalanan dinas</p> : (
           <div className="space-y-3">
-            {travel.map((tr: any) => (
-              <div key={tr.id} className="p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                      <Plane className="w-4 h-4 text-purple-600" />
+            {travel.map((tr: any) => {
+              const plan = parseTravelPlan(tr.itinerary, tr.departure_city);
+              const canClaim = ['approved', 'in_progress', 'completed'].includes(String(tr.status));
+              const actual = Number(tr.actual_cost) || (tr.expenses || []).reduce((s: number, e: any) => s + (Number(e.amount) || 0), 0);
+              return (
+                <div key={tr.id} className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-8 h-8 bg-teal-50 rounded-lg flex items-center justify-center shrink-0">
+                        <Plane className="w-4 h-4 text-teal-700" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{tr.destination}</p>
+                        <p className="text-[11px] text-gray-500">{tr.request_number}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">{tr.destination}</p>
-                      <p className="text-[11px] text-gray-500">{tr.request_number}</p>
-                    </div>
+                    <StatusBadge status={tr.status} />
                   </div>
-                  <StatusBadge status={tr.status} />
+                  <p className="text-xs text-gray-600 mb-2">{tr.purpose}</p>
+                  {plan.stops.length > 0 && (
+                    <ol className="mb-2 space-y-1">
+                      {plan.stops.map((s, i) => (
+                        <li key={s.id} className="text-[11px] text-slate-600 flex justify-between gap-2">
+                          <span>{i + 1}. {s.city || 'Kota'}{s.activity ? ` · ${s.activity}` : ''}</span>
+                          <span className="font-medium">{fmtCur(s.costs?.reduce((n, c) => n + (c.estimated || 0), 0) || 0)}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                  <div className="flex items-center justify-between text-[11px] text-gray-400">
+                    <span className="flex items-center gap-1"><CalendarDays className="w-3 h-3" />{fmtDate(tr.departure_date)} - {fmtDate(tr.return_date)}</span>
+                    <span className="font-semibold text-gray-700">Rencana {fmtCur(tr.estimated_budget)}</span>
+                  </div>
+                  {actual > 0 && <p className="text-[11px] text-right text-teal-700 mt-1">Aktual {fmtCur(actual)}</p>}
+                  {canClaim && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTravelExpForm({
+                          travelRequestId: tr.id,
+                          itineraryStopId: '',
+                          category: 'ticket',
+                          description: '',
+                          amount: '',
+                          expenseDate: new Date().toISOString().split('T')[0],
+                        });
+                        setModal('travel-expense');
+                      }}
+                      className="mt-2.5 w-full flex items-center justify-center gap-1.5 bg-teal-600 hover:bg-teal-700 text-white py-2 rounded-lg text-xs font-semibold"
+                    >
+                      <Receipt className="w-3.5 h-3.5" /> Klaim biaya per kota
+                    </button>
+                  )}
                 </div>
-                <p className="text-xs text-gray-600 mb-2">{tr.purpose}</p>
-                <div className="flex items-center justify-between text-[11px] text-gray-400">
-                  <span className="flex items-center gap-1"><CalendarDays className="w-3 h-3" />{fmtDate(tr.departure_date)} - {fmtDate(tr.return_date)}</span>
-                  <span className="font-semibold text-gray-700">{fmtCur(tr.estimated_budget)}</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -1337,7 +1499,7 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
       <button
         type="button"
         onClick={() => goToTab('files')}
-        className="w-full flex items-center justify-between p-4 bg-white rounded-2xl shadow-sm border border-blue-100 active:scale-[0.99] transition-transform"
+        className="w-full flex items-center justify-between hf-card p-4 active:scale-[0.99] transition-transform"
       >
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 bg-blue-50 rounded-xl flex items-center justify-center">
@@ -1351,15 +1513,15 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
         <ChevronRight className="w-4 h-4 text-slate-400" />
       </button>
       <div className="space-y-2">
-        <Link href="/humanify/ess" className="flex items-center justify-between p-4 bg-white rounded-2xl shadow-sm border border-slate-100 active:scale-[0.99] transition-transform">
+        <Link href="/humanify/ess" className="flex items-center justify-between hf-card p-4 active:scale-[0.99] transition-transform">
           <div className="flex items-center gap-3"><div className="w-9 h-9 bg-blue-50 rounded-xl flex items-center justify-center"><FileText className="w-4 h-4 text-blue-600" /></div><span className="text-sm font-medium text-slate-700">Portal ESS Lengkap</span></div>
           <ChevronRight className="w-4 h-4 text-slate-400" />
         </Link>
-        <Link href="/hq/dashboard" className="flex items-center justify-between p-4 bg-white rounded-2xl shadow-sm border border-slate-100 active:scale-[0.99] transition-transform">
+        <Link href="/hq/dashboard" className="flex items-center justify-between hf-card p-4 active:scale-[0.99] transition-transform">
           <div className="flex items-center gap-3"><div className="w-9 h-9 bg-teal-50 rounded-xl flex items-center justify-center"><Shield className="w-4 h-4 text-teal-600" /></div><span className="text-sm font-medium text-slate-700">HQ Dashboard</span></div>
           <ChevronRight className="w-4 h-4 text-slate-400" />
         </Link>
-        <button onClick={() => signOut({ callbackUrl: '/employee/login' })} className="w-full flex items-center justify-between p-4 bg-white rounded-2xl shadow-sm border border-rose-100 active:scale-[0.99] transition-transform">
+        <button onClick={() => signOut({ callbackUrl: '/employee/login' })} className="w-full flex items-center justify-between hf-card p-4 active:scale-[0.99] transition-transform">
           <div className="flex items-center gap-3"><div className="w-9 h-9 bg-rose-50 rounded-xl flex items-center justify-center"><LogOut className="w-4 h-4 text-rose-500" /></div><span className="text-sm font-medium text-rose-600">Keluar</span></div>
           <ChevronRight className="w-4 h-4 text-rose-400" />
         </button>
@@ -1441,7 +1603,7 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
           {teamVisitLoading ? (
             <div className="flex items-center justify-center py-10"><Loader2 className="w-7 h-7 animate-spin text-teal-500" /></div>
           ) : teamVisits.length === 0 ? (
-            <div className="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-100">
+            <div className="hf-card p-8 text-center">
               <Users className="w-12 h-12 text-gray-200 mx-auto mb-3" />
               <p className="text-gray-500 text-sm">Belum ada kunjungan tim pada tanggal ini</p>
             </div>
@@ -1452,7 +1614,7 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
                   key={tv.id}
                   type="button"
                   onClick={() => openTeamVisitDetail(tv.id)}
-                  className="w-full text-left bg-white rounded-xl border border-slate-100 p-3 shadow-sm active:scale-[0.99]"
+                  className="w-full text-left hf-card border-slate-100 p-3 shadow-sm active:scale-[0.99]"
                 >
                   <div className="flex gap-3">
                     {tv.thumbnail_url ? (
@@ -1527,7 +1689,7 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
       {visitLoading ? (
         <div className="flex items-center justify-center py-10"><Loader2 className="w-7 h-7 animate-spin text-blue-400" /></div>
       ) : visits.length === 0 ? (
-        <div className="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-100">
+        <div className="hf-card p-8 text-center">
           <Map className="w-12 h-12 text-gray-200 mx-auto mb-3" />
           <p className="text-gray-500 text-sm">Belum ada kunjungan hari ini</p>
           <button onClick={() => setVisitModal('new-visit')} className="mt-3 text-blue-600 text-xs font-medium">+ Tambah kunjungan</button>
@@ -1542,7 +1704,7 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
               ...evidence,
             ];
             return (
-            <div key={v.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div key={v.id} className="hf-card border-gray-100 overflow-hidden">
               <div className="p-4">
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="flex-1 min-w-0">
@@ -1840,7 +2002,7 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
     return (
       <div className="space-y-4">
         {/* Month Navigator */}
-        <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 shadow-sm border border-gray-100">
+        <div className="hf-card flex items-center justify-between px-4 py-3">
           <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-gray-100 active:scale-95"><ChevronRight className="w-4 h-4 text-gray-600 rotate-180" /></button>
           <p className="font-semibold text-gray-800 text-sm capitalize">{monthLabel}</p>
           <button onClick={nextMonth} disabled={otMonth === new Date().toISOString().slice(0, 7)} className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30 active:scale-95"><ChevronRight className="w-4 h-4 text-gray-600" /></button>
@@ -1872,7 +2034,7 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
         {otLoading ? (
           <div className="flex items-center justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-orange-400" /></div>
         ) : otRecords.length === 0 ? (
-          <div className="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-100">
+          <div className="hf-card p-8 text-center">
             <Timer className="w-12 h-12 text-gray-200 mx-auto mb-3" />
             <p className="text-gray-500 text-sm">Belum ada catatan lembur bulan ini</p>
             <button onClick={() => setOtModal('new')} className="mt-3 text-orange-500 text-xs font-medium">+ Ajukan lembur</button>
@@ -1884,7 +2046,7 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
               const dt = DAY_TYPE[ot.day_type] || DAY_TYPE['weekday'];
               const dateObj = new Date(ot.date + 'T00:00:00');
               return (
-                <div key={ot.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div key={ot.id} className="hf-card border-gray-100 overflow-hidden">
                   <div className="p-4">
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div>
@@ -1991,29 +2153,32 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
     );
   };
 
-  const tabs: { key: TabKey | 'more'; icon: any; label: string; badge?: number }[] = isMfAgent
+  const moduleOn = (key: string) => isEssModuleEnabled(profile?.portalConfig, key);
+
+  const tabs: { key: TabKey | 'more'; icon: any; label: string; badge?: number }[] = (isMfAgent
     ? [
-        { key: 'home',       icon: Home,         label: 'Beranda'  },
-        { key: 'attendance', icon: CalendarDays, label: 'Absensi'  },
-        { key: 'mf',         icon: Building2,    label: 'Lapangan' },
-        { key: 'leave',      icon: Calendar,     label: 'Cuti'     },
-        { key: 'more',       icon: LayoutGrid,   label: 'Lainnya'  },
+        { key: 'home' as const,       icon: Home,         label: 'Beranda'  },
+        { key: 'attendance' as const, icon: CalendarDays, label: 'Absensi'  },
+        { key: 'mf' as const,         icon: Building2,    label: 'Lapangan' },
+        { key: 'leave' as const,      icon: Calendar,     label: 'Cuti'     },
+        { key: 'more' as const,       icon: LayoutGrid,   label: 'Lainnya'  },
       ]
     : isManagerPortal
     ? [
-        { key: 'home',       icon: Home,         label: 'Beranda'  },
-        { key: 'attendance', icon: CalendarDays, label: 'Absensi'  },
-        { key: 'leave',      icon: Calendar,     label: 'Cuti'     },
-        { key: 'manager',    icon: Shield,       label: 'Manajer', badge: managerPendingCount || undefined },
-        { key: 'more',       icon: LayoutGrid,   label: 'Lainnya'  },
+        { key: 'home' as const,       icon: Home,         label: 'Beranda'  },
+        { key: 'attendance' as const, icon: CalendarDays, label: 'Absensi'  },
+        { key: 'leave' as const,      icon: Calendar,     label: 'Cuti'     },
+        { key: 'manager' as const,    icon: Shield,       label: 'Manajer', badge: managerPendingCount || undefined },
+        { key: 'more' as const,       icon: LayoutGrid,   label: 'Lainnya'  },
       ]
     : [
-        { key: 'home',       icon: Home,         label: 'Beranda'  },
-        { key: 'attendance', icon: CalendarDays, label: 'Absensi'  },
-        { key: 'leave',      icon: Calendar,     label: 'Cuti'     },
-        { key: 'kpi',        icon: Target,       label: 'KPI'      },
-        { key: 'more',       icon: LayoutGrid,   label: 'Lainnya'  },
-      ];
+        { key: 'home' as const,       icon: Home,         label: 'Beranda'  },
+        { key: 'attendance' as const, icon: CalendarDays, label: 'Absensi'  },
+        { key: 'leave' as const,      icon: Calendar,     label: 'Cuti'     },
+        { key: 'kpi' as const,        icon: Target,       label: 'KPI'      },
+        { key: 'more' as const,       icon: LayoutGrid,   label: 'Lainnya'  },
+      ]
+  ).filter((t) => t.key === 'home' || t.key === 'more' || t.key === 'manager' || t.key === 'mf' || moduleOn(t.key));
 
   const moreMenuItems: { key: TabKey; icon: any; label: string; desc: string; color: string }[] = [
     { key: 'files',    icon: FileText,   label: 'My Files',    desc: 'Upload KTP, KK, ijazah & dokumen', color: 'bg-blue-100 text-blue-600' },
@@ -2028,7 +2193,7 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
     { key: 'visit',    icon: Navigation, label: 'Kunjungan',   desc: 'Kunjungan lapangan SFA',      color: 'bg-cyan-100 text-cyan-600' },
     ...((isMfAgent || isManagerPortal) ? [{ key: 'kpi' as TabKey, icon: Target, label: 'KPI', desc: 'Indikator kinerja', color: 'bg-teal-100 text-teal-600' }] : []),
     { key: 'profile',  icon: User,       label: 'Profil',      desc: 'Data & pengaturan akun',      color: 'bg-gray-100 text-gray-600' },
-  ];
+  ].filter((item) => item.key === 'profile' || item.key === 'mf' || moduleOn(item.key));
 
   const secondaryTabs = new Set<TabKey>(['files', 'payslip', 'disciplinary', 'surveys', 'training', 'claims', 'overtime', 'travel', 'visit', 'mf', 'profile', 'kpi']);
   const headerTitle = activeTab === 'home'
@@ -2095,19 +2260,19 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
       <Toaster position="top-center" toastOptions={{ duration: 3000, style: { fontSize: '14px', maxWidth: '90vw' } }} />
 
       {/* Enterprise shell — mobile-first, refined frame on desktop */}
-      <div className="emp-portal-outer humanify-theme min-h-screen bg-[#0c0f1a] md:bg-gradient-to-br md:from-[#0c0f1a] md:via-[#12162a] md:to-[#1a1040] md:py-8">
-      <div className="emp-portal-root emp-portal-desktop-frame min-h-screen md:min-h-[calc(100vh-4rem)] bg-[#f8fafc] max-w-md mx-auto relative md:rounded-[2rem] md:shadow-[0_25px_80px_rgba(0,0,0,0.45)] md:ring-1 md:ring-white/10 md:overflow-hidden flex flex-col" style={{ background: 'var(--hf-surface-muted)' }}>
-        <header className="sticky top-0 z-40 emp-portal-chrome border-b px-4 h-[3.25rem] flex items-center justify-between safe-area-pt flex-shrink-0">
+      <div className="emp-portal-outer humanify-theme min-h-[100dvh] bg-[#f8fafc] md:min-h-screen md:bg-gradient-to-br md:from-slate-900 md:via-slate-800 md:to-slate-900 md:py-8">
+      <div className="emp-portal-root emp-portal-desktop-frame min-h-[100dvh] md:min-h-[calc(100dvh-4rem)] bg-[#f8fafc] w-full max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-5xl mx-auto relative md:rounded-[1.75rem] md:shadow-[0_20px_60px_rgba(15,23,42,0.35)] md:ring-1 md:ring-white/10 md:overflow-hidden flex flex-col overflow-x-hidden" style={{ background: 'var(--hf-surface-muted)' }}>
+        <header className="sticky top-0 z-40 emp-portal-chrome border-b px-4 min-h-[3.25rem] h-[calc(3.25rem+env(safe-area-inset-top,0px))] flex items-center justify-between safe-area-pt flex-shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
             {activeTab !== 'home' ? (
-              <button onClick={() => goToTab('home')} className="p-2 -ml-1 rounded-xl hover:bg-slate-100/80 text-slate-500 transition-colors">
+              <button onClick={() => goToTab('home')} className="p-2 -ml-1 min-h-11 min-w-11 rounded-xl hover:bg-slate-100/80 text-slate-500 transition-colors inline-flex items-center justify-center">
                 <ChevronRight className="w-5 h-5 rotate-180" />
               </button>
             ) : (
               <HumanifyLogo size="sm" variant="mark" className="flex-shrink-0" />
             )}
             <div className="min-w-0">
-              <h1 className="text-sm font-bold text-slate-900 truncate tracking-tight leading-tight">
+              <h1 className="text-sm font-semibold text-slate-900 truncate tracking-tight leading-tight">
                 {headerTitle}
               </h1>
               {activeTab === 'home' && (
@@ -2116,10 +2281,10 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
             </div>
           </div>
           <div className="flex items-center gap-1">
-            <button onClick={fetchAll} className="p-2 rounded-xl hover:bg-slate-100/80 transition-colors" aria-label="Refresh">
+            <button onClick={fetchAll} className="p-2 min-h-11 min-w-11 rounded-xl hover:bg-slate-100/80 transition-colors inline-flex items-center justify-center" aria-label="Refresh">
               <RefreshCw className="w-4 h-4 text-slate-500" />
             </button>
-            <button onClick={() => showNotif ? setShowNotif(false) : openNotifications()} className="relative p-2 rounded-xl hover:bg-slate-100/80 transition-colors" aria-label="Notifikasi">
+            <button onClick={() => showNotif ? setShowNotif(false) : openNotifications()} className="relative p-2 min-h-11 min-w-11 rounded-xl hover:bg-slate-100/80 transition-colors inline-flex items-center justify-center" aria-label="Notifikasi">
               <Bell className="w-[18px] h-[18px] text-slate-600" />
               {unreadCount > 0 && (
                 <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 bg-teal-600 rounded-full text-[9px] text-white font-bold flex items-center justify-center ring-2 ring-white">
@@ -2156,45 +2321,30 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
           </>
         )}
 
-        <main ref={mainScrollRef} className="emp-portal-scroll px-4 py-4 pb-32 bg-[#f8fafc]">{renderContent()}</main>
+        <main ref={mainScrollRef} className="emp-portal-scroll px-4 sm:px-5 lg:px-6 py-4 pb-32 bg-[#f8fafc]">{renderContent()}</main>
 
         {renderModal()}
 
-        {clockPhotoModal && (
-          <div className="fixed inset-0 z-50 flex items-end bg-black/50">
-            <div className="bg-white w-full max-w-lg mx-auto rounded-t-2xl p-5 space-y-4 safe-area-pb max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between">
-                <h3 className="font-bold text-gray-900">
-                  {clockPhotoModal === 'in' ? 'Absensi Foto Masuk' : 'Absensi Foto Pulang'}
-                </h3>
-                <button onClick={() => { setClockPhotoModal(null); setClockPhoto(null); }}><X className="w-5 h-5 text-gray-400" /></button>
-              </div>
-              <p className="text-xs text-slate-500">Ambil selfie sebagai bukti kehadiran. GPS dan tag geofencing akan dicatat otomatis.</p>
-              <PhotoCaptureField
-                label="Foto Selfie *"
-                hint="Pastikan wajah terlihat jelas."
-                value={clockPhoto}
-                onChange={setClockPhoto}
-                capture="user"
-              />
-              <button
-                onClick={() => handlePhotoClock(clockPhotoModal)}
-                disabled={!clockPhoto || clocking === clockPhotoModal}
-                className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-60 active:scale-95 transition-all ${
-                  clockPhotoModal === 'in' ? 'bg-emerald-600' : 'bg-orange-500'
-                }`}
-              >
-                {clocking === clockPhotoModal ? <><Loader2 className="w-4 h-4 animate-spin" />Memproses...</> : <><Camera className="w-4 h-4" />{clockPhotoModal === 'in' ? 'Clock In dengan Foto' : 'Clock Out dengan Foto'}</>}
-              </button>
-            </div>
-          </div>
+        {needFaceEnroll && (
+          <FaceEnrollmentGate onEnrolled={() => { setNeedFaceEnroll(false); fetchAll(); }} />
+        )}
+
+        {clockPhotoModal && !needFaceEnroll && (
+          <FaceSelfieCapture
+            title={clockPhotoModal === 'in' ? 'Clock in — foto wajah' : 'Clock out — foto wajah'}
+            subtitle="Ambil foto saja. Sistem mencocokkan dengan wajah terdaftar."
+            confirmLabel={clockPhotoModal === 'in' ? 'Verifikasi & clock in' : 'Verifikasi & clock out'}
+            busy={clocking === clockPhotoModal}
+            onCancel={() => setClockPhotoModal(null)}
+            onComplete={(result) => handleSelfieClock(clockPhotoModal, result)}
+          />
         )}
 
         {/* More menu — bottom sheet */}
         {showMoreMenu && (
           <>
-            <div className="fixed inset-0 z-50 bg-black/40 md:max-w-lg md:mx-auto" onClick={() => setShowMoreMenu(false)} />
-            <div className="fixed bottom-0 left-0 right-0 z-50 max-w-md mx-auto animate-slide-up">
+            <div className="fixed inset-0 z-50 bg-black/40 md:max-w-2xl lg:max-w-4xl xl:max-w-5xl md:mx-auto" onClick={() => setShowMoreMenu(false)} />
+            <div className="fixed bottom-0 left-0 right-0 z-50 w-full max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-5xl mx-auto animate-slide-up">
               <div className="bg-white/95 backdrop-blur-xl rounded-t-3xl shadow-[0_-8px_40px_rgba(15,23,42,0.12)] border-t border-slate-200/60 safe-area-pb">
                 <div className="flex justify-center pt-3 pb-1">
                   <div className="w-10 h-1 rounded-full bg-slate-300/80" />
@@ -2229,7 +2379,7 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
           </>
         )}
 
-        <nav className="fixed bottom-0 left-0 right-0 z-40 emp-portal-nav max-w-md mx-auto safe-area-pb md:rounded-b-[2rem]">
+        <nav className="fixed bottom-0 left-0 right-0 z-40 emp-portal-nav w-full max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-5xl mx-auto safe-area-pb md:rounded-b-[2rem]">
           <div className="mx-3 mb-2 rounded-2xl bg-white/90 backdrop-blur-xl border border-slate-200/70 shadow-[0_-4px_24px_rgba(15,23,42,0.08)]">
             <div className="flex items-stretch justify-around py-1 px-1">
             {tabs.map(tab => {
@@ -2241,7 +2391,7 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
                 <button
                   key={tab.key}
                   onClick={() => handleNavClick(tab.key)}
-                  className={`relative flex flex-col items-center justify-center gap-0.5 py-2 px-1 rounded-xl min-w-0 flex-1 transition-all duration-200 ${
+                  className={`relative flex flex-col items-center justify-center gap-0.5 py-2 px-1 rounded-xl min-h-11 min-w-0 flex-1 transition-all duration-200 ${
                     isActive ? 'text-teal-700' : 'text-slate-400 hover:text-slate-600'
                   }`}
                 >

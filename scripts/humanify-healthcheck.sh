@@ -27,6 +27,7 @@ check "Employee portal" "$BASE/employee" "307"
 
 echo ""
 echo "API (public):"
+check "API health"     "$BASE/api/health"
 check "Auth CSRF"      "$BASE/api/auth/csrf"
 check "Auth providers" "$BASE/api/auth/providers"
 

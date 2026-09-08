@@ -9,12 +9,9 @@ const PLATFORM_OPS = new Set(['super_admin', 'superadmin', 'platform_admin', 'ow
 /** Strict platform control-plane roles (not tenant owner). */
 const STRICT_PLATFORM_OPS = new Set(['super_admin', 'superadmin', 'platform_admin']);
 
-/** Sidebar items only for Humanify platform operators. */
-export const PLATFORM_CONTROL_ITEMS = new Set([
-  'platform-ops-hub',
-  'platform-ops-clients',
-  'platform-ops-partners',
-  'platform-ops-observability',
+/** Sidebar items that lived on tenant IA — now only on ops.humanify.id (kept empty for filter safety). */
+export const PLATFORM_CONTROL_ITEMS = new Set<string>([
+  // Removed from humanify sidebar — control plane is ops.humanify.id only
 ]);
 
 /** Item IDs safe for employee/staff (ESS-first). Marketing welcome hidden — use public `/`. */

@@ -1,4 +1,5 @@
 import { GetServerSideProps } from 'next';
+import Head from 'next/head';
 import { getServerSession } from 'next-auth/next';
 import { getCsrfToken } from 'next-auth/react';
 import EmployeePortalLoginForm from '@/components/humanify/EmployeePortalLoginForm';
@@ -16,6 +17,12 @@ export default function EmployeeLoginPage({ csrfToken }: Props) {
         description={`Login Portal Karyawan ${HUMANIFY_BRAND.name} — absensi, cuti, slip gaji, dan klaim mandiri.`}
         path={HUMANIFY_BRAND.employeeLoginPath}
       />
+      <Head>
+        <meta name="theme-color" content="#f8fafc" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="mobile-web-app-capable" content="yes" />
+      </Head>
       <EmployeePortalLoginForm csrfToken={csrfToken} />
     </>
   );

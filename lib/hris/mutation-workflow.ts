@@ -91,3 +91,51 @@ export function buildMutationLetterData(mut: Record<string, unknown>) {
 export function getDocumentTypeForMutation(type: MutationType): 'mutation-letter' | 'mutation-letter' {
   return 'mutation-letter';
 }
+
+export type MutationPlacement = {
+  to_department?: string | null;
+  to_position?: string | null;
+  to_branch_id?: string | null;
+  to_job_grade_id?: string | null;
+  new_salary?: number | string | null;
+  to_org_structure_id?: string | null;
+  to_supervisor_id?: string | null;
+};
+
+/** SQL fragments to apply an approved mutation onto employees (no cycle check). */
+export function buildEmployeeMutationUpdates(mut: MutationPlacement): {
+  setClauses: string[];
+  replacements: Record<string, unknown>;
+} {
+  const setClauses: string[] = ['updated_at = NOW()'];
+  const replacements: Record<string, unknown> = {};
+  if (mut.to_department) {
+    setClauses.push('department = :dept');
+    replacements.dept = mut.to_department;
+  }
+  if (mut.to_position) {
+    setClauses.push('position = :pos');
+    replacements.pos = mut.to_position;
+  }
+  if (mut.to_branch_id) {
+    setClauses.push('branch_id = :branchId');
+    replacements.branchId = mut.to_branch_id;
+  }
+  if (mut.to_job_grade_id) {
+    setClauses.push('job_grade_id = :gradeId');
+    replacements.gradeId = mut.to_job_grade_id;
+  }
+  if (mut.new_salary) {
+    setClauses.push('salary = :salary');
+    replacements.salary = mut.new_salary;
+  }
+  if (mut.to_org_structure_id) {
+    setClauses.push('org_structure_id = :orgId');
+    replacements.orgId = mut.to_org_structure_id;
+  }
+  if (mut.to_supervisor_id) {
+    setClauses.push('supervisor_id = :supervisorId');
+    replacements.supervisorId = mut.to_supervisor_id;
+  }
+  return { setClauses, replacements };
+}

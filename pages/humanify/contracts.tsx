@@ -2,6 +2,9 @@ import { useState, useEffect, useMemo, type MouseEvent } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
+import HRStatCard from '@/components/humanify/HRStatCard';
+import HrisEmptyState from '@/components/humanify/HrisEmptyState';
+import { OpsPageHero, OpsKpiShell, OpsStage, OpsToolbar } from '@/components/humanify/OpsPageChrome';
 import {
   FileText, Plus, Search, Filter, Calendar, AlertTriangle, CheckCircle,
   X, Edit, Trash2, RefreshCw, XCircle, Clock, DollarSign, User, Building2, Download, Bell, Link2, Paperclip
@@ -227,20 +230,38 @@ export default function ContractsPage() {
       .sort((a, b) => (a.daysLeft as number) - (b.daysLeft as number));
   }, [contracts]);
 
-  if (!mounted) {
-    return (
-      <HQLayout title="Kontrak Karyawan" subtitle="Kelola kontrak kerja, perpanjangan, dan reminder kedaluwarsa">
-        <div className="py-24 text-center text-gray-400 text-sm">Memuat halaman...</div>
-      </HQLayout>
-    );
-  }
+  if (!mounted) return null;
 
   return (
     <HQLayout title="Kontrak Karyawan" subtitle="Kelola kontrak kerja, perpanjangan, dan reminder kedaluwarsa">
-      <div className="space-y-6">
-        <div className="flex justify-end">
-          <DataSourceBadge source={dataSource} />
-        </div>
+      <OpsStage>
+        <OpsPageHero
+          title="Kontrak Karyawan"
+          subtitle="Kelola kontrak kerja, perpanjangan, dan reminder kedaluwarsa"
+          badge="Lifecycle"
+          liveLabel="Contracts desk"
+          icon={FileText}
+          score={(overview.total || contracts.length) > 0 ? Math.round(((overview.active || contracts.filter(c => c.status === 'active').length) / (overview.total || contracts.length)) * 100) : 0}
+          scoreLabel="Aktif"
+          chips={[
+            { icon: AlertTriangle, label: `${overview.expiring || expiring.filter(e => (e.daysLeft as number) <= 30).length} expired < 30 hari`, tone: 'text-orange-700' },
+            { icon: XCircle, label: `${overview.expired || contracts.filter(c => c.status === 'expired').length} kedaluwarsa`, tone: 'text-red-700' },
+            { icon: Bell, label: `${expiring.length} reminder aktif`, tone: 'text-[color:var(--hf-brand-600)]' },
+          ]}
+          actions={(
+            <div className="flex flex-wrap items-center gap-2">
+              <DataSourceBadge source={dataSource} />
+              <button
+                type="button"
+                onClick={() => { setEditing(null); setForm({ contractType: 'PKWT', status: 'active' }); setShowModal(true); }}
+                className="hf-btn-primary inline-flex items-center gap-2"
+              >
+                <Plus className="h-4 w-4" /> Buat Kontrak
+              </button>
+            </div>
+          )}
+        />
+
         <div className="rounded-xl border border-[var(--hf-brand-100)] bg-[var(--hf-brand-50)]/60 px-4 py-3 text-sm text-slate-700 flex flex-wrap items-start gap-2">
           <Link2 className="w-4 h-4 text-[color:var(--hf-brand-600)] mt-0.5 shrink-0" />
           <p>
@@ -251,12 +272,22 @@ export default function ContractsPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <StatCard icon={FileText} label="Total Kontrak" value={overview.total || contracts.length} color="text-[color:var(--hf-brand-600)]" bg="bg-[var(--hf-brand-100)]" />
-          <StatCard icon={CheckCircle} label="Aktif" value={overview.active || contracts.filter(c => c.status === 'active').length} color="text-green-600" bg="bg-green-100" />
-          <StatCard icon={AlertTriangle} label="Expired < 30 Hari" value={overview.expiring || expiring.filter(e => (e.daysLeft as number) <= 30).length} color="text-orange-600" bg="bg-orange-100" />
-          <StatCard icon={XCircle} label="Kedaluwarsa" value={overview.expired || contracts.filter(c => c.status === 'expired').length} color="text-red-600" bg="bg-red-100" />
-          <StatCard icon={Bell} label="Reminder" value={expiring.length} color="text-fuchsia-600" bg="bg-fuchsia-100" />
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+          <OpsKpiShell>
+            <HRStatCard icon={FileText} label="Total Kontrak" value={overview.total || contracts.length} accent="violet" />
+          </OpsKpiShell>
+          <OpsKpiShell>
+            <HRStatCard icon={CheckCircle} label="Aktif" value={overview.active || contracts.filter(c => c.status === 'active').length} accent="emerald" />
+          </OpsKpiShell>
+          <OpsKpiShell>
+            <HRStatCard icon={AlertTriangle} label="Expired < 30 Hari" value={overview.expiring || expiring.filter(e => (e.daysLeft as number) <= 30).length} accent="orange" />
+          </OpsKpiShell>
+          <OpsKpiShell>
+            <HRStatCard icon={XCircle} label="Kedaluwarsa" value={overview.expired || contracts.filter(c => c.status === 'expired').length} accent="rose" />
+          </OpsKpiShell>
+          <OpsKpiShell>
+            <HRStatCard icon={Bell} label="Reminder" value={expiring.length} accent="violet" />
+          </OpsKpiShell>
         </div>
 
         {expiring.length > 0 && (
@@ -280,37 +311,37 @@ export default function ContractsPage() {
           </div>
         )}
 
-        <div className="bg-white rounded-xl border shadow-sm p-4 flex flex-wrap gap-3 items-center justify-between">
-          <div className="flex flex-wrap gap-3 flex-1">
-            <div className="relative flex-1 min-w-[220px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input type="text" placeholder="Cari nomor kontrak atau karyawan..." value={searchQuery}
+        <OpsToolbar>
+          <div className="flex flex-1 flex-wrap gap-3">
+            <div className="relative min-w-[220px] flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--hf-ink-faint)]" />
+              <input
+                type="text"
+                placeholder="Cari nomor kontrak atau karyawan..."
+                value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm" />
+                className="hf-input w-full pl-9"
+              />
             </div>
-            <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
+            <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="hf-input">
               <option value="all">Semua Tipe</option>
               {Object.entries(TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
             </select>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="hf-input">
               <option value="all">Semua Status</option>
               {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
             </select>
           </div>
-          <div className="flex gap-2">
-            <button onClick={fetchAll} className="flex items-center gap-1 px-3 py-2 border rounded-lg text-sm hover:bg-gray-50">
-              <RefreshCw className="w-4 h-4" /> Refresh
-            </button>
-            <button onClick={() => { setEditing(null); setForm({ contractType: 'PKWT', status: 'active' }); setShowModal(true); }}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-fuchsia-600 to-purple-600 text-white rounded-lg text-sm font-medium hover:opacity-90">
-              <Plus className="w-4 h-4" /> Buat Kontrak
-            </button>
-          </div>
-        </div>
+          <button type="button" onClick={fetchAll} className="hf-btn-secondary inline-flex items-center gap-1">
+            <RefreshCw className="h-4 w-4" /> Refresh
+          </button>
+        </OpsToolbar>
 
-        <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-xs text-gray-600 uppercase">
+        <div className="hf-card hf-analytics-panel relative overflow-hidden">
+          <div className="hf-analytics-panel__rail" aria-hidden />
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[720px]">
+            <thead className="bg-[var(--hf-surface-muted)] text-xs uppercase text-[color:var(--hf-ink-muted)]">
               <tr>
                 <th className="px-4 py-3 text-left">No. Kontrak</th>
                 <th className="px-4 py-3 text-left">Karyawan</th>
@@ -322,8 +353,31 @@ export default function ContractsPage() {
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={7} className="text-center py-8 text-gray-500">Memuat...</td></tr>}
-              {!loading && filtered.length === 0 && <tr><td colSpan={7} className="text-center py-8 text-gray-500">Belum ada kontrak</td></tr>}
+              {loading && (
+                [0, 1, 2, 3].map((i) => (
+                  <tr key={i}>
+                    <td colSpan={7} className="px-4 py-3">
+                      <div className="h-8 w-full animate-pulse rounded-[var(--hf-radius)] bg-[var(--hf-surface-muted)]" />
+                    </td>
+                  </tr>
+                ))
+              )}
+              {!loading && filtered.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-4 py-6">
+                    <HrisEmptyState
+                      title="Belum ada kontrak"
+                      description="Buat kontrak kerja pertama untuk mulai melacak periode, perpanjangan, dan reminder kedaluwarsa."
+                      source={dataSource}
+                      action={(
+                        <button type="button" onClick={() => { setEditing(null); setForm({ contractType: 'PKWT', status: 'active' }); setShowModal(true); }} className="hf-btn-primary inline-flex items-center gap-2">
+                          <Plus className="h-4 w-4" /> Buat Kontrak
+                        </button>
+                      )}
+                    />
+                  </td>
+                </tr>
+              )}
               {filtered.map((c) => {
                 const tConf = TYPE_LABELS[c.contractType] || { label: c.contractType, color: 'bg-gray-100 text-gray-600' };
                 const sConf = STATUS_LABELS[c.status] || { label: c.status, color: 'bg-gray-100 text-gray-600' };
@@ -370,8 +424,9 @@ export default function ContractsPage() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
-      </div>
+      </OpsStage>
 
       {/* Create/Edit modal */}
       {showModal && (
@@ -380,7 +435,7 @@ export default function ContractsPage() {
           onMouseDown={(e) => handleBackdropMouseDown(e, closeCreateModal)}
         >
           <div
-            className="bg-white rounded-xl shadow-xl max-w-xl w-full max-h-[90vh] overflow-y-auto"
+            className="hf-card max-h-[90vh] w-full max-w-xl overflow-y-auto"
             onMouseDown={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
@@ -470,7 +525,7 @@ export default function ContractsPage() {
           onMouseDown={(e) => handleBackdropMouseDown(e, closeRenewModal)}
         >
           <div
-            className="bg-white rounded-xl shadow-xl max-w-md w-full"
+            className="hf-card w-full max-w-md"
             onMouseDown={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
@@ -515,20 +570,6 @@ export default function ContractsPage() {
         </div>
       )}
     </HQLayout>
-  );
-}
-
-function StatCard({ icon: Icon, label, value, color, bg }: any) {
-  return (
-    <div className="bg-white rounded-xl border shadow-sm p-4">
-      <div className="flex items-center gap-3">
-        <div className={`p-2 rounded-lg ${bg}`}><Icon className={`w-5 h-5 ${color}`} /></div>
-        <div>
-          <p className="text-xs text-gray-500">{label}</p>
-          <p className={`text-xl font-bold ${color}`}>{value}</p>
-        </div>
-      </div>
-    </div>
   );
 }
 

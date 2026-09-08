@@ -65,9 +65,9 @@ export async function createEmailVerification(opts: {
   const verifyUrl = `${base}/humanify/verify-email?token=${encodeURIComponent(token)}`;
 
   let emailed = false;
-  if (process.env.SMTP_USER && process.env.SMTP_PASSWORD) {
+  const { isSmtpConfigured, sendEmail } = await import('../email/sender');
+  if (isSmtpConfigured()) {
     try {
-      const { sendEmail } = await import('../email/sender');
       const { humanifyVerifyEmail } = await import('../email/humanify-mails');
       const mail = humanifyVerifyEmail({ verifyUrl });
       emailed = await sendEmail({
@@ -76,9 +76,14 @@ export async function createEmailVerification(opts: {
         html: mail.html,
         text: mail.text,
       });
+      if (!emailed) {
+        console.warn('[email-verify] sendEmail returned false');
+      }
     } catch (e: any) {
       console.warn('[email-verify] SMTP send failed:', e?.message);
     }
+  } else {
+    console.warn('[email-verify] SMTP not configured — verification email skipped');
   }
 
   return { token, verifyUrl, emailed };

@@ -4,6 +4,9 @@
  * submits (leave/claim/OT/travel) then fail FK. Auto-provision on first use.
  */
 
+import { withAutocommitQuery, withDbSavepoint } from '@/lib/saas/tenant-request-bound';
+import { lookupDefaultTenantId, tenantIdExists } from '@/lib/hris/resolve-employee-tenant';
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 let schemaReady = false;
@@ -16,6 +19,26 @@ export type PortalEmployee = {
   branchId: string | null;
   salary: number;
 };
+
+type QueryFn = (sql: string, opts?: any) => Promise<any>;
+
+async function tableColumnsWith(query: QueryFn, table: string): Promise<Set<string>> {
+  const [rows] = await query(
+    `SELECT column_name FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = :table`,
+    { replacements: { table } },
+  );
+  return new Set((rows || []).map((r: any) => String(r.column_name)));
+}
+
+async function hasTableWith(query: QueryFn, table: string): Promise<boolean> {
+  const [rows] = await query(
+    `SELECT 1 FROM information_schema.tables
+     WHERE table_schema = 'public' AND table_name = :table LIMIT 1`,
+    { replacements: { table } },
+  );
+  return (rows || []).length > 0;
+}
 
 async function tableColumns(sequelize: any, table: string): Promise<Set<string>> {
   const [rows] = await sequelize.query(
@@ -35,15 +58,16 @@ async function hasTable(sequelize: any, table: string): Promise<boolean> {
   return (rows || []).length > 0;
 }
 
-/** Idempotent schema upgrades for portal write paths. */
+/** Idempotent schema upgrades for portal write paths — MUST run outside request TX. */
 export async function ensurePortalSchema(sequelize: any): Promise<void> {
   if (!sequelize || schemaReady) return;
-  try {
-    await sequelize.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"').catch(() => {});
+
+  const ok = await withAutocommitQuery(sequelize, async (query) => {
+    await query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"').catch(() => null);
 
     // ── employee_claims ──
-    if (!(await hasTable(sequelize, 'employee_claims'))) {
-      await sequelize.query(`
+    if (!(await hasTableWith(query, 'employee_claims'))) {
+      await query(`
         CREATE TABLE employee_claims (
           id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
           tenant_id UUID,
@@ -73,12 +97,12 @@ export async function ensurePortalSchema(sequelize: any): Promise<void> {
           updated_at TIMESTAMPTZ DEFAULT NOW()
         )
       `);
-      await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_emp_claim_empid ON employee_claims(employee_id)`);
-      await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_emp_claim_status ON employee_claims(status)`);
+      await query(`CREATE INDEX IF NOT EXISTS idx_emp_claim_empid ON employee_claims(employee_id)`);
+      await query(`CREATE INDEX IF NOT EXISTS idx_emp_claim_status ON employee_claims(status)`);
     } else {
-      const cols = await tableColumns(sequelize, 'employee_claims');
+      const cols = await tableColumnsWith(query, 'employee_claims');
       const add = async (col: string, ddl: string) => {
-        if (!cols.has(col)) await sequelize.query(`ALTER TABLE employee_claims ADD COLUMN ${ddl}`);
+        if (!cols.has(col)) await query(`ALTER TABLE employee_claims ADD COLUMN ${ddl}`);
       };
       await add('receipt_date', 'receipt_date DATE');
       await add('attachments_count', 'attachments_count INTEGER DEFAULT 0');
@@ -88,11 +112,10 @@ export async function ensurePortalSchema(sequelize: any): Promise<void> {
       await add('resubmit_count', 'resubmit_count INTEGER DEFAULT 0');
     }
 
-    // ── overtime_requests: support both legacy (request_date/hours) and rich schema ──
-    if (await hasTable(sequelize, 'overtime_requests')) {
-      const cols = await tableColumns(sequelize, 'overtime_requests');
+    if (await hasTableWith(query, 'overtime_requests')) {
+      const cols = await tableColumnsWith(query, 'overtime_requests');
       const add = async (col: string, ddl: string) => {
-        if (!cols.has(col)) await sequelize.query(`ALTER TABLE overtime_requests ADD COLUMN ${ddl}`);
+        if (!cols.has(col)) await query(`ALTER TABLE overtime_requests ADD COLUMN ${ddl}`);
       };
       await add('date', 'date DATE');
       await add('day_type', "day_type VARCHAR(20) DEFAULT 'weekday'");
@@ -105,39 +128,55 @@ export async function ensurePortalSchema(sequelize: any): Promise<void> {
       await add('duration_hours', 'duration_hours NUMERIC(6,2)');
       await add('notes', 'notes TEXT');
       await add('rejection_reason', 'rejection_reason TEXT');
-      // Backfill date from request_date when present
       if (cols.has('request_date')) {
-        await sequelize.query(`
+        await query(`
           UPDATE overtime_requests SET date = request_date WHERE date IS NULL AND request_date IS NOT NULL
-        `).catch(() => {});
+        `).catch(() => null);
       }
     }
 
-    // ── travel_requests: map portal fields ──
-    if (await hasTable(sequelize, 'travel_requests')) {
-      const cols = await tableColumns(sequelize, 'travel_requests');
+    if (await hasTableWith(query, 'travel_requests')) {
+      const cols = await tableColumnsWith(query, 'travel_requests');
       const add = async (col: string, ddl: string) => {
-        if (!cols.has(col)) await sequelize.query(`ALTER TABLE travel_requests ADD COLUMN ${ddl}`);
+        if (!cols.has(col)) await query(`ALTER TABLE travel_requests ADD COLUMN ${ddl}`);
       };
       await add('departure_city', 'departure_city VARCHAR(100)');
       await add('transportation', "transportation VARCHAR(50) DEFAULT 'flight'");
+      await add('travel_type', "travel_type VARCHAR(30) DEFAULT 'domestic'");
+      await add('trip_type', "trip_type VARCHAR(20) DEFAULT 'single'");
+      await add('itinerary', "itinerary JSONB DEFAULT '[]'::jsonb");
+      await add('advance_amount', 'advance_amount NUMERIC(15,2) DEFAULT 0');
+      await add('actual_cost', 'actual_cost NUMERIC(15,2) DEFAULT 0');
       await add('departure_date', 'departure_date DATE');
       await add('return_date', 'return_date DATE');
+      await add('start_date', 'start_date DATE');
+      await add('end_date', 'end_date DATE');
       if (cols.has('start_date')) {
-        await sequelize.query(`
+        await query(`
           UPDATE travel_requests SET departure_date = start_date WHERE departure_date IS NULL AND start_date IS NOT NULL
-        `).catch(() => {});
-        await sequelize.query(`
+        `).catch(() => null);
+        await query(`
           UPDATE travel_requests SET return_date = end_date WHERE return_date IS NULL AND end_date IS NOT NULL
-        `).catch(() => {});
+        `).catch(() => null);
       }
     }
 
-    // ── leave_requests: columns expected by leave-request-service ──
-    if (await hasTable(sequelize, 'leave_requests')) {
-      const cols = await tableColumns(sequelize, 'leave_requests');
+    if (await hasTableWith(query, 'travel_expenses')) {
+      const cols = await tableColumnsWith(query, 'travel_expenses');
       const add = async (col: string, ddl: string) => {
-        if (!cols.has(col)) await sequelize.query(`ALTER TABLE leave_requests ADD COLUMN ${ddl}`);
+        if (!cols.has(col)) await query(`ALTER TABLE travel_expenses ADD COLUMN ${ddl}`);
+      };
+      await add('itinerary_stop_id', 'itinerary_stop_id VARCHAR(80)');
+      await add('cost_line_id', 'cost_line_id VARCHAR(80)');
+      await add('receipt_number', 'receipt_number VARCHAR(100)');
+      await add('planned_amount', 'planned_amount NUMERIC(15,2) DEFAULT 0');
+      await add('notes', 'notes TEXT');
+    }
+
+    if (await hasTableWith(query, 'leave_requests')) {
+      const cols = await tableColumnsWith(query, 'leave_requests');
+      const add = async (col: string, ddl: string) => {
+        if (!cols.has(col)) await query(`ALTER TABLE leave_requests ADD COLUMN ${ddl}`);
       };
       await add('branch_id', 'branch_id UUID');
       await add('approval_config_id', 'approval_config_id UUID');
@@ -146,8 +185,8 @@ export async function ensurePortalSchema(sequelize: any): Promise<void> {
       await add('total_approval_steps', 'total_approval_steps INTEGER DEFAULT 1');
     }
 
-    if (!(await hasTable(sequelize, 'leave_approval_steps'))) {
-      await sequelize.query(`
+    if (!(await hasTableWith(query, 'leave_approval_steps'))) {
+      await query(`
         CREATE TABLE leave_approval_steps (
           id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
           leave_request_id UUID NOT NULL REFERENCES leave_requests(id) ON DELETE CASCADE,
@@ -162,32 +201,45 @@ export async function ensurePortalSchema(sequelize: any): Promise<void> {
       `);
     }
 
-    // ── leave_types seed (needed for balances) ──
-    if (await hasTable(sequelize, 'leave_types')) {
-      const [lt] = await sequelize.query(`SELECT COUNT(*)::int AS c FROM leave_types`);
-      if (!(lt?.[0]?.c > 0)) {
-        const types = [
-          ['annual', 'Cuti Tahunan', 'annual', 12, '#3B82F6'],
-          ['sick', 'Cuti Sakit', 'sick', 14, '#EF4444'],
-          ['personal', 'Cuti Pribadi', 'personal', 3, '#8B5CF6'],
-          ['maternity', 'Cuti Melahirkan', 'special', 90, '#EC4899'],
-          ['unpaid', 'Cuti Tanpa Gaji', 'unpaid', 30, '#6B7280'],
-        ];
-        for (const [code, name, cat, max, color] of types) {
-          await sequelize.query(
-            `INSERT INTO leave_types (code, name, category, max_days_per_year, color, is_active)
-             SELECT :code, :name, :cat, :max, :color, true
-             WHERE NOT EXISTS (SELECT 1 FROM leave_types WHERE code = :code)`,
-            { replacements: { code, name, cat, max, color } },
-          ).catch(() => {});
-        }
-      }
-    }
+    return true;
+  }, 'portal_schema');
 
-    schemaReady = true;
-  } catch (e) {
-    console.warn('ensurePortalSchema:', (e as any)?.message || e);
-  }
+  if (ok) schemaReady = true;
+  else console.warn('ensurePortalSchema: autocommit DDL failed or skipped');
+}
+
+/** Catalog cuti per tenant — wajib karena FORCE RLS di leave_types. */
+export async function ensureTenantLeaveTypes(
+  sequelize: any,
+  tenantId: string | null | undefined,
+): Promise<void> {
+  if (!sequelize || !tenantId || !UUID_RE.test(String(tenantId))) return;
+  if (!(await hasTable(sequelize, 'leave_types'))) return;
+
+  const { withDbSavepoint } = require('../saas/tenant-request-bound');
+  const types: Array<[string, string, string, number, string]> = [
+    ['annual', 'Cuti Tahunan', 'annual', 12, '#3B82F6'],
+    ['sick', 'Cuti Sakit', 'sick', 14, '#EF4444'],
+    ['personal', 'Cuti Pribadi', 'personal', 3, '#8B5CF6'],
+    ['maternity', 'Cuti Melahirkan', 'special', 90, '#EC4899'],
+    ['unpaid', 'Cuti Tanpa Gaji', 'unpaid', 30, '#6B7280'],
+  ];
+
+  await withDbSavepoint(sequelize, async () => {
+    for (const [code, name, cat, max, color] of types) {
+      await sequelize.query(
+        `INSERT INTO leave_types (
+           id, tenant_id, code, name, category, max_days_per_year, color, is_active, created_at, updated_at
+         )
+         SELECT gen_random_uuid(), :tenantId, :code, :name, :cat, :max, :color, true, NOW(), NOW()
+         WHERE NOT EXISTS (
+           SELECT 1 FROM leave_types
+           WHERE tenant_id = :tenantId AND code = :code
+         )`,
+        { replacements: { tenantId: String(tenantId), code, name, cat, max, color } },
+      );
+    }
+  }, 'seed_leave_types');
 }
 
 async function nextEmployeeCode(sequelize: any, tenantId: string): Promise<string> {
@@ -203,32 +255,48 @@ async function nextEmployeeCode(sequelize: any, tenantId: string): Promise<strin
 async function seedLeaveBalances(sequelize: any, employeeId: string, tenantId: string | null) {
   if (!(await hasTable(sequelize, 'leave_balances'))) return;
   if (!(await hasTable(sequelize, 'leave_types'))) return;
+  if (!tenantId) return;
+  await ensureTenantLeaveTypes(sequelize, tenantId);
+  const { withDbSavepoint } = require('../saas/tenant-request-bound');
   const year = new Date().getFullYear();
-  const [types] = await sequelize.query(
-    `SELECT id, code, COALESCE(max_days_per_year, 12) AS max_days
-     FROM leave_types WHERE is_active = true AND code IN ('annual','sick','personal')`,
-  );
-  for (const t of types || []) {
-    await sequelize.query(
-      `INSERT INTO leave_balances (id, tenant_id, employee_id, leave_type_id, year, entitled, used, pending, remaining)
-       VALUES (uuid_generate_v4(), :tenantId, :employeeId, :typeId, :year, :entitled, 0, 0, :entitled)
-       ON CONFLICT DO NOTHING`,
-      {
-        replacements: {
-          tenantId: tenantId || null,
-          employeeId,
-          typeId: t.id,
-          year,
-          entitled: Number(t.max_days) || 12,
+  await withDbSavepoint(sequelize, async () => {
+    const [types] = await sequelize.query(
+      `SELECT id, code, COALESCE(max_days_per_year, 12) AS max_days
+       FROM leave_types
+       WHERE is_active = true
+         AND tenant_id = :tenantId
+         AND code IN ('annual','sick','personal')`,
+      { replacements: { tenantId } },
+    );
+    for (const t of types || []) {
+      await sequelize.query(
+        `INSERT INTO leave_balances (id, tenant_id, employee_id, leave_type_id, year, entitled, used, pending, remaining)
+         SELECT gen_random_uuid(), :tenantId, :employeeId, :typeId, :year, :entitled, 0, 0, :entitled
+         WHERE NOT EXISTS (
+           SELECT 1 FROM leave_balances
+           WHERE employee_id = :employeeId AND leave_type_id = :typeId AND year = :year
+             AND tenant_id = :tenantId
+         )`,
+        {
+          replacements: {
+            tenantId,
+            employeeId,
+            typeId: t.id,
+            year,
+            entitled: Number(t.max_days) || 12,
+          },
         },
-      },
-    ).catch(() => {});
-  }
+      );
+    }
+  }, 'seed_leave_bal');
 }
 
 /**
  * Resolve or create the employees row for a portal user.
  * Returns null only when user/tenant cannot be resolved.
+ *
+ * CRITICAL: lookup is always tenant-scoped — never match another tenant's
+ * employee by shared email / stale user_id (cross-tenant ESS leak).
  */
 export async function ensurePortalEmployee(
   sequelize: any,
@@ -241,37 +309,6 @@ export async function ensurePortalEmployee(
   const uid = parseInt(String(userId), 10);
   if (!Number.isFinite(uid)) return null;
 
-  const [existing] = await sequelize.query(
-    `SELECT e.id, e.name, e.email, e.tenant_id, e.branch_id, COALESCE(e.salary, 0) AS salary
-     FROM employees e
-     WHERE e.user_id = :uid
-        OR (e.email IS NOT NULL AND e.email = (SELECT email FROM users WHERE id = :uid))
-     ORDER BY CASE WHEN e.user_id = :uid THEN 0 ELSE 1 END
-     LIMIT 1`,
-    { replacements: { uid } },
-  );
-  if (existing?.[0]?.id) {
-    const row = existing[0];
-    // Link user_id if matched by email only
-    if (tenantId && row.tenant_id && String(row.tenant_id) !== String(tenantId)) {
-      // Prefer not to reuse another tenant's employee
-    } else {
-      await sequelize.query(
-        `UPDATE employees SET user_id = :uid, updated_at = NOW()
-         WHERE id = :id AND (user_id IS NULL OR user_id <> :uid)`,
-        { replacements: { uid, id: row.id } },
-      ).catch(() => {});
-      return {
-        id: String(row.id),
-        name: row.name,
-        email: row.email,
-        tenantId: row.tenant_id ? String(row.tenant_id) : tenantId || null,
-        branchId: row.branch_id ? String(row.branch_id) : null,
-        salary: Number(row.salary) || 0,
-      };
-    }
-  }
-
   const [users] = await sequelize.query(
     `SELECT id, name, email, phone, tenant_id, role FROM users WHERE id = :uid LIMIT 1`,
     { replacements: { uid } },
@@ -279,9 +316,67 @@ export async function ensurePortalEmployee(
   const user = users?.[0];
   if (!user) return null;
 
-  const tid = tenantId || user.tenant_id;
+  let tid = tenantId || user.tenant_id;
+  if (!tid || !UUID_RE.test(String(tid)) || !(await tenantIdExists(sequelize, String(tid)))) {
+    const fromUser = user.tenant_id && UUID_RE.test(String(user.tenant_id)) ? String(user.tenant_id) : null;
+    if (fromUser && fromUser !== String(tid || '') && (await tenantIdExists(sequelize, fromUser))) {
+      tid = fromUser;
+    } else {
+      tid = await lookupDefaultTenantId(sequelize);
+    }
+  }
   if (!tid || !UUID_RE.test(String(tid))) {
     return null;
+  }
+
+  await ensureTenantLeaveTypes(sequelize, String(tid));
+
+  const [inTenant] = await sequelize.query(
+    `SELECT e.id, e.name, e.email, e.tenant_id, e.branch_id, COALESCE(e.salary, 0) AS salary
+     FROM employees e
+     WHERE e.tenant_id = :tid
+       AND (
+         e.user_id::text = :uid::text
+         OR (
+           e.email IS NOT NULL AND :email IS NOT NULL
+           AND LOWER(TRIM(e.email)) = LOWER(TRIM(:email))
+         )
+       )
+     ORDER BY CASE WHEN e.user_id::text = :uid::text THEN 0 ELSE 1 END
+     LIMIT 1`,
+    { replacements: { uid, tid: String(tid), email: user.email || null } },
+  );
+  let row = inTenant?.[0] || null;
+  if (!row?.id) {
+    const [byUser] = await sequelize.query(
+      `SELECT e.id, e.name, e.email, e.tenant_id, e.branch_id, COALESCE(e.salary, 0) AS salary
+       FROM employees e
+       INNER JOIN tenants t ON t.id = e.tenant_id
+       WHERE e.user_id::text = :uid::text
+       LIMIT 1`,
+      { replacements: { uid } },
+    );
+    row = byUser?.[0] || null;
+  }
+  if (row?.id) {
+    const rowTid = String(row.tenant_id || tid);
+    await withDbSavepoint(sequelize, async () => {
+      await sequelize.query(
+        `UPDATE employees SET user_id = :uid, updated_at = NOW()
+         WHERE id = :id AND tenant_id = :rowTid AND (user_id IS NULL OR user_id <> :uid)`,
+        { replacements: { uid, id: row.id, rowTid } },
+      );
+      return true;
+    }, 'portal_emp_link');
+    await seedLeaveBalances(sequelize, String(row.id), rowTid);
+    return {
+      id: String(row.id),
+      name: row.name,
+      email: row.email,
+      tenantId: rowTid,
+      branchId: row.branch_id ? String(row.branch_id) : null,
+      salary: Number(row.salary) || 0,
+    };
   }
 
   const code = await nextEmployeeCode(sequelize, String(tid));
@@ -290,29 +385,31 @@ export async function ensurePortalEmployee(
       ? 'Owner / Admin'
       : 'Staff';
 
-  const [created] = await sequelize.query(
-    `INSERT INTO employees (
-       id, tenant_id, user_id, employee_code, employee_id, name, email, phone,
-       position, department, hire_date, status, is_active, employment_category, created_at, updated_at
-     ) VALUES (
-       gen_random_uuid(), :tenantId, :uid, :code, :code, :name, :email, :phone,
-       :position, 'GENERAL', CURRENT_DATE, 'active', true, 'permanent', NOW(), NOW()
-     )
-     RETURNING id, name, email, tenant_id, branch_id, COALESCE(salary, 0) AS salary`,
-    {
-      replacements: {
-        tenantId: tid,
-        uid,
-        code,
-        name: user.name || user.email || 'Employee',
-        email: user.email || null,
-        phone: user.phone || null,
-        position,
+  const emp = await withDbSavepoint(sequelize, async () => {
+    const [created] = await sequelize.query(
+      `INSERT INTO employees (
+         id, tenant_id, user_id, employee_code, employee_id, name, email, phone,
+         position, department, hire_date, status, is_active, employment_category, created_at, updated_at
+       ) VALUES (
+         gen_random_uuid(), :tenantId, :uid, :code, :code, :name, :email, :phone,
+         :position, 'GENERAL', CURRENT_DATE, 'active', true, 'permanent', NOW(), NOW()
+       )
+       RETURNING id, name, email, tenant_id, branch_id, COALESCE(salary, 0) AS salary`,
+      {
+        replacements: {
+          tenantId: tid,
+          uid,
+          code,
+          name: user.name || user.email || 'Employee',
+          email: user.email || null,
+          phone: user.phone || null,
+          position,
+        },
       },
-    },
-  );
+    );
+    return created?.[0] || null;
+  }, 'portal_emp_insert');
 
-  const emp = created?.[0];
   if (!emp?.id) return null;
 
   await seedLeaveBalances(sequelize, String(emp.id), String(tid));

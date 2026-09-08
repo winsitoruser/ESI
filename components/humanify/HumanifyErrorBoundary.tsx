@@ -27,7 +27,7 @@ export default class HumanifyErrorBoundary extends Component<Props, State> {
 
     return (
       <div className="min-h-[40vh] flex items-center justify-center p-6">
-        <div className="max-w-md w-full rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
+        <div className="hf-card w-full max-w-md p-6 text-center">
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-50">
             <AlertTriangle className="h-6 w-6 text-amber-600" />
           </div>
@@ -49,7 +49,7 @@ export default class HumanifyErrorBoundary extends Component<Props, State> {
               <RefreshCw className="h-4 w-4" /> Coba lagi
             </button>
             <a
-              href="/platform/observability"
+              href="https://ops.humanify.id/platform/observability"
               className="rounded-lg border px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
             >
               Observability

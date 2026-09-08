@@ -28,6 +28,7 @@ import {
   getTeamVisitsFeed,
   getTeamVisitSummary,
 } from '@/lib/hris/manager-visit-service';
+import { withEmployeeAuth } from '@/lib/middleware/withEmployeeAuth';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch (_) {}
@@ -36,7 +37,7 @@ export const config = {
   api: { bodyParser: { sizeLimit: '10mb' } },
 };
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     const session = await getServerSession(req, res, authOptions);
     if (!session?.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
@@ -95,6 +96,37 @@ async function resolveManagerContextLocal(userId: string) {
 
 function teamFilterClause(isSuperAdmin: boolean, ctx: any, userId: string) {
   return buildTeamEmployeeFilter(isSuperAdmin, ctx, userId);
+}
+
+/** Ensure claim/OT target employee is on the manager's team (list + approve must match). */
+async function assertPendingOnTeam(opts: {
+  table: 'employee_claims' | 'overtime_requests';
+  id: string;
+  tenantId: string;
+  userId: string;
+  isSuperAdmin: boolean;
+  alias?: string;
+}): Promise<{ ok: true; row: any } | { ok: false; status: number; error: string }> {
+  if (!sequelize) return { ok: false, status: 503, error: 'Database tidak tersedia' };
+  const ctx = await resolveManagerContextLocal(opts.userId);
+  const tf = teamFilterClause(opts.isSuperAdmin, ctx, opts.userId);
+  const a = opts.alias || 't';
+  try {
+    const [rows] = await sequelize.query(
+      `SELECT ${a}.*, e.id AS team_employee_id
+       FROM ${opts.table} ${a}
+       JOIN employees e ON ${a}.employee_id::text = e.id::text
+       WHERE ${a}.id = :id AND ${a}.tenant_id = :tenantId AND ${a}.status = 'pending' ${tf.sql}
+       LIMIT 1`,
+      { replacements: { id: opts.id, tenantId: opts.tenantId, ...tf.replacements } },
+    );
+    if (!rows?.[0]) {
+      return { ok: false, status: 403, error: 'Item di luar tim Anda atau tidak ditemukan' };
+    }
+    return { ok: true, row: rows[0] };
+  } catch (e: any) {
+    return { ok: false, status: 500, error: e?.message || 'Team scope check failed' };
+  }
 }
 
 async function safeCount(sql: string, replacements: any = {}) {
@@ -164,7 +196,7 @@ async function getPendingApprovals(res: NextApiResponse, userId: string, tenantI
   const [leave] = await sequelize.query(`
     SELECT lr.id, lr.leave_type, lr.start_date, lr.end_date, lr.total_days, lr.reason, lr.status,
       lr.created_at, lr.current_approval_step, lr.total_approval_steps,
-      e.name AS employee_name, e.position, e.department, 'leave' AS approval_type,
+      e.name AS employee_name, e.position, e.department, e.photo_url, 'leave' AS approval_type,
       las.approver_role AS pending_approver_role, las.step_order AS pending_step_order,
       las.approver_id::text AS pending_approver_id
     FROM leave_requests lr
@@ -178,7 +210,7 @@ async function getPendingApprovals(res: NextApiResponse, userId: string, tenantI
   const [claims] = await sequelize.query(`
     SELECT c.id, c.claim_type, c.amount, c.claim_date, c.description, c.status, c.created_at,
       c.receipt_url, c.attachments_count,
-      e.name AS employee_name, e.position, e.department, 'claim' AS approval_type
+      e.name AS employee_name, e.position, e.department, e.photo_url, 'claim' AS approval_type
     FROM employee_claims c
     JOIN employees e ON c.employee_id::text = e.id::text
     WHERE c.status = 'pending' ${claimTenant} ${tf.sql}
@@ -192,7 +224,7 @@ async function getPendingApprovals(res: NextApiResponse, userId: string, tenantI
       ot.start_time, ot.end_time,
       COALESCE(ot.duration_hours, ot.hours, 0) AS duration_hours,
       ot.reason, ot.overtime_type, ot.status, ot.created_at,
-      e.name AS employee_name, e.position, e.department, 'overtime' AS approval_type
+      e.name AS employee_name, e.position, e.department, e.photo_url, 'overtime' AS approval_type
     FROM overtime_requests ot
     JOIN employees e ON ot.employee_id::text = e.id::text
     WHERE ot.status = 'pending' ${otTenant} ${tf.sql}
@@ -404,31 +436,49 @@ async function rejectLeave(req: NextApiRequest, res: NextApiResponse, session: a
   return res.json(result);
 }
 
+async function requireManagerPayrollFeature(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  session: any,
+): Promise<boolean> {
+  const { assertHumanifyFeature } = await import('@/lib/saas/assert-feature');
+  return assertHumanifyFeature(req, res, {
+    tenantId: session?.user?.tenantId,
+    role: session?.user?.role,
+    feature: 'payroll',
+  });
+}
+
 async function approveClaim(req: NextApiRequest, res: NextApiResponse, session: any) {
   const { id, approved_amount, comments } = req.body || {};
   if (!id) return res.status(400).json({ success: false, error: 'id required' });
   if (!sequelize) return res.status(503).json({ success: false, error: 'Database tidak tersedia' });
+  if (!(await requireManagerPayrollFeature(req, res, session))) return;
   const tenantId = String(session.user?.tenantId || '');
   if (!tenantId) return res.status(403).json({ success: false, error: 'Tenant context required' });
+  const isSuperAdmin = ['super_admin', 'superadmin', 'platform_admin'].includes(
+    String(session.user?.role || '').toLowerCase(),
+  );
+  const scoped = await assertPendingOnTeam({
+    table: 'employee_claims',
+    id: String(id),
+    tenantId,
+    userId: String(session.user?.id || ''),
+    isSuperAdmin,
+  });
+  if (!scoped.ok) return res.status(scoped.status).json({ success: false, error: scoped.error });
 
   try {
-    const [claims] = await sequelize.query(
-      `SELECT employee_id, amount FROM employee_claims WHERE id = :id AND tenant_id = :tenantId AND status = 'pending'`,
-      { replacements: { id, tenantId } },
-    );
-    if (!claims?.[0]) {
-      return res.status(404).json({ success: false, error: 'Klaim tidak ditemukan' });
-    }
     await sequelize.query(`
       UPDATE employee_claims SET status = 'approved', approved_amount = COALESCE(:approved_amount, amount),
         notes = :comments, updated_at = NOW()
       WHERE id = :id AND tenant_id = :tenantId AND status = 'pending'
     `, { replacements: { id, tenantId, approved_amount: approved_amount || null, comments: comments || null } });
 
-    await notifyEmployeeByEmployeeId(sequelize, claims[0].employee_id, {
+    await notifyEmployeeByEmployeeId(sequelize, scoped.row.employee_id, {
       tenantId,
       title: 'Klaim Disetujui',
-      message: `Klaim Anda sebesar Rp ${Number(approved_amount || claims[0].amount || 0).toLocaleString('id-ID')} telah disetujui.`,
+      message: `Klaim Anda sebesar Rp ${Number(approved_amount || scoped.row.amount || 0).toLocaleString('id-ID')} telah disetujui.`,
       type: 'success',
       sourceType: 'employee_claim',
       sourceId: String(id),
@@ -443,23 +493,28 @@ async function rejectClaim(req: NextApiRequest, res: NextApiResponse, session: a
   const { id, reason } = req.body || {};
   if (!id || !reason) return res.status(400).json({ success: false, error: 'id dan alasan wajib' });
   if (!sequelize) return res.status(503).json({ success: false, error: 'Database tidak tersedia' });
+  if (!(await requireManagerPayrollFeature(req, res, session))) return;
   const tenantId = String(session.user?.tenantId || '');
   if (!tenantId) return res.status(403).json({ success: false, error: 'Tenant context required' });
+  const isSuperAdmin = ['super_admin', 'superadmin', 'platform_admin'].includes(
+    String(session.user?.role || '').toLowerCase(),
+  );
+  const scoped = await assertPendingOnTeam({
+    table: 'employee_claims',
+    id: String(id),
+    tenantId,
+    userId: String(session.user?.id || ''),
+    isSuperAdmin,
+  });
+  if (!scoped.ok) return res.status(scoped.status).json({ success: false, error: scoped.error });
 
   try {
-    const [claims] = await sequelize.query(
-      `SELECT employee_id FROM employee_claims WHERE id = :id AND tenant_id = :tenantId AND status = 'pending'`,
-      { replacements: { id, tenantId } },
-    );
-    if (!claims?.[0]) {
-      return res.status(404).json({ success: false, error: 'Klaim tidak ditemukan' });
-    }
     await sequelize.query(`
       UPDATE employee_claims SET status = 'rejected', notes = :reason, updated_at = NOW()
       WHERE id = :id AND tenant_id = :tenantId AND status = 'pending'
     `, { replacements: { id, tenantId, reason } });
 
-    await notifyEmployeeByEmployeeId(sequelize, claims[0].employee_id, {
+    await notifyEmployeeByEmployeeId(sequelize, scoped.row.employee_id, {
       tenantId,
       title: 'Klaim Ditolak',
       message: `Klaim Anda ditolak. Alasan: ${reason}`,
@@ -477,32 +532,35 @@ async function approveOvertime(req: NextApiRequest, res: NextApiResponse, sessio
   const { id, comments } = req.body || {};
   if (!id) return res.status(400).json({ success: false, error: 'id required' });
   if (!sequelize) return res.json({ success: true, message: 'Lembur disetujui' });
+  if (!(await requireManagerPayrollFeature(req, res, session))) return;
 
   const approverId = session.user?.id;
   const tenantId = String(session.user?.tenantId || '');
   if (!tenantId) return res.status(403).json({ success: false, error: 'Tenant context required' });
+  const isSuperAdmin = ['super_admin', 'superadmin', 'platform_admin'].includes(
+    String(session.user?.role || '').toLowerCase(),
+  );
+  const scoped = await assertPendingOnTeam({
+    table: 'overtime_requests',
+    id: String(id),
+    tenantId,
+    userId: String(session.user?.id || ''),
+    isSuperAdmin,
+  });
+  if (!scoped.ok) return res.status(scoped.status).json({ success: false, error: scoped.error });
 
   try {
-    const [rows] = await sequelize.query(`
-      SELECT employee_id, COALESCE(date, request_date) AS date,
-        COALESCE(duration_hours, hours, 0) AS duration_hours
-      FROM overtime_requests
-      WHERE id = :id AND tenant_id = :tenantId AND status = 'pending'
-    `, { replacements: { id, tenantId } });
-    if (!rows?.[0]) {
-      return res.status(404).json({ success: false, error: 'Pengajuan lembur tidak ditemukan' });
-    }
-
+    const row = scoped.row;
     await sequelize.query(`
       UPDATE overtime_requests SET status = 'approved', approved_by = :approverId,
         approved_at = NOW(), notes = COALESCE(:comments, notes), updated_at = NOW()
       WHERE id = :id AND tenant_id = :tenantId AND status = 'pending'
     `, { replacements: { id, approverId, comments: comments || null, tenantId } });
 
-    await notifyEmployeeByEmployeeId(sequelize, rows[0].employee_id, {
+    await notifyEmployeeByEmployeeId(sequelize, row.employee_id, {
       tenantId,
       title: 'Lembur Disetujui',
-      message: `Pengajuan lembur ${rows[0].date} (${rows[0].duration_hours} jam) telah disetujui.`,
+      message: `Pengajuan lembur ${row.date || row.request_date} (${row.duration_hours || row.hours || 0} jam) telah disetujui.`,
       type: 'success',
       sourceType: 'employee_overtime',
       sourceId: String(id),
@@ -517,25 +575,29 @@ async function rejectOvertime(req: NextApiRequest, res: NextApiResponse, session
   const { id, reason } = req.body || {};
   if (!id || !reason) return res.status(400).json({ success: false, error: 'id dan alasan wajib' });
   if (!sequelize) return res.json({ success: true, message: 'Lembur ditolak' });
+  if (!(await requireManagerPayrollFeature(req, res, session))) return;
 
   const tenantId = String(session.user?.tenantId || '');
   if (!tenantId) return res.status(403).json({ success: false, error: 'Tenant context required' });
+  const isSuperAdmin = ['super_admin', 'superadmin', 'platform_admin'].includes(
+    String(session.user?.role || '').toLowerCase(),
+  );
+  const scoped = await assertPendingOnTeam({
+    table: 'overtime_requests',
+    id: String(id),
+    tenantId,
+    userId: String(session.user?.id || ''),
+    isSuperAdmin,
+  });
+  if (!scoped.ok) return res.status(scoped.status).json({ success: false, error: scoped.error });
 
   try {
-    const [rows] = await sequelize.query(`
-      SELECT employee_id FROM overtime_requests
-      WHERE id = :id AND tenant_id = :tenantId AND status = 'pending'
-    `, { replacements: { id, tenantId } });
-    if (!rows?.[0]) {
-      return res.status(404).json({ success: false, error: 'Pengajuan lembur tidak ditemukan' });
-    }
-
     await sequelize.query(`
       UPDATE overtime_requests SET status = 'rejected', rejection_reason = :reason, updated_at = NOW()
       WHERE id = :id AND tenant_id = :tenantId AND status = 'pending'
     `, { replacements: { id, reason, tenantId } });
 
-    await notifyEmployeeByEmployeeId(sequelize, rows[0].employee_id, {
+    await notifyEmployeeByEmployeeId(sequelize, scoped.row.employee_id, {
       tenantId,
       title: 'Lembur Ditolak',
       message: `Pengajuan lembur ditolak. Alasan: ${reason}`,
@@ -727,3 +789,5 @@ async function issueDisciplinary(req: NextApiRequest, res: NextApiResponse, sess
 
   return res.json({ success: true, message: `${letter.letter_type} ${letterNumber} berhasil diterbitkan` });
 }
+
+export default withEmployeeAuth(handler);

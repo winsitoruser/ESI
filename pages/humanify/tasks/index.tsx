@@ -216,7 +216,7 @@ export default function TeamTasksPage() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-xl border border-gray-200 p-3 flex items-center gap-3 flex-wrap">
+        <div className="hf-card border-gray-200 p-3 flex items-center gap-3 flex-wrap">
           <Filter className="w-4 h-4 text-gray-400" />
           <select value={filterAssignee} onChange={e => setFilterAssignee(e.target.value)}
             className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm min-w-[160px]">
@@ -251,7 +251,7 @@ export default function TeamTasksPage() {
 
         {/* New Task Form */}
         {showNew && (
-          <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+          <div className="hf-card p-4 space-y-3">
             <h3 className="font-medium text-gray-900">Tugas Baru</h3>
             <input type="text" value={newTask.title} onChange={e => setNewTask(p => ({ ...p, title: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--hf-brand-500)]"
@@ -344,7 +344,7 @@ export default function TeamTasksPage() {
             {tasksByStatus.map(col => {
               const Icon = col.icon;
               return (
-                <div key={col.value} className={`bg-white rounded-xl border border-gray-200 border-t-4 ${col.color}`}>
+                <div key={col.value} className={`hf-card border-gray-200 border-t-4 ${col.color}`}>
                   <div className="p-3 border-b border-gray-100">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">

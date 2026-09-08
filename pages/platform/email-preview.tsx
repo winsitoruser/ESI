@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/router';
 import Link from 'next/link';
-import HumanifyLayout from '@/components/humanify/HumanifyLayout';
+import OpsLayout from '@/components/humanify/OpsLayout';
+import { OpsPageSkeleton } from '@/components/humanify/ops-ui';
+import { usePlatformOperator } from '@/lib/humanify/use-platform-operator';
 import { ArrowLeft, Mail, Loader2, RefreshCw } from 'lucide-react';
 
 const TEMPLATES = [
@@ -20,28 +20,15 @@ const TEMPLATES = [
  * Uses srcdoc (not iframe src) because site sends X-Frame-Options: DENY.
  */
 export default function PlatformEmailPreviewPage() {
-  const { data: session, status } = useSession();
-  const router = useRouter();
-  const role = ((session?.user as any)?.role || '').toLowerCase();
-  const allowed = role === 'super_admin' || role === 'superadmin' || role === 'platform_admin';
+  const { gating, ready } = usePlatformOperator('/platform/email-preview');
   const [tpl, setTpl] = useState<string>('invite');
   const [html, setHtml] = useState('');
   const [subject, setSubject] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.replace('/humanify/login?callbackUrl=/platform/email-preview');
-      return;
-    }
-    if (status === 'authenticated' && !allowed) {
-      router.replace('/humanify');
-    }
-  }, [status, allowed, router]);
-
   const load = useCallback(async () => {
-    if (!allowed) return;
+    if (!ready) return;
     setLoading(true);
     setError('');
     try {
@@ -63,22 +50,22 @@ export default function PlatformEmailPreviewPage() {
     } finally {
       setLoading(false);
     }
-  }, [tpl, allowed]);
+  }, [tpl, ready]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  if (status === 'loading' || (status === 'authenticated' && !allowed)) {
+  if (gating) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-slate-500">
-        <Loader2 className="w-6 h-6 animate-spin mr-2" /> Memuat...
-      </div>
+      <OpsLayout title="Email Preview" subtitle="Template Humanify berlogo — sample HTML">
+        <OpsPageSkeleton variant="detail" />
+      </OpsLayout>
     );
   }
 
   return (
-    <HumanifyLayout title="Email Preview" subtitle="Template Humanify berlogo — sample HTML" >
+    <OpsLayout title="Email Preview" subtitle="Template Humanify berlogo — sample HTML" >
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <Link href="/platform/observability" className="inline-flex items-center gap-1 text-sm text-[color:var(--hf-brand-600)] hover:underline">
@@ -138,6 +125,6 @@ export default function PlatformEmailPreviewPage() {
           {' '}· Preview via srcdoc (hindari X-Frame-Options: DENY). Sample — tidak mengirim email.
         </p>
       </div>
-    </HumanifyLayout>
+    </OpsLayout>
   );
 }

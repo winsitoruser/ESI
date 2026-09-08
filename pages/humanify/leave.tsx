@@ -11,6 +11,8 @@ import {
 import { HRIS_DEPARTMENTS } from '@/lib/hris/master-data';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import HrisEmptyState from '@/components/humanify/HrisEmptyState';
+import EmployeeAvatar from '@/components/humanify/EmployeeAvatar';
+import EnterprisePageHeader from '@/components/humanify/EnterprisePageHeader';
 import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import Link from 'next/link';
 
@@ -18,6 +20,7 @@ import Link from 'next/link';
 interface LeaveRequest {
   id: string;
   employee_name?: string; employeeName?: string;
+  photo_url?: string | null;
   position: string;
   department: string;
   leave_type?: string; leaveType?: string;
@@ -65,7 +68,10 @@ const leaveTypeConfig: Record<string, { label: string; icon: any; color: string 
   unpaid: { label: 'Tanpa Gaji', icon: UserX, color: 'bg-gray-100 text-gray-700' },
   personal: { label: 'Keperluan Pribadi', icon: Coffee, color: 'bg-amber-100 text-amber-700' },
   bereavement: { label: 'Duka Cita', icon: Heart, color: 'bg-purple-100 text-purple-700' },
-  marriage: { label: 'Pernikahan', icon: Heart, color: 'bg-rose-100 text-rose-700' },
+  menstrual: { label: 'Cuti Haid', icon: Heart, color: 'bg-rose-100 text-rose-700' },
+  miscarriage: { label: 'Cuti Keguguran', icon: Heart, color: 'bg-pink-100 text-pink-700' },
+  pilgrimage: { label: 'Ibadah', icon: Calendar, color: 'bg-emerald-100 text-emerald-700' },
+  long_service: { label: 'Cuti Besar', icon: Layers, color: 'bg-indigo-100 text-indigo-700' },
   religious: { label: 'Keagamaan', icon: Calendar, color: 'bg-emerald-100 text-emerald-700' },
   comp_off: { label: 'Pengganti Libur', icon: RefreshCw, color: 'bg-cyan-100 text-cyan-700' },
 };
@@ -162,6 +168,8 @@ export default function LeaveManagementPage() {
   const [approvalSuggestions, setApprovalSuggestions] = useState<any[]>([]);
   const [approvalSuggestTip, setApprovalSuggestTip] = useState('');
   const [suggestLoading, setSuggestLoading] = useState(false);
+  const [applyingCodes, setApplyingCodes] = useState<string[]>([]);
+  const [applyPackLoading, setApplyPackLoading] = useState(false);
 
   // Config form
   const [configForm, setConfigForm] = useState<{
@@ -268,35 +276,106 @@ export default function LeaveManagementPage() {
     }
   };
 
-  const applyTypeSuggestion = (s: any) => {
+  const suggestionToPayload = (s: any) => ({
+    code: String(s.code || '').toLowerCase(),
+    name: s.name || '',
+    description: s.description || '',
+    category: s.category || 'regular',
+    color: s.color || '#3B82F6',
+    icon: s.icon || 'calendar',
+    maxDaysPerYear: s.max_days_per_year ?? 12,
+    minDaysPerRequest: s.min_days_per_request ?? 1,
+    maxDaysPerRequest: s.max_days_per_request ?? 14,
+    isPaid: s.is_paid !== false,
+    salaryDeductionPercent: s.salary_deduction_percent || 0,
+    carryForward: !!s.carry_forward,
+    maxCarryForwardDays: s.max_carry_forward_days || 0,
+    requiresAttachment: !!s.requires_attachment,
+    requiresMedicalCert: !!s.requires_medical_cert,
+    applicableGender: s.applicable_gender || null,
+    minServiceMonths: s.min_service_months || 0,
+    isActive: true,
+    sortOrder: leaveTypes.length + 1,
+  });
+
+  const applyTypeSuggestion = async (s: any, previewOnly = false) => {
     if (s.alreadyConfigured) {
       showToast('success', `${s.name} sudah ada di konfigurasi`);
       return;
     }
-    setEditingType(null);
-    setTypeForm({
-      ...defaultTypeForm,
-      code: String(s.code || '').toLowerCase(),
-      name: s.name || '',
-      description: s.description || '',
-      category: s.category || 'regular',
-      max_days_per_year: s.max_days_per_year ?? 12,
-      min_days_per_request: s.min_days_per_request ?? 1,
-      max_days_per_request: s.max_days_per_request ?? 14,
-      is_paid: s.is_paid !== false,
-      salary_deduction_percent: s.salary_deduction_percent || 0,
-      carry_forward: !!s.carry_forward,
-      max_carry_forward_days: s.max_carry_forward_days || 0,
-      requires_attachment: !!s.requires_attachment,
-      requires_medical_cert: !!s.requires_medical_cert,
-      applicable_gender: s.applicable_gender || '',
-      min_service_months: s.min_service_months || 0,
-      color: s.color || '#3B82F6',
-      icon: s.icon || 'calendar',
-      is_active: true,
-      sort_order: leaveTypes.length + 1,
-    });
-    setShowTypeModal(true);
+    if (previewOnly) {
+      setEditingType(null);
+      setTypeForm({
+        ...defaultTypeForm,
+        ...{
+          code: String(s.code || '').toLowerCase(),
+          name: s.name || '',
+          description: s.description || '',
+          category: s.category || 'regular',
+          max_days_per_year: s.max_days_per_year ?? 12,
+          min_days_per_request: s.min_days_per_request ?? 1,
+          max_days_per_request: s.max_days_per_request ?? 14,
+          is_paid: s.is_paid !== false,
+          salary_deduction_percent: s.salary_deduction_percent || 0,
+          carry_forward: !!s.carry_forward,
+          max_carry_forward_days: s.max_carry_forward_days || 0,
+          requires_attachment: !!s.requires_attachment,
+          requires_medical_cert: !!s.requires_medical_cert,
+          applicable_gender: s.applicable_gender || '',
+          min_service_months: s.min_service_months || 0,
+          color: s.color || '#3B82F6',
+          icon: s.icon || 'calendar',
+          is_active: true,
+          sort_order: leaveTypes.length + 1,
+        },
+      });
+      setShowTypeModal(true);
+      return;
+    }
+    const code = String(s.code || '').toLowerCase();
+    setApplyingCodes((prev) => [...prev, code]);
+    try {
+      const res = await fetch('/api/humanify/leave-management?action=type', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(suggestionToPayload(s)),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'Gagal menyimpan');
+      showToast('success', `${s.name} disimpan`);
+      await fetchData();
+      await loadAiSuggestions();
+    } catch (e: any) {
+      showToast('error', e.message || 'Gagal menyimpan tipe cuti');
+    } finally {
+      setApplyingCodes((prev) => prev.filter((c) => c !== code));
+    }
+  };
+
+  const applyCompliancePack = async () => {
+    const missing = typeSuggestions.filter((s) => s.priority === 'compliance' && !s.alreadyConfigured);
+    if (!missing.length) {
+      showToast('success', 'Tipe kepatuhan sudah lengkap');
+      return;
+    }
+    setApplyPackLoading(true);
+    try {
+      const res = await fetch('/api/humanify/leave-management?action=apply-suggested-types', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ codes: missing.map((s) => s.code) }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'Gagal menerapkan paket');
+      const n = json.data?.createdCount || 0;
+      showToast('success', n ? `${n} tipe kepatuhan disimpan` : 'Tidak ada tipe baru');
+      await fetchData();
+      await loadAiSuggestions();
+    } catch (e: any) {
+      showToast('error', e.message || 'Gagal menerapkan paket kepatuhan');
+    } finally {
+      setApplyPackLoading(false);
+    }
   };
 
   const applyApprovalSuggestion = (s: any) => {
@@ -624,12 +703,21 @@ export default function LeaveManagementPage() {
   return (
     <HQLayout title={t('hris.leaveTitle')} subtitle={t('hris.leaveSubtitle')}>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <DataSourceBadge source={dataSource} />
-          <button type="button" onClick={fetchData} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50">
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
-          </button>
-        </div>
+        <EnterprisePageHeader
+          title={t('hris.leaveTitle')}
+          subtitle={t('hris.leaveSubtitle')}
+          badge="Leave"
+          icon={CalendarDays}
+          variant="corporate"
+          actions={
+            <>
+              <DataSourceBadge source={dataSource} />
+              <button type="button" onClick={fetchData} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50">
+                <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
+              </button>
+            </>
+          }
+        />
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {[
@@ -639,7 +727,7 @@ export default function LeaveManagementPage() {
             { label: 'Ditolak', value: summary.rejected || 0, icon: XCircle, bg: 'bg-red-100', color: 'text-red-600' },
             { label: 'Hari Terpakai', value: summary.totalDaysUsed || 0, icon: Calendar, bg: 'bg-purple-100', color: 'text-purple-600' },
           ].map(s => (
-            <div key={s.label} className="bg-white rounded-xl p-4 shadow-sm border">
+            <div key={s.label} className="hf-card p-4">
               <div className="flex items-center gap-3">
                 <div className={`p-2 ${s.bg} rounded-lg`}><s.icon className={`w-5 h-5 ${s.color}`} /></div>
                 <div>
@@ -652,7 +740,7 @@ export default function LeaveManagementPage() {
         </div>
 
         {/* Tabs */}
-        <div className="bg-white rounded-xl shadow-sm border">
+        <div className="hf-card">
           <div className="flex border-b overflow-x-auto">
             {[
               { key: 'requests', label: 'Pengajuan Cuti', icon: CalendarDays },
@@ -812,8 +900,17 @@ export default function LeaveManagementPage() {
                               ) : null}
                             </td>
                             <td className="px-4 py-3">
-                              <p className="font-medium text-gray-900">{getLeaveField(leave, 'name')}</p>
-                              <p className="text-xs text-gray-500">{leave.position} · {leave.department}</p>
+                              <div className="flex items-center gap-2.5">
+                                <EmployeeAvatar
+                                  name={getLeaveField(leave, 'name')}
+                                  photoUrl={(leave as any).photo_url}
+                                  size="sm"
+                                />
+                                <div>
+                                  <p className="font-medium text-gray-900">{getLeaveField(leave, 'name')}</p>
+                                  <p className="text-xs text-gray-500">{leave.position} · {leave.department}</p>
+                                </div>
+                              </div>
                             </td>
                             <td className="px-4 py-3">
                               <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${typeConf.color}`}>
@@ -992,31 +1089,60 @@ export default function LeaveManagementPage() {
 
               {typeSuggestions.length > 0 && (
                 <div className="rounded-xl border border-sky-100 bg-gradient-to-r from-sky-50 to-[var(--hf-brand-50)] p-4">
-                  <div className="flex items-start gap-2 mb-3">
-                    <Sparkles className="w-4 h-4 text-[color:var(--hf-brand-600)] mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-sm font-semibold text-slate-800">Saran tipe cuti (AI HR)</p>
-                      {typeSuggestTip && <p className="text-xs text-slate-600 mt-0.5">{typeSuggestTip}</p>}
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-3">
+                    <div className="flex items-start gap-2 min-w-0">
+                      <Sparkles className="w-4 h-4 text-[color:var(--hf-brand-600)] mt-0.5 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-800">Saran tipe cuti (AI HR)</p>
+                        {typeSuggestTip && <p className="text-xs text-slate-600 mt-0.5">{typeSuggestTip}</p>}
+                        <p className="text-[11px] text-slate-500 mt-1">Klik + untuk menyimpan langsung. Klik nama untuk pratinjau sebelum simpan.</p>
+                      </div>
                     </div>
+                    {typeSuggestions.some((s) => s.priority === 'compliance' && !s.alreadyConfigured) && (
+                      <button
+                        type="button"
+                        onClick={applyCompliancePack}
+                        disabled={applyPackLoading}
+                        className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-[var(--hf-brand-600)] text-white hover:bg-[var(--hf-brand)] disabled:opacity-50"
+                      >
+                        <Wand2 className="w-3.5 h-3.5" />
+                        {applyPackLoading ? 'Menyimpan…' : 'Terapkan tipe wajib'}
+                      </button>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {typeSuggestions.map((s) => (
-                      <button
-                        key={s.id || s.code}
-                        type="button"
-                        onClick={() => applyTypeSuggestion(s)}
-                        disabled={s.alreadyConfigured}
-                        className={`rounded-full px-3 py-1.5 text-xs font-medium border transition ${
-                          s.alreadyConfigured
-                            ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-default'
-                            : 'bg-white text-slate-700 border-slate-200 hover:border-[var(--hf-brand-400)] hover:text-[color:var(--hf-brand)]'
-                        }`}
-                        title={s.rationale || s.description}
-                      >
-                        {s.alreadyConfigured ? '✓ ' : '+ '}{s.name}
-                        {s.priority === 'compliance' && !s.alreadyConfigured ? ' · wajib' : ''}
-                      </button>
-                    ))}
+                    {typeSuggestions.map((s) => {
+                      const code = String(s.code || '').toLowerCase();
+                      const busy = applyingCodes.includes(code);
+                      return (
+                        <div key={s.id || s.code} className="inline-flex items-stretch rounded-full border overflow-hidden bg-white">
+                          <button
+                            type="button"
+                            onClick={() => applyTypeSuggestion(s, false)}
+                            disabled={s.alreadyConfigured || busy}
+                            className={`px-3 py-1.5 text-xs font-medium transition ${
+                              s.alreadyConfigured
+                                ? 'text-slate-400 cursor-default'
+                                : 'text-slate-700 hover:bg-[var(--hf-brand-50)] hover:text-[color:var(--hf-brand)]'
+                            }`}
+                            title={s.legalBasis ? `${s.rationale}\n${s.legalBasis}` : (s.rationale || s.description)}
+                          >
+                            {s.alreadyConfigured ? '✓ ' : busy ? '… ' : '+ '}{s.name}
+                            {s.priority === 'compliance' && !s.alreadyConfigured ? ' · wajib' : ''}
+                          </button>
+                          {!s.alreadyConfigured && (
+                            <button
+                              type="button"
+                              onClick={() => applyTypeSuggestion(s, true)}
+                              className="px-2 border-l text-slate-400 hover:text-[color:var(--hf-brand-600)] hover:bg-slate-50"
+                              title="Pratinjau & ubah dulu"
+                            >
+                              <Eye className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -1029,7 +1155,7 @@ export default function LeaveManagementPage() {
                   return (
                     <div key={lt.id} className={`border rounded-xl p-4 hover:shadow-md transition-shadow group relative ${!active ? 'opacity-60' : ''}`}>
                       {/* Action buttons */}
-                      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="absolute top-2 right-2 flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                         <button onClick={() => handleDuplicateType(lt)} className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded" title="Duplikat">
                           <Copy className="w-3.5 h-3.5" />
                         </button>
@@ -1179,7 +1305,7 @@ export default function LeaveManagementPage() {
       {/* ==================== DETAIL / REJECT MODAL ==================== */}
       {showDetailModal && selectedRequest && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg m-4">
+          <div className="hf-card w-full max-w-lg m-4">
             <div className="px-6 py-4 border-b flex justify-between items-center">
               <h3 className="text-lg font-semibold">Detail Pengajuan Cuti</h3>
               <button onClick={() => { setShowDetailModal(false); setSelectedRequest(null); setActionReason(''); }}
@@ -1187,7 +1313,17 @@ export default function LeaveManagementPage() {
             </div>
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
-                <div><span className="text-gray-500 text-xs">Karyawan</span><p className="font-medium">{getLeaveField(selectedRequest, 'name')}</p></div>
+                <div className="flex items-center gap-2.5">
+                  <EmployeeAvatar
+                    name={getLeaveField(selectedRequest, 'name')}
+                    photoUrl={(selectedRequest as any).photo_url}
+                    size="md"
+                  />
+                  <div>
+                    <span className="text-gray-500 text-xs">Karyawan</span>
+                    <p className="font-medium">{getLeaveField(selectedRequest, 'name')}</p>
+                  </div>
+                </div>
                 <div><span className="text-gray-500 text-xs">Tipe</span><p className="font-medium">{leaveTypeConfig[getLeaveField(selectedRequest, 'type')]?.label || getLeaveField(selectedRequest, 'type')}</p></div>
                 <div><span className="text-gray-500 text-xs">Mulai</span><p className="font-medium">{formatDate(getLeaveField(selectedRequest, 'start'))}</p></div>
                 <div><span className="text-gray-500 text-xs">Selesai</span><p className="font-medium">{formatDate(getLeaveField(selectedRequest, 'end'))}</p></div>
@@ -1262,7 +1398,7 @@ export default function LeaveManagementPage() {
       {/* ==================== CONFIG MODAL ==================== */}
       {showConfigModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl m-4 max-h-[90vh] overflow-y-auto">
+          <div className="hf-card w-full max-w-2xl m-4 max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b flex justify-between items-center sticky top-0 bg-white z-10">
               <h3 className="text-lg font-semibold">{editingConfig ? 'Edit' : 'Tambah'} Konfigurasi Approval</h3>
               <button onClick={() => setShowConfigModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
@@ -1379,8 +1515,8 @@ export default function LeaveManagementPage() {
 
       {/* ==================== LEAVE TYPE MODAL (COMPREHENSIVE) ==================== */}
       {showTypeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowTypeModal(false)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl m-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" onClick={() => setShowTypeModal(false)}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full max-w-3xl max-h-[min(92dvh,100%)] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="px-6 py-4 border-b flex justify-between items-center sticky top-0 bg-white z-10">
               <h3 className="text-lg font-semibold">{editingType ? 'Edit' : 'Tambah'} Tipe Cuti</h3>
               <button onClick={() => setShowTypeModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>

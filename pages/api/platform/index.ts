@@ -1,13 +1,20 @@
 /**
  * Platform Control Plane API — Humanify SaaS ops
- * GET   ?action=overview|tenants|tenant|tenant-detail|billing-orders|expiring-trials|partners|partner-leads|partner-leads-export|partner-commission-export|partner-commission-summary|commission-preview
- * PATCH ?action=tenant-status|tenant-plan|tenant-mfa-policy|tenant-email-verify|tenant-profile
- * POST  ?action=dunning-scan|partner-create|partner-lead-status|cleanup-qa|archive-qa|impersonate|end-impersonate|tenant-email-resend|tenant-create
+ * GET   ?action=overview|tenants|tenant|tenant-detail|billing-orders|expiring-trials|partners|partner-leads|partner-leads-export|partner-commission-export|partner-commission-summary|commission-preview|audit-log|support-queue|users|system-status|banners
+ * PATCH ?action=tenant-status|tenant-plan|tenant-mfa-policy|tenant-email-verify|tenant-profile|user-status|banner
+ * POST  ?action=dunning-scan|partner-create|partner-lead-status|cleanup-qa|archive-qa|impersonate|end-impersonate|tenant-email-resend|tenant-create|banner
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
+import { assertOpsApiHost } from '@/lib/humanify/assert-ops-host';
 import { isPlatformOperator } from '@/lib/middleware/tenantIsolation';
+import {
+  operatorMay,
+  permissionForAction,
+  listStaffDesks,
+  setStaffDesk,
+} from '@/lib/saas/platform-desks';
 import { backfillTenantSlugs, ensureTenantSlugColumn, ensureUniqueTenantSlug } from '@/lib/saas/tenant-slug';
 import {
   computePaidOrdersMrr,
@@ -15,8 +22,19 @@ import {
   estimateMrrFromTenants,
   formatIdr,
 } from '@/lib/saas/platform-metrics';
-import { HUMANIFY_PLANS } from '@/lib/saas/plan-entitlements';
-import { listExpiringTrials, runDunningScan } from '@/lib/saas/humanify-billing';
+import { HUMANIFY_PLANS, HUMANIFY_FEATURE_LABELS, HUMANIFY_FEATURE_ORDER, type HumanifyFeature } from '@/lib/saas/plan-entitlements';
+import { listExpiringTrials, runDunningScan, activatePaidOrder, ensureBillingOrdersTable, getMidtransPublicConfig } from '@/lib/saas/humanify-billing';
+import {
+  createBillingVoucher,
+  listBillingVouchers,
+  setBillingVoucherActive,
+  computeVoucherDiscount,
+} from '@/lib/saas/billing-vouchers';
+import {
+  listPlanCatalog,
+  upsertPlanCatalog,
+  refreshPlanCatalogCache,
+} from '@/lib/saas/plan-pricing-store';
 import {
   archiveSuspendedQaTenants,
   attachPartnerToTenant,
@@ -34,6 +52,7 @@ import {
   listPartnerPayouts,
   markPartnerPayoutPaid,
   partnerPayoutsToCsv,
+  queuePartnerPayoutDisbursement,
 } from '@/lib/saas/partner-payouts';
 import { getSeatUsage } from '@/lib/saas/seat-metering';
 import { isTenantMfaRequired, setTenantMfaRequired } from '@/lib/saas/mfa-policy';
@@ -51,6 +70,47 @@ import {
   updatePartnerLeadStatus,
 } from '@/lib/hris/partner-leads';
 import { randomBytes } from 'crypto';
+import { listPlatformAudit } from '@/lib/saas/admin-audit';
+import {
+  getPlatformNotifications,
+  getSupportQueue,
+  getSystemStatus,
+  listPlatformUsers,
+  setPlatformUserActive,
+} from '@/lib/saas/platform-ops-modules';
+import {
+  createLandingBanner,
+  deleteLandingBanner,
+  listLandingBanners,
+  updateLandingBanner,
+} from '@/lib/saas/landing-banners';
+import {
+  createSupportTicket,
+  listSupportTickets,
+  updateSupportTicket,
+} from '@/lib/saas/support-tickets';
+import {
+  extendTenantTrial,
+  listSubscriptions,
+  overviewPeriodBounds,
+} from '@/lib/saas/platform-subscriptions';
+import {
+  createSalesLead,
+  listSalesLeads,
+  updateSalesLead,
+} from '@/lib/saas/sales-leads';
+import { listFinanceTransactions, requestRefund, executeApprovedRefund } from '@/lib/saas/platform-finance';
+import { decideApproval, listApprovals } from '@/lib/saas/platform-approvals';
+import { getMarketingFunnel, listCampaigns, upsertCampaign } from '@/lib/saas/marketing-campaigns';
+import { advanceCmsFaq, listCmsFaqs, unpublishCmsFaq, upsertCmsFaq } from '@/lib/saas/cms-content';
+import { getAnalyticsReport } from '@/lib/saas/platform-analytics';
+import {
+  advanceCmsArticle,
+  listCmsArticles,
+  unpublishCmsArticle,
+  upsertCmsArticle,
+} from '@/lib/saas/cms-articles';
+import { getBusinessInsights } from '@/lib/saas/platform-insights';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch {}
@@ -75,6 +135,7 @@ function nameSql(cols: Set<string>, alias = 't') {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (!assertOpsApiHost(req, res)) return;
   const session = await getServerSession(req, res, authOptions);
   if (!session?.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
@@ -86,6 +147,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!sequelize) return res.status(503).json({ success: false, error: 'Database unavailable' });
 
   const action = String(req.query.action || 'overview');
+  const needPerm = permissionForAction(action, req.method || 'GET');
+  if (needPerm) {
+    const allowed = await operatorMay(session.user as any, needPerm);
+    if (!allowed) {
+      return res.status(403).json({ success: false, error: 'Desk Anda tidak punya izin untuk aksi ini' });
+    }
+  }
 
   try {
     await ensureTenantSlugColumn();
@@ -94,6 +162,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (req.method === 'GET' && action === 'overview') {
       await backfillTenantSlugs();
+      const bounds = overviewPeriodBounds(
+        String(req.query.period || '30d'),
+        String(req.query.from || ''),
+        String(req.query.to || ''),
+      );
 
       const setupExpr = cols.has('setup_completed')
         ? `COUNT(*) FILTER (WHERE setup_completed = true)::int AS setup_done`
@@ -167,15 +240,60 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Signups last 7 / 30 days
       let signups7 = 0;
       let signups30 = 0;
+      let signupsPeriod = 0;
+      let signupSeries: Array<{ day: string; count: number }> = [];
+      let statusSeries: Array<{ status: string; count: number }> = [];
       try {
         const [sig] = await sequelize.query(`
           SELECT
             COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days')::int AS d7,
-            COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')::int AS d30
+            COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')::int AS d30,
+            COUNT(*) FILTER (WHERE created_at >= :fromTs AND created_at <= :toTs)::int AS period
           FROM tenants
-        `);
+        `, { replacements: { fromTs: bounds.from, toTs: bounds.to } });
         signups7 = sig[0]?.d7 || 0;
         signups30 = sig[0]?.d30 || 0;
+        signupsPeriod = sig[0]?.period || 0;
+      } catch { /* */ }
+      try {
+        const [series] = await sequelize.query(`
+          SELECT to_char(date_trunc('day', created_at), 'YYYY-MM-DD') AS day,
+                 COUNT(*)::int AS count
+          FROM tenants
+          WHERE created_at >= :fromTs AND created_at <= :toTs
+          GROUP BY 1 ORDER BY 1 ASC
+        `, { replacements: { fromTs: bounds.from, toTs: bounds.to } });
+        signupSeries = series || [];
+      } catch { /* */ }
+      try {
+        const [st] = await sequelize.query(`
+          SELECT COALESCE(status::text, 'trial') AS status, COUNT(*)::int AS count
+          FROM tenants
+          WHERE COALESCE(status::text, 'trial') <> 'archived'
+            AND COALESCE(slug, '') !~* :qaRegex
+          GROUP BY 1 ORDER BY count DESC
+        `, { replacements: { qaRegex: QA_TENANT_SLUG_REGEX } });
+        statusSeries = st || [];
+      } catch { /* */ }
+
+      let revenueSeries: Array<{ month: string; amountIdr: number; orders: number }> = [];
+      try {
+        const [exists] = await sequelize.query(`
+          SELECT 1 FROM information_schema.tables
+          WHERE table_schema = 'public' AND table_name = 'saas_billing_orders' LIMIT 1
+        `);
+        if (exists?.length) {
+          const [rev] = await sequelize.query(`
+            SELECT to_char(date_trunc('month', COALESCE(paid_at, created_at)), 'YYYY-MM') AS month,
+                   COALESCE(SUM(amount_idr), 0)::bigint AS "amountIdr",
+                   COUNT(*)::int AS orders
+            FROM saas_billing_orders
+            WHERE LOWER(status) = 'paid'
+              AND COALESCE(paid_at, created_at) >= NOW() - INTERVAL '12 months'
+            GROUP BY 1 ORDER BY 1 ASC
+          `);
+          revenueSeries = rev || [];
+        }
       } catch { /* */ }
 
       const displayMrr = paid.available && paid.paidTenantCount > 0 ? paid.paidMrrIdr : revenue.mrrIdr;
@@ -189,9 +307,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             activeEmployees,
             signups7,
             signups30,
+            signupsPeriod,
+          },
+          period: {
+            key: bounds.key,
+            label: bounds.label,
+            from: bounds.from.toISOString(),
+            to: bounds.to.toISOString(),
           },
           plans,
           recentTenants: recent,
+          charts: {
+            signupSeries,
+            statusSeries,
+            revenueSeries,
+            healthDist,
+            byPlan: revenue.byPlan,
+          },
           metrics: {
             mrrIdr: displayMrr,
             arrIdr: displayArr,
@@ -1017,6 +1149,623 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const row = await markPartnerPayoutPaid(id, req.body?.note || null);
       if (!row) return res.status(404).json({ success: false, error: 'Payout not found' });
       return res.json({ success: true, data: row });
+    }
+
+    if (req.method === 'POST' && action === 'partner-payout-disburse') {
+      const id = String(req.body?.id || '');
+      if (!id) return res.status(400).json({ success: false, error: 'id required' });
+      const row = await queuePartnerPayoutDisbursement(id, { note: req.body?.note || null });
+      return res.json({ success: true, data: row });
+    }
+
+    // ── Billing ops ──────────────────────────────────────────────
+    if (req.method === 'GET' && action === 'billing-summary') {
+      await ensureBillingOrdersTable();
+      const cols = await tenantCols();
+      const tenantName = nameSql(cols, 't');
+      const [byStatus] = await sequelize.query(`
+        SELECT LOWER(status) AS status,
+               COUNT(*)::int AS count,
+               COALESCE(SUM(amount_idr), 0)::bigint AS amount_idr
+        FROM saas_billing_orders
+        GROUP BY 1 ORDER BY count DESC
+      `);
+      const [recentPaid] = await sequelize.query(`
+        SELECT o.id, o.order_code, o.tenant_id, o.plan, o.interval, o.amount_idr, o.status,
+               o.provider, o.paid_at, o.created_at, o.partner_code,
+               t.slug AS tenant_slug,
+               ${tenantName} AS tenant_name
+        FROM saas_billing_orders o
+        LEFT JOIN tenants t ON t.id = o.tenant_id
+        WHERE LOWER(o.status) = 'paid'
+        ORDER BY COALESCE(o.paid_at, o.created_at) DESC NULLS LAST
+        LIMIT 100
+      `);
+      const [unpaid] = await sequelize.query(`
+        SELECT o.id, o.order_code, o.tenant_id, o.plan, o.interval, o.amount_idr, o.status,
+               o.provider, o.created_at, o.partner_code,
+               t.slug AS tenant_slug,
+               ${tenantName} AS tenant_name
+        FROM saas_billing_orders o
+        LEFT JOIN tenants t ON t.id = o.tenant_id
+        WHERE LOWER(o.status) IN ('pending', 'unpaid', 'challenge', 'expire', 'failed', 'deny', 'cancel')
+        ORDER BY o.created_at DESC NULLS LAST
+        LIMIT 100
+      `);
+      const [revSeries] = await sequelize.query(`
+        SELECT to_char(date_trunc('month', COALESCE(paid_at, created_at)), 'YYYY-MM') AS month,
+               COALESCE(SUM(amount_idr), 0)::bigint AS amount_idr,
+               COUNT(*)::int AS orders
+        FROM saas_billing_orders
+        WHERE LOWER(status) = 'paid'
+          AND COALESCE(paid_at, created_at) >= NOW() - INTERVAL '12 months'
+        GROUP BY 1 ORDER BY 1 ASC
+      `);
+      const [planMix] = await sequelize.query(`
+        SELECT LOWER(plan) AS plan, COUNT(*)::int AS count,
+               COALESCE(SUM(amount_idr), 0)::bigint AS amount_idr
+        FROM saas_billing_orders
+        WHERE LOWER(status) = 'paid'
+        GROUP BY 1 ORDER BY amount_idr DESC
+      `);
+      return res.json({
+        success: true,
+        data: {
+          byStatus: byStatus || [],
+          recentPaid: recentPaid || [],
+          unpaid: unpaid || [],
+          revenueSeries: revSeries || [],
+          planMix: planMix || [],
+          midtrans: getMidtransPublicConfig(),
+        },
+      });
+    }
+
+    if (req.method === 'POST' && action === 'billing-mark-paid') {
+      const code = String(req.body?.orderCode || req.body?.id || '').trim();
+      if (!code) return res.status(400).json({ success: false, error: 'orderCode required' });
+      const result = await activatePaidOrder(code, {
+        raw: { activatedBy: (session.user as any)?.email, source: 'ops-manual' },
+      });
+      return res.json({ success: true, data: result, message: result.alreadyPaid ? 'Sudah paid' : 'Ditandai paid & plan diaktifkan' });
+    }
+
+    if (req.method === 'POST' && action === 'billing-cancel') {
+      const id = String(req.body?.id || req.body?.orderCode || '').trim();
+      if (!id) return res.status(400).json({ success: false, error: 'id required' });
+      await ensureBillingOrdersTable();
+      await sequelize.query(
+        `UPDATE saas_billing_orders
+         SET status = 'cancel', updated_at = NOW()
+         WHERE (id::text = :id OR order_code = :id)
+           AND LOWER(status) <> 'paid'`,
+        { replacements: { id } },
+      );
+      return res.json({ success: true, message: 'Order dibatalkan' });
+    }
+
+    if (req.method === 'GET' && action === 'billing-vouchers') {
+      const vouchers = await listBillingVouchers(100);
+      return res.json({ success: true, data: { vouchers } });
+    }
+
+    if (req.method === 'POST' && action === 'billing-voucher-create') {
+      const body = req.body || {};
+      const voucher = await createBillingVoucher({
+        code: body.code,
+        label: body.label,
+        discountType: body.discountType === 'fixed' ? 'fixed' : 'percent',
+        discountValue: Number(body.discountValue),
+        maxDiscountIdr: body.maxDiscountIdr != null ? Number(body.maxDiscountIdr) : null,
+        minAmountIdr: body.minAmountIdr != null ? Number(body.minAmountIdr) : 0,
+        applicablePlans: Array.isArray(body.applicablePlans) ? body.applicablePlans : null,
+        maxRedemptions: body.maxRedemptions != null ? Number(body.maxRedemptions) : null,
+        validFrom: body.validFrom || null,
+        validUntil: body.validUntil || null,
+        note: body.note || null,
+        createdBy: String((session.user as any)?.email || ''),
+      });
+      return res.status(201).json({ success: true, data: voucher });
+    }
+
+    if (req.method === 'POST' && action === 'billing-voucher-toggle') {
+      const id = String(req.body?.id || '');
+      if (!id) return res.status(400).json({ success: false, error: 'id required' });
+      const isActive = Boolean(req.body?.isActive);
+      const row = await setBillingVoucherActive(id, isActive);
+      if (!row) return res.status(404).json({ success: false, error: 'Voucher not found' });
+      return res.json({ success: true, data: row });
+    }
+
+    if (req.method === 'POST' && action === 'billing-voucher-preview') {
+      const code = String(req.body?.code || '').trim().toUpperCase();
+      const amountIdr = Number(req.body?.amountIdr || 0);
+      const plan = req.body?.plan || null;
+      const vouchers = await listBillingVouchers(200);
+      const voucher = vouchers.find((v) => String(v.code).toUpperCase() === code);
+      if (!voucher) return res.status(404).json({ success: false, error: 'Kode tidak ditemukan' });
+      const preview = computeVoucherDiscount(voucher, amountIdr, plan);
+      return res.json({ success: true, data: { voucher, ...preview, netIdr: Math.max(0, amountIdr - preview.discountIdr) } });
+    }
+
+    if (req.method === 'GET' && action === 'plan-catalog') {
+      await refreshPlanCatalogCache(true);
+      const plans = await listPlanCatalog();
+      return res.json({
+        success: true,
+        data: {
+          plans,
+          featureOrder: HUMANIFY_FEATURE_ORDER,
+          featureLabels: HUMANIFY_FEATURE_LABELS,
+        },
+      });
+    }
+
+    if (req.method === 'GET' && action === 'audit-log') {
+      const limit = Math.min(200, Math.max(1, parseInt(String(req.query.limit || '80'), 10) || 80));
+      const search = String(req.query.search || '').trim();
+      const tenantId = String(req.query.tenantId || '').trim();
+      const events = await listPlatformAudit({
+        limit,
+        search: search || undefined,
+        tenantId: tenantId || undefined,
+      });
+      return res.json({ success: true, data: { events } });
+    }
+
+    if (req.method === 'GET' && action === 'support-queue') {
+      const data = await getSupportQueue();
+      return res.json({ success: true, data });
+    }
+
+    if (req.method === 'GET' && action === 'users') {
+      const search = String(req.query.search || '').trim();
+      const scopeRaw = String(req.query.scope || 'all').toLowerCase();
+      const scope = scopeRaw === 'platform' || scopeRaw === 'tenant' ? scopeRaw : 'all';
+      const limit = Math.min(200, Math.max(1, parseInt(String(req.query.limit || '80'), 10) || 80));
+      const data = await listPlatformUsers({
+        search: search || undefined,
+        scope,
+        limit,
+      });
+      return res.json({ success: true, data });
+    }
+
+    if (req.method === 'PATCH' && action === 'user-status') {
+      const body = req.body || {};
+      const userId = String(body.id || body.userId || '').trim();
+      if (!userId) return res.status(400).json({ success: false, error: 'id required' });
+      const isActive = body.isActive === true || body.is_active === true
+        || body.isActive === 'true' || body.status === 'active';
+      const deactivate = body.isActive === false || body.is_active === false
+        || body.isActive === 'false' || body.status === 'inactive' || body.status === 'disabled';
+      if (!isActive && !deactivate) {
+        return res.status(400).json({ success: false, error: 'isActive required' });
+      }
+      try {
+        const data = await setPlatformUserActive({
+          userId,
+          isActive: deactivate ? false : true,
+          actorUserId: (session.user as any)?.id != null ? String((session.user as any).id) : null,
+          actorEmail: String((session.user as any)?.email || 'platform_ops'),
+          ip: String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim() || null,
+        });
+        return res.json({
+          success: true,
+          data,
+          message: data.isActive ? 'Pengguna diaktifkan' : 'Pengguna dinonaktifkan',
+        });
+      } catch (e: any) {
+        return res.status(400).json({ success: false, error: e?.message || 'Gagal mengubah status pengguna' });
+      }
+    }
+
+    if (req.method === 'GET' && action === 'system-status') {
+      const data = await getSystemStatus();
+      return res.json({ success: true, data });
+    }
+
+    if (req.method === 'GET' && action === 'notifications') {
+      const data = await getPlatformNotifications();
+      return res.json({ success: true, data });
+    }
+
+    if (req.method === 'GET' && action === 'subscriptions') {
+      const data = await listSubscriptions();
+      return res.json({ success: true, data });
+    }
+
+    if (req.method === 'POST' && action === 'extend-trial') {
+      const tenantId = String(req.body?.id || req.body?.tenantId || '').trim();
+      const days = Number(req.body?.days || 14);
+      try {
+        const data = await extendTenantTrial({
+          tenantId,
+          days,
+          actorEmail: String((session.user as any)?.email || 'platform_ops'),
+          actorUserId: (session.user as any)?.id != null ? String((session.user as any).id) : null,
+          ip: String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim() || null,
+        });
+        return res.json({ success: true, data, message: `Trial diperpanjang ${days} hari` });
+      } catch (e: any) {
+        return res.status(400).json({ success: false, error: e?.message || 'Gagal perpanjang trial' });
+      }
+    }
+
+    if (req.method === 'GET' && action === 'tickets') {
+      const data = await listSupportTickets(Number(req.query.limit) || 80);
+      return res.json({ success: true, data });
+    }
+
+    if (req.method === 'POST' && action === 'ticket') {
+      try {
+        const row = await createSupportTicket({
+          subject: req.body?.subject,
+          body: req.body?.body,
+          tenantId: req.body?.tenantId || req.body?.tenant_id || null,
+          source: req.body?.source,
+          priority: req.body?.priority,
+          requesterEmail: req.body?.requesterEmail || req.body?.requester_email,
+          createdBy: String((session.user as any)?.email || 'platform_ops'),
+          actorUserId: (session.user as any)?.id != null ? String((session.user as any).id) : null,
+          ip: String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim() || null,
+        });
+        return res.json({ success: true, data: row, message: 'Tiket dibuat' });
+      } catch (e: any) {
+        return res.status(400).json({ success: false, error: e?.message || 'Gagal membuat tiket' });
+      }
+    }
+
+    if (req.method === 'PATCH' && action === 'ticket') {
+      const id = String(req.body?.id || '').trim();
+      if (!id) return res.status(400).json({ success: false, error: 'id required' });
+      try {
+        const row = await updateSupportTicket({
+          id,
+          status: req.body?.status,
+          priority: req.body?.priority,
+          assigneeEmail: req.body?.assigneeEmail ?? req.body?.assignee_email,
+          actorEmail: String((session.user as any)?.email || 'platform_ops'),
+          actorUserId: (session.user as any)?.id != null ? String((session.user as any).id) : null,
+          ip: String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim() || null,
+        });
+        return res.json({ success: true, data: row, message: 'Tiket diperbarui' });
+      } catch (e: any) {
+        return res.status(400).json({ success: false, error: e?.message || 'Gagal memperbarui tiket' });
+      }
+    }
+
+    if (req.method === 'GET' && action === 'banners') {
+      const banners = await listLandingBanners();
+      return res.json({ success: true, data: { banners } });
+    }
+
+    if (req.method === 'POST' && action === 'banner') {
+      const body = req.body || {};
+      try {
+        const row = await createLandingBanner({
+          title: body.title,
+          subtitle: body.subtitle,
+          imageUrl: body.imageUrl || body.image_url,
+          ctaLabel: body.ctaLabel || body.cta_label,
+          ctaHref: body.ctaHref || body.cta_href,
+          placement: body.placement,
+          sortOrder: body.sortOrder ?? body.sort_order,
+          isActive: body.isActive ?? body.is_active,
+          startsAt: body.startsAt || body.starts_at || null,
+          endsAt: body.endsAt || body.ends_at || null,
+          createdBy: String((session.user as any)?.email || 'platform_ops'),
+          actorUserId: (session.user as any)?.id != null ? String((session.user as any).id) : null,
+          ip: String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim() || null,
+        });
+        return res.json({ success: true, data: row, message: 'Banner dibuat' });
+      } catch (e: any) {
+        return res.status(400).json({ success: false, error: e?.message || 'Gagal membuat banner' });
+      }
+    }
+
+    if (req.method === 'PATCH' && action === 'banner') {
+      const body = req.body || {};
+      const id = String(body.id || '').trim();
+      if (!id) return res.status(400).json({ success: false, error: 'id required' });
+      try {
+        const row = await updateLandingBanner({
+          id,
+          title: body.title,
+          subtitle: body.subtitle,
+          imageUrl: body.imageUrl || body.image_url,
+          ctaLabel: body.ctaLabel ?? body.cta_label,
+          ctaHref: body.ctaHref ?? body.cta_href,
+          placement: body.placement,
+          sortOrder: body.sortOrder ?? body.sort_order,
+          isActive: body.isActive ?? body.is_active,
+          startsAt: body.startsAt ?? body.starts_at,
+          endsAt: body.endsAt ?? body.ends_at,
+          actorEmail: String((session.user as any)?.email || 'platform_ops'),
+          actorUserId: (session.user as any)?.id != null ? String((session.user as any).id) : null,
+          ip: String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim() || null,
+        });
+        return res.json({ success: true, data: row, message: 'Banner diperbarui' });
+      } catch (e: any) {
+        return res.status(400).json({ success: false, error: e?.message || 'Gagal memperbarui banner' });
+      }
+    }
+
+    if (req.method === 'DELETE' && action === 'banner') {
+      const id = String(req.body?.id || req.query.id || '').trim();
+      if (!id) return res.status(400).json({ success: false, error: 'id required' });
+      try {
+        await deleteLandingBanner({
+          id,
+          actorEmail: String((session.user as any)?.email || 'platform_ops'),
+          actorUserId: (session.user as any)?.id != null ? String((session.user as any).id) : null,
+          ip: String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim() || null,
+        });
+        return res.json({ success: true, message: 'Banner dihapus' });
+      } catch (e: any) {
+        return res.status(400).json({ success: false, error: e?.message || 'Gagal menghapus banner' });
+      }
+    }
+
+    if (req.method === 'PATCH' && action === 'plan-catalog') {
+      const body = req.body || {};
+      const planId = String(body.planId || body.id || '').toLowerCase();
+      if (!planId) return res.status(400).json({ success: false, error: 'planId required' });
+      const features = Array.isArray(body.features)
+        ? (body.features as string[]).filter((f): f is HumanifyFeature =>
+            HUMANIFY_FEATURE_ORDER.includes(f as HumanifyFeature),
+          )
+        : undefined;
+      const row = await upsertPlanCatalog({
+        planId,
+        name: body.name,
+        description: body.description,
+        priceMonthlyIdr: body.priceMonthlyIdr != null ? Number(body.priceMonthlyIdr) : undefined,
+        priceYearlyIdr: body.priceYearlyIdr != null ? Number(body.priceYearlyIdr) : undefined,
+        maxUsers: body.maxUsers != null ? Number(body.maxUsers) : undefined,
+        maxEmployees: body.maxEmployees != null ? Number(body.maxEmployees) : undefined,
+        features,
+      });
+      return res.json({ success: true, data: row, message: `Paket ${planId} diperbarui` });
+    }
+
+    const actorEmail = String((session.user as any)?.email || 'platform_ops');
+    const actorUserId = (session.user as any)?.id != null ? String((session.user as any).id) : null;
+    const actorIp = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim() || null;
+
+    if (req.method === 'GET' && action === 'crm-leads') {
+      const data = await listSalesLeads(Number(req.query.limit) || 200);
+      return res.json({ success: true, data });
+    }
+    if (req.method === 'POST' && action === 'crm-lead') {
+      try {
+        const data = await createSalesLead({
+          company: req.body?.company,
+          pic: req.body?.pic,
+          email: req.body?.email,
+          phone: req.body?.phone,
+          source: req.body?.source,
+          interest: req.body?.interest,
+          estimatedDealIdr: Number(req.body?.estimatedDealIdr || 0),
+          ownerEmail: req.body?.ownerEmail,
+          nextFollowUp: req.body?.nextFollowUp,
+          note: req.body?.note,
+          actorEmail,
+          actorUserId,
+          ip: actorIp,
+        });
+        return res.status(201).json({ success: true, data });
+      } catch (e: any) {
+        return res.status(400).json({ success: false, error: e?.message || 'Gagal simpan lead' });
+      }
+    }
+    if (req.method === 'PATCH' && action === 'crm-lead') {
+      const data = await updateSalesLead({
+        id: String(req.body?.id || ''),
+        status: req.body?.status,
+        ownerEmail: req.body?.ownerEmail,
+        nextFollowUp: req.body?.nextFollowUp,
+        estimatedDealIdr: req.body?.estimatedDealIdr != null ? Number(req.body.estimatedDealIdr) : undefined,
+        note: req.body?.note,
+        actorEmail,
+        actorUserId,
+        ip: actorIp,
+      });
+      if (!data) return res.status(404).json({ success: false, error: 'Lead tidak ditemukan' });
+      return res.json({ success: true, data });
+    }
+
+    if (req.method === 'GET' && action === 'finance-tx') {
+      const data = await listFinanceTransactions(Number(req.query.limit) || 120);
+      return res.json({ success: true, data });
+    }
+    if (req.method === 'POST' && action === 'finance-refund') {
+      try {
+        const data = await requestRefund({
+          orderId: String(req.body?.orderId || req.body?.id || ''),
+          actorEmail,
+          actorUserId,
+          ip: actorIp,
+        });
+        return res.json({ success: true, data, message: data.message });
+      } catch (e: any) {
+        return res.status(400).json({ success: false, error: e?.message || 'Gagal refund' });
+      }
+    }
+
+    if (req.method === 'GET' && action === 'approvals') {
+      const data = await listApprovals({
+        status: String(req.query.status || 'all'),
+        limit: Number(req.query.limit) || 80,
+      });
+      return res.json({ success: true, data });
+    }
+    if (req.method === 'POST' && action === 'approval-decide') {
+      const id = String(req.body?.id || '');
+      const decision = req.body?.decision === 'rejected' ? 'rejected' : 'approved';
+      const row = await decideApproval({
+        id,
+        decision,
+        decidedBy: actorEmail,
+        actorUserId,
+        ip: actorIp,
+      });
+      if (!row) return res.status(404).json({ success: false, error: 'Approval tidak ditemukan atau sudah diputuskan' });
+      if (decision === 'approved' && row.kind === 'refund') {
+        try {
+          await executeApprovedRefund(row.id, actorEmail);
+        } catch (e: any) {
+          return res.status(400).json({ success: false, error: e?.message || 'Gagal eksekusi refund' });
+        }
+      }
+      return res.json({ success: true, data: row, message: decision === 'approved' ? 'Disetujui' : 'Ditolak' });
+    }
+
+    if (req.method === 'GET' && action === 'campaigns') {
+      const data = await listCampaigns();
+      return res.json({ success: true, data });
+    }
+    if (req.method === 'POST' && action === 'campaign') {
+      try {
+        const data = await upsertCampaign({
+          id: req.body?.id,
+          name: req.body?.name,
+          channel: req.body?.channel,
+          status: req.body?.status,
+          startsAt: req.body?.startsAt,
+          endsAt: req.body?.endsAt,
+          impressions: req.body?.impressions,
+          visitors: req.body?.visitors,
+          budgetIdr: req.body?.budgetIdr,
+          note: req.body?.note,
+          actorEmail,
+          actorUserId,
+          ip: actorIp,
+        });
+        return res.json({ success: true, data });
+      } catch (e: any) {
+        return res.status(400).json({ success: false, error: e?.message || 'Gagal simpan campaign' });
+      }
+    }
+    if (req.method === 'GET' && action === 'marketing-funnel') {
+      const data = await getMarketingFunnel(String(req.query.period || '30d'));
+      return res.json({ success: true, data });
+    }
+
+    if (req.method === 'GET' && action === 'faqs') {
+      const data = await listCmsFaqs();
+      return res.json({ success: true, data });
+    }
+    if (req.method === 'POST' && action === 'faq') {
+      try {
+        const data = await upsertCmsFaq({
+          id: req.body?.id,
+          question: req.body?.question,
+          answer: req.body?.answer,
+          category: req.body?.category,
+          sortOrder: req.body?.sortOrder,
+          actorEmail,
+          actorUserId,
+          ip: actorIp,
+        });
+        return res.status(201).json({ success: true, data });
+      } catch (e: any) {
+        return res.status(400).json({ success: false, error: e?.message || 'Gagal simpan FAQ' });
+      }
+    }
+    if (req.method === 'POST' && action === 'faq-advance') {
+      try {
+        const data = await advanceCmsFaq({
+          id: String(req.body?.id || ''),
+          actorEmail,
+          actorUserId,
+          ip: actorIp,
+        });
+        if (!data) return res.status(404).json({ success: false, error: 'FAQ tidak ditemukan' });
+        return res.json({ success: true, data });
+      } catch (e: any) {
+        return res.status(400).json({ success: false, error: e?.message || 'Gagal update FAQ' });
+      }
+    }
+    if (req.method === 'POST' && action === 'faq-unpublish') {
+      const data = await unpublishCmsFaq(String(req.body?.id || ''));
+      if (!data) return res.status(404).json({ success: false, error: 'FAQ tidak ditemukan' });
+      return res.json({ success: true, data });
+    }
+
+    if (req.method === 'GET' && action === 'analytics') {
+      const data = await getAnalyticsReport(
+        String(req.query.period || '30d'),
+        String(req.query.from || ''),
+        String(req.query.to || ''),
+      );
+      return res.json({ success: true, data });
+    }
+
+    if (req.method === 'GET' && action === 'staff-desks') {
+      const desks = await listStaffDesks();
+      return res.json({ success: true, data: { desks } });
+    }
+    if (req.method === 'POST' && action === 'staff-desk') {
+      try {
+        const data = await setStaffDesk({
+          userId: String(req.body?.userId || req.body?.id || ''),
+          email: req.body?.email,
+          desk: String(req.body?.desk || 'cs'),
+          actorEmail,
+          actorUserId,
+          ip: actorIp,
+        });
+        return res.json({ success: true, data });
+      } catch (e: any) {
+        return res.status(400).json({ success: false, error: e?.message || 'Gagal simpan desk' });
+      }
+    }
+
+    if (req.method === 'GET' && action === 'articles') {
+      const data = await listCmsArticles();
+      return res.json({ success: true, data });
+    }
+    if (req.method === 'POST' && action === 'article') {
+      try {
+        const data = await upsertCmsArticle({
+          id: req.body?.id,
+          title: req.body?.title,
+          body: req.body?.body,
+          excerpt: req.body?.excerpt,
+          slug: req.body?.slug,
+          actorEmail,
+          actorUserId,
+          ip: actorIp,
+        });
+        return res.status(201).json({ success: true, data });
+      } catch (e: any) {
+        return res.status(400).json({ success: false, error: e?.message || 'Gagal simpan artikel' });
+      }
+    }
+    if (req.method === 'POST' && action === 'article-advance') {
+      try {
+        const data = await advanceCmsArticle({
+          id: String(req.body?.id || ''),
+          actorEmail,
+          actorUserId,
+          ip: actorIp,
+        });
+        if (!data) return res.status(404).json({ success: false, error: 'Artikel tidak ditemukan' });
+        return res.json({ success: true, data });
+      } catch (e: any) {
+        return res.status(400).json({ success: false, error: e?.message || 'Gagal update artikel' });
+      }
+    }
+    if (req.method === 'POST' && action === 'article-unpublish') {
+      const data = await unpublishCmsArticle(String(req.body?.id || ''));
+      if (!data) return res.status(404).json({ success: false, error: 'Artikel tidak ditemukan' });
+      return res.json({ success: true, data });
+    }
+
+    if (req.method === 'GET' && action === 'insights') {
+      const data = await getBusinessInsights();
+      return res.json({ success: true, data });
     }
 
     return res.status(400).json({ success: false, error: 'Unknown action' });

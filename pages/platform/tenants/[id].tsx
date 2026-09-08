@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import HumanifyLayout from '@/components/humanify/HumanifyLayout';
-import PlatformOpsNav from '@/components/humanify/PlatformOpsNav';
+import OpsLayout from '@/components/humanify/OpsLayout';
+import OpsDataTable from '@/components/humanify/OpsDataTable';
+import { OpsBadge, OpsConfirm, OpsPageSkeleton, OpsToast } from '@/components/humanify/ops-ui';
+import { usePlatformOperator } from '@/lib/humanify/use-platform-operator';
 import {
   ArrowLeft, Building2, Users, Briefcase, HeartPulse, Eye, Clock,
-  PauseCircle, CheckCircle2, Loader2, RefreshCw, ExternalLink, Receipt,
+  PauseCircle, CheckCircle2, RefreshCw, ExternalLink, Receipt,
   Circle, Pencil,
 } from 'lucide-react';
 
@@ -14,11 +15,9 @@ import {
  * Humanify Platform — single tenant detail & ops (Phase 3+)
  */
 export default function TenantDetailPage() {
-  const { data: session, status, update: updateSession } = useSession();
+  const { gating, update: updateSession } = usePlatformOperator('/platform/clients');
   const router = useRouter();
   const id = String(router.query.id || '');
-  const role = ((session?.user as any)?.role || '').toLowerCase();
-  const allowed = role === 'super_admin' || role === 'superadmin' || role === 'platform_admin';
 
   const [tenant, setTenant] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
@@ -37,6 +36,7 @@ export default function TenantDetailPage() {
     employeeRange: '',
   });
   const [savingProfile, setSavingProfile] = useState(false);
+  const [verifyConfirm, setVerifyConfirm] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -71,16 +71,8 @@ export default function TenantDetailPage() {
   }, [id]);
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.replace('/humanify/login?callbackUrl=/platform');
-      return;
-    }
-    if (status === 'authenticated' && !allowed) {
-      router.replace('/humanify');
-      return;
-    }
-    if (status === 'authenticated' && allowed && id) load();
-  }, [status, allowed, id, load, router]);
+    if (!gating && id) load();
+  }, [gating, id, load]);
 
   async function setTenantStatus(next: string) {
     setActing(true);
@@ -128,7 +120,7 @@ export default function TenantDetailPage() {
       if (!j.success) { setToast(j.error || 'Impersonate gagal'); return; }
       await updateSession(j.data.sessionPatch);
       setToast(j.message || 'Support mode aktif');
-      router.push(j.data.redirectTo || '/humanify');
+      window.location.assign(`https://humanify.id${j.data.redirectTo || '/humanify'}`);
     } catch {
       setToast('Impersonate gagal');
     } finally {
@@ -160,11 +152,11 @@ export default function TenantDetailPage() {
     }
   }
 
-  if (status === 'loading' || (status === 'authenticated' && !allowed)) {
+  if (gating || (loading && !tenant)) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-slate-500">
-        <Loader2 className="w-6 h-6 animate-spin mr-2" /> Memuat...
-      </div>
+      <OpsLayout title="Tenant" subtitle="Detail tenant & operasi">
+        <OpsPageSkeleton variant="detail" />
+      </OpsLayout>
     );
   }
 
@@ -173,13 +165,38 @@ export default function TenantDetailPage() {
   const amountFmt = (n: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n || 0);
 
   return (
-    <HumanifyLayout title={tenant?.name || 'Tenant'} subtitle="Detail tenant & operasi">
+    <OpsLayout title={tenant?.name || 'Tenant'} subtitle="Detail tenant & operasi">
       <div className="space-y-6">
-        {toast && (
-          <div className="fixed top-4 right-4 z-50 bg-slate-900 text-white text-sm px-4 py-2 rounded-lg shadow">{toast}</div>
-        )}
+        <OpsToast message={toast} onDismiss={() => setToast('')} />
+        <OpsConfirm
+          open={verifyConfirm}
+          title="Tandai email terverifikasi"
+          message="Override support: email pemilik akan ditandai terverifikasi tanpa klik link. Gunakan hanya jika klien tidak menerima email."
+          confirmLabel="Tandai terverifikasi"
+          busy={acting}
+          onCancel={() => setVerifyConfirm(false)}
+          onConfirm={async () => {
+            setActing(true);
+            try {
+              const res = await fetch('/api/platform?action=tenant-email-verify', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, reason: 'platform_support_override' }),
+              });
+              const j = await res.json();
+              if (j.success) {
+                setToast(j.message || 'Ditandai terverifikasi');
+                await load();
+              } else setToast(j.error || 'Gagal mark verified');
+            } catch {
+              setToast('Gagal mark verified');
+            } finally {
+              setActing(false);
+              setVerifyConfirm(false);
+            }
+          }}
+        />
 
-        <PlatformOpsNav />
 
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <Link href="/platform/clients" className="inline-flex items-center gap-1 text-sm text-[color:var(--hf-brand-600)] hover:underline">
@@ -413,26 +430,7 @@ export default function TenantDetailPage() {
                     <button
                       type="button"
                       disabled={acting}
-                      onClick={async () => {
-                        if (!window.confirm('Tandai email pemilik sebagai terverifikasi? (override support)')) return;
-                        setActing(true);
-                        try {
-                          const res = await fetch('/api/platform?action=tenant-email-verify', {
-                            method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ id, reason: 'platform_support_override' }),
-                          });
-                          const j = await res.json();
-                          if (j.success) {
-                            setToast(j.message || 'Ditandai terverifikasi');
-                            await load();
-                          } else setToast(j.error || 'Gagal mark verified');
-                        } catch {
-                          setToast('Gagal mark verified');
-                        } finally {
-                          setActing(false);
-                        }
-                      }}
+                      onClick={() => setVerifyConfirm(true)}
                       className="text-xs px-3 py-1.5 rounded bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
                     >
                       Tandai terverifikasi
@@ -487,59 +485,119 @@ export default function TenantDetailPage() {
               </button>
             </div>
 
-            <div className="bg-white border rounded-xl overflow-hidden">
-              <div className="px-4 py-3 border-b flex items-center gap-2">
+            <div className="bg-white border rounded-xl p-4 sm:p-5">
+              <div className="mb-3 flex items-center gap-2">
                 <Receipt className="w-4 h-4 text-slate-500" />
                 <p className="text-sm font-semibold text-slate-800">Riwayat billing orders</p>
               </div>
-              <table className="w-full text-sm">
-                <thead className="bg-slate-50 text-left">
-                  <tr>
-                    <th className="px-4 py-2">Order</th>
-                    <th className="px-4 py-2">Plan</th>
-                    <th className="px-4 py-2">Interval</th>
-                    <th className="px-4 py-2 text-right">Amount</th>
-                    <th className="px-4 py-2 text-right">Komisi (est.)</th>
-                    <th className="px-4 py-2">Status</th>
-                    <th className="px-4 py-2">Dibayar</th>
-                    <th className="px-4 py-2">Dibuat</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {!ordersAvailable && (
-                    <tr><td colSpan={8} className="px-4 py-6 text-center text-slate-400">Tabel billing belum tersedia.</td></tr>
-                  )}
-                  {ordersAvailable && orders.length === 0 && (
-                    <tr><td colSpan={8} className="px-4 py-6 text-center text-slate-400">Belum ada order.</td></tr>
-                  )}
-                  {orders.map((o) => (
-                    <tr key={o.id}>
-                      <td className="px-4 py-2 font-mono text-xs text-slate-600">{o.order_code || o.midtrans_order_id || o.id}</td>
-                      <td className="px-4 py-2 capitalize">{o.plan || '—'}</td>
-                      <td className="px-4 py-2">{o.interval || '—'}</td>
-                      <td className="px-4 py-2 text-right">{amountFmt(o.amount_idr)}</td>
-                      <td className="px-4 py-2 text-right text-xs text-slate-600">
+              <OpsDataTable
+                rows={ordersAvailable ? orders : []}
+                loading={loading}
+                rowKey={(o) => o.id}
+                searchPlaceholder="Cari order / plan / status…"
+                exportFileName={`humanify-ops-tenant-${tenant?.slug || id}-orders`}
+                exportSheetName="Orders"
+                emptyTitle={ordersAvailable ? 'Belum ada order.' : 'Tabel billing belum tersedia.'}
+                filters={[
+                  {
+                    id: 'status',
+                    label: 'Semua status',
+                    getValue: (o) => String(o.status || ''),
+                    options: [
+                      { value: 'paid', label: 'paid' },
+                      { value: 'pending', label: 'pending' },
+                      { value: 'failed', label: 'failed' },
+                      { value: 'cancel', label: 'cancel' },
+                    ],
+                  },
+                ]}
+                columns={[
+                  {
+                    id: 'order_code',
+                    header: 'Order',
+                    exportWidth: 22,
+                    exportValue: (o) => o.order_code || o.midtrans_order_id || o.id,
+                    cell: (o) => (
+                      <span className="font-mono text-xs text-slate-600">{o.order_code || o.midtrans_order_id || o.id}</span>
+                    ),
+                  },
+                  {
+                    id: 'plan',
+                    header: 'Plan',
+                    exportValue: (o) => o.plan || '',
+                    cell: (o) => <span className="capitalize">{o.plan || '—'}</span>,
+                  },
+                  {
+                    id: 'interval',
+                    header: 'Interval',
+                    exportValue: (o) => o.interval || '',
+                    cell: (o) => o.interval || '—',
+                  },
+                  {
+                    id: 'amount_idr',
+                    header: 'Amount',
+                    align: 'right',
+                    exportValue: (o) => Number(o.amount_idr || 0),
+                    cell: (o) => <span className="tabular-nums">{amountFmt(o.amount_idr)}</span>,
+                  },
+                  {
+                    id: 'commission_idr',
+                    header: 'Komisi (est.)',
+                    align: 'right',
+                    exportValue: (o) =>
+                      o.commission_idr != null
+                        ? `${o.commission_idr}${o.partner_code ? ` (${o.partner_code})` : ''}`
+                        : '',
+                    cell: (o) => (
+                      <span className="text-xs text-slate-600">
                         {o.commission_idr != null
                           ? `${amountFmt(o.commission_idr)}${o.partner_code ? ` (${o.partner_code})` : ''}`
                           : '—'}
-                      </td>
-                      <td className="px-4 py-2">
-                        <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
-                          o.status === 'paid' ? 'bg-emerald-100 text-emerald-700' :
-                          o.status === 'pending' ? 'bg-amber-100 text-amber-700' :
-                          o.status === 'failed' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'
-                        }`}>{o.status || '—'}</span>
-                      </td>
-                      <td className="px-4 py-2 text-xs text-slate-500">{o.paid_at ? new Date(o.paid_at).toLocaleString('id-ID') : '—'}</td>
-                      <td className="px-4 py-2 text-xs text-slate-500">{o.created_at ? new Date(o.created_at).toLocaleString('id-ID') : '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </span>
+                    ),
+                  },
+                  {
+                    id: 'status',
+                    header: 'Status',
+                    exportValue: (o) => o.status || '',
+                    cell: (o) => (
+                      <OpsBadge
+                        tone={
+                          o.status === 'paid' ? 'success' :
+                          o.status === 'pending' ? 'warning' :
+                          o.status === 'failed' ? 'danger' : 'neutral'
+                        }
+                      >
+                        {o.status || '—'}
+                      </OpsBadge>
+                    ),
+                  },
+                  {
+                    id: 'paid_at',
+                    header: 'Dibayar',
+                    exportValue: (o) => (o.paid_at ? new Date(o.paid_at).toLocaleString('id-ID') : ''),
+                    cell: (o) => (
+                      <span className="text-xs text-slate-500">
+                        {o.paid_at ? new Date(o.paid_at).toLocaleString('id-ID') : '—'}
+                      </span>
+                    ),
+                  },
+                  {
+                    id: 'created_at',
+                    header: 'Dibuat',
+                    exportValue: (o) => (o.created_at ? new Date(o.created_at).toLocaleString('id-ID') : ''),
+                    cell: (o) => (
+                      <span className="text-xs text-slate-500">
+                        {o.created_at ? new Date(o.created_at).toLocaleString('id-ID') : '—'}
+                      </span>
+                    ),
+                  },
+                ]}
+              />
             </div>
           </>
         )}
       </div>
-    </HumanifyLayout>
+    </OpsLayout>
   );
 }

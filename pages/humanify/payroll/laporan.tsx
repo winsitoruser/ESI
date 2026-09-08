@@ -2,13 +2,16 @@ import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import HrisEmptyState from '@/components/humanify/HrisEmptyState';
+import HRStatCard from '@/components/humanify/HRStatCard';
+import { OpsKpiShell } from '@/components/humanify/OpsPageChrome';
+import { PayrollShell } from '@/components/humanify/PayrollModuleChrome';
+import { EnterpriseTabBar } from '@/components/humanify/PerformanceModuleChrome';
 import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import dynamic from 'next/dynamic';
 import {
-  FileText, Users, DollarSign, TrendingUp, ArrowLeft, BarChart3, PieChart,
-  Calendar, Download, Building2, Filter, Layers, CheckCircle, AlertCircle
+  FileText, Users, DollarSign, TrendingUp, BarChart3, PieChart,
+  Calendar, Download, Building2, Shield
 } from 'lucide-react';
-import Link from 'next/link';
 
 const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });
 
@@ -122,38 +125,35 @@ export default function LaporanPage() {
 
   return (
     <HQLayout title="Laporan Penggajian" subtitle="Laporan komprehensif penggajian karyawan">
-      <div className="space-y-6">
-        <div className="flex items-center gap-3">
-          <Link href="/humanify/payroll" className="p-2 border rounded-lg hover:bg-gray-50"><ArrowLeft className="w-4 h-4" /></Link>
-          <div className="flex-1"><h2 className="text-lg font-bold">Laporan Penggajian</h2><p className="text-sm text-gray-500">Analisis dan rekap penggajian komprehensif</p></div>
-          <DataSourceBadge source={dataSource} />
-          <a href="/api/humanify/payroll?action=export&type=salaries" download className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]"><Download className="w-4 h-4" /> Export Gaji</a>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: 'YTD Gaji Kotor', value: ytdGross, icon: TrendingUp, bg: 'bg-[var(--hf-brand-100)]', color: 'text-[color:var(--hf-brand-600)]' },
-            { label: 'YTD Gaji Bersih', value: ytdNet, icon: DollarSign, bg: 'bg-green-100', color: 'text-green-600' },
-            { label: 'YTD Pajak', value: ytdTax, icon: FileText, bg: 'bg-amber-100', color: 'text-amber-600' },
-            { label: 'Karyawan Aktif', value: latestMonth?.employees || 0, icon: Users, bg: 'bg-purple-100', color: 'text-purple-600', noFmt: true },
-          ].map(s => (
-            <div key={s.label} className="bg-white rounded-xl p-4 shadow-sm border">
-              <div className="flex items-center gap-3"><div className={`p-2 ${s.bg} rounded-lg`}><s.icon className={`w-5 h-5 ${s.color}`} /></div><div><p className="text-xs text-gray-500">{s.label}</p><p className={`text-lg font-bold ${s.color}`}>{'noFmt' in s ? s.value : fmtShort(s.value as number)}</p></div></div>
-            </div>
-          ))}
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border">
-          <div className="flex border-b overflow-x-auto">
-            {[
-              { key: 'monthly', label: 'Tren Bulanan', icon: BarChart3 },
-              { key: 'department', label: 'Per Departemen', icon: Building2 },
-              { key: 'distribution', label: 'Distribusi Gaji', icon: PieChart },
-              { key: 'ytd', label: 'Year to Date', icon: Calendar },
-            ].map(tab => (
-              <button key={tab.key} onClick={() => setActiveReport(tab.key as any)} className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 whitespace-nowrap ${activeReport === tab.key ? 'border-[var(--hf-brand-600)] text-[color:var(--hf-brand-600)]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}><tab.icon className="w-4 h-4" />{tab.label}</button>
-            ))}
+      <PayrollShell
+        current="laporan"
+        title="Laporan penggajian"
+        subtitle="Tren, rekap per departemen, distribusi gaji, dan year-to-date."
+        icon={BarChart3}
+        actions={(
+          <div className="flex flex-wrap items-center gap-2">
+            <DataSourceBadge source={dataSource} />
+            <a href="/api/humanify/payroll?action=export&type=salaries" download className="hf-btn-primary inline-flex items-center gap-2"><Download className="h-4 w-4" /> Export gaji</a>
           </div>
+        )}
+      >
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <OpsKpiShell><HRStatCard icon={TrendingUp} label="YTD gaji kotor" value={fmtShort(ytdGross)} accent="violet" /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard icon={DollarSign} label="YTD gaji bersih" value={fmtShort(ytdNet)} accent="emerald" /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard icon={FileText} label="YTD pajak" value={fmtShort(ytdTax)} accent="amber" /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard icon={Users} label="Karyawan aktif" value={latestMonth?.employees || 0} accent="violet" /></OpsKpiShell>
+        </div>
+
+        <EnterpriseTabBar
+          tabs={[
+            { key: 'monthly', label: 'Tren bulanan', icon: BarChart3 },
+            { key: 'department', label: 'Per departemen', icon: Building2 },
+            { key: 'distribution', label: 'Distribusi gaji', icon: PieChart },
+            { key: 'ytd', label: 'Year to date', icon: Calendar },
+          ]}
+          active={activeReport}
+          onChange={setActiveReport}
+        />
 
           {activeReport === 'monthly' && (
             monthly.length === 0 ? (
@@ -163,43 +163,43 @@ export default function LaporanPage() {
                 description="Tren penggajian bulanan akan muncul setelah proses penggajian periode pertama selesai."
               />
             ) : (
-            <div className="p-6 space-y-6">
+            <div className="hf-card space-y-6 p-6">
               <div className="h-[350px]">
-                <Chart type="bar" height={350} options={{ chart: { id: 'payroll-trend', toolbar: { show: false } }, plotOptions: { bar: { borderRadius: 4, columnWidth: '60%' } }, dataLabels: { enabled: false }, xaxis: { categories: monthly.map(m => m.label) }, yaxis: { labels: { formatter: (v: number) => fmtShort(v) } }, colors: ['#3b82f6', '#ef4444', '#f59e0b', '#10b981'], legend: { position: 'top' }, tooltip: { y: { formatter: (v: number) => fmtCurrency(v) } } }} series={[
+                <Chart type="bar" height={350} options={{ chart: { id: 'payroll-trend', toolbar: { show: false }, fontFamily: 'inherit' }, plotOptions: { bar: { borderRadius: 4, columnWidth: '60%' } }, dataLabels: { enabled: false }, xaxis: { categories: monthly.map(m => m.label) }, yaxis: { labels: { formatter: (v: number) => fmtShort(v) } }, colors: ['#5b21b6', '#94a3b8', '#d97706', '#059669'], legend: { position: 'top' }, tooltip: { y: { formatter: (v: number) => fmtCurrency(v) } } }} series={[
                   { name: 'Gaji Kotor', data: monthly.map(m => m.gross) },
                   { name: 'Potongan', data: monthly.map(m => m.deductions) },
                   { name: 'Pajak', data: monthly.map(m => m.tax) },
                   { name: 'Gaji Bersih', data: monthly.map(m => m.net) },
                 ]} />
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm"><thead className="bg-gray-50"><tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Bulan</th>
-                  <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Karyawan</th>
-                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Gaji Kotor</th>
-                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Potongan</th>
-                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Pajak</th>
-                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">BPJS</th>
-                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Gaji Bersih</th>
+              <div className="hf-table-wrap overflow-x-auto">
+                <table><thead><tr>
+                  <th>Bulan</th>
+                  <th className="text-center">Karyawan</th>
+                  <th className="text-right">Gaji kotor</th>
+                  <th className="text-right">Potongan</th>
+                  <th className="text-right">Pajak</th>
+                  <th className="text-right">BPJS</th>
+                  <th className="text-right">Gaji bersih</th>
                 </tr></thead>
-                <tbody className="divide-y">{monthly.map(m => (
-                  <tr key={m.month} className="hover:bg-gray-50">
-                    <td className="px-4 py-2 font-medium">{m.month}</td>
-                    <td className="px-4 py-2 text-center">{m.employees}</td>
-                    <td className="px-4 py-2 text-right">{fmtCurrency(m.gross)}</td>
-                    <td className="px-4 py-2 text-right text-red-600">{fmtCurrency(m.deductions)}</td>
-                    <td className="px-4 py-2 text-right text-amber-600">{fmtCurrency(m.tax)}</td>
-                    <td className="px-4 py-2 text-right text-[color:var(--hf-brand-600)]">{fmtCurrency(m.bpjs)}</td>
-                    <td className="px-4 py-2 text-right font-bold text-green-600">{fmtCurrency(m.net)}</td>
+                <tbody>{monthly.map(m => (
+                  <tr key={m.month}>
+                    <td className="font-medium">{m.month}</td>
+                    <td className="text-center">{m.employees}</td>
+                    <td className="text-right tabular-nums">{fmtCurrency(m.gross)}</td>
+                    <td className="text-right tabular-nums text-[color:var(--hf-danger)]">{fmtCurrency(m.deductions)}</td>
+                    <td className="text-right tabular-nums text-amber-700">{fmtCurrency(m.tax)}</td>
+                    <td className="text-right tabular-nums text-[color:var(--hf-brand-600)]">{fmtCurrency(m.bpjs)}</td>
+                    <td className="text-right font-semibold tabular-nums text-[color:var(--hf-success)]">{fmtCurrency(m.net)}</td>
                   </tr>
                 ))}</tbody>
-                <tfoot className="bg-gray-50 font-bold"><tr>
+                <tfoot className="bg-[var(--hf-surface-muted)] font-semibold"><tr>
                   <td className="px-4 py-2">Total YTD</td><td></td>
-                  <td className="px-4 py-2 text-right">{fmtCurrency(ytdGross)}</td>
-                  <td className="px-4 py-2 text-right text-red-600">{fmtCurrency(monthly.reduce((s, m) => s + m.deductions, 0))}</td>
-                  <td className="px-4 py-2 text-right text-amber-600">{fmtCurrency(ytdTax)}</td>
-                  <td className="px-4 py-2 text-right text-[color:var(--hf-brand-600)]">{fmtCurrency(monthly.reduce((s, m) => s + m.bpjs, 0))}</td>
-                  <td className="px-4 py-2 text-right text-green-600">{fmtCurrency(ytdNet)}</td>
+                  <td className="px-4 py-2 text-right tabular-nums">{fmtCurrency(ytdGross)}</td>
+                  <td className="px-4 py-2 text-right tabular-nums text-[color:var(--hf-danger)]">{fmtCurrency(monthly.reduce((s, m) => s + m.deductions, 0))}</td>
+                  <td className="px-4 py-2 text-right tabular-nums text-amber-700">{fmtCurrency(ytdTax)}</td>
+                  <td className="px-4 py-2 text-right tabular-nums text-[color:var(--hf-brand-600)]">{fmtCurrency(monthly.reduce((s, m) => s + m.bpjs, 0))}</td>
+                  <td className="px-4 py-2 text-right tabular-nums text-[color:var(--hf-success)]">{fmtCurrency(ytdNet)}</td>
                 </tr></tfoot></table>
               </div>
             </div>
@@ -214,38 +214,38 @@ export default function LaporanPage() {
                 description="Rekap gaji per departemen akan muncul setelah data penggajian karyawan tersedia."
               />
             ) : (
-            <div className="p-6 space-y-6">
+            <div className="hf-card space-y-6 p-6">
               <div className="h-[350px]">
-                <Chart type="bar" height={350} options={{ chart: { id: 'dept-payroll', toolbar: { show: false } }, plotOptions: { bar: { horizontal: true, borderRadius: 4 } }, dataLabels: { enabled: false }, xaxis: { labels: { formatter: (v: number) => fmtShort(v) } }, yaxis: { labels: { style: { fontSize: '11px' } } }, colors: ['#3b82f6', '#10b981'], legend: { position: 'top' }, tooltip: { y: { formatter: (v: number) => fmtCurrency(v) } } }} series={[
+                <Chart type="bar" height={350} options={{ chart: { id: 'dept-payroll', toolbar: { show: false }, fontFamily: 'inherit' }, plotOptions: { bar: { horizontal: true, borderRadius: 4 } }, dataLabels: { enabled: false }, xaxis: { labels: { formatter: (v: number) => fmtShort(v) } }, yaxis: { labels: { style: { fontSize: '11px' } } }, colors: ['#5b21b6', '#059669'], legend: { position: 'top' }, tooltip: { y: { formatter: (v: number) => fmtCurrency(v) } } }} series={[
                   { name: 'Gaji Kotor', data: byDept.map(d => ({ x: d.department, y: d.gross })) },
                   { name: 'Gaji Bersih', data: byDept.map(d => ({ x: d.department, y: d.net })) },
                 ]} />
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm"><thead className="bg-gray-50"><tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Departemen</th>
-                  <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Karyawan</th>
-                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Gaji Kotor</th>
-                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Gaji Bersih</th>
-                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Rata-rata</th>
-                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">% dari Total</th>
+              <div className="hf-table-wrap overflow-x-auto">
+                <table><thead><tr>
+                  <th>Departemen</th>
+                  <th className="text-center">Karyawan</th>
+                  <th className="text-right">Gaji kotor</th>
+                  <th className="text-right">Gaji bersih</th>
+                  <th className="text-right">Rata-rata</th>
+                  <th className="text-right">% dari total</th>
                 </tr></thead>
-                <tbody className="divide-y">{byDept.map(d => (
-                  <tr key={d.department} className="hover:bg-gray-50">
-                    <td className="px-4 py-2 font-medium">{d.department}</td>
-                    <td className="px-4 py-2 text-center">{d.employees}</td>
-                    <td className="px-4 py-2 text-right">{fmtCurrency(d.gross)}</td>
-                    <td className="px-4 py-2 text-right text-green-600">{fmtCurrency(d.net)}</td>
-                    <td className="px-4 py-2 text-right">{fmtCurrency(d.avg_salary)}</td>
-                    <td className="px-4 py-2 text-right">{((d.gross / totalDeptGross) * 100).toFixed(1)}%</td>
+                <tbody>{byDept.map(d => (
+                  <tr key={d.department}>
+                    <td className="font-medium">{d.department}</td>
+                    <td className="text-center">{d.employees}</td>
+                    <td className="text-right tabular-nums">{fmtCurrency(d.gross)}</td>
+                    <td className="text-right tabular-nums text-[color:var(--hf-success)]">{fmtCurrency(d.net)}</td>
+                    <td className="text-right tabular-nums">{fmtCurrency(d.avg_salary)}</td>
+                    <td className="text-right tabular-nums">{((d.gross / totalDeptGross) * 100).toFixed(1)}%</td>
                   </tr>
                 ))}</tbody>
-                <tfoot className="bg-gray-50 font-bold"><tr>
+                <tfoot className="bg-[var(--hf-surface-muted)] font-semibold"><tr>
                   <td className="px-4 py-2">Total</td>
                   <td className="px-4 py-2 text-center">{byDept.reduce((s, d) => s + d.employees, 0)}</td>
-                  <td className="px-4 py-2 text-right">{fmtCurrency(totalDeptGross)}</td>
-                  <td className="px-4 py-2 text-right text-green-600">{fmtCurrency(byDept.reduce((s, d) => s + d.net, 0))}</td>
-                  <td className="px-4 py-2 text-right">{fmtCurrency(Math.round(totalDeptGross / byDept.reduce((s, d) => s + d.employees, 0)))}</td>
+                  <td className="px-4 py-2 text-right tabular-nums">{fmtCurrency(totalDeptGross)}</td>
+                  <td className="px-4 py-2 text-right tabular-nums text-[color:var(--hf-success)]">{fmtCurrency(byDept.reduce((s, d) => s + d.net, 0))}</td>
+                  <td className="px-4 py-2 text-right tabular-nums">{fmtCurrency(Math.round(totalDeptGross / byDept.reduce((s, d) => s + d.employees, 0)))}</td>
                   <td className="px-4 py-2 text-right">100%</td>
                 </tr></tfoot></table>
               </div>
@@ -261,17 +261,17 @@ export default function LaporanPage() {
                 description="Distribusi rentang gaji akan muncul setelah data gaji karyawan tersedia."
               />
             ) : (
-            <div className="p-6 space-y-6">
+            <div className="hf-card space-y-6 p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="h-[300px]">
-                  <Chart type="donut" height={300} options={{ chart: { id: 'salary-dist' }, labels: distribution.map(s => s.range), colors: ['#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6', '#10b981'], legend: { position: 'bottom' }, plotOptions: { pie: { donut: { labels: { show: true, total: { show: true, label: 'Total', formatter: () => `${distribution.reduce((s, d) => s + d.count, 0)}` } } } } } }} series={distribution.map(s => s.count)} />
+                  <Chart type="donut" height={300} options={{ chart: { id: 'salary-dist', fontFamily: 'inherit' }, labels: distribution.map(s => s.range), colors: ['#5b21b6', '#7c3aed', '#94a3b8', '#d97706', '#059669'], legend: { position: 'bottom' }, plotOptions: { pie: { donut: { labels: { show: true, total: { show: true, label: 'Total', formatter: () => `${distribution.reduce((s, d) => s + d.count, 0)}` } } } } } }} series={distribution.map(s => s.count)} />
                 </div>
                 <div className="space-y-3">
                   <h4 className="font-semibold">Distribusi Rentang Gaji</h4>
                   {distribution.map(s => (
                     <div key={s.range} className="flex items-center gap-3">
                       <div className="w-20 text-sm font-medium">{s.range}</div>
-                      <div className="flex-1"><div className="w-full bg-gray-200 rounded-full h-4"><div className="bg-[var(--hf-brand-500)] h-4 rounded-full transition-all" style={{ width: `${s.pct}%` }} /></div></div>
+                      <div className="flex-1"><div className="h-4 w-full rounded-full bg-[var(--hf-surface-muted)]"><div className="h-4 rounded-full bg-[var(--hf-brand-600)] transition-all" style={{ width: `${s.pct}%` }} /></div></div>
                       <div className="w-20 text-right text-sm"><span className="font-bold">{s.count}</span> <span className="text-gray-500">({s.pct}%)</span></div>
                     </div>
                   ))}
@@ -282,43 +282,35 @@ export default function LaporanPage() {
           )}
 
           {activeReport === 'ytd' && (
-            <div className="p-6 space-y-6">
-              <h3 className="font-semibold text-lg">Ringkasan Year-to-Date {selectedYear}</h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {[
-                  { label: 'Total Gaji Bruto', value: ytdGross, color: 'text-[color:var(--hf-brand-600)]', bg: 'bg-[var(--hf-brand-50)]' },
-                  { label: 'Total Gaji Bersih', value: ytdNet, color: 'text-green-600', bg: 'bg-green-50' },
-                  { label: 'Total Pajak PPh 21', value: ytdTax, color: 'text-amber-600', bg: 'bg-amber-50' },
-                  { label: 'Total BPJS', value: monthly.reduce((s, m) => s + m.bpjs, 0), color: 'text-purple-600', bg: 'bg-purple-50' },
-                  { label: 'Total Potongan', value: monthly.reduce((s, m) => s + m.deductions, 0), color: 'text-red-600', bg: 'bg-red-50' },
-                  { label: 'Rata-rata per Bulan', value: Math.round(ytdGross / monthly.length), color: 'text-[color:var(--hf-brand-600)]', bg: 'bg-[var(--hf-brand-50)]' },
-                ].map(item => (
-                  <div key={item.label} className={`${item.bg} rounded-xl p-4`}>
-                    <p className="text-xs text-gray-500">{item.label}</p>
-                    <p className={`text-xl font-bold ${item.color} mt-1`}>{fmtShort(item.value)}</p>
-                  </div>
-                ))}
+            <div className="hf-card space-y-6 p-6">
+              <h3 className="text-lg font-semibold text-[color:var(--hf-ink)]">Ringkasan year-to-date {selectedYear}</h3>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+                <OpsKpiShell><HRStatCard icon={TrendingUp} label="Total gaji bruto" value={fmtShort(ytdGross)} accent="violet" /></OpsKpiShell>
+                <OpsKpiShell><HRStatCard icon={DollarSign} label="Total gaji bersih" value={fmtShort(ytdNet)} accent="emerald" /></OpsKpiShell>
+                <OpsKpiShell><HRStatCard icon={FileText} label="Total PPh 21" value={fmtShort(ytdTax)} accent="amber" /></OpsKpiShell>
+                <OpsKpiShell><HRStatCard icon={Shield} label="Total BPJS" value={fmtShort(monthly.reduce((s, m) => s + m.bpjs, 0))} accent="violet" /></OpsKpiShell>
+                <OpsKpiShell><HRStatCard icon={DollarSign} label="Total potongan" value={fmtShort(monthly.reduce((s, m) => s + m.deductions, 0))} accent="rose" /></OpsKpiShell>
+                <OpsKpiShell><HRStatCard icon={Calendar} label="Rata-rata per bulan" value={fmtShort(monthly.length ? Math.round(ytdGross / monthly.length) : 0)} accent="violet" /></OpsKpiShell>
               </div>
-              <div className="border rounded-xl p-5 space-y-4">
-                <h4 className="font-semibold">Komposisi Biaya YTD</h4>
+              <div className="hf-card space-y-4 p-5">
+                <h4 className="font-semibold">Komposisi biaya YTD</h4>
                 <div className="space-y-3">
                   {[
-                    { label: 'Gaji Bersih (Net Pay)', value: ytdNet, total: ytdGross, color: 'bg-green-500' },
+                    { label: 'Gaji bersih (net pay)', value: ytdNet, total: ytdGross, color: 'bg-emerald-600' },
                     { label: 'PPh 21', value: ytdTax, total: ytdGross, color: 'bg-amber-500' },
-                    { label: 'BPJS', value: monthly.reduce((s, m) => s + m.bpjs, 0), total: ytdGross, color: 'bg-purple-500' },
-                    { label: 'Potongan Lain', value: monthly.reduce((s, m) => s + m.deductions, 0) - ytdTax - monthly.reduce((s, m) => s + m.bpjs, 0), total: ytdGross, color: 'bg-red-500' },
+                    { label: 'BPJS', value: monthly.reduce((s, m) => s + m.bpjs, 0), total: ytdGross, color: 'bg-[var(--hf-brand-600)]' },
+                    { label: 'Potongan lain', value: monthly.reduce((s, m) => s + m.deductions, 0) - ytdTax - monthly.reduce((s, m) => s + m.bpjs, 0), total: ytdGross, color: 'bg-rose-500' },
                   ].map(item => (
                     <div key={item.label}>
-                      <div className="flex justify-between text-sm mb-1"><span>{item.label}</span><span className="font-medium">{fmtCurrency(item.value)} ({((item.value / item.total) * 100).toFixed(1)}%)</span></div>
-                      <div className="w-full bg-gray-200 rounded-full h-2"><div className={`${item.color} h-2 rounded-full`} style={{ width: `${(item.value / item.total) * 100}%` }} /></div>
+                      <div className="mb-1 flex justify-between text-sm"><span>{item.label}</span><span className="font-medium tabular-nums">{fmtCurrency(item.value)} ({item.total ? ((item.value / item.total) * 100).toFixed(1) : 0}%)</span></div>
+                      <div className="h-2 w-full rounded-full bg-[var(--hf-surface-muted)]"><div className={`${item.color} h-2 rounded-full`} style={{ width: `${item.total ? (item.value / item.total) * 100 : 0}%` }} /></div>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
           )}
-        </div>
-      </div>
+      </PayrollShell>
     </HQLayout>
   );
 }

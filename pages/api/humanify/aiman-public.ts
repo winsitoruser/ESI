@@ -52,6 +52,11 @@ function fallbackReply(message: string): string {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const { isHumanifyAiEnabled, humanifyAiDisabledPayload } = await import('@/lib/hris/ai-enabled');
+  if (!isHumanifyAiEnabled()) {
+    return res.status(503).json(humanifyAiDisabledPayload());
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   }

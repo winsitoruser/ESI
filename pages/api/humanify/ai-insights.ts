@@ -100,6 +100,11 @@ async function gatherContext(
 }
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const { isHumanifyAiEnabled, humanifyAiDisabledPayload } = await import('@/lib/hris/ai-enabled');
+  if (!isHumanifyAiEnabled()) {
+    return res.status(503).json(humanifyAiDisabledPayload());
+  }
+
   const session = (req as any).session;
   if (!session) return res.status(401).json({ success: false, error: 'Unauthorized' });
 

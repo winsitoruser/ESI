@@ -6,6 +6,10 @@ import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import { GraduationCap, Search, Plus, Eye, Edit, X, Calendar, Clock, Users, MapPin, Star, Award, BookOpen, CheckCircle2, BarChart3, TrendingUp, FileText, Download, Filter, ChevronRight, Target, Bookmark, Video, Monitor, Loader2, Trash2 } from 'lucide-react';
 import TrainingLmsBridge from '@/components/humanify/TrainingLmsBridge';
+import HRStatCard from '@/components/humanify/HRStatCard';
+import { OpsKpiShell } from '@/components/humanify/OpsPageChrome';
+import { TalentShell } from '@/components/humanify/TalentModuleChrome';
+import { EnterpriseTabBar } from '@/components/humanify/PerformanceModuleChrome';
 
 type TabKey = 'programs' | 'schedule' | 'certifications' | 'reports';
 
@@ -173,47 +177,59 @@ export default function TrainingPage() {
 
   return (
     <HQLayout title={t('hris.trainingTitle')} subtitle={t('hris.trainingSubtitle')}>
-      <div className="space-y-6">
-        {toast && <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white ${toast.type === 'error' ? 'bg-red-500' : 'bg-green-500'}`}>{toast.msg}</div>}
+      <TalentShell
+        current="training"
+        title="Program Pelatihan"
+        subtitle="Jadwal workshop, kursus, dan sertifikasi — tersinkron dengan LMS dan registri kredensial."
+        icon={GraduationCap}
+        chips={[
+          { label: `${activeProgramCount} program aktif` },
+          { label: `${totalEnrolled} peserta` },
+        ]}
+        actions={(
+          <div className="flex flex-wrap items-center gap-2">
+            <DataSourceBadge source={dataSource} />
+            <button type="button" onClick={() => { setTab('programs'); setShowCreateModal(true); }} className="hf-btn-primary inline-flex items-center gap-1.5 text-sm">
+              <Plus className="h-4 w-4" /> Buat program
+            </button>
+          </div>
+        )}
+      >
+        {toast && (
+          <div role="status" className={`fixed right-4 top-4 z-[60] rounded-lg border px-4 py-2.5 text-sm shadow-lg ${toast.type === 'error' ? 'border-rose-200 bg-rose-50 text-rose-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}>
+            {toast.msg}
+          </div>
+        )}
         <TrainingLmsBridge currentModule="training" />
 
-        <div className="flex justify-end">
-          <DataSourceBadge source={dataSource} />
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+          <OpsKpiShell>
+            <HRStatCard icon={BookOpen} label="Program aktif" value={activeProgramCount} accent="violet" onClick={() => { setTab('programs'); setFilterStatus('active'); }} />
+          </OpsKpiShell>
+          <OpsKpiShell>
+            <HRStatCard icon={Users} label="Total peserta" value={totalEnrolled} accent="blue" />
+          </OpsKpiShell>
+          <OpsKpiShell>
+            <HRStatCard icon={CheckCircle2} label="Selesai pelatihan" value={totalCompleted} accent="emerald" />
+          </OpsKpiShell>
+          <OpsKpiShell>
+            <HRStatCard icon={Star} label="Rata-rata rating" value={avgRating.toFixed(1)} accent="amber" />
+          </OpsKpiShell>
+          <OpsKpiShell>
+            <HRStatCard icon={Award} label="Sertifikasi perhatian" value={expiringCerts} accent="rose" onClick={() => setTab('certifications')} />
+          </OpsKpiShell>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <div className="bg-white rounded-xl p-4 border shadow-sm">
-            <div className="flex items-center gap-3"><div className="p-2 bg-[var(--hf-brand-100)] rounded-lg"><BookOpen className="w-5 h-5 text-[color:var(--hf-brand-600)]" /></div>
-              <div><p className="text-2xl font-bold">{activeProgramCount}</p><p className="text-xs text-gray-500">Program Aktif</p></div></div>
-          </div>
-          <div className="bg-white rounded-xl p-4 border shadow-sm">
-            <div className="flex items-center gap-3"><div className="p-2 bg-purple-100 rounded-lg"><Users className="w-5 h-5 text-purple-600" /></div>
-              <div><p className="text-2xl font-bold">{totalEnrolled}</p><p className="text-xs text-gray-500">Total Peserta</p></div></div>
-          </div>
-          <div className="bg-white rounded-xl p-4 border shadow-sm">
-            <div className="flex items-center gap-3"><div className="p-2 bg-green-100 rounded-lg"><CheckCircle2 className="w-5 h-5 text-green-600" /></div>
-              <div><p className="text-2xl font-bold">{totalCompleted}</p><p className="text-xs text-gray-500">Selesai Pelatihan</p></div></div>
-          </div>
-          <div className="bg-white rounded-xl p-4 border shadow-sm">
-            <div className="flex items-center gap-3"><div className="p-2 bg-yellow-100 rounded-lg"><Star className="w-5 h-5 text-yellow-600" /></div>
-              <div><p className="text-2xl font-bold">{avgRating.toFixed(1)}</p><p className="text-xs text-gray-500">Rata-rata Rating</p></div></div>
-          </div>
-          <div className="bg-white rounded-xl p-4 border shadow-sm">
-            <div className="flex items-center gap-3"><div className="p-2 bg-red-100 rounded-lg"><Award className="w-5 h-5 text-red-600" /></div>
-              <div><p className="text-2xl font-bold">{expiringCerts}</p><p className="text-xs text-gray-500">Sertifikasi Perhatian</p></div></div>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex gap-1 border-b">
-          {tabs.map(t => (
-            <button key={t.key} onClick={() => { setTab(t.key); setSearch(''); setFilterCat(''); setFilterStatus(''); }}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 flex items-center gap-1.5 transition-colors ${tab === t.key ? 'border-[var(--hf-brand-600)] text-[color:var(--hf-brand-600)]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-              <t.icon className="w-4 h-4" /> {t.label}
-            </button>
-          ))}
-        </div>
+        <EnterpriseTabBar
+          tabs={tabs}
+          active={tab}
+          onChange={(key) => {
+            setTab(key);
+            setSearch('');
+            setFilterCat('');
+            setFilterStatus('');
+          }}
+        />
 
         {loading && <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-[color:var(--hf-brand-600)]" /><span className="ml-2 text-sm text-gray-500">Memuat data...</span></div>}
 
@@ -436,7 +452,7 @@ export default function TrainingPage() {
         {/* CREATE PROGRAM MODAL */}
         {showCreateModal && (
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto">
+            <div className="hf-card w-full max-w-lg max-h-[85vh] overflow-y-auto">
               <div className="p-5 border-b flex justify-between items-center">
                 <h3 className="font-bold text-lg">Buat Program Pelatihan</h3>
                 <button onClick={() => setShowCreateModal(false)} className="p-1.5 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
@@ -474,7 +490,7 @@ export default function TrainingPage() {
         {/* PROGRAM DETAIL MODAL */}
         {selected && (
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto">
+            <div className="hf-card w-full max-w-lg max-h-[85vh] overflow-y-auto">
               <div className="p-5 border-b flex justify-between items-start">
                 <div className="flex items-center gap-3">
                   {(() => { const Icon = TYPE_ICONS[getProgramType(selected)] || BookOpen; return <div className="p-2.5 bg-[var(--hf-brand-50)] rounded-xl"><Icon className="w-6 h-6 text-[color:var(--hf-brand-600)]" /></div>; })()}
@@ -516,7 +532,7 @@ export default function TrainingPage() {
             </div>
           </div>
         )}
-      </div>
+      </TalentShell>
     </HQLayout>
   );
 }

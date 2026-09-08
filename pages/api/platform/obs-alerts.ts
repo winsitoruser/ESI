@@ -6,6 +6,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
+import { assertOpsApiHost } from '@/lib/humanify/assert-ops-host';
 import { isPlatformOperator } from '@/lib/middleware/tenantIsolation';
 import { evaluateObsErrorSpike, obsAlertSnapshot } from '@/lib/observability/alerts';
 
@@ -29,6 +30,7 @@ function cronAuthorized(req: NextApiRequest): boolean {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (!assertOpsApiHost(req, res, { allowLoopbackCron: true })) return;
   if (req.method === 'GET') {
     const session = await getServerSession(req, res, authOptions);
     if (!session?.user) return res.status(401).json({ success: false, error: 'Unauthorized' });

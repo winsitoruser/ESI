@@ -1,28 +1,31 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, type ReactNode } from 'react';
+import Link from 'next/link';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import EnterprisePageHeader from '@/components/humanify/EnterprisePageHeader';
+import HRStatCard from '@/components/humanify/HRStatCard';
+import { EnterpriseTabBar } from '@/components/humanify/PerformanceModuleChrome';
 import type { HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import {
-  Settings, Clock, MapPin, Fingerprint, Smartphone, Bell, Save,
-  Building2, Calendar, Timer, Shield, Coffee, AlertTriangle,
-  CheckCircle, ToggleLeft, ToggleRight
+  WORK_TIME_SYSTEMS,
+  evaluateClockIn,
+  evaluateClockOut,
+  normalizeWorkTimePolicy,
+  presetForSystem,
+  toTimeInput,
+  type WorkTimePolicy,
+  type WorkTimeSystem,
+} from '@/lib/hris/work-time-policy';
+import {
+  Settings, Clock, MapPin, Fingerprint, Bell, Save, Calendar, Timer,
+  Coffee, Layers, Smartphone, Globe, ArrowRight, CheckCircle, AlertTriangle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-interface AttSettings {
-  workStartTime: string;
-  workEndTime: string;
-  breakStartTime: string;
-  breakEndTime: string;
-  breakDurationMinutes: number;
-  workDays: number[];
-  lateGraceMinutes: number;
-  earlyLeaveGraceMinutes: number;
-  autoAbsentAfterMinutes: number;
-  overtimeEnabled: boolean;
-  overtimeMinMinutes: number;
-  overtimeRequiresApproval: boolean;
+type TabKey = 'system' | 'hours' | 'tolerance' | 'gps' | 'device' | 'leave' | 'notify';
+
+type AttSettings = WorkTimePolicy & {
   gpsAttendanceEnabled: boolean;
   geoFenceRadius: number;
   requireSelfie: boolean;
@@ -36,21 +39,74 @@ interface AttSettings {
   notifyLateToManager: boolean;
   notifyAbsentToManager: boolean;
   notifyOvertimeToHr: boolean;
-}
+};
 
-const defaultSettings: AttSettings = {
-  workStartTime: '08:00', workEndTime: '17:00',
-  breakStartTime: '12:00', breakEndTime: '13:00',
-  breakDurationMinutes: 60, workDays: [1, 2, 3, 4, 5],
-  lateGraceMinutes: 15, earlyLeaveGraceMinutes: 15, autoAbsentAfterMinutes: 120,
-  overtimeEnabled: true, overtimeMinMinutes: 30, overtimeRequiresApproval: true,
+type ShiftOpt = { id: string; name: string; code?: string; start: string; end: string; crossDay?: boolean };
+
+const GPS_DEFAULTS = {
   gpsAttendanceEnabled: true, geoFenceRadius: 100, requireSelfie: false, allowOutsideGeofence: false,
   fingerprintEnabled: true, autoProcessDeviceLogs: true, punchTypeDetection: 'auto',
   annualLeaveQuota: 12, sickLeaveQuota: 14, leaveRequiresApproval: true,
   notifyLateToManager: true, notifyAbsentToManager: true, notifyOvertimeToHr: false,
 };
 
+const defaultSettings: AttSettings = { ...normalizeWorkTimePolicy({}), ...GPS_DEFAULTS };
+
 const dayNames = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+
+const SYSTEM_ICON: Record<WorkTimeSystem, typeof Clock> = {
+  fixed: Clock,
+  shift: Layers,
+  flexible: Timer,
+  hours_bank: Calendar,
+  compressed: Calendar,
+  split: Coffee,
+  field: MapPin,
+  remote_hybrid: Globe,
+};
+
+function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+  return (
+    <label className="block">
+      <span className="text-xs font-medium text-[color:var(--hf-ink-muted)]">{label}</span>
+      <div className="mt-1">{children}</div>
+      {hint && <p className="mt-1 text-[11px] text-[color:var(--hf-ink-faint)]">{hint}</p>}
+    </label>
+  );
+}
+
+function Toggle({ value, onChange, label }: { value: boolean; onChange: (v: boolean) => void; label: string }) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-2">
+      <span className="text-sm text-[color:var(--hf-ink-secondary)]">{label}</span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={value}
+        onClick={() => onChange(!value)}
+        className={`relative h-6 w-11 shrink-0 rounded-full transition ${value ? 'bg-[var(--hf-brand-600)]' : 'bg-slate-300'}`}
+      >
+        <span
+          className="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform"
+          style={{ transform: value ? 'translateX(22px)' : 'translateX(2px)' }}
+        />
+      </button>
+    </div>
+  );
+}
+
+function hydrateSettings(raw: Record<string, any>): AttSettings {
+  const work = normalizeWorkTimePolicy(raw);
+  return {
+    ...defaultSettings,
+    ...raw,
+    ...work,
+    workStartTime: toTimeInput(raw.workStartTime || work.workStartTime),
+    workEndTime: toTimeInput(raw.workEndTime || work.workEndTime),
+    breakStartTime: toTimeInput(raw.breakStartTime || work.breakStartTime),
+    breakEndTime: toTimeInput(raw.breakEndTime || work.breakEndTime),
+  };
+}
 
 export default function AttendanceSettingsPage() {
   const { t } = useTranslation();
@@ -59,17 +115,17 @@ export default function AttendanceSettingsPage() {
   const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [selectedBranch, setSelectedBranch] = useState<string>('');
+  const [tab, setTab] = useState<TabKey>('system');
+  const [shifts, setShifts] = useState<ShiftOpt[]>([]);
 
   const fetchSettings = async () => {
     setLoading(true);
     try {
-      const params = selectedBranch ? `?branchId=${selectedBranch}` : '';
-      const res = await fetch(`/api/humanify/attendance/settings${params}`);
-      if (!res.ok) { console.error('Fetch settings failed:', res.status); setLoading(false); return; }
+      const res = await fetch('/api/humanify/attendance/settings');
+      if (!res.ok) { setLoading(false); return; }
       const json = await res.json();
       if (json.success && json.data) {
-        setSettings({ ...defaultSettings, ...json.data });
+        setSettings(hydrateSettings(json.data));
         setDataSource('live');
       } else {
         setDataSource('empty');
@@ -82,12 +138,56 @@ export default function AttendanceSettingsPage() {
     }
   };
 
+  const fetchShifts = async () => {
+    try {
+      const res = await fetch('/api/humanify/attendance-management?action=shifts');
+      if (!res.ok) return;
+      const json = await res.json();
+      const list = Array.isArray(json.data) ? json.data : [];
+      setShifts(list.map((s: any) => ({
+        id: String(s.id),
+        name: s.name || s.code || 'Shift',
+        code: s.code,
+        start: toTimeInput(s.start_time || s.startTime),
+        end: toTimeInput(s.end_time || s.endTime),
+        crossDay: Boolean(s.is_cross_day ?? s.isCrossDay),
+      })));
+    } catch { /* catalog optional */ }
+  };
+
   useEffect(() => {
     setMounted(true);
     fetchSettings();
-  }, [selectedBranch]);
+    fetchShifts();
+  }, []);
+
+  const previewIn = useMemo(() => evaluateClockIn(settings, new Date()), [settings]);
+  const previewOut = useMemo(() => {
+    const start = new Date();
+    start.setHours(8, 0, 0, 0);
+    const end = new Date();
+    end.setHours(18, 0, 0, 0);
+    return evaluateClockOut(settings, start, end);
+  }, [settings]);
+
+  const meta = WORK_TIME_SYSTEMS.find((s) => s.code === settings.workTimeSystem) || WORK_TIME_SYSTEMS[0];
+  const selectedShift = shifts.find((s) => s.id === settings.defaultShiftId);
 
   if (!mounted) return null;
+
+  const patch = (partial: Partial<AttSettings>) => setSettings((s) => ({ ...s, ...partial }));
+
+  const applySystem = (code: WorkTimeSystem) => {
+    const preset = presetForSystem(code);
+    setSettings((s) => hydrateSettings({ ...s, ...preset, workTimeSystem: code }));
+  };
+
+  const toggleDay = (day: number) => {
+    const days = settings.workDays.includes(day)
+      ? settings.workDays.filter((d) => d !== day)
+      : [...settings.workDays, day].sort();
+    patch({ workDays: days });
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -95,12 +195,13 @@ export default function AttendanceSettingsPage() {
       const res = await fetch('/api/humanify/attendance/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...settings, branchId: selectedBranch || null })
+        body: JSON.stringify(settings),
       });
       if (!res.ok) { toast.error('Gagal menyimpan pengaturan'); setSaving(false); return; }
       const json = await res.json();
       if (json.success) {
-        toast.success('Pengaturan berhasil disimpan');
+        toast.success('Pengaturan jam kerja & absensi disimpan');
+        if (json.data) setSettings(hydrateSettings(json.data));
       } else {
         toast.error(json.error || 'Gagal menyimpan');
       }
@@ -111,221 +212,322 @@ export default function AttendanceSettingsPage() {
     }
   };
 
-  const toggleDay = (day: number) => {
-    const days = settings.workDays.includes(day)
-      ? settings.workDays.filter(d => d !== day)
-      : [...settings.workDays, day].sort();
-    setSettings({ ...settings, workDays: days });
-  };
-
-  const Toggle = ({ value, onChange, label }: { value: boolean; onChange: (v: boolean) => void; label: string }) => (
-    <div className="flex items-center justify-between py-2">
-      <span className="text-sm text-gray-700">{label}</span>
-      <button onClick={() => onChange(!value)} className={`relative w-11 h-6 rounded-full transition ${value ? 'bg-[var(--hf-brand-600)]' : 'bg-gray-300'}`}>
-        <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${value ? 'translate-x-5.5 left-0.5' : 'left-0.5'}`}
-          style={{ transform: value ? 'translateX(22px)' : 'translateX(0)' }} />
-      </button>
-    </div>
-  );
+  const sys = settings.workTimeSystem;
+  const showFixedHours = ['fixed', 'compressed', 'shift'].includes(sys);
+  const showFlex = ['flexible', 'remote_hybrid'].includes(sys);
 
   return (
     <HQLayout title={t('hris.attendanceSettingsTitle')} subtitle={t('hris.attendanceSettingsSubtitle')}>
-      <div className="space-y-6 max-w-4xl">
-        <div className="flex justify-end">
-          <DataSourceBadge source={dataSource} />
-        </div>
-        {/* Branch selector */}
-        <div className="bg-white rounded-xl shadow-sm border p-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Building2 className="w-5 h-5 text-gray-500" />
-            <div>
-              <p className="text-sm font-medium text-gray-700">Pengaturan untuk:</p>
-              <p className="text-xs text-gray-500">Kosongkan untuk default tenant, atau pilih cabang spesifik</p>
-            </div>
-          </div>
-          <select value={selectedBranch} onChange={(e) => setSelectedBranch(e.target.value)}
-            className="px-3 py-2 border rounded-lg text-sm">
-            <option value="">Default (Semua Cabang)</option>
-            <option value="b1">Cabang Pusat Jakarta</option>
-            <option value="b2">Cabang Bandung</option>
-            <option value="b3">Cabang Surabaya</option>
-          </select>
+      <div className="space-y-5">
+        <EnterprisePageHeader
+          title="Pengaturan absensi & jam kerja"
+          subtitle="Pilih sistem jam kerja industri (tetap, shift, flextime, bank jam, dan lainnya). Kebijakan ini dipakai saat clock-in/out portal, mobile, dan mesin sidik jari."
+          badge="Kehadiran"
+          icon={Settings}
+          actions={<DataSourceBadge source={dataSource} />}
+        />
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <HRStatCard label="Sistem aktif" value={meta.label} sub={meta.hint} icon={SYSTEM_ICON[sys]} accent="violet" />
+          <HRStatCard
+            label={previewIn.tracksPunctuality ? 'Jam masuk acuan' : 'Target jam harian'}
+            value={previewIn.tracksPunctuality ? previewIn.expectedStart : `${settings.dailyHoursTarget} jam`}
+            sub={selectedShift ? `${selectedShift.name} ${selectedShift.start}–${selectedShift.end}` : `${settings.weeklyHoursTarget} jam / minggu`}
+            icon={Clock}
+            accent="emerald"
+          />
+          <HRStatCard
+            label="Simulasi sekarang"
+            value={previewIn.status === 'late' ? `Telat ${previewIn.lateMinutes} m` : 'Hadir'}
+            sub={previewIn.note}
+            icon={previewIn.status === 'late' ? AlertTriangle : CheckCircle}
+            accent={previewIn.status === 'late' ? 'amber' : 'emerald'}
+          />
         </div>
 
-        {/* Jam Kerja */}
-        <div className="bg-white rounded-xl shadow-sm border p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Clock className="w-5 h-5 text-[color:var(--hf-brand-600)]" />
-            <h3 className="text-lg font-semibold">Jam Kerja</h3>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Jam Masuk</label>
-              <input type="time" value={settings.workStartTime} onChange={(e) => setSettings({ ...settings, workStartTime: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg text-sm" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Jam Pulang</label>
-              <input type="time" value={settings.workEndTime} onChange={(e) => setSettings({ ...settings, workEndTime: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg text-sm" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Istirahat Mulai</label>
-              <input type="time" value={settings.breakStartTime} onChange={(e) => setSettings({ ...settings, breakStartTime: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg text-sm" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Istirahat Selesai</label>
-              <input type="time" value={settings.breakEndTime} onChange={(e) => setSettings({ ...settings, breakEndTime: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg text-sm" />
-            </div>
-          </div>
-          <div className="mb-4">
-            <label className="block text-xs font-medium text-gray-600 mb-2">Hari Kerja</label>
-            <div className="flex gap-2">
-              {dayNames.map((name, i) => (
-                <button key={i} onClick={() => toggleDay(i)}
-                  className={`w-10 h-10 rounded-lg text-sm font-medium transition ${
-                    settings.workDays.includes(i) ? 'bg-[var(--hf-brand-600)] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                  }`}>
-                  {name}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+        <EnterpriseTabBar
+          tabs={[
+            { key: 'system', label: 'Sistem jam kerja', icon: Layers },
+            { key: 'hours', label: 'Jam & hari', icon: Clock },
+            { key: 'tolerance', label: 'Toleransi & lembur', icon: Timer },
+            { key: 'gps', label: 'GPS', icon: Smartphone },
+            { key: 'device', label: 'Device', icon: Fingerprint },
+            { key: 'leave', label: 'Cuti', icon: Coffee },
+            { key: 'notify', label: 'Notifikasi', icon: Bell },
+          ]}
+          active={tab}
+          onChange={setTab}
+        />
 
-        {/* Toleransi & Penalti */}
-        <div className="bg-white rounded-xl shadow-sm border p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Timer className="w-5 h-5 text-amber-600" />
-            <h3 className="text-lg font-semibold">Toleransi & Keterlambatan</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Toleransi Terlambat (menit)</label>
-              <input type="number" value={settings.lateGraceMinutes} onChange={(e) => setSettings({ ...settings, lateGraceMinutes: parseInt(e.target.value) || 0 })}
-                className="w-full px-3 py-2 border rounded-lg text-sm" min={0} max={60} />
-              <p className="text-xs text-gray-400 mt-1">Clock-in dalam waktu ini tetap dihitung hadir</p>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Toleransi Pulang Awal (menit)</label>
-              <input type="number" value={settings.earlyLeaveGraceMinutes} onChange={(e) => setSettings({ ...settings, earlyLeaveGraceMinutes: parseInt(e.target.value) || 0 })}
-                className="w-full px-3 py-2 border rounded-lg text-sm" min={0} max={60} />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Auto-Absent Setelah (menit)</label>
-              <input type="number" value={settings.autoAbsentAfterMinutes} onChange={(e) => setSettings({ ...settings, autoAbsentAfterMinutes: parseInt(e.target.value) || 0 })}
-                className="w-full px-3 py-2 border rounded-lg text-sm" min={0} />
-              <p className="text-xs text-gray-400 mt-1">Otomatis tandai absent jika tidak clock-in</p>
-            </div>
-          </div>
-          <div className="mt-4 border-t pt-4 space-y-1">
-            <Toggle value={settings.overtimeEnabled} onChange={(v) => setSettings({ ...settings, overtimeEnabled: v })} label="Aktifkan perhitungan lembur" />
-            {settings.overtimeEnabled && (
-              <div className="flex items-center gap-4 pl-4">
-                <div>
-                  <label className="text-xs text-gray-500">Min. lembur (menit)</label>
-                  <input type="number" value={settings.overtimeMinMinutes} onChange={(e) => setSettings({ ...settings, overtimeMinMinutes: parseInt(e.target.value) || 0 })}
-                    className="w-20 px-2 py-1 border rounded text-sm ml-2" />
+        {loading ? (
+          <div className="h-64 animate-pulse hf-card" />
+        ) : (
+          <>
+            {tab === 'system' && (
+              <div className="space-y-4">
+                <p className="text-sm text-[color:var(--hf-ink-muted)]">
+                  Satu tenant memakai satu sistem default. Karyawan shift tetap bisa punya jadwal harian di{' '}
+                  <Link href="/humanify/attendance-management" className="font-medium text-[color:var(--hf-brand-600)] hover:underline">Jadwal &amp; Shift</Link>.
+                </p>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  {WORK_TIME_SYSTEMS.map((item) => {
+                    const Icon = SYSTEM_ICON[item.code];
+                    const active = settings.workTimeSystem === item.code;
+                    return (
+                      <button
+                        key={item.code}
+                        type="button"
+                        onClick={() => applySystem(item.code)}
+                        className={`rounded-[var(--hf-radius-lg)] border p-4 text-left transition ${
+                          active
+                            ? 'border-[var(--hf-brand-600)] bg-[var(--hf-brand-50)] shadow-[var(--hf-shadow)]'
+                            : 'border-[var(--hf-border)] bg-white hover:border-[var(--hf-brand-100)]'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <span className={`rounded-[var(--hf-radius)] p-2 ${active ? 'bg-[var(--hf-brand-600)] text-white' : 'bg-[var(--hf-surface-muted)] text-[color:var(--hf-brand-600)]'}`}>
+                            <Icon className="h-[18px] w-[18px]" />
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-[color:var(--hf-ink)]">{item.label}</p>
+                            <p className="mt-0.5 text-xs text-[color:var(--hf-ink-secondary)]">{item.summary}</p>
+                            <p className="mt-1 text-[11px] text-[color:var(--hf-ink-faint)]">{item.hint}</p>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
-                <Toggle value={settings.overtimeRequiresApproval} onChange={(v) => setSettings({ ...settings, overtimeRequiresApproval: v })} label="Butuh approval" />
+                <p className="text-[11px] text-[color:var(--hf-ink-faint)]">Memilih sistem mengisi nilai umum industri. Sesuaikan di tab Jam &amp; hari sebelum menyimpan.</p>
               </div>
             )}
-          </div>
-        </div>
 
-        {/* GPS / Mobile */}
-        <div className="bg-white rounded-xl shadow-sm border p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Smartphone className="w-5 h-5 text-green-600" />
-            <h3 className="text-lg font-semibold">Absensi Mobile / GPS</h3>
-          </div>
-          <div className="space-y-1">
-            <Toggle value={settings.gpsAttendanceEnabled} onChange={(v) => setSettings({ ...settings, gpsAttendanceEnabled: v })} label="Aktifkan absensi via GPS/Mobile" />
-            {settings.gpsAttendanceEnabled && (
-              <>
-                <div className="flex items-center gap-4 pl-4 py-2">
-                  <div>
-                    <label className="text-xs text-gray-500">Radius Geofence (meter)</label>
-                    <input type="number" value={settings.geoFenceRadius} onChange={(e) => setSettings({ ...settings, geoFenceRadius: parseInt(e.target.value) || 100 })}
-                      className="w-24 px-2 py-1 border rounded text-sm ml-2" min={10} max={5000} />
+            {tab === 'hours' && (
+              <div className="hf-card space-y-5 p-5">
+                {sys === 'shift' && (
+                  <div className="space-y-3 rounded-[var(--hf-radius-lg)] border border-[var(--hf-border)] bg-[var(--hf-surface-muted)] p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-[color:var(--hf-ink)]">Katalog shift</p>
+                      <Link href="/humanify/attendance-management" className="inline-flex items-center gap-1 text-xs font-medium text-[color:var(--hf-brand-600)] hover:underline">
+                        Kelola shift <ArrowRight className="h-3 w-3" />
+                      </Link>
+                    </div>
+                    <Field label="Shift default (jika karyawan belum dijadwalkan hari ini)">
+                      <select
+                        value={settings.defaultShiftId}
+                        onChange={(e) => {
+                          const sh = shifts.find((x) => x.id === e.target.value);
+                          patch({
+                            defaultShiftId: e.target.value,
+                            workStartTime: sh?.start || settings.workStartTime,
+                            workEndTime: sh?.end || settings.workEndTime,
+                            nightShiftCrossDay: sh?.crossDay || settings.nightShiftCrossDay,
+                          });
+                        }}
+                        className="hf-input w-full"
+                      >
+                        <option value="">— Pakai jam fallback di bawah —</option>
+                        {shifts.map((s) => (
+                          <option key={s.id} value={s.id}>{s.code ? `${s.code} · ` : ''}{s.name} ({s.start}–{s.end}{s.crossDay ? ', lintas hari' : ''})</option>
+                        ))}
+                      </select>
+                    </Field>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <Field label="Istirahat antar shift (jam)" hint="Praktik ILO/Permenaker: minimal 11 jam.">
+                        <input type="number" min={8} max={24} className="hf-input w-full" value={settings.restBetweenShiftsHours} onChange={(e) => patch({ restBetweenShiftsHours: parseInt(e.target.value, 10) || 11 })} />
+                      </Field>
+                      <Field label="Maks. hari kerja beruntun">
+                        <input type="number" min={1} max={14} className="hf-input w-full" value={settings.maxConsecutiveWorkDays} onChange={(e) => patch({ maxConsecutiveWorkDays: parseInt(e.target.value, 10) || 6 })} />
+                      </Field>
+                    </div>
+                    <Toggle value={settings.nightShiftCrossDay} onChange={(v) => patch({ nightShiftCrossDay: v })} label="Shift malam boleh lintas hari (mis. 22:00–06:00)" />
+                  </div>
+                )}
+
+                {showFlex && (
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                    <Field label="Jendela masuk dari"><input type="time" className="hf-input w-full" value={settings.flexWindowStart} onChange={(e) => patch({ flexWindowStart: e.target.value })} /></Field>
+                    <Field label="Jendela masuk sampai" hint="Telat dihitung setelah jam ini + toleransi."><input type="time" className="hf-input w-full" value={settings.flexWindowEnd} onChange={(e) => patch({ flexWindowEnd: e.target.value })} /></Field>
+                    <Field label="Jam inti mulai"><input type="time" className="hf-input w-full" value={settings.coreHoursStart} onChange={(e) => patch({ coreHoursStart: e.target.value })} /></Field>
+                    <Field label="Jam inti selesai"><input type="time" className="hf-input w-full" value={settings.coreHoursEnd} onChange={(e) => patch({ coreHoursEnd: e.target.value })} /></Field>
+                  </div>
+                )}
+
+                {sys === 'remote_hybrid' && (
+                  <Toggle value={settings.requireCoreHours} onChange={(v) => patch({ requireCoreHours: v })} label="Wajib hadir (online/kantor) selama jam inti" />
+                )}
+
+                {sys === 'hours_bank' && (
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <Field label="Periode bank jam">
+                      <select className="hf-input w-full" value={settings.hoursBankPeriod} onChange={(e) => patch({ hoursBankPeriod: e.target.value as AttSettings['hoursBankPeriod'] })}>
+                        <option value="weekly">Mingguan</option>
+                        <option value="monthly">Bulanan</option>
+                      </select>
+                    </Field>
+                    <Field label="Target jam / minggu"><input type="number" min={1} className="hf-input w-full" value={settings.weeklyHoursTarget} onChange={(e) => patch({ weeklyHoursTarget: parseFloat(e.target.value) || 40 })} /></Field>
+                    <Field label="Target jam / hari"><input type="number" min={1} className="hf-input w-full" value={settings.dailyHoursTarget} onChange={(e) => patch({ dailyHoursTarget: parseFloat(e.target.value) || 8 })} /></Field>
+                  </div>
+                )}
+
+                {sys === 'compressed' && (
+                  <Field label="Pola minggu padat">
+                    <select className="hf-input w-full max-w-xs" value={settings.compressedPattern} onChange={(e) => patch({ compressedPattern: e.target.value as AttSettings['compressedPattern'] })}>
+                      <option value="4x10">4×10 (empat hari, 10 jam)</option>
+                      <option value="9x80">9/80 (sembilan hari dalam dua minggu)</option>
+                    </select>
+                  </Field>
+                )}
+
+                {sys === 'split' && (
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                    <Field label="Sesi 1 mulai"><input type="time" className="hf-input w-full" value={settings.workStartTime} onChange={(e) => patch({ workStartTime: e.target.value })} /></Field>
+                    <Field label="Sesi 1 selesai"><input type="time" className="hf-input w-full" value={settings.workEndTime} onChange={(e) => patch({ workEndTime: e.target.value })} /></Field>
+                    <Field label="Sesi 2 mulai"><input type="time" className="hf-input w-full" value={settings.splitSecondStart} onChange={(e) => patch({ splitSecondStart: e.target.value })} /></Field>
+                    <Field label="Sesi 2 selesai"><input type="time" className="hf-input w-full" value={settings.splitSecondEnd} onChange={(e) => patch({ splitSecondEnd: e.target.value })} /></Field>
+                  </div>
+                )}
+
+                {(showFixedHours || sys === 'field' || sys === 'flexible' || sys === 'remote_hybrid' || sys === 'hours_bank') && sys !== 'split' && (
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                    <Field label={sys === 'shift' ? 'Jam fallback mulai' : 'Jam masuk'} hint={sys === 'flexible' ? 'Acuan jadwal, telat memakai batas jendela.' : undefined}>
+                      <input type="time" className="hf-input w-full" value={settings.workStartTime} onChange={(e) => patch({ workStartTime: e.target.value })} />
+                    </Field>
+                    <Field label={sys === 'shift' ? 'Jam fallback selesai' : 'Jam pulang'}>
+                      <input type="time" className="hf-input w-full" value={settings.workEndTime} onChange={(e) => patch({ workEndTime: e.target.value })} />
+                    </Field>
+                    <Field label="Istirahat mulai"><input type="time" className="hf-input w-full" value={settings.breakStartTime} onChange={(e) => patch({ breakStartTime: e.target.value })} /></Field>
+                    <Field label="Istirahat selesai"><input type="time" className="hf-input w-full" value={settings.breakEndTime} onChange={(e) => patch({ breakEndTime: e.target.value })} /></Field>
+                  </div>
+                )}
+
+                <Field label="Durasi istirahat (menit)" hint="Dipotong dari jam kerja saat clock-out jika durasi kerja lebih panjang dari istirahat.">
+                  <input type="number" min={0} max={240} className="hf-input w-40" value={settings.breakDurationMinutes} onChange={(e) => patch({ breakDurationMinutes: parseInt(e.target.value, 10) || 0 })} />
+                </Field>
+
+                {sys !== 'hours_bank' && sys !== 'field' && (
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    <Field label="Target jam / hari"><input type="number" min={1} className="hf-input w-full" value={settings.dailyHoursTarget} onChange={(e) => patch({ dailyHoursTarget: parseFloat(e.target.value) || 8 })} /></Field>
+                    <Field label="Target jam / minggu"><input type="number" min={1} className="hf-input w-full" value={settings.weeklyHoursTarget} onChange={(e) => patch({ weeklyHoursTarget: parseFloat(e.target.value) || 40 })} /></Field>
+                  </div>
+                )}
+
+                <div>
+                  <p className="mb-2 text-xs font-medium text-[color:var(--hf-ink-muted)]">Hari kerja</p>
+                  <div className="flex flex-wrap gap-2">
+                    {dayNames.map((name, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => toggleDay(i)}
+                        className={`h-10 w-10 rounded-[var(--hf-radius)] text-sm font-medium transition ${
+                          settings.workDays.includes(i)
+                            ? 'bg-[var(--hf-brand-600)] text-white'
+                            : 'bg-[var(--hf-surface-muted)] text-[color:var(--hf-ink-muted)] hover:bg-slate-200'
+                        }`}
+                      >
+                        {name}
+                      </button>
+                    ))}
                   </div>
                 </div>
-                <div className="pl-4">
-                  <Toggle value={settings.requireSelfie} onChange={(v) => setSettings({ ...settings, requireSelfie: v })} label="Wajib selfie saat clock-in/out" />
-                  <Toggle value={settings.allowOutsideGeofence} onChange={(v) => setSettings({ ...settings, allowOutsideGeofence: v })} label="Izinkan absensi di luar geofence (dengan tanda)" />
-                </div>
-              </>
-            )}
-          </div>
-        </div>
 
-        {/* Fingerprint Device */}
-        <div className="bg-white rounded-xl shadow-sm border p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Fingerprint className="w-5 h-5 text-purple-600" />
-            <h3 className="text-lg font-semibold">Fingerprint & Device</h3>
-          </div>
-          <div className="space-y-1">
-            <Toggle value={settings.fingerprintEnabled} onChange={(v) => setSettings({ ...settings, fingerprintEnabled: v })} label="Aktifkan integrasi fingerprint" />
-            {settings.fingerprintEnabled && (
-              <div className="pl-4">
-                <Toggle value={settings.autoProcessDeviceLogs} onChange={(v) => setSettings({ ...settings, autoProcessDeviceLogs: v })} label="Auto-proses log device ke attendance" />
-                <div className="flex items-center gap-4 py-2">
-                  <span className="text-sm text-gray-700">Deteksi tipe punch</span>
-                  <select value={settings.punchTypeDetection} onChange={(e) => setSettings({ ...settings, punchTypeDetection: e.target.value })}
-                    className="px-3 py-1.5 border rounded-lg text-sm">
-                    <option value="auto">Auto (ganjil=masuk, genap=keluar)</option>
-                    <option value="device">Dari device</option>
-                    <option value="time_based">Berdasarkan waktu</option>
-                  </select>
+                <p className="rounded-[var(--hf-radius)] bg-[var(--hf-brand-50)] px-3 py-2 text-xs text-[color:var(--hf-ink-secondary)]">
+                  Contoh lembur jika clock-out 18:00 setelah masuk 08:00: {previewOut.workHours} jam kerja
+                  {previewOut.overtimeMinutes > 0 ? `, lembur ${previewOut.overtimeMinutes} menit` : ', belum lembur'}.
+                </p>
+              </div>
+            )}
+
+            {tab === 'tolerance' && (
+              <div className="hf-card space-y-4 p-5">
+                {!previewIn.tracksPunctuality && (
+                  <p className="rounded-[var(--hf-radius)] border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                    Sistem {meta.label} tidak menandai telat dari jam masuk. Toleransi tetap tersimpan untuk jika Anda beralih ke sistem jam tetap/shift.
+                  </p>
+                )}
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <Field label="Toleransi terlambat (menit)" hint="Clock-in dalam jendela ini tetap berstatus hadir.">
+                    <input type="number" min={0} max={120} className="hf-input w-full" value={settings.lateGraceMinutes} onChange={(e) => patch({ lateGraceMinutes: parseInt(e.target.value, 10) || 0 })} />
+                  </Field>
+                  <Field label="Toleransi pulang awal (menit)">
+                    <input type="number" min={0} max={120} className="hf-input w-full" value={settings.earlyLeaveGraceMinutes} onChange={(e) => patch({ earlyLeaveGraceMinutes: parseInt(e.target.value, 10) || 0 })} />
+                  </Field>
+                  <Field label="Auto-absent setelah (menit)" hint="Acuan proses malam jika tidak clock-in.">
+                    <input type="number" min={0} className="hf-input w-full" value={settings.autoAbsentAfterMinutes} onChange={(e) => patch({ autoAbsentAfterMinutes: parseInt(e.target.value, 10) || 0 })} />
+                  </Field>
+                </div>
+                <div className="border-t border-[var(--hf-border)] pt-3">
+                  <Toggle value={settings.overtimeEnabled} onChange={(v) => patch({ overtimeEnabled: v })} label="Aktifkan perhitungan lembur otomatis" />
+                  {settings.overtimeEnabled && (
+                    <div className="mt-2 grid grid-cols-1 gap-3 pl-1 sm:grid-cols-2">
+                      <Field label="Minimum menit dihitung lembur">
+                        <input type="number" min={0} className="hf-input w-full" value={settings.overtimeMinMinutes} onChange={(e) => patch({ overtimeMinMinutes: parseInt(e.target.value, 10) || 0 })} />
+                      </Field>
+                      <Toggle value={settings.overtimeRequiresApproval} onChange={(v) => patch({ overtimeRequiresApproval: v })} label="Lembur butuh persetujuan" />
+                    </div>
+                  )}
                 </div>
               </div>
             )}
-          </div>
-        </div>
 
-        {/* Cuti */}
-        <div className="bg-white rounded-xl shadow-sm border p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Coffee className="w-5 h-5 text-[color:var(--hf-brand-600)]" />
-            <h3 className="text-lg font-semibold">Kuota Cuti</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Cuti Tahunan (hari)</label>
-              <input type="number" value={settings.annualLeaveQuota} onChange={(e) => setSettings({ ...settings, annualLeaveQuota: parseInt(e.target.value) || 0 })}
-                className="w-full px-3 py-2 border rounded-lg text-sm" min={0} />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Cuti Sakit (hari)</label>
-              <input type="number" value={settings.sickLeaveQuota} onChange={(e) => setSettings({ ...settings, sickLeaveQuota: parseInt(e.target.value) || 0 })}
-                className="w-full px-3 py-2 border rounded-lg text-sm" min={0} />
-            </div>
-          </div>
-          <Toggle value={settings.leaveRequiresApproval} onChange={(v) => setSettings({ ...settings, leaveRequiresApproval: v })} label="Cuti memerlukan approval" />
-        </div>
+            {tab === 'gps' && (
+              <div className="hf-card space-y-2 p-5">
+                <Toggle value={settings.gpsAttendanceEnabled} onChange={(v) => patch({ gpsAttendanceEnabled: v })} label="Aktifkan absensi via GPS / mobile" />
+                {settings.gpsAttendanceEnabled && (
+                  <>
+                    <Field label="Radius geofence (meter)">
+                      <input type="number" min={10} max={5000} className="hf-input w-40" value={settings.geoFenceRadius} onChange={(e) => patch({ geoFenceRadius: parseInt(e.target.value, 10) || 100 })} />
+                    </Field>
+                    <Toggle value={settings.requireSelfie} onChange={(v) => patch({ requireSelfie: v })} label="Wajib selfie saat clock-in/out" />
+                    <Toggle value={settings.allowOutsideGeofence} onChange={(v) => patch({ allowOutsideGeofence: v })} label="Izinkan absensi di luar geofence (dengan tanda)" />
+                  </>
+                )}
+              </div>
+            )}
 
-        {/* Notifikasi */}
-        <div className="bg-white rounded-xl shadow-sm border p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Bell className="w-5 h-5 text-red-600" />
-            <h3 className="text-lg font-semibold">Notifikasi</h3>
-          </div>
-          <div className="space-y-1">
-            <Toggle value={settings.notifyLateToManager} onChange={(v) => setSettings({ ...settings, notifyLateToManager: v })} label="Kirim notifikasi ke manager saat karyawan terlambat" />
-            <Toggle value={settings.notifyAbsentToManager} onChange={(v) => setSettings({ ...settings, notifyAbsentToManager: v })} label="Kirim notifikasi ke manager saat karyawan tidak hadir" />
-            <Toggle value={settings.notifyOvertimeToHr} onChange={(v) => setSettings({ ...settings, notifyOvertimeToHr: v })} label="Kirim notifikasi ke HR saat ada lembur" />
-          </div>
-        </div>
+            {tab === 'device' && (
+              <div className="hf-card space-y-2 p-5">
+                <Toggle value={settings.fingerprintEnabled} onChange={(v) => patch({ fingerprintEnabled: v })} label="Aktifkan integrasi fingerprint" />
+                {settings.fingerprintEnabled && (
+                  <>
+                    <Toggle value={settings.autoProcessDeviceLogs} onChange={(v) => patch({ autoProcessDeviceLogs: v })} label="Auto-proses log device ke attendance" />
+                    <Field label="Deteksi tipe punch">
+                      <select className="hf-input" value={settings.punchTypeDetection} onChange={(e) => patch({ punchTypeDetection: e.target.value })}>
+                        <option value="auto">Auto (ganjil=masuk, genap=keluar)</option>
+                        <option value="device">Dari device</option>
+                        <option value="time_based">Berdasarkan waktu</option>
+                      </select>
+                    </Field>
+                  </>
+                )}
+              </div>
+            )}
 
-        {/* Save */}
+            {tab === 'leave' && (
+              <div className="hf-card space-y-3 p-5">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <Field label="Cuti tahunan (hari)"><input type="number" min={0} className="hf-input w-full" value={settings.annualLeaveQuota} onChange={(e) => patch({ annualLeaveQuota: parseInt(e.target.value, 10) || 0 })} /></Field>
+                  <Field label="Cuti sakit (hari)"><input type="number" min={0} className="hf-input w-full" value={settings.sickLeaveQuota} onChange={(e) => patch({ sickLeaveQuota: parseInt(e.target.value, 10) || 0 })} /></Field>
+                </div>
+                <Toggle value={settings.leaveRequiresApproval} onChange={(v) => patch({ leaveRequiresApproval: v })} label="Cuti memerlukan approval" />
+              </div>
+            )}
+
+            {tab === 'notify' && (
+              <div className="hf-card space-y-1 p-5">
+                <Toggle value={settings.notifyLateToManager} onChange={(v) => patch({ notifyLateToManager: v })} label="Kirim notifikasi ke manager saat karyawan terlambat" />
+                <Toggle value={settings.notifyAbsentToManager} onChange={(v) => patch({ notifyAbsentToManager: v })} label="Kirim notifikasi ke manager saat karyawan tidak hadir" />
+                <Toggle value={settings.notifyOvertimeToHr} onChange={(v) => patch({ notifyOvertimeToHr: v })} label="Kirim notifikasi ke HR saat ada lembur" />
+              </div>
+            )}
+          </>
+        )}
+
         <div className="flex justify-end">
-          <button onClick={handleSave} disabled={saving}
-            className="flex items-center gap-2 px-8 py-3 bg-[var(--hf-brand-600)] text-white rounded-xl font-medium hover:bg-[var(--hf-brand)] disabled:opacity-50 transition shadow-lg shadow-blue-200">
-            <Save className="w-5 h-5" />
-            {saving ? 'Menyimpan...' : 'Simpan Pengaturan'}
+          <button type="button" onClick={handleSave} disabled={saving} className="hf-btn-primary inline-flex items-center gap-2 px-6 py-2.5 disabled:opacity-50">
+            <Save className="h-4 w-4" />
+            {saving ? 'Menyimpan…' : 'Simpan pengaturan'}
           </button>
         </div>
       </div>

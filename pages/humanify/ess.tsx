@@ -1,29 +1,70 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import Link from 'next/link';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import EssKpiCard from '@/components/humanify/EssKpiCard';
+import HrisEmptyState from '@/components/humanify/HrisEmptyState';
+import EmployeePicker, { type PickedEmployee } from '@/components/humanify/EmployeePicker';
+import EmployeeAvatar from '@/components/humanify/EmployeeAvatar';
+import ClaimReceiptGallery, { parseClaimReceipts } from '@/components/humanify/ClaimReceiptGallery';
+import { EnterpriseTabBar } from '@/components/humanify/PerformanceModuleChrome';
 import type { HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import {
-  User, FileText, Calendar, DollarSign, Clock, Bell, Shield,
-  Award, GraduationCap, Heart, Briefcase, Send, Eye, CheckCircle,
-  XCircle, AlertTriangle, ChevronRight, Plus, RefreshCw,
-  UploadCloud, Image, Paperclip, Trash2, Loader2, Smartphone, ExternalLink
+  User, FileText, DollarSign, Clock, Bell, Shield, Award, Send, Plus, RefreshCw,
+  UploadCloud, Trash2, Loader2, Smartphone, CheckCircle, AlertTriangle,
+  X, Eye, Calendar, Users, Settings,
 } from 'lucide-react';
+import { PlatformAccessShell } from '@/components/humanify/PlatformAccessNav';
+import { ESS_PORTAL_MODULES, parseEssPortalConfig, type EssPortalConfig } from '@/lib/hris/ess-portal-config';
 
-type ESSTab = 'overview' | 'profile' | 'leave' | 'claims' | 'documents' | 'reminders' | 'policies';
+type ESSTab = 'overview' | 'config' | 'claims' | 'policies' | 'reminders';
 
 const EMPTY_WORKFLOW = { claims: { pending: 0, approved: 0, rejected: 0 }, mutations: { pending: 0, approved: 0 } };
 const EMPTY_REMINDER_SUMMARY = { contractExpiring30d: 0, certExpiring30d: 0, activeReminders: 0, overdueReminders: 0 };
+
+const CLAIM_TYPES = [
+  { value: 'medical', label: 'Medis & kesehatan' },
+  { value: 'transport', label: 'Transportasi' },
+  { value: 'meal', label: 'Makan & representasi' },
+  { value: 'travel', label: 'Perjalanan dinas' },
+  { value: 'training', label: 'Pelatihan' },
+  { value: 'equipment', label: 'Peralatan' },
+  { value: 'other', label: 'Lainnya' },
+];
+
+const STATUS_MAP: Record<string, { label: string; cls: string }> = {
+  pending: { label: 'Menunggu', cls: 'bg-amber-50 text-amber-800' },
+  approved: { label: 'Disetujui', cls: 'bg-emerald-50 text-emerald-800' },
+  rejected: { label: 'Ditolak', cls: 'bg-rose-50 text-rose-800' },
+  paid: { label: 'Dibayar', cls: 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)]' },
+  reimbursed: { label: 'Direimburse', cls: 'bg-emerald-50 text-emerald-800' },
+  cancelled: { label: 'Dibatalkan', cls: 'bg-slate-100 text-slate-600' },
+};
+
+const REMINDER_TYPE: Record<string, string> = {
+  contract_expiry: 'Kontrak',
+  certification_expiry: 'Sertifikasi',
+};
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="block">
+      <span className="text-xs font-medium text-[color:var(--hf-ink-muted)]">{label}</span>
+      <div className="mt-1">{children}</div>
+    </label>
+  );
+}
+
+function claimTypeLabel(code: string) {
+  return CLAIM_TYPES.find((c) => c.value === code)?.label || code;
+}
 
 export default function ESSPortalPage() {
   const { t } = useTranslation();
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<ESSTab>('overview');
-
-  // Data
-  const [profile, setProfile] = useState<any>(null);
   const [claims, setClaims] = useState<any[]>([]);
   const [reminders, setReminders] = useState<any[]>([]);
   const [workflowSummary, setWorkflowSummary] = useState<any>(EMPTY_WORKFLOW);
@@ -32,30 +73,25 @@ export default function ESSPortalPage() {
   const [policyPending, setPolicyPending] = useState<any[]>([]);
   const [policyAcked, setPolicyAcked] = useState<any[]>([]);
   const [policyLoading, setPolicyLoading] = useState(false);
-
-  // Claim modal
   const [showClaimModal, setShowClaimModal] = useState(false);
   const [claimForm, setClaimForm] = useState<any>({});
+  const [pickedEmployee, setPickedEmployee] = useState<PickedEmployee | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [claimSearch, setClaimSearch] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [toast, setToast] = useState<{ type: string; message: string } | null>(null);
+  const [portalConfig, setPortalConfig] = useState<EssPortalConfig>(() => parseEssPortalConfig(null));
+  const [savingConfig, setSavingConfig] = useState(false);
 
-  // Toast
-  const [toast, setToast] = useState<any>(null);
   const showToast = (type: string, message: string) => {
     setToast({ type, message });
-    setTimeout(() => setToast(null), 3000);
+    setTimeout(() => setToast(null), 4000);
   };
 
   useEffect(() => { setMounted(true); }, []);
-  useEffect(() => { if (mounted) loadAll(); }, [mounted]);
 
-  const loadAll = async () => {
-    setLoading(true);
-    await Promise.all([fetchWorkflowSummary(), fetchReminderSummary(), fetchReminders()]);
-    setLoading(false);
-  };
-
-  const fetchWorkflowSummary = async () => {
+  const fetchWorkflowSummary = useCallback(async () => {
     try {
       const res = await fetch('/api/humanify/workflow?action=summary');
       const json = await res.json();
@@ -64,26 +100,62 @@ export default function ESSPortalPage() {
       const activity = (summary.claims?.pending || 0) + (summary.claims?.approved || 0)
         + (summary.mutations?.pending || 0) + (summary.mutations?.approved || 0);
       setDataSource(activity > 0 ? 'live' : 'empty');
-    } catch (e) { console.error(e); setWorkflowSummary(EMPTY_WORKFLOW); setDataSource('empty'); }
-  };
+    } catch {
+      setWorkflowSummary(EMPTY_WORKFLOW);
+      setDataSource('empty');
+    }
+  }, []);
 
-  const fetchReminderSummary = async () => {
+  const fetchReminderSummary = useCallback(async () => {
     try {
       const res = await fetch('/api/humanify/reminders?action=summary');
       const json = await res.json();
       setReminderSummary(json.data || EMPTY_REMINDER_SUMMARY);
-    } catch (e) { console.error(e); setReminderSummary(EMPTY_REMINDER_SUMMARY); }
-  };
+    } catch {
+      setReminderSummary(EMPTY_REMINDER_SUMMARY);
+    }
+  }, []);
 
-  const fetchReminders = async () => {
+  const fetchReminders = useCallback(async () => {
     try {
       const res = await fetch('/api/humanify/reminders?action=upcoming&days=60');
       const json = await res.json();
       const rows = json.data || [];
       setReminders(rows);
       if (rows.length) setDataSource('live');
-    } catch (e) { console.error(e); setReminders([]); }
-  };
+    } catch {
+      setReminders([]);
+    }
+  }, []);
+
+  const loadAll = useCallback(async () => {
+    setLoading(true);
+    await Promise.all([
+      fetchWorkflowSummary(),
+      fetchReminderSummary(),
+      fetchReminders(),
+      fetchPolicies(),
+      fetch('/api/humanify/ess-config')
+        .then((r) => r.json())
+        .then((j) => { if (j.success) setPortalConfig(j.data); })
+        .catch(() => {}),
+    ]);
+    setLoading(false);
+  }, [fetchWorkflowSummary, fetchReminderSummary, fetchReminders]);
+
+  useEffect(() => { if (mounted) loadAll(); }, [mounted, loadAll]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const ctx = await fetch('/api/humanify/saas-context');
+        if (!ctx.ok) return;
+        const j = await ctx.json();
+        const tid = j?.data?.tenantId;
+        if (tid) localStorage.setItem(`humanify-ess-visited:${tid}`, '1');
+      } catch { /* first-run checklist */ }
+    })();
+  }, []);
 
   const fetchPolicies = async () => {
     setPolicyLoading(true);
@@ -93,14 +165,36 @@ export default function ESSPortalPage() {
       setPolicyPending(json.data?.pending || []);
       setPolicyAcked(json.data?.acknowledged || []);
       if ((json.data?.pending || []).length || (json.data?.acknowledged || []).length) setDataSource('live');
-    } catch (e) {
-      console.error(e);
+    } catch {
       setPolicyPending([]);
       setPolicyAcked([]);
     } finally {
       setPolicyLoading(false);
     }
   };
+
+  const fetchClaims = async () => {
+    try {
+      const res = await fetch('/api/humanify/workflow?action=claims');
+      const json = await res.json();
+      setClaims(json.data || []);
+    } catch {
+      setClaims([]);
+    }
+  };
+
+  useEffect(() => {
+    if (!mounted) return;
+    if (activeTab === 'claims') fetchClaims();
+    if (activeTab === 'policies') fetchPolicies();
+  }, [activeTab, mounted]);
+
+  useEffect(() => {
+    if (!showClaimModal) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowClaimModal(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showClaimModal]);
 
   const acknowledgePolicy = async (regulationId: string) => {
     try {
@@ -115,16 +209,8 @@ export default function ESSPortalPage() {
         fetchPolicies();
       } else showToast('error', json.error || 'Gagal');
     } catch {
-      showToast('error', 'Gagal acknowledge');
+      showToast('error', 'Gagal menandai kebijakan');
     }
-  };
-
-  const fetchClaims = async () => {
-    try {
-      const res = await fetch('/api/humanify/workflow?action=claims');
-      const json = await res.json();
-      setClaims(json.data || []);
-    } catch (e) { console.error(e); setClaims([]); }
   };
 
   const handleFileUpload = async (files: FileList | null) => {
@@ -132,26 +218,32 @@ export default function ESSPortalPage() {
     setUploading(true);
     try {
       const formData = new FormData();
-      Array.from(files).forEach(f => formData.append('files', f));
+      Array.from(files).forEach((f) => formData.append('files', f));
       const res = await fetch('/api/humanify/upload-claim', { method: 'POST', body: formData });
       const json = await res.json();
       if (json.success && json.data) {
-        setUploadedFiles(prev => [...prev, ...json.data]);
-        showToast('success', `${json.data.length} file berhasil diupload`);
+        setUploadedFiles((prev) => [...prev, ...json.data]);
+        showToast('success', `${json.data.length} file berhasil diunggah`);
       } else {
-        showToast('error', json.error || 'Gagal upload file');
+        showToast('error', json.error || 'Gagal unggah file');
       }
-    } catch (e) { showToast('error', 'Gagal upload file'); }
+    } catch {
+      showToast('error', 'Gagal unggah file');
+    }
     setUploading(false);
   };
 
-  const removeUploadedFile = (idx: number) => {
-    setUploadedFiles(prev => prev.filter((_, i) => i !== idx));
+  const openClaimModal = () => {
+    setClaimForm({ claim_date: new Date().toISOString().split('T')[0], claim_type: 'transport' });
+    setPickedEmployee(null);
+    setUploadedFiles([]);
+    setShowClaimModal(true);
   };
 
   const submitClaim = async () => {
-    if (!claimForm.employee_id || !claimForm.claim_type || !claimForm.amount) {
-      showToast('error', 'Lengkapi data klaim');
+    if (!pickedEmployee) { showToast('error', 'Pilih karyawan'); return; }
+    if (!claimForm.claim_type || !claimForm.amount) {
+      showToast('error', 'Lengkapi tipe dan jumlah klaim');
       return;
     }
     try {
@@ -164,333 +256,265 @@ export default function ESSPortalPage() {
         : claimForm.receipt_url || null;
       const res = await fetch('/api/humanify/workflow?action=claim', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...claimForm, receipt_url })
+        body: JSON.stringify({
+          ...claimForm,
+          employee_id: pickedEmployee.id,
+          amount: parseFloat(claimForm.amount),
+          receipt_url,
+        }),
       });
       const json = await res.json();
       if (json.success) {
         showToast('success', 'Klaim berhasil diajukan');
         setShowClaimModal(false);
         setClaimForm({});
+        setPickedEmployee(null);
         setUploadedFiles([]);
         fetchClaims();
         fetchWorkflowSummary();
       } else showToast('error', json.error || 'Gagal mengajukan');
-    } catch (e) { showToast('error', 'Gagal mengajukan'); }
+    } catch {
+      showToast('error', 'Gagal mengajukan');
+    }
   };
 
-  useEffect(() => {
-    if (mounted && activeTab === 'claims') fetchClaims();
-    if (mounted && activeTab === 'policies') fetchPolicies();
-  }, [activeTab]);
+  const generateReminders = async () => {
+    setGenerating(true);
+    try {
+      const res = await fetch('/api/humanify/reminders?action=generate', { method: 'POST' });
+      const json = await res.json();
+      showToast('success', json.message || 'Pengingat diperbarui');
+      fetchReminders();
+      fetchReminderSummary();
+    } catch {
+      showToast('error', 'Gagal membuat pengingat');
+    } finally {
+      setGenerating(false);
+    }
+  };
 
-  const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
+  const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
   const fmtCurrency = (n: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0);
 
-  const statusBadge = (status: string) => {
-    const colors: Record<string, string> = {
-      pending: 'bg-yellow-100 text-yellow-700', approved: 'bg-green-100 text-green-700',
-      rejected: 'bg-red-100 text-red-700', paid: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]',
-      active: 'bg-green-100 text-green-700', cancelled: 'bg-gray-100 text-gray-600'
-    };
-    return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${colors[status] || 'bg-gray-100 text-gray-600'}`}>{status}</span>;
+  const filteredClaims = claims.filter((c) => {
+    const q = claimSearch.trim().toLowerCase();
+    if (!q) return true;
+    return `${c.claim_number || ''} ${c.employee_name || ''} ${c.claim_type || ''} ${c.description || ''}`.toLowerCase().includes(q);
+  });
+
+  const reminderUrgency = (due: string) => {
+    const daysLeft = Math.ceil((new Date(due).getTime() - Date.now()) / 86400000);
+    if (daysLeft <= 0) return { daysLeft, bar: 'border-l-rose-600', text: 'text-rose-700', label: 'Lewat batas' };
+    if (daysLeft <= 7) return { daysLeft, bar: 'border-l-rose-500', text: 'text-rose-700', label: `${daysLeft} hari lagi` };
+    if (daysLeft <= 14) return { daysLeft, bar: 'border-l-amber-500', text: 'text-amber-800', label: `${daysLeft} hari lagi` };
+    return { daysLeft, bar: 'border-l-[var(--hf-brand-500)]', text: 'text-[color:var(--hf-brand-600)]', label: `${daysLeft} hari lagi` };
   };
 
   if (!mounted) return null;
 
+  const savePortalConfig = async () => {
+    if (!portalConfig || savingConfig) return;
+    setSavingConfig(true);
+    try {
+      const res = await fetch('/api/humanify/ess-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(portalConfig),
+      });
+      const j = await res.json();
+      if (j.success) {
+        setPortalConfig(j.data);
+        showToast('success', 'Konfigurasi portal tersimpan');
+      } else showToast('error', j.error || 'Gagal menyimpan');
+    } catch {
+      showToast('error', 'Gagal menyimpan konfigurasi');
+    } finally {
+      setSavingConfig(false);
+    }
+  };
+
   return (
-    <HQLayout title={t('hris.essTitle')} currentMenu="hris">
-      {toast && (
-        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white text-sm ${toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
-          {toast.message}
-        </div>
-      )}
-
-      <div className="p-4 md:p-6 space-y-4">
-        {/* Header */}
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-              <User className="w-6 h-6 text-emerald-600" /> Employee Self Service (ESS)
-            </h1>
-            <p className="text-sm text-gray-500 mt-0.5">Konsol HR untuk monitoring klaim & pengingat karyawan</p>
+    <HQLayout title={t('hris.essTitle')} subtitle="Konsol HR untuk portal karyawan">
+        {toast && (
+          <div role="status" className={`fixed top-4 right-4 z-50 rounded-[var(--hf-radius)] px-4 py-3 text-sm text-white shadow-[var(--hf-shadow-md)] ${toast.type === 'error' ? 'bg-[var(--hf-danger)]' : 'bg-[var(--hf-success)]'}`}>
+            {toast.message}
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <DataSourceBadge source={dataSource} />
-            <Link href="/employee" target="_blank"
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg hover:shadow-xl transition">
-            <Smartphone className="w-4 h-4" /> Buka Portal Karyawan
-          </Link>
-          </div>
-        </div>
+        )}
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            { label: 'Klaim Tertunda', value: workflowSummary?.claims?.pending || 0, icon: Clock, color: 'text-yellow-600 bg-yellow-50', desc: 'Menunggu persetujuan' },
-            { label: 'Klaim Disetujui', value: workflowSummary?.claims?.approved || 0, icon: CheckCircle, color: 'text-green-600 bg-green-50', desc: 'Sudah disetujui' },
-            { label: 'Kontrak Akan Habis', value: reminderSummary?.contractExpiring30d || 0, icon: AlertTriangle, color: 'text-orange-600 bg-orange-50', desc: '30 hari ke depan' },
-            { label: 'Sertifikasi Kedaluwarsa', value: reminderSummary?.certExpiring30d || 0, icon: Award, color: 'text-red-600 bg-red-50', desc: '30 hari ke depan' },
-          ].map((card, i) => (
-            <div key={i} className="bg-white rounded-xl border p-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-2xl font-bold text-gray-800">{card.value}</p>
-                  <p className="text-xs font-medium text-gray-600 mt-0.5">{card.label}</p>
-                  <p className="text-[10px] text-gray-400">{card.desc}</p>
-                </div>
-                <div className={`p-2 rounded-lg ${card.color}`}><card.icon className="w-5 h-5" /></div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Tabs */}
-        <div className="bg-white rounded-xl border">
-          <div className="border-b overflow-x-auto">
-            <div className="flex min-w-max">
-              {([
-                { key: 'overview', label: 'Ringkasan', icon: User },
-                { key: 'claims', label: 'Klaim Saya', icon: DollarSign },
-                { key: 'policies', label: 'Kebijakan', icon: Shield },
-                { key: 'reminders', label: 'Pengingat', icon: Bell },
-              ] as { key: ESSTab; label: string; icon: any }[]).map(tab => (
-                <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                  className={`flex items-center gap-1.5 px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                    activeTab === tab.key ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}>
-                  <tab.icon className="w-4 h-4" /> {tab.label}
+        <PlatformAccessShell
+            current="ess"
+            title="Konfigurasi & konsol ESS"
+            subtitle="Atur modul portal karyawan, pengumuman, dan pantau klaim atau pengingat kontrak dari sisi HR."
+            icon={User}
+            actions={
+              <>
+                <DataSourceBadge source={dataSource} />
+                <button type="button" onClick={loadAll} className="hf-btn-secondary inline-flex items-center gap-2">
+                  <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Segarkan
                 </button>
-              ))}
-            </div>
+                <Link href="/employee" target="_blank" rel="noopener noreferrer" className="hf-btn-primary inline-flex items-center gap-2">
+                  <Smartphone className="h-4 w-4" /> Buka portal karyawan
+                </Link>
+              </>
+            }
+          >
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {loading ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="h-[156px] animate-pulse hf-card" />
+              ))
+            ) : (
+              <>
+                <EssKpiCard
+                  label="Klaim tertunda"
+                  value={workflowSummary?.claims?.pending || 0}
+                  subLabel="Menunggu persetujuan HR"
+                  helpText="Klik untuk review dan setujui klaim karyawan."
+                  icon={Clock}
+                  severity={(workflowSummary?.claims?.pending || 0) > 0 ? 'warning' : 'normal'}
+                  progress={workflowSummary?.claims?.pending || 0}
+                  progressMax={(workflowSummary?.claims?.pending || 0) + (workflowSummary?.claims?.approved || 0) + (workflowSummary?.claims?.rejected || 0) || 1}
+                  onClick={() => setActiveTab('claims')}
+                  actionLabel="Proses klaim"
+                />
+                <EssKpiCard
+                  label="Klaim disetujui"
+                  value={workflowSummary?.claims?.approved || 0}
+                  subLabel="Total disetujui bulan ini"
+                  icon={CheckCircle}
+                  severity="success"
+                  progress={workflowSummary?.claims?.approved || 0}
+                  progressMax={(workflowSummary?.claims?.pending || 0) + (workflowSummary?.claims?.approved || 0) + (workflowSummary?.claims?.rejected || 0) || 1}
+                  onClick={() => setActiveTab('claims')}
+                  actionLabel="Lihat semua klaim"
+                />
+                <EssKpiCard
+                  label="Kontrak akan habis"
+                  value={reminderSummary?.contractExpiring30d || 0}
+                  subLabel="Dalam 30 hari ke depan"
+                  helpText="Segera tindak lanjuti perpanjangan kontrak."
+                  icon={AlertTriangle}
+                  severity={(reminderSummary?.contractExpiring30d || 0) > 0 ? 'danger' : 'normal'}
+                  onClick={() => setActiveTab('reminders')}
+                  actionLabel="Kelola pengingat"
+                />
+                <EssKpiCard
+                  label="Sertifikasi kedaluwarsa"
+                  value={reminderSummary?.certExpiring30d || 0}
+                  subLabel="Dalam 30 hari ke depan"
+                  helpText="Perbarui sertifikasi karyawan sebelum kedaluwarsa."
+                  icon={Award}
+                  severity={(reminderSummary?.certExpiring30d || 0) > 0 ? 'danger' : 'normal'}
+                  onClick={() => setActiveTab('reminders')}
+                  actionLabel="Kelola sertifikasi"
+                />
+              </>
+            )}
           </div>
 
-          <div className="p-5">
-            {/* ===== OVERVIEW ===== */}
-            {activeTab === 'overview' && (
-              <div className="space-y-6">
-                {/* Quick Actions */}
-                <div>
-                  <h3 className="font-semibold text-gray-800 mb-3">Aksi Cepat</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {[
-                      { label: 'Ajukan Klaim', icon: DollarSign, color: 'bg-emerald-50 text-emerald-600 border-emerald-200', action: () => { setActiveTab('claims'); setShowClaimModal(true); } },
-                      { label: 'Portal Karyawan', icon: ExternalLink, color: 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)] border-[var(--hf-brand-100)]', action: () => window.open('/employee', '_blank') },
-                      { label: 'Kebijakan', icon: Shield, color: 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)] border-[var(--hf-brand-100)]', action: () => setActiveTab('policies') },
-                      { label: 'Pengingat', icon: Bell, color: 'bg-orange-50 text-orange-600 border-orange-200', action: () => setActiveTab('reminders') },
-                      { label: 'Reimbursement HR', icon: FileText, color: 'bg-purple-50 text-purple-600 border-purple-200', action: () => window.location.href = '/humanify/reimbursement' },
-                    ].map((act, i) => (
-                      <button key={i} onClick={act.action}
-                        className={`flex flex-col items-center gap-2 p-4 rounded-xl border hover:shadow-sm transition-shadow ${act.color}`}>
-                        <act.icon className="w-6 h-6" />
-                        <span className="text-xs font-medium">{act.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
 
-                {/* Upcoming Reminders */}
-                <div>
-                  <h3 className="font-semibold text-gray-800 mb-3">Pengingat Mendatang</h3>
-                  {reminders.length === 0 ? (
-                    <p className="text-center text-gray-400 py-6 text-sm">Tidak ada pengingat</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {reminders.slice(0, 5).map((r: any) => {
-                        const daysLeft = Math.ceil((new Date(r.due_date).getTime() - Date.now()) / 86400000);
-                        const urgency = daysLeft <= 7 ? 'border-l-red-500' : daysLeft <= 14 ? 'border-l-orange-400' : 'border-l-blue-400';
-                        return (
-                          <div key={r.id} className={`border border-l-4 ${urgency} rounded-lg p-3`}>
-                            <div className="flex items-start justify-between">
-                              <div>
-                                <p className="text-sm font-medium text-gray-800">{r.title}</p>
-                                <p className="text-xs text-gray-500">{r.employee_name} • {r.department}</p>
-                                <p className="text-xs text-gray-400 mt-0.5">{r.description}</p>
-                              </div>
-                              <div className="text-right flex-shrink-0">
-                                <p className="text-xs font-medium text-gray-600">{fmtDate(r.due_date)}</p>
-                                <p className={`text-[10px] font-bold ${daysLeft <= 7 ? 'text-red-600' : daysLeft <= 14 ? 'text-orange-500' : 'text-[color:var(--hf-brand-500)]'}`}>
-                                  {daysLeft <= 0 ? 'LEWAT BATAS!' : `${daysLeft} hari lagi`}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+          <EnterpriseTabBar
+            tabs={[
+              { key: 'overview', label: 'Ringkasan', icon: User },
+              { key: 'config', label: 'Konfigurasi portal', icon: Settings },
+              { key: 'claims', label: 'Klaim', icon: DollarSign, count: workflowSummary?.claims?.pending || undefined },
+              { key: 'policies', label: 'Kebijakan', icon: Shield, count: policyPending.length || undefined },
+              { key: 'reminders', label: 'Pengingat', icon: Bell, count: reminderSummary?.overdueReminders || reminders.length || undefined },
+            ]}
+            active={activeTab}
+            onChange={setActiveTab}
+          />
 
-            {/* ===== CLAIMS ===== */}
-            {activeTab === 'claims' && (
+          {activeTab === 'config' && (
+            <div className="hf-card space-y-5 p-5">
               <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-gray-800">Daftar Klaim</h3>
-                  <button onClick={() => { setClaimForm({ claim_date: new Date().toISOString().split('T')[0] }); setShowClaimModal(true); }}
-                    className="flex items-center gap-1 px-3 py-1.5 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
-                    <Plus className="w-3.5 h-3.5" /> Ajukan Klaim
-                  </button>
-                </div>
-
-                {claims.length === 0 ? (
-                  <div className="text-center py-12">
-                    <DollarSign className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-500">Belum ada klaim</p>
-                    <p className="text-xs text-gray-400 mt-1">Klik &quot;Ajukan Klaim&quot; untuk membuat klaim baru</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50 border-b">
-                        <tr>
-                          <th className="text-left px-4 py-2 font-medium text-gray-600">No. Klaim</th>
-                          <th className="text-left px-4 py-2 font-medium text-gray-600">Karyawan</th>
-                          <th className="text-left px-4 py-2 font-medium text-gray-600">Tipe</th>
-                          <th className="text-right px-4 py-2 font-medium text-gray-600">Jumlah</th>
-                          <th className="text-left px-4 py-2 font-medium text-gray-600">Tanggal</th>
-                          <th className="text-left px-4 py-2 font-medium text-gray-600">Lampiran</th>
-                          <th className="text-left px-4 py-2 font-medium text-gray-600">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        {claims.map((c: any) => {
-                          let attachments: string[] = [];
-                          try { if (c.receipt_url) attachments = JSON.parse(c.receipt_url); } catch { if (c.receipt_url) attachments = [c.receipt_url]; }
-                          return (
-                          <tr key={c.id} className="hover:bg-gray-50">
-                            <td className="px-4 py-2 font-medium text-gray-800">{c.claim_number}</td>
-                            <td className="px-4 py-2">
-                              <p className="text-gray-800">{c.employee_name}</p>
-                              <p className="text-xs text-gray-400">{c.department} • {c.position}</p>
-                            </td>
-                            <td className="px-4 py-2"><span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">{c.claim_type}</span></td>
-                            <td className="px-4 py-2 text-right font-medium">{fmtCurrency(c.amount)}</td>
-                            <td className="px-4 py-2 text-gray-500 text-xs">{fmtDate(c.claim_date)}</td>
-                            <td className="px-4 py-2">
-                              {attachments.length > 0 ? (
-                                <div className="flex gap-1">
-                                  {attachments.map((url: string, i: number) => (
-                                    <a key={i} href={url} target="_blank" rel="noopener noreferrer"
-                                      className="p-1 bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)] rounded hover:bg-[var(--hf-brand-100)]" title={url}>
-                                      {url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? <Image className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
-                                    </a>
-                                  ))}
-                                </div>
-                              ) : <span className="text-gray-300 text-xs">-</span>}
-                            </td>
-                            <td className="px-4 py-2">{statusBadge(c.status)}</td>
-                          </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                <h2 className="text-sm font-semibold text-[color:var(--hf-ink)]">Modul yang tampil di portal karyawan</h2>
+                <p className="mt-0.5 text-xs text-[color:var(--hf-ink-muted)]">Absensi dan beranda tetap ada. Nonaktifkan modul yang tidak dipakai perusahaan.</p>
               </div>
-            )}
-
-            {/* ===== POLICIES ===== */}
-            {activeTab === 'policies' && (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-gray-800">Tanda terima kebijakan perusahaan</h3>
-                  <button type="button" onClick={fetchPolicies} className="flex items-center gap-1 px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50">
-                    <RefreshCw className="w-3.5 h-3.5" /> Muat ulang
-                  </button>
-                </div>
-                {policyLoading ? (
-                  <p className="text-sm text-gray-400 flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Memuat…</p>
-                ) : (
-                  <>
-                    <div>
-                      <p className="text-xs font-semibold uppercase text-amber-700 mb-2">Menunggu tanda terima ({policyPending.length})</p>
-                      {policyPending.length === 0 ? (
-                        <p className="text-sm text-gray-500">Tidak ada kebijakan pending.</p>
-                      ) : (
-                        <div className="space-y-2">
-                          {policyPending.map((p: any) => (
-                            <div key={p.id} className="border rounded-xl p-4 flex flex-col md:flex-row md:items-start md:justify-between gap-3">
-                              <div>
-                                <p className="font-medium text-gray-800">{p.title}</p>
-                                <p className="text-xs text-gray-500 mt-0.5">{p.regulation_number || '—'} · {p.category}</p>
-                                {p.description && <p className="text-sm text-gray-600 mt-2 line-clamp-3">{p.description}</p>}
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => acknowledgePolicy(p.id)}
-                                className="shrink-0 px-3 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700"
-                              >
-                                Saya sudah baca
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold uppercase text-gray-500 mb-2">Sudah ditandai ({policyAcked.length})</p>
-                      {policyAcked.length === 0 ? (
-                        <p className="text-sm text-gray-400">Belum ada.</p>
-                      ) : (
-                        <ul className="space-y-1 text-sm text-gray-600">
-                          {policyAcked.map((p: any) => (
-                            <li key={p.id} className="flex items-center gap-2">
-                              <CheckCircle className="w-4 h-4 text-emerald-500" />
-                              {p.title}
-                              <span className="text-xs text-gray-400">{p.acknowledged_at ? fmtDate(p.acknowledged_at) : ''}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  </>
-                )}
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {ESS_PORTAL_MODULES.map((mod) => (
+                  <label key={mod.key} className="flex items-center gap-2 rounded-[var(--hf-radius)] border border-[var(--hf-border)] bg-white px-3 py-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={portalConfig?.modules?.[mod.key] !== false}
+                      onChange={(e) => setPortalConfig((prev) => prev ? {
+                        ...prev,
+                        modules: { ...prev.modules, [mod.key]: e.target.checked },
+                      } : prev)}
+                    />
+                    {mod.label}
+                  </label>
+                ))}
               </div>
-            )}
+              <label className="flex items-start gap-2 rounded-[var(--hf-radius)] border border-[var(--hf-border)] bg-white px-3 py-3 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={portalConfig?.requireFaceEnrollment !== false}
+                  onChange={(e) => setPortalConfig((prev) => prev ? { ...prev, requireFaceEnrollment: e.target.checked } : prev)}
+                />
+                <span>
+                  <span className="font-medium text-[color:var(--hf-ink)]">Wajib daftar wajah saat pertama masuk</span>
+                  <span className="mt-0.5 block text-xs text-[color:var(--hf-ink-muted)]">Clock in/out tetap memakai liveness kamera. Matikan hanya jika onboarding wajah ditunda.</span>
+                </span>
+              </label>
+              <label className="block">
+                <span className="text-xs font-medium text-[color:var(--hf-ink-muted)]">Pengumuman di beranda portal</span>
+                <textarea
+                  rows={3}
+                  maxLength={280}
+                  value={portalConfig?.announcement || ''}
+                  onChange={(e) => setPortalConfig((prev) => prev ? { ...prev, announcement: e.target.value } : prev)}
+                  placeholder="Contoh: Isi slip gaji sebelum tanggal 5."
+                  className="mt-1 w-full rounded-[var(--hf-radius)] border border-[var(--hf-border)] px-3 py-2 text-sm"
+                />
+              </label>
+              <button type="button" onClick={savePortalConfig} disabled={savingConfig} className="hf-btn-primary text-sm disabled:opacity-50">
+                {savingConfig ? 'Menyimpan…' : 'Simpan konfigurasi portal'}
+              </button>
+            </div>
+          )}
 
-            {/* ===== REMINDERS ===== */}
-            {activeTab === 'reminders' && (
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-gray-800">Pengingat Aktif</h3>
-                  <button onClick={async () => {
-                    const res = await fetch('/api/humanify/reminders?action=generate', { method: 'POST' });
-                    const json = await res.json();
-                    showToast('success', json.message || 'Reminders generated');
-                    fetchReminders();
-                    fetchReminderSummary();
-                  }} className="flex items-center gap-1 px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50">
-                    <RefreshCw className="w-3.5 h-3.5" /> Generate Reminders
-                  </button>
+          {activeTab === 'overview' && (
+            <div className="space-y-5">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                {[
+                  { title: 'Portal vs konsol ini', desc: 'Karyawan absen, cuti, dan slip gaji di /employee. Halaman ini untuk HR memantau antrian dan pengingat.' },
+                  { title: 'Klaim & reimbursement', desc: 'Ajukan atas nama karyawan, atau kelola approval penuh di Reimbursement HR dan MSS.' },
+                  { title: 'Kebijakan & kontrak', desc: 'Tanda terima peraturan, plus pengingat kontrak dan sertifikasi 30 hari ke depan.' },
+                ].map((item) => (
+                  <div key={item.title} className="rounded-[var(--hf-radius-lg)] border border-[var(--hf-border)] bg-white p-4">
+                    <p className="text-sm font-semibold text-[color:var(--hf-ink)]">{item.title}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-[color:var(--hf-ink-muted)]">{item.desc}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="hf-card p-4 sm:p-5">
+                <div className="mb-3 flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-[color:var(--hf-ink)]">Pengingat mendatang</h2>
+                  <button type="button" onClick={() => setActiveTab('reminders')} className="text-xs font-medium text-[color:var(--hf-brand-600)] hover:underline">Lihat semua</button>
                 </div>
-
                 {reminders.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Bell className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-500">Tidak ada pengingat</p>
-                  </div>
+                  <HrisEmptyState
+                    source={dataSource}
+                    title="Tidak ada pengingat"
+                    description="Generate pengingat dari tab Pengingat setelah data kontrak atau sertifikasi terisi."
+                  />
                 ) : (
                   <div className="space-y-2">
-                    {reminders.map((r: any) => {
-                      const daysLeft = Math.ceil((new Date(r.due_date).getTime() - Date.now()) / 86400000);
-                      const urgency = daysLeft <= 0 ? 'border-l-red-600 bg-red-50/50' : daysLeft <= 7 ? 'border-l-red-500' : daysLeft <= 14 ? 'border-l-orange-400' : 'border-l-blue-400';
+                    {reminders.slice(0, 5).map((r: any) => {
+                      const u = reminderUrgency(r.due_date);
                       return (
-                        <div key={r.id} className={`border border-l-4 ${urgency} rounded-lg p-3`}>
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] rounded">{r.reminder_type}</span>
-                                <p className="text-sm font-medium text-gray-800">{r.title}</p>
-                              </div>
-                              <p className="text-xs text-gray-500 mt-0.5">{r.employee_name} • {r.department} • {r.position}</p>
-                              {r.description && <p className="text-xs text-gray-400 mt-0.5">{r.description}</p>}
+                        <div key={r.id} className={`rounded-[var(--hf-radius-lg)] border border-[var(--hf-border)] border-l-4 ${u.bar} bg-white px-3 py-3`}>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-[color:var(--hf-ink)]">{r.title}</p>
+                              <p className="text-xs text-[color:var(--hf-ink-muted)]">{r.employee_name} · {r.department}</p>
                             </div>
-                            <div className="text-right flex-shrink-0 ml-3">
-                              <p className="text-xs font-medium text-gray-600">{fmtDate(r.due_date)}</p>
-                              <p className={`text-xs font-bold ${daysLeft <= 0 ? 'text-red-600' : daysLeft <= 7 ? 'text-red-500' : daysLeft <= 14 ? 'text-orange-500' : 'text-[color:var(--hf-brand-500)]'}`}>
-                                {daysLeft <= 0 ? 'OVERDUE!' : `${daysLeft} hari`}
-                              </p>
+                            <div className="shrink-0 text-right">
+                              <p className="text-xs text-[color:var(--hf-ink-secondary)]">{fmtDate(r.due_date)}</p>
+                              <p className={`text-[11px] font-semibold ${u.text}`}>{u.label}</p>
                             </div>
                           </div>
                         </div>
@@ -499,125 +523,278 @@ export default function ESSPortalPage() {
                   </div>
                 )}
               </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ===== CLAIM MODAL ===== */}
-      {showClaimModal && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setShowClaimModal(false)}>
-          <div className="bg-white rounded-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="font-semibold text-gray-800">Ajukan Klaim Baru</h3>
-              <button onClick={() => setShowClaimModal(false)} className="p-1.5 hover:bg-gray-100 rounded"><span className="text-lg">&times;</span></button>
             </div>
-            <div className="p-4 space-y-3">
-              <div>
-                <label className="text-xs font-medium text-gray-500">Employee ID (angka) *</label>
-                <input type="number" value={claimForm.employee_id || ''} onChange={e => setClaimForm((f: any) => ({ ...f, employee_id: parseInt(e.target.value) || '' }))}
-                  className="w-full px-3 py-2 border rounded-lg text-sm mt-1" placeholder="ID karyawan" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-medium text-gray-500">Tipe Klaim *</label>
-                  <select value={claimForm.claim_type || ''} onChange={e => setClaimForm((f: any) => ({ ...f, claim_type: e.target.value }))}
-                    className="w-full px-3 py-2 border rounded-lg text-sm mt-1">
-                    <option value="">Pilih</option>
-                    {['transport','meal','medical','training','travel','equipment','other'].map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-gray-500">Jumlah (Rp) *</label>
-                  <input type="number" value={claimForm.amount || ''} onChange={e => setClaimForm((f: any) => ({ ...f, amount: e.target.value }))}
-                    className="w-full px-3 py-2 border rounded-lg text-sm mt-1" />
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-500">Tanggal Klaim</label>
-                <input type="date" value={claimForm.claim_date || ''} onChange={e => setClaimForm((f: any) => ({ ...f, claim_date: e.target.value }))}
-                  className="w-full px-3 py-2 border rounded-lg text-sm mt-1" />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-500">Deskripsi</label>
-                <textarea value={claimForm.description || ''} onChange={e => setClaimForm((f: any) => ({ ...f, description: e.target.value }))}
-                  className="w-full px-3 py-2 border rounded-lg text-sm mt-1" rows={2} />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-500">No. Bukti/Kwitansi</label>
-                <input type="text" value={claimForm.receipt_number || ''} onChange={e => setClaimForm((f: any) => ({ ...f, receipt_number: e.target.value }))}
-                  className="w-full px-3 py-2 border rounded-lg text-sm mt-1" />
-              </div>
+          )}
 
-              {/* File Upload Section */}
-              <div>
-                <label className="text-xs font-medium text-gray-500 mb-1 block">Lampiran Bukti (Foto / PDF)</label>
-                <div
-                  className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
-                    uploading ? 'border-[var(--hf-brand-100)] bg-[var(--hf-brand-50)]' : 'border-gray-300 hover:border-emerald-400 hover:bg-emerald-50'
-                  }`}
-                  onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
-                  onDrop={e => { e.preventDefault(); e.stopPropagation(); handleFileUpload(e.dataTransfer.files); }}
-                >
-                  {uploading ? (
-                    <div className="flex items-center justify-center gap-2 text-[color:var(--hf-brand-600)]">
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <span className="text-sm">Mengupload...</span>
-                    </div>
-                  ) : (
-                    <>
-                      <UploadCloud className="w-8 h-8 text-gray-400 mx-auto mb-1" />
-                      <p className="text-xs text-gray-500">Drag & drop file di sini, atau</p>
-                      <label className="inline-block mt-1 px-3 py-1.5 bg-emerald-600 text-white text-xs rounded-lg cursor-pointer hover:bg-emerald-700">
-                        Pilih File
-                        <input type="file" multiple accept="image/*,.pdf" className="hidden"
-                          onChange={e => handleFileUpload(e.target.files)} />
-                      </label>
-                      <p className="text-[10px] text-gray-400 mt-1">Maks 10MB per file. Format: JPG, PNG, PDF</p>
-                    </>
-                  )}
+          {activeTab === 'claims' && (
+            <div className="space-y-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <input
+                  value={claimSearch}
+                  onChange={(e) => setClaimSearch(e.target.value)}
+                  placeholder="Cari no. klaim, karyawan, atau tipe…"
+                  className="hf-input sm:max-w-sm"
+                  aria-label="Cari klaim"
+                />
+                <button type="button" onClick={openClaimModal} className="hf-btn-primary inline-flex items-center gap-2">
+                  <Plus className="h-4 w-4" /> Ajukan klaim
+                </button>
+              </div>
+              {filteredClaims.length === 0 ? (
+                <HrisEmptyState
+                  source={dataSource}
+                  title={claims.length === 0 ? 'Belum ada klaim' : 'Tidak ada yang cocok'}
+                  description="Ajukan klaim atas nama karyawan, atau buka Reimbursement HR untuk approval lengkap."
+                  action={
+                    <button type="button" onClick={openClaimModal} className="hf-btn-primary inline-flex items-center gap-2">
+                      <Plus className="h-4 w-4" /> Ajukan klaim
+                    </button>
+                  }
+                />
+              ) : (
+                <div className="hf-table-wrap overflow-x-auto">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>No. klaim</th>
+                        <th>Karyawan</th>
+                        <th>Tipe</th>
+                        <th className="text-right">Jumlah</th>
+                        <th>Tanggal</th>
+                        <th>Bukti</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredClaims.map((c: any) => {
+                        const st = STATUS_MAP[c.status] || { label: c.status, cls: 'bg-slate-100 text-slate-600' };
+                        const proofs = parseClaimReceipts(c.receipt_url);
+                        return (
+                          <tr key={c.id}>
+                            <td className="font-medium text-[color:var(--hf-ink)]">{c.claim_number}</td>
+                            <td>
+                              <div className="flex items-center gap-2.5">
+                                <EmployeeAvatar name={c.employee_name} photoUrl={c.photo_url} size="sm" />
+                                <div>
+                                  <p className="text-[color:var(--hf-ink)]">{c.employee_name}</p>
+                                  <p className="text-xs text-[color:var(--hf-ink-faint)]">{c.department} · {c.position}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td>{claimTypeLabel(c.claim_type)}</td>
+                            <td className="text-right tabular-nums font-medium">{fmtCurrency(c.amount)}</td>
+                            <td className="text-xs">{fmtDate(c.claim_date)}</td>
+                            <td>
+                              {proofs.length > 0 ? <ClaimReceiptGallery receiptUrl={c.receipt_url} compact maxThumbs={2} /> : <span className="text-[color:var(--hf-ink-faint)]">—</span>}
+                            </td>
+                            <td>
+                              <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${st.cls}`}>{st.label}</span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
+              )}
+            </div>
+          )}
 
-                {/* Uploaded Files List */}
-                {uploadedFiles.length > 0 && (
-                  <div className="mt-2 space-y-1.5">
-                    {uploadedFiles.map((file, idx) => (
-                      <div key={idx} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          {file.mimetype?.startsWith('image/') ? (
-                            <Image className="w-4 h-4 text-[color:var(--hf-brand-500)] flex-shrink-0" />
-                          ) : (
-                            <FileText className="w-4 h-4 text-red-500 flex-shrink-0" />
-                          )}
-                          <span className="text-xs text-gray-700 truncate">{file.filename}</span>
-                          <span className="text-[10px] text-gray-400 flex-shrink-0">{(file.size / 1024).toFixed(0)} KB</span>
-                        </div>
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          <a href={file.url} target="_blank" rel="noopener noreferrer"
-                            className="p-1 text-gray-400 hover:text-[color:var(--hf-brand-600)] rounded">
-                            <Eye className="w-3.5 h-3.5" />
-                          </a>
-                          <button onClick={() => removeUploadedFile(idx)}
-                            className="p-1 text-gray-400 hover:text-red-600 rounded">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+          {activeTab === 'policies' && (
+            <div className="space-y-5">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-[color:var(--hf-ink)]">Tanda terima kebijakan</h2>
+                <button type="button" onClick={fetchPolicies} className="hf-btn-secondary inline-flex items-center gap-1.5 text-xs">
+                  <RefreshCw className="h-3.5 w-3.5" /> Muat ulang
+                </button>
+              </div>
+              {policyLoading ? (
+                <p className="flex items-center gap-2 text-sm text-[color:var(--hf-ink-muted)]"><Loader2 className="h-4 w-4 animate-spin" /> Memuat…</p>
+              ) : (
+                <>
+                  <div>
+                    <p className="hf-section-label mb-2">Menunggu tanda terima ({policyPending.length})</p>
+                    {policyPending.length === 0 ? (
+                      <p className="text-sm text-[color:var(--hf-ink-muted)]">Tidak ada kebijakan pending.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {policyPending.map((p: any) => (
+                          <div key={p.id} className="flex flex-col gap-3 rounded-[var(--hf-radius-lg)] border border-[var(--hf-border)] bg-white p-4 md:flex-row md:items-start md:justify-between">
+                            <div>
+                              <p className="font-medium text-[color:var(--hf-ink)]">{p.title}</p>
+                              <p className="mt-0.5 text-xs text-[color:var(--hf-ink-muted)]">{p.regulation_number || '—'} · {p.category}</p>
+                              {p.description && <p className="mt-2 line-clamp-3 text-sm text-[color:var(--hf-ink-secondary)]">{p.description}</p>}
+                            </div>
+                            <button type="button" onClick={() => acknowledgePolicy(p.id)} className="hf-btn-primary shrink-0 text-sm">
+                              Saya sudah baca
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <p className="hf-section-label mb-2">Sudah ditandai ({policyAcked.length})</p>
+                    {policyAcked.length === 0 ? (
+                      <p className="text-sm text-[color:var(--hf-ink-faint)]">Belum ada.</p>
+                    ) : (
+                      <ul className="space-y-1.5 text-sm text-[color:var(--hf-ink-secondary)]">
+                        {policyAcked.map((p: any) => (
+                          <li key={p.id} className="flex items-center gap-2">
+                            <CheckCircle className="h-4 w-4 text-emerald-600" />
+                            {p.title}
+                            <span className="text-xs text-[color:var(--hf-ink-faint)]">{p.acknowledged_at ? fmtDate(p.acknowledged_at) : ''}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'reminders' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-[color:var(--hf-ink)]">Pengingat aktif</h2>
+                <button type="button" onClick={generateReminders} disabled={generating} className="hf-btn-secondary inline-flex items-center gap-1.5 disabled:opacity-50">
+                  <RefreshCw className={`h-3.5 w-3.5 ${generating ? 'animate-spin' : ''}`} /> Buat pengingat
+                </button>
+              </div>
+              {reminders.length === 0 ? (
+                <HrisEmptyState
+                  source={dataSource}
+                  title="Tidak ada pengingat"
+                  description="Sistem menandai kontrak dan sertifikasi yang akan habis. Klik Buat pengingat setelah data master terisi."
+                  action={
+                    <button type="button" onClick={generateReminders} className="hf-btn-primary">Buat pengingat</button>
+                  }
+                />
+              ) : (
+                <div className="space-y-2">
+                  {reminders.map((r: any) => {
+                    const u = reminderUrgency(r.due_date);
+                    return (
+                      <div key={r.id} className={`rounded-[var(--hf-radius-lg)] border border-[var(--hf-border)] border-l-4 ${u.bar} bg-white p-4`}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="rounded-full bg-[var(--hf-surface-muted)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--hf-ink-muted)]">
+                                {REMINDER_TYPE[r.reminder_type] || r.reminder_type}
+                              </span>
+                              <p className="text-sm font-medium text-[color:var(--hf-ink)]">{r.title}</p>
+                            </div>
+                            <p className="mt-0.5 text-xs text-[color:var(--hf-ink-muted)]">{r.employee_name} · {r.department} · {r.position}</p>
+                            {r.description && <p className="mt-1 text-xs text-[color:var(--hf-ink-faint)]">{r.description}</p>}
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className="text-xs text-[color:var(--hf-ink-secondary)]">{fmtDate(r.due_date)}</p>
+                            <p className={`text-xs font-semibold ${u.text}`}>{u.label}</p>
+                          </div>
                         </div>
                       </div>
-                    ))}
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </PlatformAccessShell>
+
+        {showClaimModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" onClick={() => setShowClaimModal(false)} role="presentation">
+            <div role="dialog" aria-modal="true" aria-labelledby="ess-claim-title" className="max-h-[90vh] w-full max-w-md overflow-y-auto hf-card" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between border-b border-[var(--hf-border)] px-5 py-4">
+                <h3 id="ess-claim-title" className="text-sm font-semibold text-[color:var(--hf-ink)]">Ajukan klaim</h3>
+                <button type="button" onClick={() => setShowClaimModal(false)} className="rounded-[var(--hf-radius)] p-1 hover:bg-[var(--hf-surface-muted)]" aria-label="Tutup">
+                  <X className="h-5 w-5 text-[color:var(--hf-ink-faint)]" />
+                </button>
+              </div>
+              <div className="space-y-3 p-5">
+                <EmployeePicker
+                  value={pickedEmployee?.id}
+                  label="Karyawan *"
+                  required
+                  onChange={setPickedEmployee}
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Tipe klaim *">
+                    <select className="hf-input w-full" value={claimForm.claim_type || ''} onChange={(e) => setClaimForm((f: any) => ({ ...f, claim_type: e.target.value }))}>
+                      <option value="">Pilih</option>
+                      {CLAIM_TYPES.map((ct) => <option key={ct.value} value={ct.value}>{ct.label}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Jumlah (Rp) *">
+                    <input type="number" className="hf-input w-full" value={claimForm.amount || ''} onChange={(e) => setClaimForm((f: any) => ({ ...f, amount: e.target.value }))} />
+                  </Field>
+                </div>
+                <Field label="Tanggal klaim">
+                  <input type="date" className="hf-input w-full" value={claimForm.claim_date || ''} onChange={(e) => setClaimForm((f: any) => ({ ...f, claim_date: e.target.value }))} />
+                </Field>
+                <Field label="Deskripsi">
+                  <textarea className="hf-input w-full" rows={2} value={claimForm.description || ''} onChange={(e) => setClaimForm((f: any) => ({ ...f, description: e.target.value }))} />
+                </Field>
+                <Field label="No. bukti / kwitansi">
+                  <input className="hf-input w-full" value={claimForm.receipt_number || ''} onChange={(e) => setClaimForm((f: any) => ({ ...f, receipt_number: e.target.value }))} />
+                </Field>
+                <div>
+                  <span className="text-xs font-medium text-[color:var(--hf-ink-muted)]">Lampiran bukti (foto / PDF)</span>
+                  <div
+                    className={`mt-1 rounded-[var(--hf-radius)] border border-dashed p-4 text-center ${uploading ? 'border-[var(--hf-brand-100)] bg-[var(--hf-brand-50)]' : 'border-[var(--hf-border)]'}`}
+                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                    onDrop={(e) => { e.preventDefault(); e.stopPropagation(); handleFileUpload(e.dataTransfer.files); }}
+                  >
+                    {uploading ? (
+                      <div className="flex items-center justify-center gap-2 text-[color:var(--hf-brand-600)]">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <span className="text-sm">Mengunggah…</span>
+                      </div>
+                    ) : (
+                      <>
+                        <UploadCloud className="mx-auto mb-1 h-8 w-8 text-[color:var(--hf-ink-faint)]" />
+                        <p className="text-xs text-[color:var(--hf-ink-muted)]">Seret file ke sini, atau</p>
+                        <label className="hf-btn-primary mt-2 inline-block cursor-pointer text-xs">
+                          Pilih file
+                          <input type="file" multiple accept="image/*,.pdf" className="hidden" onChange={(e) => handleFileUpload(e.target.files)} />
+                        </label>
+                        <p className="mt-1 text-[11px] text-[color:var(--hf-ink-faint)]">Maks 10MB. JPG, PNG, PDF</p>
+                      </>
+                    )}
                   </div>
-                )}
+                  {uploadedFiles.length > 0 && (
+                    <div className="mt-2 space-y-1.5">
+                      {uploadedFiles.map((file, idx) => (
+                        <div key={idx} className="flex items-center justify-between rounded-[var(--hf-radius)] bg-[var(--hf-surface-muted)] px-3 py-2">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <FileText className="h-4 w-4 shrink-0 text-[color:var(--hf-brand-600)]" />
+                            <span className="truncate text-xs text-[color:var(--hf-ink)]">{file.filename}</span>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-1">
+                            {file.url && (
+                              <a href={file.url} target="_blank" rel="noopener noreferrer" className="rounded p-1 text-[color:var(--hf-ink-faint)] hover:text-[color:var(--hf-brand-600)]">
+                                <Eye className="h-3.5 w-3.5" />
+                              </a>
+                            )}
+                            <button type="button" onClick={() => setUploadedFiles((prev) => prev.filter((_, i) => i !== idx))} className="rounded p-1 text-[color:var(--hf-ink-faint)] hover:text-rose-700">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 border-t border-[var(--hf-border)] px-5 py-4">
+                <button type="button" onClick={() => { setShowClaimModal(false); setUploadedFiles([]); }} className="hf-btn-secondary">Batal</button>
+                <button type="button" onClick={submitClaim} disabled={uploading} className="hf-btn-primary inline-flex items-center gap-1.5 disabled:opacity-50">
+                  <Send className="h-3.5 w-3.5" /> Ajukan
+                </button>
               </div>
             </div>
-            <div className="flex justify-end gap-2 p-4 border-t">
-              <button onClick={() => { setShowClaimModal(false); setUploadedFiles([]); }} className="px-4 py-2 border rounded-lg text-sm">Batal</button>
-              <button onClick={submitClaim} disabled={uploading}
-                className="flex items-center gap-1 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700 disabled:opacity-50">
-                <Send className="w-3.5 h-3.5" /> Ajukan
-              </button>
-            </div>
           </div>
-        </div>
-      )}
-    </HQLayout>
+        )}
+      </HQLayout>
   );
 }

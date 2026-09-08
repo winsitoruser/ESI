@@ -224,3 +224,76 @@ Flip strict di prod **tanpa** staging IDOR + chaos = dilarang.
 2. Helper: `scripts/lib/tenant-db-context.js`.
 3. Flip is **manual + gated**: `CONFIRM_PROD_RLS_STRICT=YES bash scripts/flip-humanify-prod-rls-strict.sh` — see `docs/humanify-rls-prod-flip.md`.
 4. Wave-68 does **not** flip prod. Sentry.io / Midtrans auto-payout unchanged.
+
+## D-031: Admin Total on `admin.humanify.id` — 6 Sep 2026
+**Product + Infra:** Dedicated host for **platform superadmin** (all tenants), not tenant HR.
+1. **`admin.humanify.id`** — same control plane as `ops.humanify.id` (`/platform`).
+2. **Persona gate** — `super_admin` / `platform_admin` only. Owner/HR stay on `humanify.id/humanify`.
+3. **`ops.humanify.id` remains** as alias so existing bookmarks and `smoke:ops-host` stay green.
+4. Apex `/platform` still 308 to ops (unchanged blast-radius).
+5. Cookies stay **host-only**.
+
+## D-032: Admin Total professional chrome — 6 Sep 2026
+**UX:** Control plane is an operator product, not a list of raw pages.
+1. Shared gate `usePlatformOperator` + skeleton loading (no full-page spinner).
+2. Global **⌘K** palette: jump to modules and search tenants.
+3. **Audit** module (`/platform/audit` + `action=audit-log`) for cross-tenant `saas_admin_audit`.
+4. Modal confirm for destructive/support actions; toast dismissible.
+5. Login GSSP binds `NEXTAUTH_URL` to the request host so Admin Total CSRF cookies stay on `admin.humanify.id`.
+
+## D-033: Admin Total Support / Users / System — 6 Sep 2026
+**Product:** Operator modules beyond chrome.
+1. **Support** — unified queue (expiring trials, unpaid orders, at-risk tenants, unverified email).
+2. **Users** — platform + tenant directory; deactivate without deleting; never self or last platform operator.
+3. **System** — infra scorecard (SMTP/RLS/Redis/backup/cron) with **no secrets**.
+4. Primary nav stays ≤7 (Demo moved to Lainnya). New routes allowlisted on `admin.humanify.id`.
+
+## D-034: Admin Total banner CMS — 6 Sep 2026
+**Product:** Platform marketing banners, not tenant announcements.
+1. **Admin** `/platform/banners` — CRUD + upload to `/uploads/marketing/`.
+2. **Landing** carousel on `humanify.id/` (hero); **dashboard** carousel on `/humanify`.
+3. Placement `landing` | `dashboard` | `both`; schedule window; max 7 live slides.
+4. Public read `GET /api/humanify/banners`; writes stay on ops host. CTA/image URLs sanitized.
+
+## D-035: Admin Total Business Control Center (partial) — 6 Sep 2026
+**Product:** Implement spec `docs/humanify-admin-management-planning.md` without cloning a 50-item sidebar.
+1. **Subscriptions** — inventory, plan change, extend trial, renewal/churn flags.
+2. **Support tickets** — `saas_support_tickets` + CS tab (status/priority).
+3. **Notification center** — composed alerts in Admin Total header.
+4. **Dashboard period** — today / 7d / 30d / 90d / YTD.
+5. **Products** — catalog view; edits remain in Billing plan tab.
+6. Deferred then: internal staff RBAC matrix, blog CMS, AI forecast.
+
+## D-036: Admin Total Control Center growth modules — 6 Sep 2026
+**Product:** Continue spec `docs/humanify-admin-management-planning.md` with dedicated UI (not API-only).
+1. **CRM** `/platform/crm` — sales pipeline kanban (`saas_sales_leads`).
+2. **Finance** `/platform/finance` — transactions, revenue, refund; large refunds ≥ Rp 5jt go to Approval.
+3. **Marketing** `/platform/marketing` — campaigns + funnel; vouchers remain in Billing.
+4. **Content** `/platform/content` — FAQ draft→publish; public `GET /api/humanify/faqs` on landing.
+5. **Analytics** `/platform/analytics` — KPI + custom date + CSV export.
+6. **Approvals** `/platform/approvals` — second-operator gate. Nav Lainnya grouped Commercial / Growth / Admin.
+7. Still deferred: internal role matrix (CS/Finance/Sales), blog/case-study CMS, PDF export, AI forecast.
+
+## D-038: Humanify multi-company via membership — 8 Sep 2026
+**Product + Security:** Satu login privileged dapat mengaktifkan beberapa tenant (perusahaan) yang terdaftar di bawahnya.
+1. **Unit isolasi tetap tenant** — payroll/karyawan/absensi tidak di-share lintas company.
+2. **Membership table** `saas_company_memberships` menentukan siapa boleh *switch*; JWT `tenantId` adalah company aktif.
+3. **Switcher header** kiri profil; empty state = tambah perusahaan. Bukan path impersonate ops.
+4. **Privilege** owner/admin/hq_admin/hr_admin (+ platform ops). Staff/manager 1:1 tenant, switcher disembunyikan.
+5. Client tidak boleh set `tenantId` mentah di `session.update` — hanya `switchCompanyId` setelah cek membership.
+
+## D-037: Admin Total roles, blog, insights — 6 Sep 2026
+**Product:** Continue Control Center without LLM dependency.
+1. **Roles** `/platform/roles` — desk matrix (CS/Finance/Sales/Marketing/Product/IT). Unassigned + `super_admin` = full access.
+2. **API gate** — mutating actions map to `StaffPermission`; 403 if desk lacks grant.
+3. **Blog** — `saas_cms_articles` + public `/humanify/blog`.
+4. **Insights** `/platform/insights` — MRR forecast 30/90d + actionable recommendations from churn/unpaid/pipeline.
+5. Deferred: nav filtering by desk, PDF export, generative AI forecast.
+
+## D-030 (Wave-85): Track B ADR reopen — 2 Aug 2026
+**CTO:** User-requested Track B deploy.
+1. **Privy / engagement / LMS advanced / HR projects** — sidebar + E-Sign UI unhidden (`NEXT_PUBLIC_ESIGN_UI_ENABLED`, default on).
+2. **Partner auto-payout** — `queuePartnerPayoutDisbursement` + `partner-payout-disburse`; requires `HUMANIFY_PARTNER_AUTO_PAYOUT=true` + Iris key; else queues.
+3. **Sentry.io** — still opt-in via `HUMANIFY_SENTRY_EXTERNAL=true` + real DSN (no fake DSN on prod).
+4. **Prod FORCE RLS** — gated script `enable-humanify-rls-strict-prod.sh` + `docs/humanify-wave85-track-b.md`; **prod pool remains soft** until dual confirm.
+5. FE-83-1 EnterprisePageHeader on top GA modules.

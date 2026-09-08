@@ -13,6 +13,7 @@ import {
   confirmEnrollment,
   disableMfa,
   getMfaStatus,
+  listTenantMfaRoster,
 } from '@/lib/saas/mfa';
 import { isTenantMfaRequired, setTenantMfaRequired } from '@/lib/saas/mfa-policy';
 import { withHQAuth } from '@/lib/middleware/withHQAuth';
@@ -44,6 +45,19 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           tenantRequireMfa: requireMfa,
           canManagePolicy: POLICY_ROLES.has(role),
         },
+      });
+    }
+
+    if (req.method === 'GET' && action === 'roster') {
+      if (!POLICY_ROLES.has(role) && !['super_admin', 'superadmin', 'platform_admin'].includes(role)) {
+        return res.status(403).json({ success: false, error: 'Hanya owner/admin' });
+      }
+      if (!tenantId) return res.status(400).json({ success: false, error: 'No tenant' });
+      const roster = await listTenantMfaRoster(tenantId);
+      const enrolled = roster.filter((r) => r.enabled).length;
+      return res.json({
+        success: true,
+        data: { roster, enrolled, total: roster.length },
       });
     }
 

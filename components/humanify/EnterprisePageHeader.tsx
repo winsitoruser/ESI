@@ -12,11 +12,11 @@ interface EnterprisePageHeaderProps {
 }
 
 const GRADIENTS = {
-  indigo: 'from-slate-900 via-indigo-950 to-violet-900',
-  slate: 'from-slate-900 via-slate-800 to-slate-900',
-  emerald: 'from-emerald-900 via-teal-900 to-slate-900',
-  violet: 'from-violet-950 via-purple-900 to-indigo-950',
-  corporate: 'from-slate-50 via-blue-50/80 to-white',
+  indigo: 'from-slate-800 via-slate-900 to-slate-800',
+  slate: 'from-slate-800 via-slate-900 to-slate-800',
+  emerald: 'from-teal-900 via-slate-900 to-slate-800',
+  violet: 'from-slate-900 via-[var(--hf-brand)] to-slate-900',
+  corporate: 'from-white via-slate-50 to-slate-50',
 };
 
 export default function EnterprisePageHeader({
@@ -25,47 +25,44 @@ export default function EnterprisePageHeader({
   badge,
   icon: Icon,
   actions,
-  gradient = 'indigo',
-  variant = 'dark',
+  gradient = 'corporate',
+  variant = 'corporate',
 }: EnterprisePageHeaderProps) {
   const isCorporate = variant === 'corporate' || gradient === 'corporate';
 
   if (isCorporate) {
     return (
-      <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-slate-100/80 p-6 shadow-sm md:p-8">
-        <div className="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-slate-200/40" />
-        <div className="absolute bottom-0 left-1/3 h-24 w-24 rounded-full bg-slate-100/60" />
+      <div className="hf-card relative overflow-hidden px-4 py-4 sm:px-5 sm:py-5 md:px-6 md:py-6">
+        <div className="absolute inset-y-0 left-0 w-1 bg-[var(--hf-brand-600)]" aria-hidden />
         <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
+          <div className="min-w-0 pl-2">
             {badge && (
-              <div className="mb-2 flex items-center gap-2 text-slate-600">
-                {Icon && <Icon className="h-4 w-4" />}
-                <span className="text-xs font-semibold uppercase tracking-wider">{badge}</span>
+              <div className="mb-1.5 flex items-center gap-2 text-[color:var(--hf-ink-muted)]">
+                {Icon && <Icon className="h-3.5 w-3.5" />}
+                <span className="hf-section-label">{badge}</span>
               </div>
             )}
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl">{title}</h1>
-            {subtitle && <p className="mt-2 max-w-2xl text-sm text-slate-500">{subtitle}</p>}
+            <h1 className="hf-page-title">{title}</h1>
+            {subtitle && <p className="hf-page-subtitle max-w-2xl">{subtitle}</p>}
           </div>
-          {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+          {actions && <div className="flex flex-wrap items-center gap-2 pl-2 md:pl-0">{actions}</div>}
         </div>
       </div>
     );
   }
 
   return (
-    <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${GRADIENTS[gradient]} p-6 text-white shadow-xl md:p-8`}>
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.08),transparent_50%)]" />
-      <div className="absolute -right-8 -top-8 h-40 w-40 rounded-full bg-white/5" />
+    <div className={`relative overflow-hidden rounded-[var(--hf-radius-xl)] bg-gradient-to-br ${GRADIENTS[gradient]} p-5 text-white shadow-[var(--hf-shadow-md)] md:p-6`}>
       <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
+        <div className="min-w-0">
           {badge && (
-            <div className="mb-2 flex items-center gap-2 text-indigo-200">
-              {Icon && <Icon className="h-4 w-4" />}
-              <span className="text-xs font-semibold uppercase tracking-wider">{badge}</span>
+            <div className="mb-1.5 flex items-center gap-2 text-white/70">
+              {Icon && <Icon className="h-3.5 w-3.5" />}
+              <span className="text-[11px] font-semibold uppercase tracking-[0.06em]">{badge}</span>
             </div>
           )}
-          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{title}</h1>
-          {subtitle && <p className="mt-2 max-w-2xl text-sm text-white/75">{subtitle}</p>}
+          <h1 className="text-xl font-semibold tracking-tight md:text-2xl">{title}</h1>
+          {subtitle && <p className="mt-1.5 max-w-2xl text-sm text-white/70">{subtitle}</p>}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>

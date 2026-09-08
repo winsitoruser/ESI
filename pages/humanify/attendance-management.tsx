@@ -313,7 +313,7 @@ export default function AttendanceManagementPage() {
             { label: 'Cuti/Sakit', value: todayStats.leave || 0, icon: Coffee, bg: 'bg-purple-100', color: 'text-purple-600' },
             { label: 'Masih Kerja', value: todayStats.clockedIn || 0, icon: Timer, bg: 'bg-cyan-100', color: 'text-cyan-600' },
           ].map(s => (
-            <div key={s.label} className="bg-white rounded-xl p-3 shadow-sm border">
+            <div key={s.label} className="hf-card p-3">
               <div className="flex items-center gap-2">
                 <div className={`p-1.5 ${s.bg} rounded-lg`}><s.icon className={`w-4 h-4 ${s.color}`} /></div>
                 <div>
@@ -336,7 +336,7 @@ export default function AttendanceManagementPage() {
         </div>
 
         {/* Tabs */}
-        <div className="bg-white rounded-xl shadow-sm border">
+        <div className="hf-card">
           <div className="flex border-b overflow-x-auto">
             {[
               { key: 'shifts', label: 'Manajemen Shift', icon: Clock },
@@ -664,7 +664,7 @@ export default function AttendanceManagementPage() {
       {/* ==================== SHIFT MODAL ==================== */}
       {showShiftModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowShiftModal(false)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl m-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className="hf-card w-full max-w-2xl m-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="px-6 py-4 border-b flex justify-between items-center sticky top-0 bg-white z-10">
               <h3 className="text-lg font-semibold">{editingShift ? 'Edit' : 'Tambah'} Shift</h3>
               <button onClick={() => setShowShiftModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
@@ -802,7 +802,7 @@ export default function AttendanceManagementPage() {
       {/* ==================== GEOFENCE MODAL ==================== */}
       {showGeoModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowGeoModal(false)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg m-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className="hf-card w-full max-w-lg m-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="px-6 py-4 border-b flex justify-between items-center sticky top-0 bg-white z-10">
               <h3 className="text-lg font-semibold">{editingGeo ? 'Edit' : 'Tambah'} Lokasi Geofence</h3>
               <button onClick={() => setShowGeoModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
@@ -862,7 +862,7 @@ export default function AttendanceManagementPage() {
       {/* ==================== ROTATION MODAL ==================== */}
       {showRotationModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowRotationModal(false)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg m-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className="hf-card w-full max-w-lg m-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="px-6 py-4 border-b flex justify-between items-center sticky top-0 bg-white z-10">
               <h3 className="text-lg font-semibold">{editingRotation ? 'Edit' : 'Tambah'} Rotasi Shift</h3>
               <button onClick={() => setShowRotationModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>

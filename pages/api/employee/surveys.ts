@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 import { resolveEmployeeContext } from '../../../lib/employee-portal';
 import { ensureEngagementTables } from '../../../lib/hris/ensure-engagement-tables';
+import { withEmployeeAuth } from '@/lib/middleware/withEmployeeAuth';
 
 let sequelize: any;
 try {
@@ -33,7 +34,7 @@ function mapSurveyRow(r: any, responded: boolean) {
   };
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     const session = await getServerSession(req, res, authOptions);
     if (!session?.user) {
@@ -136,3 +137,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ success: false, error: error.message || 'Internal error' });
   }
 }
+
+export default withEmployeeAuth(handler);

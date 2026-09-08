@@ -221,9 +221,15 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         `, {
           replacements: {
             tid: tenantId, name: body.name, desc: body.description || '',
-            isDefault: body.is_default || false
+            isDefault: body.is_default ?? body.isDefault ?? false
           }
         });
+        if (body.is_default || body.isDefault) {
+          await sequelize.query(
+            `UPDATE kpi_scoring_schemes SET is_default = false WHERE tenant_id = :tid AND id <> :id`,
+            { replacements: { tid: tenantId, id: rows[0].id } },
+          );
+        }
         // If creating with levels
         if (body.levels && Array.isArray(body.levels)) {
           for (const lvl of body.levels) {
@@ -233,8 +239,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             `, {
               replacements: {
                 sid: rows[0].id, level: lvl.level, label: lvl.label,
-                minP: lvl.min_percent, maxP: lvl.max_percent, score: lvl.score,
-                color: lvl.color || '#666', mult: lvl.multiplier || 1.0, sort: lvl.sort_order || lvl.level
+                minP: lvl.min_percent ?? lvl.minPercent, maxP: lvl.max_percent ?? lvl.maxPercent, score: lvl.score ?? lvl.level,
+                color: lvl.color || '#64748b', mult: lvl.multiplier || 1.0, sort: lvl.sort_order ?? lvl.sortOrder ?? lvl.level
               }
             });
           }
@@ -312,6 +318,12 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           }
         });
         if (rows.length === 0) return res.status(404).json(errorResponse(ErrorCodes.NOT_FOUND, 'Scheme not found'));
+        if (body.is_default === true) {
+          await sequelize.query(
+            `UPDATE kpi_scoring_schemes SET is_default = false WHERE tenant_id = :tid AND id <> :id`,
+            { replacements: { tid: tenantId, id: body.id } },
+          );
+        }
         return res.status(HttpStatus.OK).json(successResponse(rows[0], undefined, 'Scheme updated'));
       }
 

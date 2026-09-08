@@ -45,7 +45,7 @@ export default function CrudModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <div className="hf-card w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center p-5 border-b">
           <h3 className="text-lg font-semibold">{modalTitle()}</h3>
           <button onClick={() => setShowModal(false)} className="p-1 hover:bg-gray-100 rounded"><X className="w-5 h-5" /></button>

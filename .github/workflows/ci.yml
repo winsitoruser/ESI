@@ -37,8 +37,15 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
       
-      - name: Lint check
-        run: npm run lint || true
+      - name: Lint check (blocking for Humanify paths when ESLINT_HUMANIFY_STRICT=1)
+        run: |
+          if [ "${ESLINT_HUMANIFY_STRICT:-0}" = "1" ]; then
+            npm run lint -- --max-warnings=0
+          else
+            # Legacy SIMESI noise — do not treat full-repo lint as release gate.
+            # Humanify release gate: npm run lint:humanify-hq-auth + smoke:wave81+
+            npm run lint:humanify-hq-auth
+          fi
       
       - name: Run migrations
         run: npx sequelize-cli db:migrate
@@ -52,5 +59,28 @@ jobs:
       - name: Build
         run: npm run build
       
-      - name: Run tests
-        run: npm run test || true
+      - name: Run tests (Humanify unit smokes required)
+        run: |
+          npm run lint:humanify-hq-auth
+          npm run smoke:wave79-entitlements
+          npm run smoke:wave80
+          npm run smoke:wave81
+          npm run smoke:deny-matrix
+          npm run smoke:wave85
+          npm run smoke:product-readiness
+          npm run smoke:payslip-idor
+          npm run smoke:trial
+          mkdir -p artifacts/ci-${{ github.sha }}
+          echo "sha=${{ github.sha }}" > artifacts/ci-${{ github.sha }}/SHA.txt
+          echo "run=${{ github.run_id }}" >> artifacts/ci-${{ github.sha }}/SHA.txt
+          npx jest --ci --testPathPattern='humanify|saas' --passWithNoTests
+          npm run test || echo "::warning::Legacy full Jest suite still noisy (Humanify subset above is blocking)"
+
+      - name: Upload immutable CI artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: humanify-ci-${{ github.sha }}
+          path: artifacts/
+          retention-days: 90
+          if-no-files-found: ignore

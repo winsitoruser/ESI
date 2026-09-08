@@ -1,5 +1,7 @@
 /** Host detection — Humanify production domain vs ESI / other tenants */
 
+import { isOpsHost } from '@/lib/humanify/ops-host';
+
 const DEFAULT_HUMANIFY_HOSTS = ['humanify.id', 'www.humanify.id'];
 
 function parseHostList(raw: string | undefined): string[] {
@@ -17,9 +19,13 @@ export function getHumanifyHosts(): string[] {
   return DEFAULT_HUMANIFY_HOSTS;
 }
 
-/** True when request Host header belongs to the Humanify public site (e.g. humanify.id). */
+/**
+ * True when request Host belongs to the Humanify public / tenant site (e.g. humanify.id).
+ * Ops (`ops.humanify.id`) and Admin Total (`admin.humanify.id`) are excluded — use `isOpsHost`.
+ */
 export function isHumanifyHost(host: string | null | undefined): boolean {
   if (!host) return false;
+  if (isOpsHost(host)) return false;
   const normalized = host.split(':')[0].toLowerCase();
   return getHumanifyHosts().some(
     (h) => normalized === h || normalized.endsWith(`.${h}`),

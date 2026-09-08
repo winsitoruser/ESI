@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import HumanifyLayout from '@/components/humanify/HumanifyLayout';
+import HRStatCard from '@/components/humanify/HRStatCard';
 import { PageGuard } from '@/components/permissions';
-import { LmsPageNav } from '@/components/humanify/lms/shared';
+import { TalentShell } from '@/components/humanify/TalentModuleChrome';
+import { OpsKpiShell } from '@/components/humanify/OpsPageChrome';
+import TrainingLmsBridge from '@/components/humanify/TrainingLmsBridge';
 import { useTranslation } from '@/lib/i18n';
 import { Link2, Bell, Wallet, Target } from 'lucide-react';
 
@@ -41,25 +44,31 @@ export default function LmsIntegrationsPage() {
   return (
     <PageGuard anyPermission={['lms.view', 'lms.*']}>
       <HumanifyLayout title={t('hris.lmsIntegrations')} subtitle="Integrasi ekosistem — rekrutmen, payroll, KPI, webhook">
-        <LmsPageNav active="integrations" />
+        <TalentShell
+          current="lms"
+          title="Integrasi LMS"
+          subtitle="Aturan otomatis antar rekrutmen, pelatihan, payroll tunjangan, KPI, dan registri sertifikat."
+          icon={Link2}
+        >
+          <TrainingLmsBridge currentModule="lms" />
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          {[
-            { label: 'Notifikasi terkirim', value: overview.notifications_sent || 0, icon: Bell },
-            { label: 'Tunjangan training', value: overview.training_allowances?.total || 0, icon: Wallet },
-            { label: 'Total tunjangan', value: `Rp ${Number(overview.training_allowances?.amount || 0).toLocaleString('id')}`, icon: Wallet },
-            { label: 'Baris KPI kompetensi', value: overview.kpi_competency_rows || 0, icon: Target },
-          ].map((s) => (
-            <div key={s.label} className="bg-white border rounded-xl p-4">
-              <s.icon className="w-5 h-5 text-[color:var(--hf-brand-600)] mb-2" />
-              <p className="text-xs text-gray-500">{s.label}</p>
-              <p className="text-lg font-bold">{s.value}</p>
-            </div>
-          ))}
-        </div>
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+            <OpsKpiShell>
+              <HRStatCard icon={Bell} label="Notifikasi terkirim" value={overview.notifications_sent || 0} accent="violet" />
+            </OpsKpiShell>
+            <OpsKpiShell>
+              <HRStatCard icon={Wallet} label="Tunjangan training" value={overview.training_allowances?.total || 0} accent="blue" />
+            </OpsKpiShell>
+            <OpsKpiShell>
+              <HRStatCard icon={Wallet} label="Total tunjangan" value={`Rp ${Number(overview.training_allowances?.amount || 0).toLocaleString('id')}`} accent="amber" />
+            </OpsKpiShell>
+            <OpsKpiShell>
+              <HRStatCard icon={Target} label="Baris KPI kompetensi" value={overview.kpi_competency_rows || 0} accent="emerald" />
+            </OpsKpiShell>
+          </div>
 
-        <div className="bg-white border rounded-xl p-5 space-y-4">
-          <h3 className="font-semibold flex items-center gap-2"><Link2 className="w-5 h-5" /> Aturan Integrasi</h3>
+          <div className="hf-card p-5 space-y-4">
+            <h3 className="font-semibold flex items-center gap-2 text-[color:var(--hf-ink)]"><Link2 className="h-5 w-5 text-[color:var(--hf-brand-600)]" /> Aturan integrasi</h3>
           {rules.map((rule) => (
             <div key={rule.rule_type} className="flex items-center justify-between border-b pb-3">
               <div>
@@ -69,31 +78,32 @@ export default function LmsIntegrationsPage() {
               <button
                 type="button"
                 onClick={() => toggle(rule)}
-                className={`px-3 py-1 rounded-full text-sm ${rule.enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}
+                className={`rounded-full px-3 py-1 text-sm font-medium ${rule.enabled ? 'bg-emerald-50 text-emerald-700' : 'bg-[var(--hf-surface-muted)] text-[color:var(--hf-ink-muted)]'}`}
               >
                 {rule.enabled ? 'Aktif' : 'Nonaktif'}
               </button>
             </div>
           ))}
-          {!rules.length && <p className="text-gray-400 text-sm">Aturan akan dibuat otomatis saat halaman dimuat</p>}
-        </div>
-
-        <div className="bg-white border rounded-xl p-5 mt-6">
-          <h3 className="font-semibold mb-3">Sinkronisasi Modul Training Legacy</h3>
-          <p className="text-sm text-gray-500 mb-3">
-            Menghubungkan Program Training, Pelatihan & Pengembangan, Skor Training, dan Certificate Registry dengan LMS.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {[
-              { href: '/humanify/training', label: 'Program Training' },
-              { href: '/humanify/training-development', label: 'Pelatihan & Pengembangan' },
-              { href: '/humanify/training-scoring', label: 'Skor Training' },
-              { href: '/humanify/certificates', label: 'Certificate Registry' },
-            ].map((l) => (
-              <a key={l.href} href={l.href} className="px-3 py-1.5 border rounded-lg text-sm hover:border-[var(--hf-brand-100)]">{l.label}</a>
-            ))}
+          {!rules.length && <p className="text-sm text-[color:var(--hf-ink-muted)]">Aturan akan dibuat otomatis saat halaman dimuat</p>}
           </div>
-        </div>
+
+          <div className="hf-card p-5">
+            <h3 className="mb-3 font-semibold text-[color:var(--hf-ink)]">Modul training terkait</h3>
+            <p className="mb-3 text-sm text-[color:var(--hf-ink-muted)]">
+              Program pelatihan, pengembangan, skor, dan registri sertifikat tersinkron dengan LMS.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { href: '/humanify/training', label: 'Program pelatihan' },
+                { href: '/humanify/training-development', label: 'Pengembangan' },
+                { href: '/humanify/training-scoring', label: 'Skor training' },
+                { href: '/humanify/certificates', label: 'Registri sertifikat' },
+              ].map((l) => (
+                <a key={l.href} href={l.href} className="hf-btn-secondary text-sm">{l.label}</a>
+              ))}
+            </div>
+          </div>
+        </TalentShell>
       </HumanifyLayout>
     </PageGuard>
   );

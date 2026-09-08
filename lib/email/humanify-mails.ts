@@ -273,3 +273,21 @@ export function humanifyEmployeePayslipEmail(opts: {
   const text = `${subject}\nHalo ${opts.employeeName},\nPeriode: ${opts.periodLabel}\n${opts.slipUrl}`;
   return { subject, html, text };
 }
+
+export function humanifyTravelRequestEmail(opts: {
+  requestNumber: string;
+  destination: string;
+  innerHtml: string;
+  text: string;
+  detailUrl: string;
+}): { subject: string; html: string; text: string } {
+  const subject = `Pengajuan perjalanan ${opts.requestNumber || ''}`.trim();
+  const html = wrapHumanifyEmail({
+    preheader: opts.destination || subject,
+    eyebrow: 'Perjalanan dinas',
+    title: subject,
+    bodyHtml: opts.innerHtml,
+    cta: { label: 'Buka di Humanify', href: opts.detailUrl },
+  });
+  return { subject, html, text: `${opts.text}\n\n${opts.detailUrl}` };
+}

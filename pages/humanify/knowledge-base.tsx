@@ -3,6 +3,8 @@ import Link from 'next/link';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
+import { OpsPageHero, OpsStage } from '@/components/humanify/OpsPageChrome';
+import HrisEmptyState from '@/components/humanify/HrisEmptyState';
 import {
   BookOpen, Search, Plus, X, Eye, ArrowLeft, Tag, LifeBuoy, RefreshCw,
 } from 'lucide-react';
@@ -110,7 +112,7 @@ function renderSimpleMarkdown(md: string) {
       nodes.push(
         <div
           key={`flow-${i++}`}
-          className="mb-4 rounded-xl border border-slate-200 bg-slate-50 overflow-hidden"
+          className="hf-card mb-4 overflow-hidden"
         >
           <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500 bg-slate-100 border-b border-slate-200">
             Flowchart
@@ -358,43 +360,42 @@ export default function KnowledgeBasePage() {
       title="Pusat Pengetahuan"
       subtitle="Panduan produk, fitur, flowchart, dan penjelasan modul Humanify"
     >
-      <div className="space-y-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-[color:var(--hf-brand)]" />
-            <h2 className="text-lg font-semibold text-gray-900">Pusat Pengetahuan</h2>
-            <DataSourceBadge source={dataSource} />
-          </div>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => load()}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
-            >
-              <RefreshCw className="w-4 h-4" /> Refresh
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowCreate(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg bg-[var(--hf-brand)] text-white"
-            >
-              <Plus className="w-4 h-4" /> Tambah Artikel
-            </button>
-          </div>
-        </div>
+      <OpsStage>
+        <OpsPageHero
+          title="Pusat Pengetahuan"
+          subtitle="Panduan produk, fitur, flowchart, dan penjelasan modul Humanify"
+          badge="Knowledge Center"
+          liveLabel="Docs"
+          icon={BookOpen}
+          chips={[
+            { icon: Tag, label: `${articles.length} artikel`, tone: 'text-[color:var(--hf-brand-600)]' },
+            { icon: LifeBuoy, label: 'Support siap membantu', tone: 'text-emerald-700' },
+          ]}
+          actions={(
+            <div className="flex flex-wrap items-center gap-2">
+              <DataSourceBadge source={dataSource} />
+              <button type="button" onClick={() => load()} className="hf-btn-secondary inline-flex items-center gap-1.5">
+                <RefreshCw className="h-4 w-4" /> Refresh
+              </button>
+              <button type="button" onClick={() => setShowCreate(true)} className="hf-btn-primary inline-flex items-center gap-1.5">
+                <Plus className="h-4 w-4" /> Tambah artikel
+              </button>
+            </div>
+          )}
+        />
 
-        <div className="bg-gradient-to-br from-[var(--hf-brand)] to-[color:var(--hf-brand-600)] rounded-2xl p-6 text-white">
-          <h3 className="text-xl font-semibold mb-1">Bagaimana kami bisa membantu?</h3>
-          <p className="text-sm text-white/80 mb-4">
-            Panduan lengkap: mulai penggunaan, detail fitur &amp; komponen, flowchart, serta penjelasan modul.
+        <div className="hf-card p-4 md:p-5">
+          <p className="mb-2 text-sm font-medium text-[color:var(--hf-ink)]">Bagaimana kami bisa membantu?</p>
+          <p className="mb-3 text-xs text-[color:var(--hf-ink-muted)]">
+            Cari panduan mulai penggunaan, detail fitur, flowchart, serta penjelasan modul.
           </p>
           <div className="relative max-w-xl">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--hf-ink-faint)]" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Cari artikel…"
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg text-sm text-gray-900"
+              className="hf-input w-full pl-9"
             />
           </div>
         </div>
@@ -405,10 +406,10 @@ export default function KnowledgeBasePage() {
               key={c}
               type="button"
               onClick={() => setCategory(c)}
-              className={`text-xs px-3 py-1.5 rounded-full border ${
+              className={`rounded-md border px-3 py-1.5 text-xs font-medium transition ${
                 category === c
-                  ? 'bg-[var(--hf-brand)] text-white border-[var(--hf-brand)]'
-                  : 'bg-white text-gray-600 hover:bg-gray-50'
+                  ? 'border-[var(--hf-brand-600)] bg-[var(--hf-brand-600)] text-white'
+                  : 'border-[var(--hf-border)] bg-white text-[color:var(--hf-ink-muted)] hover:bg-[var(--hf-surface-muted)]'
               }`}
             >
               {c === 'all' ? 'Semua' : CATEGORY_LABEL[c] || c}
@@ -416,13 +417,21 @@ export default function KnowledgeBasePage() {
           ))}
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {loading && (
-            <div className="col-span-full p-10 text-center text-sm text-gray-500">Memuat artikel…</div>
+            <>
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="h-36 animate-pulse rounded-[var(--hf-radius-xl)] bg-[var(--hf-surface-muted)]" />
+              ))}
+            </>
           )}
           {!loading && articles.length === 0 && (
-            <div className="col-span-full bg-white border rounded-xl p-8 text-center text-sm text-gray-500">
-              Belum ada artikel. Tambahkan artikel internal perusahaan atau hubungi support.
+            <div className="col-span-full">
+              <HrisEmptyState
+                title="Belum ada artikel"
+                description="Tambahkan artikel internal perusahaan atau hubungi support."
+                source={dataSource}
+              />
             </div>
           )}
           {!loading &&
@@ -464,11 +473,11 @@ export default function KnowledgeBasePage() {
             Ke Tiket Support
           </Link>
         </div>
-      </div>
+      </OpsStage>
 
       {showCreate && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto">
+          <div className="hf-card max-h-[90vh] w-full max-w-lg overflow-y-auto">
             <div className="flex items-center justify-between px-5 py-4 border-b sticky top-0 bg-white">
               <h3 className="font-semibold">Tambah Artikel Internal</h3>
               <button type="button" onClick={() => setShowCreate(false)} className="p-1 hover:bg-gray-100 rounded">

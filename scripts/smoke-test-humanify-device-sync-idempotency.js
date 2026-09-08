@@ -67,6 +67,12 @@ async function main() {
   if (/claimDeviceSyncEvent/.test(ds) && /storeDeviceSyncResult/.test(ds)) ok('device-sync-idempotency.ts');
   else fail('device-sync source');
 
+  const dsApi = fs.readFileSync(path.join(__dirname, '../pages/api/humanify/attendance/device-sync.ts'), 'utf8');
+  if (/import \{ withHQAuth \} from '@\/lib\/middleware\/withHQAuth'/.test(dsApi)
+    && /res\.setHeader\('Allow', 'POST'\)/.test(dsApi)) {
+    ok('device-sync withHQAuth import + GET 405');
+  } else fail('device-sync missing withHQAuth import');
+
   const rs = fs.readFileSync(path.join(__dirname, '../lib/hris/recruitment-webhook-idempotency.ts'), 'utf8');
   if (/claimRecruitmentWebhookEvent/.test(rs) && /buildRecruitmentIdempotencyKey/.test(rs)) {
     ok('recruitment-webhook-idempotency.ts');

@@ -69,7 +69,7 @@ function OrgUnitCard({
   const initials = label.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
 
   return (
-    <div className={`group relative bg-white rounded-xl border shadow-sm hover:shadow-md transition-all w-[220px] sm:w-[240px] ${theme.accent}`}>
+    <div className={`group relative hf-card hover:shadow-md transition-all w-[min(240px,calc(100vw-2.5rem))] sm:w-[240px] ${theme.accent}`}>
       <div className={`h-1.5 rounded-t-xl bg-gradient-to-r ${theme.gradient}`} />
       <div className="p-3.5">
         <div className="flex items-start justify-between gap-2 mb-2">
@@ -266,7 +266,7 @@ export default function OrgChartTree({
             Tutup Semua
           </button>
         </div>
-        <div className="overflow-x-auto pb-4 -mx-2 px-2">
+        <div className="overflow-x-auto pb-4 -mx-1 sm:-mx-2 px-1 sm:px-2 touch-pan-x">
           <ul className="flex flex-wrap justify-center items-start gap-x-4 gap-y-6 min-w-0 list-none p-0 m-0">
             {nodes.map((node) => (
               <ChartBranch

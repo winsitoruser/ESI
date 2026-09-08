@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { formatRelativeTime } from '../../../lib/employee-portal';
 import { ensureEngagementTables } from '../../../lib/hris/ensure-engagement-tables';
 import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
+import { withDbSavepoint } from '@/lib/saas/tenant-request-bound';
 import { withHQAuth } from '@/lib/middleware/withHQAuth';
 let Survey: any, SurveyResponse: any, Recognition: any, Announcement: any;
 let sequelize: any;
@@ -151,8 +152,22 @@ async function safeModelCount(model: any, options: any = {}): Promise<number> {
   }
 }
 
+function isoDateOnly(value: unknown): string | undefined {
+  if (value == null || value === '') return undefined;
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+  const s = String(value);
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const parsed = new Date(s);
+  if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
+  return undefined;
+}
+
 function mapAnnouncementRow(r: any) {
   if (!r) return null;
+  const publishDay = isoDateOnly(r.published_at);
+  const expireDay = isoDateOnly(r.expires_at);
   return {
     id: r.id,
     title: r.title,
@@ -169,9 +184,9 @@ function mapAnnouncementRow(r: any) {
     isPinned: !!r.is_pinned,
     status: r.status || (r.is_active === false ? 'archived' : 'published'),
     publish_date: r.published_at,
-    publishDate: r.published_at ? String(r.published_at).split('T')[0] : undefined,
+    publishDate: publishDay,
     expire_date: r.expires_at,
-    expireDate: r.expires_at ? String(r.expires_at).split('T')[0] : undefined,
+    expireDate: expireDay,
     view_count: Number(r.view_count || 0),
     viewCount: Number(r.view_count || 0),
     read_count: Number(r.view_count || r.read_count || 0),
@@ -182,16 +197,16 @@ function mapAnnouncementRow(r: any) {
 }
 
 async function fanOutAnnouncementNotifications(ann: any, tenantId: string | null) {
-  if (!sequelize || !ann?.id) return;
+  if (!sequelize || !ann?.id || !tenantId) return;
   const title = 'Pengumuman baru';
   const message = ann.title;
-  try {
+  await withDbSavepoint(sequelize, async () => {
     await sequelize.query(`
       INSERT INTO employee_notifications (tenant_id, user_id, employee_id, title, message, type, source_type, source_id, created_at)
-      SELECT DISTINCT COALESCE(e.tenant_id, :tid), e.user_id, e.id, :title, :message, 'info', 'announcement', :annId, NOW()
+      SELECT DISTINCT COALESCE(e.tenant_id, :tid::uuid), e.user_id, e.id, :title, :message, 'info', 'announcement', :annId::uuid, NOW()
       FROM employees e
       WHERE e.is_active = true AND e.user_id IS NOT NULL
-        AND e.tenant_id = :tid
+        AND e.tenant_id = :tid::uuid
         AND (
           :audience = 'all' OR :audience IS NULL
           OR (:audience = 'department' AND e.department = :dept)
@@ -201,12 +216,12 @@ async function fanOutAnnouncementNotifications(ann: any, tenantId: string | null
         tid: tenantId,
         title,
         message,
-        annId: ann.id,
+        annId: String(ann.id),
         audience: ann.target_audience || 'all',
         dept: ann.target_department || null,
       },
     });
-  } catch { /* notifications table may not exist yet */ }
+  }, 'announcement_notify');
 }
 
 async function getSurveyByIdRaw(id: string) {
@@ -658,7 +673,10 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
       return res.json({ success: true });
     }
     case 'announcement': {
-      const tenantId = (session.user as any)?.tenantId || null;
+      const tenantId = tenantIdFromSession(session);
+      if (!tenantId) {
+        return res.status(403).json({ success: false, error: 'NO_TENANT', message: 'Tenant tidak terikat sesi' });
+      }
       const createdBy = asUuidOrNull((session.user as any)?.id);
       const b = body;
       const status = b.status || 'published';
@@ -673,9 +691,9 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
               target_department, target_branch, status, is_pinned, is_active,
               published_at, expires_at, created_by, created_at, updated_at
             ) VALUES (
-              :tenantId, :title, :content, :category, :priority, :targetAudience,
+              :tenantId::uuid, :title, :content, :category, :priority, :targetAudience,
               :targetDepartment, :targetBranch, :status, :isPinned, :isActive,
-              :publishedAt, :expiresAt, :createdBy, NOW(), NOW()
+              :publishedAt, :expiresAt, :createdBy::uuid, NOW(), NOW()
             ) RETURNING *
           `, {
             replacements: {
@@ -711,23 +729,23 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
     }
     case 'publish-announcement': {
       const { id: aId } = body;
+      const pubTid = tenantIdFromSession(session);
+      if (!pubTid) return res.status(403).json({ success: false, error: 'NO_TENANT' });
       if (sequelize && aId) {
         try {
           const [rows] = await sequelize.query(`
             UPDATE hris_announcements
             SET status = 'published', is_active = true, published_at = COALESCE(published_at, NOW()), updated_at = NOW()
-            WHERE id = :id AND tenant_id = :tid RETURNING *
-          `, { replacements: { id: aId, tid: (session.user as any)?.tenantId } });
+            WHERE id = :id::uuid AND tenant_id = :tid::uuid RETURNING *
+          `, { replacements: { id: aId, tid: pubTid } });
           const ann = rows?.[0];
           if (ann) {
-            await fanOutAnnouncementNotifications(ann, (session.user as any)?.tenantId);
+            await fanOutAnnouncementNotifications(ann, pubTid);
             return res.json({ success: true, message: 'Announcement published', data: mapAnnouncementRow(ann) });
           }
         } catch { /* fall through */ }
       }
       if (!Announcement || !aId) return res.json({ success: true });
-      const pubTid = tenantIdFromSession(session);
-      if (!pubTid) return res.status(403).json({ error: 'NO_TENANT' });
       await Announcement.update({ status: 'published', publishDate: new Date() }, { where: { id: aId, tenantId: pubTid } });
       return res.json({ success: true, message: 'Announcement published' });
     }

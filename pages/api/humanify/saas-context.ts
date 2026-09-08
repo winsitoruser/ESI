@@ -64,9 +64,12 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     const seats = isPlatform ? null : await getSeatUsage(tenantId, plan);
     const emailVerified = isPlatform ? true : await isTenantEmailVerified(tenantId);
     let goLivePct: number | null = null;
+    let goLiveReady = false;
     if (!isPlatform) {
       try {
-        goLivePct = (await getGoLiveStatus(tenantId)).pct;
+        const goLive = await getGoLiveStatus(tenantId);
+        goLivePct = goLive.pct;
+        goLiveReady = goLive.ready;
       } catch { /* */ }
     }
 
@@ -106,6 +109,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           seats,
           emailVerified,
           goLivePct,
+          goLiveReady,
         });
 
     return res.json({
@@ -121,6 +125,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         seats,
         emailVerified,
         goLivePct,
+        goLiveReady,
         trialEndsAt,
         daysLeftInTrial,
         subscriptionEnd,

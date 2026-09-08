@@ -4,8 +4,13 @@
  */
 
 import { resolveEmployeeContext } from '@/lib/employee-portal';
+import { withAutocommitQuery } from '@/lib/saas/tenant-request-bound';
+import { evaluateClockIn, evaluateClockOut } from '@/lib/hris/work-time-policy';
+import { loadWorkTimePolicy, resolveShiftWindow } from '@/lib/hris/work-time-policy-store';
 
 export const ATTENDANCE_TABLE = 'employee_attendance';
+
+let attendancePhotoColsReady = false;
 
 export type PortalAttendanceRow = {
   date: string;
@@ -25,9 +30,11 @@ export type PortalAttendanceRow = {
   attendance_date?: string;
 };
 
+/** Fail-closed: never resolve employees when tenant context is missing. */
 function employeeIdSubquery() {
   return `SELECT id FROM employees
-    WHERE (:tenantId::uuid IS NULL OR tenant_id = :tenantId::uuid)
+    WHERE :tenantId::uuid IS NOT NULL
+      AND tenant_id = :tenantId::uuid
       AND (user_id = :userId OR email = (SELECT email FROM users WHERE id = :userId))`;
 }
 
@@ -149,12 +156,14 @@ export async function getAttendanceHistoryRows(
 }
 
 export async function ensureAttendancePhotoColumns(sequelize: any) {
-  if (!sequelize) return;
-  try {
-    await sequelize.query(`ALTER TABLE ${ATTENDANCE_TABLE} ADD COLUMN IF NOT EXISTS clock_in_photo TEXT`);
-    await sequelize.query(`ALTER TABLE ${ATTENDANCE_TABLE} ADD COLUMN IF NOT EXISTS clock_out_photo TEXT`);
-    await sequelize.query(`ALTER TABLE ${ATTENDANCE_TABLE} ADD COLUMN IF NOT EXISTS geofence_id UUID`);
-  } catch { /* noop */ }
+  if (!sequelize || attendancePhotoColsReady) return;
+  const ok = await withAutocommitQuery(sequelize, async (query) => {
+    await query(`ALTER TABLE ${ATTENDANCE_TABLE} ADD COLUMN IF NOT EXISTS clock_in_photo TEXT`);
+    await query(`ALTER TABLE ${ATTENDANCE_TABLE} ADD COLUMN IF NOT EXISTS clock_out_photo TEXT`);
+    await query(`ALTER TABLE ${ATTENDANCE_TABLE} ADD COLUMN IF NOT EXISTS geofence_id UUID`);
+    return true;
+  }, 'att_photo_cols');
+  if (ok) attendancePhotoColsReady = true;
 }
 
 export async function portalClockIn(
@@ -165,20 +174,35 @@ export async function portalClockIn(
   method = 'gps_mobile',
   photo: string | null = null,
   geofenceId: string | null = null,
+  face?: { matchScore?: number | null; livenessOk?: boolean; matchStatus?: string | null } | null,
 ) {
   await ensureAttendancePhotoColumns(sequelize);
   const today = new Date().toISOString().split('T')[0];
-  const now = new Date().toISOString();
+  const nowDate = new Date();
+  const now = nowDate.toISOString();
   const ctx = await resolveEmployeeContext(sequelize, userId, tenantId);
   if (!ctx.employeeId) throw new Error('Employee record not found');
 
+  const scopedTenant = tenantId || ctx.tenantId;
+  const policy = await loadWorkTimePolicy(sequelize, scopedTenant, ctx.branchId);
+  const window = await resolveShiftWindow(sequelize, scopedTenant, ctx.employeeId, policy, today);
+  const punch = evaluateClockIn(policy, nowDate, { shiftStart: window.shiftStart });
+  const scheduledStart = window.shiftStart || punch.expectedStart;
+  const scheduledEnd = window.shiftEnd || policy.workEndTime;
+
   await sequelize.query(`
     INSERT INTO ${ATTENDANCE_TABLE} (
-      id, tenant_id, employee_id, branch_id, date, clock_in, status,
-      clock_in_location, clock_in_method, clock_in_photo, geofence_id, created_at, updated_at
+      id, tenant_id, employee_id, branch_id, date, clock_in, status, late_minutes,
+      scheduled_start, scheduled_end,
+      clock_in_location, clock_in_method, clock_in_photo, geofence_id,
+      face_match_score, face_liveness_ok, face_match_status,
+      created_at, updated_at
     ) VALUES (
-      uuid_generate_v4(), :tenantId, :employeeId, :branchId, :today, :now, 'present',
-      :locationJson::jsonb, :method, :photo, :geofenceId, NOW(), NOW()
+      uuid_generate_v4(), :tenantId, :employeeId, :branchId, :today, :now, :status, :lateMinutes,
+      :scheduledStart, :scheduledEnd,
+      :locationJson::jsonb, :method, :photo, :geofenceId,
+      :faceScore, :faceLive, :faceStatus,
+      NOW(), NOW()
     )
     ON CONFLICT (employee_id, date) DO UPDATE SET
       clock_in = COALESCE(${ATTENDANCE_TABLE}.clock_in, EXCLUDED.clock_in),
@@ -186,19 +210,36 @@ export async function portalClockIn(
       clock_in_method = COALESCE(EXCLUDED.clock_in_method, ${ATTENDANCE_TABLE}.clock_in_method),
       clock_in_photo = COALESCE(EXCLUDED.clock_in_photo, ${ATTENDANCE_TABLE}.clock_in_photo),
       geofence_id = COALESCE(EXCLUDED.geofence_id, ${ATTENDANCE_TABLE}.geofence_id),
-      status = CASE WHEN ${ATTENDANCE_TABLE}.status = 'absent' THEN 'present' ELSE ${ATTENDANCE_TABLE}.status END,
+      face_match_score = COALESCE(EXCLUDED.face_match_score, ${ATTENDANCE_TABLE}.face_match_score),
+      face_liveness_ok = COALESCE(EXCLUDED.face_liveness_ok, ${ATTENDANCE_TABLE}.face_liveness_ok),
+      face_match_status = COALESCE(EXCLUDED.face_match_status, ${ATTENDANCE_TABLE}.face_match_status),
+      late_minutes = CASE WHEN ${ATTENDANCE_TABLE}.clock_in IS NULL THEN EXCLUDED.late_minutes ELSE ${ATTENDANCE_TABLE}.late_minutes END,
+      scheduled_start = COALESCE(${ATTENDANCE_TABLE}.scheduled_start, EXCLUDED.scheduled_start),
+      scheduled_end = COALESCE(${ATTENDANCE_TABLE}.scheduled_end, EXCLUDED.scheduled_end),
+      status = CASE
+        WHEN ${ATTENDANCE_TABLE}.clock_in IS NULL THEN EXCLUDED.status
+        WHEN ${ATTENDANCE_TABLE}.status = 'absent' THEN 'present'
+        ELSE ${ATTENDANCE_TABLE}.status
+      END,
       updated_at = NOW()
   `, {
     replacements: {
-      tenantId: tenantId || ctx.tenantId,
+      tenantId: scopedTenant,
       employeeId: ctx.employeeId,
       branchId: ctx.branchId,
       today,
       now,
+      status: punch.status,
+      lateMinutes: punch.lateMinutes,
+      scheduledStart,
+      scheduledEnd,
       locationJson,
       method,
       photo,
       geofenceId,
+      faceScore: face?.matchScore ?? null,
+      faceLive: face?.livenessOk ?? null,
+      faceStatus: face?.matchStatus ?? null,
     },
   });
 }
@@ -211,12 +252,36 @@ export async function portalClockOut(
   method = 'gps_mobile',
   photo: string | null = null,
   geofenceId: string | null = null,
+  face?: { matchScore?: number | null; livenessOk?: boolean; matchStatus?: string | null } | null,
 ) {
   await ensureAttendancePhotoColumns(sequelize);
   const today = new Date().toISOString().split('T')[0];
-  const now = new Date().toISOString();
+  const nowDate = new Date();
+  const now = nowDate.toISOString();
   const ctx = await resolveEmployeeContext(sequelize, userId, tenantId);
   if (!ctx.employeeId) throw new Error('Employee record not found');
+
+  const scopedTenant = tenantId || ctx.tenantId;
+  let workHours: number | null = null;
+  let overtimeMinutes = 0;
+  let earlyLeaveMinutes = 0;
+  try {
+    const [existing] = await sequelize.query(
+      `SELECT clock_in FROM ${ATTENDANCE_TABLE} WHERE employee_id = :employeeId AND date = :today LIMIT 1`,
+      { replacements: { employeeId: ctx.employeeId, today } },
+    );
+    const clockInAt = (existing as any[])?.[0]?.clock_in;
+    if (clockInAt) {
+      const policy = await loadWorkTimePolicy(sequelize, scopedTenant, ctx.branchId);
+      const window = await resolveShiftWindow(sequelize, scopedTenant, ctx.employeeId, policy, today);
+      const punch = evaluateClockOut(policy, new Date(clockInAt), nowDate, { shiftEnd: window.shiftEnd });
+      workHours = punch.workHours;
+      overtimeMinutes = punch.overtimeMinutes;
+      earlyLeaveMinutes = punch.earlyLeaveMinutes;
+    }
+  } catch (err: any) {
+    console.warn('[attendance] clock-out policy eval skipped', err?.message);
+  }
 
   const [updated] = await sequelize.query(`
     UPDATE ${ATTENDANCE_TABLE} SET
@@ -225,23 +290,49 @@ export async function portalClockOut(
       clock_out_method = COALESCE(:method, clock_out_method),
       clock_out_photo = COALESCE(:photo, clock_out_photo),
       geofence_id = COALESCE(:geofenceId, geofence_id),
+      face_match_score = COALESCE(:faceScore, face_match_score),
+      face_liveness_ok = COALESCE(:faceLive, face_liveness_ok),
+      face_match_status = COALESCE(:faceStatus, face_match_status),
       work_hours = CASE
+        WHEN :workHours::numeric IS NOT NULL THEN :workHours
         WHEN clock_in IS NOT NULL THEN ROUND(EXTRACT(EPOCH FROM (:now::timestamptz - clock_in)) / 3600, 2)
         ELSE work_hours
       END,
+      overtime_minutes = :overtimeMinutes,
+      early_leave_minutes = :earlyLeaveMinutes,
       updated_at = NOW()
     WHERE employee_id = :employeeId AND date = :today
     RETURNING id
-  `, { replacements: { employeeId: ctx.employeeId, today, now, locationJson, method, photo, geofenceId } });
+  `, {
+    replacements: {
+      employeeId: ctx.employeeId,
+      today,
+      now,
+      locationJson,
+      method,
+      photo,
+      geofenceId,
+      faceScore: face?.matchScore ?? null,
+      faceLive: face?.livenessOk ?? null,
+      faceStatus: face?.matchStatus ?? null,
+      workHours,
+      overtimeMinutes,
+      earlyLeaveMinutes,
+    },
+  });
 
   if (!(updated as any[])?.length) {
     await sequelize.query(`
       INSERT INTO ${ATTENDANCE_TABLE} (
         id, tenant_id, employee_id, branch_id, date, clock_out, status,
-        clock_out_location, clock_out_method, clock_out_photo, geofence_id, created_at, updated_at
+        clock_out_location, clock_out_method, clock_out_photo, geofence_id,
+        face_match_score, face_liveness_ok, face_match_status,
+        created_at, updated_at
       ) VALUES (
         uuid_generate_v4(), :tenantId, :employeeId, :branchId, :today, :now, 'present',
-        :locationJson::jsonb, :method, :photo, :geofenceId, NOW(), NOW()
+        :locationJson::jsonb, :method, :photo, :geofenceId,
+        :faceScore, :faceLive, :faceStatus,
+        NOW(), NOW()
       )
     `, {
       replacements: {
@@ -254,6 +345,9 @@ export async function portalClockOut(
         method,
         photo,
         geofenceId,
+        faceScore: face?.matchScore ?? null,
+        faceLive: face?.livenessOk ?? null,
+        faceStatus: face?.matchStatus ?? null,
       },
     });
   }

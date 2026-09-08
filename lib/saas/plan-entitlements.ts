@@ -29,6 +29,14 @@ export interface HumanifyPlanDefinition {
   priceMonthlyIdr: number;
 }
 
+/** Canonical list prices — single source for billing, ROI, sales, and website. */
+export const HUMANIFY_CANONICAL_PRICES_IDR = {
+  trial: 0,
+  starter: 499_000,
+  growth: 1_499_000,
+  enterprise: 4_999_000,
+} as const;
+
 export const HUMANIFY_PLANS: Record<HumanifyPlanId, HumanifyPlanDefinition> = {
   trial: {
     id: 'trial',
@@ -38,7 +46,7 @@ export const HUMANIFY_PLANS: Record<HumanifyPlanId, HumanifyPlanDefinition> = {
     maxUsers: 25,
     maxEmployees: 100,
     trialDays: 14,
-    priceMonthlyIdr: 0,
+    priceMonthlyIdr: HUMANIFY_CANONICAL_PRICES_IDR.trial,
   },
   starter: {
     id: 'starter',
@@ -47,7 +55,7 @@ export const HUMANIFY_PLANS: Record<HumanifyPlanId, HumanifyPlanDefinition> = {
     features: ['core', 'attendance', 'recruitment'],
     maxUsers: 10,
     maxEmployees: 50,
-    priceMonthlyIdr: 499_000,
+    priceMonthlyIdr: HUMANIFY_CANONICAL_PRICES_IDR.starter,
   },
   growth: {
     id: 'growth',
@@ -56,7 +64,7 @@ export const HUMANIFY_PLANS: Record<HumanifyPlanId, HumanifyPlanDefinition> = {
     features: ['core', 'attendance', 'recruitment', 'payroll', 'analytics'],
     maxUsers: 50,
     maxEmployees: 500,
-    priceMonthlyIdr: 1_499_000,
+    priceMonthlyIdr: HUMANIFY_CANONICAL_PRICES_IDR.growth,
   },
   enterprise: {
     id: 'enterprise',
@@ -65,7 +73,7 @@ export const HUMANIFY_PLANS: Record<HumanifyPlanId, HumanifyPlanDefinition> = {
     features: ['core', 'attendance', 'payroll', 'recruitment', 'lms', 'analytics', 'ai', 'api', 'white_label', 'sso'],
     maxUsers: 500,
     maxEmployees: 10000,
-    priceMonthlyIdr: 4_999_000,
+    priceMonthlyIdr: HUMANIFY_CANONICAL_PRICES_IDR.enterprise,
   },
 };
 
@@ -86,6 +94,8 @@ const ROUTE_FEATURE_RULES: Array<{ test: RegExp; feature: HumanifyFeature }> = [
   { test: /^\/humanify\/payroll/, feature: 'payroll' },
   { test: /^\/humanify\/reimbursement/, feature: 'payroll' },
   { test: /^\/humanify\/casual-workforce/, feature: 'payroll' },
+  { test: /^\/humanify\/travel-expense/, feature: 'payroll' },
+  { test: /^\/humanify\/overtime/, feature: 'payroll' },
   { test: /^\/humanify\/lms/, feature: 'lms' },
   { test: /^\/humanify\/training/, feature: 'lms' },
   { test: /^\/humanify\/certificates/, feature: 'lms' },
@@ -98,42 +108,70 @@ const ROUTE_FEATURE_RULES: Array<{ test: RegExp; feature: HumanifyFeature }> = [
   { test: /^\/humanify\/hr-analytics/, feature: 'analytics' },
   { test: /^\/humanify\/workforce-analytics/, feature: 'analytics' },
   { test: /^\/humanify\/reports/, feature: 'analytics' },
+  { test: /^\/humanify\/kpi/, feature: 'analytics' },
+  { test: /^\/humanify\/kpi-settings/, feature: 'analytics' },
+  { test: /^\/humanify\/performance/, feature: 'analytics' },
+  { test: /^\/humanify\/okr/, feature: 'analytics' },
   { test: /^\/humanify\/attendance/, feature: 'attendance' },
   { test: /^\/humanify\/leave/, feature: 'attendance' },
 ];
 
-/** API action prefixes → feature */
+/** API action prefixes → feature. Match path segment (with or without trailing slash). */
 const API_FEATURE_RULES: Array<{ test: RegExp; feature: HumanifyFeature }> = [
-  { test: /\/api\/humanify\/payroll/, feature: 'payroll' },
-  { test: /\/api\/humanify\/reimbursement/, feature: 'payroll' },
-  { test: /\/api\/humanify\/casual-workforce/, feature: 'payroll' },
-  { test: /\/api\/humanify\/travel-expense/, feature: 'payroll' },
-  { test: /\/api\/humanify\/disbursement/, feature: 'payroll' },
-  { test: /\/api\/humanify\/compliance-export/, feature: 'payroll' },
-  { test: /\/api\/humanify\/lms/, feature: 'lms' },
-  { test: /\/api\/humanify\/training/, feature: 'lms' },
-  { test: /\/api\/humanify\/certificates/, feature: 'lms' },
-  { test: /\/api\/humanify\/recruitment/, feature: 'recruitment' },
-  { test: /\/api\/humanify\/attendance/, feature: 'attendance' },
-  { test: /\/api\/humanify\/leave/, feature: 'attendance' },
-  { test: /\/api\/humanify\/workforce-analytics/, feature: 'analytics' },
-  { test: /\/api\/humanify\/predictive-analytics/, feature: 'analytics' },
-  { test: /\/api\/humanify\/hr-analytics/, feature: 'analytics' },
-  { test: /\/api\/humanify\/ai/, feature: 'ai' },
-  { test: /\/api\/humanify\/ai-hub/, feature: 'ai' },
-  { test: /\/api\/humanify\/enterprise/, feature: 'api' },
-  { test: /\/api\/humanify\/sso/, feature: 'sso' },
-  { test: /\/api\/v1\//, feature: 'api' },
+  { test: /\/api\/humanify\/payroll(?:\/|$)/, feature: 'payroll' },
+  { test: /\/api\/humanify\/reimbursement(?:\/|$)/, feature: 'payroll' },
+  { test: /\/api\/humanify\/casual-workforce(?:\/|$)/, feature: 'payroll' },
+  { test: /\/api\/humanify\/travel-expense(?:\/|$)/, feature: 'payroll' },
+  { test: /\/api\/humanify\/overtime(?:\/|$)/, feature: 'payroll' },
+  { test: /\/api\/humanify\/disbursement(?:\/|$)/, feature: 'payroll' },
+  { test: /\/api\/humanify\/compliance-export(?:\/|$)/, feature: 'payroll' },
+  // Note: /api/humanify/workflow stays core at path level — claim* actions assert payroll in-handler
+  // (mutations remain available on Starter).
+  { test: /\/api\/humanify\/lms(?:\/|$)/, feature: 'lms' },
+  { test: /\/api\/humanify\/training(?:\/|$)/, feature: 'lms' },
+  { test: /\/api\/humanify\/certificates(?:\/|$)/, feature: 'lms' },
+  { test: /\/api\/humanify\/recruitment(?:\/|$)/, feature: 'recruitment' },
+  { test: /\/api\/humanify\/attendance(?:\/|$)/, feature: 'attendance' },
+  { test: /\/api\/humanify\/leave(?:\/|$)/, feature: 'attendance' },
+  { test: /\/api\/humanify\/workforce-analytics(?:\/|$)/, feature: 'analytics' },
+  { test: /\/api\/humanify\/predictive-analytics(?:\/|$)/, feature: 'analytics' },
+  { test: /\/api\/humanify\/hr-analytics(?:\/|$)/, feature: 'analytics' },
+  { test: /\/api\/humanify\/kpi(?:\/|$)/, feature: 'analytics' },
+  { test: /\/api\/humanify\/performance(?:\/|$)/, feature: 'analytics' },
+  { test: /\/api\/humanify\/okr(?:\/|$)/, feature: 'analytics' },
+  { test: /\/api\/humanify\/ai(?:\/|$)/, feature: 'ai' },
+  { test: /\/api\/humanify\/ai-hub(?:\/|$)/, feature: 'ai' },
+  { test: /\/api\/humanify\/ai-insights(?:\/|$)/, feature: 'ai' },
+  { test: /\/api\/humanify\/enterprise(?:\/|$)/, feature: 'api' },
+  { test: /\/api\/humanify\/sso(?:\/|$)/, feature: 'sso' },
+  { test: /\/api\/v1(?:\/|$)/, feature: 'api' },
 ];
 
 export function normalizeHumanifyPlan(raw: string | null | undefined): HumanifyPlanId {
-  if (!raw) return 'enterprise'; // legacy tenants without plan denorm → full access
+  // Least privilege: missing/unknown plan → starter (not enterprise). Ops must set subscription_plan.
+  if (!raw) return 'starter';
   const key = String(raw).trim().toLowerCase();
-  return PLAN_ALIASES[key] || 'enterprise';
+  return PLAN_ALIASES[key] || 'starter';
 }
 
 export function getPlanDefinition(plan: string | null | undefined): HumanifyPlanDefinition {
-  return HUMANIFY_PLANS[normalizeHumanifyPlan(plan)];
+  const id = normalizeHumanifyPlan(plan);
+  const base = HUMANIFY_PLANS[id];
+  try {
+    // Lazy require avoids circular import at module init
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { getPlanCatalogOverride } = require('./plan-pricing-store') as typeof import('./plan-pricing-store');
+    const o = getPlanCatalogOverride(id);
+    if (!o) return base;
+    return {
+      ...base,
+      ...o,
+      id,
+      features: (o.features && o.features.length ? o.features : base.features) as HumanifyFeature[],
+    };
+  } catch {
+    return base;
+  }
 }
 
 export function planHasFeature(plan: string | null | undefined, feature: HumanifyFeature): boolean {

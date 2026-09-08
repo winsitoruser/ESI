@@ -218,7 +218,7 @@ export default function TeamMemberDetailPage() {
           <Link href="/humanify/team-members" className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900">
             <ArrowLeft className="w-4 h-4" /> Back to Team Members
           </Link>
-          <div className="bg-white rounded-xl border border-red-200 p-8 text-center">
+          <div className="hf-card border-red-200 p-8 text-center">
             <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
             <h2 className="text-lg font-semibold text-red-700 mb-1">Error Loading Member</h2>
             <p className="text-sm text-red-600 mb-4">{error}</p>
@@ -250,7 +250,7 @@ export default function TeamMemberDetailPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="hf-card border-gray-200 p-6">
             <div className="flex items-start gap-4">
               <div className="w-16 h-16 rounded-full bg-[var(--hf-brand-100)] flex items-center justify-center">
                 <span className="text-xl font-bold text-[color:var(--hf-brand-600)]">
@@ -271,7 +271,7 @@ export default function TeamMemberDetailPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+            <div className="hf-card border-gray-200 p-6 space-y-4">
               <h3 className="font-semibold text-gray-900">Contact</h3>
               {member.email && (
                 <div className="flex items-center gap-3 text-sm">
@@ -284,7 +284,7 @@ export default function TeamMemberDetailPage() {
                 </div>
               )}
             </div>
-            <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+            <div className="hf-card border-gray-200 p-6 space-y-4">
               <h3 className="font-semibold text-gray-900">Details</h3>
               <div className="flex items-center gap-3 text-sm">
                 <Briefcase className="w-4 h-4 text-gray-400" />
@@ -326,7 +326,7 @@ export default function TeamMemberDetailPage() {
           <ArrowLeft className="w-4 h-4" /> {isNew ? 'Back to Team Members' : 'Back to details'}
         </Link>
 
-        <div className="bg-white rounded-xl border border-gray-200">
+        <div className="hf-card border-gray-200">
           <div className="p-6 border-b border-gray-200">
             <h1 className="text-xl font-bold text-gray-900">{isNew ? 'Add Team Member' : 'Edit Member'}</h1>
           </div>

@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { Loader2, Lock, ShieldCheck, ShieldOff, Copy, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
 import HumanifyLayout from '@/components/humanify/HumanifyLayout';
+import { PlatformAccessShell } from '@/components/humanify/PlatformAccessNav';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
 
 function groupSecret(s: string) {
@@ -28,13 +29,15 @@ export default function HumanifySecurityPage() {
   const [tenantRequireMfa, setTenantRequireMfa] = useState(false);
   const [canManagePolicy, setCanManagePolicy] = useState(false);
   const [mfaSetupRequired, setMfaSetupRequired] = useState(false);
+  const [roster, setRoster] = useState<{ userId: string; name: string; email: string; role: string | null; enabled: boolean; enrolledAt: string | null }[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [j, a] = await Promise.all([
+      const [j, a, rosterRes] = await Promise.all([
         fetch('/api/humanify/mfa?action=status').then((r) => r.json()),
         fetch('/api/humanify/admin-audit?limit=30').then((r) => r.json()).catch(() => null),
+        fetch('/api/humanify/mfa?action=roster').then((r) => r.json()).catch(() => null),
       ]);
       if (j.success) {
         setEnabled(Boolean(j.data.enabled));
@@ -44,6 +47,7 @@ export default function HumanifySecurityPage() {
         setCanManagePolicy(Boolean(j.data.canManagePolicy));
       }
       if (a?.success) setAudit(a.data || []);
+      if (rosterRes?.success) setRoster(rosterRes.data?.roster || []);
     } catch {
       toast.error('Gagal memuat status 2FA');
     } finally {
@@ -191,8 +195,9 @@ export default function HumanifySecurityPage() {
   if (status === 'loading' || loading) {
     return (
       <HumanifyLayout title="Keamanan">
-        <div className="flex justify-center py-20 text-slate-500">
-          <Loader2 className="w-6 h-6 animate-spin mr-2" /> Memuat…
+        <div className="hf-analytics-stage space-y-4">
+          <div className="h-32 animate-pulse hf-card" />
+          <div className="h-56 animate-pulse hf-card" />
         </div>
       </HumanifyLayout>
     );
@@ -205,33 +210,38 @@ export default function HumanifySecurityPage() {
         <meta name="robots" content="noindex, nofollow" />
       </Head>
       <HumanifyLayout title="Keamanan Akun" subtitle="Autentikasi dua faktor (2FA / TOTP)">
-        <div className="max-w-2xl mx-auto space-y-6">
+        <PlatformAccessShell
+          current="security"
+          title="Keamanan (2FA)"
+          subtitle="Authenticator TOTP untuk akun Anda, plus kebijakan wajib 2FA untuk seluruh tim."
+          icon={Lock}
+        >
           {mfaSetupRequired && (
             <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
               Organisasi Anda mewajibkan 2FA. Aktifkan authenticator di bawah sebelum mengakses modul lain.
             </div>
           )}
 
-          <div className="bg-white border border-slate-200 rounded-2xl p-6">
+          <div className="hf-card p-5">
             <div className="flex items-center justify-between mb-1">
-              <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+              <h3 className="font-semibold text-[color:var(--hf-ink)] flex items-center gap-2">
                 <Lock className="w-4 h-4 text-[color:var(--hf-brand-600)]" /> Autentikasi dua faktor
               </h3>
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${enabled ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${enabled ? 'bg-emerald-100 text-emerald-700' : 'bg-[var(--hf-surface-muted)] text-[color:var(--hf-ink-muted)]'}`}>
                 {enabled ? 'Aktif' : 'Nonaktif'}
               </span>
             </div>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-[color:var(--hf-ink-muted)]">
               Tambahkan lapisan keamanan dengan kode dari aplikasi authenticator (Google Authenticator, Authy, 1Password).
               {enrolledAt ? ` Diaktifkan ${new Date(enrolledAt).toLocaleDateString('id-ID')}.` : ''}
             </p>
           </div>
 
           {canManagePolicy && (
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 flex items-start justify-between gap-4">
+            <div className="hf-card flex items-start justify-between gap-4 p-5">
               <div>
-                <h3 className="font-semibold text-slate-900">Kebijakan organisasi</h3>
-                <p className="text-sm text-slate-500 mt-1">
+                <h3 className="font-semibold text-[color:var(--hf-ink)]">Kebijakan organisasi</h3>
+                <p className="text-sm text-[color:var(--hf-ink-muted)] mt-1">
                   Wajibkan semua anggota mengaktifkan 2FA sebelum memakai Humanify.
                 </p>
               </div>
@@ -242,7 +252,7 @@ export default function HumanifySecurityPage() {
                 className={`shrink-0 px-3 py-1.5 rounded-xl text-sm font-semibold border ${
                   tenantRequireMfa
                     ? 'bg-[var(--hf-brand-600)] text-white border-[var(--hf-brand-600)]'
-                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                    : 'bg-white text-[color:var(--hf-ink-secondary)] border-[var(--hf-border)] hover:bg-[var(--hf-surface-muted)]'
                 }`}
               >
                 {tenantRequireMfa ? 'Wajib aktif' : 'Opsional'}
@@ -250,13 +260,47 @@ export default function HumanifySecurityPage() {
             </div>
           )}
 
+          {canManagePolicy && roster.length > 0 && (
+            <div className="hf-card p-5">
+              <h3 className="font-semibold text-[color:var(--hf-ink)] mb-1">Status 2FA anggota</h3>
+              <p className="text-sm text-[color:var(--hf-ink-muted)] mb-3">{roster.filter((r) => r.enabled).length}/{roster.length} sudah mengaktifkan authenticator.</p>
+              <div className="hf-table-wrap overflow-x-auto">
+                <table>
+                  <thead>
+                    <tr className="text-left text-xs text-[color:var(--hf-ink-muted)] border-b">
+                      <th className="py-2 font-medium">Nama</th>
+                      <th className="py-2 font-medium">Role</th>
+                      <th className="py-2 font-medium">2FA</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {roster.map((row) => (
+                      <tr key={row.userId} className="border-b border-[var(--hf-border-subtle)] last:border-0">
+                        <td className="py-2">
+                          <p className="font-medium text-[color:var(--hf-ink)]">{row.name}</p>
+                          <p className="text-xs text-[color:var(--hf-ink-muted)]">{row.email}</p>
+                        </td>
+                        <td className="py-2 text-[color:var(--hf-ink-secondary)]">{row.role || '—'}</td>
+                        <td className="py-2">
+                          <span className={`text-xs font-semibold ${row.enabled ? 'text-emerald-700' : 'text-amber-700'}`}>
+                            {row.enabled ? 'Aktif' : 'Belum'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {!enabled && !enroll && (
-            <div className="bg-white border border-slate-200 rounded-2xl p-6">
+            <div className="hf-card p-5">
               <button
                 type="button"
                 onClick={startEnroll}
                 disabled={busy}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--hf-brand-600)] text-white text-sm font-semibold hover:bg-[var(--hf-brand)] disabled:opacity-50"
+                className="hf-btn-primary inline-flex items-center gap-2 text-sm disabled:opacity-50"
               >
                 {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
                 Aktifkan 2FA
@@ -265,7 +309,7 @@ export default function HumanifySecurityPage() {
           )}
 
           {!enabled && enroll && (
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
+            <div className="hf-card space-y-4 p-5">
               <div className="flex items-start gap-2 rounded-xl border border-[var(--hf-brand-100)] bg-[var(--hf-brand-50)] px-4 py-3 text-sm text-[color:var(--hf-brand-600)]">
                 <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
                 <span>Scan QR di bawah dengan aplikasi authenticator, atau masukkan secret secara manual. Lalu konfirmasi dengan kode 6 digit.</span>
@@ -279,39 +323,39 @@ export default function HumanifySecurityPage() {
                     alt="QR code 2FA"
                     width={220}
                     height={220}
-                    className="rounded-xl border border-slate-200 bg-white"
+                    className="rounded-xl border border-[var(--hf-border)] bg-white"
                   />
-                  <p className="text-xs text-slate-500">Scan dengan Google Authenticator / Authy / 1Password</p>
+                  <p className="text-xs text-[color:var(--hf-ink-muted)]">Scan dengan Google Authenticator / Authy / 1Password</p>
                 </div>
               )}
 
               <div>
-                <span className="text-sm text-slate-600">Secret (Base32)</span>
+                <span className="text-sm text-[color:var(--hf-ink-secondary)]">Secret (Base32)</span>
                 <div className="mt-1 flex items-center gap-2">
-                  <code className="flex-1 bg-slate-100 rounded px-2 py-2 text-sm font-mono tracking-wider">{groupSecret(enroll.secret)}</code>
-                  <button type="button" onClick={() => copy(enroll.secret)} className="text-slate-500 hover:text-slate-800">
+                  <code className="flex-1 bg-[var(--hf-surface-muted)] rounded px-2 py-2 text-sm font-mono tracking-wider">{groupSecret(enroll.secret)}</code>
+                  <button type="button" onClick={() => copy(enroll.secret)} className="text-[color:var(--hf-ink-muted)] hover:text-[color:var(--hf-ink)]">
                     <Copy className="w-4 h-4" />
                   </button>
                 </div>
               </div>
 
               <div>
-                <span className="text-sm text-slate-600">Atau salin URL otpauth</span>
+                <span className="text-sm text-[color:var(--hf-ink-secondary)]">Atau salin URL otpauth</span>
                 <div className="mt-1 flex items-center gap-2">
-                  <code className="flex-1 bg-slate-100 rounded px-2 py-1 text-xs truncate">{enroll.otpauthUrl}</code>
+                  <code className="flex-1 bg-[var(--hf-surface-muted)] rounded px-2 py-1 text-xs truncate">{enroll.otpauthUrl}</code>
                   <button type="button" onClick={() => copy(enroll.otpauthUrl)} className="text-xs text-[color:var(--hf-brand-600)] hover:underline whitespace-nowrap">Salin</button>
                 </div>
               </div>
 
               <label className="block">
-                <span className="text-sm text-slate-600">Kode 6 digit dari authenticator</span>
+                <span className="text-sm text-[color:var(--hf-ink-secondary)]">Kode 6 digit dari authenticator</span>
                 <input
                   inputMode="numeric"
                   maxLength={6}
                   value={code}
                   onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
                   placeholder="123456"
-                  className="mt-1 w-40 border border-slate-300 rounded-xl px-3 py-2 text-lg tracking-[0.3em] font-mono"
+                  className="hf-input mt-1 w-40 font-mono text-lg tracking-[0.3em]"
                 />
               </label>
 
@@ -320,7 +364,7 @@ export default function HumanifySecurityPage() {
                   type="button"
                   onClick={confirmEnroll}
                   disabled={busy || code.length !== 6}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50"
+                  className="hf-btn-primary inline-flex items-center gap-2 text-sm disabled:opacity-50"
                 >
                   {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
                   Konfirmasi & aktifkan
@@ -329,7 +373,7 @@ export default function HumanifySecurityPage() {
                   type="button"
                   onClick={() => setEnroll(null)}
                   disabled={busy}
-                  className="px-4 py-2 rounded-xl bg-white border border-slate-300 text-slate-600 text-sm hover:bg-slate-50"
+                  className="hf-btn-secondary"
                 >
                   Batal
                 </button>
@@ -338,10 +382,10 @@ export default function HumanifySecurityPage() {
           )}
 
           {enabled && (
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-3">
-              <h3 className="font-semibold text-slate-900">Kode pemulihan 2FA</h3>
-              <p className="text-sm text-slate-500">
-                Sisa kode: <span className="font-semibold text-slate-800">{recoveryRemaining}</span>.
+            <div className="hf-card space-y-3 p-5">
+              <h3 className="font-semibold text-[color:var(--hf-ink)]">Kode pemulihan 2FA</h3>
+              <p className="text-sm text-[color:var(--hf-ink-muted)]">
+                Sisa kode: <span className="font-semibold text-[color:var(--hf-ink)]">{recoveryRemaining}</span>.
                 Satu kode = satu kali pakai jika authenticator hilang.
               </p>
               {recoveryRemaining === 0 && (
@@ -356,13 +400,13 @@ export default function HumanifySecurityPage() {
                   value={regenCode}
                   onChange={(e) => setRegenCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   placeholder="Kode 2FA"
-                  className="w-36 border border-slate-300 rounded-xl px-3 py-2 text-sm font-mono"
+                  className="hf-input w-36 font-mono text-sm"
                 />
                 <button
                   type="button"
                   onClick={regenerateRecovery}
                   disabled={busy || regenCode.length < 6}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 disabled:opacity-50"
+                  className="hf-btn-primary inline-flex items-center gap-2 text-sm disabled:opacity-50"
                 >
                   {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
                   Terbitkan ulang kode pemulihan
@@ -374,21 +418,21 @@ export default function HumanifySecurityPage() {
                     <button type="button" onClick={copyAllRecovery} className="text-xs px-2 py-1 border rounded-lg text-[color:var(--hf-brand)] hover:bg-[var(--hf-brand-50)]">
                       Salin semua
                     </button>
-                    <button type="button" onClick={downloadRecovery} className="text-xs px-2 py-1 border rounded-lg text-slate-700 hover:bg-slate-50">
+                    <button type="button" onClick={downloadRecovery} className="text-xs px-2 py-1 border rounded-lg text-[color:var(--hf-ink-secondary)] hover:bg-[var(--hf-surface-muted)]">
                       Unduh .txt
                     </button>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     {recoveryCodes.map((c) => (
-                      <code key={c} className="bg-slate-100 rounded px-2 py-1 text-sm font-mono text-center">{c}</code>
+                      <code key={c} className="bg-[var(--hf-surface-muted)] rounded px-2 py-1 text-sm font-mono text-center">{c}</code>
                     ))}
                   </div>
                 </div>
               )}
 
               {!tenantRequireMfa && (
-                <div className="pt-4 border-t border-slate-100 space-y-2">
-                  <h4 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                <div className="pt-4 border-t border-[var(--hf-border-subtle)] space-y-2">
+                  <h4 className="text-sm font-semibold text-[color:var(--hf-ink)] flex items-center gap-2">
                     <ShieldOff className="w-4 h-4 text-rose-500" /> Nonaktifkan 2FA
                   </h4>
                   <div className="flex items-center gap-2">
@@ -398,7 +442,7 @@ export default function HumanifySecurityPage() {
                       value={disableCode}
                       onChange={(e) => setDisableCode(e.target.value.replace(/\D/g, ''))}
                       placeholder="Kode 2FA"
-                      className="w-36 border border-slate-300 rounded-xl px-3 py-2 text-sm font-mono"
+                      className="hf-input w-36 font-mono text-sm"
                     />
                     <button
                       type="button"
@@ -415,19 +459,19 @@ export default function HumanifySecurityPage() {
           )}
 
           {audit.length > 0 && (
-            <div className="bg-white border border-slate-200 rounded-2xl p-6">
-              <h3 className="font-semibold text-slate-900 mb-3">Audit keamanan terbaru</h3>
-              <ul className="space-y-2 text-sm text-slate-600">
+            <div className="hf-card p-5">
+              <h3 className="font-semibold text-[color:var(--hf-ink)] mb-3">Audit keamanan terbaru</h3>
+              <ul className="space-y-2 text-sm text-[color:var(--hf-ink-secondary)]">
                 {audit.slice(0, 10).map((ev) => (
-                  <li key={ev.id} className="flex justify-between gap-3 border-b border-slate-50 pb-1">
-                    <span className="font-mono text-xs text-slate-500">{ev.action}</span>
+                  <li key={ev.id} className="flex justify-between gap-3 border-b border-[var(--hf-border-subtle)] pb-1">
+                    <span className="font-mono text-xs text-[color:var(--hf-ink-muted)]">{ev.action}</span>
                     <span className="text-xs">{ev.createdAt ? new Date(ev.createdAt).toLocaleString('id-ID') : ''}</span>
                   </li>
                 ))}
               </ul>
             </div>
           )}
-        </div>
+        </PlatformAccessShell>
       </HumanifyLayout>
     </>
   );

@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import OrgChartTree from '@/components/humanify/OrgChartTree';
+import OrgUnitSuggestField from '@/components/humanify/OrgUnitSuggestField';
 import { useTranslation } from '@/lib/i18n';
 import {
   Building2, Network, Award, Plus, Edit, Trash2, X, Save,
@@ -220,8 +221,8 @@ export default function OrganizationPage() {
 
     return (
       <div key={node.id}>
-        <div className={`flex items-center gap-2 py-2.5 px-3 rounded-lg hover:bg-gray-50 group ${depth > 0 ? 'ml-' + (depth * 6) : ''}`}
-          style={{ marginLeft: depth * 24 }}>
+        <div className="flex items-center gap-2 py-2.5 px-2 sm:px-3 rounded-lg hover:bg-gray-50 group min-w-0"
+          style={{ marginLeft: Math.min(depth, 5) * 12 }}>
           {hasChildren ? (
             <button onClick={() => toggleExpand(node.id)} className="p-0.5 hover:bg-gray-200 rounded">
               {isExpanded ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
@@ -231,8 +232,8 @@ export default function OrganizationPage() {
           )}
           <div className={`w-2 h-2 rounded-full ${bgColor}`} />
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="font-medium text-gray-800 text-sm">{node.name}</span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-medium text-gray-800 text-sm break-words">{node.name}</span>
               {node.code && <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 text-[10px] rounded">{node.code}</span>}
               <span className="px-1.5 py-0.5 bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)] text-[10px] rounded">Level {node.level}</span>
               {parseInt(node.employee_count) > 0 && (
@@ -245,7 +246,7 @@ export default function OrganizationPage() {
               <p className="text-xs text-gray-400 mt-0.5">Kepala: {node.head_name} ({node.head_position || '-'})</p>
             )}
           </div>
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
             <button onClick={() => { setOrgForm({ parent_id: node.id, level: (node.level || 0) + 1 }); setShowOrgModal(true); }}
               className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded" title="Tambah Sub-unit">
               <Plus className="w-3.5 h-3.5" />
@@ -278,17 +279,18 @@ export default function OrganizationPage() {
   return (
     <HQLayout title={t('hris.organizationTitle')}>
       {toast && (
-        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white text-sm ${toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
+        <div className={`fixed top-3 left-3 right-3 sm:left-auto sm:right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white text-sm ${toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
           {toast.message}
         </div>
       )}
 
-      <div className="p-4 md:p-6 space-y-4">
+      <div className="space-y-4 min-w-0">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-              <Network className="w-6 h-6 text-[color:var(--hf-brand-600)]" /> Struktur Organisasi & Golongan Jabatan
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-xl font-bold text-gray-800 flex items-center gap-2">
+              <Network className="w-5 h-5 sm:w-6 sm:h-6 shrink-0 text-[color:var(--hf-brand-600)]" />
+              <span className="leading-snug">Struktur Organisasi & Golongan Jabatan</span>
             </h1>
             <p className="text-sm text-gray-500 mt-0.5">Kelola hierarki organisasi dan golongan jabatan</p>
           </div>
@@ -296,7 +298,7 @@ export default function OrganizationPage() {
 
         {/* Summary Cards — prefer summary API keys; fall back to live list lengths */}
         {summary && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
             {[
               {
                 label: 'Unit Organisasi',
@@ -323,7 +325,7 @@ export default function OrganizationPage() {
                 color: 'text-green-600 bg-green-50',
               },
             ].map((card, i) => (
-              <div key={i} className="bg-white rounded-xl border p-4">
+              <div key={i} className="hf-card p-4">
                 <div className="flex items-center gap-3">
                   <div className={`p-2 rounded-lg ${card.color}`}><card.icon className="w-5 h-5" /></div>
                   <div>
@@ -337,9 +339,9 @@ export default function OrganizationPage() {
         )}
 
         {/* Tabs */}
-        <div className="bg-white rounded-xl border">
-          <div className="border-b">
-            <div className="flex">
+        <div className="hf-card min-w-0">
+          <div className="border-b overflow-x-auto">
+            <div className="flex min-w-max">
               {([
                 { key: 'org-structure', label: 'Struktur Organisasi', icon: Network },
                 { key: 'job-grades', label: 'Golongan Jabatan', icon: Layers },
@@ -347,16 +349,16 @@ export default function OrganizationPage() {
                 { key: 'summary', label: 'Ringkasan', icon: BarChart3 },
               ] as { key: MainTab; label: string; icon: any }[]).map(tab => (
                 <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                  className={`flex items-center gap-1.5 px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  className={`flex items-center gap-1.5 px-3 sm:px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                     activeTab === tab.key ? 'border-[var(--hf-brand-600)] text-[color:var(--hf-brand-600)]' : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}>
-                  <tab.icon className="w-4 h-4" /> {tab.label}
+                  <tab.icon className="w-4 h-4 shrink-0" /> {tab.label}
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="p-5">
+          <div className="p-3 sm:p-5">
             {/* ===== ORG STRUCTURE TAB ===== */}
             {activeTab === 'org-structure' && (
               <div>
@@ -506,7 +508,7 @@ export default function OrganizationPage() {
                               {g.description && <p className="text-xs text-gray-400 mt-2">{g.description}</p>}
                             </div>
 
-                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
                               <button onClick={() => { setGradeForm({ ...g, benefits, leave_quota: leaveQuota }); setShowGradeModal(true); }}
                                 className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded"><Edit className="w-3.5 h-3.5" /></button>
                               <button onClick={() => deleteGrade(g.id, g.name)}
@@ -534,7 +536,7 @@ export default function OrganizationPage() {
 
                 {compAudit ? (
                   <>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
                       {[
                         { label: 'In Band', value: compAudit.inBand, color: 'text-emerald-700 bg-emerald-50' },
                         { label: 'Di Bawah Min', value: compAudit.belowMin, color: 'text-amber-700 bg-amber-50' },
@@ -656,23 +658,28 @@ export default function OrganizationPage() {
 
       {/* ===== ORG MODAL ===== */}
       {showOrgModal && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setShowOrgModal(false)}>
-          <div className="bg-white rounded-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setShowOrgModal(false)}>
+          <div className="bg-white rounded-t-2xl sm:rounded-xl w-full max-w-md max-h-[min(92dvh,100%)] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-4 border-b">
               <h3 className="font-semibold text-gray-800">{orgForm.id ? 'Edit' : 'Tambah'} Unit Organisasi</h3>
               <button onClick={() => setShowOrgModal(false)} className="p-1.5 hover:bg-gray-100 rounded"><X className="w-4 h-4" /></button>
             </div>
             <div className="p-4 space-y-3">
-              <div>
-                <label className="text-xs font-medium text-gray-500">Nama Unit *</label>
-                <input type="text" value={orgForm.name || ''} onChange={e => setOrgForm((f: any) => ({ ...f, name: e.target.value }))}
-                  className="w-full px-3 py-2 border rounded-lg text-sm mt-1" placeholder="Divisi / Departemen / Bagian" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+              <OrgUnitSuggestField
+                name={orgForm.name || ''}
+                code={orgForm.code || ''}
+                existingUnits={orgFlat}
+                isEdit={Boolean(orgForm.id)}
+                onChange={({ name, code }) => setOrgForm((f: any) => ({ ...f, name, code }))}
+              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-gray-500">Kode</label>
                   <input type="text" value={orgForm.code || ''} onChange={e => setOrgForm((f: any) => ({ ...f, code: e.target.value }))}
                     className="w-full px-3 py-2 border rounded-lg text-sm mt-1" placeholder="OPS, FIN, HR" />
+                  {orgForm.code && !orgForm.id && orgFlat.some((o: any) => String(o.code || '').toUpperCase() === String(orgForm.code).trim().toUpperCase()) && (
+                    <p className="text-[10px] text-amber-600 mt-1">Kode ini sudah dipakai unit lain. Ubah kode jika ini unit baru.</p>
+                  )}
                 </div>
                 <div>
                   <label className="text-xs font-medium text-gray-500">Urutan Tampil</label>
@@ -731,20 +738,20 @@ export default function OrganizationPage() {
 
       {/* ===== GRADE MODAL ===== */}
       {showGradeModal && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setShowGradeModal(false)}>
-          <div className="bg-white rounded-xl w-full max-w-md max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setShowGradeModal(false)}>
+          <div className="bg-white rounded-t-2xl sm:rounded-xl w-full max-w-md max-h-[min(92dvh,100%)] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white">
               <h3 className="font-semibold text-gray-800">{gradeForm.id ? 'Edit' : 'Tambah'} Golongan Jabatan</h3>
               <button onClick={() => setShowGradeModal(false)} className="p-1.5 hover:bg-gray-100 rounded"><X className="w-4 h-4" /></button>
             </div>
             <div className="p-4 space-y-3">
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="text-xs font-medium text-gray-500">Kode *</label>
                   <input type="text" value={gradeForm.code || ''} onChange={e => setGradeForm((f: any) => ({ ...f, code: e.target.value }))}
                     className="w-full px-3 py-2 border rounded-lg text-sm mt-1" placeholder="G1" />
                 </div>
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <label className="text-xs font-medium text-gray-500">Nama *</label>
                   <input type="text" value={gradeForm.name || ''} onChange={e => setGradeForm((f: any) => ({ ...f, name: e.target.value }))}
                     className="w-full px-3 py-2 border rounded-lg text-sm mt-1" placeholder="Staff Junior" />
@@ -755,7 +762,7 @@ export default function OrganizationPage() {
                 <input type="number" value={gradeForm.level || 1} onChange={e => setGradeForm((f: any) => ({ ...f, level: parseInt(e.target.value) || 1 }))}
                   className="w-full px-3 py-2 border rounded-lg text-sm mt-1" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-gray-500">Gaji Minimum</label>
                   <input type="number" value={gradeForm.min_salary || ''} onChange={e => setGradeForm((f: any) => ({ ...f, min_salary: e.target.value }))}

@@ -23,10 +23,12 @@
 
 | Item | Status |
 |---|---|
-| E-Sign Privy | Sidebar + UI gated (`ESIGN_UI_ENABLED=false`) |
-| AI Center / AIMAN | Sidebar **AIMAN · AI Guide** · floating chat post-login · URL `/humanify/ai` |
+| E-Sign Privy | Sidebar + UI opt-in (`NEXT_PUBLIC_ESIGN_UI_ENABLED=true`) |
+| AIMAN / AI Guide | Confirm-required copilot (Partial) — not autonomous payroll |
 | Engagement / Proyek HR | Sidebar hidden |
-| LMS advanced | URL-only · lab gate `HUMANIFY_LMS_LAB` |
+| LMS advanced | Lab gate `HUMANIFY_LMS_LAB` — core LMS remains GA on Enterprise |
+
+Dokumen: `docs/humanify-product-readiness.md` · sales sheet: `docs/humanify-sales-feature-status.md`
 
 ## Definition of done (hari pertama HR)
 
@@ -35,4 +37,4 @@
 3. `npm run smoke:ga-journey` hijau di staging/prod  
 4. Jangan menunggu: FORCE RLS prod · Sentry.io · Midtrans auto-payout · Privy unhide  
 
-Dokumen: `docs/humanify-product-brd-prd.md`
+Dokumen: `docs/humanify-product-brd-prd.md` · sales sheet: `docs/humanify-sales-feature-status.md`

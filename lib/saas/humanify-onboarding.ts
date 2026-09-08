@@ -11,7 +11,8 @@ export const SAAS_ONBOARDING_STEPS = [
   { key: 'company', title: 'Profil Perusahaan', order: 1 },
   { key: 'organization', title: 'Struktur Organisasi', order: 2 },
   { key: 'policies', title: 'Kebijakan Dasar', order: 3 },
-  { key: 'launch', title: 'Go Live', order: 4 },
+  { key: 'employee', title: 'Karyawan Pertama', order: 4 },
+  { key: 'launch', title: 'Go Live', order: 5 },
 ] as const;
 
 export type SaasOnboardingStepKey = (typeof SAAS_ONBOARDING_STEPS)[number]['key'];
@@ -24,6 +25,7 @@ export interface SaasOnboardingState {
   company?: Record<string, unknown>;
   organization?: Record<string, unknown>;
   policies?: Record<string, unknown>;
+  employee?: Record<string, unknown>;
 }
 
 async function loadTenantRow(tenantId: string) {
@@ -139,6 +141,10 @@ export async function saveSaasOnboardingStep(
     );
   }
 
+  if (stepKey === 'organization') {
+    await seedOrgFromOnboarding(tenantId, data?.departments, row.name);
+  }
+
   return getSaasOnboardingStatus(tenantId);
 }
 
@@ -160,7 +166,7 @@ export async function completeSaasOnboarding(tenantId: string) {
 
   // Store HR defaults for later module seeding
   settings.hris_defaults = {
-    departments: current.organization?.departments || ['HR', 'Finance', 'Operations', 'IT'],
+    departments: current.organization?.departments || ['HR', 'FINANCE', 'OPERATIONS', 'IT'],
     workDays: current.policies?.workDays || [1, 2, 3, 4, 5],
     defaultShift: current.policies?.defaultShift || '09:00-18:00',
     leaveTypes: current.policies?.leaveTypes || ['annual', 'sick'],
@@ -168,6 +174,11 @@ export async function completeSaasOnboarding(tenantId: string) {
   };
 
   await persistSettings(tenantId, settings);
+
+  try {
+    const { recordFunnelEvent } = await import('./activation-funnel');
+    await recordFunnelEvent(tenantId, 'setup');
+  } catch { /* funnel best-effort */ }
 
   const cols = await getTenantColumns();
   const sets: string[] = [`updated_at = NOW()`];
@@ -201,5 +212,24 @@ export async function completeSaasOnboarding(tenantId: string) {
     { replacements },
   );
 
+  await seedOrgFromOnboarding(
+    tenantId,
+    settings.hris_defaults?.departments || current.organization?.departments,
+    row.name,
+  );
+
   return getSaasOnboardingStatus(tenantId);
+}
+
+async function seedOrgFromOnboarding(
+  tenantId: string,
+  departments: unknown,
+  companyName?: string | null,
+) {
+  try {
+    const { seedTenantOrgFromDepartments } = await import('@/lib/hris/sync-org-departments');
+    await seedTenantOrgFromDepartments(sequelize, tenantId, departments, { companyName });
+  } catch (e) {
+    console.warn('[onboarding] org seed skipped:', (e as Error)?.message || e);
+  }
 }

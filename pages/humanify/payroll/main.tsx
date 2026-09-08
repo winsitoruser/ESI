@@ -2,6 +2,10 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import HRStatCard from '@/components/humanify/HRStatCard';
+import { OpsKpiShell } from '@/components/humanify/OpsPageChrome';
+import { PayrollShell } from '@/components/humanify/PayrollModuleChrome';
+import { EnterpriseTabBar } from '@/components/humanify/PerformanceModuleChrome';
 import type { HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import { CanAccess, PageGuard } from '@/components/permissions';
@@ -649,10 +653,17 @@ export default function PayrollPage() {
       description="Jalankan, setujui, dan transfer gaji (modul sangat sensitif)."
     >
     <HQLayout title={t('hris.payrollTitle')} subtitle={t('hris.payrollSubtitle')}>
-      <div className="space-y-6">
-        <div className="flex justify-end">
-          <DataSourceBadge source={dataSource} />
-        </div>
+      <PayrollShell
+        current="main"
+        title="Penggajian utama"
+        subtitle="Konfigurasi gaji, komponen, impor, dan proses run bulanan."
+        icon={Calculator}
+        chips={[
+          { icon: Users, label: `${stats.configuredSalaries || 0} gaji terisi` },
+          { icon: Layers, label: `${stats.totalComponents || 0} komponen` },
+        ]}
+        actions={<DataSourceBadge source={dataSource} />}
+      >
         {preflight && !preflight.ready && preflight.issues.length > 0 && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
             <div className="flex items-start gap-3">
@@ -675,43 +686,34 @@ export default function PayrollPage() {
             <CheckCircle className="h-4 w-4" /> Preflight OK — {preflight.totalActive} karyawan aktif siap payroll
           </div>
         )}
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: 'Total Karyawan', value: stats.totalEmployees || 0, icon: Users, bg: 'bg-[var(--hf-brand-100)]', color: 'text-[color:var(--hf-brand-600)]', fmt: false },
-            { label: 'Gaji Terkonfigurasi', value: stats.configuredSalaries || 0, icon: CreditCard, bg: 'bg-green-100', color: 'text-green-600', fmt: false },
-            { label: 'Komponen Gaji', value: stats.totalComponents || 0, icon: Layers, bg: 'bg-purple-100', color: 'text-purple-600', fmt: false },
-            { label: 'Total Gaji Bulanan', value: stats.monthlyPayroll || 0, icon: Wallet, bg: 'bg-amber-100', color: 'text-amber-600', fmt: true },
-          ].map(s => (
-            <div key={s.label} className="bg-white rounded-xl p-4 shadow-sm border">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 ${s.bg} rounded-lg`}><s.icon className={`w-5 h-5 ${s.color}`} /></div>
-                <div>
-                  <p className="text-xs text-gray-500">{s.label}</p>
-                  <p className={`text-lg font-bold ${s.color}`}>{s.fmt ? fmtCurrency(s.value as number) : s.value}</p>
-                </div>
-              </div>
-            </div>
-          ))}
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <OpsKpiShell>
+            <HRStatCard icon={Users} label="Total karyawan" value={stats.totalEmployees || 0} accent="violet" />
+          </OpsKpiShell>
+          <OpsKpiShell>
+            <HRStatCard icon={CreditCard} label="Gaji terkonfigurasi" value={stats.configuredSalaries || 0} accent="emerald" />
+          </OpsKpiShell>
+          <OpsKpiShell>
+            <HRStatCard icon={Layers} label="Komponen gaji" value={stats.totalComponents || 0} accent="violet" />
+          </OpsKpiShell>
+          <OpsKpiShell>
+            <HRStatCard icon={Wallet} label="Total gaji pokok / bulan" value={fmtCurrency(stats.monthlyPayroll || 0)} accent="amber" />
+          </OpsKpiShell>
         </div>
 
-        {/* Tabs */}
-        <div className="bg-white rounded-xl shadow-sm border">
-          <div className="flex border-b overflow-x-auto">
-            {[
-              { key: 'overview', label: 'Ringkasan', icon: TrendingUp },
-              { key: 'salaries', label: 'Konfigurasi Gaji', icon: CreditCard },
-              { key: 'runs', label: 'Proses Penggajian', icon: Calculator },
-              { key: 'components', label: 'Komponen Gaji', icon: Layers },
-              { key: 'bulk-upload', label: 'Impor Data', icon: Upload },
-            ].map(tab => (
-              <button key={tab.key} onClick={() => setActiveTab(tab.key as any)}
-                className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 whitespace-nowrap ${
-                  activeTab === tab.key ? 'border-[var(--hf-brand-600)] text-[color:var(--hf-brand-600)]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-                <tab.icon className="w-4 h-4" /> {tab.label}
-              </button>
-            ))}
-          </div>
+        <EnterpriseTabBar
+          tabs={[
+            { key: 'overview', label: 'Ringkasan', icon: TrendingUp },
+            { key: 'salaries', label: 'Konfigurasi gaji', icon: CreditCard, count: salaries.length || undefined },
+            { key: 'runs', label: 'Proses gaji', icon: Calculator },
+            { key: 'components', label: 'Komponen', icon: Layers },
+            { key: 'bulk-upload', label: 'Impor', icon: Upload },
+          ]}
+          active={activeTab}
+          onChange={setActiveTab}
+        />
+
+        <div className="hf-card overflow-hidden">
 
           {/* ==================== TAB: Overview ==================== */}
           {activeTab === 'overview' && (
@@ -1279,12 +1281,12 @@ export default function PayrollPage() {
             </div>
           )}
         </div>
-      </div>
+      </PayrollShell>
 
       {/* ==================== SALARY CONFIG MODAL ==================== */}
       {showSalaryModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl m-4 max-h-[90vh] overflow-y-auto">
+          <div className="hf-card w-full max-w-2xl m-4 max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b flex justify-between items-center sticky top-0 bg-white z-10">
               <h3 className="text-lg font-semibold">Konfigurasi Gaji Karyawan</h3>
               <button onClick={() => setShowSalaryModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
@@ -1530,7 +1532,7 @@ export default function PayrollPage() {
       {/* ==================== RUN MODAL ==================== */}
       {showRunModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg m-4">
+          <div className="hf-card w-full max-w-lg m-4">
             <div className="px-6 py-4 border-b flex justify-between items-center">
               <h3 className="text-lg font-semibold">Buat Proses Penggajian Baru</h3>
               <button onClick={() => setShowRunModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
@@ -1583,7 +1585,7 @@ export default function PayrollPage() {
       {/* ==================== PAYSLIP MODAL ==================== */}
       {showPayslipModal && selectedRun && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl m-4 max-h-[90vh] overflow-y-auto">
+          <div className="hf-card w-full max-w-3xl m-4 max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b flex justify-between items-center sticky top-0 bg-white z-10">
               <div>
                 <h3 className="text-lg font-semibold">Slip Gaji - {selectedRun.name || selectedRun.run_code}</h3>
@@ -1674,7 +1676,7 @@ export default function PayrollPage() {
       {/* ==================== COMPONENT CONFIG MODAL ==================== */}
       {showComponentModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl m-4 max-h-[90vh] overflow-y-auto">
+          <div className="hf-card w-full max-w-2xl m-4 max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b flex justify-between items-center sticky top-0 bg-white z-10">
               <h3 className="text-lg font-semibold">{editingComponent ? 'Edit' : 'Tambah'} Komponen Gaji</h3>
               <button onClick={() => setShowComponentModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>

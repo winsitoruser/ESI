@@ -61,6 +61,48 @@ export function gradeExam(questions: any[], answers: Array<{ question_id: string
   return { totalScore, maxScore, pct, totalCorrect, totalAnswered, gradedAnswers, needsManual };
 }
 
+/** Apply per-question essay/SJT scores and recompute overall percentage. */
+export function applyManualScores(
+  questions: any[],
+  answers: Array<{ questionId?: string; question_id?: string; answer?: string; score?: number; isCorrect?: boolean | null; manualGraded?: boolean; feedback?: string }>,
+  scores: Array<{ question_id: string; score: number; feedback?: string }>,
+  passingScore: number,
+) {
+  const next = (Array.isArray(answers) ? answers : []).map((a) => ({ ...a }));
+  const byId = new Map(scores.map((s) => [s.question_id, s]));
+  for (const q of questions) {
+    const patch = byId.get(q.id);
+    if (!patch) continue;
+    let idx = next.findIndex((a) => (a.questionId || a.question_id) === q.id);
+    if (idx < 0) {
+      next.push({ questionId: q.id, answer: null, score: 0, isCorrect: null });
+      idx = next.length - 1;
+    }
+    const max = Number(q.score) || 1;
+    const pts = Math.max(0, Math.min(max, Number(patch.score) || 0));
+    next[idx].score = pts;
+    next[idx].manualGraded = true;
+    next[idx].isCorrect = pts >= max * 0.6;
+    if (patch.feedback) next[idx].feedback = patch.feedback;
+  }
+  const maxScore = questions.reduce((s, q) => s + (Number(q.score) || 1), 0);
+  const totalScore = next.reduce((s, a) => s + (Number(a.score) || 0), 0);
+  const pct = maxScore > 0 ? (totalScore / maxScore) * 100 : 0;
+  const stillManual = questions.some((q) => {
+    if (q.question_type !== 'essay' && q.question_type !== 'situational') return false;
+    const a = next.find((x) => (x.questionId || x.question_id) === q.id);
+    return !a?.manualGraded;
+  });
+  return {
+    answers: next,
+    totalScore,
+    maxScore,
+    pct,
+    isPassed: !stillManual && pct >= passingScore,
+    needsManual: stillManual,
+  };
+}
+
 export function computeIntegrityScore(flags: {
   tab_switch_count?: number;
   fullscreen_exit_count?: number;

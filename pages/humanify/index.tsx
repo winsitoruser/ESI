@@ -1,25 +1,32 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
-import HRStatCard from '@/components/humanify/HRStatCard';
-import EnterprisePageHeader from '@/components/humanify/EnterprisePageHeader';
 import DashboardModuleGrid from '@/components/humanify/DashboardModuleGrid';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import GaOnboardingChecklist from '@/components/humanify/GaOnboardingChecklist';
+import FirstRunTour from '@/components/humanify/FirstRunTour';
+import QuickActionsDock from '@/components/humanify/QuickActionsDock';
+import HrisEmptyState from '@/components/humanify/HrisEmptyState';
+import EmployeeAvatar from '@/components/humanify/EmployeeAvatar';
+import { DashboardBannerRail } from '@/components/humanify/MarketingBannerCarousel';
+import { HrisHeroMetricCard, HrisHeroNavCard, HrisHeroQueueCard } from '@/components/humanify/HrisHeroMetricCard';
+import { OpsStage, OpsPageHero, OpsPanel } from '@/components/humanify/OpsPageChrome';
+import { EnterpriseTabBar } from '@/components/humanify/PerformanceModuleChrome';
+import { OpsBarChart } from '@/components/humanify/ops-charts';
+import { HF_CHART_COLORS_SOLID } from '@/lib/humanify/chart-tokens';
 import { useTranslation } from '@/lib/i18n';
 import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-} from 'recharts';
-import {
-  Users, UserCheck, UserX, Clock, TrendingUp, TrendingDown, Award,
-  Calendar, BarChart3, Target, Star, AlertCircle, AlertTriangle,
-  Building2, ChevronRight, Download, Search, Eye, Edit,
-  Briefcase, DollarSign, FileText, Shield, Heart, Plane,
+  Users, UserCheck, Clock, Award,
+  Calendar, BarChart3, Target, Star, AlertTriangle,
+  Building2, Eye,
+  Briefcase, DollarSign, FileText, Shield, Plane,
   GraduationCap, UserPlus, Settings, FolderOpen, ClipboardList,
-  CheckCircle2, XCircle, ArrowRight, Bell, Zap, Activity,
-  PieChart, Layers, MapPin, CircleDot, Megaphone, KeyRound, PenTool, BookOpen, Timer, RefreshCw, LayoutDashboard
+  CheckCircle2, XCircle, ArrowRight, Bell, Activity,
+  PieChart, Layers, Megaphone, KeyRound, PenTool, BookOpen, Timer, RefreshCw, LayoutDashboard,
+  Inbox, Home,
 } from 'lucide-react';
 
 // ── HRIS Module Definitions (translated via t()) ──
@@ -60,7 +67,6 @@ function getHrisModules(t: (key: string) => string) {
         { key: 'okr', label: 'OKR / KPI', desc: 'Objectives & Key Results cascading alignment', href: '/humanify/okr', icon: Target, color: 'bg-[var(--hf-brand-600)]' },
         { key: 'performance', label: t('hris.performanceReview'), desc: t('hris.performanceReviewDesc'), href: '/humanify/performance', icon: Award, color: 'bg-purple-600' },
         { key: 'kpi-settings', label: t('hris.kpiSettings'), desc: t('hris.kpiSettingsDesc'), href: '/humanify/kpi-settings', icon: Settings, color: 'bg-purple-400' },
-        { key: 'engagement', label: t('hris.employeeEngagement'), desc: t('hris.employeeEngagementDesc'), href: '/humanify/engagement', icon: Heart, color: 'bg-purple-700' },
       ]
     },
     {
@@ -90,6 +96,7 @@ function getHrisModules(t: (key: string) => string) {
         { key: 'training', label: t('hris.training'), desc: t('hris.trainingDesc'), href: '/humanify/training', icon: GraduationCap, color: 'bg-orange-600' },
         { key: 'training-dev', label: 'Learning & Development', desc: 'Kurikulum, batch, ujian, outsourcing', href: '/humanify/training-development', icon: BookOpen, color: 'bg-orange-700' },
         { key: 'training-scoring', label: 'Skor & Penilaian Training', desc: 'Competency scoring & sertifikasi', href: '/humanify/training-scoring', icon: PenTool, color: 'bg-amber-700' },
+        { key: 'lms', label: 'LMS', desc: 'Kursus, bank soal, tes, dan penilaian', href: '/humanify/lms', icon: GraduationCap, color: 'bg-[var(--hf-brand-600)]' },
         { key: 'certificates', label: 'Certificate Registry', desc: 'Tracker sertifikat & lisensi karyawan', href: '/humanify/certificates', icon: Award, color: 'bg-amber-500' },
         { key: 'travel-expense', label: t('hris.travelExpense'), desc: t('hris.travelExpenseDesc'), href: '/humanify/travel-expense', icon: Plane, color: 'bg-emerald-600' },
       ]
@@ -109,17 +116,44 @@ function getHrisModules(t: (key: string) => string) {
   ];
 }
 
-function getQuickActions(t: (key: string) => string) {
-  return [
-    { label: t('hris.addEmployee'), href: '/humanify/employees?add=1', icon: UserPlus, color: 'bg-slate-800' },
-    { label: t('hris.inputAttendance'), href: '/humanify/attendance', icon: Clock, color: 'bg-emerald-600' },
-    { label: t('hris.processPayroll'), href: '/humanify/payroll/main', icon: DollarSign, color: 'bg-teal-600' },
-    { label: t('hris.openVacancy'), href: '/humanify/recruitment', icon: UserPlus, color: 'bg-orange-600' },
-    { label: t('hris.createKpi'), href: '/humanify/kpi', icon: Target, color: 'bg-amber-600' },
-    { label: 'Kirim Pengumuman', href: '/humanify/announcements', icon: Megaphone, color: 'bg-rose-600' },
-    { label: 'Kalender HR', href: '/humanify/calendar', icon: Calendar, color: 'bg-sky-700' },
-    { label: 'Laporan HRIS', href: '/humanify/reports', icon: BarChart3, color: 'bg-slate-700' },
-  ];
+
+const INBOX_TYPE_LABELS: Record<string, string> = {
+  leave: 'Cuti',
+  overtime: 'Lembur',
+  claim: 'Klaim',
+  travel: 'Dinas',
+  mutation: 'Mutasi',
+  contract: 'Kontrak',
+  documents: 'Dokumen',
+  attendance: 'Absensi',
+};
+
+function greetingForHour(hour: number) {
+  if (hour < 11) return 'Selamat pagi';
+  if (hour < 15) return 'Selamat siang';
+  if (hour < 18) return 'Selamat sore';
+  return 'Selamat malam';
+}
+
+function computeHrHealth(input: {
+  total: number;
+  active: number;
+  attendanceToday: number;
+  avgKpi: number;
+  avgPerf: number;
+  overdue: number;
+  docAvg?: number | null;
+}) {
+  const parts: number[] = [];
+  if (input.total > 0) parts.push((input.active / input.total) * 100);
+  if (input.total > 0) parts.push(Math.min(100, input.attendanceToday));
+  if (input.avgKpi > 0) parts.push(Math.min(100, input.avgKpi));
+  if (input.avgPerf > 0) parts.push(Math.min(100, input.avgPerf));
+  if (input.docAvg != null && input.docAvg >= 0) parts.push(input.docAvg);
+  if (!parts.length) return null;
+  let score = Math.round(parts.reduce((s, n) => s + n, 0) / parts.length);
+  if (input.overdue > 0) score = Math.max(0, score - Math.min(25, input.overdue * 4));
+  return score;
 }
 
 const EMPTY_HRIS_STATS = { total: 0, active: 0, onLeave: 0, inactive: 0, avgPerf: 0, avgKpi: 0, topPerformers: 0, attendanceToday: 0 };
@@ -161,6 +195,7 @@ const MOCK_UPCOMING = [
 export default function HRISDashboard() {
   const router = useRouter();
   const { t } = useTranslation();
+  const { data: session } = useSession();
   const [mounted, setMounted] = useState(false);
   const [stats, setStats] = useState(USE_MOCK_UI ? MOCK_HRIS_STATS : EMPTY_HRIS_STATS);
   const [pendingApprovals, setPendingApprovals] = useState<any[]>(USE_MOCK_UI ? MOCK_PENDING_APPROVALS : []);
@@ -169,7 +204,7 @@ export default function HRISDashboard() {
   const [deptStats, setDeptStats] = useState<any[]>(USE_MOCK_UI ? MOCK_DEPT_STATS : []);
   const [upcoming, setUpcoming] = useState<any[]>(USE_MOCK_UI ? MOCK_UPCOMING : []);
   const [dataSource, setDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
-  const [pendingSummary, setPendingSummary] = useState<{ total: number; overdue: number }>({ total: 0, overdue: 0 });
+  const [pendingSummary, setPendingSummary] = useState<{ total: number; overdue: number; byType?: Record<string, number> }>({ total: 0, overdue: 0 });
   const [docCompliance, setDocCompliance] = useState<{
     activeEmployees: number;
     complete: number;
@@ -179,7 +214,6 @@ export default function HRISDashboard() {
     expiringSoonDocs: number;
     topMissing: { type: string; label: string; count: number }[];
   } | null>(null);
-  const [expandedCat, setExpandedCat] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<string>('');
   const [viewTab, setViewTab] = useState<'overview' | 'modules'>('overview');
@@ -216,23 +250,30 @@ export default function HRISDashboard() {
         const dash = await dashRes.json();
         if (dash.success) {
           if (dash.dataSource) setDataSource(dash.dataSource);
-          if (dash.pendingSummary) setPendingSummary({ total: dash.pendingSummary.total, overdue: dash.pendingSummary.overdue || 0 });
-          if (dash.documentCompliance) setDocCompliance(dash.documentCompliance);
+          if (dash.pendingSummary) setPendingSummary({
+            total: dash.pendingSummary.total,
+            overdue: dash.pendingSummary.overdue || 0,
+            byType: dash.pendingSummary.byType,
+          });
+          setDocCompliance(dash.documentCompliance || null);
           if (dash.stats) setStats(dash.stats);
-          if (dash.deptStats?.length) setDeptStats(dash.deptStats);
-          if (dash.pendingApprovals) setPendingApprovals(dash.pendingApprovals);
-          if (dash.upcoming?.length) setUpcoming(dash.upcoming);
-          if (dash.recentActivities?.length) {
+          setDeptStats(Array.isArray(dash.deptStats) ? dash.deptStats : []);
+          setPendingApprovals(Array.isArray(dash.pendingApprovals) ? dash.pendingApprovals : []);
+          setUpcoming(Array.isArray(dash.upcoming) ? dash.upcoming : []);
+          if (Array.isArray(dash.recentActivities) && dash.recentActivities.length > 0) {
             const iconMap: Record<string, any> = {
               employee_joined: UserPlus, kpi_update: Award, kpi_assigned: Award,
               payroll: DollarSign, leave_request: Calendar, performance_review: Award,
               attendance: Clock,
             };
             const colorMap: Record<string, string> = {
-              employee_joined: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand-600)]', kpi_update: 'bg-purple-100 text-purple-600',
-              kpi_assigned: 'bg-purple-100 text-purple-600', payroll: 'bg-green-100 text-green-600',
-              leave_request: 'bg-yellow-100 text-yellow-600', performance_review: 'bg-purple-100 text-purple-600',
-              attendance: 'bg-green-100 text-green-600',
+              employee_joined: 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)]',
+              kpi_update: 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)]',
+              kpi_assigned: 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)]',
+              payroll: 'bg-emerald-50 text-[color:var(--hf-success)]',
+              leave_request: 'bg-amber-50 text-[color:var(--hf-warning)]',
+              performance_review: 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)]',
+              attendance: 'bg-emerald-50 text-[color:var(--hf-success)]',
             };
             setRecentActivities(dash.recentActivities.slice(0, 5).map((a: any) => ({
               id: a.id,
@@ -242,6 +283,8 @@ export default function HRISDashboard() {
               icon: iconMap[a.type] || Activity,
               color: colorMap[a.type] || 'bg-gray-100 text-gray-600',
             })));
+          } else {
+            setRecentActivities([]);
           }
           setLoading(false);
           return;
@@ -338,8 +381,10 @@ export default function HRISDashboard() {
             payroll: DollarSign, leave_request: Calendar,
           };
           const colorMap: Record<string, string> = {
-            employee_joined: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand-600)]', kpi_update: 'bg-purple-100 text-purple-600',
-            payroll: 'bg-green-100 text-green-600', leave_request: 'bg-yellow-100 text-yellow-600',
+            employee_joined: 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)]',
+            kpi_update: 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)]',
+            payroll: 'bg-emerald-50 text-[color:var(--hf-success)]',
+            leave_request: 'bg-amber-50 text-[color:var(--hf-warning)]',
           };
           setRecentActivities(acts.slice(0, 5).map((a: any) => ({
             id: a.id,
@@ -454,377 +499,550 @@ export default function HRISDashboard() {
 
   if (!mounted) {
     return (
-      <HQLayout title="Humanify" subtitle={t('hris.subtitle')}>
-        <div className="space-y-6 animate-pulse">
-          <div className="h-36 rounded-2xl bg-slate-200" />
-          <div className="grid grid-cols-4 gap-4">{Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-24 rounded-2xl bg-slate-100" />)}</div>
-        </div>
+      <HQLayout>
+        <OpsStage>
+          <div className="h-36 animate-pulse rounded-[var(--hf-radius-xl)] bg-slate-200" />
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="h-24 animate-pulse rounded-[var(--hf-radius-xl)] bg-slate-100" />
+            ))}
+          </div>
+        </OpsStage>
       </HQLayout>
     );
   }
 
   const HRIS_MODULES = getHrisModules(t);
-  const QUICK_ACTIONS = getQuickActions(t);
+  const hasWorkforce = stats.total > 0 || stats.active > 0;
+  const firstName = String(session?.user?.name || '').trim().split(/\s+/)[0];
+  const now = new Date();
+  const greet = greetingForHour(now.getHours());
+  const dateLabel = now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const hrHealth = computeHrHealth({
+    total: stats.total,
+    active: stats.active,
+    attendanceToday: stats.attendanceToday,
+    avgKpi: stats.avgKpi,
+    avgPerf: stats.avgPerf,
+    overdue: pendingSummary.overdue,
+    docAvg: docCompliance?.avgPercent,
+  });
+  const moduleCount = HRIS_MODULES.reduce((acc, c) => acc + c.modules.length, 0);
+  const byType = pendingSummary.byType || {};
 
-  const statCards = [
-    { label: t('hris.totalEmployees'), value: stats.total, icon: Users, accent: 'blue' as const, trend: { value: '+3', positive: true }, href: '/humanify/employees' },
-    { label: t('hris.activeEmployees'), value: stats.active, icon: UserCheck, accent: 'emerald' as const, trend: stats.total ? { value: `${Math.round(stats.active / stats.total * 100)}%`, positive: true } : undefined, href: '/humanify/employees' },
-    { label: t('hris.onLeave'), value: stats.onLeave, icon: Calendar, accent: 'amber' as const, href: '/humanify/leave' },
-    { label: t('hris.avgPerformance'), value: `${stats.avgPerf}%`, icon: BarChart3, accent: 'violet' as const, trend: { value: '+2.3%', positive: true }, href: '/humanify/performance' },
-    { label: t('hris.avgKpiAchievement'), value: `${stats.avgKpi}%`, icon: Target, accent: 'indigo' as const, trend: { value: '+5.1%', positive: true }, href: '/humanify/kpi' },
-    { label: t('hris.attendanceToday'), value: `${stats.attendanceToday}%`, icon: Clock, accent: 'cyan' as const, href: '/humanify/attendance' },
-    { label: t('hris.topPerformers'), value: stats.topPerformers, icon: Award, accent: 'orange' as const, trend: { value: '+5', positive: true }, href: '/humanify/kpi' },
-    { label: t('hris.pendingApproval'), value: pendingApprovals.length, icon: AlertCircle, accent: 'rose' as const, href: '/humanify/leave' },
+  const attention = [
+    trialInfo?.trialExpired
+      ? { tone: 'danger' as const, text: 'Masa trial sudah berakhir. Upgrade paket agar modul berbayar tetap aktif.', href: '/humanify/billing', cta: 'Buka billing' }
+      : trialInfo?.trialExpiringSoon || (trialInfo?.plan === 'trial' && trialInfo.trialDaysLeft != null && trialInfo.trialDaysLeft <= 14)
+        ? { tone: 'warning' as const, text: `Trial tersisa ${trialInfo.trialDaysLeft} hari.`, href: '/humanify/billing', cta: 'Pilih paket' }
+        : null,
+    pendingSummary.overdue > 0
+      ? { tone: 'warning' as const, text: `${pendingSummary.overdue} item inbox lebih dari 48 jam belum ditindak.`, href: '/humanify/mss', cta: 'Buka inbox' }
+      : null,
+    docCompliance && docCompliance.expiredDocs > 0
+      ? { tone: 'danger' as const, text: `${docCompliance.expiredDocs} dokumen kedaluwarsa perlu diperbarui.`, href: '/humanify/employees', cta: 'Buka karyawan' }
+      : null,
+    docCompliance && docCompliance.incomplete > 0
+      ? { tone: 'warning' as const, text: `${docCompliance.incomplete} karyawan belum lengkap dokumen inti.`, href: '/humanify/employees', cta: 'Lengkapi' }
+      : null,
+    !hasWorkforce
+      ? { tone: 'info' as const, text: 'Belum ada karyawan. Tambah data pertama agar dashboard terisi.', href: '/humanify/employees?add=1', cta: 'Tambah karyawan' }
+      : null,
+  ].filter(Boolean) as Array<{ tone: 'danger' | 'warning' | 'info'; text: string; href: string; cta: string }>;
+
+  const featuredMetrics = [
+    {
+      label: t('hris.totalEmployees'),
+      value: stats.total,
+      hint: hasWorkforce ? `${stats.active} aktif` : undefined,
+      icon: Users,
+      tone: 'brand' as const,
+      progress: stats.total > 0 ? (stats.active / stats.total) * 100 : null,
+      href: '/humanify/employees',
+      actionLabel: 'Buka karyawan',
+    },
+    {
+      label: t('hris.attendanceToday'),
+      value: hasWorkforce ? `${stats.attendanceToday}%` : '—',
+      hint: hasWorkforce ? 'Hari ini' : 'Belum ada data',
+      icon: Clock,
+      tone: (hasWorkforce && stats.attendanceToday < 80 ? 'warning' : 'success') as const,
+      progress: hasWorkforce ? stats.attendanceToday : null,
+      href: '/humanify/attendance',
+      actionLabel: 'Buka absensi',
+    },
+    {
+      label: t('hris.avgKpiAchievement'),
+      value: hasWorkforce && stats.avgKpi ? `${stats.avgKpi}%` : '—',
+      hint: stats.topPerformers ? `${stats.topPerformers} top` : undefined,
+      icon: Target,
+      tone: 'brand' as const,
+      progress: hasWorkforce && stats.avgKpi ? stats.avgKpi : null,
+      href: '/humanify/kpi',
+      actionLabel: 'Buka KPI',
+    },
+    {
+      label: 'Antrian aksi',
+      value: pendingSummary.total || pendingApprovals.length,
+      hint: pendingSummary.overdue ? `${pendingSummary.overdue} overdue` : 'Inbox',
+      icon: Inbox,
+      tone: ((pendingSummary.overdue || 0) > 0 ? 'danger' : (pendingSummary.total || pendingApprovals.length) > 0 ? 'warning' : 'success') as const,
+      progress: null,
+      href: '/humanify/mss',
+      actionLabel: 'Buka inbox',
+    },
+  ];
+
+  const secondaryMetrics = [
+    {
+      label: t('hris.activeEmployees'),
+      value: stats.active,
+      hint: stats.total ? `${Math.round((stats.active / stats.total) * 100)}%` : undefined,
+      icon: UserCheck,
+      tone: 'success' as const,
+      progress: stats.total ? (stats.active / stats.total) * 100 : null,
+      href: '/humanify/employees',
+      actionLabel: 'Buka',
+    },
+    {
+      label: t('hris.onLeave'),
+      value: stats.onLeave,
+      icon: Calendar,
+      tone: stats.onLeave > 0 ? ('warning' as const) : ('neutral' as const),
+      href: '/humanify/leave',
+      actionLabel: 'Buka cuti',
+    },
+    {
+      label: 'Tidak aktif',
+      value: stats.inactive,
+      icon: Users,
+      tone: stats.inactive > 0 ? ('danger' as const) : ('neutral' as const),
+      href: '/humanify/employees',
+      actionLabel: 'Buka',
+    },
+    {
+      label: t('hris.avgPerformance'),
+      value: hasWorkforce && stats.avgPerf ? `${stats.avgPerf}%` : '—',
+      icon: BarChart3,
+      tone: 'brand' as const,
+      progress: hasWorkforce && stats.avgPerf ? stats.avgPerf : null,
+      href: '/humanify/performance',
+      actionLabel: 'Buka kinerja',
+    },
+  ];
+
+  const workbench = [
+    { label: 'Karyawan', desc: 'Master data & status', href: '/humanify/employees', icon: Users, meta: hasWorkforce ? `${stats.total} orang` : 'Kosong' },
+    { label: 'Absensi', desc: 'Kehadiran hari ini', href: '/humanify/attendance', icon: Clock, meta: hasWorkforce ? `${stats.attendanceToday}%` : '—' },
+    { label: 'Cuti', desc: 'Pengajuan & saldo', href: '/humanify/leave', icon: Calendar, meta: `${stats.onLeave} cuti` },
+    { label: 'Payroll', desc: 'Proses gaji bulanan', href: '/humanify/payroll', icon: DollarSign, meta: 'Buka hub' },
+    { label: 'KPI & OKR', desc: 'Target dan review', href: '/humanify/okr', icon: Target, meta: stats.avgKpi ? `${stats.avgKpi}%` : '—' },
+    { label: 'LMS', desc: 'Kursus, bank soal, tes', href: '/humanify/lms', icon: GraduationCap, meta: 'Belajar' },
+    { label: 'Rekrutmen', desc: 'Lowongan & kandidat', href: '/humanify/recruitment', icon: UserPlus, meta: 'Pipeline' },
+    { label: 'Laporan', desc: 'Analitik HR terpadu', href: '/humanify/reports', icon: BarChart3, meta: 'Pusat data' },
   ];
 
   const deptChartData = deptStats.map((d) => ({
-    name: d.department?.length > 12 ? `${d.department.slice(0, 10)}…` : d.department,
-    active: d.active,
-    total: d.total,
+    name: d.department?.length > 14 ? `${d.department.slice(0, 12)}…` : d.department,
+    Aktif: d.active,
+    Total: d.total,
   }));
 
+  const toneRail = {
+    danger: 'bg-[color:var(--hf-danger)]',
+    warning: 'bg-[color:var(--hf-warning)]',
+    info: 'bg-[var(--hf-brand-500)]',
+  };
+
   return (
-    <HQLayout title="Humanify" subtitle={t('hris.subtitle')}>
-      <div className="space-y-6">
-        <EnterprisePageHeader
-          title="Humanify Command Center"
-          subtitle="Ringkasan workforce real-time — karyawan, kehadiran, KPI, approval, dan modul HRIS terintegrasi"
-          badge="HRIS Dashboard"
-          icon={LayoutDashboard}
-          variant="corporate"
+    <HQLayout>
+      <OpsStage>
+        <OpsPageHero
+          title={`${greet}${firstName ? `, ${firstName}` : ''}`}
+          subtitle={`${dateLabel} · Ringkasan workforce, antrian aksi, kehadiran, dan kelengkapan dokumen.`}
+          badge="Beranda HR"
+          liveLabel={loading ? 'Memuat' : 'Live'}
+          icon={Home}
+          score={hrHealth}
+          scoreLabel="Health"
+          chips={[
+            { label: `${stats.total} karyawan`, icon: Users },
+            { label: `${pendingSummary.total || pendingApprovals.length} antrian`, icon: Inbox },
+            { label: hasWorkforce ? `Hadir ${stats.attendanceToday}%` : 'Belum ada absensi', icon: Clock },
+          ]}
           actions={
-            <>
+            <div className="flex flex-wrap items-center gap-2">
               <DataSourceBadge source={dataSource} />
-              {lastUpdated && <span className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500">Update {lastUpdated}</span>}
-              <button type="button" onClick={fetchDashboardData} disabled={loading} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60">
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+              {lastUpdated && (
+                <span className="rounded-[var(--hf-radius)] border border-[var(--hf-border)] bg-white px-3 py-2 text-xs text-[color:var(--hf-ink-muted)]">
+                  Update {lastUpdated}
+                </span>
+              )}
+              <button type="button" onClick={fetchDashboardData} disabled={loading} className="hf-btn-secondary inline-flex items-center gap-1.5 text-sm disabled:opacity-60">
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Muat ulang
               </button>
-              <Link href="/humanify/workforce-analytics" className="rounded-lg bg-[var(--hf-brand-600)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--hf-brand)]">Analytics</Link>
-            </>
+              <Link href="/humanify/workforce-analytics" className="hf-btn-primary inline-flex items-center gap-1.5 text-sm">
+                Analytics <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
           }
         />
 
-        {trialInfo && (trialInfo.trialExpired || trialInfo.trialExpiringSoon || (trialInfo.plan === 'trial' && trialInfo.trialDaysLeft != null && trialInfo.trialDaysLeft <= 14)) && (
-          <div className={`rounded-xl border px-4 py-3 text-sm flex flex-wrap items-center justify-between gap-3 ${
-            trialInfo.trialExpired
-              ? 'border-red-200 bg-red-50 text-red-900'
-              : 'border-amber-200 bg-amber-50 text-amber-950'
-          }`}>
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-              <span>
-                {trialInfo.trialExpired
-                  ? 'Masa trial sudah berakhir — upgrade paket untuk lanjut memakai modul berbayar.'
-                  : `Trial tersisa ${trialInfo.trialDaysLeft} hari. Segera pilih paket agar layanan tidak terputus.`}
-              </span>
-            </div>
-            <Link href="/humanify/billing" className="font-semibold text-[color:var(--hf-brand)] hover:underline whitespace-nowrap">
-              Buka Billing →
-            </Link>
-          </div>
-        )}
+        <DashboardBannerRail />
 
-        <div className="flex gap-2 rounded-xl border border-[var(--hf-brand-50)] bg-[var(--hf-brand-50)]/60 p-1 w-fit">
-          {(['overview', 'modules'] as const).map((tab) => (
-            <button key={tab} type="button" onClick={() => setViewTab(tab)}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${viewTab === tab ? 'bg-white text-[color:var(--hf-brand)] shadow-sm ring-1 ring-[var(--hf-brand-500)]/80' : 'text-slate-600 hover:text-[color:var(--hf-brand)]'}`}>
-              {tab === 'overview' ? 'Ringkasan' : 'Semua Modul'}
-            </button>
-          ))}
-        </div>
-
-        {viewTab === 'overview' && (
-        <>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-8">
-          {statCards.map((s, i) => (
-            <HRStatCard key={i} label={s.label} value={s.value} trend={s.trend} icon={s.icon} accent={s.accent} variant="soft" onClick={() => router.push(s.href)} />
-          ))}
-        </div>
-
-        {/* ── QUICK ACTIONS ── */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-slate-900">{t('hris.quickActions')}</h3>
-              <p className="text-sm text-slate-500">{t('hris.quickActionsDesc')}</p>
-            </div>
-            <div className="rounded-xl bg-slate-100 p-2.5">
-              <Zap className="h-5 w-5 text-slate-600" />
-            </div>
-          </div>
-          <div className="grid grid-cols-4 gap-3 md:grid-cols-8">
-            {QUICK_ACTIONS.map((a, i) => (
-              <button key={i} onClick={() => router.push(a.href)}
-                className="group flex flex-col items-center gap-2 rounded-xl border border-slate-100 bg-slate-50/80 p-3 text-center transition hover:border-slate-200 hover:bg-white hover:shadow-sm">
-                <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${a.color} text-white shadow-sm transition group-hover:scale-105`}>
-                  <a.icon className="h-5 w-5" />
-                </div>
-                <span className="text-[11px] font-medium text-slate-600 group-hover:text-slate-900">{a.label}</span>
-              </button>
+        {attention.length > 0 && (
+          <div className="space-y-2">
+            {attention.map((item) => (
+              <div key={item.text} className="hf-tile relative flex flex-wrap items-center justify-between gap-3 overflow-hidden px-4 py-3 pl-5 text-sm text-[color:var(--hf-ink)]">
+                <span className={`absolute inset-y-3 left-0 w-[3px] rounded-r-full ${toneRail[item.tone]}`} aria-hidden />
+                <p className="flex items-center gap-2 min-w-0">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <span>{item.text}</span>
+                </p>
+                <Link href={item.href} className="shrink-0 font-semibold text-[color:var(--hf-brand-600)] hover:underline">
+                  {item.cta} →
+                </Link>
+              </div>
             ))}
           </div>
-        </div>
-
-        {/* ── MODULE NAVIGATION — overview shortcuts ── */}
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-          {[
-            { label: 'Karyawan', href: '/humanify/employees', icon: Users, iconBg: 'bg-slate-100 text-slate-700' },
-            { label: 'Absensi', href: '/humanify/attendance', icon: Clock, iconBg: 'bg-emerald-50 text-emerald-700' },
-            { label: 'Payroll', href: '/humanify/payroll', icon: DollarSign, iconBg: 'bg-sky-50 text-sky-700' },
-            { label: 'KPI', href: '/humanify/kpi', icon: Target, iconBg: 'bg-amber-50 text-amber-700' },
-            { label: 'Rekrutmen', href: '/humanify/recruitment', icon: UserPlus, iconBg: 'bg-rose-50 text-rose-700' },
-            { label: 'Laporan', href: '/humanify/reports', icon: BarChart3, iconBg: 'bg-teal-50 text-teal-700' },
-          ].map((item) => (
-            <Link key={item.href} href={item.href} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md">
-              <div className={`rounded-xl p-2.5 ${item.iconBg}`}>
-                <item.icon className="h-5 w-5" />
-              </div>
-              <span className="text-sm font-medium text-slate-800">{item.label}</span>
-            </Link>
-          ))}
-        </div>
-
-        {docCompliance && docCompliance.activeEmployees > 0 && (
-          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-              <div>
-                <h3 className="font-semibold text-slate-900 flex items-center gap-2">
-                  <FolderOpen className="w-4 h-4 text-amber-600" /> Kelengkapan dokumen
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Rata-rata {docCompliance.avgPercent}% · {docCompliance.complete}/{docCompliance.activeEmployees} karyawan lengkap
-                </p>
-              </div>
-              <Link href="/humanify/employees" className="text-xs text-[color:var(--hf-brand-600)] hover:underline flex items-center gap-1">
-                Buka karyawan <ArrowRight className="w-3 h-3" />
-              </Link>
-            </div>
-            <div className="h-2 bg-slate-100 rounded-full overflow-hidden mb-3">
-              <div
-                className={`h-full rounded-full ${docCompliance.avgPercent >= 80 ? 'bg-emerald-500' : docCompliance.avgPercent >= 50 ? 'bg-amber-500' : 'bg-rose-500'}`}
-                style={{ width: `${Math.min(100, docCompliance.avgPercent)}%` }}
-              />
-            </div>
-            <div className="flex flex-wrap gap-3 text-xs text-slate-600">
-              <span className="px-2 py-1 rounded-lg bg-rose-50 text-rose-700">{docCompliance.incomplete} belum lengkap</span>
-              {docCompliance.expiredDocs > 0 && (
-                <span className="px-2 py-1 rounded-lg bg-red-50 text-red-700">{docCompliance.expiredDocs} file kedaluwarsa</span>
-              )}
-              {docCompliance.expiringSoonDocs > 0 && (
-                <span className="px-2 py-1 rounded-lg bg-amber-50 text-amber-800">{docCompliance.expiringSoonDocs} ≤30 hari</span>
-              )}
-              {docCompliance.topMissing?.slice(0, 3).map((m) => (
-                <span key={m.type} className="px-2 py-1 rounded-lg bg-slate-50 text-slate-600">
-                  Minus {m.label.split('(')[0].trim()}: {m.count}
-                </span>
-              ))}
-            </div>
-          </div>
         )}
 
-        {/* ── TWO COLUMN: PENDING APPROVALS + RECENT ACTIVITIES ── */}
-        <div className="grid lg:grid-cols-2 gap-6">
-          {/* Pending Approvals */}
-          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                <h3 className="font-semibold text-slate-900">Action Inbox</h3>
-                <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">{pendingApprovals.length}</span>
-                {pendingSummary.overdue > 0 && (
-                  <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-medium">{pendingSummary.overdue} overdue</span>
-                )}
-              </div>
-              <Link href="/humanify/mss" className="text-xs text-[color:var(--hf-brand-600)] hover:underline flex items-center gap-1">{t('hris.viewAll')} <ArrowRight className="w-3 h-3" /></Link>
-            </div>
-            {lastSnoozed && (
-              <div className="mx-4 mt-3 flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                <span className="truncate">Ditunda 24 jam: {lastSnoozed.title}</span>
-                <button type="button" onClick={handleUnsnooze} className="shrink-0 font-semibold text-[color:var(--hf-brand)] hover:underline">
-                  Batalkan
-                </button>
-              </div>
-            )}
-            <div className="divide-y max-h-80 overflow-y-auto">
-              {pendingApprovals.length === 0 && (
-                <p className="px-5 py-8 text-center text-sm text-slate-400">Tidak ada aksi tertunda</p>
-              )}
-              {pendingApprovals.map((item) => (
-                <div key={item.id} className="px-5 py-3 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{item.type || 'leave'}</span>
-                      </div>
-                      <p className="text-sm font-medium text-gray-900 truncate">{item.title}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{item.subtitle}</p>
-                    </div>
-                    <div className="flex gap-1.5 flex-shrink-0">
-                      {item.href && (
-                        <Link href={item.href} className="p-1.5 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-100" title="Detail">
-                          <Eye className="w-4 h-4" />
-                        </Link>
-                      )}
-                      <button
-                        onClick={() => handleSnooze(item)}
-                        className="p-1.5 rounded-lg bg-slate-50 text-slate-500 hover:bg-slate-100 transition-colors"
-                        title="Snooze 24 jam"
-                      >
-                        <Timer className="w-4 h-4" />
-                      </button>
-                      {item.actionable !== false && !['contract', 'documents', 'attendance'].includes(item.type) && (
-                        <>
-                          <button onClick={() => handleApproval(item, 'approved')} className="p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors" title={t('hris.approve')}>
-                            <CheckCircle2 className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => handleApproval(item, 'rejected')} className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title={t('hris.reject')}>
-                            <XCircle className="w-4 h-4" />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  <p className="text-[10px] text-gray-400 mt-1">{item.date}</p>
+        <EnterpriseTabBar
+          tabs={[
+            { key: 'overview', label: 'Ringkasan', icon: LayoutDashboard, count: pendingSummary.total || pendingApprovals.length },
+            { key: 'modules', label: 'Semua modul', icon: Layers, count: moduleCount },
+          ]}
+          active={viewTab}
+          onChange={setViewTab}
+        />
+
+        {viewTab === 'overview' && (
+          <>
+            <div className="space-y-4">
+              <div>
+                <p className="hf-section-label mb-2">Metrik utama</p>
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+                  {featuredMetrics.map((s) => (
+                    <HrisHeroMetricCard
+                      key={s.label}
+                      featured
+                      label={s.label}
+                      value={s.value}
+                      hint={s.hint}
+                      icon={s.icon}
+                      tone={s.tone}
+                      progress={s.progress}
+                      actionLabel={s.actionLabel}
+                      href={s.href}
+                    />
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-6">
-            <GaOnboardingChecklist />
-
-          {/* Recent Activities */}
-          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-              <div className="flex items-center gap-2">
-                <Activity className="w-4 h-4 text-slate-500" />
-                <h3 className="font-semibold text-slate-900">{t('hris.recentActivities')}</h3>
               </div>
-            </div>
-            <div className="divide-y max-h-80 overflow-y-auto">
-              {recentActivities.map((act) => (
-                <div key={act.id} className="px-5 py-3 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-start gap-3">
-                    <div className={`p-2 rounded-lg ${act.color} flex-shrink-0 mt-0.5`}>
-                      <act.icon className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900">{act.action}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{act.detail}</p>
-                    </div>
-                    <span className="text-[10px] text-gray-400 whitespace-nowrap">{act.time}</span>
-                  </div>
+              <div>
+                <p className="hf-section-label mb-2">Status workforce</p>
+                <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+                  {secondaryMetrics.map((s) => (
+                    <HrisHeroMetricCard
+                      key={s.label}
+                      label={s.label}
+                      value={s.value}
+                      hint={s.hint}
+                      icon={s.icon}
+                      tone={s.tone}
+                      progress={s.progress}
+                      actionLabel={s.actionLabel}
+                      href={s.href}
+                    />
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
-          </div>
-        </div>
-
-        {/* ── TWO COLUMN: DEPT OVERVIEW + UPCOMING CALENDAR ── */}
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Department Overview */}
-          <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-100 px-5 py-4">
-              <h3 className="font-semibold text-slate-900">{t('hris.deptOverview')}</h3>
-              <p className="text-xs text-slate-500">Headcount aktif per departemen</p>
-            </div>
-            <div className="grid gap-4 p-5 lg:grid-cols-2">
-              <div className="h-56">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={deptChartData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={50} />
-                    <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                    <Tooltip />
-                    <Bar dataKey="active" fill="#0d9488" name="Aktif" radius={[6, 6, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
               </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {deptStats.map((d) => (
-                  <div key={d.department} className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 hover:shadow-md transition-all hover:border-slate-300 hover:bg-white group">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-semibold text-slate-900 text-sm">{d.department}</h4>
-                      <span className="text-xs bg-white text-slate-600 border border-slate-200 px-2 py-0.5 rounded-full">{d.active}/{d.total}</span>
-                    </div>
-                    <div className="space-y-2.5">
-                      <div>
-                        <div className="flex justify-between text-xs mb-1"><span className="text-slate-500">{t('hris.performance')}</span><span className={`font-medium ${d.perf >= 85 ? 'text-green-600' : d.perf >= 70 ? 'text-yellow-600' : 'text-red-600'}`}>{d.perf}%</span></div>
-                        <div className="w-full bg-slate-200 rounded-full h-1.5"><div className={`h-1.5 rounded-full ${d.perf >= 85 ? 'bg-green-500' : d.perf >= 70 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{ width: `${d.perf}%` }} /></div>
-                      </div>
-                      <div>
-                        <div className="flex justify-between text-xs mb-1"><span className="text-slate-500">{t('hris.attendance')}</span><span className="font-medium text-slate-700">{d.attend}%</span></div>
-                        <div className="w-full bg-slate-200 rounded-full h-1.5"><div className="bg-teal-600 h-1.5 rounded-full" style={{ width: `${d.attend}%` }} /></div>
-                      </div>
-                    </div>
-                  </div>
+            </div>
+
+            <div>
+              <p className="hf-section-label mb-2">Modul kerja</p>
+              <div id="hf-tour-modules" data-tour-id="hf-tour-modules" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {workbench.map((item) => (
+                  <HrisHeroNavCard key={item.href} label={item.label} desc={item.desc} meta={item.meta} href={item.href} icon={item.icon} />
                 ))}
               </div>
             </div>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-slate-500" />
-                <h3 className="font-semibold text-slate-900">{t('hris.upcomingAgenda')}</h3>
+
+            {docCompliance && docCompliance.activeEmployees > 0 && (
+              <OpsPanel
+                title="Kelengkapan dokumen"
+                subtitle={`Rata-rata ${docCompliance.avgPercent}% · ${docCompliance.complete}/${docCompliance.activeEmployees} karyawan lengkap`}
+                action={
+                  <Link href="/humanify/employees" className="inline-flex items-center gap-1 text-xs font-medium text-[color:var(--hf-brand-600)] hover:underline">
+                    Buka karyawan <ArrowRight className="h-3 w-3" />
+                  </Link>
+                }
+              >
+                <div className="h-2 overflow-hidden rounded-full bg-[var(--hf-surface-muted)]">
+                  <div
+                    className={`h-full rounded-full ${docCompliance.avgPercent >= 80 ? 'bg-[color:var(--hf-success)]' : docCompliance.avgPercent >= 50 ? 'bg-[color:var(--hf-warning)]' : 'bg-[color:var(--hf-danger)]'}`}
+                    style={{ width: `${Math.min(100, docCompliance.avgPercent)}%` }}
+                  />
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                  <span className="hf-tile-nested px-2 py-1 text-xs text-[color:var(--hf-ink)]">{docCompliance.incomplete} belum lengkap</span>
+                  {docCompliance.expiredDocs > 0 && <span className="hf-tile-nested px-2 py-1 text-xs text-[color:var(--hf-ink)]">{docCompliance.expiredDocs} kedaluwarsa</span>}
+                  {docCompliance.expiringSoonDocs > 0 && <span className="hf-tile-nested px-2 py-1 text-xs text-[color:var(--hf-ink)]">{docCompliance.expiringSoonDocs} ≤30 hari</span>}
+                  {docCompliance.topMissing?.slice(0, 3).map((m) => (
+                    <span key={m.type} className="hf-tile-nested px-2 py-1 text-xs text-[color:var(--hf-ink-muted)]">
+                      Minus {m.label.split('(')[0].trim()}: {m.count}
+                    </span>
+                  ))}
+                </div>
+              </OpsPanel>
+            )}
+
+            {(byType.leave || byType.overtime || byType.claim || byType.contract || byType.attendance) ? (
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+                {[
+                  { k: 'leave', label: 'Cuti', href: '/humanify/leave' },
+                  { k: 'overtime', label: 'Lembur', href: '/humanify/payroll/lembur' },
+                  { k: 'claim', label: 'Klaim', href: '/humanify/reimbursement' },
+                  { k: 'contract', label: 'Kontrak', href: '/humanify/contracts' },
+                  { k: 'attendance', label: 'Absen', href: '/humanify/attendance' },
+                ].map((row) => (
+                  <HrisHeroQueueCard key={row.k} label={row.label} value={byType[row.k] || 0} href={row.href} />
+                ))}
+              </div>
+            ) : null}
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <OpsPanel
+                title="Action inbox"
+                subtitle="Cuti, lembur, klaim, kontrak, dan absensi yang perlu ditindak"
+                action={
+                  <div className="flex items-center gap-2">
+                    {pendingSummary.overdue > 0 && (
+                      <span className="hf-tile-nested px-2 py-0.5 text-[11px] font-medium text-[color:var(--hf-ink)]">{pendingSummary.overdue} overdue</span>
+                    )}
+                    <Link href="/humanify/mss" className="inline-flex items-center gap-1 text-xs font-medium text-[color:var(--hf-brand-600)] hover:underline">
+                      {t('hris.viewAll')} <ArrowRight className="h-3 w-3" />
+                    </Link>
+                  </div>
+                }
+              >
+                {lastSnoozed && (
+                  <div className="mb-3 flex items-center justify-between gap-2 hf-tile-nested px-3 py-2 text-xs text-[color:var(--hf-ink)]">
+                    <span className="truncate">Ditunda 24 jam: {lastSnoozed.title}</span>
+                    <button type="button" onClick={handleUnsnooze} className="shrink-0 font-semibold text-[color:var(--hf-brand-600)] hover:underline">Batalkan</button>
+                  </div>
+                )}
+                {pendingApprovals.length === 0 ? (
+                  <HrisEmptyState
+                    title="Inbox kosong"
+                    description="Approval cuti, lembur, klaim, dan aksi HR muncul di sini setelah ada pengajuan."
+                    source={dataSource}
+                    action={
+                      <Link href="/humanify/employees?add=1" className="hf-btn-primary inline-flex items-center gap-1 text-xs">
+                        <UserPlus className="h-3.5 w-3.5" /> Tambah karyawan
+                      </Link>
+                    }
+                  />
+                ) : (
+                  <div className="max-h-80 space-y-2 overflow-y-auto">
+                    {pendingApprovals.map((item) => (
+                      <div key={item.id} className="hf-tile-nested flex items-start gap-3 px-3 py-3">
+                        <EmployeeAvatar name={item.employee_name || item.title} photoUrl={item.photo_url} size="sm" className="mt-0.5" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-[color:var(--hf-ink-faint)]">
+                            {INBOX_TYPE_LABELS[item.type] || item.type || 'Aksi'}
+                          </p>
+                          <p className="truncate text-sm font-medium text-[color:var(--hf-ink)]">{item.title}</p>
+                          <p className="mt-0.5 text-xs text-[color:var(--hf-ink-muted)]">{item.subtitle}</p>
+                          <p className="mt-1 text-[11px] text-[color:var(--hf-ink-faint)]">{item.date}</p>
+                        </div>
+                        <div className="flex shrink-0 gap-1">
+                          {item.href && (
+                            <Link href={item.href} className="rounded-lg p-1.5 text-[color:var(--hf-ink-muted)] hover:bg-[var(--hf-surface-muted)]" title="Detail">
+                              <Eye className="h-4 w-4" />
+                            </Link>
+                          )}
+                          <button type="button" onClick={() => handleSnooze(item)} className="rounded-lg p-1.5 text-[color:var(--hf-ink-muted)] hover:bg-[var(--hf-surface-muted)]" title="Tunda 24 jam">
+                            <Timer className="h-4 w-4" />
+                          </button>
+                          {item.actionable !== false && !['contract', 'documents', 'attendance'].includes(item.type) && (
+                            <>
+                              <button type="button" onClick={() => handleApproval(item, 'approved')} className="rounded-lg p-1.5 text-[color:var(--hf-success)] hover:bg-emerald-50" title={t('hris.approve')}>
+                                <CheckCircle2 className="h-4 w-4" />
+                              </button>
+                              <button type="button" onClick={() => handleApproval(item, 'rejected')} className="rounded-lg p-1.5 text-[color:var(--hf-danger)] hover:bg-rose-50" title={t('hris.reject')}>
+                                <XCircle className="h-4 w-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </OpsPanel>
+
+              <div className="space-y-4">
+                <GaOnboardingChecklist />
+                <OpsPanel
+                  title={t('hris.recentActivities')}
+                  subtitle="Timeline operasional HR"
+                  action={
+                    <Link href="/humanify/activities" className="inline-flex items-center gap-1 text-xs font-medium text-[color:var(--hf-brand-600)] hover:underline">
+                      Lihat semua <ArrowRight className="h-3 w-3" />
+                    </Link>
+                  }
+                >
+                  {recentActivities.length === 0 ? (
+                    <HrisEmptyState title="Belum ada aktivitas" description="Join karyawan, payroll, cuti, dan KPI akan tampil setelah operasional dimulai." source={dataSource} />
+                  ) : (
+                    <div className="max-h-72 space-y-2 overflow-y-auto">
+                      {recentActivities.map((act) => (
+                        <div key={act.id} className="hf-tile-nested flex items-start gap-3 px-3 py-3">
+                          <div className="mt-0.5 shrink-0 rounded-[var(--hf-radius)] bg-[var(--hf-brand-50)] p-2 text-[color:var(--hf-brand-600)]">
+                            <act.icon className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-[color:var(--hf-ink)]">{act.action}</p>
+                            <p className="mt-0.5 text-xs text-[color:var(--hf-ink-muted)]">{act.detail}</p>
+                          </div>
+                          <span className="shrink-0 text-[11px] text-[color:var(--hf-ink-faint)]">{act.time}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </OpsPanel>
               </div>
             </div>
-            <div className="divide-y">
-              {upcoming.map((ev) => {
-                const colors: Record<string, string> = {
-                  red: 'bg-red-500', purple: 'bg-purple-500', orange: 'bg-orange-500',
-                  yellow: 'bg-yellow-500', blue: 'bg-[var(--hf-brand-500)]', indigo: 'bg-[var(--hf-brand-500)]'
-                };
-                return (
-                  <div key={ev.id} className="px-5 py-3 hover:bg-gray-50 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-2 h-8 rounded-full ${colors[ev.color] || 'bg-gray-400'} flex-shrink-0`} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{ev.title}</p>
-                        <p className="text-xs text-gray-500">{ev.date}</p>
-                      </div>
+
+            <div className="grid gap-4 lg:grid-cols-3">
+              <OpsPanel
+                className="lg:col-span-2"
+                title={t('hris.deptOverview')}
+                subtitle="Headcount aktif per departemen"
+                action={
+                  <Link href="/humanify/organization" className="inline-flex items-center gap-1 text-xs font-medium text-[color:var(--hf-brand-600)] hover:underline">
+                    Organisasi <ArrowRight className="h-3 w-3" />
+                  </Link>
+                }
+              >
+                {deptStats.length === 0 ? (
+                  <HrisEmptyState
+                    title="Belum ada headcount per departemen"
+                    description="Tambah karyawan dengan field departemen untuk melihat chart dan breakdown."
+                    source={dataSource}
+                    action={
+                      <Link href="/humanify/employees?add=1" className="hf-btn-secondary inline-flex items-center gap-1 text-xs">
+                        <UserPlus className="h-3.5 w-3.5" /> Tambah karyawan
+                      </Link>
+                    }
+                  />
+                ) : (
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <OpsBarChart
+                      data={deptChartData}
+                      xKey="name"
+                      bars={[
+                        { key: 'Aktif', label: 'Aktif', color: HF_CHART_COLORS_SOLID[0] },
+                        { key: 'Total', label: 'Total', color: HF_CHART_COLORS_SOLID[1] },
+                      ]}
+                      height={220}
+                    />
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {deptStats.map((d) => (
+                        <div key={d.department} className="hf-tile-nested p-3">
+                          <div className="mb-2 flex items-center justify-between gap-2">
+                            <h4 className="truncate text-sm font-semibold text-[color:var(--hf-ink)]">{d.department}</h4>
+                            <span className="shrink-0 rounded-md border border-[var(--hf-border)] bg-white px-2 py-0.5 text-[11px] tabular-nums text-[color:var(--hf-ink-muted)]">{d.active}/{d.total}</span>
+                          </div>
+                          <div className="space-y-2">
+                            <div>
+                              <div className="mb-1 flex justify-between text-[11px]">
+                                <span className="text-[color:var(--hf-ink-muted)]">{t('hris.performance')}</span>
+                                <span className="font-medium tabular-nums">{d.perf > 0 ? `${d.perf}%` : '—'}</span>
+                              </div>
+                              {d.perf > 0 && (
+                                <div className="h-1.5 overflow-hidden rounded-full bg-white">
+                                  <div className="h-full rounded-full bg-[var(--hf-brand-600)]" style={{ width: `${Math.min(100, d.perf)}%` }} />
+                                </div>
+                              )}
+                            </div>
+                            <div>
+                              <div className="mb-1 flex justify-between text-[11px]">
+                                <span className="text-[color:var(--hf-ink-muted)]">{t('hris.attendance')}</span>
+                                <span className="font-medium tabular-nums">{d.attend > 0 ? `${d.attend}%` : '—'}</span>
+                              </div>
+                              {d.attend > 0 && (
+                                <div className="h-1.5 overflow-hidden rounded-full bg-white">
+                                  <div className="h-full rounded-full bg-[color:var(--hf-success)]" style={{ width: `${Math.min(100, d.attend)}%` }} />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                );
-              })}
-            </div>
-            <div className="p-3 border-t border-[var(--hf-brand-50)]/60">
-              <button className="w-full text-center text-xs text-[color:var(--hf-brand-600)] hover:text-[color:var(--hf-brand)] py-1.5 rounded-lg hover:bg-[var(--hf-brand-50)] transition-colors">
-                {t('hris.viewAllAgenda')} →
-              </button>
-            </div>
-          </div>
-        </div>
+                )}
+              </OpsPanel>
 
-        {/* ── ANNOUNCEMENTS / INFO BANNER ── */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-start gap-4">
-            <div className="flex-shrink-0 rounded-xl bg-amber-50 border border-amber-100 p-2.5">
-              <Bell className="h-5 w-5 text-amber-700" />
+              <OpsPanel
+                title={t('hris.upcomingAgenda')}
+                subtitle="Cuti mendatang dan reminder payroll"
+                action={
+                  <Link href="/humanify/calendar" className="inline-flex items-center gap-1 text-xs font-medium text-[color:var(--hf-brand-600)] hover:underline">
+                    Kalender <ArrowRight className="h-3 w-3" />
+                  </Link>
+                }
+              >
+                {upcoming.length === 0 ? (
+                  <HrisEmptyState title="Agenda kosong" description="Cuti mendatang dan reminder payroll muncul setelah ada karyawan dan pengajuan." source={dataSource} />
+                ) : (
+                  <div className="space-y-2">
+                    {upcoming.map((ev) => (
+                      <div key={ev.id} className="hf-tile-nested flex items-center gap-3 px-3 py-3">
+                        <div className="h-8 w-1 shrink-0 rounded-full bg-[var(--hf-brand-500)]" />
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-[color:var(--hf-ink)]">{ev.title}</p>
+                          <p className="text-xs text-[color:var(--hf-ink-muted)]">{ev.date}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </OpsPanel>
             </div>
-            <div>
-              <h4 className="font-semibold text-slate-900">{t('hris.hrAnnouncement')}</h4>
-              <p className="mt-1 text-sm leading-relaxed text-slate-600">Batas pengumpulan data lembur Februari 2026 adalah <strong className="text-slate-800">5 Maret 2026</strong>. Pastikan semua manajer cabang sudah menginput data timesheet dan lembur karyawan masing-masing melalui modul Timesheet atau Manager Self Service.</p>
-              <div className="mt-3 flex gap-2">
-                <a href="/humanify/attendance-management" className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800">{t('hris.manageAttendance')}</a>
-                <a href="/humanify/payroll" className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">{t('hris.processPayroll')}</a>
-              </div>
-            </div>
-          </div>
-        </div>
-        </>
+
+            {!hasWorkforce && (
+              <OpsPanel title="Mulai dari nol" subtitle="Dashboard terisi otomatis setelah operasional HR berjalan">
+                <div className="flex items-start gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--hf-radius)] bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)]">
+                    <Bell className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <p className="text-sm text-[color:var(--hf-ink-secondary)]">
+                      Chart, inbox, dan agenda muncul setelah Anda menambah karyawan lalu menjalankan absensi, cuti, atau payroll. Ikuti checklist Day-1 atau buka go-live.
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Link href="/humanify/employees?add=1" className="hf-btn-primary text-sm">{t('hris.addEmployee')}</Link>
+                      <Link href="/humanify/go-live" className="hf-btn-secondary text-sm">Go-live checklist</Link>
+                    </div>
+                  </div>
+                </div>
+              </OpsPanel>
+            )}
+          </>
         )}
 
         {viewTab === 'modules' && (
           <DashboardModuleGrid
             categories={HRIS_MODULES}
             title={t('hris.hrisModules')}
-            subtitle={t('hris.modulesAvailable', { count: HRIS_MODULES.reduce((acc, c) => acc + c.modules.length, 0) })}
+            subtitle={t('hris.modulesAvailable', { count: moduleCount })}
           />
         )}
-
-      </div>
+      </OpsStage>
+      <FirstRunTour />
+      <QuickActionsDock />
     </HQLayout>
   );
 }

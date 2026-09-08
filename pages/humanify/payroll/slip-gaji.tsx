@@ -2,14 +2,15 @@ import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import HrisEmptyState from '@/components/humanify/HrisEmptyState';
+import HRStatCard from '@/components/humanify/HRStatCard';
+import { OpsKpiShell, OpsToolbar } from '@/components/humanify/OpsPageChrome';
+import { PayrollShell } from '@/components/humanify/PayrollModuleChrome';
 import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
-import { useTranslation } from '@/lib/i18n';
 import DocumentExportButton from '@/components/documents/DocumentExportButton';
 import {
   Search, FileText, Download, Eye, X, Users, DollarSign,
-  CheckCircle, AlertCircle, Clock, Lock, CreditCard, TrendingUp, ArrowLeft
+  CheckCircle, AlertCircle, Clock, Lock, CreditCard, TrendingUp
 } from 'lucide-react';
-import Link from 'next/link';
 
 const UNLOCK_STORAGE_KEY = 'humanify_payslip_unlock';
 
@@ -37,7 +38,6 @@ const MOCK_PAYSLIPS: PayslipItem[] = [
 ];
 
 export default function SlipGajiPage() {
-  const { t } = useTranslation();
   const [mounted, setMounted] = useState(false);
   const [payslips, setPayslips] = useState<PayslipItem[]>([]);
   const [dataSource, setDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
@@ -135,14 +135,20 @@ export default function SlipGajiPage() {
 
   return (
     <HQLayout title="Slip Gaji Karyawan" subtitle="Riwayat slip gaji, detail pendapatan dan potongan per karyawan">
-      <div className="space-y-6">
-        {/* Back + Summary */}
-        <div className="flex items-center gap-3">
-          <Link href="/humanify/payroll" className="p-2 border rounded-lg hover:bg-gray-50"><ArrowLeft className="w-4 h-4" /></Link>
-          <div className="flex-1"><h2 className="text-lg font-bold">Slip Gaji Karyawan</h2><p className="text-sm text-gray-500">Daftar slip gaji dari semua periode penggajian</p></div>
-          <DataSourceBadge source={dataSource} />
-          <a href="/api/humanify/payroll?action=export&type=payslip" download className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700"><Download className="w-4 h-4" /> Export CSV</a>
-        </div>
+      <PayrollShell
+        current="slip"
+        title="Slip gaji"
+        subtitle="Riwayat slip, pendapatan, dan potongan per karyawan."
+        icon={FileText}
+        actions={(
+          <div className="flex flex-wrap items-center gap-2">
+            <DataSourceBadge source={dataSource} />
+            <a href="/api/humanify/payroll?action=export&type=payslip" download className="hf-btn-secondary inline-flex items-center gap-2">
+              <Download className="h-4 w-4" /> Export CSV
+            </a>
+          </div>
+        )}
+      >
 
         {(locked || gateRequired) && locked && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-end gap-3">
@@ -176,35 +182,24 @@ export default function SlipGajiPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: 'Total Karyawan', value: filtered.length, icon: Users, bg: 'bg-[var(--hf-brand-100)]', color: 'text-[color:var(--hf-brand-600)]', fmt: false },
-            { label: 'Total Gaji Kotor', value: totalGross, icon: TrendingUp, bg: 'bg-green-100', color: 'text-green-600', fmt: true },
-            { label: 'Total Pajak', value: totalTax, icon: DollarSign, bg: 'bg-amber-100', color: 'text-amber-600', fmt: true },
-            { label: 'Total Gaji Bersih', value: totalNet, icon: CreditCard, bg: 'bg-emerald-100', color: 'text-emerald-600', fmt: true },
-          ].map(s => (
-            <div key={s.label} className="bg-white rounded-xl p-4 shadow-sm border">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 ${s.bg} rounded-lg`}><s.icon className={`w-5 h-5 ${s.color}`} /></div>
-                <div><p className="text-xs text-gray-500">{s.label}</p><p className={`text-lg font-bold ${s.color}`}>{s.fmt ? fmtCurrency(s.value as number) : s.value}</p></div>
-              </div>
-            </div>
-          ))}
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <OpsKpiShell><HRStatCard icon={Users} label="Slip tampil" value={filtered.length} accent="violet" /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard icon={TrendingUp} label="Gaji kotor" value={fmtCurrency(totalGross)} accent="emerald" /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard icon={DollarSign} label="Pajak" value={fmtCurrency(totalTax)} accent="amber" /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard icon={CreditCard} label="Gaji bersih" value={fmtCurrency(totalNet)} accent="emerald" /></OpsKpiShell>
         </div>
 
-        {/* Filters */}
-        <div className="bg-white rounded-xl shadow-sm border">
-          <div className="p-4 flex flex-wrap gap-3 border-b">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input type="text" placeholder="Cari nama, jabatan, departemen..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm" />
+        <OpsToolbar>
+            <div className="relative min-w-[220px] flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--hf-ink-faint)]" />
+              <input type="text" placeholder="Cari nama, jabatan, departemen..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="hf-input w-full pl-9" />
             </div>
-            <select value={filterDept} onChange={e => setFilterDept(e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
+            <select value={filterDept} onChange={e => setFilterDept(e.target.value)} className="hf-input">
               <option value="all">Semua Departemen</option>
               {departments.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
-            <input type="month" value={filterPeriod} onChange={e => setFilterPeriod(e.target.value)} className="px-3 py-2 border rounded-lg text-sm" />
-          </div>
+            <input type="month" value={filterPeriod} onChange={e => setFilterPeriod(e.target.value)} className="hf-input" />
+        </OpsToolbar>
 
           {/* Table */}
           {loading ? (
@@ -218,8 +213,8 @@ export default function SlipGajiPage() {
           ) : filtered.length === 0 ? (
             <div className="p-12 text-center text-gray-400"><FileText className="w-12 h-12 mx-auto mb-3" /><p>Tidak ada slip gaji ditemukan</p></div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <div className="hf-table-wrap overflow-x-auto">
+              <table>
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Karyawan</th>
@@ -251,10 +246,10 @@ export default function SlipGajiPage() {
                             }
                             setSelectedPayslip(p);
                           }}
-                          className="p-1.5 text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded"
+                          className="hf-btn-secondary inline-flex items-center gap-1 !px-2.5 !py-1 text-xs"
                           title="Detail"
                         >
-                          <Eye className="w-4 h-4" />
+                          <Eye className="w-3.5 h-3.5" /> Detail
                         </button>
                       </td>
                     </tr>
@@ -263,13 +258,12 @@ export default function SlipGajiPage() {
               </table>
             </div>
           )}
-        </div>
-      </div>
+      </PayrollShell>
 
       {/* Detail Payslip Modal */}
       {selectedPayslip && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl m-4 max-h-[90vh] overflow-y-auto">
+          <div className="hf-card w-full max-w-2xl m-4 max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b flex justify-between items-center sticky top-0 bg-white z-10">
               <div><h3 className="text-lg font-semibold">Slip Gaji - {selectedPayslip.employee_name}</h3><p className="text-xs text-gray-500">{selectedPayslip.run_code} · {fmtDate(selectedPayslip.period_start || '')} s/d {fmtDate(selectedPayslip.period_end || '')}</p></div>
               <div className="flex items-center gap-2">

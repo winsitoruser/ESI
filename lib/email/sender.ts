@@ -12,16 +12,40 @@ interface EmailOptions {
   text?: string;
 }
 
+export function smtpPassword(): string {
+  return String(process.env.SMTP_PASSWORD || process.env.SMTP_PASS || '').trim();
+}
+
+export function isSmtpConfigured(): boolean {
+  return Boolean(String(process.env.SMTP_USER || '').trim() && smtpPassword());
+}
+
+function smtpPort(): number {
+  return parseInt(process.env.SMTP_PORT || '587', 10) || 587;
+}
+
+/** Port 465 is implicit TLS; only skip SSL if SMTP_SECURE is explicitly false. */
+function smtpSecure(port: number): boolean {
+  const raw = String(process.env.SMTP_SECURE || '').toLowerCase();
+  if (raw === 'false' || raw === '0') return false;
+  if (raw === 'true' || raw === '1') return true;
+  return port === 465;
+}
+
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
   try {
-    // Create transporter based on environment
+    if (!isSmtpConfigured()) {
+      console.warn('[email] SMTP_USER/SMTP_PASSWORD missing — skip send');
+      return false;
+    }
+    const port = smtpPort();
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_SECURE === 'true',
+      port,
+      secure: smtpSecure(port),
       auth: {
         user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASSWORD
+        pass: smtpPassword(),
       }
     });
 

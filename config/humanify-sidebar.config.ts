@@ -10,9 +10,10 @@ import {
   Briefcase, Plane, BookOpen, Ban, Calculator, Banknote,
   Percent, Gift, Clock, Network, Fingerprint, Sparkles,
   Wallet, Package, CreditCard, Crosshair, PenLine, Scale, Globe, Home,
-  CheckCircle2, Lock, Upload, LifeBuoy, Library, Building2, HelpingHand,
+  CheckCircle2, Lock, Upload, LifeBuoy, Library, Building2,
 } from 'lucide-react';
 import type { SidebarConfig, MenuGroup } from './sidebar.config';
+import { isHumanifyAiUiEnabled } from '@/lib/hris/ai-enabled';
 
 export const humanifySidebarConfig: SidebarConfig = {
   layout: 'hq',
@@ -44,8 +45,15 @@ export const humanifySidebarConfig: SidebarConfig = {
         { id: 'humanify-offboarding', name: 'Offboarding', href: '/humanify/offboarding', icon: KeyRound, modules: ['humanify', 'hris'] },
         { id: 'humanify-contracts', name: 'Kontrak & Reminder', href: '/humanify/contracts', icon: FileText, modules: ['humanify', 'hris'] },
         { id: 'humanify-assets', name: 'Manajemen Aset', href: '/humanify/assets', icon: Package, modules: ['humanify', 'hris'] },
-        // Sementara disembunyikan — aktifkan lagi saat Privy/e-sign siap GA
-        { id: 'humanify-esign', name: 'E-Sign · Simulasi', href: '/humanify/esign', icon: PenLine, modules: ['humanify', 'hris'], hidden: true },
+        // PR-005: E-Sign is lab/hidden until commercialization (opt-in via ESIGN_UI_ENABLED=true)
+        {
+          id: 'humanify-esign',
+          name: 'E-Sign',
+          href: '/humanify/esign',
+          icon: PenLine,
+          modules: ['humanify', 'hris'],
+          hidden: String(process.env.NEXT_PUBLIC_ESIGN_UI_ENABLED || process.env.ESIGN_UI_ENABLED || 'false').toLowerCase() !== 'true',
+        },
       ],
     },
     {
@@ -122,9 +130,14 @@ export const humanifySidebarConfig: SidebarConfig = {
             { id: 'humanify-lms-hub', name: 'Dasbor LMS', href: '/humanify/lms', icon: LayoutDashboard, modules: ['humanify', 'hris'] },
             { id: 'humanify-lms-courses', name: 'Kursus & Learning Path', href: '/humanify/lms/courses', icon: BookOpen, modules: ['humanify', 'hris'] },
             { id: 'humanify-lms-tests', name: 'Tes & Ujian', href: '/humanify/lms/tests', icon: ClipboardList, modules: ['humanify', 'hris'] },
+            { id: 'humanify-lms-question-bank', name: 'Bank Soal', href: '/humanify/lms/question-bank', icon: ClipboardList, modules: ['humanify', 'hris'] },
+            { id: 'humanify-lms-grading', name: 'Penilaian', href: '/humanify/lms/grading', icon: ClipboardList, modules: ['humanify', 'hris'] },
             { id: 'humanify-lms-competency', name: 'Kompetensi & Sertifikat', href: '/humanify/lms/competency', icon: Award, modules: ['humanify', 'hris'] },
             { id: 'humanify-lms-analytics', name: 'Analitik L&D', href: '/humanify/lms/analytics', icon: Activity, modules: ['humanify', 'hris'] },
-            /* Advanced LMS pages remain reachable by URL; hidden from sidebar to reduce IA overload */
+            // PR-005: advanced LMS remains lab-gated (HUMANIFY_LMS_LAB=true to show)
+            { id: 'humanify-lms-proctoring', name: 'Proctoring', href: '/humanify/lms/proctoring', icon: Shield, modules: ['humanify', 'hris'], hidden: String(process.env.NEXT_PUBLIC_HUMANIFY_LMS_LAB || process.env.HUMANIFY_LMS_LAB || '').toLowerCase() !== 'true' },
+            { id: 'humanify-lms-psychometric', name: 'Psikometrik', href: '/humanify/lms/psychometric', icon: Activity, modules: ['humanify', 'hris'], hidden: String(process.env.NEXT_PUBLIC_HUMANIFY_LMS_LAB || process.env.HUMANIFY_LMS_LAB || '').toLowerCase() !== 'true' },
+            { id: 'humanify-lms-academy', name: 'Academy', href: '/humanify/lms/academy', icon: GraduationCap, modules: ['humanify', 'hris'], hidden: String(process.env.NEXT_PUBLIC_HUMANIFY_LMS_LAB || process.env.HUMANIFY_LMS_LAB || '').toLowerCase() !== 'true' },
           ],
         },
         { id: 'humanify-training', name: 'Program Pelatihan', href: '/humanify/training', icon: GraduationCap, modules: ['humanify', 'hris'] },
@@ -149,7 +162,14 @@ export const humanifySidebarConfig: SidebarConfig = {
       id: 'ai',
       title: 'AIMAN',
       items: [
-        { id: 'humanify-ai-hub', name: 'AIMAN · AI Guide', href: '/humanify/ai', icon: Sparkles, modules: ['humanify', 'hris'] },
+        {
+          id: 'humanify-ai-hub',
+          name: 'AIMAN · Confirm',
+          href: '/humanify/ai',
+          icon: Sparkles,
+          modules: ['humanify', 'hris'],
+          hidden: !isHumanifyAiUiEnabled(),
+        },
       ],
     },
     {
@@ -162,22 +182,12 @@ export const humanifySidebarConfig: SidebarConfig = {
       ],
     },
     {
-      id: 'platform-ops',
-      title: 'Ops Platform',
-      items: [
-        { id: 'platform-ops-hub', name: 'Control Plane', href: '/platform', icon: LayoutDashboard, modules: ['humanify', 'hris'] },
-        { id: 'platform-ops-clients', name: 'Klien / Perusahaan', href: '/platform/clients', icon: Building2, modules: ['humanify', 'hris'] },
-        { id: 'platform-ops-partners', name: 'Partner & Billing', href: '/platform/partners', icon: HelpingHand, modules: ['humanify', 'hris'] },
-        { id: 'platform-ops-observability', name: 'Observability', href: '/platform/observability', icon: Activity, modules: ['humanify', 'hris'] },
-      ],
-    },
-    {
       id: 'platform',
       title: 'Platform & Akses',
       items: [
-        { id: 'humanify-employee-portal', name: 'Portal Karyawan (ESS)', href: '/employee', icon: UserCheck, modules: ['humanify', 'hris'] },
+        { id: 'humanify-employee-portal', name: 'Buka Portal Karyawan', href: '/employee', icon: UserCheck, modules: ['humanify', 'hris'] },
         { id: 'humanify-ess', name: 'Konfigurasi ESS', href: '/humanify/ess', icon: Heart, modules: ['humanify', 'hris'] },
-        { id: 'humanify-mss', name: 'Portal Manajer (MSS)', href: '/humanify/mss', icon: Shield, modules: ['humanify', 'hris'] },
+        { id: 'humanify-mss', name: 'Persetujuan HR (MSS)', href: '/humanify/mss', icon: Shield, modules: ['humanify', 'hris'] },
         { id: 'humanify-org-settings', name: 'Pengaturan Organisasi', href: '/humanify/org-settings', icon: Building2, modules: ['humanify', 'hris'] },
         { id: 'humanify-users-team', name: 'Tim & Undangan', href: '/humanify/users', icon: UserPlus, modules: ['humanify', 'hris'] },
         { id: 'humanify-users-roles', name: 'Role & Akses', href: '/humanify/users/roles', icon: Shield, modules: ['humanify', 'hris'] },

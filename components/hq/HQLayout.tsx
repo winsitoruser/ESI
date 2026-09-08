@@ -37,6 +37,8 @@ import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
 import { useTranslation, Language, Currency, languageNames, languageFlags, currencySymbols, currencyNames, currencyFlags } from '@/lib/i18n';
 import { filterSidebarGroupsByPlan } from '@/lib/saas/plan-entitlements';
 import { filterHumanifySidebarByPersona } from '@/lib/humanify/sidebar-persona';
+import AimanSidebarBanner from '@/components/humanify/AimanSidebarBanner';
+import CompanySwitcher from '@/components/humanify/CompanySwitcher';
 
 export type HQPlatform = 'simesi' | 'humanify';
 
@@ -70,7 +72,7 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
   const [sidebarCollapsed, setSidebarCollapsedState] = useState(false);
   const hasReadLocalStorage = useRef(false);
   
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -97,7 +99,7 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
     if (!isHumanify) return byRole;
     const byPlan = {
       ...byRole,
-      groups: filterSidebarGroupsByPlan(byRole.groups, planId || 'enterprise', {
+      groups: filterSidebarGroupsByPlan(byRole.groups, planId || 'starter', {
         bypass: isPlatformOp,
       }),
     };
@@ -116,7 +118,7 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
           setAccountAlerts(Array.isArray(json.data?.alerts) ? json.data.alerts : []);
         }
       } catch {
-        /* keep default enterprise until loaded — avoid flashing empty menu */
+        /* keep starter (least privilege) until saas-context loads */
       }
     })();
     return () => { cancelled = true; };
@@ -387,11 +389,11 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
 
   const accent = isHumanify
     ? {
-        active: 'bg-violet-600 text-white shadow-sm shadow-violet-200',
-        activeChild: 'bg-violet-600 text-white',
-        expanded: 'bg-violet-50/80 text-violet-700',
-        badge: 'bg-violet-500',
-        logo: 'from-violet-600 to-fuchsia-700',
+        active: 'bg-[var(--hf-brand-600)] text-white',
+        activeChild: 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)] font-medium',
+        expanded: 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)]',
+        badge: 'bg-[var(--hf-brand-500)]',
+        logo: 'from-[var(--hf-brand-600)] to-[var(--hf-brand)]',
       }
     : {
         active: 'bg-blue-600 text-white shadow-sm shadow-blue-200',
@@ -413,8 +415,8 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
         <div key={item.id}>
           <button
             onClick={() => toggleMenu(item.id)}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-all duration-150 ${
-              isExpanded ? accent.expanded : 'text-gray-600 hover:bg-gray-50'
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-[var(--hf-radius)] transition-colors duration-150 ${
+              isExpanded ? accent.expanded : (isHumanify ? 'text-[color:var(--hf-ink-muted)] hover:bg-[var(--hf-surface-muted)] hover:text-[color:var(--hf-ink)]' : 'text-gray-600 hover:bg-gray-50')
             }`}
           >
             <div className="flex items-center gap-3 min-w-0">
@@ -438,16 +440,16 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
       <Link
         key={item.id}
         href={item.href || '#'}
-        className={`group relative flex items-center justify-between rounded-md transition-all duration-150 ${
-          isChild ? 'px-2.5 py-1.5' : 'px-3 py-2.5'
+        className={`group relative flex items-center justify-between rounded-[var(--hf-radius)] transition-colors duration-150 ${
+          isChild ? 'px-2.5 py-1.5' : 'px-3 py-2'
         } ${
           active 
             ? isChild
               ? accent.activeChild
               : accent.active
             : isChild
-              ? 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
-              : 'text-gray-600 hover:bg-gray-50'
+              ? (isHumanify ? 'text-[color:var(--hf-ink-muted)] hover:text-[color:var(--hf-ink)] hover:bg-[var(--hf-surface-muted)]' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50')
+              : (isHumanify ? 'text-[color:var(--hf-ink-secondary)] hover:bg-[var(--hf-surface-muted)]' : 'text-gray-600 hover:bg-gray-50')
         } ${sidebarCollapsed ? 'justify-center' : ''}`}
       >
         <div className={`flex items-center min-w-0 ${isChild ? 'gap-2.5' : 'gap-3'} ${sidebarCollapsed ? 'justify-center' : ''}`}>
@@ -477,15 +479,15 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
   const renderMenuGroup = (group: MenuGroup, idx: number) => (
     <div key={group.id} className={idx > 0 ? 'mt-5' : ''}>
       {!sidebarCollapsed && (
-        <div className="px-3 mb-1.5 flex items-center gap-2">
-          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wide whitespace-nowrap">
+        <div className="px-3 mb-2 flex items-center gap-2">
+          <h3 className={`text-[11px] font-semibold uppercase tracking-[0.06em] whitespace-nowrap ${isHumanify ? 'text-[color:var(--hf-ink-faint)]' : 'text-gray-400'}`}>
             {getTranslatedGroup(group.id, group.title)}
           </h3>
-          <div className="flex-1 h-px bg-gray-100" />
+          <div className={`flex-1 h-px ${isHumanify ? 'bg-[var(--hf-border-subtle)]' : 'bg-gray-100'}`} />
         </div>
       )}
       {sidebarCollapsed && idx > 0 && (
-        <div className="mx-3 mb-2 h-px bg-gray-100" />
+        <div className={`mx-3 mb-2 h-px ${isHumanify ? 'bg-[var(--hf-border-subtle)]' : 'bg-gray-100'}`} />
       )}
       <div className="space-y-0.5">
         {group.items.map(item => renderNavItem(item))}
@@ -523,38 +525,54 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
       />
 
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-50 bg-white border-r border-gray-200 transform transition-all duration-300 ease-in-out ${
+      <aside className={`fixed inset-y-0 left-0 z-50 flex flex-col bg-white border-r transform transition-all duration-300 ease-in-out ${
+        isHumanify ? 'border-[var(--hf-border)]' : 'border-gray-200'
+      } ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       } lg:translate-x-0 ${
         sidebarCollapsed ? 'lg:w-20' : 'lg:w-72'
-      } w-72`}>
+      } w-[min(18rem,calc(100vw-2.5rem))]`}>
         {/* Logo */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-gray-100">
+        <div className={`shrink-0 border-b ${
+          isHumanify
+            ? `relative border-[var(--hf-border-subtle)] px-4 py-3 max-lg:pr-12 ${sidebarCollapsed ? 'lg:p-3' : ''}`
+            : 'flex h-16 items-center justify-between px-4 border-gray-100'
+        }`}>
           {isHumanify ? (
-            <Link
-              href={filteredConfig.logo.href}
-              className={`inline-flex items-center hover:opacity-85 transition-opacity ${sidebarCollapsed ? 'lg:mx-auto lg:justify-center' : ''}`}
-            >
-              {sidebarCollapsed ? (
-                /* Collapsed: tunjukkan icon saja */
-                <span className="relative block h-9 w-9 shrink-0 overflow-hidden rounded-xl">
+            <>
+              <Link
+                href={filteredConfig.logo.href}
+                className={`flex items-center rounded-[var(--hf-radius-lg)] px-2 py-1.5 transition hover:bg-[var(--hf-brand-50)]/70 ${
+                  sidebarCollapsed ? 'lg:justify-center lg:p-2' : 'justify-start'
+                }`}
+              >
+                {sidebarCollapsed ? (
+                  <span className="relative hidden h-9 w-9 shrink-0 overflow-hidden rounded-lg lg:block">
+                    <img
+                      src={HUMANIFY_BRAND.logoPath}
+                      alt={HUMANIFY_BRAND.name}
+                      className="absolute inset-0 h-full w-full scale-[2.2] object-cover object-[22%_center]"
+                    />
+                  </span>
+                ) : null}
+                <span className={`block w-full ${sidebarCollapsed ? 'lg:hidden' : ''}`}>
                   <img
-                    src={HUMANIFY_BRAND.logoPath}
+                    src={HUMANIFY_BRAND.appLogoPath}
                     alt={HUMANIFY_BRAND.name}
-                    className="absolute inset-0 h-full w-full scale-[2.4] object-cover object-[22%_center]"
+                    style={{ aspectRatio: HUMANIFY_BRAND.appLogoAspect }}
+                    className="mx-auto h-10 w-auto max-h-10 max-w-full object-contain object-left sm:h-11 sm:max-h-11 sm:mx-0"
                   />
                 </span>
-              ) : (
-                /* Expanded: full wordmark humanify.png */
-                <img
-                  src={HUMANIFY_BRAND.appLogoPath}
-                  alt={HUMANIFY_BRAND.name}
-                  style={{ aspectRatio: HUMANIFY_BRAND.appLogoAspect }}
-                  className="h-14 w-auto object-contain"
-                />
-              )}
-            </Link>
+              </Link>
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="absolute right-3 top-3 p-1.5 rounded-md hover:bg-gray-100 text-gray-400 lg:hidden"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </>
           ) : (
+            <>
             <Link href={filteredConfig.logo.href} className={`flex items-center gap-3 ${sidebarCollapsed ? 'lg:justify-center lg:w-full' : ''}`}>
               <div className={`w-10 h-10 bg-gradient-to-br ${accent.logo} rounded-xl flex items-center justify-center flex-shrink-0`}>
                 <LogoIcon className="w-6 h-6 text-white" />
@@ -568,19 +586,22 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
                 </div>
               )}
             </Link>
-          )}
           <button
             onClick={() => setSidebarOpen(false)}
             className="lg:hidden p-1.5 rounded-md hover:bg-gray-100 text-gray-400"
           >
             <X className="w-4 h-4" />
           </button>
+            </>
+          )}
         </div>
 
         {/* Navigation */}
-        <nav className="px-3 py-3 overflow-y-auto h-[calc(100vh-8rem)] sidebar-scroll">
+        <nav className="min-h-0 flex-1 overflow-y-auto px-3 py-3 sidebar-scroll">
           {filteredConfig.groups.map((group, idx) => renderMenuGroup(group as any, idx))}
         </nav>
+
+        {isHumanify ? <AimanSidebarBanner collapsed={sidebarCollapsed} /> : null}
 
         {/* Scrollbar styling */}
         <style jsx global>{`
@@ -595,15 +616,17 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
       {/* Collapse Toggle Button - Desktop Only */}
       <button
         onClick={toggleSidebarCollapse}
-        className={`hidden lg:flex fixed top-20 z-50 items-center justify-center w-8 h-8 bg-white border border-gray-200 rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-110 ${
+        className={`hidden lg:flex fixed top-[4.5rem] z-50 items-center justify-center w-7 h-7 bg-white border rounded-full shadow-sm hover:shadow-md transition-all ${
+          isHumanify ? 'border-[var(--hf-border)] hover:border-[var(--hf-brand-100)]' : 'border-gray-200 hover:scale-110'
+        } ${
           sidebarCollapsed ? 'left-16' : 'left-[17rem]'
         }`}
         title={sidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
       >
         {sidebarCollapsed ? (
-          <ChevronRight className="w-4 h-4 text-gray-600" />
+          <ChevronRight className={`w-3.5 h-3.5 ${isHumanify ? 'text-[color:var(--hf-ink-muted)]' : 'text-gray-600'}`} />
         ) : (
-          <ChevronLeft className="w-4 h-4 text-gray-600" />
+          <ChevronLeft className={`w-3.5 h-3.5 ${isHumanify ? 'text-[color:var(--hf-ink-muted)]' : 'text-gray-600'}`} />
         )}
       </button>
 
@@ -612,17 +635,21 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
         {/* Mobile Menu Button */}
         <button
           onClick={() => setSidebarOpen(true)}
-          className="lg:hidden fixed top-4 left-4 z-40 p-2 bg-white rounded-lg shadow-lg"
+          className="lg:hidden fixed top-3 left-3 z-40 p-2 bg-white rounded-lg shadow-lg border border-gray-100"
         >
           <Menu className="w-6 h-6 text-gray-600" />
         </button>
         {/* Top Header */}
-        <header className="sticky top-0 z-40 bg-white border-b border-gray-200 h-16">
-          <div className="flex items-center justify-between h-full px-6">
+        <header className={`sticky top-0 z-40 h-16 backdrop-blur-md overflow-visible ${
+          isHumanify
+            ? 'bg-white/90 border-b border-[var(--hf-border)]'
+            : 'bg-white border-b border-gray-200'
+        }`}>
+          <div className={`flex items-center justify-between gap-2 h-full min-w-0 ${isHumanify ? 'pl-14 pr-3 sm:pr-5 md:pr-8 lg:px-8' : 'pl-14 pr-3 lg:px-6'}`}>
             {/* Search */}
-            <div className="flex-1 max-w-xl">
+            <div className="flex-1 min-w-0 max-w-xl">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isHumanify ? 'text-[color:var(--hf-ink-faint)]' : 'text-gray-400'}`} />
                 <input
                   ref={searchInputRef}
                   type="text"
@@ -638,7 +665,10 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
                       router.push(`/humanify/employees?search=${encodeURIComponent(searchQuery.trim())}`);
                     }
                   }}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50"
+                  className={isHumanify
+                    ? 'w-full min-w-0 pl-10 pr-4 py-2 border border-[var(--hf-border)] rounded-[var(--hf-radius)] bg-[var(--hf-surface-muted)] text-base sm:text-sm text-[color:var(--hf-ink)] placeholder:text-[color:var(--hf-ink-faint)] focus:outline-none focus:border-[var(--hf-brand-500)] focus:bg-white focus:shadow-[var(--hf-focus-ring)] transition-shadow'
+                    : 'w-full min-w-0 pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-base sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50'
+                  }
                 />
 
                 {isHumanify && showSearch && searchQuery.trim().length >= 2 && (
@@ -678,8 +708,12 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
                             }}
                             className="w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-gray-50"
                           >
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
-                              <User className="w-4 h-4 text-white" />
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                              isHumanify
+                                ? 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)]'
+                                : 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white'
+                            }`}>
+                              <User className="w-4 h-4" />
                             </div>
                             <div className="min-w-0">
                               <p className="text-sm font-medium text-gray-900 truncate">{emp.name}</p>
@@ -697,7 +731,7 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
             </div>
 
             {/* Right Actions */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-0.5 sm:gap-2 md:gap-4 shrink-0">
               {/* Language Switcher */}
               <div className="relative">
                 <button
@@ -715,12 +749,14 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
                         key={lang}
                         onClick={() => { setLanguage(lang); setShowLangMenu(false); }}
                         className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
-                          language === lang ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
+                          language === lang
+                            ? (isHumanify ? 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)] font-medium' : 'bg-blue-50 text-blue-700 font-medium')
+                            : 'text-gray-700 hover:bg-gray-50'
                         }`}
                       >
                         <span className="text-base">{languageFlags[lang]}</span>
                         <span>{languageNames[lang]}</span>
-                        {language === lang && <CheckCircle className="w-4 h-4 ml-auto text-blue-500" />}
+                        {language === lang && <CheckCircle className={`w-4 h-4 ml-auto ${isHumanify ? 'text-[color:var(--hf-brand-500)]' : 'text-blue-500'}`} />}
                       </button>
                     ))}
                   </div>
@@ -774,11 +810,11 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
                 </button>
 
                 {showNotifications && (
-                  <div className="absolute right-0 top-full mt-2 w-96 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
+                  <div className="absolute right-0 top-full mt-2 w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)] bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden z-50">
                     <div className="p-4 border-b border-gray-200 flex items-center justify-between">
                       <h3 className="font-semibold text-gray-900">{t('layout.notifications')}</h3>
                       {unreadCount > 0 && (
-                        <button onClick={() => handleMarkRead()} className="text-xs text-blue-600 hover:text-blue-700 font-medium">
+                        <button onClick={() => handleMarkRead()} className={`text-xs font-medium ${isHumanify ? 'text-[color:var(--hf-brand-600)] hover:text-[color:var(--hf-brand)]' : 'text-blue-600 hover:text-blue-700'}`}>
                           {t('layout.markAllRead')}
                         </button>
                       )}
@@ -816,7 +852,7 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
                       ))}
                     </div>
                     <div className="p-3 bg-gray-50 text-center">
-                      <Link href={isHumanify ? '/humanify/announcements' : '/hq/notifications'} className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                      <Link href={isHumanify ? '/humanify/announcements' : '/hq/notifications'} className={`text-sm font-medium ${isHumanify ? 'text-[color:var(--hf-brand-600)] hover:text-[color:var(--hf-brand)]' : 'text-blue-600 hover:text-blue-700'}`}>
                         {t('layout.viewAllNotifications')}
                       </Link>
                     </div>
@@ -824,14 +860,20 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
                 )}
               </div>
 
+              {isHumanify && !impersonating ? <CompanySwitcher /> : null}
+
               {/* Profile / Account */}
               <div className="relative">
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
                   className="relative flex items-center gap-2 p-1.5 rounded-xl hover:bg-gray-100 transition-colors"
                 >
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
-                    <User className="w-4 h-4 text-white" />
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                    isHumanify
+                      ? 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)] ring-1 ring-[var(--hf-brand-100)]'
+                      : 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white'
+                  }`}>
+                    <User className="w-4 h-4" />
                   </div>
                   {session?.user?.name && (
                     <span className="hidden md:block text-sm font-medium text-gray-700 max-w-[120px] truncate">
@@ -842,11 +884,15 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
                 </button>
 
                 {showUserMenu && (
-                  <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
+                  <div className="absolute right-0 top-full mt-2 w-[min(16rem,calc(100vw-1.5rem))] bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden z-50">
                     <div className="p-4 border-b border-gray-100">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center flex-shrink-0">
-                          <User className="w-5 h-5 text-white" />
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                          isHumanify
+                            ? 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)] ring-1 ring-[var(--hf-brand-100)]'
+                            : 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white'
+                        }`}>
+                          <User className="w-5 h-5" />
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-gray-900 truncate">{session?.user?.name || 'User'}</p>
@@ -902,7 +948,7 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
         </header>
 
         {/* Page Content */}
-        <main className={noPadding ? 'w-full h-[calc(100vh-4rem)] overflow-hidden' : 'p-6'}>
+        <main className={noPadding ? 'w-full h-[calc(100dvh-4rem)] min-h-0 overflow-hidden' : (isHumanify ? 'min-w-0 overflow-x-clip p-3 sm:p-5 md:p-8 pb-[max(0.75rem,env(safe-area-inset-bottom))]' : 'p-4 sm:p-6')}>
           {impersonating && (
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-950">
               <span>
@@ -915,7 +961,7 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
                 className="rounded-md bg-amber-900 px-3 py-1 text-xs font-medium text-white hover:bg-amber-800"
                 onClick={async () => {
                   await updateSession({ endImpersonation: true });
-                  router.push('/platform');
+                  window.location.href = 'https://ops.humanify.id/platform';
                 }}
               >
                 Keluar support mode
@@ -927,7 +973,9 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
               ? 'border-red-300 bg-red-50 text-red-950'
               : alert.severity === 'warning'
                 ? 'border-amber-200 bg-amber-50 text-amber-950'
-                : 'border-blue-200 bg-blue-50 text-blue-950';
+                : isHumanify
+                  ? 'border-[var(--hf-brand-100)] bg-[var(--hf-brand-50)] text-[color:var(--hf-ink)]'
+                  : 'border-blue-200 bg-blue-50 text-blue-950';
             const AlertIcon = alert.severity === 'critical'
               ? AlertCircle
               : alert.severity === 'warning'
@@ -936,7 +984,7 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
             return (
               <div
                 key={alert.id}
-                className={`mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border px-4 py-2.5 text-sm ${tone}`}
+                className={`mb-3 flex flex-wrap items-center justify-between gap-2 rounded-[var(--hf-radius-lg)] border px-4 py-2.5 text-sm ${tone}`}
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <AlertIcon className="w-4 h-4 flex-shrink-0" />
@@ -966,9 +1014,9 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
             );
           })}
           {(title || subtitle) && (
-            <div className="mb-6">
-              {title && <h1 className="text-2xl font-bold text-gray-900">{title}</h1>}
-              {subtitle && <p className="text-gray-500 mt-1">{subtitle}</p>}
+            <div className={isHumanify ? 'mb-6' : 'mb-6'}>
+              {title && <h1 className={isHumanify ? 'hf-page-title' : 'text-2xl font-bold text-gray-900'}>{title}</h1>}
+              {subtitle && <p className={isHumanify ? 'hf-page-subtitle' : 'text-gray-500 mt-1'}>{subtitle}</p>}
             </div>
           )}
           {children}

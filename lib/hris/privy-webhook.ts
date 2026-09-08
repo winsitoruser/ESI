@@ -151,13 +151,21 @@ export async function applyPrivyDocumentStatus(opts: {
   }
 }
 
-/** Soft verify: if PRIVY_WEBHOOK_SECRET set, require matching header/body signature. */
+/** Verify Privy webhook. Production fail-closed when PRIVY_WEBHOOK_SECRET unset. */
 export function validatePrivyWebhookSecret(
   reqSecret: string | null | undefined,
   envSecret?: string | null,
 ): boolean {
   const expected = String(envSecret ?? process.env.PRIVY_WEBHOOK_SECRET ?? '').trim();
-  if (!expected) return true; // open in sandbox when unset
+  if (!expected) {
+    try {
+      const { isHumanifyWebhookFailClosed } = require('./webhook-security');
+      if (isHumanifyWebhookFailClosed()) return false;
+    } catch {
+      if (process.env.NODE_ENV === 'production') return false;
+    }
+    return true; // non-prod / explicit ALLOW_OPEN lab mode
+  }
   return String(reqSecret || '').trim() === expected;
 }
 
@@ -167,16 +175,28 @@ export async function getPrivyWebhookHealth(db?: any): Promise<{
   tableReady: boolean;
   events24h: number;
   lastEventAt: string | null;
-  mode: 'open' | 'signed';
+  mode: 'open' | 'signed' | 'fail_closed';
 }> {
   const secretConfigured = Boolean(process.env.PRIVY_WEBHOOK_SECRET?.trim());
+  let failClosed = false;
+  try {
+    const { isHumanifyWebhookFailClosed } = require('./webhook-security');
+    failClosed = isHumanifyWebhookFailClosed();
+  } catch {
+    failClosed = process.env.NODE_ENV === 'production';
+  }
   const seq = db || sequelize;
+  const mode = secretConfigured
+    ? 'signed'
+    : failClosed
+      ? 'fail_closed'
+      : 'open';
   const out = {
     secretConfigured,
     tableReady: false,
     events24h: 0,
     lastEventAt: null as string | null,
-    mode: (secretConfigured ? 'signed' : 'open') as 'open' | 'signed',
+    mode: mode as 'open' | 'signed' | 'fail_closed',
   };
   if (!seq) return out;
   const ok = await ensurePrivyWebhookIdempotencyTable(seq);

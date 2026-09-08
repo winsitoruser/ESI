@@ -5,6 +5,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
+import { assertOpsApiHost } from '@/lib/humanify/assert-ops-host';
 import { isPlatformOperator } from '@/lib/middleware/tenantIsolation';
 import {
   humanifyDigestEmail,
@@ -40,7 +41,7 @@ const SAMPLES: Record<string, () => { subject: string; html: string; text: strin
   alert: () =>
     humanifyObsAlertEmail({
       message: '12 errors in last 15m (threshold 10)',
-      uiUrl: 'https://humanify.id/platform/observability',
+      uiUrl: 'https://ops.humanify.id/platform/observability',
       errors: 12,
       windowMin: 15,
     }),
@@ -58,6 +59,7 @@ const SAMPLES: Record<string, () => { subject: string; html: string; text: strin
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (!assertOpsApiHost(req, res)) return;
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
     return res.status(405).json({ success: false, error: 'Method not allowed' });

@@ -37,10 +37,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const session = await getServerSession(req, res, authOptions);
     const sessionTenant = String((session?.user as any)?.tenantId || '');
     const role = String((session?.user as any)?.role || '').toLowerCase();
-    const isSuper = role === 'super_admin' || role === 'superadmin' || role === 'platform_admin' || role === 'owner';
+    const isSuper = role === 'super_admin' || role === 'superadmin' || role === 'platform_admin';
     if (!session?.user) {
       return res.status(401).json({ success: false, error: 'Unauthorized' });
     }
+    // Owner is tenant-scoped — must match file tenant (Wave-81 SEC-81-2)
     if (!isSuper && sessionTenant.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64) !== tenantSeg) {
       return res.status(403).json({ success: false, error: 'Forbidden' });
     }

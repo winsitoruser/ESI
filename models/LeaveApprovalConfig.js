@@ -26,10 +26,6 @@ const LeaveApprovalConfig = sequelize.define('LeaveApprovalConfig', {
     type: DataTypes.STRING(50),
     allowNull: true
   },
-  division: {
-    type: DataTypes.STRING(50),
-    allowNull: true
-  },
   branchId: {
     type: DataTypes.UUID,
     allowNull: true,

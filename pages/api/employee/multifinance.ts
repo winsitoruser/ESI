@@ -13,6 +13,7 @@ import { authOptions } from '../auth/[...nextauth]';
 import { resolveEmployeeContext } from '../../../lib/employee-portal';
 import { calcCommission } from '../../../lib/hris/multifinance-types';
 import { allowHrMockFallback } from '@/lib/hris/data-source';
+import { withEmployeeAuth } from '@/lib/middleware/withEmployeeAuth';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch {}
@@ -87,7 +88,7 @@ async function autoCalcCommission(tenantId: string | null, ctx: any): Promise<nu
   return calcCommission(baseAmount, 'percentage', parseFloat(rule.rate_value));
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     const session = await getServerSession(req, res, authOptions);
     if (!session?.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
@@ -400,3 +401,5 @@ async function createActivity(req: NextApiRequest, res: NextApiResponse, ctx: an
     data: act,
   });
 }
+
+export default withEmployeeAuth(handler);

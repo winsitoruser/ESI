@@ -293,10 +293,11 @@ export default function HumanifyLoginForm({
                 <input type="hidden" name="csrfToken" value={csrfToken} />
 
                 <div>
-                  <label className="block text-sm font-medium text-violet-200/80 mb-2">Email</label>
+                  <label htmlFor="humanify-login-email" className="block text-sm font-medium text-violet-200/80 mb-2">Email</label>
                   <div className="relative group">
                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-violet-400/50 group-focus-within:text-violet-300 transition-colors" />
                     <input
+                      id="humanify-login-email"
                       type="email"
                       name="email"
                       value={formData.email}
@@ -309,10 +310,11 @@ export default function HumanifyLoginForm({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-violet-200/80 mb-2">Password</label>
+                  <label htmlFor="humanify-login-password" className="block text-sm font-medium text-violet-200/80 mb-2">Password</label>
                   <div className="relative group">
                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-violet-400/50 group-focus-within:text-violet-300 transition-colors" />
                     <input
+                      id="humanify-login-password"
                       type={showPassword ? 'text' : 'password'}
                       name="password"
                       value={formData.password}
@@ -324,6 +326,7 @@ export default function HumanifyLoginForm({
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
                       className="absolute right-4 top-1/2 -translate-y-1/2 text-violet-400/50 hover:text-violet-200 transition-colors"
                     >
                       {showPassword ? <EyeOff className="w-[18px] h-[18px]" /> : <Eye className="w-[18px] h-[18px]" />}
@@ -342,7 +345,9 @@ export default function HumanifyLoginForm({
                 <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-2">
                   <p className="text-xs text-violet-200/70">Atau masuk dengan SSO (SAML)</p>
                   <div className="flex gap-2">
+                    <label htmlFor="humanify-login-sso-slug" className="sr-only">Slug tenant SSO</label>
                     <input
+                      id="humanify-login-sso-slug"
                       type="text"
                       value={tenantSlug}
                       onChange={(e) => setTenantSlug(e.target.value)}

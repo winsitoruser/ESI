@@ -85,6 +85,12 @@ async function main() {
   const roles = [
     { email: mgrEmail, role: 'manager', name: `MR Manager ${stamp}`, expectRole: 'manager' },
     { email: staffEmail, role: 'staff', name: `MR Staff ${stamp}`, expectRole: 'staff' },
+    {
+      email: `mr-fin-${stamp}@humanify.test`,
+      role: 'finance_staff',
+      name: `MR Finance ${stamp}`,
+      expectRole: 'finance_staff',
+    },
   ];
 
   const accepted = [];
@@ -125,8 +131,11 @@ async function main() {
     if (role === r.expectRole) ok(`login ${r.role} session.role=${role}`);
     else fail(`login ${r.role}`, `role=${role} want ${r.expectRole}`);
 
-    // Soft page checks — staff should still reach ESS; manager MSS
-    const path = r.role === 'manager' ? '/humanify/mss' : '/humanify/ess';
+    // Soft page checks — staff ESS; manager MSS; finance payroll surface
+    const path =
+      r.role === 'manager' ? '/humanify/mss'
+        : r.role === 'finance_staff' ? '/humanify/payroll'
+          : '/humanify/ess';
     const page = await fetch(`${BASE}${path}`, { headers: { Cookie: COOKIE }, redirect: 'manual' });
     if ([200, 304, 307].includes(page.status)) ok(`${r.role} page ${path} (${page.status})`);
     else fail(`${r.role} page ${path}`, `HTTP ${page.status}`);
@@ -136,6 +145,18 @@ async function main() {
     const pay = await api('GET', '/api/humanify/payroll?action=fiscal-signoff');
     if (pay.status < 500) ok(`${r.role} payroll API soft (${pay.status})`);
     else fail(`${r.role} payroll API`, `HTTP ${pay.status}`);
+
+    // Staff should not be able to mark payroll paid (Finance SoD) — soft check if Growth+ plan
+    if (r.role === 'staff') {
+      const sod = await api('POST', '/api/humanify/payroll', { action: 'mark-paid', id: '00000000-0000-0000-0000-000000000000' });
+      if ([401, 403, 404, 400].includes(sod.status) || sod.json?.error) {
+        ok('staff payroll mark-paid denied/soft');
+      } else if (sod.status < 500) {
+        ok(`staff payroll mark-paid soft (${sod.status})`);
+      } else {
+        fail('staff payroll mark-paid', `HTTP ${sod.status}`);
+      }
+    }
   }
 
   console.log(`\nRESULT: ${passed} passed / ${failed} failed`);

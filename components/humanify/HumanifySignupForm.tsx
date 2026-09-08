@@ -104,8 +104,8 @@ export default function HumanifySignupForm() {
 
       toast.success(
         json.data?.verification?.emailed
-          ? 'Akun dibuat! Cek email untuk verifikasi.'
-          : 'Akun dibuat! Membuka wizard setup...'
+          ? 'Akun dibuat! Cek inbox (dan folder spam) untuk verifikasi email.'
+          : 'Akun dibuat. Email verifikasi belum terkirim — kirim ulang dari wizard setup setelah login.'
       );
 
       const login = await signIn('credentials', {

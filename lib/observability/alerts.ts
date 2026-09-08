@@ -114,9 +114,9 @@ export async function evaluateObsErrorSpike(): Promise<ObsAlertResult> {
   }
 
   const to = String(process.env.OBS_ALERT_EMAIL || process.env.SMTP_FROM || '').trim();
-  if (to && process.env.SMTP_USER && process.env.SMTP_PASSWORD) {
+  const { isSmtpConfigured, sendEmail } = await import('@/lib/email/sender');
+  if (to && isSmtpConfigured()) {
     try {
-      const { sendEmail } = await import('@/lib/email/sender');
       const { humanifyObsAlertEmail } = await import('@/lib/email/humanify-mails');
       const mail = humanifyObsAlertEmail({
         message: base.message,

@@ -89,6 +89,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       console.warn('[signup] email verify create:', e?.message);
     }
 
+    try {
+      const { recordFunnelEvent } = await import('@/lib/saas/activation-funnel');
+      await recordFunnelEvent(result.tenantId, 'signup', { email: result.email });
+    } catch { /* funnel best-effort */ }
+
     return res.status(201).json({
       success: true,
       message: 'Akun Humanify berhasil dibuat',

@@ -6,6 +6,11 @@ on:
     branches: [main, develop]
     paths:
       - 'lib/saas/**'
+      - 'lib/hris/**'
+      - 'lib/humanify/**'
+      - 'components/humanify/**'
+      - 'config/humanify-sidebar.config.ts'
+      - 'middleware.ts'
       - 'pages/api/humanify/**'
       - 'pages/api/v1/**'
       - 'pages/humanify/**'
@@ -16,10 +21,17 @@ on:
     branches: [main]
     paths:
       - 'lib/saas/**'
+      - 'lib/hris/**'
+      - 'lib/humanify/**'
+      - 'components/humanify/**'
+      - 'config/humanify-sidebar.config.ts'
+      - 'middleware.ts'
       - 'pages/api/humanify/**'
       - 'pages/api/v1/**'
       - 'pages/humanify/**'
       - 'pages/platform/**'
+      - 'package.json'
+      - '.github/workflows/humanify-saas-gate.yml'
 
 jobs:
   saas-gate:
@@ -73,6 +85,41 @@ jobs:
           test -f lib/humanify/lms-surface.ts
           test -f pages/api/platform/obs-alerts.ts
           test -f components/humanify/HrisEmptyState.tsx
+          test -f lib/humanify/admin-host.ts
+          test -f pages/humanify/admin-login.tsx
+          test -f scripts/smoke-test-humanify-admin-host.js
+          test -f pages/platform/audit.tsx
+          test -f pages/platform/support.tsx
+          test -f pages/platform/users.tsx
+          test -f pages/platform/system.tsx
+          test -f pages/platform/banners.tsx
+          test -f pages/platform/subscriptions.tsx
+          test -f pages/platform/products.tsx
+          test -f pages/platform/finance.tsx
+          test -f pages/platform/crm.tsx
+          test -f pages/platform/marketing.tsx
+          test -f pages/platform/content.tsx
+          test -f pages/platform/analytics.tsx
+          test -f pages/platform/approvals.tsx
+          test -f pages/platform/roles.tsx
+          test -f pages/platform/insights.tsx
+          test -f lib/saas/support-tickets.ts
+          test -f lib/saas/landing-banners.ts
+          test -f components/humanify/MarketingBannerCarousel.tsx
+          test -f lib/saas/platform-ops-modules.ts
+          test -f lib/saas/sales-leads.ts
+          test -f lib/saas/platform-finance.ts
+          test -f lib/saas/platform-approvals.ts
+          test -f lib/saas/marketing-campaigns.ts
+          test -f lib/saas/cms-content.ts
+          test -f lib/saas/platform-analytics.ts
+          test -f pages/api/humanify/faqs.ts
+          test -f pages/api/humanify/articles.ts
+          test -f lib/saas/platform-desks.ts
+          test -f lib/saas/cms-articles.ts
+          test -f lib/saas/platform-insights.ts
+          test -f components/humanify/OpsCommandPalette.tsx
+          test -f lib/humanify/use-platform-operator.ts
           echo "✓ Required SaaS files present (P2 LMS/obs/CI)"
 
       - name: Unit smokes (no network — always required)
@@ -114,6 +161,10 @@ jobs:
           npm run smoke:rls-lab
           npm run smoke:rls-job-chaos
           npm run check:uptime-external
+          npm run smoke:wave85
+          npm run smoke:product-readiness
+          npm run smoke:payslip-idor
+          npm run smoke:trial
           npm run smoke:mock-audit
           SMOKE_ALLOW_MISSING_BACKUP=true npm run check:backup-freshness
           test -f e2e/humanify-hr-auth-gate-ui.spec.ts

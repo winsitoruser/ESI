@@ -2,10 +2,14 @@ import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
+import HRStatCard from '@/components/humanify/HRStatCard';
+import HrisEmptyState from '@/components/humanify/HrisEmptyState';
+import { OpsPageHero, OpsKpiShell, OpsStage, OpsToolbar } from '@/components/humanify/OpsPageChrome';
 import {
   UserPlus, Plus, Search, X, CheckCircle, AlertCircle, Clock,
   User, Briefcase, Calendar, Users as UsersIcon, FileText,
-  Shield, Mail, Laptop, GraduationCap, Eye, Trash2, BookOpen, Heart
+  Shield, Mail, Laptop, GraduationCap, Eye, Trash2, BookOpen, Heart,
+  LayoutGrid, Table2,
 } from 'lucide-react';
 import EmployeePicker, { type PickedEmployee } from '@/components/humanify/EmployeePicker';
 import { getDepartmentLabel } from '@/lib/hris/master-data';
@@ -62,6 +66,7 @@ export default function OnboardingPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showModal, setShowModal] = useState(false);
+  const [listView, setListView] = useState<'card' | 'table'>('table');
   const [viewing, setViewing] = useState<OnboardingEntry | null>(null);
   const [form, setForm] = useState<any>({});
   const [toast, setToast] = useState<{ type: string; message: string } | null>(null);
@@ -167,6 +172,7 @@ export default function OnboardingPage() {
     try {
       await fetch(`/api/humanify/lifecycle?action=onboarding&id=${id}`, { method: 'DELETE' });
       setItems(p => p.filter(i => i.id !== id));
+      setViewing((v) => (v?.id === id ? null : v));
       showToast('success', 'Dihapus');
     } catch {
       showToast('error', 'Gagal hapus');
@@ -197,94 +203,190 @@ export default function OnboardingPage() {
 
   return (
     <HQLayout title="Onboarding Karyawan" subtitle="Kelola proses onboarding karyawan baru dengan checklist terstruktur">
-      <div className="space-y-6">
-        <div className="flex justify-end">
-          <DataSourceBadge source={dataSource} />
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard icon={UserPlus} label="Total Proses" value={stats.total} color="text-[color:var(--hf-brand-600)]" bg="bg-[var(--hf-brand-100)]" />
-          <StatCard icon={Clock} label="Sedang Berjalan" value={stats.inProgress} color="text-orange-600" bg="bg-orange-100" />
-          <StatCard icon={CheckCircle} label="Selesai" value={stats.completed} color="text-green-600" bg="bg-green-100" />
-          <StatCard icon={Briefcase} label="Progress Task" value={`${stats.tasksProgress}%`} color="text-fuchsia-600" bg="bg-fuchsia-100" />
+      <OpsStage>
+        <OpsPageHero
+          title="Onboarding Karyawan"
+          subtitle="Kelola proses onboarding karyawan baru dengan checklist terstruktur"
+          badge="Lifecycle"
+          liveLabel="Onboarding desk"
+          icon={UserPlus}
+          score={stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0}
+          scoreLabel="Done"
+          chips={[
+            { icon: Clock, label: `${stats.inProgress} sedang berjalan`, tone: 'text-amber-700' },
+            { icon: CheckCircle, label: `${stats.completed} selesai`, tone: 'text-emerald-700' },
+            { icon: Briefcase, label: `${stats.tasksProgress}% progress task`, tone: 'text-[color:var(--hf-brand-600)]' },
+          ]}
+          actions={(
+            <div className="flex flex-wrap items-center gap-2">
+              <DataSourceBadge source={dataSource} />
+              <button
+                type="button"
+                onClick={() => { setForm({}); setShowModal(true); }}
+                className="hf-btn-primary inline-flex items-center gap-2"
+              >
+                <Plus className="h-4 w-4" /> Mulai Onboarding
+              </button>
+            </div>
+          )}
+        />
+
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <OpsKpiShell>
+            <HRStatCard icon={UserPlus} label="Total Proses" value={stats.total} accent="violet" />
+          </OpsKpiShell>
+          <OpsKpiShell>
+            <HRStatCard icon={Clock} label="Sedang Berjalan" value={stats.inProgress} accent="orange" />
+          </OpsKpiShell>
+          <OpsKpiShell>
+            <HRStatCard icon={CheckCircle} label="Selesai" value={stats.completed} accent="emerald" />
+          </OpsKpiShell>
+          <OpsKpiShell>
+            <HRStatCard icon={Briefcase} label="Progress Task" value={`${stats.tasksProgress}%`} accent="violet" />
+          </OpsKpiShell>
         </div>
 
-        <div className="bg-white rounded-xl border shadow-sm p-4 flex flex-wrap gap-3 items-center justify-between">
-          <div className="flex flex-wrap gap-3 flex-1">
-            <div className="relative flex-1 min-w-[220px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input type="text" placeholder="Cari karyawan..." value={searchQuery}
+        <OpsToolbar>
+          <div className="flex flex-1 flex-wrap gap-3">
+            <div className="relative min-w-[220px] flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--hf-ink-faint)]" />
+              <input
+                type="text"
+                placeholder="Cari karyawan..."
+                value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm" />
+                className="hf-input w-full pl-9"
+              />
             </div>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="hf-input">
               <option value="all">Semua Status</option>
               <option value="in_progress">Sedang Berjalan</option>
               <option value="completed">Selesai</option>
               <option value="paused">Ditunda</option>
             </select>
           </div>
-          <button onClick={() => { setForm({}); setShowModal(true); }}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-fuchsia-600 to-purple-600 text-white rounded-lg text-sm font-medium hover:opacity-90">
-            <Plus className="w-4 h-4" /> Mulai Onboarding
-          </button>
-        </div>
+          <ViewToggle value={listView} onChange={setListView} />
+        </OpsToolbar>
 
-        <div className="grid md:grid-cols-2 gap-4">
-          {loading && <div className="col-span-2 text-center py-12 text-gray-500">Memuat...</div>}
-          {!loading && filtered.length === 0 && (
-            <div className="col-span-2 bg-white border rounded-xl p-12 text-center text-gray-500">
-              <UserPlus className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-              <p>Belum ada proses onboarding</p>
-            </div>
-          )}
-          {filtered.map((i) => {
-            const totalReq = (i.tasks || []).filter(t => t.required).length;
-            const doneReq = (i.tasks || []).filter(t => t.required && t.completed).length;
-            const pct = totalReq > 0 ? Math.round(doneReq / totalReq * 100) : 0;
-            return (
-              <div key={i.id} className="bg-white rounded-xl border shadow-sm p-5 hover:shadow-md transition">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-lg truncate">{i.employeeName}</h3>
-                    <p className="text-xs text-gray-500">{i.position || '-'} • {i.department || '-'}</p>
-                    <p className="text-xs text-gray-400 flex items-center gap-1 mt-1">
-                      <Calendar className="w-3.5 h-3.5" /> Bergabung {i.joinDate}
-                      {i.buddyName && <><UsersIcon className="w-3.5 h-3.5 ml-2" /> Buddy: {i.buddyName}</>}
-                    </p>
+        {!loading && filtered.length === 0 ? (
+          <HrisEmptyState
+            title="Belum ada proses onboarding"
+            description="Mulai proses onboarding untuk karyawan baru dengan checklist terstruktur."
+            source={dataSource}
+            action={(
+              <button type="button" onClick={() => { setForm({}); setShowModal(true); }} className="hf-btn-primary inline-flex items-center gap-2">
+                <Plus className="h-4 w-4" /> Mulai Onboarding
+              </button>
+            )}
+          />
+        ) : listView === 'table' ? (
+          <div className="hf-table-wrap overflow-x-auto">
+            <table>
+              <thead>
+                <tr>
+                  <th>Karyawan</th>
+                  <th>Jabatan</th>
+                  <th>Departemen</th>
+                  <th>Bergabung</th>
+                  <th>Buddy</th>
+                  <th className="text-right">Progress</th>
+                  <th>Status</th>
+                  <th className="text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading
+                  ? [0, 1, 2, 3, 4].map((n) => (
+                    <tr key={n}>
+                      <td colSpan={8}><div className="h-8 animate-pulse rounded-md bg-[var(--hf-surface-muted)]" /></td>
+                    </tr>
+                  ))
+                  : filtered.map((i) => {
+                    const { doneReq, totalReq, pct } = requiredProgress(i.tasks);
+                    return (
+                      <tr key={i.id}>
+                        <td>
+                          <p className="font-medium text-[color:var(--hf-ink)]">{i.employeeName}</p>
+                          <p className="text-xs text-[color:var(--hf-ink-faint)]">{i.employeeId || '—'}</p>
+                        </td>
+                        <td>{i.position || '—'}</td>
+                        <td>{i.department || '—'}</td>
+                        <td className="whitespace-nowrap tabular-nums">{i.joinDate || '—'}</td>
+                        <td>{i.buddyName || '—'}</td>
+                        <td className="text-right">
+                          <span className="tabular-nums font-medium">{pct}%</span>
+                          <span className="ml-1 text-xs text-[color:var(--hf-ink-faint)]">{doneReq}/{totalReq}</span>
+                        </td>
+                        <td><StatusPill status={i.status} /></td>
+                        <td className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <button type="button" onClick={() => setViewing(i)} className="hf-btn-secondary inline-flex items-center gap-1 !px-2.5 !py-1 text-xs">
+                              <Eye className="h-3.5 w-3.5" /> Detail
+                            </button>
+                            <button type="button" onClick={() => handleDelete(i.id)} className="rounded-[var(--hf-radius)] p-1.5 text-[color:var(--hf-danger)] hover:bg-rose-50" aria-label="Hapus">
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2">
+            {loading && (
+              <>
+                {[0, 1, 2, 3].map((i) => (
+                  <div key={i} className="h-40 animate-pulse rounded-[var(--hf-radius-xl)] bg-[var(--hf-surface-muted)]" />
+                ))}
+              </>
+            )}
+            {filtered.map((i) => {
+              const { doneReq, totalReq, pct } = requiredProgress(i.tasks);
+              return (
+                <div key={i.id} className="hf-tile hf-tile-interactive relative overflow-hidden p-5">
+                  <div className="hf-analytics-panel__rail" aria-hidden />
+                  <div className="pl-1">
+                    <div className="mb-3 flex items-start justify-between">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="truncate text-base font-semibold text-[color:var(--hf-ink)]">{i.employeeName}</h3>
+                        <p className="text-xs text-[color:var(--hf-ink-muted)]">{i.position || '—'} · {i.department || '—'}</p>
+                        <p className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-[color:var(--hf-ink-faint)]">
+                          <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" /> Bergabung {i.joinDate}</span>
+                          {i.buddyName && <span className="flex items-center gap-1"><UsersIcon className="h-3.5 w-3.5" /> Buddy: {i.buddyName}</span>}
+                        </p>
+                      </div>
+                      <StatusPill status={i.status} />
+                    </div>
+                    <div className="space-y-1">
+                      <div className="mb-1 flex justify-between text-xs">
+                        <span className="text-[color:var(--hf-ink-muted)]">Progress {doneReq}/{totalReq} task wajib</span>
+                        <span className="font-semibold tabular-nums">{pct}%</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-[var(--hf-surface-muted)]">
+                        <div className={`h-full transition-all ${pct === 100 ? 'bg-[var(--hf-success)]' : 'bg-[var(--hf-brand-600)]'}`} style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                    <div className="mt-3 flex justify-end gap-2 border-t border-[var(--hf-border-subtle)] pt-3">
+                      <button type="button" onClick={() => setViewing(i)} className="hf-btn-secondary inline-flex items-center gap-1 !px-3 !py-1.5 text-sm">
+                        <Eye className="h-4 w-4" /> Detail
+                      </button>
+                      <button type="button" onClick={() => handleDelete(i.id)} className="rounded-[var(--hf-radius)] p-1.5 text-[color:var(--hf-danger)] hover:bg-rose-50"><Trash2 className="h-4 w-4" /></button>
+                    </div>
                   </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${
-                    i.status === 'completed' ? 'bg-green-100 text-green-700' :
-                    i.status === 'paused' ? 'bg-yellow-100 text-yellow-700' :
-                    'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]'
-                  }`}>
-                    {i.status === 'completed' ? 'Selesai' : i.status === 'paused' ? 'Ditunda' : 'Berjalan'}
-                  </span>
                 </div>
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-gray-600">Progress {doneReq}/{totalReq} task wajib</span>
-                    <span className="font-semibold">{pct}%</span>
-                  </div>
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div className={`h-full transition-all ${pct === 100 ? 'bg-green-500' : 'bg-gradient-to-r from-fuchsia-500 to-purple-500'}`} style={{ width: `${pct}%` }} />
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2 mt-3 pt-3 border-t">
-                  <button onClick={() => setViewing(i)} className="flex items-center gap-1 text-sm px-3 py-1.5 border rounded-lg hover:bg-gray-50">
-                    <Eye className="w-4 h-4" /> Detail Checklist
-                  </button>
-                  <button onClick={() => handleDelete(i.id)} className="p-1.5 hover:bg-red-50 rounded text-red-500"><Trash2 className="w-4 h-4" /></button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+              );
+            })}
+          </div>
+        )}
+      </OpsStage>
 
       {/* View modal: checklist */}
       {viewing && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setViewing(null)}>
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="hf-card max-h-[90vh] w-full max-w-2xl overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between p-5 border-b">
               <div>
                 <h3 className="text-lg font-bold">{viewing.employeeName}</h3>
@@ -351,7 +453,7 @@ export default function OnboardingPage() {
       {/* Create modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setShowModal(false)}>
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
+          <div className="hf-card w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between p-5 border-b">
               <h3 className="text-lg font-bold">Mulai Proses Onboarding</h3>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
@@ -411,20 +513,6 @@ export default function OnboardingPage() {
   );
 }
 
-function StatCard({ icon: Icon, label, value, color, bg }: any) {
-  return (
-    <div className="bg-white rounded-xl border shadow-sm p-4">
-      <div className="flex items-center gap-3">
-        <div className={`p-2 rounded-lg ${bg}`}><Icon className={`w-5 h-5 ${color}`} /></div>
-        <div>
-          <p className="text-xs text-gray-500">{label}</p>
-          <p className={`text-xl font-bold ${color}`}>{value}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function Input({ label, value, onChange, type = 'text' }: any) {
   return (
     <div>
@@ -439,6 +527,52 @@ function ReadOnlyField({ label, value }: { label: string; value: string }) {
     <div>
       <label className="block text-xs font-medium mb-1 text-gray-500">{label}</label>
       <p className="text-sm text-gray-800 px-3 py-2 bg-gray-50 border rounded-lg">{value}</p>
+    </div>
+  );
+}
+
+function requiredProgress(tasks: TaskItem[] | undefined) {
+  const list = tasks || [];
+  const totalReq = list.filter((t) => t.required).length;
+  const doneReq = list.filter((t) => t.required && t.completed).length;
+  const pct = totalReq > 0 ? Math.round((doneReq / totalReq) * 100) : 0;
+  return { totalReq, doneReq, pct };
+}
+
+function StatusPill({ status }: { status: OnboardingEntry['status'] }) {
+  const cls =
+    status === 'completed'
+      ? 'bg-emerald-50 text-emerald-700'
+      : status === 'paused'
+        ? 'bg-amber-50 text-amber-800'
+        : 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]';
+  const label = status === 'completed' ? 'Selesai' : status === 'paused' ? 'Ditunda' : 'Berjalan';
+  return <span className={`inline-flex shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold ${cls}`}>{label}</span>;
+}
+
+function ViewToggle({ value, onChange }: { value: 'card' | 'table'; onChange: (v: 'card' | 'table') => void }) {
+  return (
+    <div className="inline-flex shrink-0 rounded-[var(--hf-radius)] border border-[var(--hf-border)] bg-white p-0.5" role="group" aria-label="Tampilan daftar">
+      <button
+        type="button"
+        onClick={() => onChange('table')}
+        className={`inline-flex items-center gap-1.5 rounded-[calc(var(--hf-radius)-2px)] px-2.5 py-1.5 text-xs font-medium ${
+          value === 'table' ? 'bg-[var(--hf-brand-600)] text-white' : 'text-[color:var(--hf-ink-muted)] hover:bg-[var(--hf-surface-muted)]'
+        }`}
+        aria-pressed={value === 'table'}
+      >
+        <Table2 className="h-3.5 w-3.5" /> Tabel
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange('card')}
+        className={`inline-flex items-center gap-1.5 rounded-[calc(var(--hf-radius)-2px)] px-2.5 py-1.5 text-xs font-medium ${
+          value === 'card' ? 'bg-[var(--hf-brand-600)] text-white' : 'text-[color:var(--hf-ink-muted)] hover:bg-[var(--hf-surface-muted)]'
+        }`}
+        aria-pressed={value === 'card'}
+      >
+        <LayoutGrid className="h-3.5 w-3.5" /> Kartu
+      </button>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import {
-  Fingerprint, Loader2, Camera, Sunrise, Moon, Navigation, ExternalLink,
+  Loader2, Camera, Sunrise, Moon, Navigation, ExternalLink,
   Shield, Building2, Megaphone, Bell, Calendar, Wallet, Target, Receipt,
   FileText, Clock, Award, Users, Plane, CheckCircle, XCircle, Plus, Timer,
 } from 'lucide-react';
@@ -7,6 +7,7 @@ import {
   Card, SectionHeader, StatusBadge, GeofenceBadge,
   EnterpriseHero, QuickAction, StatTile,
 } from '@/components/employee/portal-ui';
+import SatisfactionPulse from '@/components/humanify/SatisfactionPulse';
 
 export interface HomeTabProps {
   greeting: string;
@@ -20,8 +21,6 @@ export interface HomeTabProps {
   clocking: 'in' | 'out' | null;
   handleClockIn: (...args: any[]) => any;
   handleClockOut: (...args: any[]) => any;
-  setClockPhoto: (...args: any[]) => any;
-  setClockPhotoModal: (...args: any[]) => any;
   monthAttendance: any;
   lastClockEvent: any;
   lastCheckIn: any;
@@ -34,6 +33,7 @@ export interface HomeTabProps {
   unreadCount: number;
   openNotifications: (...args: any[]) => any;
   announcements: any;
+  tenantAnnouncement?: string;
   notifications: any;
   kpiScore: number;
   kpiMetrics: any;
@@ -64,7 +64,7 @@ const CLAIM_TYPE_LABELS: Record<string, string> = {
 const claimTypeLabel = (v: string) => CLAIM_TYPE_LABELS[v] || v;
 
 export default function HomeTab({
-  greeting, userName, userPosition, userBranch, userDept, todayAttendance, canClockIn, canClockOut, clocking, handleClockIn, handleClockOut, setClockPhoto, setClockPhotoModal, monthAttendance, lastClockEvent, lastCheckIn, lastCheckOut, isManagerPortal, managerPendingCount, goToTab, isMfAgent, mfOverview, unreadCount, openNotifications, announcements, notifications, kpiScore, kpiMetrics, setModal,
+  greeting, userName, userPosition, userBranch, userDept, todayAttendance, canClockIn, canClockOut, clocking, handleClockIn, handleClockOut, monthAttendance, lastClockEvent, lastCheckIn, lastCheckOut, isManagerPortal, managerPendingCount, goToTab, isMfAgent, mfOverview, unreadCount, openNotifications, announcements, tenantAnnouncement, notifications, kpiScore, kpiMetrics, setModal,
   leaveBalance = [], pendingLeaves = [], pendingClaims = [], pendingTravel = [], setOtModal,
 }: HomeTabProps) {
   return (
@@ -78,11 +78,18 @@ export default function HomeTab({
         initials={getInitials(userName)}
       />
 
+      {tenantAnnouncement ? (
+        <div className="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-950">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-teal-700">Pengumuman perusahaan</p>
+          <p className="mt-0.5 leading-relaxed">{tenantAnnouncement}</p>
+        </div>
+      ) : null}
+
       {/* Presensi — Clock In/Out + Lokasi */}
       <Card className="p-4" variant="elevated">
         <SectionHeader
           title="Presensi Hari Ini"
-          subtitle="Clock in/out dengan GPS & geofence"
+          subtitle="Clock in/out dengan kamera + GPS"
           action={todayAttendance?.status ? <StatusBadge status={todayAttendance.status} /> : undefined}
         />
 
@@ -96,9 +103,9 @@ export default function HomeTab({
                 : 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-600/25'
             }`}
           >
-            {clocking === 'in' ? <Loader2 className="w-6 h-6 animate-spin" /> : <Fingerprint className="w-6 h-6" />}
+            {clocking === 'in' ? <Loader2 className="w-6 h-6 animate-spin" /> : <Camera className="w-6 h-6" />}
             <span>Clock In</span>
-            <span className="text-[10px] font-normal opacity-80">+ GPS lokasi</span>
+            <span className="text-[10px] font-normal opacity-80">Verifikasi wajah + GPS</span>
           </button>
           <button
             onClick={handleClockOut}
@@ -109,34 +116,9 @@ export default function HomeTab({
                 : 'bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/25'
             }`}
           >
-            {clocking === 'out' ? <Loader2 className="w-6 h-6 animate-spin" /> : <Fingerprint className="w-6 h-6" />}
+            {clocking === 'out' ? <Loader2 className="w-6 h-6 animate-spin" /> : <Camera className="w-6 h-6" />}
             <span>Clock Out</span>
-            <span className="text-[10px] font-normal opacity-80">+ GPS lokasi</span>
-          </button>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2.5 mb-4">
-          <button
-            onClick={() => { setClockPhoto(null); setClockPhotoModal('in'); }}
-            disabled={!canClockIn || clocking === 'in'}
-            className={`py-3 rounded-xl text-xs font-bold flex flex-col items-center justify-center gap-1 active:scale-[0.98] transition-all border-2 ${
-              !canClockIn ? 'border-slate-100 text-slate-300 bg-slate-50' : 'border-emerald-200 text-emerald-700 bg-emerald-50'
-            }`}
-          >
-            <Camera className="w-5 h-5" />
-            <span>Absensi Foto Masuk</span>
-            <span className="text-[9px] font-normal opacity-70">Selfie + GPS + geofence</span>
-          </button>
-          <button
-            onClick={() => { setClockPhoto(null); setClockPhotoModal('out'); }}
-            disabled={!canClockOut || clocking === 'out'}
-            className={`py-3 rounded-xl text-xs font-bold flex flex-col items-center justify-center gap-1 active:scale-[0.98] transition-all border-2 ${
-              !canClockOut ? 'border-slate-100 text-slate-300 bg-slate-50' : 'border-orange-200 text-orange-700 bg-orange-50'
-            }`}
-          >
-            <Camera className="w-5 h-5" />
-            <span>Absensi Foto Pulang</span>
-            <span className="text-[9px] font-normal opacity-70">Selfie + GPS + geofence</span>
+            <span className="text-[10px] font-normal opacity-80">Verifikasi wajah + GPS</span>
           </button>
         </div>
 
@@ -156,7 +138,7 @@ export default function HomeTab({
           ))}
         </div>
 
-        <div className="grid grid-cols-4 gap-2 pt-3 border-t border-slate-100/80 mb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-3 border-t border-slate-100/80 mb-4">
           <StatTile label="Hadir" value={monthAttendance.present} accent="emerald" />
           <StatTile label="Telat" value={monthAttendance.late} accent="amber" />
           <StatTile label="Izin" value={monthAttendance.leave} accent="sky" />
@@ -270,7 +252,7 @@ export default function HomeTab({
               <p className="text-lg font-bold text-slate-800">{mfOverview?.todayActivities || 0} kunjungan</p>
             </div>
           </div>
-          <div className="flex items-center justify-between text-xs text-slate-500">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
             <span>Tunggakan: <b className="text-amber-600">{mfOverview?.portfolioOverdue || 0}</b></span>
             <span>NPL: <b className="text-red-600">{mfOverview?.portfolioNpl || 0}</b></span>
             <span>Komisi pending: <b className="text-teal-700">{fmtCur(mfOverview?.pendingCommission || 0)}</b></span>
@@ -375,7 +357,7 @@ export default function HomeTab({
 
       <Card className="p-4" variant="elevated">
         <SectionHeader title="Aksi Cepat" subtitle="Pengajuan & akses fitur utama" />
-        <div className="grid grid-cols-4 gap-1">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1">
           {(isMfAgent ? [
             { icon: Building2, label: 'Lapangan', gradient: 'from-slate-600 to-teal-700', action: () => goToTab('mf') },
             { icon: Calendar, label: 'Cuti', gradient: 'from-teal-600 to-emerald-700', action: () => setModal('leave') },
@@ -469,6 +451,8 @@ export default function HomeTab({
           </div>
         </Card>
       )}
+
+      <SatisfactionPulse context="ess_home" channel="ess" className="shadow-sm" />
     </div>
   );
 }

@@ -38,6 +38,7 @@ import {
   parseRoiQueryParams,
 } from '@/lib/humanify/roi-calculator';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
+import { HUMANIFY_PLANS } from '@/lib/saas/plan-entitlements';
 
 type FieldKey = keyof RoiInput;
 
@@ -550,8 +551,11 @@ export default function HumanifyRoiCalculator() {
           <div className="flex items-start gap-2 rounded-xl p-4 border border-white/[0.06] bg-white/[0.02]">
             <Info className="w-4 h-4 text-violet-400/60 flex-shrink-0 mt-0.5" />
             <p className="text-xs text-violet-300/45 leading-relaxed">
-              Hasil kalkulasi ini merupakan estimasi berdasarkan data yang Anda masukkan dan
-              rata-rata industri. Hasil aktual dapat bervariasi tergantung kondisi perusahaan Anda.
+              Hasil kalkulasi ini merupakan estimasi. Biaya langganan memakai daftar harga resmi
+              paket Humanify (Starter Rp{HUMANIFY_PLANS.starter.priceMonthlyIdr.toLocaleString('id-ID')} ·
+              Growth Rp{HUMANIFY_PLANS.growth.priceMonthlyIdr.toLocaleString('id-ID')} ·
+              Enterprise Rp{HUMANIFY_PLANS.enterprise.priceMonthlyIdr.toLocaleString('id-ID')} / bulan)
+              sesuai kapasitas karyawan paket. Hasil aktual dapat bervariasi.
               Asumsi: {Math.round(ROI_ASSUMPTIONS.efisiensiWaktu * 100)}% pengurangan waktu admin,{' '}
               {ROI_ASSUMPTIONS.errorRatePayroll * 100}% error rate payroll manual.
             </p>

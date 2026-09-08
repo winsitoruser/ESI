@@ -1,25 +1,40 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
 import { PageGuard } from '@/components/permissions';
 import Link from 'next/link';
+import HRStatCard from '@/components/humanify/HRStatCard';
+import HrisEmptyState from '@/components/humanify/HrisEmptyState';
+import EmployeePicker, { type PickedEmployee } from '@/components/humanify/EmployeePicker';
+import { OpsKpiShell, OpsPanel, OpsToolbar } from '@/components/humanify/OpsPageChrome';
+import { PayrollShell, type PayrollNavId } from '@/components/humanify/PayrollModuleChrome';
 import {
-  Gift, Wallet, CreditCard, Plus, Check, X, ArrowLeft, Clock,
+  Gift, Wallet, CreditCard, Plus, Check, X, Clock, Search, RefreshCw,
 } from 'lucide-react';
 
-const ICONS: Record<string, any> = { gift: Gift, wallet: Wallet, credit: CreditCard };
-const STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-700', approved: 'bg-green-100 text-green-700',
-  active: 'bg-violet-100 text-violet-700', paid: 'bg-gray-100 text-gray-700',
-  rejected: 'bg-red-100 text-red-700', completed: 'bg-purple-100 text-purple-700',
+const ICONS = { gift: Gift, wallet: Wallet, credit: CreditCard } as const;
+
+const STATUS_LABEL: Record<string, { label: string; className: string }> = {
+  pending: { label: 'Menunggu', className: 'bg-amber-50 text-[color:var(--hf-warning)]' },
+  approved: { label: 'Disetujui', className: 'bg-emerald-50 text-[color:var(--hf-success)]' },
+  active: { label: 'Aktif', className: 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)]' },
+  paid: { label: 'Dibayar', className: 'bg-[var(--hf-surface-muted)] text-[color:var(--hf-ink-muted)]' },
+  rejected: { label: 'Ditolak', className: 'bg-rose-50 text-[color:var(--hf-danger)]' },
+  completed: { label: 'Selesai', className: 'bg-emerald-50 text-[color:var(--hf-success)]' },
+};
+
+const NAV_FOR_TYPE: Record<string, PayrollNavId> = {
+  bonus: 'bonus',
+  cash_advance: 'kasbon',
+  loan: 'loan',
 };
 
 interface Props {
   type: 'bonus' | 'cash_advance' | 'loan';
   title: string;
   subtitle: string;
-  icon: string;
+  icon: keyof typeof ICONS;
   categories: string[];
   showInstallment?: boolean;
 }
@@ -28,6 +43,11 @@ export default function PayrollInputPage({ type, title, subtitle, icon, categori
   const [items, setItems] = useState<any[]>([]);
   const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [showCreate, setShowCreate] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState<any>({ category: categories[0] || 'other', installmentMonths: 6 });
   const Icon = ICONS[icon] || Gift;
   const fmt = (n: number) => `Rp ${(n || 0).toLocaleString('id-ID')}`;
 
@@ -45,90 +65,211 @@ export default function PayrollInputPage({ type, title, subtitle, icon, categori
 
   useEffect(() => { load(); }, [load]);
 
-  const handleApprove = async (id: string) => {
+  const setStatus = async (id: string, status: string) => {
     await fetch(`/api/humanify/payroll-inputs?id=${id}`, {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: type === 'loan' ? 'active' : 'approved' }),
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
     });
     load();
   };
 
-  const pending = items.filter(i => i.status === 'pending');
-  const totalAmount = items.reduce((s, i) => s + i.amount, 0);
+  const handleCreate = async () => {
+    if (!form.employeeId || !form.employeeName || !form.amount) return;
+    setSaving(true);
+    try {
+      const months = Number(form.installmentMonths || 0);
+      const amount = Number(form.amount);
+      await fetch('/api/humanify/payroll-inputs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type,
+          employeeId: form.employeeId,
+          employeeUid: form.employeeUid,
+          employeeName: form.employeeName,
+          department: form.department,
+          amount,
+          reason: form.reason,
+          category: form.category,
+          installmentMonths: showInstallment ? months : undefined,
+          installmentAmount: showInstallment && months ? Math.round(amount / months) : undefined,
+          remainingAmount: showInstallment ? amount : undefined,
+          status: 'pending',
+        }),
+      });
+      setShowCreate(false);
+      setForm({ category: categories[0] || 'other', installmentMonths: 6 });
+      await load();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return items.filter((i) => {
+      const matchQ = !q || [i.employeeName, i.department, i.reason, i.category].some((v) => String(v || '').toLowerCase().includes(q));
+      const matchS = statusFilter === 'all' || i.status === statusFilter;
+      return matchQ && matchS;
+    });
+  }, [items, query, statusFilter]);
+
+  const pending = items.filter((i) => i.status === 'pending');
+  const totalAmount = items.reduce((s, i) => s + Number(i.amount || 0), 0);
 
   return (
     <PageGuard anyPermission={['payroll.view', 'payroll.*']} title={title} description={subtitle}>
       <HQLayout title={title} subtitle={subtitle}>
-        <div className="space-y-6">
-          <div className="flex items-center gap-3">
-            <Link href="/humanify/payroll" className="p-2 border rounded-lg hover:bg-gray-50"><ArrowLeft className="w-4 h-4" /></Link>
-            <div className="flex-1">
-              <h2 className="text-xl font-bold flex items-center gap-2"><Icon className="w-5 h-5 text-emerald-600" /> {title}</h2>
-              <p className="text-sm text-gray-500">{subtitle}</p>
+        <PayrollShell
+          current={NAV_FOR_TYPE[type]}
+          title={title}
+          subtitle={subtitle}
+          icon={Icon}
+          actions={(
+            <div className="flex flex-wrap items-center gap-2">
+              <DataSourceBadge source={dataSource} />
+              <button type="button" onClick={load} className="hf-btn-secondary inline-flex items-center gap-2">
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Segarkan
+              </button>
+              <button type="button" onClick={() => setShowCreate(true)} className="hf-btn-primary inline-flex items-center gap-2">
+                <Plus className="h-4 w-4" /> Tambah
+              </button>
             </div>
-            <DataSourceBadge source={dataSource} />
+          )}
+        >
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+            <OpsKpiShell><HRStatCard icon={Icon} label="Total catatan" value={items.length} accent="violet" /></OpsKpiShell>
+            <OpsKpiShell><HRStatCard icon={Clock} label="Menunggu persetujuan" value={pending.length} accent="amber" /></OpsKpiShell>
+            <OpsKpiShell><HRStatCard icon={Wallet} label="Total nominal" value={fmt(totalAmount)} accent="emerald" /></OpsKpiShell>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <div className="bg-white rounded-xl p-4 border shadow-sm">
-              <p className="text-xs text-gray-500">Total Record</p>
-              <p className="text-2xl font-bold">{items.length}</p>
-            </div>
-            <div className="bg-white rounded-xl p-4 border shadow-sm">
-              <p className="text-xs text-gray-500">Menunggu Approval</p>
-              <p className="text-2xl font-bold text-amber-600">{pending.length}</p>
-            </div>
-            <div className="bg-white rounded-xl p-4 border shadow-sm">
-              <p className="text-xs text-gray-500">Total Nominal</p>
-              <p className="text-lg font-bold text-emerald-600">{fmt(totalAmount)}</p>
-            </div>
+          <div className="rounded-[var(--hf-radius-xl)] border border-[var(--hf-brand-100)] bg-[var(--hf-brand-50)] px-4 py-3 text-sm text-[color:var(--hf-brand-600)] flex items-start gap-2">
+            <Clock className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>{title} yang disetujui masuk ke <Link href="/humanify/payroll/main" className="font-semibold underline underline-offset-2">Proses gaji</Link> periode berjalan.</p>
           </div>
 
-          <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 text-sm text-purple-800 flex items-center gap-2">
-            <Clock className="w-4 h-4 flex-shrink-0" />
-            Data {title.toLowerCase()} otomatis tersinkron ke <Link href="/humanify/payroll/main" className="underline font-medium">Proses Gaji</Link> periode berjalan.
-          </div>
+          <OpsToolbar>
+            <div className="relative min-w-[220px] flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--hf-ink-faint)]" />
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari karyawan, alasan…" className="hf-input w-full pl-9" />
+            </div>
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="hf-input">
+              <option value="all">Semua status</option>
+              {Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            </select>
+          </OpsToolbar>
 
-          {loading ? <div className="text-center py-12 text-gray-400">Memuat...</div> : (
-            <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b">
+          {loading ? (
+            <div className="h-40 animate-pulse hf-card" />
+          ) : filtered.length === 0 ? (
+            <HrisEmptyState
+              source={dataSource}
+              title={`Belum ada ${title.toLowerCase()}`}
+              description="Tambah catatan baru, lalu setujui agar terpotong atau ditambahkan di proses gaji."
+              action={<button type="button" onClick={() => setShowCreate(true)} className="hf-btn-primary inline-flex items-center gap-2"><Plus className="h-4 w-4" /> Tambah</button>}
+            />
+          ) : (
+            <div className="hf-table-wrap overflow-x-auto">
+              <table>
+                <thead>
                   <tr>
-                    <th className="text-left p-3">Karyawan</th>
-                    <th className="text-left p-3">Departemen</th>
-                    <th className="text-left p-3">Alasan</th>
-                    {showInstallment && <th className="text-right p-3">Cicilan</th>}
-                    <th className="text-right p-3">Jumlah</th>
-                    {showInstallment && <th className="text-right p-3">Sisa</th>}
-                    <th className="text-center p-3">Status</th>
-                    <th className="text-center p-3">Aksi</th>
+                    <th>Karyawan</th>
+                    <th>Departemen</th>
+                    <th>Alasan</th>
+                    {showInstallment && <th className="text-right">Cicilan</th>}
+                    <th className="text-right">Jumlah</th>
+                    {showInstallment && <th className="text-right">Sisa</th>}
+                    <th>Status</th>
+                    <th className="text-right">Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map(item => (
-                    <tr key={item.id} className="border-b hover:bg-gray-50">
-                      <td className="p-3 font-medium">{item.employeeName}</td>
-                      <td className="p-3 text-gray-500">{item.department}</td>
-                      <td className="p-3 text-gray-600">{item.reason}</td>
-                      {showInstallment && <td className="p-3 text-right">{fmt(item.installmentAmount)}/bln × {item.installmentMonths}</td>}
-                      <td className="p-3 text-right font-semibold">{fmt(item.amount)}</td>
-                      {showInstallment && <td className="p-3 text-right text-amber-600">{fmt(item.remainingAmount)}</td>}
-                      <td className="p-3 text-center"><span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[item.status]}`}>{item.status}</span></td>
-                      <td className="p-3 text-center">
-                        {item.status === 'pending' && (
-                          <div className="flex justify-center gap-1">
-                            <button onClick={() => handleApprove(item.id)} className="p-1 text-green-600 hover:bg-green-50 rounded"><Check className="w-4 h-4" /></button>
-                            <button className="p-1 text-red-600 hover:bg-red-50 rounded"><X className="w-4 h-4" /></button>
-                          </div>
+                  {filtered.map((item) => {
+                    const st = STATUS_LABEL[item.status] || STATUS_LABEL.pending;
+                    return (
+                      <tr key={item.id}>
+                        <td className="font-medium text-[color:var(--hf-ink)]">{item.employeeName}</td>
+                        <td>{item.department || '—'}</td>
+                        <td>{item.reason || '—'}</td>
+                        {showInstallment && (
+                          <td className="text-right tabular-nums">{item.installmentAmount ? `${fmt(item.installmentAmount)}/bln × ${item.installmentMonths || 0}` : '—'}</td>
                         )}
-                      </td>
-                    </tr>
-                  ))}
+                        <td className="text-right tabular-nums font-medium">{fmt(item.amount)}</td>
+                        {showInstallment && <td className="text-right tabular-nums">{fmt(item.remainingAmount || 0)}</td>}
+                        <td><span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${st.className}`}>{st.label}</span></td>
+                        <td className="text-right">
+                          {item.status === 'pending' && (
+                            <div className="flex justify-end gap-1">
+                              <button type="button" onClick={() => setStatus(item.id, type === 'loan' ? 'active' : 'approved')} className="hf-btn-secondary inline-flex items-center gap-1 !px-2 !py-1 text-xs text-[color:var(--hf-success)]">
+                                <Check className="h-3.5 w-3.5" /> Setujui
+                              </button>
+                              <button type="button" onClick={() => setStatus(item.id, 'rejected')} className="rounded-[var(--hf-radius)] p-1.5 text-[color:var(--hf-danger)] hover:bg-rose-50" aria-label="Tolak">
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           )}
-        </div>
+        </PayrollShell>
+
+        {showCreate && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowCreate(false)}>
+            <div className="hf-card w-full max-w-lg p-5" onClick={(e) => e.stopPropagation()}>
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-base font-semibold text-[color:var(--hf-ink)]">Tambah {title}</h3>
+                <button type="button" onClick={() => setShowCreate(false)} className="text-[color:var(--hf-ink-faint)]"><X className="h-5 w-5" /></button>
+              </div>
+              <div className="space-y-3">
+                <EmployeePicker
+                  label="Karyawan"
+                  required
+                  value={form.employeeId || ''}
+                  onChange={(emp: PickedEmployee | null) => {
+                    if (!emp) { setForm((f: any) => ({ ...f, employeeId: '', employeeName: '', department: '' })); return; }
+                    setForm((f: any) => ({
+                      ...f,
+                      employeeId: emp.id,
+                      employeeUid: emp.employee_id,
+                      employeeName: emp.name,
+                      department: emp.department,
+                    }));
+                  }}
+                />
+                <div>
+                  <label className="mb-1 block text-xs font-medium">Kategori</label>
+                  <select value={form.category || ''} onChange={(e) => setForm((f: any) => ({ ...f, category: e.target.value }))} className="hf-input w-full">
+                    {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium">Nominal</label>
+                  <input type="number" value={form.amount || ''} onChange={(e) => setForm((f: any) => ({ ...f, amount: e.target.value }))} className="hf-input w-full" />
+                </div>
+                {showInstallment && (
+                  <div>
+                    <label className="mb-1 block text-xs font-medium">Tenor (bulan)</label>
+                    <input type="number" min={1} value={form.installmentMonths || 6} onChange={(e) => setForm((f: any) => ({ ...f, installmentMonths: e.target.value }))} className="hf-input w-full" />
+                  </div>
+                )}
+                <div>
+                  <label className="mb-1 block text-xs font-medium">Alasan / catatan</label>
+                  <textarea value={form.reason || ''} onChange={(e) => setForm((f: any) => ({ ...f, reason: e.target.value }))} rows={3} className="hf-input w-full" />
+                </div>
+              </div>
+              <div className="mt-5 flex justify-end gap-2">
+                <button type="button" onClick={() => setShowCreate(false)} className="hf-btn-secondary">Batal</button>
+                <button type="button" disabled={saving} onClick={handleCreate} className="hf-btn-primary disabled:opacity-50">{saving ? 'Menyimpan…' : 'Simpan'}</button>
+              </div>
+            </div>
+          </div>
+        )}
       </HQLayout>
     </PageGuard>
   );

@@ -6,7 +6,7 @@ import { getHumanifyHosts } from '@/lib/humanify/host';
 import { slugifyTenantName } from './tenant-slug';
 
 const RESERVED_SUBDOMAINS = new Set([
-  'www', 'app', 'admin', 'api', 'platform', 'mail', 'cdn', 'static',
+  'www', 'app', 'admin', 'api', 'platform', 'ops', 'mail', 'cdn', 'static',
   'staging', 'dev', 'test', 'status', 'docs', 'help',
 ]);
 

@@ -13,6 +13,16 @@ import {
   formatCheckInTime,
 } from '../../../lib/employee-portal';
 import { ensurePortalEmployee, ensurePortalSchema } from '@/lib/employee-portal/ensure-portal';
+import { ensureTravelSchema } from '@/lib/hris/ensure-travel-schema';
+import {
+  COST_TO_EXPENSE,
+  dateSpan,
+  hydratePlanFromRequest,
+  itineraryBudget,
+  itineraryRoute,
+  parseTravelPlan,
+  serializeTravelPlan,
+} from '@/lib/hris/travel-itinerary';
 import { canAccessManagerPortal, isSuperAdminRole } from '@/lib/humanify/manager-access';
 import {
   createPortalLeaveRequest,
@@ -31,6 +41,10 @@ import {
 } from '../../../lib/hris/attendance-store';
 import { loadActiveGeofences, matchGeofences } from '@/lib/hris/geofence-utils';
 import { allowHrMockFallback } from '@/lib/hris/data-source';
+import { verifyClockFace } from '@/lib/hris/face-profile-store';
+import { withEmployeeAuth } from '@/lib/middleware/withEmployeeAuth';
+import { assertHumanifyFeature } from '@/lib/saas/assert-feature';
+import { getEssPortalConfig } from '@/lib/hris/ess-portal-config';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch (e) {}
@@ -39,7 +53,20 @@ export const config = {
   api: { bodyParser: { sizeLimit: '8mb' } },
 };
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+/** Wave-84 BE-84-1 — claims / OT / travel / payslip match HQ payroll entitlement. */
+async function requireEssPayrollFeature(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  session: any,
+): Promise<boolean> {
+  return assertHumanifyFeature(req, res, {
+    tenantId: session?.user?.tenantId,
+    role: session?.user?.role,
+    feature: 'payroll',
+  });
+}
+
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     const session = await getServerSession(req, res, authOptions);
     if (!session?.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
@@ -62,7 +89,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         case 'notifications': return getNotifications(res, userId, tenantId);
         case 'announcements': return getAnnouncements(res, userId, tenantId);
         case 'summary': return getSummary(res, userId, tenantId);
-        case 'payslip': return getPayslip(req, res, userId, tenantId);
+        case 'payslip':
+          if (!(await requireEssPayrollFeature(req, res, session))) return;
+          return getPayslip(req, res, userId, tenantId);
         case 'disciplinary-letters': return getDisciplinaryLetters(res, userId, tenantId);
         default: return res.status(400).json({ error: 'Unknown action' });
       }
@@ -73,12 +102,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         case 'clock-in': return clockIn(req, res, userId, tenantId);
         case 'clock-out': return clockOut(req, res, userId, tenantId);
         case 'leave-request': return createLeaveRequest(req, res, userId, tenantId);
-        case 'claim': return createClaim(req, res, userId, tenantId);
-        case 'resubmit-claim':   return resubmitClaim(req, res, userId, tenantId);
-        case 'replace-claim-receipt': return replaceClaimReceipt(req, res, userId, tenantId);
-        case 'submit-overtime':  return submitOvertime(req, res, userId, tenantId);
-        case 'cancel-overtime':  return cancelOvertime(req, res, userId, tenantId);
-        case 'travel-request': return createTravelRequest(req, res, userId, tenantId);
+        case 'claim':
+        case 'resubmit-claim':
+        case 'replace-claim-receipt':
+        case 'submit-overtime':
+        case 'cancel-overtime':
+        case 'travel-request':
+        case 'travel-expense':
+          if (!(await requireEssPayrollFeature(req, res, session))) return;
+          if (action === 'claim') return createClaim(req, res, userId, tenantId);
+          if (action === 'resubmit-claim') return resubmitClaim(req, res, userId, tenantId);
+          if (action === 'replace-claim-receipt') return replaceClaimReceipt(req, res, userId, tenantId);
+          if (action === 'submit-overtime') return submitOvertime(req, res, userId, tenantId);
+          if (action === 'cancel-overtime') return cancelOvertime(req, res, userId, tenantId);
+          if (action === 'travel-expense') return createTravelExpense(req, res, userId, tenantId);
+          return createTravelRequest(req, res, userId, tenantId);
         case 'mark-notification-read': return markNotificationRead(req, res, userId, tenantId);
         case 'mark-all-notifications-read': return markAllNotificationsRead(res, userId, tenantId);
         case 'acknowledge-disciplinary': return acknowledgeDisciplinary(req, res, userId, tenantId);
@@ -88,7 +126,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error: any) {
-    console.warn('Employee Dashboard API Error: (table may not exist):', (error as any)?.message || error);
+    const msg = String((error as any)?.message || error || '');
+    console.warn('Employee Dashboard API Error: (table may not exist):', msg);
+    if ((error as any)?.code === 'TX_ABORTED' || /aborted|25P02/i.test(msg)) {
+      return res.status(409).json({
+        success: false,
+        error: 'Sesi database terganggu. Muat ulang halaman lalu coba lagi.',
+        code: 'TX_ABORTED',
+      });
+    }
+    // Face / clock validation must never surface as generic Internal Server Error.
+    if (/wajah|face|liveness|selfie|foto pendaftaran|tidak cocok|kamera/i.test(msg)) {
+      return res.status(400).json({
+        success: false,
+        error: /tidak cocok/i.test(msg)
+          ? 'Wajah tidak cocok dengan foto pendaftaran. Ambil ulang dengan wajah menghadap kamera.'
+          : (msg.length < 180 ? msg : 'Verifikasi wajah gagal. Ambil ulang foto.'),
+        code: 'FACE_MISMATCH',
+      });
+    }
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -107,7 +163,13 @@ async function getProfile(res: NextApiResponse, userId: string, tenantId: string
         b.name as branch_name, b.code as branch_code
       FROM users u
       LEFT JOIN employees e ON e.tenant_id = COALESCE(:tenantId::uuid, u.tenant_id)
-        AND (e.user_id = u.id OR e.email = u.email)
+        AND (
+          e.user_id::text = u.id::text
+          OR (
+            e.email IS NOT NULL AND u.email IS NOT NULL
+            AND LOWER(TRIM(e.email)) = LOWER(TRIM(u.email))
+          )
+        )
       LEFT JOIN branches b ON u.assigned_branch_id = b.id OR e.branch_id = b.id
       WHERE u.id = :userId LIMIT 1
     `, { replacements: { userId, tenantId: tenantId || null } });
@@ -119,16 +181,14 @@ async function getProfile(res: NextApiResponse, userId: string, tenantId: string
     const role = String(profile.role || '');
     const isManagerPortal = canAccessManagerPortal(role);
     const isSuperAdmin = isSuperAdminRole(role);
+    let portalConfig = null;
+    try { portalConfig = await getEssPortalConfig(tenantId); } catch { /* */ }
     return res.json({
       success: true,
-      data: { ...profile, isMfAgent, isManagerPortal, isSuperAdmin },
+      data: { ...profile, isMfAgent, isManagerPortal, isSuperAdmin, portalConfig },
     });
   } catch { return res.json({ success: true, data: allowHrMockFallback() ? mockProfile() : null }); }
 }
-
-const employeeAttendanceWhere = `(employee_id IN (
-  SELECT id FROM employees WHERE user_id = :userId OR email = (SELECT email FROM users WHERE id = :userId)
-))`;
 
 // ─── Attendance ───
 async function getAttendance(res: NextApiResponse, userId: string, tenantId: string) {
@@ -442,10 +502,100 @@ async function cancelOvertime(req: NextApiRequest, res: NextApiResponse, userId:
 }
 
 // ─── Clock In/Out ───
+function faceRejectStatus(code?: string): number {
+  if (code === 'FACE_ENROLLMENT_REQUIRED') return 403;
+  return 400;
+}
+
+async function requireFaceForClock(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  userId: string,
+  tenantId: string,
+): Promise<{ photoKey: string; matchScore: number; matchStatus: string; livenessOk: boolean } | null> {
+  try {
+    const { still, motion, motionScore, challenges, method } = req.body || {};
+    const stillDataUrl = String(still || '');
+    const motionDataUrl = motion ? String(motion) : '';
+    const requestedMethod = String(method || '').toLowerCase();
+
+    // Default after enrollment: selfie + face match. Legacy clients may still send liveness frames.
+    const mode: 'selfie' | 'liveness' =
+      requestedMethod === 'face_liveness' || (Boolean(motionDataUrl) && motionDataUrl !== stillDataUrl)
+        ? 'liveness'
+        : 'selfie';
+
+    if (!stillDataUrl) {
+      res.status(400).json({
+        success: false,
+        error: 'Absensi wajib foto wajah dari kamera.',
+        code: 'FACE_PHOTO_REQUIRED',
+      });
+      return null;
+    }
+    if (mode === 'liveness' && (!motionDataUrl || stillDataUrl === motionDataUrl)) {
+      res.status(400).json({
+        success: false,
+        error: 'Absensi liveness wajib dua frame: diam + gerak.',
+        code: 'FACE_LIVENESS_REQUIRED',
+      });
+      return null;
+    }
+    if (!sequelize) {
+      return { photoKey: stillDataUrl, matchScore: 0.5, matchStatus: mode === 'selfie' ? 'matched' : 'liveness_only', livenessOk: mode === 'liveness' };
+    }
+    const emp = await ensurePortalEmployee(sequelize, userId, tenantId || null);
+    if (!emp?.id || !emp.tenantId) {
+      res.status(400).json({ success: false, error: 'Profil karyawan belum tersedia', code: 'PROFILE_REQUIRED' });
+      return null;
+    }
+    const verified = await verifyClockFace({
+      sequelize,
+      tenantId: emp.tenantId,
+      employeeId: emp.id,
+      stillDataUrl,
+      motionDataUrl: motionDataUrl || undefined,
+      motionScore: Number(motionScore),
+      challenges: challenges && typeof challenges === 'object' ? challenges : null,
+      mode,
+    });
+    if (!verified.ok) {
+      res.status(faceRejectStatus(verified.code)).json({
+        success: false,
+        error: verified.error || 'Wajah tidak cocok dengan foto pendaftaran.',
+        code: verified.code || 'FACE_MISMATCH',
+      });
+      return null;
+    }
+    return {
+      photoKey: verified.photoKey,
+      matchScore: verified.matchScore,
+      matchStatus: verified.matchStatus,
+      livenessOk: verified.livenessOk,
+    };
+  } catch (e: any) {
+    const msg = String(e?.message || '');
+    console.warn('requireFaceForClock:', msg);
+    if (!res.headersSent) {
+      res.status(400).json({
+        success: false,
+        error: /entity too large|payload|body/i.test(msg)
+          ? 'Foto terlalu besar. Ambil ulang dengan kamera biasa.'
+          : 'Verifikasi wajah gagal. Ambil ulang foto dengan wajah menghadap kamera.',
+        code: 'FACE_MISMATCH',
+      });
+    }
+    return null;
+  }
+}
+
 async function clockIn(req: NextApiRequest, res: NextApiResponse, userId: string, tenantId: string) {
-  const { latitude, longitude, address, accuracy, photo_base64, method } = req.body || {};
+  const face = await requireFaceForClock(req, res, userId, tenantId);
+  if (!face) return;
+
+  const { latitude, longitude, address, accuracy } = req.body || {};
   const checkInTime = new Date().toTimeString().substring(0, 5);
-  const clockMethod = method === 'photo_mobile' || photo_base64 ? 'photo_mobile' : 'gps_mobile';
+  const clockMethod = face.matchStatus === 'matched' ? 'face_match' : 'face_liveness';
   const locationPayload = (latitude != null && longitude != null)
     ? { lat: Number(latitude), lng: Number(longitude), address: address || null, accuracy: accuracy != null ? Number(accuracy) : null }
     : null;
@@ -464,7 +614,8 @@ async function clockIn(req: NextApiRequest, res: NextApiResponse, userId: string
         method: clockMethod,
         location: locationPayload || { address: 'Kantor Pusat Jakarta', lat: -6.2088, lng: 106.8456 },
         geofence: geofenceMatch,
-        photoSaved: !!photo_base64,
+        photoSaved: true,
+        face: { matchStatus: face.matchStatus, score: face.matchScore, matched: face.matchStatus === 'matched' },
       },
     });
   }
@@ -479,8 +630,9 @@ async function clockIn(req: NextApiRequest, res: NextApiResponse, userId: string
       tenantId,
       locationJson,
       clockMethod,
-      photo_base64 || null,
+      face.photoKey,
       geofenceMatch?.inside ? geofenceMatch.id : null,
+      { matchScore: face.matchScore, livenessOk: face.livenessOk, matchStatus: face.matchStatus },
     );
 
     return res.json({
@@ -490,23 +642,38 @@ async function clockIn(req: NextApiRequest, res: NextApiResponse, userId: string
         method: clockMethod,
         location: locationPayload,
         geofence: geofenceMatch,
-        photoSaved: !!photo_base64,
+        photoSaved: true,
         mapsUrl: locationPayload ? `https://www.google.com/maps?q=${locationPayload.lat},${locationPayload.lng}` : null,
+        face: { matchStatus: face.matchStatus, score: face.matchScore, matched: face.matchStatus === 'matched' },
       },
     });
-  } catch {
-    return res.json({
-      success: true,
-      data: { checkIn: checkInTime, location: locationPayload, geofence: geofenceMatch },
-      message: 'Mock clock-in',
-    });
+  } catch (e: any) {
+    const msg = String(e?.message || '');
+    if ((e as any)?.code === 'TX_ABORTED' || /aborted|25P02/i.test(msg)) {
+      return res.status(409).json({
+        success: false,
+        error: 'Sesi database terganggu. Muat ulang halaman lalu coba absen lagi.',
+        code: 'TX_ABORTED',
+      });
+    }
+    if (/wajah|face|foto|liveness/i.test(msg)) {
+      return res.status(400).json({
+        success: false,
+        error: msg.length < 180 ? msg : 'Verifikasi wajah gagal. Ambil ulang foto.',
+        code: 'FACE_MISMATCH',
+      });
+    }
+    return res.status(500).json({ success: false, error: e?.message || 'Gagal clock in' });
   }
 }
 
 async function clockOut(req: NextApiRequest, res: NextApiResponse, userId: string, tenantId: string) {
-  const { latitude, longitude, address, accuracy, photo_base64, method } = req.body || {};
+  const face = await requireFaceForClock(req, res, userId, tenantId);
+  if (!face) return;
+
+  const { latitude, longitude, address, accuracy } = req.body || {};
   const checkOutTime = new Date().toTimeString().substring(0, 5);
-  const clockMethod = method === 'photo_mobile' || photo_base64 ? 'photo_mobile' : 'gps_mobile';
+  const clockMethod = face.matchStatus === 'matched' ? 'face_match' : 'face_liveness';
   const locationPayload = (latitude != null && longitude != null)
     ? { lat: Number(latitude), lng: Number(longitude), address: address || null, accuracy: accuracy != null ? Number(accuracy) : null }
     : null;
@@ -525,8 +692,9 @@ async function clockOut(req: NextApiRequest, res: NextApiResponse, userId: strin
         method: clockMethod,
         location: locationPayload || { address: 'Kantor Pusat Jakarta', lat: -6.2088, lng: 106.8456 },
         geofence: geofenceMatch,
-        photoSaved: !!photo_base64,
+        photoSaved: true,
         mapsUrl: locationPayload ? `https://www.google.com/maps?q=${locationPayload.lat},${locationPayload.lng}` : null,
+        face: { matchStatus: face.matchStatus, score: face.matchScore, matched: face.matchStatus === 'matched' },
       },
     });
   }
@@ -541,8 +709,9 @@ async function clockOut(req: NextApiRequest, res: NextApiResponse, userId: strin
       tenantId,
       locationJson,
       clockMethod,
-      photo_base64 || null,
+      face.photoKey,
       geofenceMatch?.inside ? geofenceMatch.id : null,
+      { matchScore: face.matchScore, livenessOk: face.livenessOk, matchStatus: face.matchStatus },
     );
 
     return res.json({
@@ -552,15 +721,28 @@ async function clockOut(req: NextApiRequest, res: NextApiResponse, userId: strin
         method: clockMethod,
         location: locationPayload,
         geofence: geofenceMatch,
-        photoSaved: !!photo_base64,
+        photoSaved: true,
         mapsUrl: locationPayload ? `https://www.google.com/maps?q=${locationPayload.lat},${locationPayload.lng}` : null,
+        face: { matchStatus: face.matchStatus, score: face.matchScore, matched: face.matchStatus === 'matched' },
       },
     });
-  } catch {
-    return res.json({
-      success: true,
-      data: { checkOut: checkOutTime, location: locationPayload, geofence: geofenceMatch },
-    });
+  } catch (e: any) {
+    const msg = String(e?.message || '');
+    if ((e as any)?.code === 'TX_ABORTED' || /aborted|25P02/i.test(msg)) {
+      return res.status(409).json({
+        success: false,
+        error: 'Sesi database terganggu. Muat ulang halaman lalu coba absen lagi.',
+        code: 'TX_ABORTED',
+      });
+    }
+    if (/wajah|face|foto|liveness/i.test(msg)) {
+      return res.status(400).json({
+        success: false,
+        error: msg.length < 180 ? msg : 'Verifikasi wajah gagal. Ambil ulang foto.',
+        code: 'FACE_MISMATCH',
+      });
+    }
+    return res.status(500).json({ success: false, error: e?.message || 'Gagal clock out' });
   }
 }
 
@@ -941,6 +1123,8 @@ async function getTravel(res: NextApiResponse, userId: string, tenantId: string)
     return res.json({ success: true, data: allowHrMockFallback() ? mockTravel() : [] });
   }
   try {
+    await ensurePortalSchema(sequelize);
+    await ensureTravelSchema(sequelize);
     const [rows] = await sequelize.query(`
       SELECT tr.* FROM travel_requests tr
       LEFT JOIN employees e ON tr.employee_id = e.id
@@ -951,33 +1135,56 @@ async function getTravel(res: NextApiResponse, userId: string, tenantId: string)
     if (!rows || rows.length === 0) {
       return res.json({ success: true, data: allowHrMockFallback() ? mockTravel() : [] });
     }
-    return res.json({ success: true, data: rows });
+    const ids = (rows as any[]).map((r) => r.id).filter(Boolean);
+    let expenses: any[] = [];
+    if (ids.length) {
+      try {
+        const [ex] = await sequelize.query(`
+          SELECT te.* FROM travel_expenses te
+          WHERE te.travel_request_id IN (:ids)
+          ORDER BY te.expense_date ASC NULLS LAST
+        `, { replacements: { ids } });
+        expenses = ex || [];
+      } catch { expenses = []; }
+    }
+    const data = (rows as any[]).map((row) => {
+      const origin = row.departure_city || '';
+      const plan = parseTravelPlan(row.itinerary, origin);
+      const tripExpenses = expenses.filter((e) => String(e.travel_request_id) === String(row.id));
+      return {
+        ...row,
+        departure_date: row.start_date || row.departure_date,
+        return_date: row.end_date || row.return_date,
+        departure_city: plan.originCity || origin,
+        trip_type: row.trip_type || plan.tripType,
+        itinerary: serializeTravelPlan({ ...plan, originCity: plan.originCity || origin }),
+        expenses: tripExpenses,
+        actual_cost: Number(row.actual_cost) || tripExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0),
+      };
+    });
+    return res.json({ success: true, data });
   } catch {
     return res.json({ success: true, data: allowHrMockFallback() ? mockTravel() : [] });
   }
 }
 
 async function createTravelRequest(req: NextApiRequest, res: NextApiResponse, userId: string, tenantId: string) {
-  const {
-    destination,
-    departureCity,
-    purpose,
-    departureDate,
-    returnDate,
-    transportation,
-    estimatedBudget,
-    // aliases
-    startDate,
-    endDate,
-    estimatedCost,
-  } = req.body || {};
+  const body = req.body || {};
+  const purpose = body.purpose;
+  const storedPlan = hydratePlanFromRequest(body);
+  const tripType = storedPlan.tripType;
+  const span = dateSpan(
+    storedPlan.stops,
+    String(body.departureDate || body.startDate || ''),
+    String(body.returnDate || body.endDate || ''),
+  );
+  const destination = itineraryRoute(storedPlan.originCity, storedPlan.stops, tripType)
+    || String(body.destination || '');
+  const budget = itineraryBudget(storedPlan.stops) || parseFloat(body.estimatedBudget ?? body.estimatedCost) || 0;
+  const cities = storedPlan.stops.filter((s) => s.city);
 
-  const depDate = departureDate || startDate;
-  const retDate = returnDate || endDate;
-  const budget = estimatedBudget ?? estimatedCost;
-
-  if (!destination || !purpose || !depDate || !retDate) {
-    return res.status(400).json({ success: false, error: 'Semua field harus diisi' });
+  if (!purpose || !destination || !span.start || !span.end || cities.length === 0) {
+    return res.status(400).json({ success: false, error: 'Isi tujuan, tanggal, dan minimal satu kota itinerary' });
   }
   if (!sequelize) {
     if (allowHrMockFallback()) {
@@ -987,6 +1194,7 @@ async function createTravelRequest(req: NextApiRequest, res: NextApiResponse, us
   }
   try {
     await ensurePortalSchema(sequelize);
+    await ensureTravelSchema(sequelize);
     const emp = await ensurePortalEmployee(sequelize, userId, tenantId);
     if (!emp?.id) {
       return res.status(400).json({ success: false, error: 'Profil karyawan belum tersedia' });
@@ -997,23 +1205,29 @@ async function createTravelRequest(req: NextApiRequest, res: NextApiResponse, us
       INSERT INTO travel_requests (
         id, employee_id, request_number, destination, departure_city, purpose,
         departure_date, return_date, start_date, end_date,
-        transportation, estimated_budget, status, tenant_id, created_at, updated_at
+        transportation, travel_type, trip_type, itinerary,
+        estimated_budget, advance_amount, status, tenant_id, created_at, updated_at
       ) VALUES (
         uuid_generate_v4(), :employeeId, :reqNum, :destination, :departureCity, :purpose,
         :depDate, :retDate, :depDate, :retDate,
-        :transportation, :budget, 'pending', :tenantId, :now, :now
+        :transportation, :travelType, :tripType, CAST(:itinerary AS jsonb),
+        :budget, :advance, 'pending', :tenantId, :now, :now
       )
     `, {
       replacements: {
         employeeId: emp.id,
         reqNum,
         destination,
-        departureCity: departureCity || 'Jakarta',
+        departureCity: storedPlan.originCity || 'Jakarta',
         purpose,
-        depDate,
-        retDate,
-        transportation: transportation || 'flight',
-        budget: parseFloat(budget) || 0,
+        depDate: span.start,
+        retDate: span.end,
+        transportation: body.transportation || storedPlan.stops[0]?.transportMode || 'flight',
+        travelType: body.travelType || 'domestic',
+        tripType,
+        itinerary: JSON.stringify(storedPlan),
+        budget,
+        advance: parseFloat(body.advanceAmount) || 0,
         tenantId: tenantId || emp.tenantId,
         now,
       },
@@ -1022,6 +1236,80 @@ async function createTravelRequest(req: NextApiRequest, res: NextApiResponse, us
   } catch (e: any) {
     console.warn('createTravelRequest error:', e?.message || e);
     return res.status(500).json({ success: false, error: 'Gagal mengajukan perjalanan', details: e?.message });
+  }
+}
+
+async function createTravelExpense(req: NextApiRequest, res: NextApiResponse, userId: string, tenantId: string) {
+  const body = req.body || {};
+  const travelRequestId = body.travelRequestId || body.travel_request_id;
+  const amount = parseFloat(body.amount);
+  const expenseDate = body.expenseDate || body.expense_date;
+  const description = body.description || '';
+  if (!travelRequestId || !amount || amount <= 0 || !expenseDate) {
+    return res.status(400).json({ success: false, error: 'Pilih perjalanan, tanggal, dan jumlah biaya' });
+  }
+  if (!sequelize) {
+    if (allowHrMockFallback()) return res.json({ success: true, data: { amount, status: 'submitted' } });
+    return res.status(503).json({ success: false, error: 'Database tidak tersedia' });
+  }
+  try {
+    await ensurePortalSchema(sequelize);
+    await ensureTravelSchema(sequelize);
+    const emp = await ensurePortalEmployee(sequelize, userId, tenantId);
+    if (!emp?.id) {
+      return res.status(400).json({ success: false, error: 'Profil karyawan belum tersedia' });
+    }
+    const [owned] = await sequelize.query(`
+      SELECT tr.id, tr.status FROM travel_requests tr
+      WHERE tr.id = :id AND tr.employee_id = :empId
+        ${tenantId ? 'AND tr.tenant_id = :tenantId' : 'AND 1=0'}
+      LIMIT 1
+    `, { replacements: { id: travelRequestId, empId: emp.id, tenantId } });
+    if (!owned?.length) {
+      return res.status(404).json({ success: false, error: 'Pengajuan perjalanan tidak ditemukan' });
+    }
+    const status = String(owned[0].status || '');
+    if (!['approved', 'in_progress', 'completed'].includes(status)) {
+      return res.status(400).json({ success: false, error: 'Klaim biaya hanya setelah perjalanan disetujui' });
+    }
+    const categoryRaw = String(body.category || 'other');
+    const category = COST_TO_EXPENSE[categoryRaw as keyof typeof COST_TO_EXPENSE] || categoryRaw;
+    const now = new Date().toISOString();
+    await sequelize.query(`
+      INSERT INTO travel_expenses (
+        id, tenant_id, travel_request_id, employee_id, expense_date, category,
+        description, amount, itinerary_stop_id, cost_line_id, planned_amount,
+        status, created_at, updated_at
+      ) VALUES (
+        uuid_generate_v4(), :tenantId, :trid, :empId, :expenseDate, :category,
+        :description, :amount, :stopId, :costLineId, :planned,
+        'submitted', :now, :now
+      )
+    `, {
+      replacements: {
+        tenantId: tenantId || emp.tenantId,
+        trid: travelRequestId,
+        empId: emp.id,
+        expenseDate,
+        category,
+        description,
+        amount,
+        stopId: body.itineraryStopId || body.itinerary_stop_id || null,
+        costLineId: body.costLineId || body.cost_line_id || null,
+        planned: parseFloat(body.plannedAmount) || 0,
+        now,
+      },
+    });
+    await sequelize.query(`
+      UPDATE travel_requests SET actual_cost = (
+        SELECT COALESCE(SUM(amount), 0) FROM travel_expenses WHERE travel_request_id = :trid
+      ), updated_at = :now
+      WHERE id = :trid
+    `, { replacements: { trid: travelRequestId, now } }).catch(() => {});
+    return res.json({ success: true, message: 'Klaim biaya perjalanan dikirim' });
+  } catch (e: any) {
+    console.warn('createTravelExpense error:', e?.message || e);
+    return res.status(500).json({ success: false, error: 'Gagal mengirim klaim biaya', details: e?.message });
   }
 }
 
@@ -1155,6 +1443,11 @@ async function getPayslip(req: NextApiRequest, res: NextApiResponse, userId: str
   try {
     const ctx = await resolveEmployeeContext(sequelize, userId, tenantId);
     if (!ctx.employeeId) return res.json({ success: true, data: allowHrMockFallback() ? mockPayslips() : [] });
+
+    const requestedEmp = String(req.query.employeeId || req.body?.employeeId || '').trim();
+    if (requestedEmp && requestedEmp !== String(ctx.employeeId)) {
+      return res.status(403).json({ success: false, error: 'PAYSLIP_FORBIDDEN' });
+    }
 
     const { month } = req.query;
     let where = 'WHERE pi.employee_id = :empId';
@@ -1391,8 +1684,18 @@ function mockClaims() {
 }
 function mockTravel() {
   return [
-    { id: 't1', request_number: 'TRV-2026-024', destination: 'Surabaya', departure_date: '2026-03-18', return_date: '2026-03-20', estimated_budget: 8500000, status: 'approved', purpose: 'Visit cabang & audit' },
-    { id: 't2', request_number: 'TRV-2026-023', destination: 'Bali', departure_date: '2026-03-22', return_date: '2026-03-24', estimated_budget: 12000000, status: 'pending', purpose: 'Meeting supplier' },
+    {
+      id: 't1', request_number: 'TRV-2026-024', destination: 'Jakarta → Surabaya', departure_city: 'Jakarta',
+      departure_date: '2026-03-18', return_date: '2026-03-20', estimated_budget: 8500000, actual_cost: 0,
+      status: 'approved', purpose: 'Visit cabang & audit', trip_type: 'single', expenses: [],
+      itinerary: { tripType: 'single', originCity: 'Jakarta', stops: [{ id: 's1', seq: 1, city: 'Surabaya', arriveDate: '2026-03-18', departDate: '2026-03-20', activity: 'Audit cabang', lodging: '', transportMode: 'flight', costs: [{ id: 'c1', category: 'ticket', label: 'Tiket', estimated: 2500000 }] }] },
+    },
+    {
+      id: 't2', request_number: 'TRV-2026-023', destination: 'Jakarta → Surabaya → Bali → Jakarta', departure_city: 'Jakarta',
+      departure_date: '2026-03-22', return_date: '2026-03-26', estimated_budget: 12000000, actual_cost: 0,
+      status: 'pending', purpose: 'Meeting supplier multi kota', trip_type: 'multi_city', expenses: [],
+      itinerary: { tripType: 'multi_city', originCity: 'Jakarta', stops: [] },
+    },
   ];
 }
 function mockNotifications() {
@@ -1405,3 +1708,5 @@ function mockNotifications() {
 function mockSummary() {
   return { pendingLeave: 1, pendingClaims: 1, pendingTravel: 1 };
 }
+
+export default withEmployeeAuth(handler);

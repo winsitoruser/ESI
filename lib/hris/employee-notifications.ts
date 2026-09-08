@@ -128,7 +128,6 @@ export async function notifyManagersForEmployee(
         FROM users u
         LEFT JOIN employees e ON e.user_id = u.id AND e.tenant_id = COALESCE(:tid::uuid, u.tenant_id)
         WHERE u.role IN ('manager', 'branch_manager', 'super_admin')
-          AND u.is_active = true
           AND (:tid::uuid IS NULL OR u.tenant_id = :tid::uuid)
           AND (e.department = :dept OR u.role = 'super_admin')
         LIMIT 10

@@ -9,7 +9,12 @@ import {
   inferWorkRole,
 } from '../../../lib/hris/employee-genealogy';
 import { ensureEmployeeDocumentsTable } from '../../../lib/hris/ensure-employee-documents-table';
-import { safeQueryWithSavepoint } from '@/lib/saas/tenant-request-bound';
+import {
+  ensureEmployeeProfileTables,
+  sanitizeSubDataPayload,
+} from '../../../lib/hris/ensure-employee-profile-tables';
+import { safeQueryWithSavepoint, withDbSavepoint } from '@/lib/saas/tenant-request-bound';
+import { resolveEffectiveTenantId, lookupRowTenantId } from '@/lib/hris/resolve-employee-tenant';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch (e) {}
@@ -20,6 +25,20 @@ try { sequelize = require('../../../lib/sequelize'); } catch (e) {}
 function getTenantId(req: NextApiRequest): string | null {
   const session = (req as any).session;
   return session?.user?.tenantId || null;
+}
+
+async function effectiveTenantId(
+  req: NextApiRequest,
+  employeeId?: string | number | null,
+  documentId?: string | null,
+): Promise<string | null> {
+  return resolveEffectiveTenantId({
+    sequelize,
+    session: (req as any).session,
+    sessionTenantId: getTenantId(req),
+    employeeId,
+    documentId,
+  });
 }
 
 /**
@@ -74,49 +93,79 @@ async function verifySubDataTenant(
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const tenantId = getTenantId(req);
-
     const { action, employeeId } = req.query;
 
     if (req.method === 'GET') {
-      if (action === 'list') return getEmployeeList(req, res, tenantId);
-      if (action === 'detail' && employeeId) return getEmployeeDetail(req, res, tenantId, String(employeeId));
-      if (action === 'families' && employeeId) return getSubData(req, res, tenantId, 'employee_families', String(employeeId));
-      if (action === 'educations' && employeeId) return getSubData(req, res, tenantId, 'employee_educations', String(employeeId));
-      if (action === 'certifications' && employeeId) return getSubData(req, res, tenantId, 'employee_certifications', String(employeeId));
-      if (action === 'skills' && employeeId) return getSubData(req, res, tenantId, 'employee_skills', String(employeeId));
-      if (action === 'experiences' && employeeId) return getSubData(req, res, tenantId, 'employee_work_experiences', String(employeeId));
-      if (action === 'documents' && employeeId) return getSubData(req, res, tenantId, 'employee_documents', String(employeeId));
-      if (action === 'contracts' && employeeId) return getSubData(req, res, tenantId, 'employee_contracts', String(employeeId));
-      if (action === 'genealogy') return getGenealogy(req, res, tenantId);
-      if (action === 'genealogy-chain' && employeeId) return getGenealogyChain(req, res, tenantId, String(employeeId));
+      if (action === 'list') return getEmployeeList(req, res, await effectiveTenantId(req));
+      if (action === 'detail' && employeeId) {
+        return getEmployeeDetail(req, res, await effectiveTenantId(req, String(employeeId)), String(employeeId));
+      }
+      if (action === 'families' && employeeId) {
+        return getSubData(req, res, await effectiveTenantId(req, String(employeeId)), 'employee_families', String(employeeId));
+      }
+      if (action === 'educations' && employeeId) {
+        return getSubData(req, res, await effectiveTenantId(req, String(employeeId)), 'employee_educations', String(employeeId));
+      }
+      if (action === 'certifications' && employeeId) {
+        return getSubData(req, res, await effectiveTenantId(req, String(employeeId)), 'employee_certifications', String(employeeId));
+      }
+      if (action === 'skills' && employeeId) {
+        return getSubData(req, res, await effectiveTenantId(req, String(employeeId)), 'employee_skills', String(employeeId));
+      }
+      if (action === 'experiences' && employeeId) {
+        return getSubData(req, res, await effectiveTenantId(req, String(employeeId)), 'employee_work_experiences', String(employeeId));
+      }
+      if (action === 'documents' && employeeId) {
+        return getSubData(req, res, await effectiveTenantId(req, String(employeeId)), 'employee_documents', String(employeeId));
+      }
+      if (action === 'contracts' && employeeId) {
+        return getSubData(req, res, await effectiveTenantId(req, String(employeeId)), 'employee_contracts', String(employeeId));
+      }
+      if (action === 'genealogy') return getGenealogy(req, res, await effectiveTenantId(req));
+      if (action === 'genealogy-chain' && employeeId) {
+        return getGenealogyChain(req, res, await effectiveTenantId(req, String(employeeId)), String(employeeId));
+      }
       return res.status(400).json({ error: 'Unknown action' });
     }
 
     if (req.method === 'POST') {
-      if (action === 'create') return createEmployee(req, res, tenantId);
-      if (action === 'delete') return deleteEmployee(req, res, tenantId);
-      if (action === 'family') return upsertSubData(req, res, tenantId, 'employee_families');
-      if (action === 'education') return upsertSubData(req, res, tenantId, 'employee_educations');
-      if (action === 'certification') return upsertSubData(req, res, tenantId, 'employee_certifications');
-      if (action === 'skill') return upsertSubData(req, res, tenantId, 'employee_skills');
-      if (action === 'experience') return upsertSubData(req, res, tenantId, 'employee_work_experiences');
-      if (action === 'document') return upsertSubData(req, res, tenantId, 'employee_documents');
-      if (action === 'contract') return upsertSubData(req, res, tenantId, 'employee_contracts');
-      if (action === 'update-personal') return updatePersonal(req, res, tenantId);
-      if (action === 'update-supervisor') return updateSupervisor(req, res, tenantId);
+      const bodyEmpId = req.body?.employee_id || req.body?.id || null;
+      if (action === 'create') return createEmployee(req, res, await effectiveTenantId(req));
+      if (action === 'delete') {
+        return deleteEmployee(
+          req,
+          res,
+          await effectiveTenantId(req, req.body?.employeeId || req.body?.id),
+        );
+      }
+      if (action === 'family') return upsertSubData(req, res, await effectiveTenantId(req, bodyEmpId), 'employee_families');
+      if (action === 'education') return upsertSubData(req, res, await effectiveTenantId(req, bodyEmpId), 'employee_educations');
+      if (action === 'certification') return upsertSubData(req, res, await effectiveTenantId(req, bodyEmpId), 'employee_certifications');
+      if (action === 'skill') return upsertSubData(req, res, await effectiveTenantId(req, bodyEmpId), 'employee_skills');
+      if (action === 'experience') return upsertSubData(req, res, await effectiveTenantId(req, bodyEmpId), 'employee_work_experiences');
+      if (action === 'document') return upsertSubData(req, res, await effectiveTenantId(req, bodyEmpId), 'employee_documents');
+      if (action === 'contract') return upsertSubData(req, res, await effectiveTenantId(req, bodyEmpId), 'employee_contracts');
+      if (action === 'update-personal') return updatePersonal(req, res, await effectiveTenantId(req, req.body?.id));
+      if (action === 'update-supervisor') return updateSupervisor(req, res, await effectiveTenantId(req, req.body?.employeeId || req.body?.id));
       return res.status(400).json({ error: 'Unknown action' });
     }
 
     if (req.method === 'DELETE') {
-      if (action === 'family') return deleteSubData(req, res, tenantId, 'employee_families');
-      if (action === 'education') return deleteSubData(req, res, tenantId, 'employee_educations');
-      if (action === 'certification') return deleteSubData(req, res, tenantId, 'employee_certifications');
-      if (action === 'skill') return deleteSubData(req, res, tenantId, 'employee_skills');
-      if (action === 'experience') return deleteSubData(req, res, tenantId, 'employee_work_experiences');
-      if (action === 'document') return deleteSubData(req, res, tenantId, 'employee_documents');
-      if (action === 'contract') return deleteSubData(req, res, tenantId, 'employee_contracts');
-      return res.status(400).json({ error: 'Unknown action' });
+      const tableByAction: Record<string, string> = {
+        family: 'employee_families',
+        education: 'employee_educations',
+        certification: 'employee_certifications',
+        skill: 'employee_skills',
+        experience: 'employee_work_experiences',
+        document: 'employee_documents',
+        contract: 'employee_contracts',
+      };
+      const table = tableByAction[String(action || '')];
+      if (!table) return res.status(400).json({ error: 'Unknown action' });
+      const recordId = String(req.body?.id || req.query.id || '');
+      let tid = await effectiveTenantId(req);
+      if (!tid && recordId) tid = await lookupRowTenantId(sequelize, table, recordId);
+      return deleteSubData(req, res, tid, table);
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
@@ -129,6 +178,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 // ===== GET: Employee List =====
 async function getEmployeeList(req: NextApiRequest, res: NextApiResponse, tenantId: string | null) {
   if (!sequelize) return res.json({ success: true, data: [] });
+  await ensureEmployeeProfileTables(sequelize);
   const { search, department, status, page = '1', limit = '20' } = req.query;
   const offset = (parseInt(String(page)) - 1) * parseInt(String(limit));
 
@@ -170,7 +220,7 @@ async function getEmployeeList(req: NextApiRequest, res: NextApiResponse, tenant
   const listSqlWithLoc = `
     SELECT e.id, e.employee_code AS employee_id, e.name, e.email, e.phone AS phone_number,
       e.position, e.department, e.status, e.hire_date AS join_date,
-      NULL::varchar AS contract_type, NULL::date AS contract_end, e.photo_url,
+      e.contract_type, e.contract_end, e.photo_url,
       NULL::varchar AS gender, e.branch_id, b.name AS branch_name,
       jg.code AS grade_code, jg.name AS grade_name, e.job_grade_id, e.salary AS base_salary,
       e.work_location, e.supervisor_id, sup.name AS supervisor_name, e.work_role
@@ -192,22 +242,19 @@ async function getEmployeeList(req: NextApiRequest, res: NextApiResponse, tenant
   const listSqlBasic = listSqlNoGrade
     .replace('e.work_location, e.supervisor_id, sup.name AS supervisor_name, e.work_role', "NULL::varchar AS work_location, NULL::uuid AS supervisor_id, NULL::varchar AS supervisor_name, NULL::varchar AS work_role")
     .replace('LEFT JOIN employees sup ON e.supervisor_id = sup.id\n    ', '');
+  const listSqlNoContract = listSqlWithLoc.replace(
+    'e.contract_type, e.contract_end, e.photo_url,',
+    'NULL::varchar AS contract_type, NULL::date AS contract_end, e.photo_url,',
+  );
 
-  try {
-    const [rows] = await sequelize.query(listSqlWithLoc, { replacements: listReplacements });
-    employees = rows || [];
-  } catch {
-    try {
-      const [rows] = await sequelize.query(listSqlNoGrade, { replacements: listReplacements });
-      employees = rows || [];
-    } catch {
-    try {
-      const [rows] = await sequelize.query(listSqlNoWorkLoc, { replacements: listReplacements });
-      employees = rows || [];
-    } catch {
-      const [rows] = await sequelize.query(listSqlBasic, { replacements: listReplacements });
-      employees = rows || [];
-    }
+  for (const sql of [listSqlWithLoc, listSqlNoContract, listSqlNoGrade, listSqlNoWorkLoc, listSqlBasic]) {
+    const rows = await withDbSavepoint(sequelize, async () => {
+      const [r] = await sequelize.query(sql, { replacements: listReplacements });
+      return Array.isArray(r) ? r : [];
+    }, 'emp_list');
+    if (rows) {
+      employees = rows;
+      break;
     }
   }
 
@@ -331,6 +378,8 @@ async function getEmployeeDetail(req: NextApiRequest, res: NextApiResponse, tena
   if (!sequelize) return res.json({ success: true, data: null });
   if (!tenantId) return res.status(403).json({ success: false, error: 'Tenant required' });
 
+  await ensureEmployeeProfileTables(sequelize);
+
   // 🔒 TENANT ISOLATION: Verify employee belongs to current tenant
   const isAllowed = await verifyEmployeeTenant(empId, tenantId);
   if (!isAllowed) {
@@ -342,13 +391,13 @@ async function getEmployeeDetail(req: NextApiRequest, res: NextApiResponse, tena
       e.position, e.department, e.status, e.hire_date AS join_date, e.photo_url, e.address,
       e.salary AS base_salary, e.bank_name, e.bank_account, e.emergency_contact AS emergency_contact_name,
       e.emergency_phone AS emergency_contact_phone, e.branch_id, b.name AS branch_name,
-      NULL::varchar AS contract_type, NULL::date AS contract_end, NULL::date AS contract_start,
+      e.contract_type, e.contract_end, e.contract_start, e.contract_number,
       jg.code AS grade_code, jg.name AS grade_name, e.job_grade_id,
       os.name AS org_name, e.org_structure_id,
       sup.name AS supervisor_name, e.supervisor_id, e.work_role,
-      NULL::varchar AS gender, NULL::varchar AS national_id,
+      e.gender, e.national_id,
       NULL::varchar AS tax_id, NULL::varchar AS bpjs_kesehatan, NULL::varchar AS bpjs_ketenagakerjaan,
-      e.work_location
+      e.work_location, e.date_of_birth, e.place_of_birth, e.marital_status, e.religion
     FROM employees e
     LEFT JOIN branches b ON e.branch_id = b.id
     LEFT JOIN employees sup ON e.supervisor_id = sup.id
@@ -361,7 +410,9 @@ async function getEmployeeDetail(req: NextApiRequest, res: NextApiResponse, tena
     .replace('os.name AS org_name, e.org_structure_id,', 'NULL::varchar AS org_name, NULL::uuid AS org_structure_id,')
     .replace('LEFT JOIN job_grades jg ON e.job_grade_id = jg.id\n    ', '')
     .replace('LEFT JOIN org_structures os ON e.org_structure_id = os.id\n    ', '')
-    .replace('e.work_location', 'NULL::varchar AS work_location');
+    .replace('e.work_location, e.date_of_birth, e.place_of_birth, e.marital_status, e.religion',
+      'NULL::varchar AS work_location, NULL::date AS date_of_birth, NULL::varchar AS place_of_birth, NULL::varchar AS marital_status, NULL::varchar AS religion')
+    .replace('e.gender, e.national_id,', 'NULL::varchar AS gender, NULL::varchar AS national_id,');
 
   let employees: any[];
   {
@@ -497,72 +548,113 @@ async function upsertSubData(
     'employee_skills', 'employee_work_experiences', 'employee_documents', 'employee_contracts'
   ];
   if (!allowed.includes(table)) {
-    return res.status(400).json({ error: 'Invalid table' });
+    return res.status(400).json({ success: false, error: 'Invalid table' });
   }
 
-  const data = req.body;
+  await ensureEmployeeProfileTables(sequelize);
+  if (table === 'employee_documents') {
+    await ensureEmployeeDocumentsTable(sequelize);
+  }
 
-  if (!data.employee_id) {
-    return res.status(400).json({ error: 'employee_id required' });
+  const body = req.body || {};
+  const id = body.id || null;
+  const employeeId = body.employee_id;
+
+  if (!employeeId) {
+    return res.status(400).json({ success: false, error: 'employee_id required' });
   }
 
   // 🔒 TENANT ISOLATION: Verify employee belongs to tenant
-  const isEmployeeAllowed = await verifyEmployeeTenant(String(data.employee_id), tenantId);
+  const isEmployeeAllowed = await verifyEmployeeTenant(String(employeeId), tenantId);
   if (!isEmployeeAllowed) {
     return res.status(404).json({ success: false, error: 'Employee not found' });
   }
 
-  // Build columns and values from data
-  const id = data.id;
-  delete data.created_at;
-  delete data.updated_at;
-  delete data.tenant_id; // Never accept tenant_id from user input
+  // Never accept tenant_id / timestamps from client; whitelist columns + sanitize types
+  const data = sanitizeSubDataPayload(table, { ...body, employee_id: employeeId });
+  delete data.tenant_id;
+  delete (data as any).id;
 
-  if (id) {
-    // 🔒 UPDATE: Verify record belongs to tenant first
-    const isRecordAllowed = await verifySubDataTenant(table, String(id), tenantId);
-    if (!isRecordAllowed) {
-      return res.status(404).json({ success: false, error: 'Record not found' });
+  // Required fields per table
+  const requiredByTable: Record<string, string[]> = {
+    employee_families: ['name', 'relationship'],
+    employee_educations: ['level', 'institution'],
+    employee_certifications: ['name'],
+    employee_skills: ['name'],
+    employee_work_experiences: ['company_name', 'position'],
+    employee_contracts: ['contract_type', 'start_date'],
+    employee_documents: ['document_type', 'title'],
+  };
+  for (const key of requiredByTable[table] || []) {
+    if (data[key] == null || data[key] === '') {
+      return res.status(400).json({ success: false, error: `Field wajib: ${key}` });
+    }
+  }
+
+  if (table === 'employee_contracts' && !data.status) {
+    data.status = 'active';
+  }
+
+  try {
+    if (id) {
+      // 🔒 UPDATE: Verify record belongs to tenant first
+      const isRecordAllowed = await verifySubDataTenant(table, String(id), tenantId);
+      if (!isRecordAllowed) {
+        return res.status(404).json({ success: false, error: 'Record not found' });
+      }
+
+      const setClauses: string[] = [];
+      const replacements: any = { id };
+      Object.keys(data).forEach((key) => {
+        if (key === 'employee_id') return; // do not re-parent via update
+        setClauses.push(`${key} = :${key}`);
+        replacements[key] = data[key];
+      });
+      if (setClauses.length === 0) {
+        return res.status(400).json({ success: false, error: 'No fields to update' });
+      }
+      setClauses.push('updated_at = NOW()');
+
+      const whereClause = tenantId
+        ? `WHERE id = :id AND tenant_id = :tenantId`
+        : `WHERE id = :id`;
+      if (tenantId) replacements.tenantId = tenantId;
+
+      await sequelize.query(
+        `UPDATE ${table} SET ${setClauses.join(', ')} ${whereClause}`,
+        { replacements },
+      );
+      return res.json({ success: true, message: 'Updated' });
     }
 
-    // Update
-    const setClauses: string[] = [];
-    const replacements: any = { id };
-    Object.keys(data).forEach(key => {
-      if (key === 'id') return;
-      setClauses.push(`${key} = :${key}`);
-      replacements[key] = data[key];
-    });
-    setClauses.push('updated_at = NOW()');
-
-    // 🔒 Add tenant check to WHERE clause for extra safety
-    const whereClause = tenantId
-      ? `WHERE id = :id AND tenant_id = :tenantId`
-      : `WHERE id = :id`;
-    if (tenantId) {
-      replacements.tenantId = tenantId;
-    }
-
-    // Table name is whitelisted, safe
-    await sequelize.query(
-      `UPDATE ${table} SET ${setClauses.join(', ')} ${whereClause}`,
-      { replacements }
-    );
-    return res.json({ success: true, message: 'Updated' });
-  } else {
     // INSERT
     data.tenant_id = tenantId; // 🔒 Set tenant from session, not user input
+    if (!tenantId) {
+      return res.status(403).json({ success: false, error: 'Tenant required' });
+    }
     const cols = Object.keys(data);
-    const vals = cols.map(c => `:${c}`);
+    const vals = cols.map((c) => `:${c}`);
     const replacements: any = {};
-    cols.forEach(c => { replacements[c] = data[c]; });
+    cols.forEach((c) => { replacements[c] = data[c]; });
 
-    // Table name is whitelisted, safe
     const [result] = await sequelize.query(
       `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${vals.join(', ')}) RETURNING *`,
-      { replacements }
+      { replacements },
     );
     return res.json({ success: true, data: result[0] || result, message: 'Created' });
+  } catch (e: any) {
+    const msg = String(e?.parent?.detail || e?.parent?.message || e?.message || 'Gagal menyimpan');
+    console.warn(`upsertSubData ${table}:`, msg);
+    if (/does not exist|relation .* does not exist/i.test(msg)) {
+      return res.status(500).json({
+        success: false,
+        error: 'Tabel data karyawan belum siap. Coba lagi atau hubungi admin.',
+      });
+    }
+    if (/invalid input syntax|date|numeric|integer/i.test(msg)) {
+      return res.status(400).json({ success: false, error: 'Format data tidak valid. Periksa tanggal/angka.' });
+    }
+    return res.status(500).json({ success: false, error: 'Gagal menyimpan data' });
   }
 }
 
@@ -703,12 +795,14 @@ async function createEmployee(
     const insertWithLocation = `
       INSERT INTO employees (
         employee_code, name, email, phone, position, department, work_location, branch_id,
-        hire_date, status, tenant_id, is_active, employment_category, created_at, updated_at
+        hire_date, status, tenant_id, is_active, employment_category,
+        gender, national_id, created_at, updated_at
       ) VALUES (
         :employee_code, :name, :email, :phone_number, :position, :department,
         COALESCE(:work_location, 'ADMIN_OFFICE'), :branch_id,
         COALESCE(:join_date::date, CURRENT_DATE), 'ACTIVE', :tenantId, true,
-        COALESCE(:employment_category, 'permanent'), NOW(), NOW()
+        COALESCE(:employment_category, 'permanent'),
+        :gender, :national_id, NOW(), NOW()
       )
       RETURNING id, employee_code AS employee_id, name, email, phone AS phone_number,
         position, department, work_location, branch_id, hire_date AS join_date, status
@@ -725,12 +819,23 @@ async function createEmployee(
         position, department, branch_id, hire_date AS join_date, status
     `;
 
+    await ensureEmployeeProfileTables(sequelize);
+
+    const genderIn = String(req.body.gender || '').trim().toLowerCase();
+    const genderNorm =
+      genderIn === 'female' || genderIn === 'f' || genderIn === 'perempuan' || genderIn === 'wanita'
+        ? 'FEMALE'
+        : genderIn === 'male' || genderIn === 'm' || genderIn === 'laki-laki' || genderIn === 'pria'
+          ? 'MALE'
+          : null;
+
     const replacements = {
       employee_code, name, email: emailNorm, phone_number: phone_number || null,
       position, department, join_date: joinDateClean, tenantId,
       work_location: work_location || 'ADMIN_OFFICE',
       branch_id: resolvedBranchId,
       national_id: national_id || nik || null,
+      gender: genderNorm,
       employment_category: employment_category || (contract_type === 'FREELANCE' ? 'daily_casual' : 'permanent'),
     };
 
@@ -817,9 +922,12 @@ async function updatePersonal(
 ) {
   if (!sequelize) return res.json({ success: true });
 
+  await ensureEmployeeProfileTables(sequelize);
+
   const data = req.body;
+  if (!data.id && data.employeeId) data.id = data.employeeId;
   if (!data.id) {
-    return res.status(400).json({ error: 'Employee id required' });
+    return res.status(400).json({ success: false, error: 'Employee id required' });
   }
 
   // 🔒 TENANT ISOLATION: Verify employee belongs to tenant
@@ -829,11 +937,13 @@ async function updatePersonal(
   }
 
   const fieldMap: Record<string, string> = {
-    name: 'name', email: 'email', phone_number: 'phone', address: 'address',
+    name: 'name', email: 'email', phone_number: 'phone', phone: 'phone', address: 'address',
     position: 'position', department: 'department', photo_url: 'photo_url',
     work_location: 'work_location', branch_id: 'branch_id',
     job_grade_id: 'job_grade_id', org_structure_id: 'org_structure_id',
-    national_id: 'national_id', nik: 'national_id',
+    national_id: 'national_id', nik: 'national_id', gender: 'gender',
+    date_of_birth: 'date_of_birth', place_of_birth: 'place_of_birth',
+    marital_status: 'marital_status', religion: 'religion',
     emergency_contact_name: 'emergency_contact', emergency_contact_phone: 'emergency_phone',
     supervisor_id: 'supervisor_id', work_role: 'work_role',
   };
@@ -843,8 +953,13 @@ async function updatePersonal(
 
   Object.entries(fieldMap).forEach(([formField, dbCol]) => {
     if (data[formField] !== undefined) {
+      let v = data[formField] === '' ? null : data[formField];
+      if (formField === 'date_of_birth' && typeof v === 'string') {
+        const m = v.match(/^(\d{4}-\d{2}-\d{2})/);
+        v = m ? m[1] : null;
+      }
       setClauses.push(`${dbCol} = :${formField}`);
-      replacements[formField] = data[formField] === '' ? null : data[formField];
+      replacements[formField] = v;
     }
   });
 
@@ -862,11 +977,10 @@ async function updatePersonal(
   }
 
   if (setClauses.length === 0) {
-    return res.status(400).json({ error: 'No fields to update' });
+    return res.status(400).json({ success: false, error: 'No fields to update' });
   }
   setClauses.push('updated_at = NOW()');
 
-  // 🔒 Add tenant check to WHERE clause for extra safety
   const whereClause = tenantId
     ? `WHERE id = :id AND tenant_id = :tenantId`
     : `WHERE id = :id`;
@@ -874,11 +988,17 @@ async function updatePersonal(
     replacements.tenantId = tenantId;
   }
 
-  await sequelize.query(
-    `UPDATE employees SET ${setClauses.join(', ')} ${whereClause}`,
-    { replacements }
-  );
-  return res.json({ success: true, message: 'Updated' });
+  try {
+    await sequelize.query(
+      `UPDATE employees SET ${setClauses.join(', ')} ${whereClause}`,
+      { replacements }
+    );
+    return res.json({ success: true, message: 'Updated' });
+  } catch (e: any) {
+    const msg = String(e?.parent?.message || e?.message || '');
+    console.warn('updatePersonal:', msg);
+    return res.status(500).json({ success: false, error: 'Gagal menyimpan data pribadi' });
+  }
 }
 
 // 🔒 Wrap handler with HQ Auth middleware - requires HRIS module

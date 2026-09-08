@@ -2,7 +2,13 @@
  * Sync employee contract documents ↔ employee_contracts for unified history.
  * When HR uploads KONTRAK_KERJA / PKWT / PKWTT, upsert matching row in
  * employee_contracts (and optionally mirror snapshot fields on employees).
+ *
+ * All optional / schema-flexible queries run inside SAVEPOINT so a missing
+ * column cannot abort the request-bound RLS transaction (which would roll
+ * back the document INSERT while the API still returns success).
  */
+import { safeQueryWithSavepoint, withDbSavepoint } from '../saas/tenant-request-bound';
+
 export const CONTRACT_DOCUMENT_TYPES = new Set(['KONTRAK_KERJA', 'PKWT', 'PKWTT']);
 
 function asUuidOrNull(value?: string | null): string | null {
@@ -25,6 +31,17 @@ export function isContractDocumentType(documentType: string | null | undefined):
   return CONTRACT_DOCUMENT_TYPES.has(String(documentType || '').toUpperCase());
 }
 
+/** Lean prod `employees` historically lacked these — add without aborting the request TX. */
+export async function ensureEmployeeContractSnapshotColumns(sequelize: any): Promise<void> {
+  if (!sequelize) return;
+  await withDbSavepoint(sequelize, async () => {
+    await sequelize.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS contract_type VARCHAR(20)`);
+    await sequelize.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS contract_start DATE`);
+    await sequelize.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS contract_end DATE`);
+    await sequelize.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS contract_number VARCHAR(100)`);
+  }, 'emp_contract_cols');
+}
+
 async function mirrorEmployeeContractSnapshot(
   sequelize: any,
   employeeId: string | number,
@@ -35,7 +52,8 @@ async function mirrorEmployeeContractSnapshot(
     contractType?: string | null;
   },
 ) {
-  try {
+  await ensureEmployeeContractSnapshotColumns(sequelize);
+  await withDbSavepoint(sequelize, async () => {
     await sequelize.query(
       `UPDATE employees SET
          contract_number = COALESCE(:contractNumber, contract_number),
@@ -54,9 +72,7 @@ async function mirrorEmployeeContractSnapshot(
         },
       },
     );
-  } catch {
-    /* snapshot columns optional on some schemas */
-  }
+  }, 'emp_contract_snap');
 }
 
 export async function syncContractFromDocument(opts: {
@@ -88,68 +104,72 @@ export async function syncContractFromDocument(opts: {
     : 'Disinkron dari upload dokumen kontrak';
 
   try {
-    let emp: any = null;
-    try {
-      const [rows]: any = await sequelize.query(
-        `SELECT id, position, department, contract_type, branch_id
-         FROM employees WHERE id = :employeeId ${tenantId ? 'AND tenant_id = :tenantId' : ''} LIMIT 1`,
-        { replacements: { employeeId, tenantId } },
+    await ensureEmployeeContractSnapshotColumns(sequelize);
+
+    let empRows = await safeQueryWithSavepoint(
+      sequelize,
+      `SELECT id, position, department, contract_type, branch_id
+       FROM employees WHERE id = :employeeId ${tenantId ? 'AND tenant_id = :tenantId' : ''} LIMIT 1`,
+      { employeeId, tenantId },
+      'emp_for_contract',
+    );
+    if (!empRows.length) {
+      empRows = await safeQueryWithSavepoint(
+        sequelize,
+        `SELECT id, position, department, branch_id FROM employees WHERE id = :employeeId LIMIT 1`,
+        { employeeId },
+        'emp_for_contract_lean',
       );
-      emp = rows?.[0] || null;
-    } catch {
-      try {
-        const [rows]: any = await sequelize.query(
-          `SELECT id, position, department, branch_id FROM employees WHERE id = :employeeId LIMIT 1`,
-          { replacements: { employeeId } },
-        );
-        emp = rows?.[0] || null;
-      } catch {
-        emp = null;
-      }
     }
+    const emp = empRows[0] || null;
 
     const contractType = mapDocTypeToContractType(docType, emp?.contract_type);
     const position = emp?.position || null;
     const department = emp?.department || null;
     const branchId = emp?.branch_id || null;
 
-    let existing: any = null;
-    try {
-      const [byDoc]: any = await sequelize.query(
-        `SELECT id FROM employee_contracts
-         WHERE document_id = :documentId ${tenantId ? 'AND tenant_id = :tenantId' : ''} LIMIT 1`,
-        { replacements: { documentId, tenantId } },
-      );
-      existing = byDoc?.[0] || null;
-    } catch {
-      /* document_id column may be missing */
-    }
+    let existing = (await safeQueryWithSavepoint(
+      sequelize,
+      `SELECT id FROM employee_contracts
+       WHERE document_id = :documentId ${tenantId ? 'AND tenant_id = :tenantId' : ''} LIMIT 1`,
+      { documentId, tenantId },
+      'contract_by_doc',
+    ))[0] || null;
 
     if (!existing && documentNumber) {
-      const [byNum]: any = await sequelize.query(
+      existing = (await safeQueryWithSavepoint(
+        sequelize,
         `SELECT id FROM employee_contracts
          WHERE employee_id = :employeeId AND contract_number = :documentNumber
            ${tenantId ? 'AND tenant_id = :tenantId' : ''}
          ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, created_at DESC
          LIMIT 1`,
-        { replacements: { employeeId, documentNumber, tenantId } },
-      );
-      existing = byNum?.[0] || null;
+        { employeeId, documentNumber, tenantId },
+        'contract_by_num',
+      ))[0] || null;
     }
 
     if (!existing) {
-      const [byActive]: any = await sequelize.query(
+      existing = (await safeQueryWithSavepoint(
+        sequelize,
         `SELECT id FROM employee_contracts
          WHERE employee_id = :employeeId AND status = 'active' AND contract_type = :contractType
            ${tenantId ? 'AND tenant_id = :tenantId' : ''}
          ORDER BY created_at DESC LIMIT 1`,
-        { replacements: { employeeId, contractType, tenantId } },
-      );
-      existing = byActive?.[0] || null;
+        { employeeId, contractType, tenantId },
+        'contract_by_active',
+      ))[0] || null;
     }
 
+    const snap = {
+      contractNumber: documentNumber,
+      startDate,
+      endDate,
+      contractType,
+    };
+
     if (existing?.id) {
-      try {
+      const withDoc = await withDbSavepoint(sequelize, async () => {
         await sequelize.query(
           `UPDATE employee_contracts SET
              contract_number = COALESCE(:documentNumber, contract_number),
@@ -176,54 +196,65 @@ export async function syncContractFromDocument(opts: {
             },
           },
         );
-      } catch {
-        await sequelize.query(
-          `UPDATE employee_contracts SET
-             contract_number = COALESCE(:documentNumber, contract_number),
-             start_date = :startDate,
-             end_date = :endDate,
-             contract_type = :contractType,
-             position = COALESCE(:position, position),
-             department = COALESCE(:department, department),
-             updated_at = NOW()
-           WHERE id = :id`,
-          {
-            replacements: {
-              id: existing.id,
-              documentNumber,
-              startDate,
-              endDate,
-              contractType,
-              position,
-              department,
+        return true;
+      }, 'contract_upd');
+      if (!withDoc) {
+        await withDbSavepoint(sequelize, async () => {
+          await sequelize.query(
+            `UPDATE employee_contracts SET
+               contract_number = COALESCE(:documentNumber, contract_number),
+               start_date = :startDate,
+               end_date = :endDate,
+               contract_type = :contractType,
+               position = COALESCE(:position, position),
+               department = COALESCE(:department, department),
+               updated_at = NOW()
+             WHERE id = :id`,
+            {
+              replacements: {
+                id: existing.id,
+                documentNumber,
+                startDate,
+                endDate,
+                contractType,
+                position,
+                department,
+              },
             },
-          },
-        );
+          );
+        }, 'contract_upd_nodoc');
       }
-      await mirrorEmployeeContractSnapshot(sequelize, employeeId, {
-        contractNumber: documentNumber,
-        startDate,
-        endDate,
-        contractType,
-      });
+      await mirrorEmployeeContractSnapshot(sequelize, employeeId, snap);
       return { action: 'updated', contractId: String(existing.id) };
     }
 
     if (documentNumber) {
-      try {
+      await withDbSavepoint(sequelize, async () => {
         await sequelize.query(
           `UPDATE employee_contracts SET status = 'renewed', updated_at = NOW()
            WHERE employee_id = :employeeId AND status = 'active'
              ${tenantId ? 'AND tenant_id = :tenantId' : ''}`,
           { replacements: { employeeId, tenantId } },
         );
-      } catch {
-        /* ignore */
-      }
+      }, 'contract_renew_mark');
     }
 
-    let created: any = null;
-    try {
+    const insertReplacements = {
+      tenantId: asUuidOrNull(tenantId),
+      employeeId,
+      contractType,
+      documentNumber,
+      startDate,
+      endDate,
+      position,
+      department,
+      branchId: asUuidOrNull(branchId),
+      documentId,
+      notes,
+      createdBy: asUuidOrNull(createdBy),
+    };
+
+    let created = await withDbSavepoint(sequelize, async () => {
       const [ins]: any = await sequelize.query(
         `INSERT INTO employee_contracts (
            id, tenant_id, employee_id, contract_type, contract_number,
@@ -234,63 +265,32 @@ export async function syncContractFromDocument(opts: {
            :startDate, :endDate, 'active', :position, :department, :branchId,
            :documentId, :notes, :createdBy, NOW(), NOW()
          ) RETURNING id`,
-        {
-          replacements: {
-            tenantId: asUuidOrNull(tenantId),
-            employeeId,
-            contractType,
-            documentNumber,
-            startDate,
-            endDate,
-            position,
-            department,
-            branchId: asUuidOrNull(branchId),
-            documentId,
-            notes,
-            createdBy: asUuidOrNull(createdBy),
-          },
-        },
+        { replacements: insertReplacements },
       );
-      created = ins?.[0] || null;
-    } catch {
-      const [ins]: any = await sequelize.query(
-        `INSERT INTO employee_contracts (
-           id, tenant_id, employee_id, contract_type, contract_number,
-           start_date, end_date, status, position, department, branch_id,
-           notes, created_by, created_at, updated_at
-         ) VALUES (
-           uuid_generate_v4(), :tenantId, :employeeId, :contractType, :documentNumber,
-           :startDate, :endDate, 'active', :position, :department, :branchId,
-           :notes, :createdBy, NOW(), NOW()
-         ) RETURNING id`,
-        {
-          replacements: {
-            tenantId: asUuidOrNull(tenantId),
-            employeeId,
-            contractType,
-            documentNumber,
-            startDate,
-            endDate,
-            position,
-            department,
-            branchId: asUuidOrNull(branchId),
-            notes,
-            createdBy: asUuidOrNull(createdBy),
-          },
-        },
-      );
-      created = ins?.[0] || null;
+      return ins?.[0] || null;
+    }, 'contract_ins');
+
+    if (!created?.id) {
+      created = await withDbSavepoint(sequelize, async () => {
+        const [ins]: any = await sequelize.query(
+          `INSERT INTO employee_contracts (
+             id, tenant_id, employee_id, contract_type, contract_number,
+             start_date, end_date, status, position, department, branch_id,
+             notes, created_by, created_at, updated_at
+           ) VALUES (
+             uuid_generate_v4(), :tenantId, :employeeId, :contractType, :documentNumber,
+             :startDate, :endDate, 'active', :position, :department, :branchId,
+             :notes, :createdBy, NOW(), NOW()
+           ) RETURNING id`,
+          { replacements: insertReplacements },
+        );
+        return ins?.[0] || null;
+      }, 'contract_ins_nodoc');
     }
 
     if (!created?.id) return { action: 'skipped' };
 
-    await mirrorEmployeeContractSnapshot(sequelize, employeeId, {
-      contractNumber: documentNumber,
-      startDate,
-      endDate,
-      contractType,
-    });
-
+    await mirrorEmployeeContractSnapshot(sequelize, employeeId, snap);
     return { action: 'created', contractId: String(created.id) };
   } catch (e: any) {
     console.warn('[contract-document-sync]', e?.message || e);

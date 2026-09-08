@@ -2,6 +2,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import HumanifyLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
+import HRStatCard from '@/components/humanify/HRStatCard';
+import { PlatformAccessShell } from '@/components/humanify/PlatformAccessNav';
+import { OpsKpiShell } from '@/components/humanify/OpsPageChrome';
+import { EnterpriseTabBar } from '@/components/humanify/PerformanceModuleChrome';
 import Modal, { ConfirmDialog } from '../../../components/hq/ui/Modal';
 import { StatusBadge } from '../../../components/hq/ui/Badge';
 import {
@@ -464,78 +468,75 @@ export default function UserRoles() {
   // =======================================
   return (
     <HumanifyLayout title="Manajemen Role & Privilege" subtitle="Kelola hak akses modul, aksi, dan cakupan data pengguna">
-      <div className="space-y-6">
-        <div className="flex justify-end">
-          <DataSourceBadge source={dataSource} />
-        </div>
-        {/* STATS */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <StatCard icon={Shield} color="blue" value={stats.total} label="Total Role" />
-          <StatCard icon={Lock} color="purple" value={stats.system} label="Role Sistem" />
-          <StatCard icon={Settings} color="green" value={stats.custom} label="Role Custom" />
-          <StatCard icon={Users} color="orange" value={stats.totalUsers} label="Total User" />
-          <StatCard icon={Key} color="rose" value={stats.totalPermissions} label="Total Permission" />
+      <PlatformAccessShell
+          current="roles"
+          title="Role & Privilege"
+          subtitle="Kelola hak akses modul, aksi, dan cakupan data pengguna secara enterprise"
+          icon={Shield}
+          score={stats.total > 0 ? Math.min(100, Math.round((stats.custom / Math.max(stats.total, 1)) * 100 + 40)) : 40}
+          scoreLabel="Coverage"
+          chips={[
+            { icon: Lock, label: `${stats.system} role sistem`, tone: 'text-[color:var(--hf-brand-600)]' },
+            { icon: Settings, label: `${stats.custom} custom`, tone: 'text-emerald-700' },
+            { icon: Users, label: `${stats.totalUsers} user`, tone: 'text-amber-700' },
+            { icon: Key, label: `${stats.totalPermissions} permission`, tone: 'text-[color:var(--hf-ink-muted)]' },
+          ]}
+          actions={<DataSourceBadge source={dataSource} />}
+        >
+
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+          <OpsKpiShell><HRStatCard icon={Shield} accent="blue" value={stats.total} label="Total Role" /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard icon={Lock} accent="violet" value={stats.system} label="Role Sistem" /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard icon={Settings} accent="emerald" value={stats.custom} label="Role Custom" /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard icon={Users} accent="orange" value={stats.totalUsers} label="Total User" /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard icon={Key} accent="rose" value={stats.totalPermissions} label="Total Permission" /></OpsKpiShell>
         </div>
 
-        {/* TABS */}
-        <div className="flex items-center gap-1 border-b border-gray-200">
-          {[
-            { key: 'list' as TabKey, label: 'Daftar Role', icon: Shield },
-            { key: 'matrix' as TabKey, label: 'Access Matrix', icon: Layers },
-            { key: 'templates' as TabKey, label: 'Template Role', icon: Sparkles },
-            { key: 'users' as TabKey, label: 'Users per Role', icon: Users },
-            { key: 'audit' as TabKey, label: 'Audit Trail', icon: History }
-          ].map(t => {
-            const Icon = t.icon;
-            const active = tab === t.key;
-            return (
-              <button
-                key={t.key}
-                onClick={() => {
-                  setTab(t.key);
-                  if (t.key === 'audit') fetchAudit(auditFilter);
-                  if (t.key === 'users') { fetchRoleGroups(); setSelectedGroupRoleId(null); setGroupUsers([]); }
-                }}
-                className={`flex items-center gap-2 px-4 py-2 border-b-2 text-sm font-medium transition ${
-                  active ? 'border-[var(--hf-brand-600)] text-[color:var(--hf-brand-600)]' : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                {t.label}
-              </button>
-            );
-          })}
-        </div>
+        <EnterpriseTabBar
+          tabs={[
+            { key: 'list', label: 'Daftar Role', icon: Shield },
+            { key: 'matrix', label: 'Access Matrix', icon: Layers },
+            { key: 'templates', label: 'Template Role', icon: Sparkles },
+            { key: 'users', label: 'Users per Role', icon: Users },
+            { key: 'audit', label: 'Audit Trail', icon: History },
+          ]}
+          active={tab}
+          onChange={(key) => {
+            setTab(key);
+            if (key === 'audit') fetchAudit(auditFilter);
+            if (key === 'users') { fetchRoleGroups(); setSelectedGroupRoleId(null); setGroupUsers([]); }
+          }}
+        />
 
         {/* =================== TAB: LIST =================== */}
         {tab === 'list' && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-            <div className="p-4 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3">
+          <div className="hf-card overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--hf-border)] p-4">
               <div className="flex flex-wrap items-center gap-2">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--hf-ink-faint)]" />
                   <input
                     type="text"
                     placeholder="Cari role..."
                     value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-64 text-sm focus:ring-2 focus:ring-[var(--hf-brand-500)]"
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="hf-input w-64 pl-10"
                   />
                 </div>
                 <select
                   value={filterLevel}
-                  onChange={e => setFilterLevel(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  onChange={(e) => setFilterLevel(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
+                  className="hf-input"
                 >
                   <option value="all">Semua Level</option>
-                  {ROLE_LEVELS.map(l => (
+                  {ROLE_LEVELS.map((l) => (
                     <option key={l.level} value={l.level}>Level {l.level} · {l.label}</option>
                   ))}
                 </select>
                 <select
                   value={filterType}
-                  onChange={e => setFilterType(e.target.value as any)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  onChange={(e) => setFilterType(e.target.value as any)}
+                  className="hf-input"
                 >
                   <option value="all">Semua Tipe</option>
                   <option value="system">Sistem</option>
@@ -544,18 +545,20 @@ export default function UserRoles() {
               </div>
               <div className="flex items-center gap-2">
                 <button
+                  type="button"
                   onClick={fetchRoles}
                   disabled={loading}
-                  className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+                  className="hf-btn-secondary inline-flex items-center gap-2"
                 >
-                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                   Refresh
                 </button>
                 <button
+                  type="button"
                   onClick={openCreate}
-                  className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]"
+                  className="hf-btn-primary inline-flex items-center gap-2"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="h-4 w-4" />
                   Tambah Role
                 </button>
               </div>
@@ -694,7 +697,7 @@ export default function UserRoles() {
         {tab === 'users' && (
           <div className="grid grid-cols-12 gap-4">
             {/* Sidebar: groups */}
-            <div className="col-span-12 md:col-span-4 lg:col-span-3 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="col-span-12 md:col-span-4 lg:col-span-3 hf-card border-gray-200 overflow-hidden">
               <div className="p-3 border-b border-gray-200 flex items-center justify-between">
                 <h4 className="font-semibold text-gray-800 text-sm flex items-center gap-2">
                   <Users className="w-4 h-4" /> Role Groups
@@ -746,7 +749,7 @@ export default function UserRoles() {
             </div>
 
             {/* Detail: user list + bulk action */}
-            <div className="col-span-12 md:col-span-8 lg:col-span-9 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="col-span-12 md:col-span-8 lg:col-span-9 hf-card border-gray-200 overflow-hidden">
               {!selectedGroupRoleId ? (
                 <div className="flex flex-col items-center justify-center py-20 text-gray-400">
                   <Users className="w-14 h-14 text-gray-200 mb-3" />
@@ -897,7 +900,7 @@ export default function UserRoles() {
 
         {/* =================== TAB: AUDIT TRAIL =================== */}
         {tab === 'audit' && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+          <div className="hf-card border-gray-200">
             <div className="p-4 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-[var(--hf-brand-100)] rounded-lg">
@@ -1060,7 +1063,7 @@ export default function UserRoles() {
           confirmText="Hapus"
           variant="danger"
         />
-      </div>
+      </PlatformAccessShell>
     </HumanifyLayout>
   );
 }
@@ -1068,29 +1071,6 @@ export default function UserRoles() {
 // ========================================================================
 // Sub-components
 // ========================================================================
-
-function StatCard({ icon: Icon, color, value, label }: { icon: any; color: string; value: number; label: string }) {
-  const colorMap: Record<string, string> = {
-    blue: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand-600)]',
-    purple: 'bg-purple-100 text-purple-600',
-    green: 'bg-green-100 text-green-600',
-    orange: 'bg-orange-100 text-orange-600',
-    rose: 'bg-rose-100 text-rose-600'
-  };
-  return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-      <div className="flex items-center gap-3">
-        <div className={`p-2 rounded-lg ${colorMap[color] || colorMap.blue}`}>
-          <Icon className="w-5 h-5" />
-        </div>
-        <div>
-          <p className="text-2xl font-bold text-gray-900">{value}</p>
-          <p className="text-xs text-gray-500">{label}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function IconBtn({
   title, onClick, color, disabled, children
@@ -1534,7 +1514,7 @@ function AccessMatrix({ roles }: { roles: Role[] }) {
   const activeRoles = roles.filter(r => r.isActive);
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+    <div className="hf-card border-gray-200">
       <div className="p-4 border-b border-gray-200 flex flex-wrap items-center justify-between gap-2">
         <div>
           <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">

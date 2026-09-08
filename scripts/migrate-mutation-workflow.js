@@ -99,7 +99,8 @@ async function migrate() {
   };
   await addCol('mutation_scope', "VARCHAR(30)", "DEFAULT 'department'");
   await addCol('total_approval_steps', 'INTEGER', 'DEFAULT 1');
-  await addCol('e_file_id', 'UUID');
+  await addCol('from_supervisor_id', 'UUID');
+  await addCol('to_supervisor_id', 'UUID');
   try {
     await sequelize.query(`ALTER TABLE mutation_approval_steps ADD COLUMN IF NOT EXISTS approver_title VARCHAR(100)`);
   } catch { /* ignore */ }

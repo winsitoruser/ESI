@@ -87,7 +87,8 @@ async function main() {
   console.log('Target:', BASE);
 
   const session = await login();
-  ok(`login as ${session.user.email} (tenant: ${session.user.tenantId || 'none'})`);
+  if (session.user.tenantId) ok(`login as ${session.user.email} (tenant: ${session.user.tenantId})`);
+  else fail('session tenantId', 'still none — platform default tenant missing');
 
   const pageRes = await fetch(`${BASE}/humanify/employees`, { headers: { Cookie: COOKIE }, redirect: 'manual' });
   if ([200, 307, 308].includes(pageRes.status)) ok('page /humanify/employees');
@@ -98,6 +99,39 @@ async function main() {
   const employees = Array.isArray(empJson.data) ? empJson.data : (empJson.data?.employees || empJson.employees || []);
   if (employees.length) ok(`employees list (${employees.length})`);
   else fail('employees list', 'empty');
+
+  const stamp = Date.now().toString(36);
+  const createRes = await fetch(`${BASE}/api/humanify/employee-profile?action=create`, {
+    method: 'POST',
+    headers: { Cookie: COOKIE, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: `Smoke ${stamp}`,
+      email: `smoke-create-${stamp}@contoh.test`,
+      department: 'Finance',
+      position: 'Staff',
+      work_location: 'ADMIN_OFFICE',
+    }),
+  });
+  const createJson = await createRes.json().catch(() => ({}));
+  const createdId = createJson.data?.id;
+  if (createRes.status === 201 && createJson.success && createdId) {
+    ok('employee create POST');
+    const delRes = await fetch(`${BASE}/api/humanify/employee-profile?action=delete`, {
+      method: 'POST',
+      headers: { Cookie: COOKIE, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ employeeId: createdId }),
+    });
+    const delJson = await delRes.json().catch(() => ({}));
+    if (delRes.ok && delJson.success) ok('employee delete POST');
+    else fail('employee delete POST', delJson.error || `HTTP ${delRes.status}`);
+  } else {
+    fail('employee create POST', createJson.error || `HTTP ${createRes.status}`);
+  }
+
+  const payRes = await fetch(`${BASE}/api/humanify/payroll?action=runs`, { headers: { Cookie: COOKIE } });
+  const payJson = await payRes.json().catch(() => ({}));
+  if (payRes.ok && payJson.success !== false && payJson.error !== 'NO_TENANT') ok('payroll runs GET');
+  else fail('payroll runs GET', payJson.error || `HTTP ${payRes.status}`);
 
   const emp = employees[0];
   if (!emp) { console.log('No employee to test'); process.exit(1); }
@@ -151,6 +185,34 @@ async function main() {
     else fail('document DELETE', delJson.error || `HTTP ${delRes.status}`);
   } else {
     fail('document upload POST', `HTTP ${upload.res.status} ${upload.json.error || upload.json._raw || ''}`);
+  }
+
+  const contractUpload = await uploadDocument(emp.id, {
+    document_type: 'KONTRAK_KERJA',
+    title: `Smoke kontrak ${Date.now()}`,
+    document_number: `PKWT-SMOKE-${Date.now()}`,
+    fields: { issue_date: '2026-01-01', expiry_date: '2027-01-01' },
+  });
+  const contractDocId = contractUpload.json.data?.id;
+  if (contractUpload.res.status === 201 && contractUpload.json.success && contractDocId) {
+    ok('contract document upload POST');
+    const sync = contractUpload.json.data?.contractSync || contractUpload.json.data?.contract_sync;
+    if (sync?.action === 'created' || sync?.action === 'updated') ok(`contract sync ${sync.action}`);
+    else fail('contract sync', JSON.stringify(sync || contractUpload.json.message || {}));
+
+    const detailC = await fetch(`${BASE}/api/humanify/employee-profile?action=detail&employeeId=${emp.id}`, { headers: { Cookie: COOKIE } });
+    const detailCJson = await detailC.json();
+    const docsC = detailCJson.data?.documents || [];
+    const contracts = detailCJson.data?.contracts || [];
+    if (docsC.some((d) => d.id === contractDocId)) ok('contract document appears in detail');
+    else fail('contract document in detail', 'not found after upload');
+    if (contracts.some((c) => String(c.document_id) === String(contractDocId) || c.contract_number === contractUpload.json.data?.document_number)) {
+      ok('contract row appears in Riwayat Kontrak');
+    } else fail('contract in history', `docs=${docsC.length} contracts=${contracts.length}`);
+
+    await fetch(`${BASE}/api/humanify/employee-documents?id=${contractDocId}`, { method: 'DELETE', headers: { Cookie: COOKIE } });
+  } else {
+    fail('contract document upload POST', `HTTP ${contractUpload.res.status} ${contractUpload.json.error || ''}`);
   }
 
   console.log('\nStress: 20 parallel uploads (then cleanup)...');

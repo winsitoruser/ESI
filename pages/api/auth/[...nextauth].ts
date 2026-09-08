@@ -285,7 +285,10 @@ export const authOptions: NextAuthOptions = {
             if (mfaErr?.message === 'MFA_REQUIRED' || /Kode 2FA/.test(String(mfaErr?.message))) {
               throw mfaErr;
             }
-            // fail-open on infra errors
+            const { mustFailClosed } = await import('../../../lib/saas/fail-closed');
+            if (mustFailClosed()) {
+              throw new Error('Kebijakan MFA sedang tidak tersedia. Coba lagi sebentar.');
+            }
           }
 
           // Successful credential check — clear brute-force counter
@@ -297,11 +300,40 @@ export const authOptions: NextAuthOptions = {
           // Normalize role to canonical form
           const normalizedRole = normalizeRole(user.role);
 
+          let tenantId = user.tenantId || null;
+          let tenantName: string | null = null;
+          try {
+            const { resolveLoginCompany } = await import(
+              '../../../lib/saas/company-membership'
+            );
+            const resolved = await resolveLoginCompany(user.id, user.tenantId, normalizedRole);
+            if (resolved?.tenantId) {
+              tenantId = resolved.tenantId;
+              tenantName = resolved.name || null;
+            }
+          } catch {
+            /* keep users.tenant_id */
+          }
+          if (
+            !tenantId &&
+            ['super_admin', 'superadmin', 'platform_admin'].includes(normalizedRole)
+          ) {
+            try {
+              const { lookupDefaultTenantId } = await import(
+                '../../../lib/hris/resolve-employee-tenant'
+              );
+              const sequelize = require('../../../lib/sequelize');
+              tenantId = await lookupDefaultTenantId(sequelize);
+            } catch {
+              /* stay unbound */
+            }
+          }
+
           let setupCompleted = true;
-          if (user.tenantId && !['super_admin', 'superadmin', 'platform_admin'].includes(normalizedRole)) {
+          if (tenantId && !['super_admin', 'superadmin', 'platform_admin'].includes(normalizedRole)) {
             try {
               const { isSaasOnboardingComplete } = await import('../../../lib/saas/humanify-onboarding');
-              setupCompleted = await isSaasOnboardingComplete(user.tenantId);
+              setupCompleted = await isSaasOnboardingComplete(tenantId);
             } catch {
               setupCompleted = true;
             }
@@ -325,11 +357,11 @@ export const authOptions: NextAuthOptions = {
             role: normalizedRole,
             originalRole: user.role, // Keep original for debugging
             businessName: user.businessName,
-            tenantId: user.tenantId || null,
+            tenantId,
             branchId: null,
             branchName: null,
             branchCode: null,
-            tenantName: null,
+            tenantName,
             assignedBranchId: user.assignedBranchId || null,
             kybStatus: null,
             dataScope: user.dataScope || 'own_branch',
@@ -362,6 +394,24 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user, trigger, session }: any) {
       const now = Math.floor(Date.now() / 1000);
+
+      const attachPlatformDefaultTenant = async () => {
+        if (token.tenantId || token.impersonating) return;
+        const roleNow = String(token.role || token.originalRole || '').toLowerCase();
+        if (!['super_admin', 'superadmin', 'platform_admin'].includes(roleNow)) return;
+        if (token.platformDefaultTenantLookedUp) return;
+        token.platformDefaultTenantLookedUp = true;
+        try {
+          const { lookupDefaultTenantId } = await import(
+            '../../../lib/hris/resolve-employee-tenant'
+          );
+          const sequelize = require('../../../lib/sequelize');
+          const tid = await lookupDefaultTenantId(sequelize);
+          if (tid) token.tenantId = tid;
+        } catch {
+          /* stay unbound */
+        }
+      };
       
       // Initial login: user is present
       if (user) {
@@ -397,6 +447,8 @@ export const authOptions: NextAuthOptions = {
         token.iat = now; // Issued at
         token.exp = now + ACCESS_TOKEN_EXPIRY; // Access token expiry
       }
+
+      await attachPlatformDefaultTenant();
 
       // Refresh subscription plan periodically (5 min) or after impersonation
       if (token.tenantId) {
@@ -454,6 +506,40 @@ export const authOptions: NextAuthOptions = {
             console.error('[JWT impersonate]', e.message);
           }
           token.exp = now + ACCESS_TOKEN_EXPIRY;
+        } else if (session.switchCompanyId && !token.impersonating) {
+          try {
+            const { userCanAccessCompany, setActiveCompany } = await import(
+              '../../../lib/saas/company-membership'
+            );
+            const { resolveTenantById } = await import('../../../lib/saas/tenant-slug');
+            const { isSaasOnboardingComplete } = await import(
+              '../../../lib/saas/humanify-onboarding'
+            );
+            const tid = String(session.switchCompanyId);
+            const { isTenantUuid } = await import('../../../lib/saas/company-membership-policy');
+            if (isTenantUuid(tid)) {
+              const allowed = await userCanAccessCompany(String(token.id), tid);
+              if (allowed) {
+                const t = await resolveTenantById(tid);
+                if (t) {
+                  token.tenantId = t.id;
+                  token.tenantName = t.name;
+                  token.businessName = t.name;
+                  token.planCheckedAt = 0;
+                  delete token.subscriptionPlan;
+                  token.setupCompleted = await isSaasOnboardingComplete(t.id);
+                  const roleSw = String(token.role || '').toLowerCase();
+                  if (roleSw === 'owner') {
+                    token.redirectUrl = token.setupCompleted ? '/humanify' : '/humanify/setup';
+                  }
+                  await setActiveCompany(String(token.id), t.id);
+                }
+              }
+            }
+          } catch (e: any) {
+            console.error('[JWT switchCompany]', e?.message || e);
+          }
+          token.exp = now + ACCESS_TOKEN_EXPIRY;
         } else if (session.endImpersonation && token.impersonating) {
           try {
             const { logSupportAction } = await import('../../../lib/saas/support-audit');
@@ -481,6 +567,7 @@ export const authOptions: NextAuthOptions = {
             endImpersonation: _e,
             tenantId: _t,
             role: _r,
+            switchCompanyId: _s,
             ...safe
           } = session;
           token = { ...token, ...safe };
@@ -625,25 +712,43 @@ export const authOptions: NextAuthOptions = {
 };
 
 export default async function authHandler(req: any, res: any) {
-  // SEC-S3-1 — rate-limit credential login attempts (HTTP 429) before NextAuth
-  const pathParts = Array.isArray(req.query?.nextauth) ? req.query.nextauth : [];
-  const isCredentialsCallback =
-    req.method === 'POST'
-    && pathParts.includes('callback')
-    && (pathParts.includes('credentials') || String(req.url || '').includes('credentials'));
-
-  if (isCredentialsCallback) {
-    const { checkLimit, RateLimitTier } = await import('../../../lib/middleware/rateLimit');
-    const { normalizeIp: nip } = await import('../../../lib/saas/login-guard');
-    const ip = nip(req.headers?.['x-forwarded-for'] || req.headers?.['x-real-ip']);
-    const email = String(req.body?.email || req.body?.username || 'anon').toLowerCase().trim();
-    const limited = await checkLimit(req, res, {
-      ...RateLimitTier.AUTH,
-      keyGenerator: () => `rl:login:${ip}:${email}`,
-      message: 'Terlalu banyak percobaan login. Coba lagi dalam beberapa menit.',
-    });
-    if (!limited) return;
+  // Bind NextAuth origin to the request host so ops.humanify.id and
+  // admin.humanify.id CSRF/session cookies stay host-only and do not
+  // collide with apex humanify.id.
+  const fwdHost = String(req.headers?.['x-forwarded-host'] || req.headers?.host || '')
+    .split(',')[0]
+    .trim();
+  const fwdProto = String(req.headers?.['x-forwarded-proto'] || 'https')
+    .split(',')[0]
+    .trim();
+  const prevUrl = process.env.NEXTAUTH_URL;
+  if (fwdHost) {
+    process.env.NEXTAUTH_URL = `${fwdProto}://${fwdHost}`;
   }
 
-  return NextAuth(authOptions)(req, res);
+  try {
+    // SEC-S3-1 — rate-limit credential login attempts (HTTP 429) before NextAuth
+    const pathParts = Array.isArray(req.query?.nextauth) ? req.query.nextauth : [];
+    const isCredentialsCallback =
+      req.method === 'POST'
+      && pathParts.includes('callback')
+      && (pathParts.includes('credentials') || String(req.url || '').includes('credentials'));
+
+    if (isCredentialsCallback) {
+      const { checkLimit, RateLimitTier } = await import('../../../lib/middleware/rateLimit');
+      const { normalizeIp: nip } = await import('../../../lib/saas/login-guard');
+      const ip = nip(req.headers?.['x-forwarded-for'] || req.headers?.['x-real-ip']);
+      const email = String(req.body?.email || req.body?.username || 'anon').toLowerCase().trim();
+      const limited = await checkLimit(req, res, {
+        ...RateLimitTier.AUTH,
+        keyGenerator: () => `rl:login:${ip}:${email}`,
+        message: 'Terlalu banyak percobaan login. Coba lagi dalam beberapa menit.',
+      });
+      if (!limited) return;
+    }
+
+    return await NextAuth(authOptions)(req, res);
+  } finally {
+    if (prevUrl !== undefined) process.env.NEXTAUTH_URL = prevUrl;
+  }
 }

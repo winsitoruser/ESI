@@ -136,8 +136,16 @@ export function validateWebhookSignature(
   secret: string | undefined,
   payload: string,
 ): boolean {
-  // No provider secret configured — accept inbound webhooks (configure *_WEBHOOK_SECRET in production)
-  if (!secret) return true;
+  // Production: fail-closed when *_WEBHOOK_SECRET unset (override: HUMANIFY_WEBHOOK_ALLOW_OPEN=true)
+  if (!secret) {
+    try {
+      const { isHumanifyWebhookFailClosed } = require('./webhook-security');
+      if (isHumanifyWebhookFailClosed()) return false;
+    } catch {
+      if (process.env.NODE_ENV === 'production') return false;
+    }
+    return true;
+  }
   if (!signature) return false;
   const expected = computeWebhookSignature(secret, payload);
   const provided = signature.replace(/^sha256=/i, '').trim();

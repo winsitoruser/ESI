@@ -164,8 +164,14 @@ export async function resolveEmployeeContext(
       u.tenant_id AS user_tenant_id, u.name AS user_name
     FROM users u
     LEFT JOIN employees e ON e.tenant_id = COALESCE(:sessionTenantId::uuid, u.tenant_id)
-      AND (e.user_id = u.id OR e.email = u.email)
-    WHERE u.id = :uid
+      AND (
+        e.user_id::text = u.id::text
+        OR (
+          e.email IS NOT NULL AND u.email IS NOT NULL
+          AND LOWER(TRIM(e.email)) = LOWER(TRIM(u.email))
+        )
+      )
+    WHERE u.id::text = :uid::text
     LIMIT 1
   `, { replacements: { uid, sessionTenantId: sessionTenantId || null } });
   const row = rows?.[0];
@@ -183,6 +189,10 @@ export async function resolveEmployeeContext(
   };
 }
 
-export const EMPLOYEE_ATTENDANCE_WHERE = `(user_id = :userId OR employee_id IN (
-  SELECT id FROM employees WHERE user_id = :userId OR email = (SELECT email FROM users WHERE id = :userId)
+/** @deprecated Prefer attendance-store helpers — kept for legacy callers; tenant-scoped. */
+export const EMPLOYEE_ATTENDANCE_WHERE = `(employee_id IN (
+  SELECT id FROM employees
+  WHERE :tenantId::uuid IS NOT NULL
+    AND tenant_id = :tenantId::uuid
+    AND (user_id = :userId OR email = (SELECT email FROM users WHERE id = :userId))
 ))`;

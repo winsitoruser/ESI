@@ -1,14 +1,15 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../auth/[...nextauth]';
+import { evaluateClockIn, evaluateClockOut } from '@/lib/hris/work-time-policy';
+import { loadWorkTimePolicy } from '@/lib/hris/work-time-policy-store';
 
-let EmployeeAttendance: any, Employee: any, Branch: any, AttendanceSettings: any;
+let EmployeeAttendance: any, Employee: any, Branch: any;
 try {
   const models = require('../../../../models');
   EmployeeAttendance = models.EmployeeAttendance;
   Employee = models.Employee;
   Branch = models.Branch;
-  AttendanceSettings = models.AttendanceSettings;
 } catch (e) {
   console.warn('Models not available for mobile attendance');
 }
@@ -139,16 +140,17 @@ async function clockInOut(req: NextApiRequest, res: NextApiResponse, session: an
     }
 
     // Calculate status
-    const status = calculateStatus(now, settings);
-    const lateMinutes = status === 'late' ? calculateLateMinutes(now, settings) : 0;
+    const punchIn = evaluateClockIn(settings, now);
+    const status = punchIn.status;
+    const lateMinutes = punchIn.lateMinutes;
 
     const attendance = await EmployeeAttendance.create({
       employeeId: employee.id,
       branchId: targetBranchId,
       date: today,
       clockIn: now,
-      scheduledStart: settings?.workStartTime || '08:00:00',
-      scheduledEnd: settings?.workEndTime || '17:00:00',
+      scheduledStart: punchIn.expectedStart || settings?.workStartTime || '08:00',
+      scheduledEnd: settings?.workEndTime || '17:00',
       status,
       lateMinutes,
       clockInLocation: { latitude, longitude, accuracy },
@@ -197,27 +199,10 @@ async function clockInOut(req: NextApiRequest, res: NextApiResponse, session: an
     }
 
     const clockIn = new Date(existing.clockIn);
-    const workMs = now.getTime() - clockIn.getTime();
-    const totalHours = workMs / 3600000;
-    const breakMinutes = settings?.breakDurationMinutes || 60;
-    const workHours = Math.round((totalHours - breakMinutes / 60) * 100) / 100;
-
-    let overtimeMinutes = 0;
-    if (settings?.overtimeEnabled) {
-      const endTime = settings?.workEndTime || '17:00:00';
-      const [h, m] = endTime.split(':').map(Number);
-      const scheduledEnd = new Date(today);
-      scheduledEnd.setHours(h, m, 0, 0);
-      const overMs = now.getTime() - scheduledEnd.getTime();
-      if (overMs > 0) {
-        overtimeMinutes = Math.floor(overMs / 60000);
-        if (settings?.overtimeMinMinutes && overtimeMinutes < settings.overtimeMinMinutes) {
-          overtimeMinutes = 0;
-        }
-      }
-    }
-
-    const earlyLeaveMinutes = calculateEarlyLeave(now, settings, today);
+    const punchOut = evaluateClockOut(settings, clockIn, now);
+    const workHours = punchOut.workHours;
+    const overtimeMinutes = punchOut.overtimeMinutes;
+    const earlyLeaveMinutes = punchOut.earlyLeaveMinutes;
 
     await existing.update({
       clockOut: now,
@@ -308,46 +293,13 @@ async function getMyAttendance(req: NextApiRequest, res: NextApiResponse, sessio
 }
 
 async function getSettings(tenantId: string, branchId: string) {
-  if (!AttendanceSettings) return null;
-  let settings = await AttendanceSettings.findOne({
-    where: { tenantId, branchId, isActive: true }
-  });
-  if (!settings) {
-    settings = await AttendanceSettings.findOne({
-      where: { tenantId, branchId: null, isActive: true }
-    });
+  try {
+    const { sequelize } = await import('@/lib/sequelizeClient');
+    const policy = await loadWorkTimePolicy(sequelize, tenantId, branchId);
+    return policy;
+  } catch {
+    return null;
   }
-  return settings;
-}
-
-function calculateStatus(clockIn: Date, settings: any): string {
-  if (!settings) return 'present';
-  const startTime = settings.workStartTime || '08:00:00';
-  const graceMinutes = settings.lateGraceMinutes || 15;
-  const [h, m] = startTime.split(':').map(Number);
-  const scheduled = new Date(clockIn);
-  scheduled.setHours(h, m, 0, 0);
-  const graceEnd = new Date(scheduled.getTime() + graceMinutes * 60000);
-  return clockIn > graceEnd ? 'late' : 'present';
-}
-
-function calculateLateMinutes(clockIn: Date, settings: any): number {
-  if (!settings) return 0;
-  const [h, m] = (settings.workStartTime || '08:00:00').split(':').map(Number);
-  const scheduled = new Date(clockIn);
-  scheduled.setHours(h, m, 0, 0);
-  const diff = clockIn.getTime() - scheduled.getTime();
-  return diff > 0 ? Math.floor(diff / 60000) : 0;
-}
-
-function calculateEarlyLeave(clockOut: Date, settings: any, date: string): number {
-  if (!settings) return 0;
-  const [h, m] = (settings.workEndTime || '17:00:00').split(':').map(Number);
-  const scheduledEnd = new Date(date);
-  scheduledEnd.setHours(h, m, 0, 0);
-  const diff = scheduledEnd.getTime() - clockOut.getTime();
-  const grace = (settings.earlyLeaveGraceMinutes || 15) * 60000;
-  return diff > grace ? Math.floor(diff / 60000) : 0;
 }
 
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {

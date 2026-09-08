@@ -4,13 +4,15 @@ import HumanifyWelcomePage from '@/components/humanify/HumanifyWelcomePage';
 import HumanifySeoHead from '@/components/humanify/HumanifySeoHead';
 import { authOptions } from '../api/auth/[...nextauth]';
 import { HUMANIFY_BRAND, NAINCODE } from '@/lib/humanify/branding';
+import { listPublicBanners, type PublicBanner } from '@/lib/saas/landing-banners';
+import { listPublishedFaqs, type PublicFaq } from '@/lib/saas/cms-content';
 import {
   buildOrganizationJsonLd,
   buildSoftwareApplicationJsonLd,
   buildWebSiteJsonLd,
 } from '@/lib/humanify/seo';
 
-export default function WelcomePage() {
+export default function WelcomePage({ banners, faqs }: { banners: PublicBanner[]; faqs: PublicFaq[] }) {
   return (
     <>
       <HumanifySeoHead
@@ -24,7 +26,7 @@ export default function WelcomePage() {
           buildSoftwareApplicationJsonLd(),
         ]}
       />
-      <HumanifyWelcomePage />
+      <HumanifyWelcomePage banners={banners} faqs={faqs} />
     </>
   );
 }
@@ -34,5 +36,13 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
   if (session?.user) {
     return { redirect: { destination: HUMANIFY_BRAND.appPath, permanent: false } };
   }
-  return { props: {} };
+  let banners: PublicBanner[] = [];
+  let faqs: PublicFaq[] = [];
+  try {
+    banners = await listPublicBanners('landing');
+  } catch { /* landing stays static if CMS unavailable */ }
+  try {
+    faqs = await listPublishedFaqs();
+  } catch { /* */ }
+  return { props: { banners, faqs } };
 };

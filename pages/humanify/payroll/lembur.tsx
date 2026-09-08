@@ -2,12 +2,14 @@ import { useState, useEffect, useMemo } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import HrisEmptyState from '@/components/humanify/HrisEmptyState';
+import HRStatCard from '@/components/humanify/HRStatCard';
+import { OpsKpiShell, OpsToolbar } from '@/components/humanify/OpsPageChrome';
+import { PayrollShell } from '@/components/humanify/PayrollModuleChrome';
 import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import {
-  Clock, Users, DollarSign, CheckCircle, AlertCircle, Search, ArrowLeft,
-  Plus, X, Save, Calendar, Eye, TrendingUp, FileText, Filter
+  Clock, DollarSign, CheckCircle, AlertCircle, Search,
+  Plus, X, Save, Eye, TrendingUp
 } from 'lucide-react';
-import Link from 'next/link';
 
 const fmtCurrency = (n: number) => `Rp ${(n || 0).toLocaleString('id-ID')}`;
 const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
@@ -22,16 +24,16 @@ interface OvertimeRecord {
 }
 
 const OT_TYPES: Record<string, { label: string; color: string }> = {
-  workday: { label: 'Hari Kerja', color: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]' },
-  weekend: { label: 'Akhir Pekan', color: 'bg-orange-100 text-orange-700' },
-  holiday: { label: 'Hari Libur', color: 'bg-red-100 text-red-700' },
+  workday: { label: 'Hari Kerja', color: 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)]' },
+  weekend: { label: 'Akhir Pekan', color: 'bg-amber-50 text-[color:var(--hf-warning)]' },
+  holiday: { label: 'Hari Libur', color: 'bg-rose-50 text-[color:var(--hf-danger)]' },
 };
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
-  pending: { label: 'Menunggu', color: 'bg-yellow-100 text-yellow-700' },
-  approved: { label: 'Disetujui', color: 'bg-green-100 text-green-700' },
-  rejected: { label: 'Ditolak', color: 'bg-red-100 text-red-700' },
-  paid: { label: 'Dibayar', color: 'bg-emerald-100 text-emerald-700' },
+  pending: { label: 'Menunggu', color: 'bg-amber-50 text-[color:var(--hf-warning)]' },
+  approved: { label: 'Disetujui', color: 'bg-emerald-50 text-[color:var(--hf-success)]' },
+  rejected: { label: 'Ditolak', color: 'bg-rose-50 text-[color:var(--hf-danger)]' },
+  paid: { label: 'Dibayar', color: 'bg-emerald-50 text-[color:var(--hf-success)]' },
 };
 
 // PP 35/2021: Hari kerja jam 1 = 1.5x, jam 2+ = 2x. Weekend/holiday = 2x semua
@@ -183,48 +185,46 @@ export default function LemburPage() {
 
   return (
     <HQLayout title="Manajemen Lembur" subtitle="Pengajuan, persetujuan, dan perhitungan lembur karyawan">
-      <div className="space-y-6">
-        <div className="flex items-center gap-3">
-          <Link href="/humanify/payroll" className="p-2 border rounded-lg hover:bg-gray-50"><ArrowLeft className="w-4 h-4" /></Link>
-          <div className="flex-1"><h2 className="text-lg font-bold">Manajemen Lembur</h2><p className="text-sm text-gray-500">Sesuai PP No. 35/2021 tentang PKWT & Lembur</p></div>
-          <DataSourceBadge source={dataSource} />
-          <button type="button" onClick={handleSyncToAttendance} className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50">
-            <TrendingUp className="w-4 h-4" /> Sync ke Absensi
-          </button>
-          <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]"><Plus className="w-4 h-4" /> Ajukan Lembur</button>
+      <PayrollShell
+        current="lembur"
+        title="Manajemen lembur"
+        subtitle="Pengajuan dan persetujuan sesuai PP No. 35/2021 tentang PKWT & lembur."
+        icon={Clock}
+        actions={(
+          <div className="flex flex-wrap items-center gap-2">
+            <DataSourceBadge source={dataSource} />
+            <button type="button" onClick={handleSyncToAttendance} className="hf-btn-secondary inline-flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" /> Sinkron ke absensi
+            </button>
+            <button type="button" onClick={() => setShowModal(true)} className="hf-btn-primary inline-flex items-center gap-2">
+              <Plus className="h-4 w-4" /> Ajukan lembur
+            </button>
+          </div>
+        )}
+      >
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <OpsKpiShell><HRStatCard icon={Clock} label="Total jam" value={`${stats.totalHours} jam`} accent="violet" /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard icon={DollarSign} label="Total biaya" value={fmtCurrency(stats.totalAmount)} accent="emerald" /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard icon={AlertCircle} label="Menunggu approval" value={stats.pending} accent="amber" /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard icon={CheckCircle} label="Disetujui" value={stats.approved} accent="emerald" /></OpsKpiShell>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: 'Total Jam', value: `${stats.totalHours} jam`, icon: Clock, bg: 'bg-[var(--hf-brand-100)]', color: 'text-[color:var(--hf-brand-600)]' },
-            { label: 'Total Biaya', value: fmtCurrency(stats.totalAmount), icon: DollarSign, bg: 'bg-green-100', color: 'text-green-600' },
-            { label: 'Menunggu Approval', value: stats.pending, icon: AlertCircle, bg: 'bg-yellow-100', color: 'text-yellow-600' },
-            { label: 'Disetujui', value: stats.approved, icon: CheckCircle, bg: 'bg-emerald-100', color: 'text-emerald-600' },
-          ].map(s => (
-            <div key={s.label} className="bg-white rounded-xl p-4 shadow-sm border">
-              <div className="flex items-center gap-3"><div className={`p-2 ${s.bg} rounded-lg`}><s.icon className={`w-5 h-5 ${s.color}`} /></div><div><p className="text-xs text-gray-500">{s.label}</p><p className={`text-lg font-bold ${s.color}`}>{s.value}</p></div></div>
-            </div>
-          ))}
-        </div>
-
-        {/* Aturan Lembur */}
-        <div className="bg-[var(--hf-brand-50)] border border-[var(--hf-brand-100)] rounded-xl p-4">
-          <h4 className="font-semibold text-[color:var(--hf-brand-600)] text-sm mb-2">Ketentuan Perhitungan Lembur (PP 35/2021)</h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-[color:var(--hf-brand)]">
-            <div><p className="font-medium">Hari Kerja</p><p>Jam ke-1: 1.5× upah/jam</p><p>Jam ke-2 dst: 2× upah/jam</p></div>
-            <div><p className="font-medium">Akhir Pekan / Hari Libur</p><p>Semua jam: 2× upah/jam</p></div>
-            <div><p className="font-medium">Upah per Jam</p><p>= 1/173 × gaji bulanan</p><p>Maks 4 jam/hari, 18 jam/minggu</p></div>
+        <div className="hf-card p-4">
+          <h4 className="mb-2 text-sm font-semibold text-[color:var(--hf-brand-600)]">Ketentuan perhitungan lembur (PP 35/2021)</h4>
+          <div className="grid grid-cols-1 gap-4 text-xs text-[color:var(--hf-brand)] md:grid-cols-3">
+            <div><p className="font-medium">Hari kerja</p><p>Jam ke-1: 1.5× upah/jam</p><p>Jam ke-2 dst: 2× upah/jam</p></div>
+            <div><p className="font-medium">Akhir pekan / hari libur</p><p>Semua jam: 2× upah/jam</p></div>
+            <div><p className="font-medium">Upah per jam</p><p>= 1/173 × gaji bulanan</p><p>Maks 4 jam/hari, 18 jam/minggu</p></div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border">
-          <div className="p-4 flex flex-wrap gap-3 border-b">
-            <div className="relative flex-1 min-w-[200px]"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" /><input type="text" placeholder="Cari karyawan..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm" /></div>
-            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
-              <option value="all">Semua Status</option>
-              {Object.entries(STATUS_MAP).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-            </select>
-          </div>
+        <OpsToolbar>
+          <div className="relative min-w-[200px] flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--hf-ink-faint)]" /><input type="text" placeholder="Cari karyawan..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="hf-input w-full pl-9" /></div>
+          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="hf-input">
+            <option value="all">Semua status</option>
+            {Object.entries(STATUS_MAP).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          </select>
+        </OpsToolbar>
           {records.length === 0 ? (
             <HrisEmptyState
               source={dataSource}
@@ -232,80 +232,79 @@ export default function LemburPage() {
               description="Pengajuan lembur akan muncul di sini setelah karyawan mengajukan atau Anda menambahkannya."
             />
           ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50"><tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Karyawan</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Tanggal</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Waktu</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Jam</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Tipe</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Biaya</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Alasan</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Aksi</th>
+          <div className="hf-table-wrap overflow-x-auto">
+            <table>
+              <thead><tr>
+                <th>Karyawan</th>
+                <th className="text-center">Tanggal</th>
+                <th className="text-center">Waktu</th>
+                <th className="text-center">Jam</th>
+                <th className="text-center">Tipe</th>
+                <th className="text-right">Biaya</th>
+                <th>Alasan</th>
+                <th className="text-center">Status</th>
+                <th className="text-center">Aksi</th>
               </tr></thead>
-              <tbody className="divide-y">
+              <tbody>
                 {filtered.map(r => (
-                  <tr key={r.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3"><p className="font-medium text-sm">{r.employee_name}</p><p className="text-xs text-gray-500">{r.position} · {r.department}</p></td>
-                    <td className="px-4 py-3 text-center text-xs">{fmtDate(r.date)}</td>
-                    <td className="px-4 py-3 text-center text-xs">{r.start_time} - {r.end_time}</td>
-                    <td className="px-4 py-3 text-center font-bold text-sm">{r.hours}</td>
-                    <td className="px-4 py-3 text-center"><span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${OT_TYPES[r.type]?.color}`}>{OT_TYPES[r.type]?.label}</span></td>
-                    <td className="px-4 py-3 text-right text-sm font-semibold text-green-600">{fmtCurrency(r.amount)}</td>
-                    <td className="px-4 py-3 text-xs text-gray-600 max-w-[200px] truncate">{r.reason}</td>
-                    <td className="px-4 py-3 text-center"><span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${STATUS_MAP[r.status]?.color}`}>{STATUS_MAP[r.status]?.label}</span></td>
-                    <td className="px-4 py-3 text-center">
+                  <tr key={r.id}>
+                    <td><p className="font-medium text-[color:var(--hf-ink)]">{r.employee_name}</p><p className="text-xs text-[color:var(--hf-ink-muted)]">{r.position} · {r.department}</p></td>
+                    <td className="text-center text-xs">{fmtDate(r.date)}</td>
+                    <td className="text-center text-xs">{r.start_time} - {r.end_time}</td>
+                    <td className="text-center font-semibold">{r.hours}</td>
+                    <td className="text-center"><span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${OT_TYPES[r.type]?.color}`}>{OT_TYPES[r.type]?.label}</span></td>
+                    <td className="text-right font-semibold tabular-nums text-[color:var(--hf-success)]">{fmtCurrency(r.amount)}</td>
+                    <td className="max-w-[200px] truncate text-xs text-[color:var(--hf-ink-muted)]">{r.reason}</td>
+                    <td className="text-center"><span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${STATUS_MAP[r.status]?.color}`}>{STATUS_MAP[r.status]?.label}</span></td>
+                    <td className="text-center">
                       <div className="flex items-center justify-center gap-1">
-                        {r.status === 'pending' && (<><button onClick={() => handleApprove(r.id)} className="p-1 text-green-600 hover:bg-green-50 rounded" title="Setujui"><CheckCircle className="w-4 h-4" /></button><button onClick={() => handleReject(r.id)} className="p-1 text-red-600 hover:bg-red-50 rounded" title="Tolak"><X className="w-4 h-4" /></button></>)}
-                        <button onClick={() => setSelectedRecord(r)} className="p-1 text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded" title="Detail"><Eye className="w-4 h-4" /></button>
+                        {r.status === 'pending' && (<><button type="button" onClick={() => handleApprove(r.id)} className="rounded p-1 text-[color:var(--hf-success)] hover:bg-emerald-50" title="Setujui"><CheckCircle className="h-4 w-4" /></button><button type="button" onClick={() => handleReject(r.id)} className="rounded p-1 text-[color:var(--hf-danger)] hover:bg-rose-50" title="Tolak"><X className="h-4 w-4" /></button></>)}
+                        <button type="button" onClick={() => setSelectedRecord(r)} className="hf-btn-secondary inline-flex items-center gap-1 !px-2.5 !py-1 text-xs" title="Detail"><Eye className="h-3.5 w-3.5" /> Detail</button>
                       </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
-              <tfoot className="bg-gray-50 font-bold"><tr>
+              <tfoot className="bg-[var(--hf-surface-muted)] font-semibold"><tr>
                 <td className="px-4 py-3 text-sm" colSpan={3}>Total ({filtered.length} record)</td>
                 <td className="px-4 py-3 text-center text-sm">{stats.totalHours}</td>
                 <td></td>
-                <td className="px-4 py-3 text-right text-sm text-green-600">{fmtCurrency(stats.totalAmount)}</td>
+                <td className="px-4 py-3 text-right text-sm tabular-nums text-[color:var(--hf-success)]">{fmtCurrency(stats.totalAmount)}</td>
                 <td colSpan={3}></td>
               </tr></tfoot>
             </table>
           </div>
           )}
-        </div>
-      </div>
+      </PayrollShell>
 
       {/* Add OT Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg m-4">
+          <div className="hf-card w-full max-w-lg m-4">
             <div className="px-6 py-4 border-b flex justify-between items-center"><h3 className="font-semibold">Ajukan Lembur</h3><button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button></div>
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-sm font-medium mb-1">Nama Karyawan *</label><input type="text" value={form.employee_name} onChange={e => setForm(f => ({ ...f, employee_name: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Nama karyawan" /></div>
-                <div><label className="block text-sm font-medium mb-1">Departemen</label><input type="text" value={form.department} onChange={e => setForm(f => ({ ...f, department: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm" /></div>
+                <div><label className="mb-1 block text-sm font-medium">Nama karyawan *</label><input type="text" value={form.employee_name} onChange={e => setForm(f => ({ ...f, employee_name: e.target.value }))} className="hf-input w-full" placeholder="Nama karyawan" /></div>
+                <div><label className="mb-1 block text-sm font-medium">Departemen</label><input type="text" value={form.department} onChange={e => setForm(f => ({ ...f, department: e.target.value }))} className="hf-input w-full" /></div>
               </div>
               <div className="grid grid-cols-3 gap-4">
-                <div><label className="block text-sm font-medium mb-1">Tanggal *</label><input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm" /></div>
-                <div><label className="block text-sm font-medium mb-1">Mulai</label><input type="time" value={form.start_time} onChange={e => setForm(f => ({ ...f, start_time: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm" /></div>
-                <div><label className="block text-sm font-medium mb-1">Selesai</label><input type="time" value={form.end_time} onChange={e => setForm(f => ({ ...f, end_time: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm" /></div>
+                <div><label className="mb-1 block text-sm font-medium">Tanggal *</label><input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} className="hf-input w-full" /></div>
+                <div><label className="mb-1 block text-sm font-medium">Mulai</label><input type="time" value={form.start_time} onChange={e => setForm(f => ({ ...f, start_time: e.target.value }))} className="hf-input w-full" /></div>
+                <div><label className="mb-1 block text-sm font-medium">Selesai</label><input type="time" value={form.end_time} onChange={e => setForm(f => ({ ...f, end_time: e.target.value }))} className="hf-input w-full" /></div>
               </div>
               <div className="grid grid-cols-3 gap-4">
-                <div><label className="block text-sm font-medium mb-1">Total Jam *</label><input type="number" value={form.hours} onChange={e => setForm(f => ({ ...f, hours: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm" min={1} max={12} /></div>
-                <div><label className="block text-sm font-medium mb-1">Tipe Lembur</label><select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm">{Object.entries(OT_TYPES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select></div>
-                <div><label className="block text-sm font-medium mb-1">Gaji Pokok</label><input type="number" value={form.base_salary} onChange={e => setForm(f => ({ ...f, base_salary: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="5000000" /></div>
+                <div><label className="mb-1 block text-sm font-medium">Total jam *</label><input type="number" value={form.hours} onChange={e => setForm(f => ({ ...f, hours: e.target.value }))} className="hf-input w-full" min={1} max={12} /></div>
+                <div><label className="mb-1 block text-sm font-medium">Tipe lembur</label><select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} className="hf-input w-full">{Object.entries(OT_TYPES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select></div>
+                <div><label className="mb-1 block text-sm font-medium">Gaji pokok</label><input type="number" value={form.base_salary} onChange={e => setForm(f => ({ ...f, base_salary: e.target.value }))} className="hf-input w-full" placeholder="5000000" /></div>
               </div>
-              <div><label className="block text-sm font-medium mb-1">Alasan Lembur</label><textarea value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} className="w-full px-3 py-2 border rounded-lg text-sm" rows={2} /></div>
+              <div><label className="mb-1 block text-sm font-medium">Alasan lembur</label><textarea value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} className="hf-input w-full" rows={2} /></div>
               {form.hours && form.base_salary && (
                 <div className="bg-green-50 rounded-lg p-3 text-center"><p className="text-xs text-gray-500">Estimasi Biaya Lembur</p><p className="text-xl font-bold text-green-600">{fmtCurrency(calcOTAmount(parseFloat(form.base_salary) || 0, parseInt(form.hours) || 0, form.type))}</p></div>
               )}
             </div>
             <div className="px-6 py-4 border-t flex justify-end gap-3">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">Batal</button>
-              <button onClick={handleSubmit} className="px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)] flex items-center gap-2"><Save className="w-4 h-4" /> Ajukan</button>
+              <button type="button" onClick={() => setShowModal(false)} className="hf-btn-secondary">Batal</button>
+              <button type="button" onClick={handleSubmit} className="hf-btn-primary inline-flex items-center gap-2"><Save className="h-4 w-4" /> Ajukan</button>
             </div>
           </div>
         </div>
@@ -314,7 +313,7 @@ export default function LemburPage() {
       {/* Detail Modal */}
       {selectedRecord && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md m-4">
+          <div className="hf-card w-full max-w-md m-4">
             <div className="px-6 py-4 border-b flex justify-between items-center"><h3 className="font-semibold">Detail Lembur</h3><button onClick={() => setSelectedRecord(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button></div>
             <div className="p-6 space-y-3 text-sm">
               <div className="bg-gray-50 rounded-lg p-4 grid grid-cols-2 gap-3">

@@ -92,3 +92,56 @@ export async function listAdminAudit(tenantId: string, limit = 50) {
   `, { replacements: { tid: tenantId, lim } });
   return rows || [];
 }
+
+/** Cross-tenant audit for Admin Total (platform operators only). */
+export async function listPlatformAudit(opts: {
+  limit?: number;
+  search?: string;
+  tenantId?: string;
+} = {}) {
+  if (!sequelize) return [];
+  await ensureAdminAuditTable();
+  const lim = Math.min(200, Math.max(1, opts.limit || 80));
+  const conditions = ['1=1'];
+  const repl: Record<string, unknown> = { lim };
+  if (opts.tenantId) {
+    conditions.push('a.tenant_id = :tid');
+    repl.tid = opts.tenantId;
+  }
+  if (opts.search) {
+    conditions.push(`(
+      a.action ILIKE :q OR COALESCE(a.actor_email, '') ILIKE :q
+      OR COALESCE(a.resource_type, '') ILIKE :q OR COALESCE(t.slug, '') ILIKE :q
+    )`);
+    repl.q = `%${opts.search}%`;
+  }
+  const where = conditions.join(' AND ');
+  let nameExpr = `COALESCE(t.slug, '—')`;
+  try {
+    const [cols] = await sequelize.query(`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'tenants' AND table_schema = 'public'
+    `);
+    const set = new Set((cols || []).map((c: any) => c.column_name));
+    const parts = [
+      set.has('business_name') ? 't.business_name' : null,
+      set.has('name') ? 't.name' : null,
+      set.has('code') ? 't.code' : null,
+      't.slug',
+      `'—'`,
+    ].filter(Boolean);
+    nameExpr = `COALESCE(${parts.join(', ')})`;
+  } catch { /* slug fallback */ }
+  const [rows] = await sequelize.query(`
+    SELECT a.id, a.action, a.resource_type AS "resourceType", a.resource_id AS "resourceId",
+      a.actor_email AS "actorEmail", a.meta, a.ip, a.created_at AS "createdAt",
+      a.tenant_id AS "tenantId", t.slug AS "tenantSlug",
+      ${nameExpr} AS "tenantName"
+    FROM saas_admin_audit a
+    LEFT JOIN tenants t ON t.id = a.tenant_id
+    WHERE ${where}
+    ORDER BY a.created_at DESC
+    LIMIT :lim
+  `, { replacements: repl });
+  return rows || [];
+}

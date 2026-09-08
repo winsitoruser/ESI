@@ -88,7 +88,32 @@ async function ensureUser() {
   const hash = await bcrypt.hash(PASSWORD, 10);
   const hasTenantsTable = await tableExists('tenants');
   const hasLocalTenant = hasTenantsTable ? await tenantExists(LOCAL_TENANT_ID) : false;
-  const tenantIdToUse = hasLocalTenant ? LOCAL_TENANT_ID : null;
+  let tenantIdToUse = hasLocalTenant ? LOCAL_TENANT_ID : null;
+  if (!tenantIdToUse && hasTenantsTable) {
+    try {
+      const [fromEmp] = await sequelize.query(
+        `SELECT tenant_id AS id FROM employees WHERE tenant_id IS NOT NULL LIMIT 1`,
+      );
+      if (fromEmp?.[0]?.id) tenantIdToUse = fromEmp[0].id;
+    } catch {
+      /* */
+    }
+    if (!tenantIdToUse) {
+      try {
+        const [fromT] = await sequelize.query(
+          `SELECT id FROM tenants ORDER BY created_at ASC LIMIT 1`,
+        );
+        if (fromT?.[0]?.id) tenantIdToUse = fromT[0].id;
+      } catch {
+        /* */
+      }
+    }
+    if (tenantIdToUse) {
+      console.log(`✓ Superadmin diikat ke tenant ${tenantIdToUse}`);
+    } else {
+      console.log('ℹ️  Tidak ada tenant — superadmin tetap tanpa tenant_id');
+    }
+  }
 
   let user = await getUserByEmail(EMAIL);
   if (!user) {

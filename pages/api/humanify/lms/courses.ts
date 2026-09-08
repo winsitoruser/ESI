@@ -3,6 +3,7 @@
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { parseMaterials } from '../../../../lib/hris/lms/course-service';
+import { ensureLmsAssessmentSchema } from '@/lib/hris/lms/assessment-schema';
 import { enforceHumanifyPlanFeature } from '@/lib/saas/assert-feature';
 import { withHQAuth } from '@/lib/middleware/withHQAuth';
 
@@ -19,6 +20,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     const session = (req as any).session;
     if (!session?.user) return res.status(401).json({ error: 'Unauthorized' });
     if (!(await enforceHumanifyPlanFeature(req, res, session))) return;
+
+    await ensureLmsAssessmentSchema();
 
     const tenantId = (session.user as any).tenantId || null;
     const userId = asUuid((session.user as any).id);
@@ -52,9 +55,16 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           SELECT e.* FROM hris_lms_enrollments e
           WHERE e.curriculum_id = :id AND e.tenant_id = :tid ORDER BY e.enrolled_at DESC
         `, { replacements: { id, tid: tenantId } }).catch(() => [[]]);
+        const [exams] = await sequelize.query(`
+          SELECT e.id, e.title, e.status, e.module_id, e.passing_score, e.duration_minutes,
+            (SELECT COUNT(*)::int FROM hris_training_exam_questions q WHERE q.exam_id = e.id) as question_count
+          FROM hris_training_exams e
+          WHERE e.tenant_id = :tid AND (e.curriculum_id = :id OR e.module_id IN (SELECT id FROM hris_training_modules WHERE curriculum_id = :id))
+          ORDER BY e.created_at DESC
+        `, { replacements: { id, tid: tenantId } }).catch(() => [[]]);
         return res.json({
           success: true,
-          data: { curriculum: curricula[0], modules, enrollments },
+          data: { curriculum: curricula[0], modules, enrollments, exams: exams || [] },
         });
       }
 
@@ -196,10 +206,64 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       }
 
       if (action === 'publish') {
-        const { curriculum_id } = req.body;
+        const curriculum_id = req.body?.curriculum_id || req.body?.id;
+        if (!curriculum_id) return res.status(400).json({ error: 'curriculum_id required' });
         await sequelize.query(
           `UPDATE hris_training_curricula SET status = 'active', updated_at = NOW() WHERE id = :id AND tenant_id = :tid`,
           { replacements: { id: curriculum_id, tid: tenantId } },
+        );
+        return res.json({ success: true });
+      }
+
+      if (action === 'archive' || action === 'delete-course') {
+        const curriculum_id = req.body?.curriculum_id || req.body?.id;
+        if (!curriculum_id) return res.status(400).json({ error: 'curriculum_id required' });
+        if (!tenantId) return res.status(403).json({ error: 'NO_TENANT' });
+        const hard = req.body?.hard === true;
+        if (hard) {
+          await sequelize.query(
+            `DELETE FROM hris_lms_enrollments WHERE curriculum_id = :id AND tenant_id = :tid`,
+            { replacements: { id: curriculum_id, tid: tenantId } },
+          ).catch(() => null);
+          await sequelize.query(
+            `DELETE FROM hris_training_modules WHERE curriculum_id = :id AND tenant_id = :tid`,
+            { replacements: { id: curriculum_id, tid: tenantId } },
+          );
+          await sequelize.query(
+            `DELETE FROM hris_training_curricula WHERE id = :id AND tenant_id = :tid`,
+            { replacements: { id: curriculum_id, tid: tenantId } },
+          );
+          return res.json({ success: true, data: { deleted: true } });
+        }
+        await sequelize.query(
+          `UPDATE hris_training_curricula SET status = 'archived', updated_at = NOW() WHERE id = :id AND tenant_id = :tid`,
+          { replacements: { id: curriculum_id, tid: tenantId } },
+        );
+        return res.json({ success: true, data: { archived: true } });
+      }
+
+      if (action === 'attach-exam') {
+        const { module_id, exam_id } = req.body || {};
+        if (!module_id || !exam_id) return res.status(400).json({ error: 'module_id dan exam_id wajib' });
+        if (!tenantId) return res.status(403).json({ error: 'NO_TENANT' });
+        const [mods] = await sequelize.query(
+          'SELECT id, curriculum_id FROM hris_training_modules WHERE id = :id AND tenant_id = :tid',
+          { replacements: { id: module_id, tid: tenantId } },
+        );
+        if (!mods.length) return res.status(404).json({ error: 'Modul tidak ditemukan' });
+        const [ex] = await sequelize.query(
+          'SELECT id FROM hris_training_exams WHERE id = :id AND tenant_id = :tid',
+          { replacements: { id: exam_id, tid: tenantId } },
+        );
+        if (!ex.length) return res.status(404).json({ error: 'Tes tidak ditemukan' });
+        await sequelize.query(
+          `UPDATE hris_training_modules SET has_exam = true, exam_id = :eid, passing_score = COALESCE(passing_score, 70), updated_at = NOW()
+           WHERE id = :mid AND tenant_id = :tid`,
+          { replacements: { eid: exam_id, mid: module_id, tid: tenantId } },
+        );
+        await sequelize.query(
+          `UPDATE hris_training_exams SET module_id = :mid, curriculum_id = :cid, updated_at = NOW() WHERE id = :eid AND tenant_id = :tid`,
+          { replacements: { mid: module_id, cid: mods[0].curriculum_id, eid: exam_id, tid: tenantId } },
         );
         return res.json({ success: true });
       }

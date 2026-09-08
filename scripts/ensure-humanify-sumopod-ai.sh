@@ -14,6 +14,14 @@ read_key() {
     echo "$SUMOPOD_AI_API_KEY"
     return
   fi
+  local v=""
+  if [ -f "$ENV_FILE" ]; then
+    v="$(grep '^SUMOPOD_AI_API_KEY=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- || true)"
+  fi
+  if [ -n "$v" ]; then
+    echo "$v"
+    return
+  fi
   if [ -f "$HERMES_ENV" ]; then
     grep '^SUMOPOD_AI_API_KEY=' "$HERMES_ENV" 2>/dev/null | cut -d= -f2- || true
   fi
@@ -23,6 +31,14 @@ read_url() {
   if [ -n "${SUMOPOD_AI_BASE_URL:-}" ]; then
     echo "$SUMOPOD_AI_BASE_URL"
     return
+  fi
+  if [ -f "$ENV_FILE" ]; then
+    local existing
+    existing="$(grep '^SUMOPOD_AI_BASE_URL=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- || true)"
+    if [ -n "$existing" ]; then
+      echo "$existing"
+      return
+    fi
   fi
   if [ -f "$HERMES_ENV" ]; then
     grep '^SUMOPOD_AI_BASE_URL=' "$HERMES_ENV" 2>/dev/null | cut -d= -f2- || true
@@ -36,11 +52,6 @@ MODEL="${HRIS_AI_MODEL:-deepseek-v4-flash}"
 
 if [ ! -f "$ENV_FILE" ]; then
   echo "⚠️  $ENV_FILE not found — skip"
-  exit 0
-fi
-
-if [ -z "$API_KEY" ]; then
-  echo "⚠️  SUMOPOD_AI_API_KEY not set — skip SumoPod AI setup"
   exit 0
 fi
 
@@ -64,14 +75,27 @@ PY
   fi
 }
 
+if [ -z "$API_KEY" ]; then
+  echo "⚠️  SUMOPOD_AI_API_KEY not set — enabling AIMAN with rules fallback"
+  set_var "HUMANIFY_AI_ENABLED" "true"
+  set_var "NEXT_PUBLIC_HUMANIFY_AI_ENABLED" "true"
+  exit 0
+fi
+
 echo "Ensure Humanify SumoPod AI — $ENV_FILE"
+set_var "HUMANIFY_AI_ENABLED" "true"
+set_var "NEXT_PUBLIC_HUMANIFY_AI_ENABLED" "true"
 set_var "HRIS_AI_LLM" "true"
 set_var "SUMOPOD_API_KEY" "$API_KEY"
 set_var "SUMOPOD_AI_API_KEY" "$API_KEY"
 set_var "SUMOPOD_BASE_URL" "$BASE_URL"
 set_var "SUMOPOD_AI_BASE_URL" "$BASE_URL"
 set_var "HRIS_AI_MODEL" "$MODEL"
-set_var "HRIS_AI_VISION_MODEL" "${HRIS_AI_VISION_MODEL:-$MODEL}"
+# Face match needs a vision-capable model; deepseek chat-only often fails image compare.
+VISION_MODEL="${HRIS_AI_VISION_MODEL:-gpt-4o-mini}"
+set_var "HRIS_AI_VISION_MODEL" "$VISION_MODEL"
+set_var "HRIS_AI_VISION_FALLBACK" "${HRIS_AI_VISION_FALLBACK:-gpt-4o}"
+set_var "HRIS_FACE_MATCH" "${HRIS_FACE_MATCH:-true}"
 
-echo "  ✓ SumoPod AI configured (model: $MODEL)"
+echo "  ✓ SumoPod AI configured (chat: $MODEL · vision: $VISION_MODEL)"
 echo "  → Restart PM2: pm2 restart humanify --update-env"

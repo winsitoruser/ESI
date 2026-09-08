@@ -44,55 +44,55 @@ export default function DashboardModuleGrid({ categories, title, subtitle }: Pro
   }, [categories, query]);
 
   return (
-    <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm">
-      <div className="flex flex-col gap-4 border-b border-slate-100 p-5 md:flex-row md:items-center md:justify-between">
+    <div className="hf-card overflow-hidden">
+      <div className="flex flex-col gap-4 border-b border-[var(--hf-border-subtle)] p-5 md:flex-row md:items-center md:justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
-          <p className="text-sm text-slate-500">{subtitle}</p>
+          <h3 className="text-base font-semibold text-[color:var(--hf-ink)]">{title}</h3>
+          <p className="mt-0.5 text-sm text-[color:var(--hf-ink-muted)]">{subtitle}</p>
         </div>
         <div className="relative w-full md:max-w-xs">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--hf-ink-faint)]" />
           <input
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Cari modul HRIS..."
-            className="w-full rounded-xl border border-slate-200 py-2.5 pl-10 pr-3 text-sm focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
+            className="w-full rounded-[var(--hf-radius)] border border-[var(--hf-border)] bg-[var(--hf-surface-muted)] py-2.5 pl-10 pr-3 text-sm text-[color:var(--hf-ink)] placeholder:text-[color:var(--hf-ink-faint)] focus:border-[var(--hf-brand-500)] focus:bg-white focus:outline-none focus:shadow-[var(--hf-focus-ring)]"
           />
         </div>
       </div>
 
-      <div className="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-3 p-5 md:grid-cols-2 xl:grid-cols-3">
         {filtered.map((cat) => {
           const isOpen = expanded === null || expanded === cat.category || query.length > 0;
           const collapsed = expanded !== null && expanded !== cat.category && !query;
           if (collapsed) return null;
           return (
-            <div key={cat.category} className="overflow-hidden rounded-2xl border border-slate-100 bg-slate-50/50">
+            <div key={cat.category} className="hf-tile-nested overflow-hidden">
               <button
                 type="button"
                 onClick={() => setExpanded(expanded === cat.category ? null : cat.category)}
                 className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-white/80"
               >
-                <span className="text-sm font-semibold text-slate-800">{cat.category}</span>
-                <span className="rounded-full bg-white px-2 py-0.5 text-xs text-slate-500 shadow-sm">{cat.modules.length}</span>
+                <span className="text-sm font-semibold text-[color:var(--hf-ink)]">{cat.category}</span>
+                <span className="rounded-md bg-white px-2 py-0.5 text-xs tabular-nums text-[color:var(--hf-ink-muted)] border border-[var(--hf-border-subtle)]">{cat.modules.length}</span>
               </button>
               {isOpen && (
-                <div className="space-y-1 border-t border-slate-100 bg-white p-2">
+                <div className="space-y-0.5 border-t border-[var(--hf-border-subtle)] bg-white p-1.5">
                   {cat.modules.map((m) => (
                     <Link
                       key={m.key}
                       href={m.href}
-                      className="group flex items-center gap-3 rounded-xl p-2.5 transition-colors hover:bg-violet-50/50"
+                      className="group flex items-center gap-3 rounded-[var(--hf-radius)] p-2.5 transition-colors hover:bg-[var(--hf-surface-muted)]"
                     >
-                      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${m.color} text-white shadow-sm transition-transform group-hover:scale-105`}>
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--hf-radius)] bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)]">
                         <m.icon className="h-4 w-4" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-slate-900 group-hover:text-violet-700">{m.label}</p>
-                        <p className="truncate text-[11px] text-slate-500">{m.desc}</p>
+                        <p className="truncate text-sm font-medium text-[color:var(--hf-ink)] group-hover:text-[color:var(--hf-brand)]">{m.label}</p>
+                        <p className="truncate text-[11px] text-[color:var(--hf-ink-muted)]">{m.desc}</p>
                       </div>
-                      <ChevronRight className="h-4 w-4 shrink-0 text-slate-300 group-hover:text-violet-400" />
+                      <ChevronRight className="h-4 w-4 shrink-0 text-[color:var(--hf-ink-faint)] group-hover:text-[color:var(--hf-brand-500)]" />
                     </Link>
                   ))}
                 </div>
@@ -103,10 +103,10 @@ export default function DashboardModuleGrid({ categories, title, subtitle }: Pro
       </div>
 
       {filtered.length === 0 && (
-        <p className="p-8 text-center text-sm text-slate-400">Tidak ada modul cocok dengan &ldquo;{query}&rdquo;</p>
+        <p className="p-8 text-center text-sm text-[color:var(--hf-ink-faint)]">Tidak ada modul cocok dengan &ldquo;{query}&rdquo;</p>
       )}
 
-      <div className="border-t border-slate-100 px-5 py-3 text-xs text-slate-400">
+      <div className="border-t border-[var(--hf-border-subtle)] px-5 py-3 text-xs text-[color:var(--hf-ink-faint)]">
         {totalModules} modul terintegrasi · {filtered.reduce((n, c) => n + c.modules.length, 0)} ditampilkan
       </div>
     </div>

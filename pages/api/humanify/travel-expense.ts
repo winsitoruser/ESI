@@ -2,6 +2,19 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { rowsToSnake, rowToSnake } from '@/lib/hris/serialize-rows';
 import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
 import { withHQAuth } from '@/lib/middleware/withHQAuth';
+import { ensureTravelSchema } from '@/lib/hris/ensure-travel-schema';
+import {
+  COST_TO_EXPENSE,
+  dateSpan,
+  hydratePlanFromRequest,
+  itineraryBudget,
+  itineraryRoute,
+  parseTravelPlan,
+  serializeTravelPlan,
+} from '@/lib/hris/travel-itinerary';
+import { travelEmailInnerHtml, travelEmailText } from '@/lib/hris/travel-document';
+import { humanifyTravelRequestEmail } from '@/lib/email/humanify-mails';
+import { isSmtpConfigured, sendEmail } from '@/lib/email/sender';
 
 let TravelRequest: any, TravelExpense: any, ExpenseBudget: any;
 try { TravelRequest = require('../../../models/TravelRequest'); } catch(e) {}
@@ -18,6 +31,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   const tenantId = tenantIdFromSession(session);
   const { method } = req;
   const { action } = req.query;
+  if (sequelize) await ensureTravelSchema(sequelize);
 
   try {
     switch (method) {
@@ -117,15 +131,66 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
       return res.json({ success: true, data: rowsToSnake(rows) });
     }
     case 'request-detail': {
-      const { id } = req.query;
-      if (!id || !TravelRequest) return res.status(404).json({ error: 'Not found' });
-      const request = await TravelRequest.findOne({ where: { id, tenantId } });
+      const rawId = req.query.id;
+      const id = Array.isArray(rawId) ? rawId[0] : rawId;
+      if (!id) return res.status(400).json({ error: 'ID required' });
+      let request: any = null;
+      try {
+        request = TravelRequest
+          ? await TravelRequest.findOne({ where: { id, tenantId } })
+          : null;
+      } catch (e) {
+        console.warn('travel request-detail findOne:', (e as any)?.message || e);
+      }
+      if (!request && sequelize) {
+        try {
+          const [rows] = await sequelize.query(`
+            SELECT * FROM travel_requests
+            WHERE id = :id AND tenant_id = :tenantId
+            LIMIT 1
+          `, { replacements: { id, tenantId } });
+          request = (rows as any[])?.[0] || null;
+        } catch { request = null; }
+      }
       if (!request) return res.status(404).json({ error: 'Not found' });
-      const expenses = TravelExpense
-        ? await TravelExpense.findAll({ where: { travelRequestId: id }, order: [['expenseDate', 'ASC']] })
-        : [];
-      const totalExpenses = expenses.reduce((sum: number, e: any) => sum + parseFloat(e.amount || 0), 0);
-      return res.json({ success: true, data: { request, expenses, totalExpenses } });
+      let expenses: any[] = [];
+      try {
+        expenses = TravelExpense
+          ? await TravelExpense.findAll({ where: { travelRequestId: id }, order: [['expenseDate', 'ASC']] })
+          : [];
+      } catch {
+        if (sequelize) {
+          try {
+            const [rows] = await sequelize.query(`
+              SELECT te.* FROM travel_expenses te
+              WHERE te.travel_request_id = :id
+              ORDER BY te.expense_date ASC NULLS LAST
+            `, { replacements: { id } });
+            expenses = (rows as any[]) || [];
+          } catch { expenses = []; }
+        }
+      }
+      const snakeExp = rowsToSnake(expenses).length ? rowsToSnake(expenses) : expenses;
+      const totalExpenses = (snakeExp || []).reduce((sum: number, e: any) => sum + parseFloat(e.amount || 0), 0);
+      let employee: any = null;
+      const empId = (request as any).employeeId || (request as any).employee_id;
+      if (sequelize && empId) {
+        try {
+          const [erows] = await sequelize.query(`
+            SELECT id, name, email FROM employees WHERE id = :empId LIMIT 1
+          `, { replacements: { empId } });
+          employee = (erows as any[])?.[0] || null;
+        } catch { employee = null; }
+      }
+      return res.json({
+        success: true,
+        data: {
+          request: serializeTravelRequest(request),
+          expenses: snakeExp,
+          totalExpenses,
+          employee,
+        },
+      });
     }
     default:
       return res.status(400).json({ error: 'Invalid action' });
@@ -161,7 +226,7 @@ async function handlePost(
         });
         if (!owned) return res.status(404).json({ error: 'Travel request not found' });
       }
-      const expense = await TravelExpense.create(body);
+      const expense = await TravelExpense.create(mapTravelExpenseBody(body, tenantId));
       if (body.travelRequestId && TravelRequest) {
         const totalExp = await TravelExpense.sum('amount', { where: { travelRequestId: body.travelRequestId } });
         await TravelRequest.update({ actualCost: totalExp || 0 }, { where: { id: body.travelRequestId, tenantId } });
@@ -243,6 +308,49 @@ async function handlePost(
       const budget = await ExpenseBudget.create(body);
       return res.json({ success: true, data: budget });
     }
+    case 'email-request': {
+      const id = body.id;
+      const to = String(body.to || '').trim();
+      if (!id || !to || !to.includes('@')) {
+        return res.status(400).json({ error: 'Isi ID pengajuan dan alamat email tujuan' });
+      }
+      let request: any = TravelRequest
+        ? await TravelRequest.findOne({ where: { id, tenantId } }).catch(() => null)
+        : null;
+      if (!request && sequelize) {
+        const [rows] = await sequelize.query(`
+          SELECT * FROM travel_requests WHERE id = :id AND tenant_id = :tenantId LIMIT 1
+        `, { replacements: { id, tenantId } });
+        request = (rows as any[])?.[0] || null;
+      }
+      if (!request) return res.status(404).json({ error: 'Pengajuan tidak ditemukan' });
+      let expenses: any[] = [];
+      try {
+        const [rows] = sequelize
+          ? await sequelize.query(`SELECT * FROM travel_expenses WHERE travel_request_id = :id ORDER BY expense_date ASC NULLS LAST`, { replacements: { id } })
+          : [[]];
+        expenses = (rows as any[]) || [];
+      } catch { expenses = []; }
+      const serialized = serializeTravelRequest(request);
+      const detail = {
+        request: serialized,
+        expenses,
+        totalExpenses: expenses.reduce((s: number, e: any) => s + parseFloat(e.amount || 0), 0),
+      };
+      if (!isSmtpConfigured()) {
+        return res.status(503).json({ success: false, error: 'SMTP belum dikonfigurasi' });
+      }
+      const mail = humanifyTravelRequestEmail({
+        requestNumber: serialized.request_number || '',
+        destination: serialized.destination || '',
+        innerHtml: travelEmailInnerHtml(detail, body.note),
+        text: travelEmailText(detail, body.note),
+        detailUrl: 'https://humanify.id/humanify/travel-expense',
+      });
+      const ok = await sendEmail({ to, subject: mail.subject, html: mail.html, text: mail.text });
+      if (!ok) return res.status(500).json({ success: false, error: 'Gagal mengirim email' });
+      return res.json({ success: true, message: `Terkirim ke ${to}` });
+    }
     default:
       return res.status(400).json({ error: 'Invalid action' });
   }
@@ -268,7 +376,7 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, action: stri
         WHERE te.id = :id AND tr.tenant_id = :tenantId LIMIT 1
       `, { replacements: { id, tenantId } });
       if (!owned?.length) return res.status(404).json({ error: 'Not found' });
-      await TravelExpense.update(req.body, { where: { id } });
+      await TravelExpense.update(mapTravelExpenseBody(req.body, tenantId), { where: { id } });
       return res.json({ success: true, message: 'Expense updated' });
     }
     case 'budget': {
@@ -313,30 +421,74 @@ async function handleDelete(req: NextApiRequest, res: NextApiResponse, action: s
 }
 
 function mapTravelRequestBody(body: Record<string, unknown>) {
+  const storedPlan = hydratePlanFromRequest(body);
+  const tripType = storedPlan.tripType;
+  const originCity = storedPlan.originCity;
+  const span = dateSpan(
+    storedPlan.stops,
+    String(body.departureDate ?? body.startDate ?? body.start_date ?? ''),
+    String(body.returnDate ?? body.endDate ?? body.end_date ?? ''),
+  );
+  const destination = itineraryRoute(originCity, storedPlan.stops, tripType)
+    || String(body.destination || '');
+  const budget = itineraryBudget(storedPlan.stops) || Number(body.estimatedBudget ?? body.estimated_budget ?? 0) || 0;
   return {
     employeeId: body.employeeId ?? body.employee_id,
-    destination: body.destination,
+    destination,
+    departureCity: originCity,
     purpose: body.purpose,
-    startDate: body.departureDate ?? body.startDate ?? body.start_date,
-    endDate: body.returnDate ?? body.endDate ?? body.end_date,
-    estimatedBudget: body.estimatedBudget ?? body.estimated_budget ?? 0,
+    startDate: span.start || null,
+    endDate: span.end || null,
+    departureDate: span.start || null,
+    returnDate: span.end || null,
+    estimatedBudget: budget,
+    advanceAmount: body.advanceAmount ?? body.advance_amount ?? 0,
+    travelType: body.travelType ?? body.travel_type ?? 'domestic',
+    tripType,
+    transportation: body.transportation || storedPlan.stops[0]?.transportMode || 'flight',
+    accommodationNeeded: body.accommodationNeeded ?? body.accommodation_needed ?? true,
+    itinerary: storedPlan,
     status: body.status || 'draft',
     notes: body.notes || null,
   } as Record<string, unknown>;
 }
 
+function mapTravelExpenseBody(body: Record<string, unknown>, tenantId: string | null) {
+  const categoryRaw = String(body.category || 'other');
+  const category = COST_TO_EXPENSE[categoryRaw as keyof typeof COST_TO_EXPENSE] || categoryRaw;
+  return {
+    tenantId,
+    travelRequestId: body.travelRequestId ?? body.travel_request_id,
+    employeeId: body.employeeId ?? body.employee_id,
+    expenseDate: body.expenseDate ?? body.expense_date,
+    category,
+    description: body.description || null,
+    amount: body.amount ?? 0,
+    receiptUrl: body.receiptUrl ?? body.receipt_url ?? null,
+    receiptNumber: body.receiptNumber ?? body.receipt_number ?? null,
+    itineraryStopId: body.itineraryStopId ?? body.itinerary_stop_id ?? null,
+    costLineId: body.costLineId ?? body.cost_line_id ?? null,
+    plannedAmount: body.plannedAmount ?? body.planned_amount ?? 0,
+    notes: body.notes || null,
+    status: body.status || 'submitted',
+  };
+}
+
 function serializeTravelRequest(row: any) {
   const s = rowToSnake(row) || {};
+  const origin = s.departure_city || '';
+  const plan = parseTravelPlan(s.itinerary, origin);
   return {
     ...s,
     departure_date: s.start_date || s.departure_date,
     return_date: s.end_date || s.return_date,
-    departure_city: s.departure_city || '',
+    departure_city: plan.originCity || origin,
     travel_type: s.travel_type || 'domestic',
-    transportation: s.transportation || 'flight',
+    trip_type: s.trip_type || plan.tripType,
+    transportation: s.transportation || plan.stops[0]?.transportMode || 'flight',
     accommodation_needed: s.accommodation_needed ?? false,
     actual_cost: s.actual_cost ?? 0,
     advance_amount: s.advance_amount ?? 0,
-    itinerary: s.itinerary || [],
+    itinerary: serializeTravelPlan({ ...plan, originCity: plan.originCity || origin }),
   };
 }

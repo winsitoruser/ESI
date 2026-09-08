@@ -61,7 +61,7 @@ export default function VerifyEmailPage() {
         <link rel="icon" href={HUMANIFY_BRAND.welcomeLogoPath} type="image/png" />
       </Head>
       <PublicAuthShell>
-        <div className="w-full max-w-md rounded-2xl border bg-white p-8 shadow-sm text-center" style={{ borderColor: 'var(--hf-border)' }}>
+        <div className="w-full max-w-md hf-card p-8 text-center" style={{ borderColor: 'var(--hf-border)' }}>
           <Mail className="w-10 h-10 text-emerald-600 mx-auto mb-3" />
           <h1 className="text-xl font-semibold text-slate-900">Verifikasi email</h1>
           {status === 'loading' && (

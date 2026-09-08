@@ -7,18 +7,18 @@ export const LMS_GA_PATH_PREFIXES = [
   '/humanify/lms',
   '/humanify/lms/courses',
   '/humanify/lms/tests',
+  '/humanify/lms/question-bank',
+  '/humanify/lms/grading',
   '/humanify/lms/competency',
   '/humanify/lms/analytics',
 ] as const;
 
 /** Exact lab page segments under /humanify/lms/* */
 export const LMS_LAB_SEGMENTS = new Set([
-  'question-bank',
   'blueprints',
   'psychometric',
   'psychometric-reports',
   'schedules',
-  'grading',
   'reports',
   'proctoring',
   'integrations',
@@ -47,7 +47,7 @@ export function isLmsLabPath(pathname: string): boolean {
   const first = rest.split('/')[0];
   if (!first) return false;
   // GA nested: courses/:id, tests/:id
-  if (first === 'courses' || first === 'tests' || first === 'competency' || first === 'analytics') {
+  if (first === 'courses' || first === 'tests' || first === 'competency' || first === 'analytics' || first === 'question-bank' || first === 'grading') {
     return false;
   }
   return LMS_LAB_SEGMENTS.has(first);
@@ -64,6 +64,8 @@ export function isLmsLabApiPath(pathname: string): boolean {
 export const LMS_GA_MODULES = [
   { id: 'courses', href: '/humanify/lms/courses', label: 'Kursus & Learning Path', desc: 'Kurikulum, modul, materi, progress belajar' },
   { id: 'tests', href: '/humanify/lms/tests', label: 'Tes & Ujian', desc: 'Buat & kelola tes/ujian online' },
+  { id: 'question-bank', href: '/humanify/lms/question-bank', label: 'Bank Soal', desc: 'Pilihan ganda, essay, dan penyusunan per modul' },
+  { id: 'grading', href: '/humanify/lms/grading', label: 'Penilaian', desc: 'Auto MC/TF dan penilaian essay per soal' },
   { id: 'competency', href: '/humanify/lms/competency', label: 'Kompetensi & Sertifikat', desc: 'Sertifikat & riwayat kompetensi' },
   { id: 'analytics', href: '/humanify/lms/analytics', label: 'Analytics L&D', desc: 'Heatmap departemen & skill gap' },
 ] as const;

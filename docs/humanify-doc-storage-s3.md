@@ -36,4 +36,13 @@ UI: `/platform/observability` → panel **Document storage**.
 2. Set env di VPS `.env` → `pm2 restart humanify --update-env`.
 3. Health: `mode=s3`, `s3Ready=true`, optional `probe.ok=true`.
 4. Upload dokumen uji di HR → download ESS.
-5. Jangan hapus local root sampai migrasi selesai (belum ada job migrate otomatis).
+5. Jangan hapus local root sampai migrasi selesai.
+
+## Migration & rollback policy (PR-049)
+
+1. **Dual-read:** with `HUMANIFY_DOC_S3_BUCKET` set, new uploads go to object storage; reads try S3 then local fallback (`HUMANIFY_DOC_STORAGE_DIR`).
+2. **Migrate:** copy local objects with the existing AWS CLI / rclone job (no automatic in-app migrator yet). Keep local root until checksum sample passes.
+3. **Rollback:** unset `HUMANIFY_DOC_S3_BUCKET`, restart PM2 — app returns to local-only. Object-store files remain in the bucket until explicitly deleted.
+4. **Cutover complete:** only after dual-read sample (HR upload + ESS download) and backup of local root.
+
+Launch does **not** require production S3; local private storage remains GA.

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
+import EmployeeAvatar from '@/components/humanify/EmployeeAvatar';
 import type { HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import DocumentExportButton from '@/components/documents/DocumentExportButton';
@@ -9,8 +10,8 @@ import {
   Building2, Briefcase, Users, FileText, ChevronRight, RefreshCw, X, Save,
   GitBranch, MapPin, Layers, AlertCircle,
 } from 'lucide-react';
+import { useHrisMasterData } from '@/hooks/useHrisMasterData';
 import {
-  HRIS_DEPARTMENTS,
   getDepartmentLabel,
 } from '@/lib/hris/master-data';
 import {
@@ -47,6 +48,7 @@ export default function MutationsPage() {
   const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [employees, setEmployees] = useState<any[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
+  const { departments: masterDepartments, orgUnits } = useHrisMasterData();
   const [selected, setSelected] = useState<any>(null);
   const [filterStatus, setFilterStatus] = useState('');
   const [filterType, setFilterType] = useState('');
@@ -68,6 +70,8 @@ export default function MutationsPage() {
     to_branch_id: '',
     to_department: '',
     to_position: '',
+    to_org_structure_id: '',
+    to_supervisor_id: '',
     reason: '',
     notes: '',
     new_salary: '',
@@ -163,7 +167,11 @@ export default function MutationsPage() {
       const json = await res.json();
       if (json.success) {
         showToast('success', json.message || 'Pengajuan berhasil');
-        setForm({ employee_id: '', mutation_type: 'transfer', mutation_scope: 'department', effective_date: '', to_branch_id: '', to_department: '', to_position: '', reason: '', notes: '', new_salary: '' });
+        setForm({
+          employee_id: '', mutation_type: 'transfer', mutation_scope: 'department', effective_date: '',
+          to_branch_id: '', to_department: '', to_position: '', to_org_structure_id: '', to_supervisor_id: '',
+          reason: '', notes: '', new_salary: '',
+        });
         setActiveTab('list');
         loadMutations();
       } else {
@@ -222,16 +230,17 @@ export default function MutationsPage() {
   return (
     <HQLayout title="Mutasi & Penugasan" currentMenu="hris">
       {toast && (
-        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white text-sm ${toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
+        <div className={`fixed top-3 left-3 right-3 sm:left-auto sm:right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white text-sm ${toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
           {toast.message}
         </div>
       )}
 
-      <div className="p-4 md:p-6 space-y-4">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-              <ArrowRightLeft className="w-6 h-6 text-[color:var(--hf-brand-600)]" /> Mutasi, Penugasan & Perpindahan
+      <div className="space-y-4 min-w-0">
+        <div className="flex items-start justify-between flex-wrap gap-3">
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-xl font-bold text-gray-800 flex items-center gap-2">
+              <ArrowRightLeft className="w-5 h-5 sm:w-6 sm:h-6 shrink-0 text-[color:var(--hf-brand-600)]" />
+              <span className="leading-snug">Mutasi, Penugasan & Perpindahan</span>
             </h1>
             <p className="text-sm text-gray-500 mt-0.5">
               Pengajuan perpindahan antar departemen, bagian, wilayah — dengan approval & E-Letter
@@ -254,13 +263,13 @@ export default function MutationsPage() {
 
         {/* Stats */}
         {activeTab === 'list' && (
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
             {[
               { label: 'Menunggu Approval', value: stats.pending, color: 'text-amber-600 bg-amber-50', icon: Clock },
               { label: 'Disetujui', value: stats.approved, color: 'text-green-600 bg-green-50', icon: CheckCircle },
               { label: 'Ditolak', value: stats.rejected, color: 'text-red-600 bg-red-50', icon: XCircle },
             ].map((c, i) => (
-              <div key={i} className="bg-white rounded-xl border p-4 flex items-center gap-3">
+              <div key={i} className="hf-card flex items-center gap-3 p-4">
                 <div className={`p-2 rounded-lg ${c.color}`}><c.icon className="w-5 h-5" /></div>
                 <div>
                   <p className="text-2xl font-bold text-gray-800">{c.value}</p>
@@ -273,9 +282,9 @@ export default function MutationsPage() {
 
         {/* LIST */}
         {activeTab === 'list' && (
-          <div className="bg-white rounded-xl border">
+          <div className="hf-card">
             <div className="p-4 border-b flex flex-wrap gap-3">
-              <div className="relative flex-1 min-w-[200px]">
+              <div className="relative flex-1 min-w-0 sm:min-w-[200px]">
                 <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
                 <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari nama / nomor..."
                   className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm" />
@@ -312,8 +321,13 @@ export default function MutationsPage() {
                     <tr key={m.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => loadDetail(m.id)}>
                       <td className="px-4 py-3 font-mono text-xs text-[color:var(--hf-brand-600)]">{m.mutation_number}</td>
                       <td className="px-4 py-3">
-                        <p className="font-medium text-gray-800">{m.employee_name}</p>
-                        <p className="text-xs text-gray-400">{m.employee_code}</p>
+                        <div className="flex items-center gap-2">
+                          <EmployeeAvatar name={m.employee_name} photoUrl={m.photo_url} size="sm" />
+                          <div>
+                            <p className="font-medium text-gray-800">{m.employee_name}</p>
+                            <p className="text-xs text-gray-400">{m.employee_code}</p>
+                          </div>
+                        </div>
                       </td>
                       <td className="px-4 py-3">{MUTATION_TYPE_LABELS[m.mutation_type as MutationType] || m.mutation_type}</td>
                       <td className="px-4 py-3 text-xs">{MUTATION_SCOPE_LABELS[m.mutation_scope as MutationScope] || m.mutation_scope || '-'}</td>
@@ -339,7 +353,7 @@ export default function MutationsPage() {
 
         {/* CREATE FORM */}
         {activeTab === 'create' && (
-          <div className="bg-white rounded-xl border p-6 max-w-2xl">
+          <div className="hf-card p-4 sm:p-6 max-w-2xl w-full min-w-0">
             <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
               <Plus className="w-5 h-5 text-[color:var(--hf-brand-600)]" /> Form Pengajuan Mutasi / Penugasan
             </h2>
@@ -354,7 +368,7 @@ export default function MutationsPage() {
                   ))}
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-medium text-gray-500">Jenis *</label>
                   <select value={form.mutation_type} onChange={(e) => setForm((f) => ({ ...f, mutation_type: e.target.value as MutationType }))}
@@ -379,7 +393,7 @@ export default function MutationsPage() {
                 <p className="text-xs font-semibold text-gray-600 mb-3 flex items-center gap-1">
                   <MapPin className="w-3.5 h-3.5" /> Tujuan Penempatan Baru
                 </p>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs text-gray-500">Cabang / Wilayah</label>
                     <select value={form.to_branch_id} onChange={(e) => setForm((f) => ({ ...f, to_branch_id: e.target.value }))}
@@ -390,16 +404,46 @@ export default function MutationsPage() {
                   </div>
                   <div>
                     <label className="text-xs text-gray-500">Departemen</label>
-                    <select value={form.to_department} onChange={(e) => setForm((f) => ({ ...f, to_department: e.target.value }))}
+                    <select
+                      value={form.to_department}
+                      onChange={(e) => {
+                        const code = e.target.value;
+                        const match = orgUnits.find((u) => u.code === code || u.departmentCode === code);
+                        setForm((f) => ({
+                          ...f,
+                          to_department: code,
+                          to_org_structure_id: match?.id || '',
+                        }));
+                      }}
                       className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
                       <option value="">— Pilih departemen —</option>
-                      {HRIS_DEPARTMENTS.map((d) => <option key={d.code} value={d.code}>{d.label}</option>)}
+                      {masterDepartments.map((d) => <option key={d.code} value={d.code}>{d.label}</option>)}
                     </select>
                   </div>
                   <div className="col-span-2">
                     <label className="text-xs text-gray-500">Jabatan Baru</label>
                     <input value={form.to_position} onChange={(e) => setForm((f) => ({ ...f, to_position: e.target.value }))}
                       className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" placeholder="Contoh: Supervisor Operasional" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500">Unit organisasi</label>
+                    <select value={form.to_org_structure_id} onChange={(e) => setForm((f) => ({ ...f, to_org_structure_id: e.target.value }))}
+                      className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
+                      <option value="">— Sesuai departemen —</option>
+                      {orgUnits.map((u) => (
+                        <option key={u.id} value={u.id}>{u.name}{u.code ? ` (${u.code})` : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500">Atasan baru (rantai komando)</label>
+                    <select value={form.to_supervisor_id} onChange={(e) => setForm((f) => ({ ...f, to_supervisor_id: e.target.value }))}
+                      className="w-full mt-1 px-3 py-2 border rounded-lg text-sm">
+                      <option value="">— Tidak diubah —</option>
+                      {employees.filter((e) => e.id !== form.employee_id).map((e) => (
+                        <option key={e.id} value={e.id}>{e.name} — {e.position || '-'}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               </div>
@@ -412,7 +456,7 @@ export default function MutationsPage() {
                 <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                 Pengajuan akan melalui tahap persetujuan: <strong>Manajer → HRD</strong>
                 {['promotion', 'demotion'].includes(form.mutation_type) && ' → Direktur'}.
-                Setelah disetujui, sistem menerbitkan E-Letter (SK Mutasi / Surat Penugasan).
+                Setelah disetujui, sistem menerbitkan E-Letter dan memperbarui departemen, unit organisasi, serta rantai komando (jika atasan baru diisi).
               </div>
               <button onClick={handleSubmit} disabled={submitting}
                 className="flex items-center gap-2 px-5 py-2.5 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)] disabled:opacity-50">
@@ -425,19 +469,22 @@ export default function MutationsPage() {
         {/* DETAIL */}
         {activeTab === 'detail' && selected && (
           <div className="space-y-4">
-            <div className="bg-white rounded-xl border p-5">
+            <div className="hf-card p-5">
               <div className="flex items-start justify-between flex-wrap gap-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm text-[color:var(--hf-brand-600)]">{selected.mutation_number}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${STATUS_COLORS[selected.status]}`}>
-                      {MUTATION_STATUS_LABELS[selected.status as keyof typeof MUTATION_STATUS_LABELS]}
-                    </span>
+                <div className="flex items-center gap-3 min-w-0">
+                  <EmployeeAvatar name={selected.employee_name} photoUrl={selected.photo_url} size="lg" />
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono text-sm text-[color:var(--hf-brand-600)]">{selected.mutation_number}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${STATUS_COLORS[selected.status]}`}>
+                        {MUTATION_STATUS_LABELS[selected.status as keyof typeof MUTATION_STATUS_LABELS]}
+                      </span>
+                    </div>
+                    <h2 className="text-lg font-bold text-gray-800 mt-1">{selected.employee_name}</h2>
+                    <p className="text-sm text-gray-500">
+                      {MUTATION_TYPE_LABELS[selected.mutation_type as MutationType]} • {MUTATION_SCOPE_LABELS[selected.mutation_scope as MutationScope] || '-'}
+                    </p>
                   </div>
-                  <h2 className="text-lg font-bold text-gray-800 mt-1">{selected.employee_name}</h2>
-                  <p className="text-sm text-gray-500">
-                    {MUTATION_TYPE_LABELS[selected.mutation_type as MutationType]} • {MUTATION_SCOPE_LABELS[selected.mutation_scope as MutationScope] || '-'}
-                  </p>
                 </div>
                 <div className="flex gap-2 flex-wrap">
                   {selected.status === 'pending' && (
@@ -470,12 +517,18 @@ export default function MutationsPage() {
                 <div className="bg-gray-50 rounded-xl p-4 border">
                   <p className="text-xs font-semibold text-gray-500 mb-2">POSISI LAMA</p>
                   <p className="text-sm font-medium">{selected.from_position || '-'}</p>
-                  <p className="text-xs text-gray-500 mt-1">{getDepartmentLabel(selected.from_department)} • {selected.from_branch_name || '-'}</p>
+                  <p className="text-xs text-gray-500 mt-1">{getDepartmentLabel(selected.from_department)} • {selected.from_branch_name || selected.from_org_name || '-'}</p>
+                  {selected.from_supervisor_name && (
+                    <p className="text-xs text-gray-400 mt-1">Atasan lama: {selected.from_supervisor_name}</p>
+                  )}
                 </div>
                 <div className="bg-[var(--hf-brand-50)] rounded-xl p-4 border border-[var(--hf-brand-100)]">
                   <p className="text-xs font-semibold text-[color:var(--hf-brand-600)] mb-2">POSISI BARU</p>
                   <p className="text-sm font-medium">{selected.to_position || '-'}</p>
-                  <p className="text-xs text-gray-500 mt-1">{getDepartmentLabel(selected.to_department)} • {selected.to_branch_name || '-'}</p>
+                  <p className="text-xs text-gray-500 mt-1">{getDepartmentLabel(selected.to_department)} • {selected.to_branch_name || selected.to_org_name || '-'}</p>
+                  {selected.to_supervisor_name && (
+                    <p className="text-xs text-[color:var(--hf-brand-600)] mt-1">Atasan baru: {selected.to_supervisor_name}</p>
+                  )}
                   <p className="text-xs text-[color:var(--hf-brand-600)] mt-2">Efektif: {fmtDate(selected.effective_date)}</p>
                 </div>
               </div>
@@ -487,7 +540,7 @@ export default function MutationsPage() {
             </div>
 
             {/* Approval timeline */}
-            <div className="bg-white rounded-xl border p-5">
+            <div className="hf-card p-5">
               <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
                 <GitBranch className="w-5 h-5 text-[color:var(--hf-brand-600)]" /> Alur Persetujuan
                 <span className="text-xs font-normal text-gray-400">
@@ -524,7 +577,7 @@ export default function MutationsPage() {
 
             {/* E-File info */}
             {selected.e_file_id && (
-              <div className="bg-white rounded-xl border p-4 flex items-center gap-3">
+              <div className="hf-card flex items-center gap-3 p-4">
                 <FileText className="w-8 h-8 text-[color:var(--hf-brand-500)]" />
                 <div>
                   <p className="text-sm font-medium text-gray-800">E-File Terdaftar</p>
@@ -538,8 +591,8 @@ export default function MutationsPage() {
 
       {/* Approval modal */}
       {showApproval && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowApproval(false)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md m-4 p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" onClick={() => setShowApproval(false)}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full max-w-md p-5 sm:p-6 max-h-[min(92dvh,100%)] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-semibold">{approvalAction === 'approve' ? 'Setujui Mutasi' : 'Tolak Mutasi'}</h3>
               <button onClick={() => setShowApproval(false)}><X className="w-5 h-5 text-gray-400" /></button>

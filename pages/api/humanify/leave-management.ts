@@ -4,6 +4,9 @@ import { allowHrMockFallback } from '../../../lib/hris/data-source';
 import { withObservability } from '@/lib/observability';
 import { ensureTenantDbContext } from '@/lib/saas/ensure-tenant-db-context';
 import { resolveLeaveApproverId } from '@/lib/hris/leave-request-service';
+import { ensureLeaveTypesSchema } from '@/lib/hris/ensure-leave-types-schema';
+import { upsertLeaveType } from '@/lib/hris/leave-type-store';
+import { markGoLiveFlagSafe } from '@/lib/saas/go-live';
 
 let sequelize: any, Op: any;
 try {
@@ -54,7 +57,7 @@ async function fetchDbLeaveRequests(tenantId: string | null, limit = 50): Promis
       ? 'WHERE lr.tenant_id = :tenantId'
       : 'WHERE 1=0';
     const [rows] = await sequelize.query(`
-      SELECT lr.*, e.name as employee_name, e.position, e.department, e.branch_id
+      SELECT lr.*, e.name as employee_name, e.position, e.department, e.branch_id, e.photo_url
       FROM leave_requests lr
       LEFT JOIN employees e ON lr.employee_id::text = e.id::text
       ${tenantClause}
@@ -132,6 +135,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     const session = (req as any).session;
     await ensureTenantDbContext(session);
+    await ensureLeaveTypesSchema(sequelize);
     const tenantId = getTenantId(req);
 
     const { action } = req.query;
@@ -154,6 +158,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         if (action === 'approve') return approveStep(req, res, session);
         if (action === 'reject') return rejectRequest(req, res, session);
         if (action === 'type') return createLeaveType(req, res, session);
+        if (action === 'apply-suggested-types') return applySuggestedLeaveTypes(req, res, session);
         if (action === 'balance-init') return initializeBalances(req, res, session);
         if (action === 'suggest-types' || action === 'suggest-approvals') {
           return suggestLeaveConfig(req, res, session, action);
@@ -248,7 +253,7 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
       try {
         const [rows] = await sequelize.query(`
           SELECT lb.*, lt.code AS leave_type_code, lt.name AS leave_type_name,
-                 e.name AS employee_name, e.department
+                 e.name AS employee_name, e.department, e.photo_url
           FROM leave_balances lb
           JOIN leave_types lt ON lb.leave_type_id = lt.id
           LEFT JOIN employees e ON lb.employee_id = e.id
@@ -396,7 +401,7 @@ async function getLeaveRequests(req: NextApiRequest, res: NextApiResponse, sessi
     if (employeeId) { where += ' AND lr.employee_id = :employeeId'; replacements.employeeId = employeeId; }
 
     const [rows] = await sequelize.query(`
-      SELECT lr.*, e.name as employee_name, e.position, e.department, e.branch_id,
+      SELECT lr.*, e.name as employee_name, e.position, e.department, e.branch_id, e.photo_url,
              b.name as branch_name
       FROM leave_requests lr
       LEFT JOIN employees e ON lr.employee_id = e.id
@@ -456,7 +461,7 @@ async function getPendingApprovals(req: NextApiRequest, res: NextApiResponse, se
 
     const [rows] = await sequelize.query(`
       SELECT las.*, lr.employee_id, lr.leave_type, lr.start_date, lr.end_date, lr.total_days,
-             lr.reason, lr.attachment_url, lr.status as request_status, e.name as employee_name, e.position, e.department
+             lr.reason, lr.attachment_url, lr.status as request_status, e.name as employee_name, e.position, e.department, e.photo_url
       FROM leave_approval_steps las
       JOIN leave_requests lr ON las.leave_request_id = lr.id
       LEFT JOIN employees e ON lr.employee_id = e.id
@@ -831,6 +836,7 @@ async function createApprovalConfig(req: NextApiRequest, res: NextApiResponse, s
       approvalLevels, escalationHours: escalationHours || 48,
       isActive: true, priority: 0
     });
+    await markGoLiveFlagSafe(session.user?.tenantId, 'leaveConfigured');
     return res.status(201).json({ success: true, data: config });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: e.message });
@@ -879,9 +885,16 @@ async function deleteApprovalConfig(req: NextApiRequest, res: NextApiResponse, s
 
 // ===== POST: Create/Update Leave Type =====
 async function createLeaveType(req: NextApiRequest, res: NextApiResponse, session: any) {
-  if (!LeaveType) return res.json({ success: true, message: 'Created (mock)' });
+  if (!sequelize && !LeaveType) return res.json({ success: true, message: 'Created (mock)' });
   try {
-    const lt = await LeaveType.create({ ...req.body, tenantId: session.user.tenantId });
+    const tenantId = session.user?.tenantId || getTenantId(req);
+    if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
+    if (!sequelize) {
+      const lt = await LeaveType.create({ ...req.body, tenantId });
+      return res.status(201).json({ success: true, data: lt });
+    }
+    const lt = await upsertLeaveType(sequelize, tenantId, req.body || {});
+    await markGoLiveFlagSafe(tenantId, 'leaveConfigured');
     return res.status(201).json({ success: true, data: lt });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: e.message });
@@ -889,16 +902,68 @@ async function createLeaveType(req: NextApiRequest, res: NextApiResponse, sessio
 }
 
 async function updateLeaveType(req: NextApiRequest, res: NextApiResponse, session: any) {
-  const { id, ...data } = req.body;
-  if (!id || !LeaveType) return res.json({ success: true, message: 'Updated (mock)' });
+  const { id, ...data } = req.body || {};
+  if (!id && !data?.code) return res.status(400).json({ success: false, error: 'id atau code wajib' });
   try {
     const tenantId = session.user?.tenantId || getTenantId(req);
     if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
-    const lt = await LeaveType.findOne({ where: { id, tenantId } });
-    if (!lt) return res.status(404).json({ error: 'Not found' });
-    delete (data as any).tenantId;
-    await lt.update(data);
+    if (!sequelize) {
+      if (!LeaveType) return res.json({ success: true, message: 'Updated (mock)' });
+      const lt = await LeaveType.findOne({ where: { id, tenantId } });
+      if (!lt) return res.status(404).json({ error: 'Not found' });
+      delete (data as any).tenantId;
+      await lt.update(data);
+      return res.json({ success: true, data: lt });
+    }
+    let code = data.code;
+    if (!code && id) {
+      const [rows]: any = await sequelize.query(
+        `SELECT code FROM leave_types WHERE id = :id AND tenant_id = :tid LIMIT 1`,
+        { replacements: { id, tid: tenantId } },
+      );
+      code = rows?.[0]?.code;
+    }
+    if (!code) return res.status(400).json({ success: false, error: 'Kode tipe cuti tidak ditemukan' });
+    const lt = await upsertLeaveType(sequelize, tenantId, { ...data, id, code });
+    await markGoLiveFlagSafe(tenantId, 'leaveConfigured');
     return res.json({ success: true, data: lt });
+  } catch (e: any) {
+    return res.status(500).json({ success: false, error: e.message });
+  }
+}
+
+async function applySuggestedLeaveTypes(req: NextApiRequest, res: NextApiResponse, session: any) {
+  const tenantId = session.user?.tenantId || getTenantId(req);
+  if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
+  if (!sequelize) return res.status(500).json({ success: false, error: 'Database unavailable' });
+  try {
+    const { LEAVE_TYPE_SUGGESTIONS, suggestionToLeaveTypePayload, leaveTypeAlreadyConfigured } = await import(
+      '@/lib/hris/leave-type-suggestions'
+    );
+    const existing = (await getLeaveTypesList(session)).map((t: any) => t.code);
+    const requested = Array.isArray(req.body?.codes)
+      ? req.body.codes.map((c: string) => String(c))
+      : LEAVE_TYPE_SUGGESTIONS.filter((s) => s.priority === 'compliance').map((s) => s.code);
+    const want = new Set(requested.map((c: string) => String(c).toLowerCase()));
+    const created: any[] = [];
+    const skipped: string[] = [];
+    let sort = existing.length;
+    for (const s of LEAVE_TYPE_SUGGESTIONS) {
+      if (!want.has(s.code.toLowerCase())) continue;
+      if (leaveTypeAlreadyConfigured(s.code, existing)) {
+        skipped.push(s.code);
+        continue;
+      }
+      sort += 1;
+      const row = await upsertLeaveType(sequelize, tenantId, suggestionToLeaveTypePayload(s, sort));
+      created.push(row);
+      existing.push(s.code);
+    }
+    if (created.length) await markGoLiveFlagSafe(tenantId, 'leaveConfigured');
+    return res.json({
+      success: true,
+      data: { created, skipped, createdCount: created.length },
+    });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: e.message });
   }

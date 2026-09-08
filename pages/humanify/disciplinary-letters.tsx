@@ -5,9 +5,11 @@ import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
 import DocumentExportButton from '@/components/documents/DocumentExportButton';
 import EmployeePicker, { type PickedEmployee } from '@/components/humanify/EmployeePicker';
+import { OpsPageHero, OpsKpiShell, OpsStage } from '@/components/humanify/OpsPageChrome';
+import HRStatCard from '@/components/humanify/HRStatCard';
 import {
   EmployeeAvatar, TypeBadge, StatusBadge, ApprovalTimeline,
-  LetterTypeCards, StatCard, SkeletonCards, EmptyState, WizardSteps, TYPE_STYLES,
+  LetterTypeCards, SkeletonCards, EmptyState, WizardSteps, TYPE_STYLES,
 } from '@/components/humanify/disciplinary/DisciplinaryUI';
 import {
   AlertTriangle, Plus, Search, CheckCircle, XCircle, Clock, FileText,
@@ -371,61 +373,59 @@ export default function DisciplinaryLettersPage() {
         </div>
       )}
 
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
-        {/* Hero header */}
-        <div className="bg-gradient-to-r from-slate-900 via-[var(--hf-brand-500)] to-slate-900 text-white">
-          <div className="max-w-[1600px] mx-auto px-4 md:px-6 py-6 md:py-8">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2.5 rounded-xl bg-white/10 backdrop-blur border border-white/10">
-                    <Scale className="w-6 h-6 text-amber-400" />
-                  </div>
-                  <div>
-                    <h1 className="text-xl md:text-2xl font-bold tracking-tight">Manajemen Surat Disiplin</h1>
-                    <p className="text-[color:var(--hf-brand-600)]/80 text-sm">Teguran · SP1 · SP2 · SP3 · PHK — workflow SOP good governance</p>
-                  </div>
-                </div>
-                {/* Mini ladder */}
-                <div className="flex flex-wrap items-center gap-1.5 mt-4">
-                  {DISCIPLINARY_LADDER.map((type, i) => (
-                    <div key={type} className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => { setFilterType(filterType === type ? '' : type); setView('board'); }}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all ${
-                          filterType === type ? 'bg-white text-[color:var(--hf-brand-600)]' : 'bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        {type}
-                      </button>
-                      {i < DISCIPLINARY_LADDER.length - 1 && <ChevronRight className="w-3 h-3 text-white/30" />}
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <DataSourceBadge source={dataSource} className="!bg-white/90" />
-                <button
-                  onClick={() => setView(view === 'sop' ? 'board' : 'sop')}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                    view === 'sop' ? 'bg-white text-[color:var(--hf-brand-600)]' : 'bg-white/10 text-white hover:bg-white/20 border border-white/10'
-                  }`}
-                >
-                  <Settings className="w-4 h-4" /> Konfigurasi SOP
-                </button>
-                <button
-                  onClick={() => { setView('create'); setCreateStep(0); }}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl text-sm font-semibold hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-orange-900/30"
-                >
-                  <Plus className="w-4 h-4" /> Ajukan Surat Baru
-                </button>
-              </div>
+      <OpsStage>
+        <OpsPageHero
+          title="Manajemen Surat Disiplin"
+          subtitle="Teguran · SP1 · SP2 · SP3 · PHK — workflow SOP good governance dengan alur persetujuan berjenjang"
+          badge="Disiplin & SOP"
+          liveLabel="Compliance Desk"
+          icon={Scale}
+          chips={[
+            { icon: Clock, label: `${summary.pending || 0} menunggu proses`, tone: 'text-amber-700' },
+            { icon: CheckCircle, label: `${summary.issued || 0} diterbitkan`, tone: 'text-emerald-700' },
+            { icon: BookOpen, label: `${summary.total || 0} total surat`, tone: 'text-[color:var(--hf-brand-600)]' },
+          ]}
+          actions={(
+            <div className="flex flex-wrap items-center gap-2">
+              <DataSourceBadge source={dataSource} />
+              <button
+                type="button"
+                onClick={() => setView(view === 'sop' ? 'board' : 'sop')}
+                className={view === 'sop' ? 'hf-btn-primary inline-flex items-center gap-2' : 'hf-btn-secondary inline-flex items-center gap-2'}
+              >
+                <Settings className="h-4 w-4" /> Konfigurasi SOP
+              </button>
+              <button
+                type="button"
+                onClick={() => { setView('create'); setCreateStep(0); }}
+                className="hf-btn-primary inline-flex items-center gap-2"
+              >
+                <Plus className="h-4 w-4" /> Ajukan Surat Baru
+              </button>
             </div>
-          </div>
+          )}
+        />
+
+        {/* Mini ladder */}
+        <div className="hf-card flex flex-wrap items-center gap-1.5 p-3">
+          <span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-[color:var(--hf-ink-faint)]">Jenjang Sanksi</span>
+          {DISCIPLINARY_LADDER.map((type, i) => (
+            <div key={type} className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => { setFilterType(filterType === type ? '' : type); setView('board'); }}
+                className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-all ${
+                  filterType === type ? 'bg-[var(--hf-brand-600)] text-white' : 'bg-[var(--hf-surface-muted)] text-[color:var(--hf-ink-muted)] hover:bg-[var(--hf-brand-50)]'
+                }`}
+              >
+                {type}
+              </button>
+              {i < DISCIPLINARY_LADDER.length - 1 && <ChevronRight className="w-3 h-3 text-[color:var(--hf-ink-faint)]" />}
+            </div>
+          ))}
         </div>
 
-        <div className="max-w-[1600px] mx-auto px-4 md:px-6 py-5 md:py-6">
+        <div className="max-w-[1600px] mx-auto w-full">
           {/* SOP View */}
           {view === 'sop' && (
             <div className="space-y-4">
@@ -444,7 +444,7 @@ export default function DisciplinaryLettersPage() {
           {/* Create wizard */}
           {view === 'create' && (
             <div className="max-w-3xl mx-auto">
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 md:p-8">
+              <div className="hf-card p-6 md:p-8">
                 <div className="flex items-center justify-between mb-2">
                   <h2 className="text-lg font-bold text-gray-900">Pengajuan Surat Disiplin</h2>
                   <button onClick={() => setView('board')} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5 text-gray-400" /></button>
@@ -456,7 +456,7 @@ export default function DisciplinaryLettersPage() {
                     <EmployeePicker value={pickedEmployee?.id} onChange={setPickedEmployee} label="Karyawan yang Bersangkutan" required />
                     {pickedEmployee && (
                       <div className="flex items-center gap-4 p-4 bg-[var(--hf-brand-50)] rounded-2xl border border-[var(--hf-brand-100)]">
-                        <EmployeeAvatar name={pickedEmployee.name} size="lg" />
+                        <EmployeeAvatar name={pickedEmployee.name} photoUrl={pickedEmployee.photo_url} size="lg" />
                         <div>
                           <p className="font-semibold text-gray-900">{pickedEmployee.name}</p>
                           <p className="text-sm text-gray-500">{pickedEmployee.position} · {pickedEmployee.department_label}</p>
@@ -558,7 +558,7 @@ export default function DisciplinaryLettersPage() {
                   <div className="space-y-5 animate-in fade-in duration-300">
                     <div className="rounded-2xl border bg-gray-50 p-5 space-y-3 text-sm">
                       <div className="flex items-center gap-3 pb-3 border-b border-gray-200">
-                        <EmployeeAvatar name={pickedEmployee?.name} />
+                        <EmployeeAvatar name={pickedEmployee?.name} photoUrl={pickedEmployee?.photo_url} />
                         <div>
                           <p className="font-semibold">{pickedEmployee?.name}</p>
                           <p className="text-xs text-gray-500">{pickedEmployee?.position}</p>
@@ -591,23 +591,43 @@ export default function DisciplinaryLettersPage() {
           {view === 'board' && (
             <>
               {/* Stats row */}
-              <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-5">
-                <StatCard label="Permohonan Manager" value={summary.managerRequests || 0} icon={User} gradient="from-[var(--hf-brand-600)] to-purple-600"
-                  active={quickFilter === 'manager_requests'} onClick={() => setQuickFilter(quickFilter === 'manager_requests' ? '' : 'manager_requests')} />
-                <StatCard label="Menunggu Proses" value={summary.pending} icon={Clock} gradient="from-amber-400 to-orange-500"
-                  active={quickFilter === 'pending'} onClick={() => setQuickFilter(quickFilter === 'pending' ? '' : 'pending')} />
-                <StatCard label="Diterbitkan" value={summary.issued} icon={CheckCircle} gradient="from-emerald-400 to-green-600"
-                  active={quickFilter === 'issued'} onClick={() => setQuickFilter(quickFilter === 'issued' ? '' : 'issued')} />
-                <StatCard label="Draft" value={summary.draft} icon={FileText} gradient="from-slate-400 to-slate-600"
-                  active={quickFilter === 'draft'} onClick={() => setQuickFilter(quickFilter === 'draft' ? '' : 'draft')} />
-                <StatCard label="Total Surat" value={summary.total} icon={BookOpen} gradient="from-[var(--hf-brand-600)] to-purple-600"
-                  active={quickFilter === ''} onClick={() => setQuickFilter('')} />
+              <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-5">
+                <OpsKpiShell>
+                  <div className={quickFilter === 'manager_requests' ? 'rounded-[var(--hf-radius-xl)] ring-2 ring-[var(--hf-brand-500)]' : ''}>
+                    <HRStatCard label="Permohonan Manager" value={summary.managerRequests || 0} icon={User} accent="violet"
+                      onClick={() => setQuickFilter(quickFilter === 'manager_requests' ? '' : 'manager_requests')} />
+                  </div>
+                </OpsKpiShell>
+                <OpsKpiShell>
+                  <div className={quickFilter === 'pending' ? 'rounded-[var(--hf-radius-xl)] ring-2 ring-[var(--hf-brand-500)]' : ''}>
+                    <HRStatCard label="Menunggu Proses" value={summary.pending || 0} icon={Clock} accent="amber"
+                      onClick={() => setQuickFilter(quickFilter === 'pending' ? '' : 'pending')} />
+                  </div>
+                </OpsKpiShell>
+                <OpsKpiShell>
+                  <div className={quickFilter === 'issued' ? 'rounded-[var(--hf-radius-xl)] ring-2 ring-[var(--hf-brand-500)]' : ''}>
+                    <HRStatCard label="Diterbitkan" value={summary.issued || 0} icon={CheckCircle} accent="emerald"
+                      onClick={() => setQuickFilter(quickFilter === 'issued' ? '' : 'issued')} />
+                  </div>
+                </OpsKpiShell>
+                <OpsKpiShell>
+                  <div className={quickFilter === 'draft' ? 'rounded-[var(--hf-radius-xl)] ring-2 ring-[var(--hf-brand-500)]' : ''}>
+                    <HRStatCard label="Draft" value={summary.draft || 0} icon={FileText} accent="blue"
+                      onClick={() => setQuickFilter(quickFilter === 'draft' ? '' : 'draft')} />
+                  </div>
+                </OpsKpiShell>
+                <OpsKpiShell>
+                  <div className={quickFilter === '' ? 'rounded-[var(--hf-radius-xl)] ring-2 ring-[var(--hf-brand-500)]' : ''}>
+                    <HRStatCard label="Total Surat" value={summary.total || 0} icon={BookOpen} accent="indigo"
+                      onClick={() => setQuickFilter('')} />
+                  </div>
+                </OpsKpiShell>
               </div>
 
               <div className="flex flex-col xl:flex-row gap-5 min-h-[600px]">
                 {/* List panel */}
                 <div className={`${selected && showMobileDetail ? 'hidden xl:flex' : 'flex'} flex-col w-full xl:w-[420px] flex-shrink-0`}>
-                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col h-full overflow-hidden">
+                  <div className="hf-card flex flex-col h-full overflow-hidden">
                     {/* Search & filters */}
                     <div className="p-4 border-b border-gray-100 space-y-3">
                       <div className="relative">
@@ -658,7 +678,7 @@ export default function DisciplinaryLettersPage() {
                           }`}
                         >
                           <div className="flex gap-3">
-                            <EmployeeAvatar name={l.employee_name} />
+                            <EmployeeAvatar name={l.employee_name} photoUrl={l.photo_url} />
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between gap-2">
                                 <p className="font-semibold text-gray-900 truncate text-sm">{l.employee_name || `#${l.employee_id}`}</p>
@@ -690,7 +710,7 @@ export default function DisciplinaryLettersPage() {
                 {/* Detail panel */}
                 <div className={`${!selected || !showMobileDetail ? 'hidden xl:block' : 'block'} flex-1 min-w-0`}>
                   {detailLoading && !selected ? (
-                    <div className="bg-white rounded-2xl border p-8"><SkeletonCards count={3} /></div>
+                    <div className="hf-card p-8"><SkeletonCards count={3} /></div>
                   ) : !selected ? (
                     <div className="bg-white rounded-2xl border border-dashed border-gray-200 h-full flex flex-col items-center justify-center py-20 text-center">
                       <div className="w-16 h-16 rounded-2xl bg-[var(--hf-brand-50)] flex items-center justify-center mb-4">
@@ -710,12 +730,12 @@ export default function DisciplinaryLettersPage() {
                       </button>
 
                       {/* Detail header card */}
-                      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                      <div className="hf-card overflow-hidden">
                         <div className={`h-2 bg-gradient-to-r ${(TYPE_STYLES[selected.letter_type] || TYPE_STYLES.TEGURAN).gradient}`} />
                         <div className="p-5 md:p-6">
                           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                             <div className="flex gap-4">
-                              <EmployeeAvatar name={selected.employee_name} size="lg" />
+                              <EmployeeAvatar name={selected.employee_name} photoUrl={selected.photo_url} size="lg" />
                               <div>
                                 <div className="flex flex-wrap items-center gap-2 mb-1">
                                   <TypeBadge type={selected.letter_type} size="md" />
@@ -802,7 +822,7 @@ export default function DisciplinaryLettersPage() {
                       </div>
 
                       {/* Action bar */}
-                      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+                      <div className="hf-card p-4">
                         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Aksi HR</p>
                         <div className="flex flex-wrap gap-2">
                           {selected.status === 'submitted' && (
@@ -873,7 +893,7 @@ export default function DisciplinaryLettersPage() {
 
                       {/* Draft editor + preview */}
                       {['draft', 'drafting', 'investigating', 'review', 'approved'].includes(selected.status) && (
-                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                        <div className="hf-card p-5">
                           <LetterDraftEditor
                             letter={{
                               letter_type: selected.letter_type,
@@ -905,7 +925,7 @@ export default function DisciplinaryLettersPage() {
                       )}
 
                       {/* Timeline */}
-                      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 md:p-6">
+                      <div className="hf-card p-5 md:p-6">
                         <h3 className="font-semibold text-gray-900 flex items-center gap-2 mb-5">
                           <GitBranch className="w-5 h-5 text-[color:var(--hf-brand-500)]" />
                           Alur Persetujuan SOP
@@ -922,12 +942,12 @@ export default function DisciplinaryLettersPage() {
             </>
           )}
         </div>
-      </div>
+      </OpsStage>
 
       {/* Approval modal */}
       {showApproval && selected && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setShowApproval(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in slide-in-from-bottom-4" onClick={(e) => e.stopPropagation()}>
+          <div className="hf-card w-full max-w-md overflow-hidden animate-in slide-in-from-bottom-4" onClick={(e) => e.stopPropagation()}>
             <div className={`px-6 py-4 ${approvalAction === 'approve' ? 'bg-emerald-50' : 'bg-red-50'}`}>
               <div className="flex items-center gap-3">
                 {approvalAction === 'approve'

@@ -15,6 +15,7 @@ import {
 } from '../../../lib/hris/employee-document-service';
 import { computeDocumentCompleteness } from '../../../lib/hris/employee-document-types';
 import { ensureEmployeeDocumentsTable } from '../../../lib/hris/ensure-employee-documents-table';
+import { resolveEffectiveTenantId } from '../../../lib/hris/resolve-employee-tenant';
 
 export const config = {
   api: { bodyParser: false },
@@ -37,6 +38,20 @@ function getUserId(req: NextApiRequest): string | null {
   return session?.user?.id || null;
 }
 
+async function effectiveTenantId(
+  req: NextApiRequest,
+  employeeId?: string | null,
+  documentId?: string | null,
+): Promise<string | null> {
+  return resolveEffectiveTenantId({
+    sequelize,
+    session: (req as any).session,
+    sessionTenantId: getTenantId(req),
+    employeeId,
+    documentId,
+  });
+}
+
 async function readJsonBody(req: NextApiRequest): Promise<Record<string, any>> {
   if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
     return req.body as Record<string, any>;
@@ -57,12 +72,12 @@ async function readJsonBody(req: NextApiRequest): Promise<Record<string, any>> {
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   await ensureEmployeeDocumentsTable(sequelize);
-  const tenantId = getTenantId(req);
   const { action } = req.query;
 
   if (req.method === 'GET' && action === 'completeness') {
     const employeeId = req.query.employee_id as string;
     if (!employeeId) return res.status(400).json({ success: false, error: 'employee_id wajib diisi' });
+    const tenantId = await effectiveTenantId(req, employeeId);
     const isAllowed = await verifyEmployeeTenant(sequelize, employeeId, tenantId);
     if (!isAllowed) return res.status(404).json({ success: false, error: 'Karyawan tidak ditemukan' });
     const documents = await listEmployeeDocuments(sequelize, employeeId, tenantId);
@@ -70,6 +85,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   if (req.method === 'GET' && action === 'compliance-summary') {
+    const tenantId = getTenantId(req);
     if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT', code: 'NO_TENANT' });
     const { getTenantDocumentComplianceSummary } = await import('@/lib/hris/document-compliance-summary');
     const data = await getTenantDocumentComplianceSummary(sequelize, String(tenantId));
@@ -77,19 +93,21 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   if (req.method === 'GET' && action === 'download') {
+    const docId = req.query.id as string;
+    const tenantId = await effectiveTenantId(req, null, docId);
     return handleDownload(req, res, tenantId);
   }
 
   if (req.method === 'POST') {
-    return handleUpload(req, res, tenantId);
+    return handleUpload(req, res);
   }
 
   if (req.method === 'PATCH' && action === 'verify') {
-    return handleVerify(req, res, tenantId);
+    return handleVerify(req, res);
   }
 
   if (req.method === 'DELETE') {
-    return handleDelete(req, res, tenantId);
+    return handleDelete(req, res);
   }
 
   return res.status(405).json({ success: false, error: 'Method not allowed' });
@@ -124,7 +142,7 @@ async function handleDownload(req: NextApiRequest, res: NextApiResponse, tenantI
   }
 }
 
-async function handleUpload(req: NextApiRequest, res: NextApiResponse, tenantId: string | null) {
+async function handleUpload(req: NextApiRequest, res: NextApiResponse) {
   try {
     const [fields, files] = await parseDocumentUpload(req);
 
@@ -137,6 +155,7 @@ async function handleUpload(req: NextApiRequest, res: NextApiResponse, tenantId:
     if (!documentType) return res.status(400).json({ success: false, error: 'Tipe dokumen wajib dipilih' });
     if (!title) return res.status(400).json({ success: false, error: 'Judul dokumen wajib diisi' });
 
+    const tenantId = await effectiveTenantId(req, employeeId, existingId);
     const isEmployeeAllowed = await verifyEmployeeTenant(sequelize, employeeId, tenantId);
     if (!isEmployeeAllowed) return res.status(404).json({ success: false, error: 'Karyawan tidak ditemukan' });
 
@@ -213,13 +232,14 @@ async function handleUpload(req: NextApiRequest, res: NextApiResponse, tenantId:
   }
 }
 
-async function handleVerify(req: NextApiRequest, res: NextApiResponse, tenantId: string | null) {
+async function handleVerify(req: NextApiRequest, res: NextApiResponse) {
   const { id, status, rejection_reason } = await readJsonBody(req);
   if (!id || !status) return res.status(400).json({ success: false, error: 'id dan status wajib diisi' });
   if (!['verified', 'rejected', 'pending'].includes(status)) {
     return res.status(400).json({ success: false, error: 'Status tidak valid' });
   }
 
+  const tenantId = await effectiveTenantId(req, null, String(id));
   const isAllowed = await verifyDocumentTenant(sequelize, String(id), tenantId);
   if (!isAllowed) return res.status(404).json({ success: false, error: 'Dokumen tidak ditemukan' });
 
@@ -255,10 +275,11 @@ async function handleVerify(req: NextApiRequest, res: NextApiResponse, tenantId:
   }
 }
 
-async function handleDelete(req: NextApiRequest, res: NextApiResponse, tenantId: string | null) {
+async function handleDelete(req: NextApiRequest, res: NextApiResponse) {
   const docId = (req.query.id as string) || (req.body?.id as string);
   if (!docId) return res.status(400).json({ success: false, error: 'id dokumen wajib diisi' });
 
+  const tenantId = await effectiveTenantId(req, null, docId);
   const isAllowed = await verifyDocumentTenant(sequelize, docId, tenantId);
   if (!isAllowed) return res.status(404).json({ success: false, error: 'Dokumen tidak ditemukan' });
 

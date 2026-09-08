@@ -3,6 +3,7 @@ import { withHQAuth } from '@/lib/middleware/withHQAuth';
 import { getDepartmentLabel } from '../../../lib/hris/master-data';
 import { syncOrgDepartments } from '../../../lib/hris/sync-org-departments';
 import { runCompensationAudit } from '@/lib/hris/compensation-bands';
+import { requireTenantMatch } from '@/lib/saas/tenant-row-guard';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch (e) {}
@@ -104,7 +105,9 @@ async function getOrgTree(req: NextApiRequest, res: NextApiResponse, session: an
     await ensureOrgTables();
     // Do NOT seed Naincode master tree for SaaS tenants
     await syncOrgDepartments(sequelize, tenantId, { seedDefaults: false });
-    const [rows] = await sequelize.query(`
+
+    const loadRows = async () => {
+      const [rows] = await sequelize.query(`
       SELECT os.*,
         he.name AS head_name, he.employee_code AS head_code, he.position AS head_position,
         (SELECT COUNT(*)::int FROM employees e
@@ -114,17 +117,44 @@ async function getOrgTree(req: NextApiRequest, res: NextApiResponse, session: an
         ) AS employee_count
       FROM org_structures os
       LEFT JOIN employees he ON os.head_employee_id = he.id AND he.tenant_id = :tenantId
-      WHERE os.is_active = true AND os.tenant_id = :tenantId
+      WHERE os.is_active = true
+        AND os.tenant_id IS NOT NULL
+        AND os.tenant_id = :tenantId
       ORDER BY os.level ASC, os.sort_order ASC, os.name ASC
     `, { replacements: { tenantId } });
+      return rows || [];
+    };
+
+    let rows = await loadRows();
+    if (!rows.length) {
+      try {
+        const { parseTenantSettings } = await import('@/lib/saas/tenant-schema');
+        const { seedTenantOrgFromDepartments } = await import('@/lib/hris/sync-org-departments');
+        const [[tenant]] = await sequelize.query(
+          `SELECT name, settings FROM tenants WHERE id = :tenantId LIMIT 1`,
+          { replacements: { tenantId } },
+        );
+        const settings = parseTenantSettings(tenant?.settings);
+        const depts = settings?.hris_defaults?.departments
+          || settings?.saas_onboarding?.organization?.departments;
+        if (Array.isArray(depts) && depts.length) {
+          await seedTenantOrgFromDepartments(sequelize, tenantId, depts, { companyName: tenant?.name });
+          rows = await loadRows();
+        }
+      } catch (seedErr: any) {
+        console.warn('org wizard backfill skipped:', seedErr?.message);
+      }
+    }
+
+    const scoped = requireTenantMatch(rows || [], tenantId, (r) => r.tenant_id);
 
     const map: Record<string, any> = {};
     const tree: any[] = [];
-    (rows || []).forEach((r: any) => {
+    scoped.forEach((r: any) => {
       r.children = [];
       map[r.id] = r;
     });
-    (rows || []).forEach((r: any) => {
+    scoped.forEach((r: any) => {
       if (r.parent_id && map[r.parent_id]) {
         map[r.parent_id].children.push(r);
       } else if (!r.parent_id) {
@@ -135,15 +165,15 @@ async function getOrgTree(req: NextApiRequest, res: NextApiResponse, session: an
     });
 
     sortOrgNodes(tree);
-    (rows || []).forEach((r: any) => {
+    scoped.forEach((r: any) => {
       if (r.children?.length) sortOrgNodes(r.children);
     });
 
     return res.json({
       success: true,
       data: tree,
-      flat: rows,
-      dataSource: (rows || []).length > 0 ? 'live' : 'empty',
+      flat: scoped,
+      dataSource: scoped.length > 0 ? 'live' : 'empty',
     });
   } catch (e: any) {
     console.warn('getOrgTree error:', e.message);
@@ -161,11 +191,14 @@ async function getOrgList(req: NextApiRequest, res: NextApiResponse, session: an
     const [rows] = await sequelize.query(`
       SELECT os.*, p.name AS parent_name
       FROM org_structures os
-      LEFT JOIN org_structures p ON os.parent_id = p.id
-      WHERE os.is_active = true AND os.tenant_id = :tenantId
+      LEFT JOIN org_structures p ON os.parent_id = p.id AND p.tenant_id = :tenantId
+      WHERE os.is_active = true
+        AND os.tenant_id IS NOT NULL
+        AND os.tenant_id = :tenantId
       ORDER BY os.level ASC, os.sort_order ASC
     `, { replacements: { tenantId } });
-    return res.json({ success: true, data: rows || [], dataSource: (rows || []).length > 0 ? 'live' : 'empty' });
+    const scoped = requireTenantMatch(rows || [], tenantId, (r) => r.tenant_id);
+    return res.json({ success: true, data: scoped, dataSource: scoped.length > 0 ? 'live' : 'empty' });
   } catch {
     return res.json({ success: true, data: [], dataSource: 'empty' });
   }

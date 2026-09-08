@@ -625,7 +625,7 @@ function MiniStat({ label, value, color }: { label: string; value: any; color?: 
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto">
+      <div className="hf-card w-full max-w-lg max-h-[85vh] overflow-y-auto">
         <div className="p-5 border-b flex justify-between items-center sticky top-0 bg-white rounded-t-2xl">
           <h3 className="font-bold text-lg">{title}</h3>
           <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>

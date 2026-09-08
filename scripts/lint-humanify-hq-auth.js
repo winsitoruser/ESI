@@ -136,5 +136,46 @@ if (/isMock:\s*true/.test(p360)) {
   passed++;
 }
 
+console.log('Humanify withEmployeeAuth tree scan');
+const empDir = path.join(root, 'pages/api/employee');
+if (fs.existsSync(empDir)) {
+  const empFiles = walk(empDir);
+  let empBare = 0;
+  for (const full of empFiles) {
+    const rel = path.relative(empDir, full).replace(/\\/g, '/');
+    const src = fs.readFileSync(full, 'utf8');
+    if (!/withEmployeeAuth\s*\(/.test(src)) {
+      console.log('  ✗ missing withEmployeeAuth', rel);
+      failed++;
+      empBare++;
+    }
+  }
+  if (empBare === 0) {
+    console.log('  ✓ all employee APIs wrap withEmployeeAuth');
+    passed++;
+  }
+}
+
+const v1Dir = path.join(root, 'pages/api/v1');
+if (fs.existsSync(v1Dir)) {
+  console.log('Humanify v1 requireV1Auth tree scan');
+  const v1Files = walk(v1Dir);
+  let v1Bare = 0;
+  for (const full of v1Files) {
+    const rel = path.relative(v1Dir, full).replace(/\\/g, '/');
+    if (/openapi\.ts$/.test(rel)) continue;
+    const src = fs.readFileSync(full, 'utf8');
+    if (!/requireV1Auth\s*\(/.test(src)) {
+      console.log('  ✗ missing requireV1Auth', rel);
+      failed++;
+      v1Bare++;
+    }
+  }
+  if (v1Bare === 0) {
+    console.log('  ✓ v1 APIs use requireV1Auth (openapi excluded)');
+    passed++;
+  }
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

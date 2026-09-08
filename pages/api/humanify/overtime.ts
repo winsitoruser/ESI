@@ -79,7 +79,7 @@ async function getList(req: NextApiRequest, res: NextApiResponse, tenantId: stri
     SELECT o.*,
       e.name AS employee_name,
       COALESCE(e.employee_code, e.employee_id) AS employee_no,
-      e.department, e.position,
+      e.department, e.position, e.photo_url,
       COALESCE(
         o.duration_hours,
         o.hours,
@@ -159,7 +159,7 @@ async function getRecap(req: NextApiRequest, res: NextApiResponse, tenantId: str
   const recap = await q(`
     SELECT e.id AS employee_id,
       COALESCE(e.employee_code, e.employee_id) AS employee_no,
-      e.name AS employee_name, e.department, e.position,
+      e.name AS employee_name, e.department, e.position, e.photo_url,
       COUNT(o.id) AS total_sessions,
       ROUND(COALESCE(SUM(COALESCE(o.duration_hours, o.hours, 0)),0)::numeric, 2) AS total_hours,
       COUNT(o.id) FILTER (WHERE o.day_type='weekday')  AS weekday_sessions,
@@ -188,7 +188,7 @@ async function getDetail(req: NextApiRequest, res: NextApiResponse, tenantId: st
   const [rows] = await q(`
     SELECT o.*, e.name AS employee_name,
       COALESCE(e.employee_code, e.employee_id) AS employee_no,
-      e.department, e.position,
+      e.department, e.position, e.photo_url,
       COALESCE(o.duration_hours, o.hours, 0) AS duration_hours,
       ap.name AS approved_by_name
     FROM overtime_requests o

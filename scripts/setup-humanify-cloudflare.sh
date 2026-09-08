@@ -54,7 +54,7 @@ sudo tee /etc/nginx/sites-available/humanify >/dev/null <<NGINX
 server {
     listen 80;
     listen [::]:80;
-    server_name $DOMAIN www.$DOMAIN;
+    server_name $DOMAIN www.$DOMAIN ops.$DOMAIN admin.$DOMAIN;
 
     include /etc/nginx/conf.d/cloudflare-real-ip.conf;
     client_max_body_size 50M;

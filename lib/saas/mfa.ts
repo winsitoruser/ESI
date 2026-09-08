@@ -287,6 +287,41 @@ export async function confirmEnrollment(userId: string | number, code: string): 
   return { ok: true, recoveryCodes };
 }
 
+export async function listTenantMfaRoster(tenantId: string): Promise<{
+  userId: string;
+  name: string;
+  email: string;
+  role: string | null;
+  enabled: boolean;
+  enrolledAt: string | null;
+}[]> {
+  if (!sequelize || !tenantId) return [];
+  await ensureMfaTable();
+  try {
+    const [rows] = await sequelize.query(
+      `SELECT u.id::text AS user_id, u.name, u.email, u.role,
+              COALESCE(m.enabled, false) AS enabled,
+              m.enrolled_at
+       FROM users u
+       LEFT JOIN saas_user_mfa m ON m.user_id::text = u.id::text
+       WHERE u.tenant_id = :tid
+       ORDER BY COALESCE(m.enabled, false) DESC, u.name ASC
+       LIMIT 80`,
+      { replacements: { tid: tenantId } },
+    );
+    return (rows || []).map((r: any) => ({
+      userId: String(r.user_id),
+      name: r.name || '—',
+      email: r.email || '',
+      role: r.role || null,
+      enabled: Boolean(r.enabled),
+      enrolledAt: r.enrolled_at ? new Date(r.enrolled_at).toISOString() : null,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 export async function disableMfa(userId: string | number, code: string): Promise<boolean> {
   if (!sequelize) throw new Error('Database unavailable');
   const row = await readRow(String(userId));

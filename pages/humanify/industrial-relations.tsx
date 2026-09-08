@@ -3,6 +3,8 @@ import { useRouter } from 'next/router';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import HrisEmptyState from '@/components/humanify/HrisEmptyState';
+import { OpsPageHero, OpsKpiShell, OpsStage } from '@/components/humanify/OpsPageChrome';
+import HRStatCard from '@/components/humanify/HRStatCard';
 import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import EmployeePicker, { type PickedEmployee } from '@/components/humanify/EmployeePicker';
@@ -237,72 +239,64 @@ export default function IndustrialRelationsPage() {
     { key: 'incidents', label: 'Insiden & Penanganan', icon: Activity, desc: 'Event, investigasi, mitigasi' },
   ];
 
-  const kpiCards = [
-    { label: 'Peraturan Aktif', value: overview.activeRegulations, icon: FileText, color: 'from-[var(--hf-brand-600)] to-[var(--hf-brand-600)]' },
-    { label: 'Skor Kepatuhan', value: `${overview.complianceScore || 0}%`, icon: TrendingUp, color: 'from-emerald-500 to-teal-600' },
-    { label: 'Menunggu Tanda Terima', value: overview.pendingPolicyAcks || 0, icon: ClipboardCheck, color: 'from-sky-500 to-cyan-600' },
-    { label: 'Insiden Terbuka', value: overview.openIncidents, icon: AlertCircle, color: 'from-amber-500 to-orange-600' },
-    { label: 'Dalam Investigasi', value: overview.investigatingIncidents, icon: Shield, color: 'from-[var(--hf-brand-500)] to-purple-600' },
+  const kpiCards: { label: string; value: any; icon: typeof Shield; accent: 'blue' | 'emerald' | 'amber' | 'violet' | 'cyan' | 'rose' | 'orange' | 'indigo' }[] = [
+    { label: 'Peraturan Aktif', value: overview.activeRegulations ?? 0, icon: FileText, accent: 'violet' },
+    { label: 'Skor Kepatuhan', value: `${overview.complianceScore || 0}%`, icon: TrendingUp, accent: 'emerald' },
+    { label: 'Menunggu Tanda Terima', value: overview.pendingPolicyAcks || 0, icon: ClipboardCheck, accent: 'cyan' },
+    { label: 'Insiden Terbuka', value: overview.openIncidents ?? 0, icon: AlertCircle, accent: 'amber' },
+    { label: 'Dalam Investigasi', value: overview.investigatingIncidents ?? 0, icon: Shield, accent: 'indigo' },
   ];
 
   return (
     <HQLayout title={t('hris.industrialRelationsTitle')}>
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50">
-        <div className="p-6 max-w-7xl mx-auto space-y-6">
-          {toast && (
-            <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl shadow-lg text-white text-sm ${toast.type === 'error' ? 'bg-red-500' : 'bg-emerald-600'}`}>
-              {toast.msg}
+      <OpsStage>
+        {toast && (
+          <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl shadow-lg text-white text-sm ${toast.type === 'error' ? 'bg-red-500' : 'bg-emerald-600'}`}>
+            {toast.msg}
+          </div>
+        )}
+
+        <OpsPageHero
+          title="Hubungan Industrial & Kepatuhan"
+          subtitle="Pusat manajemen kebijakan perusahaan, pemantauan kepatuhan hukum, penanganan insiden operasional, investigasi event, dan rencana mitigasi risiko ketenagakerjaan."
+          badge="Tata Kelola & IR"
+          liveLabel="IR Desk"
+          icon={Scale}
+          score={overview.complianceScore ?? null}
+          scoreLabel="Kepatuhan"
+          chips={[
+            { icon: AlertCircle, label: `${overview.openIncidents ?? 0} insiden terbuka`, tone: 'text-amber-700' },
+            { icon: Shield, label: `${overview.investigatingIncidents ?? 0} dalam investigasi`, tone: 'text-[color:var(--hf-brand-600)]' },
+          ]}
+          actions={(
+            <div className="flex flex-col items-end gap-2">
+              <DataSourceBadge source={dataSource} />
+              <button
+                type="button"
+                onClick={() => router.push('/humanify/disciplinary-letters')}
+                className="hf-btn-secondary inline-flex items-center gap-2"
+              >
+                <Ban className="h-4 w-4 text-orange-600" />
+                Surat Disiplin (SP & PHK)
+                <ExternalLink className="h-3.5 w-3.5" />
+              </button>
+              <p className="max-w-[220px] text-right text-[11px] text-[color:var(--hf-ink-faint)]">
+                SP, teguran, kasus disiplin karyawan & PHK dikelola di modul terpisah
+              </p>
             </div>
           )}
+        />
 
-          {/* Hero */}
-          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-[var(--hf-brand-500)] to-slate-900 text-white p-6 md:p-8 shadow-xl">
-            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMzLjMxIDAgNiAyLjY5IDYgNnMtMi42OSA2LTYgNi02LTIuNjktNi02IDIuNjktNiA2LTZ6TTI0IDQyYzMuMzEgMCA2IDIuNjkgNiA2cy0yLjY5IDYtNiA2LTYtMi42OS02LTYgMi42OS02IDYtNnoiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLW9wYWNpdHk9Ii4wNSIvPjwvZz48L3N2Zz4=')] opacity-40" />
-            <div className="relative flex flex-wrap items-start justify-between gap-4">
-              <div className="max-w-2xl">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-xs font-medium text-[color:var(--hf-brand-600)] mb-3">
-                  <Scale className="w-3.5 h-3.5" /> Tata Kelola · Kepatuhan · Hubungan Industrial
-                </div>
-                <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Hubungan Industrial & Kepatuhan</h1>
-                <p className="text-slate-300 mt-2 text-sm md:text-base leading-relaxed">
-                  Pusat manajemen kebijakan perusahaan, pemantauan kepatuhan hukum, penanganan insiden operasional,
-                  investigasi event, dan rencana mitigasi risiko ketenagakerjaan.
-                </p>
-              </div>
-              <div className="flex flex-col gap-2 w-full sm:w-auto items-end">
-                <DataSourceBadge source={dataSource} />
-                <button
-                  type="button"
-                  onClick={() => router.push('/humanify/disciplinary-letters')}
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white text-slate-900 text-sm font-semibold hover:bg-[var(--hf-brand-50)] transition-colors shadow-lg"
-                >
-                  <Ban className="w-4 h-4 text-orange-600" />
-                  Surat Disiplin (SP & PHK)
-                  <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
-                </button>
-                <p className="text-[11px] text-slate-400 text-center sm:text-right">
-                  SP, teguran, kasus disiplin karyawan & PHK dikelola di modul terpisah
-                </p>
-              </div>
-              <DataSourceBadge source={dataSource} />
-            </div>
-          </div>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {kpiCards.map((k) => (
+            <OpsKpiShell key={k.label}>
+              <HRStatCard icon={k.icon} label={k.label} value={k.value} accent={k.accent} />
+            </OpsKpiShell>
+          ))}
+        </div>
 
-          {/* KPI */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {kpiCards.map((k) => (
-              <div key={k.label} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 hover:shadow-md transition-shadow">
-                <div className={`inline-flex p-2 rounded-xl bg-gradient-to-br ${k.color} text-white mb-3`}>
-                  <k.icon className="w-4 h-4" />
-                </div>
-                <p className="text-2xl font-bold text-slate-900">{k.value}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{k.label}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Tabs */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        {/* Tabs */}
+        <div className="hf-card overflow-hidden">
             <div className="flex border-b border-slate-100 overflow-x-auto">
               {tabs.map((tb) => (
                 <button
@@ -331,15 +325,15 @@ export default function IndustrialRelationsPage() {
                   <div className="flex flex-wrap justify-between items-center gap-3">
                     <div className="relative flex-1 min-w-[200px] max-w-sm">
                       <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-                      <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari peraturan..." className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[var(--hf-brand-500)]" />
+                      <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari peraturan..." className="hf-input w-full pl-9" />
                     </div>
-                    <button type="button" onClick={() => openAdd('regulation')} className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-xl text-sm font-medium hover:bg-[var(--hf-brand)]">
+                    <button type="button" onClick={() => openAdd('regulation')} className="hf-btn-primary inline-flex items-center gap-2">
                       <Plus className="w-4 h-4" /> Tambah Peraturan
                     </button>
                   </div>
                   <div className="grid gap-3">
                     {regulations.filter((r) => !search || r.title.toLowerCase().includes(search.toLowerCase())).map((reg) => (
-                      <div key={reg.id} className="group rounded-xl border border-slate-100 p-4 hover:border-[var(--hf-brand-100)] hover:shadow-sm transition-all bg-gradient-to-r from-white to-slate-50/50">
+                      <div key={reg.id} className="hf-tile hf-tile-interactive p-4">
                         <div className="flex justify-between gap-3">
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2 mb-1">
@@ -395,7 +389,7 @@ export default function IndustrialRelationsPage() {
                 <div className="space-y-4">
                   <p className="text-sm text-slate-600">Pemantauan kepatuhan regulasi, audit internal, dan checklist berkala.</p>
                   {checklists.map((cl) => (
-                    <div key={cl.id} className="rounded-xl border border-slate-100 p-5 bg-white">
+                    <div key={cl.id} className="hf-card p-5">
                       <div className="flex justify-between items-start gap-4 mb-4">
                         <div>
                           <div className="flex flex-wrap items-center gap-2 mb-1">
@@ -452,13 +446,13 @@ export default function IndustrialRelationsPage() {
                         <button key={key} type="button" onClick={() => setIncidentFilter(key)} className={`px-3 py-2 font-medium ${incidentFilter === key ? 'bg-slate-800 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>{label}</button>
                       ))}
                     </div>
-                    <button type="button" onClick={() => openAdd('incident')} className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-xl text-sm font-medium hover:bg-slate-900">
+                    <button type="button" onClick={() => openAdd('incident')} className="hf-btn-primary inline-flex items-center gap-2">
                       <Plus className="w-4 h-4" /> Laporkan Insiden
                     </button>
                   </div>
                   <div className="grid md:grid-cols-2 gap-4">
                     {filteredIncidents.map((inc) => (
-                      <div key={inc.id} className="rounded-xl border border-slate-100 p-5 hover:shadow-md transition-shadow bg-white">
+                      <div key={inc.id} className="hf-tile hf-tile-interactive p-5">
                         <div className="flex items-start justify-between gap-2 mb-3">
                           <div>
                             <span className="text-[11px] font-mono text-slate-400">{inc.case_number}</span>
@@ -509,7 +503,7 @@ export default function IndustrialRelationsPage() {
                 <ArrowRight className="w-4 h-4 text-orange-400 group-hover:translate-x-0.5 transition-transform" />
               </div>
             </button>
-            <button type="button" onClick={() => router.push('/humanify/disciplinary-letters?view=create&type=TERMINATION')} className="text-left p-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors group">
+            <button type="button" onClick={() => router.push('/humanify/disciplinary-letters?view=create&type=TERMINATION')} className="hf-tile hf-tile-interactive p-4 text-left group">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-semibold text-slate-900">Ajukan PHK</p>
@@ -519,13 +513,12 @@ export default function IndustrialRelationsPage() {
               </div>
             </button>
           </div>
-        </div>
-      </div>
+      </OpsStage>
 
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+          <div className="hf-card w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center p-5 border-b border-slate-100">
               <h3 className="text-lg font-semibold text-slate-900">
                 {editingItem ? 'Edit' : 'Tambah'} {modalType === 'regulation' ? 'Peraturan' : 'Laporan Insiden'}

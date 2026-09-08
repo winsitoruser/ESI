@@ -247,7 +247,7 @@ export default function DeviceManagementPage() {
         )}
         {/* Summary Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl p-4 shadow-sm border">
+          <div className="hf-card p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-slate-100 rounded-lg"><Server className="w-5 h-5 text-slate-600" /></div>
               <div>
@@ -256,7 +256,7 @@ export default function DeviceManagementPage() {
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl p-4 shadow-sm border">
+          <div className="hf-card p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-green-100 rounded-lg"><Wifi className="w-5 h-5 text-green-600" /></div>
               <div>
@@ -265,7 +265,7 @@ export default function DeviceManagementPage() {
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl p-4 shadow-sm border">
+          <div className="hf-card p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-sky-50 rounded-lg"><Users className="w-5 h-5 text-sky-700" /></div>
               <div>
@@ -274,7 +274,7 @@ export default function DeviceManagementPage() {
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl p-4 shadow-sm border">
+          <div className="hf-card p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-amber-100 rounded-lg"><Database className="w-5 h-5 text-amber-600" /></div>
               <div>
@@ -286,7 +286,7 @@ export default function DeviceManagementPage() {
         </div>
 
         {/* Filters & Actions */}
-        <div className="bg-white rounded-xl shadow-sm border p-4">
+        <div className="hf-card p-4">
           <div className="flex flex-wrap gap-3 justify-between items-center">
             <div className="flex flex-wrap gap-2 items-center">
               <div className="relative">
@@ -328,7 +328,7 @@ export default function DeviceManagementPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {loading ? (
             Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-xl shadow-sm border p-6 animate-pulse">
+              <div key={i} className="hf-card p-6 animate-pulse">
                 <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
                 <div className="h-3 bg-gray-200 rounded w-1/2 mb-2"></div>
                 <div className="h-3 bg-gray-200 rounded w-2/3"></div>
@@ -365,7 +365,7 @@ export default function DeviceManagementPage() {
               const typeConf = deviceTypeConfig[device.deviceType] || deviceTypeConfig.manual;
               const TypeIcon = typeConf.icon;
               return (
-                <div key={device.id} className="bg-white rounded-xl shadow-sm border hover:shadow-md transition-all">
+                <div key={device.id} className="hf-tile hf-tile-interactive">
                   <div className="p-5">
                     {/* Header */}
                     <div className="flex items-start justify-between mb-3">
@@ -439,7 +439,7 @@ export default function DeviceManagementPage() {
         </div>
 
         {/* Integration Guide */}
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="hf-card p-6">
           <h3 className="text-lg font-semibold text-slate-900 mb-1">Panduan Integrasi Device</h3>
           <p className="text-sm text-slate-500 mb-4">Cara menghubungkan mesin absensi, mobile, dan webhook ke Humanify.</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
@@ -477,7 +477,7 @@ export default function DeviceManagementPage() {
       {/* Add/Edit Device Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto m-4">
+          <div className="hf-card w-full max-w-2xl max-h-[90vh] overflow-y-auto m-4">
             <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between rounded-t-2xl">
               <h3 className="text-lg font-semibold">{editDevice ? 'Edit Device' : 'Tambah Device Baru'}</h3>
               <button onClick={() => { setShowAddModal(false); setEditDevice(null); }}

@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { withHQAuth } from '@/lib/middleware/withHQAuth';
 import { allowHrMockFallback, resolveDataSource } from '@/lib/hris/data-source';
 import { tenantIdFromSession, findScopedById, destroyScoped } from '@/lib/saas/tenant-scope';
+import { markGoLiveFlagSafe } from '@/lib/saas/go-live';
 
 let sequelize: any, Op: any;
 try { sequelize = require('../../../lib/sequelize'); Op = require('sequelize').Op; } catch (e) {}
@@ -317,6 +318,7 @@ async function createWorkShift(req: NextApiRequest, res: NextApiResponse, sessio
       body.breakDurationMinutes = body.breakMinutes;
     }
     const data = await WorkShift.create(body);
+    await markGoLiveFlagSafe(body.tenantId || session.user?.tenantId, 'attendanceConfigured');
     return res.status(201).json({ success: true, data });
   } catch (e: any) { return res.status(500).json({ success: false, error: e.message }); }
 }
@@ -528,6 +530,7 @@ async function createGeofence(req: NextApiRequest, res: NextApiResponse, session
   if (!GeofenceLocation) return res.json({ success: true, message: 'Created (mock)' });
   try {
     const data = await GeofenceLocation.create({ ...req.body, tenantId: session.user.tenantId });
+    await markGoLiveFlagSafe(session.user?.tenantId, 'attendanceConfigured');
     return res.status(201).json({ success: true, data });
   } catch (e: any) { return res.status(500).json({ success: false, error: e.message }); }
 }
@@ -716,6 +719,7 @@ async function updateSettings(req: NextApiRequest, res: NextApiResponse, session
       VALUES (uuid_generate_v4(), :tenantId, :key, :value, NOW(), NOW())
       ON CONFLICT (tenant_id, branch_id, setting_key) DO UPDATE SET setting_value = :value, updated_at = NOW()
     `, { replacements: { tenantId: session.user.tenantId || null, key, value: JSON.stringify(value) } });
+    await markGoLiveFlagSafe(session.user?.tenantId, 'attendanceConfigured');
     return res.json({ success: true, message: 'Setting updated' });
   } catch (e: any) { return res.status(500).json({ success: false, error: e.message }); }
 }

@@ -12,6 +12,7 @@ import {
   verifyEmployeeTenant,
   verifyDocumentBelongsToEmployee,
 } from '../../../lib/hris/employee-document-service';
+import { withEmployeeAuth } from '@/lib/middleware/withEmployeeAuth';
 
 export const config = {
   api: { bodyParser: false },
@@ -24,7 +25,7 @@ try {
   /* dev */
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     const session = await getServerSession(req, res, authOptions);
     if (!session?.user) {
@@ -140,3 +141,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ success: false, error: error?.message || 'Gagal memproses dokumen' });
   }
 }
+
+export default withEmployeeAuth(handler);

@@ -1,3 +1,5 @@
+import { HUMANIFY_PLANS } from '@/lib/saas/plan-entitlements';
+
 /** Humanify ROI Calculator — estimasi penghematan HRIS */
 
 export interface RoiInput {
@@ -54,12 +56,32 @@ export const ROI_ASSUMPTIONS = {
   bulanPerTahun: 12,
 } as const;
 
+/**
+ * List-price tiers aligned with `HUMANIFY_PLANS` (billable source of truth).
+ * Headcount bands use plan maxEmployees ceilings.
+ */
 export const HUMANIFY_PRICING_TIERS = [
-  { nama: 'Starter (1–100 Karyawan)', minKaryawan: 1, maxKaryawan: 100, hargaBulanan: 1_800_000 },
-  { nama: 'Growth (101–300 Karyawan)', minKaryawan: 101, maxKaryawan: 300, hargaBulanan: 3_200_000 },
-  { nama: 'Business (301–500 Karyawan)', minKaryawan: 301, maxKaryawan: 500, hargaBulanan: 4_800_000 },
-  { nama: 'Enterprise (501–1000 Karyawan)', minKaryawan: 501, maxKaryawan: 1000, hargaBulanan: 7_200_000 },
-  { nama: 'Enterprise Plus (1001+ Karyawan)', minKaryawan: 1001, maxKaryawan: Infinity, hargaBulanan: 9_500_000 },
+  {
+    nama: `${HUMANIFY_PLANS.starter.name} (≤${HUMANIFY_PLANS.starter.maxEmployees} karyawan)`,
+    minKaryawan: 1,
+    maxKaryawan: HUMANIFY_PLANS.starter.maxEmployees,
+    hargaBulanan: HUMANIFY_PLANS.starter.priceMonthlyIdr,
+    planId: 'starter' as const,
+  },
+  {
+    nama: `${HUMANIFY_PLANS.growth.name} (≤${HUMANIFY_PLANS.growth.maxEmployees} karyawan)`,
+    minKaryawan: HUMANIFY_PLANS.starter.maxEmployees + 1,
+    maxKaryawan: HUMANIFY_PLANS.growth.maxEmployees,
+    hargaBulanan: HUMANIFY_PLANS.growth.priceMonthlyIdr,
+    planId: 'growth' as const,
+  },
+  {
+    nama: `${HUMANIFY_PLANS.enterprise.name} (${HUMANIFY_PLANS.growth.maxEmployees + 1}+ karyawan)`,
+    minKaryawan: HUMANIFY_PLANS.growth.maxEmployees + 1,
+    maxKaryawan: Infinity,
+    hargaBulanan: HUMANIFY_PLANS.enterprise.priceMonthlyIdr,
+    planId: 'enterprise' as const,
+  },
 ] as const;
 
 export function getPricingTier(jumlahKaryawan: number) {

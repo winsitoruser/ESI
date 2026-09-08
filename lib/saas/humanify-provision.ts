@@ -28,32 +28,29 @@ export interface ProvisionResult {
   email: string;
 }
 
+export interface CreateTenantRecordInput {
+  companyName: string;
+  ownerName?: string;
+  email?: string;
+  phone?: string;
+  industry?: string;
+  employeeRange?: string;
+  parentTenantId?: string | null;
+}
+
 function buildTenantCode(companyName: string): string {
   const base = companyName.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
   const suffix = Date.now().toString(36).toUpperCase().slice(-4);
   return `${base || 'HFY'}-${suffix}`;
 }
 
-export async function provisionHumanifyTenant(input: ProvisionInput): Promise<ProvisionResult> {
+/** Insert a Humanify tenant row (no user). Used by signup and additional-company. */
+export async function createHumanifyTenantRecord(
+  input: CreateTenantRecordInput,
+): Promise<{ tenantId: string; slug: string }> {
   if (!sequelize) throw new Error('Database unavailable');
-
-  const db = getDb();
-  const email = String(input.email).trim().toLowerCase();
-  const companyName = String(input.companyName).trim();
-  const ownerName = String(input.ownerName).trim();
-
-  if (!email || !companyName || !ownerName || !input.password) {
-    throw new Error('Data registrasi tidak lengkap');
-  }
-  if (input.password.length < 8) {
-    throw new Error('Password minimal 8 karakter');
-  }
-
-  const [existingRows] = await sequelize.query(
-    `SELECT id FROM users WHERE LOWER(TRIM(email)) = :email LIMIT 1`,
-    { replacements: { email } },
-  );
-  if (existingRows?.[0]) throw new Error('Email sudah terdaftar');
+  const companyName = String(input.companyName || '').trim();
+  if (!companyName) throw new Error('Nama perusahaan wajib diisi');
 
   const cols = await getTenantColumns();
   const tenantId = randomUUID();
@@ -98,12 +95,15 @@ export async function provisionHumanifyTenant(input: ProvisionInput): Promise<Pr
   add('business_name', ':business_name', companyName);
   add('setup_completed', ':setup_completed', false);
   add('onboarding_step', ':onboarding_step', 1);
-  add('contact_name', ':contact_name', ownerName);
-  add('contact_email', ':contact_email', email);
+  add('contact_name', ':contact_name', input.ownerName || null);
+  add('contact_email', ':contact_email', input.email || null);
   add('contact_phone', ':contact_phone', input.phone || null);
   add('subscription_plan', ':subscription_plan', 'trial');
   add('max_users', ':max_users', 25);
   add('max_branches', ':max_branches', 3);
+  add('parent_tenant_id', ':parent_tenant_id', input.parentTenantId || null);
+  add('business_structure', ':business_structure', input.parentTenantId ? 'group' : 'single');
+  add('is_hq', ':is_hq', !input.parentTenantId);
 
   if (cols.has('created_at')) {
     fields.push('created_at');
@@ -114,13 +114,43 @@ export async function provisionHumanifyTenant(input: ProvisionInput): Promise<Pr
     values.push('NOW()');
   }
 
-  const fieldList = fields.join(', ');
-  const valueList = values.join(', ');
-
   await sequelize.query(
-    `INSERT INTO tenants (${fieldList}) VALUES (${valueList})`,
+    `INSERT INTO tenants (${fields.join(', ')}) VALUES (${values.join(', ')})`,
     { replacements },
   );
+
+  return { tenantId, slug };
+}
+
+export async function provisionHumanifyTenant(input: ProvisionInput): Promise<ProvisionResult> {
+  if (!sequelize) throw new Error('Database unavailable');
+
+  const db = getDb();
+  const email = String(input.email).trim().toLowerCase();
+  const companyName = String(input.companyName).trim();
+  const ownerName = String(input.ownerName).trim();
+
+  if (!email || !companyName || !ownerName || !input.password) {
+    throw new Error('Data registrasi tidak lengkap');
+  }
+  if (input.password.length < 8) {
+    throw new Error('Password minimal 8 karakter');
+  }
+
+  const [existingRows] = await sequelize.query(
+    `SELECT id FROM users WHERE LOWER(TRIM(email)) = :email LIMIT 1`,
+    { replacements: { email } },
+  );
+  if (existingRows?.[0]) throw new Error('Email sudah terdaftar');
+
+  const { tenantId, slug } = await createHumanifyTenantRecord({
+    companyName,
+    ownerName,
+    email,
+    phone: input.phone,
+    industry: input.industry,
+    employeeRange: input.employeeRange,
+  });
 
   const hashedPassword = await bcrypt.hash(input.password, 10);
   let user: any;
@@ -141,6 +171,18 @@ export async function provisionHumanifyTenant(input: ProvisionInput): Promise<Pr
       throw new Error('Email sudah terdaftar');
     }
     throw createErr;
+  }
+
+  try {
+    const { grantCompanyMembership } = await import('./company-membership');
+    await grantCompanyMembership({
+      userId: user.id,
+      tenantId,
+      role: 'owner',
+      isDefault: true,
+    });
+  } catch (e: any) {
+    console.warn('[provision] membership:', e?.message || e);
   }
 
   return {

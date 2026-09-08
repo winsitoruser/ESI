@@ -88,7 +88,8 @@ export async function runAlertDigest(opts?: {
 }): Promise<DigestResult> {
   const limit = Math.min(500, Math.max(1, opts?.limit || 200));
   const send = Boolean(opts?.send);
-  const smtpConfigured = Boolean(process.env.SMTP_USER && process.env.SMTP_PASSWORD);
+  const { isSmtpConfigured } = await import('../email/sender');
+  const smtpConfigured = isSmtpConfigured();
 
   const tenants = await listDigestTenants(limit);
   const result: DigestResult = {

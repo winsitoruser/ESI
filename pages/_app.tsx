@@ -6,6 +6,7 @@ import 'react-resizable/css/styles.css';
 import type { AppProps } from 'next/app';
 import { SessionProvider } from 'next-auth/react';
 import { Toaster } from 'react-hot-toast';
+import Head from 'next/head';
 import { BusinessTypeProvider } from '@/contexts/BusinessTypeContext';
 import { FinancePeriodProvider } from '@/contexts/FinancePeriodContext';
 import { PermissionProvider } from '@/contexts/PermissionContext';
@@ -68,6 +69,9 @@ const mergedTranslations: Record<Language, Record<string, any>> = {
 function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
   return (
     <SessionProvider session={session}>
+      <Head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+      </Head>
       <PermissionProvider>
         <TranslationProvider translations={mergedTranslations}>
           <BusinessTypeProvider>

@@ -10,6 +10,20 @@ import {
 } from './plan-entitlements';
 import { getTenantColumns, parseTenantSettings } from './tenant-schema';
 import { estimatePartnerCommission, resolvePartnerByCode } from './partners';
+import {
+  buildHumanifySnapPayload,
+  classifyMidtransStatus,
+  computeMidtransSignature,
+  createSnapTransaction,
+  fetchMidtransTransactionStatus,
+  getMidtransPublicConfig,
+  isMidtransConfigured,
+} from './midtrans';
+import {
+  computeVoucherDiscount,
+  findBillingVoucherByCode,
+  incrementVoucherRedemption,
+} from './billing-vouchers';
 
 let sequelize: any;
 try { sequelize = require('../sequelize'); } catch {}
@@ -46,6 +60,10 @@ export async function ensureBillingOrdersTable() {
     'ADD COLUMN IF NOT EXISTS partner_code VARCHAR(32)',
     'ADD COLUMN IF NOT EXISTS commission_pct NUMERIC(5,2)',
     'ADD COLUMN IF NOT EXISTS commission_idr INTEGER',
+    'ADD COLUMN IF NOT EXISTS payment_type VARCHAR(40)',
+    'ADD COLUMN IF NOT EXISTS voucher_code VARCHAR(40)',
+    'ADD COLUMN IF NOT EXISTS discount_idr INTEGER',
+    'ADD COLUMN IF NOT EXISTS midtrans_transaction_id VARCHAR(80)',
   ]) {
     try {
       await sequelize.query(`ALTER TABLE saas_billing_orders ${col}`);
@@ -54,41 +72,52 @@ export async function ensureBillingOrdersTable() {
   ordersReady = true;
 }
 
-export function listBillablePlans() {
-  return (Object.values(HUMANIFY_PLANS) as typeof HUMANIFY_PLANS[HumanifyPlanId][])
-    .filter((p) => p.id !== 'trial')
-    .map((p) => ({
-      id: p.id,
-      name: p.name,
-      description: p.description,
-      features: p.features,
-      maxUsers: p.maxUsers,
-      maxEmployees: p.maxEmployees,
-      priceMonthlyIdr: p.priceMonthlyIdr,
-      priceYearlyIdr: Math.round(p.priceMonthlyIdr * 12 * 0.8),
-    }));
-}
-
 export function quoteAmount(planId: string, interval: BillingInterval = 'monthly'): number {
   const plan = HUMANIFY_PLANS[normalizeHumanifyPlan(planId)];
   if (!plan || plan.id === 'trial') throw new Error('Pilih paket berbayar (starter/growth/enterprise)');
-  if (interval === 'yearly') return Math.round(plan.priceMonthlyIdr * 12 * 0.8);
-  return plan.priceMonthlyIdr;
+  try {
+    // Sync path: use in-memory catalog override when cache warm
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { getPlanCatalogOverride } = require('./plan-pricing-store') as typeof import('./plan-pricing-store');
+    const o = getPlanCatalogOverride(plan.id);
+    const monthly = o?.priceMonthlyIdr ?? plan.priceMonthlyIdr;
+    if (interval === 'yearly') return Math.round(monthly * 12 * 0.8);
+    return monthly;
+  } catch {
+    if (interval === 'yearly') return Math.round(plan.priceMonthlyIdr * 12 * 0.8);
+    return plan.priceMonthlyIdr;
+  }
 }
 
-function midtransConfigured(): boolean {
-  return Boolean(process.env.MIDTRANS_SERVER_KEY);
+export function listBillablePlans() {
+  return (Object.values(HUMANIFY_PLANS) as typeof HUMANIFY_PLANS[HumanifyPlanId][])
+    .filter((p) => p.id !== 'trial')
+    .map((p) => {
+      const def = (() => {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          const { getPlanCatalogOverride } = require('./plan-pricing-store') as typeof import('./plan-pricing-store');
+          const o = getPlanCatalogOverride(p.id);
+          if (!o) return p;
+          return { ...p, ...o, features: o.features?.length ? o.features : p.features };
+        } catch {
+          return p;
+        }
+      })();
+      return {
+        id: def.id,
+        name: def.name,
+        description: def.description,
+        features: def.features,
+        maxUsers: def.maxUsers,
+        maxEmployees: def.maxEmployees,
+        priceMonthlyIdr: def.priceMonthlyIdr,
+        priceYearlyIdr: Math.round(def.priceMonthlyIdr * 12 * 0.8),
+      };
+    });
 }
 
-function midtransIsProduction(): boolean {
-  return process.env.MIDTRANS_IS_PRODUCTION === 'true';
-}
-
-function snapEndpoint() {
-  return midtransIsProduction()
-    ? 'https://app.midtrans.com/snap/v1/transactions'
-    : 'https://app.sandbox.midtrans.com/snap/v1/transactions';
-}
+export { getMidtransPublicConfig, isMidtransConfigured };
 
 export async function createHumanifyCheckout(opts: {
   tenantId: string;
@@ -98,6 +127,7 @@ export async function createHumanifyCheckout(opts: {
   customerEmail?: string;
   successUrl?: string;
   forceManual?: boolean;
+  voucherCode?: string;
 }) {
   if (!sequelize) throw new Error('Database unavailable');
   await ensureBillingOrdersTable();
@@ -105,7 +135,54 @@ export async function createHumanifyCheckout(opts: {
   const plan = normalizeHumanifyPlan(opts.plan);
   if (plan === 'trial') throw new Error('Paket trial tidak perlu checkout');
   const interval: BillingInterval = opts.interval === 'yearly' ? 'yearly' : 'monthly';
-  const amount = quoteAmount(plan, interval);
+  const listPrice = quoteAmount(plan, interval);
+
+  let voucherCode: string | null = null;
+  let discountIdr = 0;
+  const rawVoucher = String(opts.voucherCode || '').trim();
+  if (rawVoucher) {
+    const voucher = await findBillingVoucherByCode(rawVoucher);
+    if (!voucher) throw new Error('Kode voucher tidak ditemukan');
+    const applied = computeVoucherDiscount(voucher, listPrice, plan);
+    if (!applied.ok) throw new Error(applied.error || 'Voucher tidak dapat dipakai');
+    voucherCode = voucher.code;
+    discountIdr = applied.discountIdr;
+  }
+  const amount = Math.max(0, listPrice - discountIdr);
+
+  const [pendingRows] = await sequelize.query(`
+    SELECT * FROM saas_billing_orders
+    WHERE tenant_id = :tid AND plan = :plan AND interval = :interval
+      AND status = 'pending' AND provider = 'midtrans'
+      AND created_at > NOW() - INTERVAL '20 hours'
+      AND COALESCE(amount_idr, 0) = :amount
+    ORDER BY created_at DESC
+    LIMIT 1
+  `, { replacements: { tid: opts.tenantId, plan, interval, amount } });
+  const existing = pendingRows?.[0];
+  if (existing?.snap_token && isMidtransConfigured() && !opts.forceManual) {
+    const pub = getMidtransPublicConfig();
+    return {
+      orderId: existing.id,
+      orderCode: existing.order_code,
+      plan,
+      interval,
+      amountIdr: existing.amount_idr,
+      listPriceIdr: listPrice,
+      discountIdr: existing.discount_idr || 0,
+      voucherCode: existing.voucher_code || voucherCode,
+      provider: 'midtrans' as const,
+      snapToken: existing.snap_token,
+      redirectUrl: existing.redirect_url,
+      resumed: true,
+      ...pub,
+      midtransConfigured: pub.configured,
+      partnerCode: existing.partner_code || null,
+      commissionPct: existing.commission_pct || null,
+      commissionIdr: existing.commission_idr || null,
+    };
+  }
+
   const id = crypto.randomUUID();
   const orderCode = `HFY-${plan.slice(0, 3).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
 
@@ -139,52 +216,35 @@ export async function createHumanifyCheckout(opts: {
   let redirectUrl: string | null = null;
   let raw: any = { mode: 'manual' };
 
-  if (midtransConfigured() && !opts.forceManual) {
+  const wantMidtrans = isMidtransConfigured() && !opts.forceManual;
+  if (wantMidtrans && amount > 0) {
     provider = 'midtrans';
-    const serverKey = process.env.MIDTRANS_SERVER_KEY!;
-    const payload = {
-      transaction_details: { order_id: orderCode, gross_amount: amount },
-      item_details: [{
-        id: plan,
-        price: amount,
-        quantity: 1,
-        name: `Humanify ${HUMANIFY_PLANS[plan].name} (${interval})`.slice(0, 50),
-      }],
-      customer_details: {
-        first_name: (opts.customerName || 'Humanify').slice(0, 50),
-        email: opts.customerEmail || undefined,
-      },
-      callbacks: opts.successUrl ? { finish: opts.successUrl } : undefined,
-      custom_field1: opts.tenantId,
-      custom_field2: plan,
-      custom_field3: interval,
-    };
-
-    const res = await fetch(snapEndpoint(), {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        Authorization: 'Basic ' + Buffer.from(`${serverKey}:`).toString('base64'),
-      },
-      body: JSON.stringify(payload),
-    });
-    const json: any = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      throw new Error(`Midtrans gagal: ${json?.error_messages?.join?.(', ') || JSON.stringify(json)}`);
-    }
-    snapToken = json.token || null;
-    redirectUrl = json.redirect_url || null;
-    raw = json;
+    const finishUrl = opts.successUrl || 'https://humanify.id/humanify/billing?paid=1';
+    const snap = await createSnapTransaction(buildHumanifySnapPayload({
+      orderCode,
+      amountIdr: amount,
+      planId: plan,
+      planName: HUMANIFY_PLANS[plan].name,
+      interval,
+      tenantId: opts.tenantId,
+      customerName: opts.customerName,
+      customerEmail: opts.customerEmail,
+      finishUrl,
+    }));
+    snapToken = snap.token;
+    redirectUrl = snap.redirectUrl || finishUrl;
+    raw = snap.raw;
+  } else if (wantMidtrans && amount === 0) {
+    raw = { mode: 'voucher_full' };
   }
 
   await sequelize.query(`
     INSERT INTO saas_billing_orders
       (id, tenant_id, order_code, plan, interval, amount_idr, status, provider, snap_token, redirect_url, raw,
-       partner_code, commission_pct, commission_idr)
+       partner_code, commission_pct, commission_idr, voucher_code, discount_idr)
     VALUES
       (:id, :tenantId, :orderCode, :plan, :interval, :amount, 'pending', :provider, :snapToken, :redirectUrl, CAST(:raw AS jsonb),
-       :partnerCode, :commissionPct, :commissionIdr)
+       :partnerCode, :commissionPct, :commissionIdr, :voucherCode, :discountIdr)
   `, {
     replacements: {
       id,
@@ -200,21 +260,51 @@ export async function createHumanifyCheckout(opts: {
       partnerCode,
       commissionPct,
       commissionIdr,
+      voucherCode,
+      discountIdr,
     },
   });
 
+  if (amount === 0) {
+    const paid = await activatePaidOrder(orderCode, { raw: { via: 'voucher_full', voucherCode } });
+    const pub = getMidtransPublicConfig();
+    return {
+      orderId: id,
+      orderCode,
+      plan,
+      interval,
+      amountIdr: 0,
+      listPriceIdr: listPrice,
+      discountIdr,
+      voucherCode,
+      provider: 'manual' as const,
+      snapToken: null,
+      redirectUrl: null,
+      activated: !paid.alreadyPaid,
+      ...pub,
+      midtransConfigured: pub.configured,
+      partnerCode,
+      commissionPct,
+      commissionIdr,
+    };
+  }
+
+  const pub = getMidtransPublicConfig();
   return {
     orderId: id,
     orderCode,
     plan,
     interval,
     amountIdr: amount,
+    listPriceIdr: listPrice,
+    discountIdr,
+    voucherCode,
     provider,
     snapToken,
     redirectUrl,
-    clientKey: process.env.MIDTRANS_CLIENT_KEY || null,
-    isProduction: midtransIsProduction(),
-    midtransConfigured: midtransConfigured(),
+    resumed: false,
+    ...pub,
+    midtransConfigured: pub.configured,
     partnerCode,
     commissionPct,
     commissionIdr,
@@ -269,6 +359,13 @@ export async function activatePaidOrder(orderCodeOrId: string, opts?: { raw?: an
     },
   });
 
+  if (order.voucher_code) {
+    try {
+      const voucher = await findBillingVoucherByCode(String(order.voucher_code));
+      if (voucher?.id) await incrementVoucherRedemption(voucher.id);
+    } catch { /* best-effort */ }
+  }
+
   return { alreadyPaid: false, order: { ...order, status: 'paid', plan } };
 }
 
@@ -282,21 +379,121 @@ export async function verifyMidtransWebhook(body: any) {
   const signatureKey = body.signature_key;
   if (!orderId || !statusCode || !grossAmount) return null;
 
-  const expected = crypto
-    .createHash('sha512')
-    .update(`${orderId}${statusCode}${grossAmount}${serverKey}`)
-    .digest('hex');
-  if (signatureKey && signatureKey !== expected) {
-    throw new Error('Invalid Midtrans signature');
+  const allowUnsigned =
+    String(process.env.HUMANIFY_MIDTRANS_ALLOW_UNSIGNED || '').toLowerCase() === 'true';
+  if (!signatureKey) {
+    if (process.env.NODE_ENV === 'production' && !allowUnsigned) {
+      throw new Error('MIDTRANS_SIGNATURE_REQUIRED');
+    }
+  } else {
+    const expected = computeMidtransSignature(orderId, statusCode, grossAmount, serverKey);
+    if (signatureKey !== expected) {
+      throw new Error('Invalid Midtrans signature');
+    }
   }
 
-  const txStatus = body.transaction_status;
-  const fraud = body.fraud_status;
-  let paid = false;
-  if (txStatus === 'settlement') paid = true;
-  if (txStatus === 'capture' && fraud === 'accept') paid = true;
+  const klass = classifyMidtransStatus(body.transaction_status, body.fraud_status);
+  return {
+    orderCode: orderId,
+    paid: klass === 'paid',
+    failed: klass === 'failed',
+    pending: klass === 'pending',
+    paymentType: body.payment_type || null,
+    transactionId: body.transaction_id || null,
+    raw: body,
+  };
+}
 
-  return { orderCode: orderId, paid, failed: ['deny', 'cancel', 'expire', 'failure'].includes(txStatus), raw: body };
+export async function applyMidtransNotification(body: any, tenantId?: string | null) {
+  const verified = await verifyMidtransWebhook(body);
+  if (!verified) return { handled: false as const };
+  await ensureBillingOrdersTable();
+
+  if (tenantId) {
+    const [owned] = await sequelize.query(
+      `SELECT id FROM saas_billing_orders WHERE order_code = :code AND tenant_id = :tid LIMIT 1`,
+      { replacements: { code: verified.orderCode, tid: tenantId } },
+    );
+    if (!owned?.[0]) throw Object.assign(new Error('Order bukan milik tenant Anda'), { statusCode: 403 });
+  }
+
+  const extras: Record<string, unknown> = {
+    raw: JSON.stringify(verified.raw),
+    code: verified.orderCode,
+    pt: verified.paymentType,
+    txid: verified.transactionId,
+  };
+
+  if (verified.paid) {
+    try {
+      const result = await activatePaidOrder(verified.orderCode, { raw: verified.raw });
+      if (verified.paymentType || verified.transactionId) {
+        await sequelize.query(`
+          UPDATE saas_billing_orders
+          SET payment_type = COALESCE(:pt, payment_type),
+              midtrans_transaction_id = COALESCE(:txid, midtrans_transaction_id),
+              updated_at = NOW()
+          WHERE order_code = :code
+        `, { replacements: extras });
+      }
+      return { handled: true as const, paid: true, alreadyPaid: result.alreadyPaid, orderCode: verified.orderCode };
+    } catch (e: any) {
+      if (/tidak ditemukan/i.test(String(e?.message))) {
+        return { handled: false as const, orderCode: verified.orderCode };
+      }
+      throw e;
+    }
+  }
+
+  if (verified.failed) {
+    await sequelize.query(`
+      UPDATE saas_billing_orders
+      SET status = 'failed',
+          payment_type = COALESCE(:pt, payment_type),
+          midtrans_transaction_id = COALESCE(:txid, midtrans_transaction_id),
+          updated_at = NOW(),
+          raw = COALESCE(raw, '{}'::jsonb) || CAST(:raw AS jsonb)
+      WHERE order_code = :code AND status = 'pending'
+    `, { replacements: extras });
+    return { handled: true as const, paid: false, failed: true, orderCode: verified.orderCode };
+  }
+
+  if (verified.pending) {
+    await sequelize.query(`
+      UPDATE saas_billing_orders
+      SET payment_type = COALESCE(:pt, payment_type),
+          midtrans_transaction_id = COALESCE(:txid, midtrans_transaction_id),
+          updated_at = NOW(),
+          raw = COALESCE(raw, '{}'::jsonb) || CAST(:raw AS jsonb)
+      WHERE order_code = :code AND status = 'pending'
+    `, { replacements: extras });
+  }
+
+  return { handled: true as const, paid: false, pending: verified.pending, orderCode: verified.orderCode };
+}
+
+export async function syncOrderFromMidtrans(orderCode: string, tenantId?: string | null) {
+  if (!sequelize) throw new Error('Database unavailable');
+  await ensureBillingOrdersTable();
+  const [rows] = await sequelize.query(`
+    SELECT * FROM saas_billing_orders
+    WHERE order_code = :q OR id::text = :q
+    LIMIT 1
+  `, { replacements: { q: orderCode } });
+  const order = rows?.[0];
+  if (!order) throw Object.assign(new Error('Order tidak ditemukan'), { statusCode: 404 });
+  if (tenantId && String(order.tenant_id) !== String(tenantId)) {
+    throw Object.assign(new Error('Order bukan milik tenant Anda'), { statusCode: 403 });
+  }
+  if (order.status === 'paid') {
+    return { alreadyPaid: true, order, source: 'local' as const };
+  }
+
+  const remote = await fetchMidtransTransactionStatus(order.order_code);
+  if (!remote) {
+    return { alreadyPaid: false, order, source: 'midtrans_unavailable' as const };
+  }
+  return applyMidtransNotification(remote, tenantId || null);
 }
 
 export async function getTenantBillingStatus(tenantId: string) {
@@ -310,11 +507,12 @@ export async function getTenantBillingStatus(tenantId: string) {
   if (!t) return null;
 
   const [orders] = await sequelize.query(`
-    SELECT id, order_code, plan, interval, amount_idr, status, provider, redirect_url, paid_at, created_at
+    SELECT id, order_code, plan, interval, amount_idr, status, provider, redirect_url, snap_token,
+           paid_at, created_at, payment_type, voucher_code, discount_idr
     FROM saas_billing_orders
     WHERE tenant_id = :tid
     ORDER BY created_at DESC
-    LIMIT 10
+    LIMIT 20
   `, { replacements: { tid: tenantId } });
 
   const planId = normalizeHumanifyPlan(cols.has('subscription_plan') ? t.subscription_plan : 'trial');
@@ -339,9 +537,12 @@ export async function getTenantBillingStatus(tenantId: string) {
     trialDaysLeft,
     trialExpiringSoon: Boolean(isTrial && trialDaysLeft != null && trialDaysLeft <= 7),
     trialExpired: Boolean(trialEndsAt && trialDaysLeft != null && trialDaysLeft < 0),
-    orders: orders || [],
-    midtransConfigured: midtransConfigured(),
-    clientKey: process.env.MIDTRANS_CLIENT_KEY || null,
+    orders: (orders || []).map((o: any) => ({
+      ...o,
+      snap_token: o.status === 'pending' ? o.snap_token : undefined,
+    })),
+    ...getMidtransPublicConfig(),
+    midtransConfigured: isMidtransConfigured(),
   };
 }
 

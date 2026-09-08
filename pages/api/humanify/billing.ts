@@ -1,18 +1,22 @@
 /**
  * Humanify billing API
- * GET  ?action=plans|current
- * POST ?action=checkout|confirm-manual|dunning-scan
+ * GET  ?action=plans|current|invoice|voucher-preview
+ * POST ?action=checkout|sync-order|confirm-manual|dunning-scan
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
 import {
   activatePaidOrder,
   createHumanifyCheckout,
+  getMidtransPublicConfig,
   getPaidOrderInvoice,
   getTenantBillingStatus,
   listBillablePlans,
   listExpiringTrials,
+  quoteAmount,
   runDunningScan,
+  syncOrderFromMidtrans,
 } from '@/lib/saas/humanify-billing';
+import { computeVoucherDiscount, findBillingVoucherByCode } from '@/lib/saas/billing-vouchers';
 import { applyPlanChange, previewPlanChange } from '@/lib/saas/plan-change';
 import { isPlatformOperator } from '@/lib/middleware/tenantIsolation';
 import { withHQAuth } from '@/lib/middleware/withHQAuth';
@@ -31,11 +35,13 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
   try {
     if (req.method === 'GET' && action === 'plans') {
+      const midtrans = getMidtransPublicConfig();
       return res.json({
         success: true,
         data: {
           plans: listBillablePlans(),
-          midtransConfigured: Boolean(process.env.MIDTRANS_SERVER_KEY),
+          midtrans,
+          midtransConfigured: midtrans.configured,
         },
       });
     }
@@ -59,6 +65,28 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       if (!plan) return res.status(400).json({ success: false, error: 'plan required' });
       const preview = await previewPlanChange(tenantId, plan);
       return res.json({ success: true, data: preview });
+    }
+
+    if (req.method === 'GET' && action === 'voucher-preview') {
+      if (!tenantId) return res.status(400).json({ success: false, error: 'No tenant' });
+      const code = String(req.query.code || '');
+      const plan = String(req.query.plan || 'growth');
+      const interval = req.query.interval === 'yearly' ? 'yearly' : 'monthly';
+      const voucher = await findBillingVoucherByCode(code);
+      if (!voucher) return res.status(404).json({ success: false, error: 'Voucher tidak ditemukan' });
+      const listPrice = quoteAmount(plan, interval as 'monthly' | 'yearly');
+      const applied = computeVoucherDiscount(voucher, listPrice, plan);
+      if (!applied.ok) return res.status(400).json({ success: false, error: applied.error });
+      return res.json({
+        success: true,
+        data: {
+          code: voucher.code,
+          label: voucher.label,
+          listPriceIdr: listPrice,
+          discountIdr: applied.discountIdr,
+          payableIdr: Math.max(0, listPrice - applied.discountIdr),
+        },
+      });
     }
 
     if (req.method === 'GET' && action === 'invoice') {
@@ -102,12 +130,13 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     if (req.method === 'POST' && action === 'checkout') {
       if (!tenantId) return res.status(400).json({ success: false, error: 'No tenant' });
-      const { plan, interval, forceManual } = req.body || {};
+      const { plan, interval, forceManual, voucherCode } = req.body || {};
       const origin = (req.headers.origin as string) || process.env.NEXTAUTH_URL || 'https://humanify.id';
       const checkout = await createHumanifyCheckout({
         tenantId,
         plan,
         interval,
+        voucherCode,
         customerName: (session.user as any).name || (session.user as any).businessName,
         customerEmail: session.user.email || undefined,
         successUrl: `${origin}/humanify/billing?paid=1`,
@@ -118,6 +147,18 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         ),
       });
       return res.status(201).json({ success: true, data: checkout });
+    }
+
+    if (req.method === 'POST' && action === 'sync-order') {
+      if (!tenantId) return res.status(400).json({ success: false, error: 'No tenant' });
+      const code = String(req.body?.orderCode || req.body?.orderId || '');
+      if (!code) return res.status(400).json({ success: false, error: 'orderCode required' });
+      try {
+        const result = await syncOrderFromMidtrans(code, tenantId);
+        return res.json({ success: true, data: result });
+      } catch (e: any) {
+        return res.status(e.statusCode || 400).json({ success: false, error: e.message });
+      }
     }
 
     if (req.method === 'POST' && action === 'confirm-manual') {

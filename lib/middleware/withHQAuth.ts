@@ -46,6 +46,10 @@ export function withHQAuth(
     let usedRequestBound = false;
 
     try {
+      // Never let CDN/proxy cache tenant-scoped HQ payloads across users
+      res.setHeader('Cache-Control', 'private, no-store, no-cache, must-revalidate');
+      res.setHeader('Vary', 'Cookie');
+
       const session = await getServerSession(req, res, authOptions);
 
       if (!session?.user) {
@@ -114,7 +118,14 @@ export function withHQAuth(
               });
             }
           } catch {
-            /* models unavailable — allow in dev */
+            if (process.env.NODE_ENV === 'production') {
+              return res.status(403).json({
+                success: false,
+                error: 'MODULE_CHECK_UNAVAILABLE',
+                message: 'Module entitlement check unavailable',
+              });
+            }
+            /* models unavailable — allow in non-prod */
           }
         }
 
@@ -164,7 +175,28 @@ export function withHQAuth(
           });
           if (!ok) return;
         } catch {
-          /* entitlement module unavailable — fail open for legacy */
+          if (process.env.NODE_ENV === 'production') {
+            return res.status(403).json({
+              success: false,
+              error: 'ENTITLEMENT_CHECK_UNAVAILABLE',
+              message: 'Plan entitlement check unavailable',
+            });
+          }
+          /* entitlement module unavailable — fail open only outside production */
+        }
+
+        if ((session.user as any).mfaSetupRequired === true) {
+          const path = String(req.url || '').split('?')[0];
+          const mfaAllowed =
+            path.includes('/api/humanify/mfa') ||
+            path.endsWith('/humanify/mfa');
+          if (!mfaAllowed) {
+            return res.status(403).json({
+              success: false,
+              error: 'MFA_SETUP_REQUIRED',
+              message: 'Selesaikan enrol 2FA di /humanify/security sebelum memakai API.',
+            });
+          }
         }
 
         return await handler(req, res);
@@ -192,8 +224,9 @@ export function withHQAuth(
         message: 'Authentication service error'
       });
     } finally {
-      // Local (transaction) config clears on commit; session-level still needs clear
-      if (tenantContextSet && !usedRequestBound) {
+      // Always clear session-level vars. Local (transaction) config clears on commit;
+      // if we fell back to session-level set_config, this prevents pool leaks.
+      if (tenantContextSet) {
         try {
           const { clearDbTenantContext } = require('../saas/tenant-slug');
           await clearDbTenantContext();
