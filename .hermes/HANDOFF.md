@@ -1,6 +1,6 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 8 September 2026 — **Humanify multi-company** (switcher header)
+> Diperbarui: 8 September 2026 — **Humanify multi-company** (flow setelah tambah perusahaan)
 
 ## Humanify multi-company (8 Sep 2026)
 
@@ -10,11 +10,13 @@ Owner/admin dapat mengelola beberapa perusahaan (tenant) dari satu login.
 |---|---|
 | Membership | `saas_company_memberships` (user ↔ tenant, role owner/admin/member) |
 | Switcher | Header `/humanify` di kiri profil — `CompanySwitcher` |
-| Tambah perusahaan | Modal di switcher jika belum punya / ingin menambah |
+| Tambah perusahaan | Modal → wizard setup (`?from=new-company`) → dashboard (`?onboard=new-company`) |
 | Isolasi | Tetap `tenant_id` + RLS; switch hanya mengganti tenant aktif di JWT |
 | Privilege | `owner`, `admin`, `hq_admin`, `hr_admin`, platform ops |
 | API | `GET/POST /api/humanify/companies` (`switch` \| `create`) |
 | Tests | `__tests__/company-membership.test.ts` |
+
+Setelah **Tambah perusahaan**: user di-switch ke tenant baru, isi wizard (lokasi → org → kebijakan → karyawan boleh dilewati → Go Live), lalu dashboard dengan banner langkah operasional (karyawan, absensi, cuti, payroll). Data tidak tercampur dengan perusahaan lain.
 
 Bukan impersonate support. Impersonate ops tetap di `/platform`. Staf tanpa privilege tidak melihat switcher.
 

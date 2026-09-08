@@ -50,7 +50,7 @@ if (/humanify-esign[\s\S]*hidden:\s*true/.test(side)) ok('e-sign hidden');
 else bad('e-sign hidden');
 if (/humanify-ai-hub/.test(side) && !/humanify-ai-hub[\s\S]*?hidden:\s*true/.test(side)) ok('AIMAN sidebar visible');
 else bad('AIMAN sidebar should be visible');
-if (/AIMAN · AI Guide/.test(side)) ok('AIMAN sidebar label');
+if (/name:\s*'AIMAN · /.test(side)) ok('AIMAN sidebar label');
 else bad('AIMAN sidebar label');
 
 const devices = read('pages/humanify/devices.tsx');

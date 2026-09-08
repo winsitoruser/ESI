@@ -32,6 +32,7 @@ test.describe('Humanify SEO public surfaces (soft)', () => {
     expect(body).toMatch(/urlset/i);
     expect(body).toMatch(/humanify\.id\/humanify\/welcome/i);
     expect(body).toMatch(/humanify\.id\/humanify\/partners/i);
+    expect(body).toMatch(/humanify\.id\/humanify\/blog/i);
     expect(body).toMatch(/humanify\.id\/humanify\/pricing\/roi-calculator/i);
     expect(body).toMatch(/humanify\.id\/humanify\/signup/i);
     expect(body).toMatch(/humanify\.id\/employee\/login/i);
@@ -75,5 +76,16 @@ test.describe('Humanify SEO public surfaces (soft)', () => {
     expect(body).toMatch(/TEAM|Naincode/i);
     expect(body).toMatch(/ops@humanify\.id|CONTACT/i);
     expect(body).toMatch(/llms\.txt/i);
+  });
+
+  test('blog index is public (no login wall)', async ({ page }) => {
+    const res = await page.goto('/humanify/blog', {
+      waitUntil: 'domcontentloaded',
+      timeout: 45_000,
+    });
+    expect((res?.status() ?? 0)).toBeLessThan(400);
+    await expect(page).not.toHaveURL(/\/humanify\/login/);
+    const body = await page.locator('body').innerText();
+    expect(body).toMatch(/Blog|Humanify/i);
   });
 });

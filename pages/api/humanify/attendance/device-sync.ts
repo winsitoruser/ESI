@@ -462,4 +462,14 @@ function parseVerifyMode(mode: any): string {
   return modeMap[String(mode).toLowerCase()] || String(mode);
 }
 
-export default withHQAuth(handler, { module: 'hris' });
+function postOnly(inner: typeof handler) {
+  return async (req: NextApiRequest, res: NextApiResponse) => {
+    if (req.method !== 'POST') {
+      res.setHeader('Allow', 'POST');
+      return res.status(405).json({ success: false, error: 'Method not allowed' });
+    }
+    return inner(req, res);
+  };
+}
+
+export default postOnly(withHQAuth(handler, { module: 'hris' }));

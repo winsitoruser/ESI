@@ -14,6 +14,12 @@ import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
 import type { WilayahItem } from '@/lib/humanify/wilayah-id';
 import { WILAYAH_SOURCE } from '@/lib/humanify/wilayah-id';
 import { resolveDepartmentOption } from '@/lib/hris/master-data';
+import {
+  NEW_COMPANY_DASHBOARD_HREF,
+  SETUP_LAUNCH_DASHBOARD_HREF,
+  POST_LAUNCH_ACTIONS,
+  industryLabel,
+} from '@/lib/saas/company-onboarding-flow';
 
 const WIZARD_DEPARTMENTS = [
   { code: 'HR', label: 'SDM' },
@@ -61,6 +67,8 @@ export default function SaasSetupWizard() {
     cityCode: '',
     phone: '',
     website: '',
+    industry: '',
+    employeeRange: '',
   });
   const [provinces, setProvinces] = useState<WilayahItem[]>([]);
   const [regencies, setRegencies] = useState<WilayahItem[]>([]);
@@ -78,6 +86,9 @@ export default function SaasSetupWizard() {
     position: 'Staff',
     department: 'HR',
   });
+  const [isAdditionalCompany, setIsAdditionalCompany] = useState(false);
+  const fromNewCompany = router.query.from === 'new-company';
+  const additionalFlow = isAdditionalCompany || fromNewCompany;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -94,6 +105,14 @@ export default function SaasSetupWizard() {
       setStep(d.step || 1);
       setTenant(d.tenant);
       setCareersUrl(d.tenant?.careersUrl || null);
+      try {
+        const listRes = await fetch('/api/humanify/companies');
+        const listJson = await listRes.json();
+        const count = Array.isArray(listJson?.data?.companies) ? listJson.data.companies.length : 0;
+        setIsAdditionalCompany(count > 1);
+      } catch {
+        setIsAdditionalCompany(false);
+      }
       if (d.saasOnboarding?.company) setCompany((c) => ({ ...c, ...d.saasOnboarding.company }));
       if (d.saasOnboarding?.organization?.departments) {
         setDepartments(
@@ -245,7 +264,7 @@ export default function SaasSetupWizard() {
       try { await update({ setupCompleted: true }); } catch { /* session refresh optional */ }
       // Soft delay so brand loader finishes a beat before hard navigation
       await new Promise((r) => setTimeout(r, 900));
-      window.location.href = HUMANIFY_BRAND.appPath;
+      window.location.href = additionalFlow ? NEW_COMPANY_DASHBOARD_HREF : SETUP_LAUNCH_DASHBOARD_HREF;
     } catch (e: any) {
       toast.error(e.message || 'Gagal menyelesaikan setup');
       setLaunching(false);
@@ -280,17 +299,28 @@ export default function SaasSetupWizard() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-violet-50">
       <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-3 min-w-0">
-          <HumanifyLogo href={HUMANIFY_BRAND.appPath} size="sm" variant="withText" />
+          <HumanifyLogo size="sm" variant="withText" />
           <span className="text-xs text-slate-500 truncate max-w-[50%]">{session?.user?.email}</span>
         </div>
       </header>
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         <div className="mb-8">
-          <p className="text-sm font-medium text-violet-600 mb-1">Setup workspace</p>
+          <p className="text-sm font-medium text-violet-600 mb-1">
+            {additionalFlow ? 'Siapkan perusahaan baru' : 'Setup workspace'}
+          </p>
           <h1 className="text-2xl font-bold text-slate-900 mb-2">
-            {tenant?.name ? `Selamat datang, ${tenant.name}` : 'Konfigurasi Humanify'}
+            {tenant?.name
+              ? additionalFlow
+                ? `Lengkapi ${tenant.name}`
+                : `Selamat datang, ${tenant.name}`
+              : 'Konfigurasi Humanify'}
           </h1>
+          <p className="text-sm text-slate-600 mb-4 max-w-2xl">
+            {additionalFlow
+              ? 'Perusahaan ini punya data karyawan, absensi, dan payroll sendiri. Isi lokasi dan kebijakan dulu, lalu buka dashboard untuk operasional sehari-hari.'
+              : 'Empat langkah singkat agar workspace siap dipakai: lokasi, organisasi, jam kerja, lalu karyawan pertama.'}
+          </p>
           <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
             <motion.div
               className="h-full bg-violet-600 rounded-full"
@@ -324,6 +354,26 @@ export default function SaasSetupWizard() {
           {step === 1 && (
             <div className="space-y-4">
               <h2 className="text-lg font-semibold text-slate-900">Lokasi & kontak perusahaan</h2>
+              {(tenant?.name || company.industry || company.employeeRange) && (
+                <div className="flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                  {tenant?.name && (
+                    <span className="rounded-lg bg-white px-2.5 py-1 text-xs font-medium text-slate-700 ring-1 ring-slate-200">
+                      {tenant.name}
+                    </span>
+                  )}
+                  {company.industry && (
+                    <span className="rounded-lg bg-white px-2.5 py-1 text-xs text-slate-600 ring-1 ring-slate-200">
+                      {industryLabel(String(company.industry))}
+                    </span>
+                  )}
+                  {company.employeeRange && (
+                    <span className="rounded-lg bg-white px-2.5 py-1 text-xs text-slate-600 ring-1 ring-slate-200">
+                      {String(company.employeeRange)} karyawan
+                    </span>
+                  )}
+                </div>
+              )}
+              <p className="text-sm text-slate-500">Nama sudah tersimpan. Lengkapi alamat operasional agar slip gaji dan dokumen resmi memakai data yang benar.</p>
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm text-slate-600 mb-1 block">Provinsi</label>
@@ -445,7 +495,7 @@ export default function SaasSetupWizard() {
             <div className="space-y-4">
               <h2 className="text-lg font-semibold text-slate-900">Tambah karyawan pertama</h2>
               <p className="text-sm text-slate-600">
-                Satu catatan karyawan cukup untuk membuka go-live. Anda bisa impor sisanya nanti.
+                Satu catatan karyawan cukup untuk membuka go-live. Boleh dilewati — Anda bisa impor di dashboard setelah workspace aktif.
               </p>
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
@@ -497,9 +547,8 @@ export default function SaasSetupWizard() {
           )}
 
           {step === 5 && (
-            <div className="space-y-4 text-center">
-              <div className="relative mx-auto flex h-20 w-20 items-center justify-center">
-                <span className="absolute inset-0 animate-ping rounded-2xl bg-violet-400/20" />
+            <div className="space-y-5">
+              <div className="relative mx-auto flex h-16 w-16 items-center justify-center">
                 <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-violet-100 ring-1 ring-violet-200">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -509,26 +558,40 @@ export default function SaasSetupWizard() {
                   />
                 </div>
               </div>
-              <h2 className="text-xl font-bold text-slate-900">Workspace siap diluncurkan!</h2>
-              <p className="text-slate-600 text-sm max-w-md mx-auto">
-                Trial 14 hari aktif. Klik Go Live untuk membuka dashboard Humanify dengan animasi peluncuran.
-              </p>
-              {careersUrl && (
-                <a
-                  href={careersUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-sm text-violet-600 hover:text-violet-800 font-medium"
-                >
-                  Portal karir: {careersUrl}
-                  <ExternalLink className="w-4 h-4" />
-                </a>
-              )}
-              <ul className="text-left text-sm text-slate-600 space-y-2 max-w-sm mx-auto">
+              <div className="text-center">
+                <h2 className="text-xl font-bold text-slate-900">
+                  {additionalFlow ? `${tenant?.name || 'Perusahaan'} siap diluncurkan` : 'Workspace siap diluncurkan'}
+                </h2>
+                <p className="mt-2 text-slate-600 text-sm max-w-md mx-auto">
+                  Setelah Go Live Anda masuk ke dashboard perusahaan ini. Langkah berikutnya:
+                </p>
+              </div>
+              <ul className="text-left text-sm text-slate-600 space-y-2.5 max-w-md mx-auto">
                 <li className="flex gap-2"><CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /> {departments.length} departemen dikonfigurasi</li>
                 <li className="flex gap-2"><CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /> Shift {policies.defaultShift}</li>
-                <li className="flex gap-2"><CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /> Trial HRIS penuh</li>
+                {POST_LAUNCH_ACTIONS.map((action) => (
+                  <li key={action.href} className="flex gap-2">
+                    <ArrowRight className="w-4 h-4 text-violet-500 shrink-0 mt-0.5" />
+                    <span>
+                      <span className="font-medium text-slate-800">{action.title}</span>
+                      <span className="block text-xs text-slate-500">{action.hint}</span>
+                    </span>
+                  </li>
+                ))}
               </ul>
+              {careersUrl && (
+                <p className="text-center">
+                  <a
+                    href={careersUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-sm text-violet-600 hover:text-violet-800 font-medium"
+                  >
+                    Portal karir: {careersUrl}
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+                </p>
+              )}
             </div>
           )}
 
@@ -544,47 +607,65 @@ export default function SaasSetupWizard() {
             </button>
 
             {step < 5 ? (
-              <button
-                type="button"
-                disabled={saving}
-                onClick={async () => {
-                  try {
-                    if (step === 1) await saveStep('company', company, 2);
-                    else if (step === 2) await saveStep('organization', { departments }, 3);
-                    else if (step === 3) await saveStep('policies', policies, 4);
-                    else if (step === 4) {
-                      if (!firstEmployee.name.trim() || !firstEmployee.email.trim()) {
-                        toast.error('Nama dan email karyawan wajib diisi');
-                        return;
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {step === 4 && (
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={async () => {
+                      try {
+                        await saveStep('employee', { skipped: true }, 5);
+                      } catch (e: any) {
+                        toast.error(e?.message || 'Gagal melewati langkah ini');
                       }
-                      const create = await fetch('/api/humanify/employees', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(firstEmployee),
-                      });
-                      const created = await create.json();
-                      if (create.status === 409) {
-                        await saveStep('employee', { ...firstEmployee, created: true, duplicate: true }, 5);
-                        return;
+                    }}
+                    className="px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    Lewati dulu
+                  </button>
+                )}
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={async () => {
+                    try {
+                      if (step === 1) await saveStep('company', company, 2);
+                      else if (step === 2) await saveStep('organization', { departments }, 3);
+                      else if (step === 3) await saveStep('policies', policies, 4);
+                      else if (step === 4) {
+                        if (!firstEmployee.name.trim() || !firstEmployee.email.trim()) {
+                          toast.error('Nama dan email karyawan wajib diisi, atau pilih Lewati dulu');
+                          return;
+                        }
+                        const create = await fetch('/api/humanify/employees', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify(firstEmployee),
+                        });
+                        const created = await create.json();
+                        if (create.status === 409) {
+                          await saveStep('employee', { ...firstEmployee, created: true, duplicate: true }, 5);
+                          return;
+                        }
+                        if (!create.ok || created.success === false) {
+                          throw new Error(
+                            (typeof created.error === 'string' ? created.error : created.error?.message)
+                            || created.message
+                            || 'Gagal membuat karyawan',
+                          );
+                        }
+                        await saveStep('employee', { ...firstEmployee, created: true }, 5);
                       }
-                      if (!create.ok || created.success === false) {
-                        throw new Error(
-                          (typeof created.error === 'string' ? created.error : created.error?.message)
-                          || created.message
-                          || 'Gagal membuat karyawan',
-                        );
-                      }
-                      await saveStep('employee', { ...firstEmployee, created: true }, 5);
+                    } catch (e: any) {
+                      toast.error(e?.message || 'Gagal menyimpan langkah ini');
                     }
-                  } catch (e: any) {
-                    toast.error(e?.message || 'Gagal menyimpan langkah ini');
-                  }
-                }}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 disabled:opacity-50"
-              >
-                {saving ? 'Menyimpan...' : 'Lanjut'}
-                <ArrowRight className="w-4 h-4" />
-              </button>
+                  }}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 disabled:opacity-50"
+                >
+                  {saving ? 'Menyimpan...' : 'Lanjut'}
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
             ) : (
               <button
                 type="button"
@@ -592,7 +673,7 @@ export default function SaasSetupWizard() {
                 onClick={handleComplete}
                 className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 disabled:opacity-50"
               >
-                {saving ? 'Meluncurkan…' : 'Go Live — Masuk ke Humanify'}
+                {saving ? 'Meluncurkan…' : additionalFlow ? 'Buka dashboard perusahaan' : 'Go Live — Masuk ke Humanify'}
                 <Rocket className="w-4 h-4" />
               </button>
             )}

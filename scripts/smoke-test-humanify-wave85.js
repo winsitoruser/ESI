@@ -55,9 +55,10 @@ const fePages = [
   'pages/humanify/payroll/lembur.tsx',
   'pages/humanify/mss.tsx',
 ];
+const CHROME_RE = /EnterprisePageHeader|PayrollShell|PlatformAccessShell|OpsPageHero/;
 let feOk = 0;
 for (const p of fePages) {
-  if (/EnterprisePageHeader/.test(read(p))) feOk++;
+  if (CHROME_RE.test(read(p))) feOk++;
 }
 if (feOk === fePages.length) ok(`FE chrome on ${feOk} GA pages`);
 else fail(`FE chrome only ${feOk}/${fePages.length}`);

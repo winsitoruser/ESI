@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useSession } from 'next-auth/react';
 import { Building2, Check, ChevronDown, Loader2, Plus, Search, X } from 'lucide-react';
 
@@ -30,9 +31,31 @@ const EMPLOYEE_RANGES = [
   { value: '500+', label: '500+ karyawan' },
 ];
 
+const FIELD =
+  'hf-input block h-11 w-full px-3 text-sm text-[color:var(--hf-ink)] placeholder:text-[color:var(--hf-ink-faint)]';
+const SELECT =
+  `${FIELD} appearance-none cursor-pointer pr-10`;
+
 function isCompanyManagerRole(role?: string | null): boolean {
   return ['owner', 'admin', 'hq_admin', 'hr_admin', 'super_admin', 'superadmin', 'platform_admin']
     .includes(String(role || '').toLowerCase());
+}
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="mb-1.5 block text-sm font-medium text-[color:var(--hf-ink-secondary)]">
+      {children}
+    </span>
+  );
+}
+
+function SelectWrap({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="relative">
+      {children}
+      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--hf-ink-faint)]" />
+    </div>
+  );
 }
 
 /**
@@ -60,8 +83,10 @@ export default function CompanySwitcher() {
     industry: 'professional_services',
     employeeRange: '1-50',
   });
+  const [portalReady, setPortalReady] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -82,6 +107,10 @@ export default function CompanySwitcher() {
   }, []);
 
   useEffect(() => {
+    setPortalReady(true);
+  }, []);
+
+  useEffect(() => {
     if (!session?.user) return;
     load();
   }, [session?.user, load]);
@@ -91,25 +120,35 @@ export default function CompanySwitcher() {
     const onDoc = (e: MouseEvent) => {
       if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
     };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setOpen(false);
-        setCreateOpen(false);
-      }
-    };
     document.addEventListener('mousedown', onDoc);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDoc);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open, createOpen]);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
 
   useEffect(() => {
-    if (open && companies.length > 6) {
-      searchRef.current?.focus();
-    }
+    if (!open && !createOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (createOpen && !creating) setCreateOpen(false);
+      else if (!createOpen) setOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open, createOpen, creating]);
+
+  useEffect(() => {
+    if (open && companies.length > 6) searchRef.current?.focus();
   }, [open, companies.length]);
+
+  useEffect(() => {
+    if (!createOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const t = window.setTimeout(() => nameRef.current?.focus(), 30);
+    return () => {
+      document.body.style.overflow = prev;
+      window.clearTimeout(t);
+    };
+  }, [createOpen]);
 
   if (!showSwitcher && !privileged) return null;
 
@@ -164,7 +203,7 @@ export default function CompanySwitcher() {
       if (!res.ok || !json.success) throw new Error(json.error || 'Gagal membuat perusahaan');
       await applySessionAndReload(
         json.data.sessionPatch,
-        json.data.redirectTo || '/humanify/setup',
+        json.data.redirectTo || '/humanify/setup?from=new-company',
       );
     } catch (err: any) {
       setError(err.message || 'Gagal membuat perusahaan');
@@ -172,7 +211,130 @@ export default function CompanySwitcher() {
     }
   };
 
+  const closeCreate = () => {
+    if (creating) return;
+    setCreateOpen(false);
+    setError(null);
+  };
+
   const label = activeName || (companies.length ? 'Pilih perusahaan' : 'Tambah perusahaan');
+
+  const createDialog = createOpen && portalReady
+    ? createPortal(
+      <div className="humanify-theme fixed inset-0 z-[80] flex items-end justify-center sm:items-center sm:p-6" role="presentation">
+        <button
+          type="button"
+          className="absolute inset-0 bg-slate-900/45 backdrop-blur-[2px]"
+          aria-label="Tutup dialog"
+          disabled={creating}
+          onClick={closeCreate}
+        />
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="hf-new-company-title"
+          className="relative z-10 flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-[var(--hf-border)] bg-white shadow-2xl sm:rounded-2xl"
+        >
+          <div className="flex items-start gap-3 border-b border-[var(--hf-border-subtle)] px-5 py-4 sm:px-6">
+            <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)] ring-1 ring-[var(--hf-brand-100)]">
+              <Building2 className="h-5 w-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h2 id="hf-new-company-title" className="text-lg font-semibold leading-6 text-[color:var(--hf-ink)]">
+                Tambah perusahaan
+              </h2>
+              <p className="mt-1 text-sm leading-5 text-[color:var(--hf-ink-muted)]">
+                Setelah dibuat, Anda masuk ke wizard setup (lokasi, organisasi, kebijakan). Payroll dan absensi perusahaan ini terpisah.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="-mr-1 -mt-1 rounded-lg p-2 text-[color:var(--hf-ink-faint)] hover:bg-[var(--hf-surface-muted)] hover:text-[color:var(--hf-ink)]"
+              onClick={closeCreate}
+              disabled={creating}
+              aria-label="Tutup"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <form onSubmit={handleCreate} className="flex min-h-0 flex-1 flex-col">
+            <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-6">
+              <label className="block">
+                <FieldLabel>Nama perusahaan</FieldLabel>
+                <input
+                  ref={nameRef}
+                  required
+                  minLength={2}
+                  value={form.companyName}
+                  onChange={(e) => setForm((f) => ({ ...f, companyName: e.target.value }))}
+                  placeholder="PT Contoh Indonesia"
+                  className={FIELD}
+                />
+              </label>
+
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                <label className="block min-w-0">
+                  <FieldLabel>Industri</FieldLabel>
+                  <SelectWrap>
+                    <select
+                      value={form.industry}
+                      onChange={(e) => setForm((f) => ({ ...f, industry: e.target.value }))}
+                      className={SELECT}
+                    >
+                      {INDUSTRIES.map((i) => (
+                        <option key={i.value} value={i.value}>{i.label}</option>
+                      ))}
+                    </select>
+                  </SelectWrap>
+                </label>
+                <label className="block min-w-0">
+                  <FieldLabel>Kisaran karyawan</FieldLabel>
+                  <SelectWrap>
+                    <select
+                      value={form.employeeRange}
+                      onChange={(e) => setForm((f) => ({ ...f, employeeRange: e.target.value }))}
+                      className={SELECT}
+                    >
+                      {EMPLOYEE_RANGES.map((i) => (
+                        <option key={i.value} value={i.value}>{i.label}</option>
+                      ))}
+                    </select>
+                  </SelectWrap>
+                </label>
+              </div>
+
+              {error && (
+                <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-[color:var(--hf-danger)]">
+                  {error}
+                </p>
+              )}
+            </div>
+
+            <div className="flex flex-col-reverse gap-2 border-t border-[var(--hf-border-subtle)] bg-[var(--hf-surface-muted)] px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
+              <button
+                type="button"
+                disabled={creating}
+                onClick={closeCreate}
+                className="hf-btn-secondary w-full sm:w-auto"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                disabled={creating || form.companyName.trim().length < 2}
+                className="hf-btn-primary inline-flex w-full items-center justify-center gap-2 sm:w-auto"
+              >
+                {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                Buat perusahaan
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>,
+      document.body,
+    )
+    : null;
 
   return (
     <div className="relative" ref={rootRef}>
@@ -263,7 +425,7 @@ export default function CompanySwitcher() {
             ))}
           </div>
 
-          {error && (
+          {error && !createOpen && (
             <p className="border-t border-[var(--hf-border-subtle)] px-3 py-2 text-xs text-[color:var(--hf-danger)]">{error}</p>
           )}
 
@@ -282,90 +444,7 @@ export default function CompanySwitcher() {
         </div>
       )}
 
-      {createOpen && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 p-4 sm:items-center" onClick={() => !creating && setCreateOpen(false)}>
-          <div
-            className="w-full max-w-md rounded-2xl border border-[var(--hf-border)] bg-white p-5 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-labelledby="hf-new-company-title"
-          >
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div>
-                <h2 id="hf-new-company-title" className="text-base font-semibold text-[color:var(--hf-ink)]">Tambah perusahaan</h2>
-                <p className="mt-1 text-sm text-[color:var(--hf-ink-muted)]">
-                  Perusahaan baru terisolasi (payroll, karyawan, absensi sendiri) dan terdaftar di bawah akun Anda.
-                </p>
-              </div>
-              <button
-                type="button"
-                className="rounded-lg p-1 text-[color:var(--hf-ink-faint)] hover:bg-[var(--hf-surface-muted)]"
-                onClick={() => !creating && setCreateOpen(false)}
-                aria-label="Tutup"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <form onSubmit={handleCreate} className="space-y-3">
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-[color:var(--hf-ink-muted)]">Nama perusahaan</span>
-                <input
-                  required
-                  minLength={2}
-                  autoFocus
-                  value={form.companyName}
-                  onChange={(e) => setForm((f) => ({ ...f, companyName: e.target.value }))}
-                  placeholder="PT Contoh Indonesia"
-                  className="w-full rounded-[var(--hf-radius)] border border-[var(--hf-border)] bg-white px-3 py-2.5 text-sm text-[color:var(--hf-ink)] outline-none placeholder:text-[color:var(--hf-ink-faint)] focus:border-[var(--hf-brand-500)] focus:shadow-[var(--hf-focus-ring)]"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-[color:var(--hf-ink-muted)]">Industri</span>
-                <select
-                  value={form.industry}
-                  onChange={(e) => setForm((f) => ({ ...f, industry: e.target.value }))}
-                  className="w-full rounded-[var(--hf-radius)] border border-[var(--hf-border)] bg-white px-3 py-2.5 text-sm text-[color:var(--hf-ink)] outline-none focus:border-[var(--hf-brand-500)]"
-                >
-                  {INDUSTRIES.map((i) => (
-                    <option key={i.value} value={i.value}>{i.label}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-[color:var(--hf-ink-muted)]">Kisaran karyawan</span>
-                <select
-                  value={form.employeeRange}
-                  onChange={(e) => setForm((f) => ({ ...f, employeeRange: e.target.value }))}
-                  className="w-full rounded-[var(--hf-radius)] border border-[var(--hf-border)] bg-white px-3 py-2.5 text-sm text-[color:var(--hf-ink)] outline-none focus:border-[var(--hf-brand-500)]"
-                >
-                  {EMPLOYEE_RANGES.map((i) => (
-                    <option key={i.value} value={i.value}>{i.label}</option>
-                  ))}
-                </select>
-              </label>
-              {error && <p className="text-xs text-[color:var(--hf-danger)]">{error}</p>}
-              <div className="flex justify-end gap-2 pt-1">
-                <button
-                  type="button"
-                  disabled={creating}
-                  onClick={() => setCreateOpen(false)}
-                  className="hf-btn-secondary px-4 py-2 text-sm"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={creating || form.companyName.trim().length < 2}
-                  className="hf-btn-primary inline-flex items-center gap-2 px-4 py-2 text-sm"
-                >
-                  {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                  Buat perusahaan
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {createDialog}
     </div>
   );
 }

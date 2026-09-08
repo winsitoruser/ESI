@@ -13,7 +13,9 @@ import {
   type SaasOnboardingStepKey,
 } from '@/lib/saas/humanify-onboarding';
 
-const OWNER_ROLES = new Set(['owner', 'hq_admin', 'super_admin', 'superadmin']);
+const OWNER_ROLES = new Set([
+  'owner', 'admin', 'hq_admin', 'hr_admin', 'super_admin', 'superadmin',
+]);
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = (req as any).session;

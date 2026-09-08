@@ -6,6 +6,7 @@ import HQLayout from '@/components/humanify/HumanifyLayout';
 import DashboardModuleGrid from '@/components/humanify/DashboardModuleGrid';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import GaOnboardingChecklist from '@/components/humanify/GaOnboardingChecklist';
+import NewCompanyLaunchBanner from '@/components/humanify/NewCompanyLaunchBanner';
 import FirstRunTour from '@/components/humanify/FirstRunTour';
 import QuickActionsDock from '@/components/humanify/QuickActionsDock';
 import HrisEmptyState from '@/components/humanify/HrisEmptyState';
@@ -689,6 +690,8 @@ export default function HRISDashboard() {
         />
 
         <DashboardBannerRail />
+
+        <NewCompanyLaunchBanner companyName={(session?.user as any)?.tenantName || (session?.user as any)?.businessName} />
 
         {attention.length > 0 && (
           <div className="space-y-2">

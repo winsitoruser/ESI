@@ -17,6 +17,7 @@
     "docs:modules": "node scripts/generate-module-documentation.mjs",
     "docs:modules:xlsx": "node scripts/generate-module-documentation-xlsx.mjs",
     "docs:komprehensif:docx": "node scripts/generate-documentation-komprehensif-docx.mjs",
+    "docs:humanify-inventory": "node scripts/export-humanify-module-inventory.mjs",
     "docs:full": "node scripts/generate-module-documentation.mjs && node scripts/generate-module-documentation-xlsx.mjs && node scripts/generate-documentation-komprehensif-docx.mjs",
     "test": "jest",
     "test:watch": "jest --watch",

@@ -21,13 +21,15 @@ out of scope.
 2. [Product Requirements & Business](./humanify-prd-v2.md)
    - Vision, market problem, personas, journeys, functional requirements,
      business rules, packaging, success metrics, scope, and roadmap.
-3. [Technical Architecture](./humanify-technical-architecture.md)
+3. [Module & page inventory](./humanify-module-inventory.md)
+   - Katalog halaman HQ/ESS/platform, fungsi, API, dan komponen (cutoff 8 Sep 2026).
+4. [Technical Architecture](./humanify-technical-architecture.md)
    - Runtime topology, application surfaces, API patterns, data, tenancy,
      authentication, security, integrations, deployment, observability, and risks.
-4. [Quality Assurance & Release](./humanify-quality-assurance.md)
+5. [Quality Assurance & Release](./humanify-quality-assurance.md)
    - QA strategy, release gates, test inventory, evidence, environments,
      severity model, gaps, and quality roadmap.
-5. [Business & Investment Memo](./humanify-investment-memo.md)
+6. [Business & Investment Memo](./humanify-investment-memo.md)
    - Commercial model, pricing, channel, economic inputs, readiness, potential
      moats, risks, diligence requests, and financial-model inputs.
 
@@ -74,6 +76,7 @@ important declared ceilings:
 - Product delivery: `../.hermes/HANDOFF.md`
 - Decisions: `../.hermes/DECISIONS.md`
 - GA scope: `./humanify-ga-scope.md`
+- Module inventory: `./humanify-module-inventory.md`
 - Sidebar IA: `../config/humanify-sidebar.config.ts`
 - Entitlements/pricing: `../lib/saas/plan-entitlements.ts`
 - Tenant security: `./humanify-tenant-isolation-faq.md`

@@ -535,23 +535,23 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
         {/* Logo */}
         <div className={`shrink-0 border-b ${
           isHumanify
-            ? `relative border-[var(--hf-border-subtle)] px-4 py-3 max-lg:pr-12 ${sidebarCollapsed ? 'lg:p-3' : ''}`
+            ? `relative border-[var(--hf-border-subtle)] px-3 py-4 max-lg:pr-12 ${sidebarCollapsed ? 'lg:p-3' : ''}`
             : 'flex h-16 items-center justify-between px-4 border-gray-100'
         }`}>
           {isHumanify ? (
             <>
               <Link
                 href={filteredConfig.logo.href}
-                className={`flex items-center rounded-[var(--hf-radius-lg)] px-2 py-1.5 transition hover:bg-[var(--hf-brand-50)]/70 ${
+                className={`flex items-center rounded-[var(--hf-radius-lg)] px-1 py-0.5 transition hover:bg-[var(--hf-brand-50)]/70 ${
                   sidebarCollapsed ? 'lg:justify-center lg:p-2' : 'justify-start'
                 }`}
               >
                 {sidebarCollapsed ? (
-                  <span className="relative hidden h-9 w-9 shrink-0 overflow-hidden rounded-lg lg:block">
+                  <span className="relative hidden h-11 w-11 shrink-0 overflow-hidden rounded-lg lg:block">
                     <img
                       src={HUMANIFY_BRAND.logoPath}
                       alt={HUMANIFY_BRAND.name}
-                      className="absolute inset-0 h-full w-full scale-[2.2] object-cover object-[22%_center]"
+                      className="hf-app-mark absolute inset-0 h-full w-full scale-[2.2] object-cover object-[22%_center]"
                     />
                   </span>
                 ) : null}
@@ -559,8 +559,7 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
                   <img
                     src={HUMANIFY_BRAND.appLogoPath}
                     alt={HUMANIFY_BRAND.name}
-                    style={{ aspectRatio: HUMANIFY_BRAND.appLogoAspect }}
-                    className="mx-auto h-10 w-auto max-h-10 max-w-full object-contain object-left sm:h-11 sm:max-h-11 sm:mx-0"
+                    className="hf-app-logo mx-auto lg:mx-0"
                   />
                 </span>
               </Link>

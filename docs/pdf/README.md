@@ -11,6 +11,15 @@ Generated from Markdown sources in `docs/` on 30 Jul 2026.
 | `humanify-technical-architecture.pdf` | Technical architecture |
 | `humanify-quality-assurance.pdf` | QA / release strategy |
 | `humanify-investment-memo.pdf` | Investment memo |
+| `humanify-module-inventory.pdf` | Inventaris halaman, modul, fungsi, komponen (8 Sep 2026) |
+
+Excel: [`../humanify-module-inventory.xlsx`](../humanify-module-inventory.xlsx)
+
+Regenerate inventory exports:
+
+```bash
+npm run docs:humanify-inventory
+```
 
 Regenerate:
 

@@ -37,6 +37,12 @@ const fail = (m, d) => {
   failed++;
 };
 
+/** AIMAN/copilot returns 503 AI_DISABLED when HUMANIFY_AI_UI is off — GATE-22 expected, not a P0 outage. */
+function isAiDisabled(r) {
+  const blob = `${r?.json?.error || ''} ${r?.json?.message || ''} ${r?.json?.code || ''}`;
+  return r.status === 503 && /AI_DISABLED|AI is disabled|aiman/i.test(blob);
+}
+
 async function login() {
   const csrfRes = await fetch(`${BASE}/api/auth/csrf`);
   const { csrfToken } = await csrfRes.json();
@@ -189,7 +195,8 @@ async function sectionApis() {
 
   for (const [label, method, p] of probes) {
     const r = await api(method, p);
-    if (r.status >= 500) fail(label, `HTTP ${r.status} ${r.json.error || ''}`);
+    if (isAiDisabled(r)) ok(`${label} → 503 AI_DISABLED (expected when AIMAN flag off)`);
+    else if (r.status >= 500) fail(label, `HTTP ${r.status} ${r.json.error || ''}`);
     else if (r.status === 404 && label !== 'announcements') fail(label, '404');
     else ok(`${label} → ${r.status} (${r.ms}ms)`);
   }
@@ -204,7 +211,8 @@ async function sectionApis() {
     if (/import|upload|webhook|wipe|seed|migrate/i.test(p)) continue;
     sample++;
     const r = await api('GET', p);
-    if (r.status >= 500) fail(`GET ${p}`, `HTTP ${r.status}`);
+    if (isAiDisabled(r)) ok(`GET ${p} → 503 AI_DISABLED (expected)`);
+    else if (r.status >= 500) fail(`GET ${p}`, `HTTP ${r.status}`);
     else ok(`GET ${p} → ${r.status}`);
   }
   sectionStats.push({ name: 'C-apis', failed: failed - before });

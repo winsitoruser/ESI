@@ -18,6 +18,7 @@ import {
 } from '@/lib/saas/company-membership';
 import { resolveTenantById } from '@/lib/saas/tenant-slug';
 import { isSaasOnboardingComplete } from '@/lib/saas/humanify-onboarding';
+import { NEW_COMPANY_SETUP_HREF } from '@/lib/saas/company-onboarding-flow';
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = (req as any).session;
@@ -120,11 +121,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
       return res.status(201).json({
         success: true,
-        message: 'Perusahaan baru dibuat. Lanjutkan setup.',
+        message: 'Perusahaan baru dibuat. Lanjutkan setup workspace.',
         data: {
           ...result,
           sessionPatch: { switchCompanyId: result.tenantId },
-          redirectTo: '/humanify/setup',
+          redirectTo: NEW_COMPANY_SETUP_HREF,
         },
       });
     }

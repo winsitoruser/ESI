@@ -105,6 +105,11 @@ button.hf-tile-interactive:focus-visible,
   outline: none;
   box-shadow: var(--hf-focus-ring);
 }
+.humanify-theme .hf-btn-primary:disabled,
+.humanify-theme .hf-btn-secondary:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
 
 .humanify-theme .hf-btn-secondary {
   background: var(--hf-surface);
@@ -507,6 +512,29 @@ button.hf-tile-interactive:focus-visible,
 .humanify-theme img {
   max-width: 100%;
   height: auto;
+}
+
+/* Beat the fluid-img rule so the sidebar wordmark can actually grow. */
+.humanify-theme img.hf-app-logo {
+  display: block;
+  height: 3.75rem;
+  max-height: 3.75rem;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+  object-position: left center;
+}
+@media (min-width: 1024px) {
+  .humanify-theme img.hf-app-logo {
+    height: 4.5rem;
+    max-height: 4.5rem;
+  }
+}
+.humanify-theme img.hf-app-mark {
+  height: 2.75rem;
+  width: 2.75rem;
+  max-width: none;
+  max-height: none;
 }
 .humanify-theme .overflow-x-auto {
   -webkit-overflow-scrolling: touch;

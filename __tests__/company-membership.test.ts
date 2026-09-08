@@ -128,3 +128,17 @@ describe('resolveParentTenantId', () => {
     })).toBeNull();
   });
 });
+
+describe('company onboarding flow', () => {
+  it('sends new companies into setup, then dashboard with onboard flag', () => {
+    const {
+      NEW_COMPANY_SETUP_HREF,
+      NEW_COMPANY_DASHBOARD_HREF,
+      industryLabel,
+    } = require('../lib/saas/company-onboarding-flow');
+    expect(NEW_COMPANY_SETUP_HREF).toContain('/humanify/setup');
+    expect(NEW_COMPANY_SETUP_HREF).toContain('from=new-company');
+    expect(NEW_COMPANY_DASHBOARD_HREF).toContain('onboard=new-company');
+    expect(industryLabel('software_house')).toBe('Teknologi / IT');
+  });
+});

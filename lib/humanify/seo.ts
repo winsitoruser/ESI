@@ -74,6 +74,14 @@ export const HUMANIFY_PUBLIC_ROUTES: {
       'Daftar sebagai partner Humanify — konsultan payroll, BPJS, akuntan, dan vendor absensi.',
   },
   {
+    path: '/humanify/blog',
+    priority: 0.7,
+    changefreq: 'weekly',
+    title: 'Blog Humanify — HRIS, payroll, dan operasional SDM',
+    description:
+      'Artikel HRIS, payroll, dan operasional SDM dari Humanify.',
+  },
+  {
     path: '/employee/login',
     priority: 0.6,
     changefreq: 'monthly',

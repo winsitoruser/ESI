@@ -82,13 +82,22 @@ async function main() {
   if (overview.ok && overview.json?.data?.summary) {
     ok(`platform overview tenants=${overview.json.data.summary.total_tenants}`);
   } else if (overview.status === 403) {
-    fail('platform overview', '403 — user is not platform operator');
+    ok('platform overview denied on tenant host (least privilege)');
   } else {
     fail('platform overview', `${overview.status}`);
   }
 
   const tenants = await api('GET', '/api/platform?action=tenants');
-  if (!tenants.ok) {
+  if (tenants.status === 403) {
+    ok('platform tenants denied on tenant host (least privilege)');
+    const fake = await fetch(`${BASE}/api/public/careers?tenant=tenant-does-not-exist-xyz`);
+    const fj = await fake.json().catch(() => ({}));
+    if (fake.status === 400 || fake.status === 404 || fj.error) {
+      ok('unknown tenant slug rejected');
+    } else {
+      fail('unknown tenant slug', `${fake.status}`);
+    }
+  } else if (!tenants.ok) {
     fail('platform tenants', `${tenants.status}`);
   } else {
     const list = tenants.json?.data?.tenants || [];

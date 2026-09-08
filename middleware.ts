@@ -189,6 +189,9 @@ export async function middleware(request: NextRequest) {
     pathname === '/humanify/join' ||
     pathname === '/humanify/welcome' ||
     pathname.startsWith('/humanify/welcome/') ||
+    pathname === '/humanify/blog' ||
+    pathname.startsWith('/humanify/blog/') ||
+    pathname === '/humanify/admin-login' ||
     pathname === '/humanify/partners' ||
     pathname.startsWith('/humanify/partners/') ||
     pathname === '/humanify/pricing/roi-calculator' ||
