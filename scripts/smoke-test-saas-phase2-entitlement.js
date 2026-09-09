@@ -143,7 +143,7 @@ async function main() {
   const starterFeatures = ['core', 'attendance', 'recruitment'];
   if (!starterFeatures.includes('payroll')) ok('starter matrix no payroll');
   else fail('starter matrix');
-  ok('enterprise/trial include ai+lms (by definition)');
+  ok('trial includes ai+lms; paid LMS/AIMAN are add-ons');
 
   console.log(`\nRESULT: ${passed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);

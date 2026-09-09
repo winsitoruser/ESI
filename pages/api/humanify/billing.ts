@@ -13,6 +13,7 @@ import {
   listBillablePlans,
   listExpiringTrials,
   quoteAmount,
+  quoteHumanifyCheckout,
   runDunningScan,
   syncOrderFromMidtrans,
 } from '@/lib/saas/humanify-billing';
@@ -36,10 +37,12 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     if (req.method === 'GET' && action === 'plans') {
       const midtrans = getMidtransPublicConfig();
+      const plans = await listBillablePlans();
       return res.json({
         success: true,
         data: {
-          plans: listBillablePlans(),
+          plans,
+          seatPricing: plans[0]?.seatPricing || null,
           midtrans,
           midtransConfigured: midtrans.configured,
         },
@@ -67,6 +70,28 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       return res.json({ success: true, data: preview });
     }
 
+    if (req.method === 'GET' && action === 'checkout-quote') {
+      if (!tenantId) return res.status(400).json({ success: false, error: 'No tenant' });
+      const plan = String(req.query.plan || '');
+      if (!plan) return res.status(400).json({ success: false, error: 'plan required' });
+      const interval = req.query.interval === 'yearly' ? 'yearly' : 'monthly';
+      const voucherCode = String(req.query.voucherCode || req.query.code || '');
+      const seats = req.query.seats != null ? Number(req.query.seats) : undefined;
+      const addons = {
+        lms: String(req.query.lms || '') === '1' || String(req.query.lms || '').toLowerCase() === 'true',
+        ai: String(req.query.ai || '') === '1' || String(req.query.ai || '').toLowerCase() === 'true',
+      };
+      const data = await quoteHumanifyCheckout({
+        tenantId,
+        plan,
+        interval,
+        voucherCode: voucherCode || undefined,
+        seats: Number.isFinite(seats as number) ? seats : undefined,
+        addons,
+      });
+      return res.json({ success: true, data });
+    }
+
     if (req.method === 'GET' && action === 'voucher-preview') {
       if (!tenantId) return res.status(400).json({ success: false, error: 'No tenant' });
       const code = String(req.query.code || '');
@@ -74,7 +99,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       const interval = req.query.interval === 'yearly' ? 'yearly' : 'monthly';
       const voucher = await findBillingVoucherByCode(code);
       if (!voucher) return res.status(404).json({ success: false, error: 'Voucher tidak ditemukan' });
-      const listPrice = quoteAmount(plan, interval as 'monthly' | 'yearly');
+      const listPrice = quoteAmount(plan, interval as 'monthly' | 'yearly', Number(req.query.seats) || 1);
       const applied = computeVoucherDiscount(voucher, listPrice, plan);
       if (!applied.ok) return res.status(400).json({ success: false, error: applied.error });
       return res.json({
@@ -130,13 +155,16 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     if (req.method === 'POST' && action === 'checkout') {
       if (!tenantId) return res.status(400).json({ success: false, error: 'No tenant' });
-      const { plan, interval, forceManual, voucherCode } = req.body || {};
+      const { plan, interval, forceManual, voucherCode, seats, addons } = req.body || {};
+      if (!plan) return res.status(400).json({ success: false, error: 'Pilih paket (starter/growth/enterprise)' });
       const origin = (req.headers.origin as string) || process.env.NEXTAUTH_URL || 'https://humanify.id';
       const checkout = await createHumanifyCheckout({
         tenantId,
         plan,
         interval,
         voucherCode,
+        seats: seats != null ? Number(seats) : undefined,
+        addons: addons && typeof addons === 'object' ? { lms: Boolean(addons.lms), ai: Boolean(addons.ai) } : undefined,
         customerName: (session.user as any).name || (session.user as any).businessName,
         customerEmail: session.user.email || undefined,
         successUrl: `${origin}/humanify/billing?paid=1`,
@@ -203,7 +231,12 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     return res.status(400).json({ success: false, error: 'Unknown action' });
   } catch (e: any) {
     console.error('[humanify/billing]', e);
-    return res.status(500).json({ success: false, error: e.message || 'Billing error' });
+    const code = e.statusCode || 500;
+    return res.status(code).json({
+      success: false,
+      error: e.message || 'Billing error',
+      data: e.quote || undefined,
+    });
   }
 }
 

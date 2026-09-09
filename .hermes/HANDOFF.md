@@ -1,5 +1,154 @@
 # Handoff — SIMESI (fka ESI ERP)
 
+> Diperbarui: 9 September 2026 — **WAVE-9 sertifikasi HOLD (draft lengkap, tanda tangan basah masih kosong)**
+
+## Launch WAVE-9 (9 Sep 2026)
+
+Paket sertifikasi siap ditandatangani manusia. **Keputusan tetap HOLD** — agent tidak membalik ke GO.
+
+| Artefak | Isi |
+|---|---|
+| `docs/humanify-wave9-release-certification.md` | Overlay gate + aturan GO |
+| `artifacts/gsheet-live-readiness/42_Release_Certification.csv` | Tab 42 terisi evidence WAVE-8 |
+| `docs/humanify-launch-known-issues.md` | P0 tidak diterima; P1/P2 draft PO |
+| `docs/humanify-hypercare-retro-template.md` | WQ-132 template T0–T+7 |
+
+WQ-121/122 **Pass\*** (draft). WQ-123 **HOLD** tertulis. WQ-132 **Pass\*** (template; pengisian harian setelah T0).
+
+Pengunci GO tidak berubah: Midtrans VPS (WQ-010), rollback (WQ-032), SLO health (WQ-087), UAT SME (WQ-090–094), named on-call (WQ-006).
+
+---
+
+> Diperbarui: 9 September 2026 — **WAVE-8 regresi prod-safe hijau**
+
+## Launch WAVE-8 (9 Sep 2026)
+
+Ulang pack isolation/CRUD/payroll/billing/host/pages di `humanify.id` — 0 fail tak terduga. Ringkasan: `artifacts/gsheet-live-readiness/run-wave8-20260909T013500Z/SUMMARY.txt`. Defect BUG-LR di `41_Defect_Log_BUG-LR.csv`. Hypercare read-only: `npm run smoke:hypercare` 7/0.
+
+HQLayout sebelum saas-context memakai plan **starter** (bukan trial) agar LMS/AIMAN tidak flash.
+
+**HOLD** tetap: Midtrans VPS (WQ-010), rollback (WQ-032), soak k6, UAT SME, named on-call, GATE-18 SLO.
+
+---
+
+> Diperbarui: 9 September 2026 — **WAVE-5/6/7 agent: k6 runbook, a11y labels, price crawl**
+
+
+## Launch WAVE-5–7 agent slice (9 Sep 2026)
+
+Skrip k6 + runbook staging (`docs/humanify-wave5-perf-runbook.md`) — **bukan** 200 VU ke prod. Draft SLO health p95 400 ms (ukur 329 ms). Label keyboard login HR/ESS + form cuti. Crawl landing prod: harga 10k/9.5k/9k + add-on LMS/AIMAN Pass. Webhook Midtrans status+signature unit Pass\*.
+
+UAT SME (WQ-090–094), soak 8 jam, Midtrans live (WQ-010/101) tetap ops/manusia.
+
+Masih HOLD: Midtrans VPS, rollback drill, soak, UAT manusia, named on-call.
+
+---
+
+> Diperbarui: 9 September 2026 — **WAVE-4: session, XSS, SSRF, AIMAN tenant, export scope**
+
+
+## Launch WAVE-4 (9 Sep 2026)
+
+Kontrol keamanan P0 di repo: JWT `session.update` tidak bisa ganti `role`/`tenantId`; PATCH employee allowlist; HTML di nama/pengumuman/lowongan di-strip; Origin CSRF di HQ + `/api/platform`; webhook URL privat ditolak; upload `.exe`/HTML/SVG ditolak; AIMAN fail-closed tanpa tenant + write confirm; export/search memakai tenant sesi saja.
+
+WQ-060/068 Pass\* (logout JWT tidak di-revoke di server; smoke rate-limit live tidak dijalankan agar tidak menghabiskan kuota reset). WQ-070 sudah Pass sebelumnya.
+
+Masih HOLD: Midtrans VPS (WQ-010), rollback drill (WQ-032), soak (WAVE-5), UAT manusia, named on-call (WQ-006).
+
+---
+
+> Diperbarui: 9 September 2026 — **WAVE-3: Jakarta clock date + geofence deny**
+
+## Launch WAVE-3 (9 Sep 2026)
+
+Build bersih Pass. Clock-in/out memakai tanggal bisnis Asia/Jakarta (bukan UTC). ESS menolak clock di luar geofence jika kebijakan `allowOutsideGeofence` false. Signup menyimpan UTM di funnel meta. Draft insiden: `docs/humanify-incident-rollback.md`.
+
+Masih HOLD: Midtrans VPS (WQ-010), rollback drill (WQ-032), soak, UAT manusia, named on-call (WQ-006).
+
+---
+
+> Diperbarui: 9 September 2026 — **WAVE-0/2: GA-scope add-on + harga aligned**
+
+## Launch work queue (9 Sep 2026)
+
+Agent menutup freeze dokumen + regresi delta 9 Sep. **HOLD** tetap (Midtrans VPS, rollback, soak, UAT manusia).
+
+| WQ | Hasil |
+|---|---|
+| 004 ga-scope LMS/AIMAN add-on | Pass — `docs/humanify-ga-scope.md` |
+| 003/020 harga landing/ROI/checkout | Pass — `DEFAULT_SEAT_PRICING`; prod `/` Rp 10.000 + add-on |
+| 021 entitlement bukan bundle | Pass — jest + `smoke:wave79` 16/0 |
+| 022 setup `companyId` tanpa JWT | Pass — `requestedSetupCompanyId` + komentar flow |
+| 024–027 upload/pie/KPI/lab | Pass — unit + `smoke:wave85` 10/0 |
+| 001/002/005/007 | Freeze di `docs/humanify-launch-constraint-freeze.md` — ack manusia pending |
+| 006/010 | Masih Open/Blocked |
+
+---
+
+> Diperbarui: 9 September 2026 — **Ready-to-launch plan dikembangkan + 85 task WQ**
+
+## Humanify ready-to-launch (9 Sep 2026)
+
+Dokumen riset [Deep Research Test & Release Readiness](https://docs.google.com/document/d/1tb0doXHBu21MnmD9TdPgCC8hOORG9BuI/edit) dikembangkan di repo (bukan mengganti 749 HT di sheet):
+
+| Artefak | Isi |
+|---|---|
+| `docs/humanify-ready-to-launch-plan.md` | Overlay evidence siklus 1–4, freeze constraint, delta harga/add-on/multi-company 9 Sep |
+| `docs/humanify-launch-work-queue.md` | 11 gelombang WQ-001…132 siap dikerjakan |
+| `artifacts/gsheet-live-readiness/launch-work-queue.csv` | 85 baris filterable (~124 jam backbone) |
+
+**Keputusan tetap HOLD.** Pengunci: Midtrans key VPS (WQ-010), SLO health p95 (ukur 329 ms), rollback drill (WQ-032), UAT SME, soak. Jangan eksekusi 749 HT buta — kerjakan WQ per wave. Mulai WAVE-0 sign-off + WAVE-1 ops + WAVE-2 regresi 9 Sep (ga-scope LMS masih stale vs price-book add-on).
+
+---
+
+> Diperbarui: 9 September 2026 — **Fix: setup tab baru load by companyId (tanpa JWT switch)**
+
+## New-company setup hang (9 Sep 2026)
+
+Tab `/humanify/setup?from=new-company&companyId=` spinner abadi karena wizard menunggu `session.update(switchCompanyId)` — NextAuth status bolak-balik `loading`. Perbaikan: GET/POST `/api/humanify/saas-onboarding?companyId=` memuat tenant itu jika user punya membership, tanpa ganti JWT. Loader hanya dari fetch (timeout 10s), bukan status NextAuth. Tab setup dibuka dulu; switch sesi parent fire-and-forget.
+
+
+---
+
+> Diperbarui: 9 September 2026 — **Billing: pricing card 3 kolom + hide Midtrans Live**
+
+## Humanify billing pricing cards (9 Sep 2026)
+
+Checkout `/humanify/billing` menampilkan 3 kartu paket (Starter / Growth / Enterprise) dengan header gradient + chevron, daftar fitur check/X, dan CTA pill. KPI **Midtrans Live** disembunyikan — sisa 3 KPI: paket aktif, berlaku hingga, invoice lunas. Gateway Midtrans tetap di langkah Bayar.
+
+---
+
+
+## Humanify letter logo 404 (9 Sep 2026)
+
+Upload logo tersimpan di `public/uploads/letter-logos/` tapi `next start` tidak menyajikan file yang ditambah setelah build → `<img>` broken. Serve via rewrite `/uploads/letter-logos/*` → `/api/humanify/public-upload/...` + nginx alias. Jangan expose `employee-documents`.
+
+---
+
+> Diperbarui: 9 September 2026 — **Dashboard: pie kehadiran bulan ini menggantikan checklist Day-1**
+
+## Humanify dashboard Day-1 → pie (9 Sep 2026)
+
+Jika checklist hari pertama HR sudah lengkap, kartu itu disembunyikan dan diganti pie Masuk / Izin / Cuti bulan berjalan (jumlah karyawan + persentase + hari tercatat). Data: `monthPresence` di `GET /api/humanify/dashboard` (`lib/hris/month-presence.ts`).
+
+---
+
+> Diperbarui: 9 September 2026 — **Humanify langganan per karyawan**
+
+## Humanify per-user subscription (9 Sep 2026)
+
+Harga inti Rp 10.000/karyawan/bulan; 251+ → Rp 9.500; 1.001+ → Rp 9.000 (all-units). LMS +Rp 1.500/orang; AIMAN +Rp 65.000/bulan flat. Checkout wizard: paket → kursi/add-on/periode → ringkasan → Snap. Entitlement LMS/AIMAN dari add-on (bukan bundled Enterprise). Ops rate card: `/platform/billing` tab Plans. Mesin: `lib/saas/seat-pricing.ts`.
+
+---
+
+> Diperbarui: 9 September 2026 — **Humanify Midtrans checkout wizard + ops gateway**
+
+## Humanify Midtrans (9 Sep 2026)
+
+Snap production inferred from `Mid-server-` prefix; `MIDTRANS_SNAP_URL` + Iris keys supported. Tenant checkout is a 4-step wizard (paket → periode/voucher → ringkasan PPN → Snap) with seat validation. Ops: `/platform/billing` Ping/Sync Midtrans, `/platform/system` scorecard, `/platform/finance` metode + sync pending. Webhook tetap `/api/humanify/billing/webhook`. Auto Iris payout tetap off (`HUMANIFY_PARTNER_AUTO_PAYOUT`).
+
+---
+
 > Diperbarui: 8 September 2026 — **Humanify multi-company** (flow setelah tambah perusahaan)
 
 ## Humanify multi-company (8 Sep 2026)

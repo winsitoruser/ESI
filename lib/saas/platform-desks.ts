@@ -130,7 +130,7 @@ export function permissionForAction(action: string, method: string): StaffPermis
   if (a === 'tenant-status' || a === 'tenant-plan' || a === 'tenant-create' || a === 'tenant-profile' || a === 'extend-trial' || a === 'impersonate') {
     return 'clients.edit';
   }
-  if (a === 'plan-catalog' || a === 'billing-voucher-create' || a === 'billing-voucher-toggle' || a === 'billing-mark-paid') {
+  if (a === 'plan-catalog' || a === 'seat-pricing' || a === 'billing-voucher-create' || a === 'billing-voucher-toggle' || a === 'billing-mark-paid') {
     return 'billing.edit';
   }
   if (a === 'finance-refund' || a === 'billing-cancel') return 'finance.refund';

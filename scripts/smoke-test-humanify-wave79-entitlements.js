@@ -16,9 +16,16 @@ const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8');
 console.log('Humanify wave-79 entitlements / price book');
 
 const ent = read('lib/saas/plan-entitlements.ts');
-if (/starter:\s*499_000/.test(ent) && /growth:\s*1_499_000/.test(ent) && /enterprise:\s*4_999_000/.test(ent)) {
-  ok('Canonical list prices 499k / 1.499M / 4.999M');
+if (/starter:\s*10_000/.test(ent) && /growth:\s*10_000/.test(ent) && /enterprise:\s*10_000/.test(ent)) {
+  ok('Canonical per-user list 10k (volume in seat-pricing)');
 } else fail('Canonical list prices');
+if (/LMS dan AIMAN add-on/.test(ent) && /mergeAddonFeatures/.test(ent)) {
+  ok('Enterprise LMS/AIMAN via add-on merge, not plan bundle');
+} else fail('LMS/AIMAN add-on merge');
+const ga = read('docs/humanify-ga-scope.md');
+if (/Add-on LMS/.test(ga) && /Add-on AIMAN/.test(ga) && !/core LMS remains GA on Enterprise/i.test(ga)) {
+  ok('GA-scope: LMS/AIMAN add-on (not Enterprise bundle)');
+} else fail('GA-scope LMS/AIMAN freeze');
 if (/priceMonthlyIdr:\s*HUMANIFY_CANONICAL_PRICES_IDR\.starter/.test(ent)) ok('Starter list price from canonical book');
 else fail('Starter list price');
 if (/priceMonthlyIdr:\s*HUMANIFY_CANONICAL_PRICES_IDR\.growth/.test(ent)) ok('Growth list price from canonical book');
@@ -35,7 +42,7 @@ if (/claimActions/.test(wf) && /feature: 'payroll'/.test(wf)) ok('workflow claim
 else fail('workflow claim payroll assert');
 
 const roi = read('lib/humanify/roi-calculator.ts');
-if (/HUMANIFY_PLANS/.test(roi) && !/1_800_000/.test(roi)) ok('ROI tiers from HUMANIFY_PLANS');
+if (/quoteSeatSubscription/.test(roi) && !/1_800_000/.test(roi)) ok('ROI uses per-user seat quote');
 else fail('ROI tiers aligned');
 
 const ai = read('pages/api/humanify/ai-hub.ts');
@@ -54,7 +61,7 @@ if (/isHumanifyWebhookFailClosed/.test(privy) && /isHumanifyWebhookFailClosed/.t
 } else fail('webhook fail-closed wiring');
 
 const sales = read('docs/humanify-sales-feature-status.md');
-if (/GA vs Partial vs Hidden/i.test(sales) && /Rp499\.000/.test(sales)) ok('sales one-pager present');
+if (/GA vs Partial vs Hidden/i.test(sales) && /Rp 10\.000/.test(sales)) ok('sales one-pager present');
 else fail('sales one-pager');
 
 if (/1_800_000|9_500_000/.test(roi)) fail('legacy ROI prices still present');

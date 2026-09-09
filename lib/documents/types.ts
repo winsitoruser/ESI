@@ -22,7 +22,7 @@ export type DocumentType =
   | 'payslip' | 'payroll-summary' | 'warning-letter' | 'reprehend-letter' | 'termination-letter'
   | 'employment-contract' | 'attendance-report' | 'leave-report'
   | 'employee-certificate' | 'kpi-report' | 'travel-expense-claim'
-  | 'mutation-letter' | 'reference-letter'
+  | 'mutation-letter' | 'reference-letter' | 'paklaring' | 'offer-letter' | 'nda'
   // Inventory
   | 'purchase-order' | 'goods-receipt' | 'delivery-note' | 'stock-transfer'
   | 'stock-opname-report' | 'stock-card' | 'stock-valuation'
@@ -151,6 +151,9 @@ export const DOCUMENT_REGISTRY: DocumentConfig[] = [
   { type: 'travel-expense-claim', category: 'hris', title: 'Travel Expense Claim', titleId: 'Klaim Biaya Perjalanan', formats: ['pdf'], description: 'Formulir klaim biaya perjalanan dinas', requiresModule: ['hris'] },
   { type: 'mutation-letter', category: 'hris', title: 'Mutation Letter', titleId: 'Surat Mutasi', formats: ['pdf', 'docx'], description: 'Surat mutasi/promosi karyawan', requiresModule: ['hris'] },
   { type: 'reference-letter', category: 'hris', title: 'Reference Letter', titleId: 'Surat Referensi Kerja', formats: ['pdf', 'docx'], description: 'Surat keterangan kerja/referensi', requiresModule: ['hris'] },
+  { type: 'paklaring', category: 'hris', title: 'Paklaring', titleId: 'Surat Pengalaman Kerja', formats: ['pdf', 'docx'], description: 'Surat pengalaman kerja (paklaring)', requiresModule: ['hris'] },
+  { type: 'offer-letter', category: 'hris', title: 'Offer Letter', titleId: 'Surat Penawaran Kerja', formats: ['pdf', 'docx'], description: 'Surat penawaran kerja', requiresModule: ['hris'] },
+  { type: 'nda', category: 'hris', title: 'NDA', titleId: 'Perjanjian Kerahasiaan', formats: ['pdf', 'docx'], description: 'Perjanjian kerahasiaan karyawan', requiresModule: ['hris'] },
   { type: 'employee-certificate', category: 'hris', title: 'Employee Certificate', titleId: 'Surat Keterangan Karyawan', formats: ['pdf'], description: 'Surat keterangan masih bekerja', requiresModule: ['hris'] },
 
   // ── INVENTORY ──

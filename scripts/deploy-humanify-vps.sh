@@ -111,7 +111,7 @@ rsync_cmd --delete \
   --filter='protect node_modules/' \
   --exclude node_modules --exclude .next --exclude .git \
   "$APP_SRC/" "$VPS_USER@$VPS_HOST:$APP_DIR/"
-ssh_cmd "mkdir -p $APP_DIR/storage/employee-documents $APP_DIR/public/uploads/employee-documents"
+ssh_cmd "mkdir -p $APP_DIR/storage/employee-documents $APP_DIR/public/uploads/employee-documents $APP_DIR/public/uploads/letter-logos $APP_DIR/public/uploads/marketing"
 # Next.js loads .env.local over .env — quarantine leftover local-tunnel env on VPS
 ssh_cmd "if [ -f $APP_DIR/.env.local ]; then mv $APP_DIR/.env.local $APP_DIR/.env.local.bak-deploy-\$(date +%Y%m%d%H%M%S); echo '  quarantined stray .env.local'; fi"
 fi
@@ -275,7 +275,7 @@ else
 fi
 
 echo "=== [3c2/6] Ensure Midtrans billing ==="
-ssh_cmd "ENV_FILE=$APP_DIR/.env MIDTRANS_SERVER_KEY='${MIDTRANS_SERVER_KEY:-}' MIDTRANS_CLIENT_KEY='${MIDTRANS_CLIENT_KEY:-}' MIDTRANS_IS_PRODUCTION='${MIDTRANS_IS_PRODUCTION:-}' bash -s" < "$SRC/scripts/ensure-humanify-midtrans.sh" || true
+ssh_cmd "ENV_FILE=$APP_DIR/.env MIDTRANS_SERVER_KEY='${MIDTRANS_SERVER_KEY:-}' MIDTRANS_CLIENT_KEY='${MIDTRANS_CLIENT_KEY:-}' MIDTRANS_IS_PRODUCTION='${MIDTRANS_IS_PRODUCTION:-}' MIDTRANS_SNAP_URL='${MIDTRANS_SNAP_URL:-}' MIDTRANS_IRIS_KEY_DEV='${MIDTRANS_IRIS_KEY_DEV:-}' MIDTRANS_IRIS_KEY_PROD='${MIDTRANS_IRIS_KEY_PROD:-}' MIDTRANS_IRIS_MERCHANT_KEY_DEV='${MIDTRANS_IRIS_MERCHANT_KEY_DEV:-}' MIDTRANS_IRIS_MERCHANT_KEY_PROD='${MIDTRANS_IRIS_MERCHANT_KEY_PROD:-}' bash -s" < "$SRC/scripts/ensure-humanify-midtrans.sh" || true
 
 echo "=== [3d/6] Ensure Sentry env keys ==="
 ssh_cmd "ENV_FILE=$APP_DIR/.env HUMANIFY_SENTRY_INTERNAL=true bash -s" < "$SRC/scripts/ensure-humanify-sentry.sh" || true

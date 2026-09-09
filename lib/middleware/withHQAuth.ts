@@ -63,6 +63,21 @@ export function withHQAuth(
 
       (req as any).session = session;
 
+      const { mutationOriginAllowed } = await import('@/lib/security/csrf-origin');
+      if (!mutationOriginAllowed({
+        method: req.method,
+        origin: String(req.headers.origin || ''),
+        referer: String(req.headers.referer || ''),
+        host: String(req.headers.host || ''),
+        forwardedHost: String(req.headers['x-forwarded-host'] || ''),
+      })) {
+        return res.status(403).json({
+          success: false,
+          error: 'CSRF_ORIGIN',
+          message: 'Origin tidak cocok dengan host',
+        });
+      }
+
       const userRole = ((session.user as any).role || '').toLowerCase();
       const tenantId = (session.user as any).tenantId;
       const isSuperBypass = userRole === 'super_admin' || userRole === 'owner' || userRole === 'superhero';

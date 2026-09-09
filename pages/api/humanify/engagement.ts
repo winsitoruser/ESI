@@ -679,6 +679,12 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
       }
       const createdBy = asUuidOrNull((session.user as any)?.id);
       const b = body;
+      const { sanitizePlainText } = await import('@/lib/security/sanitize-user-text');
+      const title = sanitizePlainText(b.title, 240);
+      const content = sanitizePlainText(b.content, 8000);
+      if (!title) {
+        return res.status(400).json({ success: false, error: 'TITLE_REQUIRED' });
+      }
       const status = b.status || 'published';
       const isActive = status !== 'archived';
       const publishedAt = status === 'published' ? (b.publishDate || b.publish_date || new Date().toISOString()) : null;
@@ -698,8 +704,8 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
           `, {
             replacements: {
               tenantId,
-              title: b.title,
-              content: b.content,
+              title,
+              content,
               category: b.category || 'general',
               priority: b.priority || 'normal',
               targetAudience: b.targetAudience || b.target_audience || 'all',
@@ -724,7 +730,13 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
       if (!Announcement) {
         return res.status(500).json({ success: false, error: 'Tabel pengumuman belum tersedia' });
       }
-      const ann = await Announcement.create({ ...body, publishedBy: createdBy });
+      const ann = await Announcement.create({
+        title,
+        content,
+        publishedBy: createdBy,
+        tenantId,
+        status,
+      });
       return res.json({ success: true, data: ann });
     }
     case 'publish-announcement': {
@@ -816,6 +828,7 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, action: stri
     case 'announcement': {
       if (sequelize) {
         try {
+          const { sanitizePlainText } = await import('@/lib/security/sanitize-user-text');
           const b = req.body;
           const status = b.status;
           const isActive = status ? status !== 'archived' : undefined;
@@ -839,8 +852,8 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, action: stri
             replacements: {
               id,
               tid,
-              title: b.title || null,
-              content: b.content || null,
+              title: b.title != null ? sanitizePlainText(b.title, 240) || null : null,
+              content: b.content != null ? sanitizePlainText(b.content, 8000) || null : null,
               category: b.category || null,
               priority: b.priority || null,
               targetAudience: b.targetAudience || b.target_audience || null,

@@ -1,7 +1,7 @@
 /**
  * Humanify enterprise API (Phase 5)
- * GET  ?action=branding|api-keys|overview
- * POST ?action=save-branding|create-api-key|revoke-api-key|export-employees
+ * GET  ?action=branding|api-keys|overview|templates
+ * POST ?action=save-branding|create-api-key|revoke-api-key|export-employees|save-template|reset-template
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { assertHumanifyFeature } from '@/lib/saas/assert-feature';
@@ -14,6 +14,16 @@ import {
 import { exportTenantEmployeesCsv, exportTenantBundle } from '@/lib/saas/humanify-export';
 import { isPlatformOperator } from '@/lib/middleware/tenantIsolation';
 import { withHQAuth } from '@/lib/middleware/withHQAuth';
+import {
+  HR_TEMPLATE_CATALOG,
+  SAMPLE_MERGE_CONTEXT,
+  getHrTemplate,
+  listHrTemplates,
+  resetHrTemplate,
+  saveHrTemplate,
+  templateToDraft,
+} from '@/lib/hris/document-templates';
+import { LETTER_MERGE_FIELDS } from '@/lib/hris/letter-merge-fields';
 
 const OWNER_ROLES = new Set([
   'owner', 'hq_admin', 'super_admin', 'superadmin', 'platform_admin', 'hr_admin',
@@ -55,15 +65,20 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 
     if (req.method === 'GET' && action === 'overview') {
-      const [branding, keys] = await Promise.all([
+      const [branding, keys, templates] = await Promise.all([
         getTenantBranding(tenantId!),
         listApiKeys(tenantId!),
+        listHrTemplates(tenantId!),
       ]);
       return res.json({
         success: true,
         data: {
           branding,
           apiKeys: keys,
+          templates,
+          catalog: HR_TEMPLATE_CATALOG,
+          mergeFields: LETTER_MERGE_FIELDS,
+          sampleContext: SAMPLE_MERGE_CONTEXT,
           docs: {
             authHeader: 'Authorization: Bearer hfy_live_…',
             employeesEndpoint: '/api/v1/employees',
@@ -73,9 +88,47 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       });
     }
 
+    if (req.method === 'GET' && action === 'templates') {
+      const type = String(req.query.type || '');
+      if (type) {
+        const template = await getHrTemplate(tenantId!, type);
+        const branding = await getTenantBranding(tenantId!);
+        return res.json({
+          success: true,
+          data: {
+            template,
+            draft: templateToDraft(template, branding, SAMPLE_MERGE_CONTEXT),
+            catalog: HR_TEMPLATE_CATALOG,
+            mergeFields: LETTER_MERGE_FIELDS,
+          },
+        });
+      }
+      const templates = await listHrTemplates(tenantId!);
+      return res.json({
+        success: true,
+        data: { templates, catalog: HR_TEMPLATE_CATALOG, mergeFields: LETTER_MERGE_FIELDS },
+      });
+    }
+
     if (req.method === 'POST' && action === 'save-branding') {
       const branding = await saveTenantBranding(tenantId!, req.body || {});
       return res.json({ success: true, data: branding });
+    }
+
+    if (req.method === 'POST' && action === 'save-template') {
+      const template = await saveHrTemplate(tenantId!, req.body || {});
+      const branding = await getTenantBranding(tenantId!);
+      return res.json({
+        success: true,
+        data: { template, draft: templateToDraft(template, branding, SAMPLE_MERGE_CONTEXT) },
+      });
+    }
+
+    if (req.method === 'POST' && action === 'reset-template') {
+      const type = String(req.body?.type || req.query.type || '');
+      if (!type) return res.status(400).json({ success: false, error: 'type wajib' });
+      const template = await resetHrTemplate(tenantId!, type);
+      return res.json({ success: true, data: template });
     }
 
     if (req.method === 'POST' && action === 'create-api-key') {

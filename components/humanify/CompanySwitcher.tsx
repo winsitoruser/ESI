@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSession } from 'next-auth/react';
 import { Building2, Check, ChevronDown, Loader2, Plus, Search, X } from 'lucide-react';
+import { newCompanySetupHref } from '@/lib/saas/company-onboarding-flow';
 
 type CompanyItem = {
   id: string;
@@ -161,6 +162,15 @@ export default function CompanySwitcher() {
     window.location.href = href;
   };
 
+  const openSetupTab = (href: string, tab: Window | null) => {
+    if (tab && !tab.closed) {
+      tab.location.replace(href);
+      return true;
+    }
+    window.location.assign(href);
+    return false;
+  };
+
   const handleSwitch = async (company: CompanyItem) => {
     if (company.isActive || switching) return;
     setSwitching(company.id);
@@ -186,6 +196,7 @@ export default function CompanySwitcher() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.companyName.trim() || creating) return;
+    const setupTab = typeof window !== 'undefined' ? window.open('about:blank', '_blank') : null;
     setCreating(true);
     setError(null);
     try {
@@ -201,12 +212,19 @@ export default function CompanySwitcher() {
       });
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.error || 'Gagal membuat perusahaan');
-      await applySessionAndReload(
-        json.data.sessionPatch,
-        json.data.redirectTo || '/humanify/setup?from=new-company',
-      );
+      const href = json.data?.redirectTo || newCompanySetupHref(json.data?.tenantId);
+      const stayed = openSetupTab(href, setupTab);
+      if (json.data?.sessionPatch) {
+        updateSession(json.data.sessionPatch).catch(() => { /* wizard uses companyId */ });
+      }
+      if (!stayed) return;
+      setCreateOpen(false);
+      setForm({ companyName: '', industry: 'professional_services', employeeRange: '1-50' });
+      await load();
     } catch (err: any) {
+      try { setupTab?.close(); } catch { /* ignore */ }
       setError(err.message || 'Gagal membuat perusahaan');
+    } finally {
       setCreating(false);
     }
   };
@@ -244,7 +262,7 @@ export default function CompanySwitcher() {
                 Tambah perusahaan
               </h2>
               <p className="mt-1 text-sm leading-5 text-[color:var(--hf-ink-muted)]">
-                Setelah dibuat, Anda masuk ke wizard setup (lokasi, organisasi, kebijakan). Payroll dan absensi perusahaan ini terpisah.
+                Detail perusahaan (lokasi, organisasi, kebijakan) dibuka di tab baru. Data payroll dan absensi tidak tercampur.
               </p>
             </div>
             <button

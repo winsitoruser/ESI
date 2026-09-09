@@ -35,6 +35,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       partnerCode,
       referralCode,
       ref,
+      utm_source,
+      utm_medium,
+      utm_campaign,
+      utm_content,
+      utm_term,
     } = req.body || {};
 
     if (!name?.trim() || !email?.trim() || !password || !companyName?.trim()) {
@@ -90,8 +95,15 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 
     try {
-      const { recordFunnelEvent } = await import('@/lib/saas/activation-funnel');
-      await recordFunnelEvent(result.tenantId, 'signup', { email: result.email });
+      const { recordFunnelEvent, parseMarketingAttribution } = await import('@/lib/saas/activation-funnel');
+      const attribution = parseMarketingAttribution(
+        req.query as Record<string, unknown>,
+        { utm_source, utm_medium, utm_campaign, utm_content, utm_term },
+      );
+      await recordFunnelEvent(result.tenantId, 'signup', {
+        email: result.email,
+        ...attribution,
+      });
     } catch { /* funnel best-effort */ }
 
     return res.status(201).json({
@@ -102,7 +114,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         slug: result.slug,
         userId: result.userId,
         email: result.email,
-        redirectTo: '/humanify/setup',
+        redirectTo: `/humanify/setup?companyId=${result.tenantId}`,
         careersUrl: `/c/${result.slug}/careers`,
         trialDays: 14,
         verification,

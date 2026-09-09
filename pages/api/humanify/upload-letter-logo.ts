@@ -30,7 +30,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       filter: (part) => (part.mimetype || '').startsWith('image/'),
       filename: (_name, ext) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        return `logo-${uniqueSuffix}${ext}`;
+        const tenantPrefix = String(session?.user?.tenantId || 't').slice(0, 8);
+        const kind = String(req.query.kind || 'logo').replace(/[^a-z]/g, '') || 'logo';
+        return `${kind}-${tenantPrefix}-${uniqueSuffix}${ext}`;
       },
     });
 
@@ -41,7 +43,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       });
     });
 
-    const fileEntry = files.file || files.logo;
+    const fileEntry = files.file || files.logo || files.stamp;
     const file = Array.isArray(fileEntry) ? fileEntry[0] : fileEntry;
     if (!file?.filepath) {
       return res.status(400).json({ success: false, error: 'File logo tidak ditemukan. Gunakan format PNG/JPG/SVG.' });

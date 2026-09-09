@@ -5,7 +5,7 @@
 
 import { resolveEmployeeContext } from '@/lib/employee-portal';
 import { withAutocommitQuery } from '@/lib/saas/tenant-request-bound';
-import { evaluateClockIn, evaluateClockOut } from '@/lib/hris/work-time-policy';
+import { evaluateClockIn, evaluateClockOut, businessDateInTimeZone } from '@/lib/hris/work-time-policy';
 import { loadWorkTimePolicy, resolveShiftWindow } from '@/lib/hris/work-time-policy-store';
 
 export const ATTENDANCE_TABLE = 'employee_attendance';
@@ -177,7 +177,7 @@ export async function portalClockIn(
   face?: { matchScore?: number | null; livenessOk?: boolean; matchStatus?: string | null } | null,
 ) {
   await ensureAttendancePhotoColumns(sequelize);
-  const today = new Date().toISOString().split('T')[0];
+  const today = businessDateInTimeZone();
   const nowDate = new Date();
   const now = nowDate.toISOString();
   const ctx = await resolveEmployeeContext(sequelize, userId, tenantId);
@@ -255,7 +255,7 @@ export async function portalClockOut(
   face?: { matchScore?: number | null; livenessOk?: boolean; matchStatus?: string | null } | null,
 ) {
   await ensureAttendancePhotoColumns(sequelize);
-  const today = new Date().toISOString().split('T')[0];
+  const today = businessDateInTimeZone();
   const nowDate = new Date();
   const now = nowDate.toISOString();
   const ctx = await resolveEmployeeContext(sequelize, userId, tenantId);

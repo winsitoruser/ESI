@@ -119,7 +119,9 @@ export async function queuePartnerPayoutDisbursement(id: string, opts?: { note?:
   if (!row) throw new Error('Payout not found');
   if (String(row.status) === 'paid') return { ...row, disbursement: 'already_paid' };
 
-  const irisKey = process.env.MIDTRANS_IRIS_API_KEY || process.env.MIDTRANS_SERVER_KEY || '';
+  const { getIrisConfig } = require('./midtrans') as typeof import('./midtrans');
+  const iris = getIrisConfig();
+  const irisKey = iris.apiKey || '';
   const irisEnabled = String(process.env.HUMANIFY_PARTNER_AUTO_PAYOUT || '').toLowerCase() === 'true';
 
   if (!irisEnabled || !irisKey) {
@@ -137,12 +139,13 @@ export async function queuePartnerPayoutDisbursement(id: string, opts?: { note?:
   // Iris call is best-effort; on failure leave queued for ops
   try {
     const auth = Buffer.from(`${irisKey}:`).toString('base64');
-    const res = await fetch('https://app.midtrans.com/iris/api/v1/payouts', {
+    const res = await fetch(`${iris.irisApiBase}/api/v1/payouts`, {
       method: 'POST',
       headers: {
         Authorization: `Basic ${auth}`,
         'Content-Type': 'application/json',
         Accept: 'application/json',
+        ...(iris.merchantKey ? { 'X-Idempotency-Key': String(row.id) } : {}),
       },
       body: JSON.stringify({
         payouts: [

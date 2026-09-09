@@ -59,6 +59,7 @@ export default function PlatformBillingPage() {
 
   const [editingPlan, setEditingPlan] = useState<string | null>(null);
   const [planDraft, setPlanDraft] = useState<any>(null);
+  const [seatDraft, setSeatDraft] = useState<any>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -70,7 +71,10 @@ export default function PlatformBillingPage() {
       ]);
       if (sum.success) setSummary(sum.data);
       if (v.success) setVouchers(v.data?.vouchers || []);
-      if (cat.success) setCatalog(cat.data);
+      if (cat.success) {
+        setCatalog(cat.data);
+        if (cat.data?.seatPricing) setSeatDraft(cat.data.seatPricing);
+      }
     } catch {
       setToast('Gagal memuat billing');
     } finally {
@@ -91,6 +95,37 @@ export default function PlatformBillingPage() {
   function setTabNav(next: Tab) {
     setTab(next);
     router.replace({ pathname: '/platform/billing', query: { tab: next } }, undefined, { shallow: true });
+  }
+
+  async function syncMidtrans(orderCode: string) {
+    setActing(`sync-${orderCode}`);
+    try {
+      const r = await fetch('/api/platform?action=billing-sync-midtrans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderCode }),
+      });
+      const j = await r.json();
+      setToast(j.message || (j.success ? 'Disinkronkan' : j.error));
+      if (j.success) load();
+    } finally {
+      setActing(null);
+      setTimeout(() => setToast(''), 3000);
+    }
+  }
+
+  async function probeGateway() {
+    setActing('probe');
+    try {
+      const r = await fetch('/api/platform?action=midtrans-status&probe=1').then((x) => x.json());
+      if (r.success) {
+        const p = r.data?.probe;
+        setToast(p?.detail || (r.data?.configured ? 'Midtrans terkonfigurasi' : 'Midtrans belum di-set'));
+      } else setToast(r.error || 'Gagal probe');
+    } finally {
+      setActing(null);
+      setTimeout(() => setToast(''), 4000);
+    }
   }
 
   async function markPaid(orderCode: string) {
@@ -211,6 +246,24 @@ export default function PlatformBillingPage() {
     });
   }
 
+  async function saveSeatRates() {
+    if (!seatDraft) return;
+    setActing('seat-pricing');
+    try {
+      const r = await fetch('/api/platform?action=seat-pricing', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(seatDraft),
+      });
+      const j = await r.json();
+      setToast(j.message || (j.success ? 'Harga per karyawan disimpan' : j.error));
+      if (j.success) load();
+    } finally {
+      setActing(null);
+      setTimeout(() => setToast(''), 3000);
+    }
+  }
+
   async function savePlan() {
     if (!planDraft) return;
     setActing(planDraft.planId);
@@ -310,12 +363,35 @@ export default function PlatformBillingPage() {
       />
 
       {summary?.midtrans && (
-        <p className="mb-4 text-xs text-slate-500">
-          Midtrans: {summary.midtrans.configured
-            ? (summary.midtrans.isProduction ? 'production' : 'sandbox')
-            : 'belum dikonfigurasi'}
-          {summary.midtrans.webhookUrl ? ` · webhook ${summary.midtrans.webhookUrl}` : ''}
-        </p>
+        <div className="mb-5 hf-card p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Payment gateway</p>
+              <p className="mt-1 text-sm font-medium text-slate-900">
+                Midtrans Snap {summary.midtrans.configured
+                  ? (summary.midtrans.isProduction ? '· Production' : '· Sandbox')
+                  : '· belum dikonfigurasi'}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                {summary.midtrans.serverKeyFingerprint ? `Key ${summary.midtrans.serverKeyFingerprint}` : 'Server key kosong'}
+                {summary.midtrans.webhookUrl ? ` · webhook ${summary.midtrans.webhookUrl}` : ''}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Iris payout: {summary.midtrans.iris?.configured ? 'API key siap' : 'belum di-set'}
+                {summary.midtrans.iris?.merchantConfigured ? ' · merchant key siap' : ''}
+                {' · '}auto-transfer tetap off sampai HUMANIFY_PARTNER_AUTO_PAYOUT=true
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={probeGateway}
+              disabled={acting === 'probe'}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              {acting === 'probe' ? 'Mengecek…' : 'Ping Midtrans'}
+            </button>
+          </div>
+        </div>
       )}
 
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -461,6 +537,14 @@ export default function PlatformBillingPage() {
                 searchable: false,
                 cell: (o) => (
                   <div className="space-x-1 whitespace-nowrap">
+                    <button
+                      type="button"
+                      disabled={acting === `sync-${o.order_code}`}
+                      onClick={() => syncMidtrans(o.order_code)}
+                      className="text-[11px] px-2 py-1 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                    >
+                      {acting === `sync-${o.order_code}` ? '…' : 'Sync Midtrans'}
+                    </button>
                     <button
                       type="button"
                       disabled={acting === o.order_code}
@@ -628,8 +712,46 @@ export default function PlatformBillingPage() {
       {tab === 'plans' && (
         <div className="space-y-4">
           <OpsPanel
-            title="Harga & kuota paket"
-            description="Override tersimpan di DB dan dipakai quote checkout. Default dari kode jika belum di-set."
+            title="Harga per karyawan"
+            description="Semua paket memakai rate card yang sama. Volume all-units: 251 kursi seluruhnya di tarif 251+."
+          >
+            {seatDraft ? (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <label className="text-xs text-slate-600">1–250 karyawan (IDR/orang)
+                  <input type="number" className="mt-1 block w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" value={seatDraft.pricePerUserIdr} onChange={(e) => setSeatDraft({ ...seatDraft, pricePerUserIdr: Number(e.target.value) })} />
+                </label>
+                <label className="text-xs text-slate-600">251–1.000 (IDR/orang)
+                  <input type="number" className="mt-1 block w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" value={seatDraft.pricePerUserOver250Idr} onChange={(e) => setSeatDraft({ ...seatDraft, pricePerUserOver250Idr: Number(e.target.value) })} />
+                </label>
+                <label className="text-xs text-slate-600">1.001+ (IDR/orang)
+                  <input type="number" className="mt-1 block w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" value={seatDraft.pricePerUserOver1000Idr} onChange={(e) => setSeatDraft({ ...seatDraft, pricePerUserOver1000Idr: Number(e.target.value) })} />
+                </label>
+                <label className="text-xs text-slate-600">LMS (IDR/orang)
+                  <input type="number" className="mt-1 block w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" value={seatDraft.lmsPerUserIdr} onChange={(e) => setSeatDraft({ ...seatDraft, lmsPerUserIdr: Number(e.target.value) })} />
+                </label>
+                <label className="text-xs text-slate-600">AIMAN Copilot (IDR/bulan)
+                  <input type="number" className="mt-1 block w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" value={seatDraft.aiMonthlyIdr} onChange={(e) => setSeatDraft({ ...seatDraft, aiMonthlyIdr: Number(e.target.value) })} />
+                </label>
+                <label className="text-xs text-slate-600">Diskon tahunan (%)
+                  <input type="number" className="mt-1 block w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" value={seatDraft.yearlyDiscountPct} onChange={(e) => setSeatDraft({ ...seatDraft, yearlyDiscountPct: Number(e.target.value) })} />
+                </label>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">Memuat rate card…</p>
+            )}
+            <button
+              type="button"
+              onClick={saveSeatRates}
+              disabled={!seatDraft || acting === 'seat-pricing'}
+              className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+            >
+              Simpan harga per karyawan
+            </button>
+          </OpsPanel>
+
+          <OpsPanel
+            title="Fitur paket"
+            description="Starter / Growth / Enterprise membedakan modul, bukan harga satuan. LMS dan AIMAN dijual sebagai add-on."
           >
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               {(catalog?.plans || []).map((p: any) => (
@@ -641,8 +763,8 @@ export default function PlatformBillingPage() {
                     </div>
                     <OpsBadge tone={p.overridden ? 'brand' : 'neutral'}>{p.overridden ? 'custom' : 'default'}</OpsBadge>
                   </div>
-                  <p className="text-lg font-semibold tabular-nums text-slate-900">{idr(p.priceMonthlyIdr)}<span className="text-xs font-normal text-slate-400"> /bln</span></p>
-                  <p className="text-[11px] text-slate-500">Yearly ~ {idr(p.priceYearlyIdr)} · {p.maxUsers} users · {p.maxEmployees} employees</p>
+                  <p className="text-sm text-slate-600">{(p.features || []).length} modul termasuk</p>
+                  <p className="text-[11px] text-slate-500">Kuota referensi {p.maxUsers} users · {p.maxEmployees} employees</p>
                   <div className="mt-2 flex flex-wrap gap-1">
                     {(p.features || []).map((f: string) => (
                       <span key={f} className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-800">

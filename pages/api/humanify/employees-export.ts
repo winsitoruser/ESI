@@ -25,18 +25,21 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   const session = (req as any).session;
-  const tenantId = session?.user?.tenantId || null;
+  const { resolveExportTenantId } = await import('@/lib/saas/export-tenant-scope');
+  const tenantId = resolveExportTenantId({
+    sessionTenantId: session?.user?.tenantId || null,
+    requestedTenantId: req.query.tenantId != null ? String(req.query.tenantId) : null,
+  }).tenantId;
   const { search, department, status, format } = req.query;
+  if (!tenantId) {
+    return res.status(403).json({ success: false, error: 'NO_TENANT' });
+  }
   if (format && String(format) !== 'csv') {
     return res.status(400).json({ success: false, error: 'Hanya format=csv' });
   }
 
-  let where = 'WHERE 1=1';
-  const replacements: Record<string, unknown> = {};
-  if (tenantId) {
-    where += ' AND e.tenant_id = :tenantId';
-    replacements.tenantId = tenantId;
-  }
+  let where = 'WHERE e.tenant_id = :tenantId';
+  const replacements: Record<string, unknown> = { tenantId };
   if (search) {
     where += ` AND (e.name ILIKE :search OR e.employee_code ILIKE :search OR e.email ILIKE :search OR e.position ILIKE :search)`;
     replacements.search = `%${search}%`;

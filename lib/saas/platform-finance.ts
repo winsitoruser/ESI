@@ -23,6 +23,7 @@ export type FinanceTx = {
   amountIdr: number;
   status: string;
   provider: string | null;
+  paymentType: string | null;
   paidAt: string | null;
   createdAt: string | null;
 };
@@ -38,6 +39,7 @@ function mapTx(r: any): FinanceTx {
     amountIdr: Number(r.amount_idr || 0),
     status: String(r.status || '').toLowerCase(),
     provider: r.provider || null,
+    paymentType: r.payment_type || null,
     paidAt: r.paid_at || null,
     createdAt: r.created_at || null,
   };
@@ -54,7 +56,7 @@ export async function listFinanceTransactions(limit = 120): Promise<{
   const lim = Math.min(300, Math.max(1, limit));
   const [rows] = await sequelize.query(`
     SELECT o.id, o.order_code, o.tenant_id, o.plan, o.amount_idr, o.status, o.provider,
-           o.paid_at, o.created_at, t.slug AS tenant_slug, t.slug AS tenant_name
+           o.paid_at, o.created_at, o.payment_type, t.slug AS tenant_slug, t.slug AS tenant_name
     FROM saas_billing_orders o
     LEFT JOIN tenants t ON t.id = o.tenant_id
     ORDER BY COALESCE(o.paid_at, o.created_at) DESC NULLS LAST

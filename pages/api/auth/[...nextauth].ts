@@ -413,7 +413,7 @@ export const authOptions: NextAuthOptions = {
         }
       };
       
-      // Initial login: user is present
+      // Initial login: user is present — new JWT claims (session fixation: pre-login cookie is replaced)
       if (user) {
         token.id = user.id;
         token.role = user.role;
@@ -435,8 +435,12 @@ export const authOptions: NextAuthOptions = {
         // Plan for middleware entitlement gate
         if (user.tenantId) {
           try {
-            const { resolveTenantPlan } = await import('../../../lib/saas/assert-feature');
+            const { resolveTenantPlan, resolveTenantBillingAddons } = await import('../../../lib/saas/assert-feature');
             token.subscriptionPlan = await resolveTenantPlan(user.tenantId);
+            const billing = await resolveTenantBillingAddons(user.tenantId);
+            token.addonLms = billing.lms;
+            token.addonAi = billing.ai;
+            token.billedSeats = billing.billedSeats;
             token.planCheckedAt = now;
           } catch {
             token.subscriptionPlan = null;
@@ -450,13 +454,17 @@ export const authOptions: NextAuthOptions = {
 
       await attachPlatformDefaultTenant();
 
-      // Refresh subscription plan periodically (5 min) or after impersonation
+      // Refresh subscription plan periodically (5 min), after session.update(), or impersonation
       if (token.tenantId) {
         const checked = Number(token.planCheckedAt || 0);
-        if (!token.subscriptionPlan || now - checked > 300) {
+        if (!token.subscriptionPlan || now - checked > 300 || trigger === 'update') {
           try {
-            const { resolveTenantPlan } = await import('../../../lib/saas/assert-feature');
+            const { resolveTenantPlan, resolveTenantBillingAddons } = await import('../../../lib/saas/assert-feature');
             token.subscriptionPlan = await resolveTenantPlan(token.tenantId as string);
+            const billing = await resolveTenantBillingAddons(token.tenantId as string);
+            token.addonLms = billing.lms;
+            token.addonAi = billing.ai;
+            token.billedSeats = billing.billedSeats;
             token.planCheckedAt = now;
           } catch { /* keep */ }
         }
@@ -491,6 +499,9 @@ export const authOptions: NextAuthOptions = {
               token.setupCompleted = true;
               token.planCheckedAt = 0;
               delete token.subscriptionPlan;
+              delete token.addonLms;
+              delete token.addonAi;
+              delete token.billedSeats;
               try {
                 const { logSupportAction } = await import('../../../lib/saas/support-audit');
                 await logSupportAction({
@@ -517,7 +528,9 @@ export const authOptions: NextAuthOptions = {
             );
             const tid = String(session.switchCompanyId);
             const { isTenantUuid } = await import('../../../lib/saas/company-membership-policy');
-            if (isTenantUuid(tid)) {
+            if (isTenantUuid(tid) && String(token.tenantId || '') === tid) {
+              token.exp = now + ACCESS_TOKEN_EXPIRY;
+            } else if (isTenantUuid(tid)) {
               const allowed = await userCanAccessCompany(String(token.id), tid);
               if (allowed) {
                 const t = await resolveTenantById(tid);
@@ -526,7 +539,10 @@ export const authOptions: NextAuthOptions = {
                   token.tenantName = t.name;
                   token.businessName = t.name;
                   token.planCheckedAt = 0;
-                  delete token.subscriptionPlan;
+              delete token.subscriptionPlan;
+              delete token.addonLms;
+              delete token.addonAi;
+              delete token.billedSeats;
                   token.setupCompleted = await isSaasOnboardingComplete(t.id);
                   const roleSw = String(token.role || '').toLowerCase();
                   if (roleSw === 'owner') {
@@ -561,16 +577,11 @@ export const authOptions: NextAuthOptions = {
           delete token.impersonatedTenantSlug;
           token.exp = now + ACCESS_TOKEN_EXPIRY;
         } else {
-          // Merge session updates into token (ignore privileged keys)
-          const {
-            impersonateTenantId: _i,
-            endImpersonation: _e,
-            tenantId: _t,
-            role: _r,
-            switchCompanyId: _s,
-            ...safe
-          } = session;
-          token = { ...token, ...safe };
+          // Never spread client session.update() onto the JWT (role/tenant/id).
+          const { applyClientSessionPatch } = await import(
+            '../../../lib/saas/session-update-guard'
+          );
+          token = applyClientSessionPatch(token, session);
 
           // Refresh from DB if tenantId exists
           if (token.tenantId) {
@@ -687,6 +698,9 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).impersonatedTenantSlug = token.impersonatedTenantSlug as string | undefined;
         (session.user as any).mfaSetupRequired = Boolean(token.mfaSetupRequired);
         (session.user as any).subscriptionPlan = token.subscriptionPlan as string | null | undefined;
+        (session.user as any).addonLms = Boolean(token.addonLms);
+        (session.user as any).addonAi = Boolean(token.addonAi);
+        (session.user as any).billedSeats = token.billedSeats != null ? Number(token.billedSeats) : null;
       }
       
       // Add token expiry info to session for client-side awareness

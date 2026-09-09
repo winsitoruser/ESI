@@ -8,6 +8,7 @@ import {
 } from './plan-entitlements';
 import { resolveTenantPlan } from './assert-feature';
 import { withDbSavepoint, safeQueryWithSavepoint } from './tenant-request-bound';
+import { readTenantBillingState } from './seat-pricing';
 
 let sequelize: any;
 try { sequelize = require('../sequelize'); } catch {}
@@ -101,21 +102,27 @@ export async function getSeatUsage(
   const planId = normalizeHumanifyPlan(planRaw ?? (await resolveTenantPlan(tenantId)));
   const def = getPlanDefinition(planId);
   const { users, employees } = await countTenantSeats(tenantId);
-  const usersPct = def.maxUsers > 0 ? Math.round((users / def.maxUsers) * 100) : 0;
-  const employeesPct = def.maxEmployees > 0 ? Math.round((employees / def.maxEmployees) * 100) : 0;
-  const overLimit = users > def.maxUsers || employees > def.maxEmployees;
+  let billedSeats: number | null = null;
+  try {
+    billedSeats = (await readTenantBillingState(tenantId)).billedSeats;
+  } catch { /* */ }
+  const maxEmployees = billedSeats && billedSeats > 0 ? billedSeats : def.maxEmployees;
+  const maxUsers = billedSeats && billedSeats > 0 ? Math.max(def.maxUsers, billedSeats) : def.maxUsers;
+  const usersPct = maxUsers > 0 ? Math.round((users / maxUsers) * 100) : 0;
+  const employeesPct = maxEmployees > 0 ? Math.round((employees / maxEmployees) * 100) : 0;
+  const overLimit = users > maxUsers || employees > maxEmployees;
   const nearLimit = !overLimit && (usersPct >= 80 || employeesPct >= 80);
   const upgradeHint =
     overLimit || nearLimit
-      ? 'Kuota mendekati/batas paket. Upgrade di /humanify/billing'
+      ? 'Kuota kursi langganan hampir penuh. Tambah kursi di /humanify/billing'
       : undefined;
 
   return {
     planId,
     users,
     employees,
-    maxUsers: def.maxUsers,
-    maxEmployees: def.maxEmployees,
+    maxUsers,
+    maxEmployees,
     usersPct,
     employeesPct,
     nearLimit,
@@ -143,7 +150,7 @@ export async function assertEmployeeSeatAvailable(
     body: {
       success: false,
       error: 'SEAT_LIMIT_EMPLOYEES',
-      message: `Batas karyawan paket ${usage.planId} tercapai (${usage.employees}/${usage.maxEmployees}). Upgrade paket untuk menambah.`,
+      message: `Batas kursi langganan tercapai (${usage.employees}/${usage.maxEmployees}). Tambah kursi di Billing.`,
       seats: usage,
       upgradePath: '/humanify/billing',
     },

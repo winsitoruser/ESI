@@ -199,6 +199,10 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       const body = req.body;
       if (action === 'create-opening') {
         if (!body.title) return res.status(400).json({ error: 'title is required' });
+        const { sanitizePlainText } = await import('@/lib/security/sanitize-user-text');
+        const title = sanitizePlainText(body.title, 240);
+        const desc = sanitizePlainText(body.description || '', 8000);
+        const reqs = sanitizePlainText(body.requirements || '', 8000);
         const [rows] = await sequelize.query(`
           INSERT INTO hris_job_openings (tenant_id, title, department, location, employment_type, status, priority,
             salary_min, salary_max, description, requirements, posted_date, deadline)
@@ -207,10 +211,10 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           RETURNING *
         `, {
           replacements: {
-            tid: tenantId, title: body.title, dept: body.department || '', loc: body.location || '',
+            tid: tenantId, title, dept: body.department || '', loc: body.location || '',
             type: body.type || 'full_time', priority: body.priority || 'medium',
             salMin: body.salary_min || 0, salMax: body.salary_max || 0,
-            desc: body.description || '', reqs: body.requirements || '',
+            desc, reqs,
             deadline: body.deadline || null
           }
         });
@@ -262,6 +266,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       const body = req.body;
       if (action === 'update-opening') {
         if (!body.id) return res.status(400).json({ error: 'id is required' });
+        const { sanitizePlainText } = await import('@/lib/security/sanitize-user-text');
         const [rows] = await sequelize.query(`
           UPDATE hris_job_openings SET
             title = COALESCE(:title, title), department = COALESCE(:dept, department),
@@ -273,10 +278,13 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           WHERE id = :id AND tenant_id = :tid RETURNING *
         `, {
           replacements: {
-            id: body.id, tid: tenantId, title: body.title || null, dept: body.department || null,
+            id: body.id, tid: tenantId,
+            title: body.title != null ? sanitizePlainText(body.title, 240) || null : null,
+            dept: body.department || null,
             loc: body.location || null, status: body.status || null, priority: body.priority || null,
             salMin: body.salary_min ?? null, salMax: body.salary_max ?? null,
-            desc: body.description || null, reqs: body.requirements || null,
+            desc: body.description != null ? sanitizePlainText(body.description, 8000) || null : null,
+            reqs: body.requirements != null ? sanitizePlainText(body.requirements, 8000) || null : null,
             deadline: body.deadline || null
           }
         });

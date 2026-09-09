@@ -69,6 +69,10 @@ function staticChecks() {
   if (/level=provinces/.test(wizard) && /level=regencies/.test(wizard) && /Pilih provinsi/.test(wizard)) {
     ok('setup wizard province/city selects');
   } else fail('setup wizard selects');
+
+  if (/saas-onboarding\?companyId=/.test(wizard) && /setLoadError/.test(wizard) && !/settleSessionUpdate/.test(wizard)) {
+    ok('setup wizard loads by companyId without JWT switch loop');
+  } else fail('setup wizard new-company load loop');
 }
 
 async function liveChecks() {

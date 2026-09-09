@@ -4,6 +4,7 @@
  */
 import { computeTenantHealth } from '@/lib/saas/platform-metrics';
 import { listExpiringTrials } from '@/lib/saas/humanify-billing';
+import { getMidtransPublicConfig, isMidtransConfigured, midtransIsProduction } from '@/lib/saas/midtrans';
 import { getBackupFreshness } from '@/lib/saas/backup-freshness';
 import { getScorecardLastRun } from '@/lib/saas/scorecard-last';
 import { getDigestLastRun } from '@/lib/saas/digest-last';
@@ -426,7 +427,9 @@ export async function getSystemStatus(): Promise<SystemStatus> {
   const scorecard = getScorecardLastRun();
   const digest = getDigestLastRun();
   const uptime = getUptimeLastRun();
-  const midtrans = Boolean(process.env.MIDTRANS_SERVER_KEY);
+  const midtrans = isMidtransConfigured();
+  const midtransProd = midtransIsProduction();
+  const midtransCfg = getMidtransPublicConfig();
   const db = Boolean(process.env.DATABASE_URL || process.env.DB_HOST);
   const nextAuth = Boolean(process.env.NEXTAUTH_SECRET && process.env.NEXTAUTH_URL);
 
@@ -464,12 +467,12 @@ export async function getSystemStatus(): Promise<SystemStatus> {
     },
     {
       id: 'midtrans',
-      label: 'Midtrans',
+      label: 'Midtrans Snap',
       ok: midtrans,
       warning: !midtrans,
       detail: midtrans
-        ? (process.env.MIDTRANS_IS_PRODUCTION === 'true' ? 'Production key terisi' : 'Sandbox key terisi')
-        : 'MIDTRANS_SERVER_KEY belum di-set',
+        ? `${midtransProd ? 'Production' : 'Sandbox'} · ${midtransCfg.serverKeyFingerprint || 'key terisi'} · webhook ${midtransCfg.webhookPath}${midtransCfg.iris.configured ? ' · Iris siap' : ' · Iris belum di-set'}`
+        : 'MIDTRANS_SERVER_KEY belum di-set — checkout jatuh ke manual',
       href: '/platform/billing',
     },
     {

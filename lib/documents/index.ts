@@ -142,7 +142,9 @@ async function generateHTMLDocument(request: DocumentRequest): Promise<Blob> {
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20mm; color: #333; font-size: 12px; }
-    .header { text-align: center; border-bottom: 2px solid #0066cc; padding-bottom: 15px; margin-bottom: 20px; }
+    .header { display: flex; align-items: center; gap: 14px; border-bottom: 2px solid #0066cc; padding-bottom: 15px; margin-bottom: 20px; }
+    .header.centered { flex-direction: column; text-align: center; }
+    .header img { width: 56px; height: 56px; object-fit: contain; }
     .header h1 { font-size: 18px; color: #0066cc; }
     .header p { font-size: 10px; color: #666; margin-top: 3px; }
     .doc-title { text-align: center; font-size: 16px; font-weight: bold; margin: 15px 0; }
@@ -160,11 +162,14 @@ async function generateHTMLDocument(request: DocumentRequest): Promise<Blob> {
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>${company.name}</h1>
-    <p>${company.address}</p>
-    <p>${[company.phone, company.email].filter(Boolean).join(' | ')}</p>
-    ${company.taxId ? `<p>NPWP: ${company.taxId}</p>` : ''}
+  <div class="header ${company.logo ? '' : 'centered'}">
+    ${company.logo ? `<img src="${company.logo}" alt="Logo ${company.name}" />` : ''}
+    <div>
+      <h1>${company.name}</h1>
+      <p>${company.address}</p>
+      <p>${[company.phone, company.email].filter(Boolean).join(' | ')}</p>
+      ${company.taxId ? `<p>NPWP: ${company.taxId}</p>` : ''}
+    </div>
   </div>
   <div class="doc-title">${title}</div>
   <div class="doc-meta">
@@ -227,6 +232,7 @@ export function buildCompanyInfo(tenant: any, branch?: any): { company: CompanyI
     website: tenant?.website || '',
     taxId: tenant?.taxId || tenant?.npwp || '',
     businessCode: tenant?.businessCode || '',
+    logo: tenant?.logoUrl || tenant?.logo || '',
   };
 
   const branchInfo = branch ? {

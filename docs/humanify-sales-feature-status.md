@@ -1,6 +1,6 @@
 # Humanify — Sales Feature Status (GA vs Partial vs Hidden)
 
-**Version:** 1.0 · Wave-79  
+**Version:** 1.1 · 9 Sep 2026 (add-on LMS/AIMAN)  
 **Audience:** Sales, partners, CS, demo  
 **Rule:** Jangan jual item Hidden/Deferred sebagai “sudah GA.”
 
@@ -19,7 +19,7 @@
 | Assets + onboarding/offboarding | Inventori + assign/return |
 | ESS / MSS | Portal karyawan + manajer |
 | Recruitment (inti) | Job opening + kandidat |
-| LMS core | Training hub GA; advanced = lab |
+| LMS core | **Add-on** (bukan paket Enterprise). Training hub GA setelah add-on / selama trial; advanced = lab |
 | Users / invite | Multi-role (Finance invite: roadmap W80) |
 | Billing Midtrans | Checkout + webhook (lihat catatan administrasi) |
 | Go-live checklist | `/humanify/go-live` |
@@ -29,7 +29,7 @@
 
 | Area | Status jual |
 |---|---|
-| AIMAN / AI Guide | Terlihat di produk; **confirm-required**, bukan AI otonom penuh |
+| AIMAN / AI Guide | **Add-on** + terlihat jika dibeli/trial; **confirm-required**, bukan AI otonom penuh |
 | Recruitment connectors | Provider webhook butuh `*_WEBHOOK_SECRET` di production |
 | Partner channel | Portal ada; **payout = manual / CSV** (bukan auto Midtrans) |
 | Soft RLS production | Isolasi aplikasi + request-bound; FORCE strict = staging lab (`docs/humanify-production-rls-truth.md`) |
@@ -47,16 +47,19 @@
 | Sentry.io external | ADR D-010b |
 | Offline ESS mutations | Belum GA |
 
-## Harga resmi (list price / bulan)
+## Harga resmi (per karyawan / bulan)
 
-Sumber: `lib/saas/plan-entitlements.ts` · ROI calculator mengikuti angka ini.
+Sumber: `lib/saas/seat-pricing.ts` · paket di `lib/saas/plan-entitlements.ts` membedakan modul, bukan harga satuan.
 
-| Paket | Harga | Kapasitas karyawan (ceiling) | Fitur kunci |
-|---|---:|---:|---|
-| Trial | Rp0 | 100 | Evaluasi 14 hari |
-| Starter | Rp499.000 | 50 | Core + attendance + recruitment |
-| Growth | Rp1.499.000 | 500 | + payroll + analytics (+ claims/OT/travel) |
-| Enterprise | Rp4.999.000 | 10.000 | + LMS, AIMAN, API, white-label, SSO |
+| Komponen | Harga |
+|---|---:|
+| HRIS inti 1–250 karyawan | Rp 10.000 / orang |
+| Volume 251–1.000 | Rp 9.500 / orang (semua kursi) |
+| Volume 1.001+ | Rp 9.000 / orang (semua kursi) |
+| Add-on LMS | +Rp 1.500 / orang |
+| Add-on AIMAN Copilot | +Rp 65.000 / bulan (flat) |
+
+Paket: Trial (14 hari full access) · Starter (core, absensi, rekrutmen) · Growth (+ payroll, analytics) · Enterprise (+ API, white-label, SSO). LMS dan AIMAN tidak termasuk paket — ditambah di Billing.
 
 ## Midtrans (administrasi)
 

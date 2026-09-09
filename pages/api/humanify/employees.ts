@@ -75,19 +75,26 @@ async function getEmployees(req: NextApiRequest, res: NextApiResponse) {
     );
   }
 
-  const { search, department, status, branchId, employmentCategory } = req.query;
+  const { search, department, status, branchId, employmentCategory, tenantId: spoofTenant } = req.query;
   const { limit, offset } = getPaginationParams(req.query);
-  const tenantId = getTenantId(req);
+  const { resolveExportTenantId } = await import('@/lib/saas/export-tenant-scope');
+  const tenantId = resolveExportTenantId({
+    sessionTenantId: getTenantId(req),
+    requestedTenantId: spoofTenant != null ? String(spoofTenant) : null,
+  }).tenantId;
 
   try {
     // Use Employee model if available, fallback to User
     if (Employee) {
       const where: any = {};
 
-      // 🔒 TENANT ISOLATION: Always filter by tenantId from session
-      if (tenantId) {
-        where.tenantId = tenantId;
+      // 🔒 TENANT ISOLATION: session tenant only. No tenant → empty (never dump all).
+      if (!tenantId) {
+        return res.status(HttpStatus.OK).json(
+          successResponse([], getPaginationMeta(0, limit, offset))
+        );
       }
+      where.tenantId = tenantId;
 
       if (search) {
         where[Op.or] = [
@@ -215,7 +222,12 @@ async function getEmployees(req: NextApiRequest, res: NextApiResponse) {
     }
 
     // Fallback: use User model if Employee not available
-    const where: any = {};
+    if (!tenantId) {
+      return res.status(HttpStatus.OK).json(
+        successResponse([], getPaginationMeta(0, limit, offset))
+      );
+    }
+    const where: any = { tenantId };
     if (search) {
       where[Op.or] = [
         { name: { [Op.iLike]: `%${search}%` } },
@@ -287,8 +299,15 @@ async function createEmployee(req: NextApiRequest, res: NextApiResponse) {
   }
 
   // Remove tenantId from body if present - user cannot override this
-  const { name, email, phone, position, department, workLocation, branchId, branchName,
+  const { sanitizePlainText } = await import('@/lib/security/sanitize-user-text');
+  const { name: rawName, email, phone, position, department, workLocation, branchId, branchName,
     employmentCategory, contractType } = req.body;
+  const name = sanitizePlainText(rawName, 200);
+  if (!name) {
+    return res.status(HttpStatus.BAD_REQUEST).json(
+      errorResponse(ErrorCodes.VALIDATION_ERROR, 'Nama karyawan tidak valid')
+    );
+  }
 
   const { resolveDepartmentOption } = await import('@/lib/hris/master-data');
   const deptResolved = resolveDepartmentOption(department);
@@ -457,7 +476,12 @@ async function updateEmployee(req: NextApiRequest, res: NextApiResponse) {
   }
 
   const { id } = req.query;
-  const updateData = req.body;
+  const { pickEmployeePatch } = await import('@/lib/hris/employee-patch-fields');
+  const { sanitizePlainText } = await import('@/lib/security/sanitize-user-text');
+  const updateData = pickEmployeePatch(req.body || {});
+  if (typeof updateData.name === 'string') {
+    updateData.name = sanitizePlainText(updateData.name, 200);
+  }
   const tenantId = getTenantId(req);
 
   if (!id) {
@@ -479,11 +503,11 @@ async function updateEmployee(req: NextApiRequest, res: NextApiResponse) {
       );
     }
 
-    // Don't allow updating sensitive / ownership fields
-    delete updateData.password;
-    delete updateData.id;
-    delete updateData.employeeId;
-    delete updateData.tenantId;
+    if (!Object.keys(updateData).length) {
+      return res.status(HttpStatus.BAD_REQUEST).json(
+        errorResponse(ErrorCodes.VALIDATION_ERROR, 'Tidak ada field yang boleh diubah')
+      );
+    }
 
     await record.update(updateData);
 

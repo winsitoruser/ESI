@@ -161,6 +161,16 @@ const nextConfig = {
       { source: '/humanify/devices', destination: '/humanify/attendance/devices', permanent: false },
     ];
   },
+
+  // Runtime uploads live in public/uploads but next start 404s files added after build.
+  async rewrites() {
+    return {
+      beforeFiles: [
+        { source: '/uploads/letter-logos/:file', destination: '/api/humanify/public-upload/letter-logos/:file' },
+        { source: '/uploads/marketing/:file', destination: '/api/humanify/public-upload/marketing/:file' },
+      ],
+    };
+  },
 };
 
 export default nextConfig;

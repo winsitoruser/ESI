@@ -9,6 +9,7 @@ import crypto from 'crypto';
 import { createHumanifyTenantRecord } from './humanify-provision';
 import { getTenantColumns } from './tenant-schema';
 import { resolveTenantById } from './tenant-slug';
+import { withAutocommitQuery } from './tenant-request-bound';
 import {
   COMPANY_MAX_PER_USER,
   COMPANY_MAX_PLATFORM,
@@ -55,67 +56,70 @@ let ready = false;
 export async function ensureCompanyMembershipTable(): Promise<boolean> {
   if (!sequelize) return false;
   if (ready) return true;
-  await sequelize.query(`
-    CREATE TABLE IF NOT EXISTS saas_company_memberships (
-      id UUID PRIMARY KEY,
-      user_id VARCHAR(64) NOT NULL,
-      tenant_id UUID NOT NULL,
-      role VARCHAR(16) NOT NULL DEFAULT 'owner',
-      is_default BOOLEAN NOT NULL DEFAULT false,
-      status VARCHAR(16) NOT NULL DEFAULT 'active',
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      last_switched_at TIMESTAMPTZ
-    )
-  `);
-  await sequelize.query(`
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_saas_co_mem_user_tenant
-    ON saas_company_memberships (user_id, tenant_id)
-  `);
-  await sequelize.query(`
-    CREATE INDEX IF NOT EXISTS idx_saas_co_mem_user
-    ON saas_company_memberships (user_id, status)
-  `);
-  try {
-    await sequelize.query(`
-      DELETE FROM saas_company_memberships m
-      WHERE NOT EXISTS (SELECT 1 FROM tenants t WHERE t.id = m.tenant_id)
+  const done = await withAutocommitQuery(sequelize, async (query) => {
+    await query(`
+      CREATE TABLE IF NOT EXISTS saas_company_memberships (
+        id UUID PRIMARY KEY,
+        user_id VARCHAR(64) NOT NULL,
+        tenant_id UUID NOT NULL,
+        role VARCHAR(16) NOT NULL DEFAULT 'owner',
+        is_default BOOLEAN NOT NULL DEFAULT false,
+        status VARCHAR(16) NOT NULL DEFAULT 'active',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        last_switched_at TIMESTAMPTZ
+      )
     `);
-    await sequelize.query(`
-      DO $$ BEGIN
-        ALTER TABLE saas_company_memberships
-          ADD CONSTRAINT fk_saas_co_mem_tenant
-          FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
-      EXCEPTION WHEN duplicate_object THEN NULL;
-      END $$;
+    await query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_saas_co_mem_user_tenant
+      ON saas_company_memberships (user_id, tenant_id)
     `);
-  } catch (e: any) {
-    console.warn('[company-membership] tenant FK:', e?.message || e);
-  }
-  try {
-    await sequelize.query(`
-      INSERT INTO saas_company_memberships
-        (id, user_id, tenant_id, role, is_default, status, created_at, updated_at)
-      SELECT gen_random_uuid(), CAST(u.id AS TEXT), u.tenant_id,
-        CASE
-          WHEN lower(u.role::text) IN ('owner', 'super_admin', 'superadmin', 'platform_admin') THEN 'owner'
-          WHEN lower(u.role::text) IN ('admin', 'hq_admin', 'hr_admin') THEN 'admin'
-          ELSE 'member'
-        END,
-        true, 'active', NOW(), NOW()
-      FROM users u
-      WHERE u.tenant_id IS NOT NULL
-        AND lower(COALESCE(u.role::text, '')) NOT IN ('super_admin', 'superadmin', 'platform_admin')
-        AND NOT EXISTS (
-          SELECT 1 FROM saas_company_memberships m
-          WHERE m.user_id = CAST(u.id AS TEXT) AND m.tenant_id = u.tenant_id
-        )
+    await query(`
+      CREATE INDEX IF NOT EXISTS idx_saas_co_mem_user
+      ON saas_company_memberships (user_id, status)
     `);
-  } catch (e: any) {
-    console.warn('[company-membership] backfill:', e?.message || e);
-  }
-  ready = true;
-  return true;
+    try {
+      await query(`
+        DELETE FROM saas_company_memberships m
+        WHERE NOT EXISTS (SELECT 1 FROM tenants t WHERE t.id = m.tenant_id)
+      `);
+      await query(`
+        DO $$ BEGIN
+          ALTER TABLE saas_company_memberships
+            ADD CONSTRAINT fk_saas_co_mem_tenant
+            FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
+        EXCEPTION WHEN duplicate_object THEN NULL;
+        END $$;
+      `);
+    } catch (e: any) {
+      console.warn('[company-membership] tenant FK:', e?.message || e);
+    }
+    try {
+      await query(`
+        INSERT INTO saas_company_memberships
+          (id, user_id, tenant_id, role, is_default, status, created_at, updated_at)
+        SELECT gen_random_uuid(), CAST(u.id AS TEXT), u.tenant_id,
+          CASE
+            WHEN lower(u.role::text) IN ('owner', 'super_admin', 'superadmin', 'platform_admin') THEN 'owner'
+            WHEN lower(u.role::text) IN ('admin', 'hq_admin', 'hr_admin') THEN 'admin'
+            ELSE 'member'
+          END,
+          true, 'active', NOW(), NOW()
+        FROM users u
+        WHERE u.tenant_id IS NOT NULL
+          AND lower(COALESCE(u.role::text, '')) NOT IN ('super_admin', 'superadmin', 'platform_admin')
+          AND NOT EXISTS (
+            SELECT 1 FROM saas_company_memberships m
+            WHERE m.user_id = CAST(u.id AS TEXT) AND m.tenant_id = u.tenant_id
+          )
+      `);
+    } catch (e: any) {
+      console.warn('[company-membership] backfill:', e?.message || e);
+    }
+    return true;
+  }, 'company-membership-ddl');
+  if (done) ready = true;
+  return ready;
 }
 
 function uid(userId: string | number): string {

@@ -39,7 +39,9 @@ import {
   portalClockIn,
   portalClockOut,
 } from '../../../lib/hris/attendance-store';
-import { loadActiveGeofences, matchGeofences } from '@/lib/hris/geofence-utils';
+import { loadActiveGeofences, matchGeofences, geofenceClockAllowed } from '@/lib/hris/geofence-utils';
+import { loadWorkTimePolicy } from '@/lib/hris/work-time-policy-store';
+import { businessDateInTimeZone, clockHmInTimeZone } from '@/lib/hris/work-time-policy';
 import { allowHrMockFallback } from '@/lib/hris/data-source';
 import { verifyClockFace } from '@/lib/hris/face-profile-store';
 import { withEmployeeAuth } from '@/lib/middleware/withEmployeeAuth';
@@ -194,7 +196,7 @@ async function getProfile(res: NextApiResponse, userId: string, tenantId: string
 async function getAttendance(res: NextApiResponse, userId: string, tenantId: string) {
   if (!sequelize) return res.json({ success: true, data: allowHrMockFallback() ? mockAttendance() : null });
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = businessDateInTimeZone();
     const monthStart = today.substring(0, 7) + '-01';
 
     const todayRow = await getTodayAttendance(sequelize, userId, today, tenantId);
@@ -589,22 +591,46 @@ async function requireFaceForClock(
   }
 }
 
+async function resolveClockGeofence(
+  res: NextApiResponse,
+  tenantId: string,
+  locationPayload: { lat: number; lng: number } | null,
+): Promise<{ denied: true } | { denied: false; match: ReturnType<typeof matchGeofences> }> {
+  if (!sequelize || !locationPayload) return { denied: false, match: null };
+  const fences = await loadActiveGeofences(sequelize, tenantId || null);
+  const match = matchGeofences(locationPayload.lat, locationPayload.lng, fences);
+  let allowOutside = false;
+  try {
+    const policy = await loadWorkTimePolicy(sequelize, tenantId);
+    allowOutside = Boolean(policy.allowOutsideGeofence);
+  } catch { /* default deny when fences exist */ }
+  const decision = geofenceClockAllowed(match, { fenceCount: fences.length, allowOutside });
+  if (!decision.ok) {
+    res.status(400).json({
+      success: false,
+      error: decision.error,
+      code: decision.code,
+      data: match,
+    });
+    return { denied: true };
+  }
+  return { denied: false, match };
+}
+
 async function clockIn(req: NextApiRequest, res: NextApiResponse, userId: string, tenantId: string) {
   const face = await requireFaceForClock(req, res, userId, tenantId);
   if (!face) return;
 
   const { latitude, longitude, address, accuracy } = req.body || {};
-  const checkInTime = new Date().toTimeString().substring(0, 5);
+  const checkInTime = clockHmInTimeZone();
   const clockMethod = face.matchStatus === 'matched' ? 'face_match' : 'face_liveness';
   const locationPayload = (latitude != null && longitude != null)
     ? { lat: Number(latitude), lng: Number(longitude), address: address || null, accuracy: accuracy != null ? Number(accuracy) : null }
     : null;
 
-  let geofenceMatch = null;
-  if (locationPayload && sequelize) {
-    const fences = await loadActiveGeofences(sequelize, tenantId || null);
-    geofenceMatch = matchGeofences(locationPayload.lat, locationPayload.lng, fences);
-  }
+  const geo = await resolveClockGeofence(res, tenantId, locationPayload);
+  if (geo.denied) return;
+  const geofenceMatch = geo.match;
 
   if (!sequelize) {
     return res.json({
@@ -672,17 +698,15 @@ async function clockOut(req: NextApiRequest, res: NextApiResponse, userId: strin
   if (!face) return;
 
   const { latitude, longitude, address, accuracy } = req.body || {};
-  const checkOutTime = new Date().toTimeString().substring(0, 5);
+  const checkOutTime = clockHmInTimeZone();
   const clockMethod = face.matchStatus === 'matched' ? 'face_match' : 'face_liveness';
   const locationPayload = (latitude != null && longitude != null)
     ? { lat: Number(latitude), lng: Number(longitude), address: address || null, accuracy: accuracy != null ? Number(accuracy) : null }
     : null;
 
-  let geofenceMatch = null;
-  if (locationPayload && sequelize) {
-    const fences = await loadActiveGeofences(sequelize, tenantId || null);
-    geofenceMatch = matchGeofences(locationPayload.lat, locationPayload.lng, fences);
-  }
+  const geo = await resolveClockGeofence(res, tenantId, locationPayload);
+  if (geo.denied) return;
+  const geofenceMatch = geo.match;
 
   if (!sequelize) {
     return res.json({

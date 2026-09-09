@@ -77,17 +77,6 @@ export const humanifySidebarConfig: SidebarConfig = {
       ],
     },
     {
-      id: 'performance',
-      title: 'Kinerja',
-      items: [
-        { id: 'humanify-okr', name: 'OKR Perusahaan', href: '/humanify/okr', icon: Crosshair, modules: ['humanify', 'hris'] },
-        { id: 'humanify-kpi', name: 'KPI Karyawan', href: '/humanify/kpi', icon: Target, modules: ['humanify', 'hris'] },
-        { id: 'humanify-kpi-settings', name: 'Pengaturan KPI', href: '/humanify/kpi-settings', icon: Settings, modules: ['humanify', 'hris'] },
-        { id: 'humanify-performance', name: 'Penilaian Kinerja', href: '/humanify/performance', icon: Award, modules: ['humanify', 'hris'] },
-        { id: 'humanify-engagement', name: 'Keterlibatan & Budaya', href: '/humanify/engagement', icon: Activity, modules: ['humanify', 'hris'], hidden: true },
-      ],
-    },
-    {
       id: 'payroll',
       title: 'Payroll',
       items: [
@@ -113,6 +102,17 @@ export const humanifySidebarConfig: SidebarConfig = {
         },
         { id: 'humanify-reimbursement', name: 'Reimbursement', href: '/humanify/reimbursement', icon: Wallet, modules: ['humanify', 'hris'] },
         { id: 'humanify-casual', name: 'Tenaga Harian', href: '/humanify/casual-workforce', icon: HardHat, modules: ['humanify', 'hris'] },
+      ],
+    },
+    {
+      id: 'performance',
+      title: 'Kinerja',
+      items: [
+        { id: 'humanify-okr', name: 'OKR Perusahaan', href: '/humanify/okr', icon: Crosshair, modules: ['humanify', 'hris'] },
+        { id: 'humanify-kpi', name: 'KPI Karyawan', href: '/humanify/kpi', icon: Target, modules: ['humanify', 'hris'] },
+        { id: 'humanify-kpi-settings', name: 'Pengaturan KPI', href: '/humanify/kpi-settings', icon: Settings, modules: ['humanify', 'hris'] },
+        { id: 'humanify-performance', name: 'Penilaian Kinerja', href: '/humanify/performance', icon: Award, modules: ['humanify', 'hris'] },
+        { id: 'humanify-engagement', name: 'Keterlibatan & Budaya', href: '/humanify/engagement', icon: Activity, modules: ['humanify', 'hris'], hidden: true },
       ],
     },
     {

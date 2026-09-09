@@ -18,7 +18,7 @@ import {
 } from '@/lib/saas/company-membership';
 import { resolveTenantById } from '@/lib/saas/tenant-slug';
 import { isSaasOnboardingComplete } from '@/lib/saas/humanify-onboarding';
-import { NEW_COMPANY_SETUP_HREF } from '@/lib/saas/company-onboarding-flow';
+import { newCompanySetupHref } from '@/lib/saas/company-onboarding-flow';
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = (req as any).session;
@@ -125,7 +125,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         data: {
           ...result,
           sessionPatch: { switchCompanyId: result.tenantId },
-          redirectTo: NEW_COMPANY_SETUP_HREF,
+          redirectTo: newCompanySetupHref(result.tenantId),
         },
       });
     }

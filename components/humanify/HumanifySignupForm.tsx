@@ -56,7 +56,11 @@ export default function HumanifySignupForm() {
     if (!router.isReady) return;
     const ref = String(router.query.ref || router.query.partner || '');
     if (ref) setForm((f) => ({ ...f, partnerCode: ref.toUpperCase() }));
-  }, [router.isReady, router.query.ref, router.query.partner]);
+    const plan = String(router.query.plan || '').toLowerCase();
+    if (plan && ['starter', 'growth', 'enterprise'].includes(plan)) {
+      try { sessionStorage.setItem('humanify.intendedPlan', plan); } catch { /* ignore */ }
+    }
+  }, [router.isReady, router.query.ref, router.query.partner, router.query.plan]);
 
   const update = (key: string, value: string | boolean) => {
     setForm((f) => ({ ...f, [key]: value }));

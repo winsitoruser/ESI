@@ -29,12 +29,12 @@ export interface HumanifyPlanDefinition {
   priceMonthlyIdr: number;
 }
 
-/** Canonical list prices — single source for billing, ROI, sales, and website. */
+/** Canonical per-user list price (volume tiers live in seat-pricing.ts). */
 export const HUMANIFY_CANONICAL_PRICES_IDR = {
   trial: 0,
-  starter: 499_000,
-  growth: 1_499_000,
-  enterprise: 4_999_000,
+  starter: 10_000,
+  growth: 10_000,
+  enterprise: 10_000,
 } as const;
 
 export const HUMANIFY_PLANS: Record<HumanifyPlanId, HumanifyPlanDefinition> = {
@@ -51,28 +51,28 @@ export const HUMANIFY_PLANS: Record<HumanifyPlanId, HumanifyPlanDefinition> = {
   starter: {
     id: 'starter',
     name: 'Starter',
-    description: 'HRIS inti: karyawan, absensi, rekrutmen',
+    description: 'HRIS inti: karyawan, absensi, rekrutmen — dihitung per karyawan',
     features: ['core', 'attendance', 'recruitment'],
-    maxUsers: 10,
-    maxEmployees: 50,
+    maxUsers: 10_000,
+    maxEmployees: 10_000,
     priceMonthlyIdr: HUMANIFY_CANONICAL_PRICES_IDR.starter,
   },
   growth: {
     id: 'growth',
     name: 'Growth',
-    description: 'Payroll + analytics untuk tim berkembang',
+    description: 'Payroll + analytics untuk tim berkembang — dihitung per karyawan',
     features: ['core', 'attendance', 'recruitment', 'payroll', 'analytics'],
-    maxUsers: 50,
-    maxEmployees: 500,
+    maxUsers: 10_000,
+    maxEmployees: 10_000,
     priceMonthlyIdr: HUMANIFY_CANONICAL_PRICES_IDR.growth,
   },
   enterprise: {
     id: 'enterprise',
     name: 'Enterprise',
-    description: 'Semua modul + API keys, white-label & SSO',
-    features: ['core', 'attendance', 'payroll', 'recruitment', 'lms', 'analytics', 'ai', 'api', 'white_label', 'sso'],
-    maxUsers: 500,
-    maxEmployees: 10000,
+    description: 'Semua modul HR + API, white-label & SSO. LMS dan AIMAN add-on.',
+    features: ['core', 'attendance', 'payroll', 'recruitment', 'analytics', 'api', 'white_label', 'sso'],
+    maxUsers: 50_000,
+    maxEmployees: 50_000,
     priceMonthlyIdr: HUMANIFY_CANONICAL_PRICES_IDR.enterprise,
   },
 };
@@ -179,6 +179,29 @@ export function planHasFeature(plan: string | null | undefined, feature: Humanif
   return def.features.includes(feature);
 }
 
+export type BillingAddonFlags = { lms?: boolean; ai?: boolean };
+
+export function mergeAddonFeatures(
+  planFeatures: HumanifyFeature[],
+  addons?: BillingAddonFlags | null,
+): HumanifyFeature[] {
+  const set = new Set(planFeatures);
+  if (addons?.lms) set.add('lms');
+  if (addons?.ai) set.add('ai');
+  return Array.from(set);
+}
+
+export function entitlementsHaveFeature(
+  plan: string | null | undefined,
+  feature: HumanifyFeature,
+  addons?: BillingAddonFlags | null,
+): boolean {
+  if (planHasFeature(plan, feature)) return true;
+  if (feature === 'lms' && addons?.lms) return true;
+  if (feature === 'ai' && addons?.ai) return true;
+  return false;
+}
+
 export const HUMANIFY_FEATURE_LABELS: Record<HumanifyFeature, string> = {
   core: 'Karyawan & organisasi',
   attendance: 'Absensi',
@@ -217,6 +240,22 @@ export function isPathAllowedForPlan(pathname: string, plan: string | null | und
   return planHasFeature(plan, featureForPath(pathname));
 }
 
+export function isPathAllowedForEntitlements(
+  pathname: string,
+  plan: string | null | undefined,
+  addons?: BillingAddonFlags | null,
+): boolean {
+  return entitlementsHaveFeature(plan, featureForPath(pathname), addons);
+}
+
+export function isApiPathAllowedForEntitlements(
+  pathname: string,
+  plan: string | null | undefined,
+  addons?: BillingAddonFlags | null,
+): boolean {
+  return entitlementsHaveFeature(plan, featureForApiPath(pathname), addons);
+}
+
 export interface EntitlementSnapshot {
   planId: HumanifyPlanId;
   planName: string;
@@ -226,23 +265,28 @@ export interface EntitlementSnapshot {
   upgradeHint?: string;
 }
 
-export function buildEntitlementSnapshot(plan: string | null | undefined): EntitlementSnapshot {
+export function buildEntitlementSnapshot(
+  plan: string | null | undefined,
+  opts?: { addons?: BillingAddonFlags | null; billedSeats?: number | null },
+): EntitlementSnapshot {
   const def = getPlanDefinition(plan);
+  const features = mergeAddonFeatures(def.features, opts?.addons);
+  const billed = opts?.billedSeats && opts.billedSeats > 0 ? opts.billedSeats : null;
   const upgradeHint =
     def.id === 'starter'
-      ? 'Upgrade ke Growth untuk Payroll & Analytics'
+      ? 'Upgrade ke Growth untuk Payroll & Analytics, atau tambah LMS / AIMAN di Billing'
       : def.id === 'growth'
-        ? 'Upgrade ke Enterprise untuk LMS, AIMAN, API, white-label & SSO'
+        ? 'Tambah LMS (Rp 1.500/karyawan) atau AIMAN (Rp 65.000/bulan) di Billing'
         : def.id === 'trial'
-          ? 'Pilih paket Starter/Growth/Enterprise setelah trial'
+          ? 'Langganan dihitung per karyawan setelah trial'
           : undefined;
 
   return {
     planId: def.id,
     planName: def.name,
-    features: [...def.features],
-    maxUsers: def.maxUsers,
-    maxEmployees: def.maxEmployees,
+    features,
+    maxUsers: billed || def.maxUsers,
+    maxEmployees: billed || def.maxEmployees,
     upgradeHint,
   };
 }
@@ -257,9 +301,10 @@ type MenuLike = {
 export function filterMenuByPlanFeatures<T extends MenuLike>(
   items: T[],
   plan: string | null | undefined,
-  opts?: { bypass?: boolean },
+  opts?: { bypass?: boolean; addons?: BillingAddonFlags | null; keepLocked?: boolean },
 ): T[] {
   if (opts?.bypass) return items;
+  const allowed = (href: string) => isPathAllowedForEntitlements(href, plan, opts?.addons);
 
   return items
     .map((item) => {
@@ -269,17 +314,24 @@ export function filterMenuByPlanFeatures<T extends MenuLike>(
 
       if (children) {
         const next = { ...item, children };
-        if (children.length === 0 && !item.href) return null;
-        if (item.href && !isPathAllowedForPlan(String(item.href), plan) && children.length === 0) {
+        if (children.length === 0 && !item.href) {
+          if (opts?.keepLocked) return { ...item, locked: true, children: item.children } as T;
           return null;
         }
-        if (item.href && !isPathAllowedForPlan(String(item.href), plan)) {
-          return { ...next, href: undefined };
+        if (item.href && !allowed(String(item.href)) && children.length === 0) {
+          if (opts?.keepLocked) return { ...next, locked: true } as T;
+          return null;
+        }
+        if (item.href && !allowed(String(item.href))) {
+          return { ...next, href: undefined, locked: true } as T;
         }
         return next;
       }
 
-      if (item.href && !isPathAllowedForPlan(String(item.href), plan)) return null;
+      if (item.href && !allowed(String(item.href))) {
+        if (opts?.keepLocked) return { ...item, locked: true } as T;
+        return null;
+      }
       return item;
     })
     .filter(Boolean) as T[];
@@ -288,7 +340,7 @@ export function filterMenuByPlanFeatures<T extends MenuLike>(
 export function filterSidebarGroupsByPlan<T extends { items: MenuLike[] }>(
   groups: T[],
   plan: string | null | undefined,
-  opts?: { bypass?: boolean },
+  opts?: { bypass?: boolean; addons?: BillingAddonFlags | null; keepLocked?: boolean },
 ): T[] {
   return groups
     .map((g) => ({

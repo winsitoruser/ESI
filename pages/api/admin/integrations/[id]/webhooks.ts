@@ -49,9 +49,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ error: 'Webhook URL is required' });
       }
 
+      const { assertSafeOutboundHttpUrl } = await import('@/lib/security/safe-outbound-url');
+      let safeUrl: string;
+      try {
+        safeUrl = assertSafeOutboundHttpUrl(webhookUrl);
+      } catch {
+        return res.status(400).json({ error: 'Webhook URL tidak diizinkan (harus http(s) publik)' });
+      }
+
       const webhook = await IntegrationWebhook.create({
         integrationId,
-        webhookUrl,
+        webhookUrl: safeUrl,
         webhookSecret,
         events,
         isActive,

@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withHQAuth } from '@/lib/middleware/withHQAuth';
 import { resolveDataSource } from '@/lib/hris/data-source';
+import { emptyMonthPresence, queryMonthPresenceMix } from '@/lib/hris/month-presence';
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -22,6 +23,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       recentActivities: [],
       upcoming: [],
       period: new Date().toISOString().substring(0, 7),
+      monthPresence: emptyMonthPresence(),
     });
   }
 
@@ -365,6 +367,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       documentCompliance = await getTenantDocumentComplianceSummary(sequelize, String(tenantId));
     } catch { /* optional */ }
 
+    let monthPresence = emptyMonthPresence();
+    try {
+      monthPresence = await queryMonthPresenceMix(sequelize, String(tenantId));
+    } catch { /* optional */ }
+
     return res.status(200).json({
       success: true,
       dataSource: resolveDataSource(stats.total > 0, false),
@@ -395,6 +402,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         },
       },
       documentCompliance,
+      monthPresence,
       recentActivities: activities,
       upcoming: upcomingLimited,
       period,

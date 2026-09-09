@@ -5,6 +5,8 @@ import {
   presetForSystem,
   minutesAfter,
   parseHm,
+  businessDateInTimeZone,
+  clockHmInTimeZone,
 } from '@/lib/hris/work-time-policy';
 
 /** Thursday 3 Sep 2026 at HH:MM in Asia/Jakarta. */
@@ -117,5 +119,16 @@ describe('minutesAfter night wrap', () => {
   it('treats 07:00 as 60 minutes after 06:00 even across midnight', () => {
     expect(minutesAfter(parseHm('06:00'), parseHm('07:00'), true)).toBe(60);
     expect(minutesAfter(parseHm('22:00'), parseHm('00:30'), true)).toBe(150);
+  });
+});
+
+describe('businessDateInTimeZone (WQ-038)', () => {
+  it('uses Asia/Jakarta date, not UTC, around midnight WIB', () => {
+    const justAfterMidnightWib = new Date('2026-09-09T17:30:00.000Z'); // 00:30 WIB 10 Sep
+    expect(justAfterMidnightWib.toISOString().split('T')[0]).toBe('2026-09-09');
+    expect(businessDateInTimeZone(justAfterMidnightWib)).toBe('2026-09-10');
+    const beforeMidnightWib = new Date('2026-09-09T16:59:00.000Z'); // 23:59 WIB 9 Sep
+    expect(businessDateInTimeZone(beforeMidnightWib)).toBe('2026-09-09');
+    expect(clockHmInTimeZone(beforeMidnightWib)).toBe('23:59');
   });
 });

@@ -31,8 +31,23 @@ echo "Ensure Humanify Midtrans — $ENV_FILE"
 if [ -n "${MIDTRANS_SERVER_KEY:-}" ]; then
   set_var "MIDTRANS_SERVER_KEY" "$MIDTRANS_SERVER_KEY"
   set_var "MIDTRANS_CLIENT_KEY" "${MIDTRANS_CLIENT_KEY:-}"
-  set_var "MIDTRANS_IS_PRODUCTION" "${MIDTRANS_IS_PRODUCTION:-false}"
-  echo "  ✓ Midtrans keys written"
+  inferred=false
+  case "${MIDTRANS_SERVER_KEY}" in
+    SB-*|SB_*) inferred=false ;;
+    Mid-server-*) inferred=true ;;
+  esac
+  if [ -n "${MIDTRANS_IS_PRODUCTION:-}" ]; then
+    set_var "MIDTRANS_IS_PRODUCTION" "$MIDTRANS_IS_PRODUCTION"
+  else
+    set_var "MIDTRANS_IS_PRODUCTION" "$inferred"
+  fi
+  set_var "MIDTRANS_SNAP_URL" "${MIDTRANS_SNAP_URL:-}"
+  set_var "MIDTRANS_IRIS_KEY_DEV" "${MIDTRANS_IRIS_KEY_DEV:-}"
+  set_var "MIDTRANS_IRIS_KEY_PROD" "${MIDTRANS_IRIS_KEY_PROD:-}"
+  set_var "MIDTRANS_IRIS_API_KEY" "${MIDTRANS_IRIS_API_KEY:-${MIDTRANS_IRIS_KEY_PROD:-${MIDTRANS_IRIS_KEY_DEV:-}}}"
+  set_var "MIDTRANS_IRIS_MERCHANT_KEY_DEV" "${MIDTRANS_IRIS_MERCHANT_KEY_DEV:-}"
+  set_var "MIDTRANS_IRIS_MERCHANT_KEY_PROD" "${MIDTRANS_IRIS_MERCHANT_KEY_PROD:-}"
+  echo "  ✓ Midtrans keys written (production inferred=$inferred)"
 else
   existing="$(grep '^MIDTRANS_SERVER_KEY=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- || true)"
   if [ -n "$existing" ]; then

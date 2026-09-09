@@ -8,6 +8,7 @@ export const LETTER_MERGE_FIELDS = [
   { key: 'position', label: 'Jabatan', aliases: ['jabatan'] },
   { key: 'department', label: 'Departemen', aliases: ['dept'] },
   { key: 'company_name', label: 'Nama perusahaan', aliases: ['companyName', 'perusahaan'] },
+  { key: 'company_address', label: 'Alamat perusahaan', aliases: ['companyAddress'] },
   { key: 'letter_number', label: 'Nomor surat', aliases: ['letterNumber', 'documentNumber'] },
   { key: 'letter_date', label: 'Tanggal surat', aliases: ['letterDate', 'documentDate', 'today'] },
   { key: 'incident_date', label: 'Tanggal kejadian', aliases: ['incidentDate'] },
@@ -15,6 +16,14 @@ export const LETTER_MERGE_FIELDS = [
   { key: 'violation_type', label: 'Jenis pelanggaran', aliases: ['violationType', 'violationTypeLabel'] },
   { key: 'violation_description', label: 'Uraian pelanggaran', aliases: ['violationDescription'] },
   { key: 'effective_date', label: 'Tanggal efektif', aliases: ['effectiveDate'] },
+  { key: 'join_date', label: 'Tanggal bergabung', aliases: ['joinDate', 'start_date', 'startDate'] },
+  { key: 'end_date', label: 'Tanggal berakhir', aliases: ['endDate', 'end_date'] },
+  { key: 'contract_type', label: 'Jenis kontrak', aliases: ['contractType'] },
+  { key: 'salary', label: 'Gaji pokok', aliases: ['gaji', 'basicSalary'] },
+  { key: 'employee_address', label: 'Alamat karyawan', aliases: ['employeeAddress', 'address'] },
+  { key: 'kpi_period', label: 'Periode KPI', aliases: ['kpiPeriod', 'period'] },
+  { key: 'kpi_score', label: 'Skor KPI', aliases: ['kpiScore', 'score'] },
+  { key: 'warning_type', label: 'Jenis SP (SP1/SP2/SP3)', aliases: ['warningType', 'letter_type'] },
 ] as const;
 
 export type LetterMergeContext = Record<string, string | number | null | undefined>;
@@ -36,6 +45,7 @@ export function buildMergeContext(parts: {
     position: str(ld.position || emp.position),
     department: str(ld.department || emp.department),
     company_name: str(parts.companyName || meta.companyName || process.env.HUMANIFY_COMPANY_NAME || 'Perusahaan'),
+    company_address: str(ld.companyAddress || meta.companyAddress || ld.company_address),
     letter_number: str(meta.documentNumber || ld.letter_number || meta.letterNumber),
     letter_date: str(meta.documentDate || ld.letter_date || today),
     incident_date: str(ld.incidentDate || ld.incident_date),
@@ -43,6 +53,14 @@ export function buildMergeContext(parts: {
     violation_type: str(ld.violationTypeLabel || ld.violationType || ld.violation_type),
     violation_description: str(ld.violationDescription || ld.violation_description),
     effective_date: str(ld.effectiveDate || ld.effective_date),
+    join_date: str(ld.joinDate || ld.startDate || emp.join_date || emp.start_date),
+    end_date: str(ld.endDate || ld.end_date || emp.end_date),
+    contract_type: str(ld.contractType || ld.contract_type || emp.contract_type),
+    salary: str(ld.salary || ld.basicSalary || emp.salary),
+    employee_address: str(ld.employeeAddress || emp.address || emp.employee_address),
+    kpi_period: str(ld.kpiPeriod || ld.period || meta.period),
+    kpi_score: str(ld.kpiScore || ld.score),
+    warning_type: str(ld.warningType || ld.letter_type || ld.letterType),
   };
 }
 

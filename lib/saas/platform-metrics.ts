@@ -6,6 +6,7 @@ import {
   normalizeHumanifyPlan,
   type HumanifyPlanId,
 } from './plan-entitlements';
+import { quoteSeatSubscription } from './seat-pricing-core';
 import { QA_TENANT_SLUG_REGEX } from './partners';
 
 let sequelize: any;
@@ -61,7 +62,8 @@ export function estimateMrrFromTenants(rows: TenantMetricRow[]): {
     if (plan === 'trial' || status === 'trial') trialTenants += 1;
 
     if (isPayingTenant(row)) {
-      const price = HUMANIFY_PLANS[plan].priceMonthlyIdr;
+      const seats = Math.max(1, Number(row.employee_count) || 1);
+      const price = quoteSeatSubscription({ seats, interval: 'monthly' }).monthlyIdr;
       mrrIdr += price;
       bucket.mrrIdr += price;
       payingTenants += 1;

@@ -11,6 +11,22 @@ test('humanify login is labeled and keyboard reachable', async ({ page }) => {
   await expect(password).toBeVisible();
   await email.focus();
   await expect(email).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(password).toBeFocused();
+  const submit = page.getByRole('button', { name: /masuk|login|sign in/i }).first();
+  await expect(submit).toBeVisible();
+});
+
+test('employee login is labeled and keyboard reachable', async ({ page }) => {
+  await page.goto('/employee/login');
+  const email = page.getByLabel(/email/i).first();
+  const password = page.getByLabel(/password|kata sandi/i).first();
+  await expect(email).toBeVisible();
+  await expect(password).toBeVisible();
+  await email.focus();
+  await expect(email).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(password).toBeFocused();
   const submit = page.getByRole('button', { name: /masuk|login|sign in/i }).first();
   await expect(submit).toBeVisible();
 });

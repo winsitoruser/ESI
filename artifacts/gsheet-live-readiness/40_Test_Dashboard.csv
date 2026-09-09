@@ -1,0 +1,44 @@
+Humanify — QA & Release Readiness Dashboard,,,
+,,,
+Metric,Value,,
+Total Master Test Cases,749,,
+Passed,0,,
+Failed,0,,
+Blocked,0,,
+In Progress,0,,
+Not Started,749,,
+P0 Total,254,,
+P0 Failed/Blocked,0,,
+Release Gate Total,254,,
+Release Gate Passed,0,,
+UAT P0 Failed/Blocked,0,,
+Security P0 Failed/Blocked,0,,
+Performance P0 Failed/Blocked,0,,
+Go/No-Go Recommendation,HOLD — WAVE-9 draft 9 Sep 2026; 749 HT-* Not Started ≠ fail; use WQ backbone overlay,,
+,,,
+WQ backbone overlay (85 tasks — not 749 HT),,,
+Metric,Value,,
+WQ Pass / Pass*,see launch-work-queue.csv,,
+WQ HOLD written,WQ-123 2026-09-09,,
+P0 GO blockers remaining,"WQ-010 Midtrans VPS; WQ-032 rollback; WQ-087 SLO; WQ-090-094 UAT SME; WQ-006 on-call",,
+Certification packet,docs/humanify-wave9-release-certification.md,,
+Known issues draft,docs/humanify-launch-known-issues.md,,
+Tab 42 overlay,42_Release_Certification.csv,,
+WAVE-8 evidence,run-wave8-20260909T013500Z/SUMMARY.txt,,
+,,,
+Readiness by Test Domain / Product Area,,,
+Domain / Area,Total,Passed,Failed + Blocked
+System Readiness,35,0,0
+Security,31,0,0
+Performance,49,0,0
+Release Smoke,35,0,0
+Compatibility,70,0,0
+Accessibility,8,0,0
+Data / Resilience / DR,24,0,0
+GTM Readiness,15,0,0
+Payroll,25,0,0
+Attendance,29,0,0
+Billing,15,0,0
+ESS,19,0,0
+MSS,18,0,0
+Platform Ops,28,0,0

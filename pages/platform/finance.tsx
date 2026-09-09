@@ -18,6 +18,7 @@ type Tx = {
   amountIdr: number;
   status: string;
   provider: string | null;
+  paymentType: string | null;
   paidAt: string | null;
   createdAt: string | null;
 };
@@ -150,7 +151,16 @@ export default function PlatformFinancePage() {
                 ) : <span className="text-sm text-slate-400">—</span>,
               },
               { id: 'plan', header: 'Paket', cell: (r) => <span className="text-xs">{r.plan || '—'}</span> },
-              { id: 'amount', header: 'Nominal', cell: (r) => <span className="text-xs tabular-nums">{idr(r.amountIdr)}</span> },
+              {
+                id: 'amount',
+                header: 'Nominal',
+                cell: (r) => <span className="text-xs tabular-nums">{idr(r.amountIdr)}</span>,
+              },
+              {
+                id: 'method',
+                header: 'Metode',
+                cell: (r) => <span className="text-[11px] text-slate-500">{r.paymentType || r.provider || '—'}</span>,
+              },
               {
                 id: 'status',
                 header: 'Status',
@@ -172,6 +182,28 @@ export default function PlatformFinancePage() {
                     className="text-xs font-medium text-red-700 hover:underline"
                   >
                     Refund
+                  </button>
+                ) : r.status === 'pending' ? (
+                  <button
+                    type="button"
+                    disabled={!!acting}
+                    onClick={async () => {
+                      setActing(r.id);
+                      try {
+                        const res = await fetch('/api/platform?action=billing-sync-midtrans', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ orderCode: r.orderCode || r.id }),
+                        }).then((x) => x.json());
+                        setToast(res.message || (res.success ? 'Disinkronkan' : res.error));
+                        if (res.success) await load();
+                      } finally {
+                        setActing(null);
+                      }
+                    }}
+                    className="text-xs font-medium text-[color:var(--hf-brand-600)] hover:underline"
+                  >
+                    Sync Midtrans
                   </button>
                 ) : null,
               },

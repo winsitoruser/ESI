@@ -124,6 +124,10 @@ export async function executeAgentTool(
   const def = AIMAN_AGENT_TOOLS.find((t) => t.name === name);
   if (!def) return { ok: false, summary: 'Tool tidak dikenal', error: 'UNKNOWN_TOOL' };
 
+  if (!tenantId) {
+    return { ok: false, summary: 'AIMAN membutuhkan tenant aktif.', error: 'NO_TENANT' };
+  }
+
   if (def.kind === 'write' && !opts?.confirm) {
     return {
       ok: false,
@@ -190,7 +194,7 @@ async function toolPayrollPrep(tenantId: string | null): Promise<AgentToolResult
 
   const activeEmp = await safeQuery(
     `SELECT COUNT(*)::int AS c FROM employees
-     WHERE is_active = true AND (tenant_id IS NOT DISTINCT FROM :tid OR :tid IS NULL)`,
+     WHERE is_active = true AND tenant_id IS NOT DISTINCT FROM :tid`,
     { tid },
   );
   const noSalary = await safeQuery(
@@ -198,7 +202,7 @@ async function toolPayrollPrep(tenantId: string | null): Promise<AgentToolResult
      FROM employees e
      LEFT JOIN employee_salaries es ON es.employee_id = e.id AND es.is_active = true
      WHERE e.is_active = true
-       AND (e.tenant_id IS NOT DISTINCT FROM :tid OR :tid IS NULL)
+       AND e.tenant_id IS NOT DISTINCT FROM :tid
        AND es.id IS NULL
      ORDER BY e.full_name NULLS LAST
      LIMIT 15`,
@@ -208,7 +212,7 @@ async function toolPayrollPrep(tenantId: string | null): Promise<AgentToolResult
     `SELECT id, period, status, created_at
      FROM payroll_runs
      WHERE status IN ('draft', 'calculated', 'pending_approval', 'approved')
-       AND (tenant_id IS NOT DISTINCT FROM :tid OR :tid IS NULL)
+       AND tenant_id IS NOT DISTINCT FROM :tid
      ORDER BY created_at DESC
      LIMIT 5`,
     { tid },
@@ -218,7 +222,7 @@ async function toolPayrollPrep(tenantId: string | null): Promise<AgentToolResult
             COUNT(*)::int AS total
      FROM employee_attendance
      WHERE TO_CHAR(date, 'YYYY-MM') = :period
-       AND (tenant_id IS NOT DISTINCT FROM :tid OR :tid IS NULL)`,
+       AND tenant_id IS NOT DISTINCT FROM :tid`,
     { period, tid },
   );
 
@@ -272,7 +276,7 @@ async function toolRecruitmentPreview(tenantId: string | null): Promise<AgentToo
             source, rating, notes, current_stage
      FROM hris_candidates
      WHERE current_stage = 'applied'
-       AND (tenant_id IS NOT DISTINCT FROM :tid OR tenant_id IS NULL OR :tid IS NULL)
+       AND tenant_id IS NOT DISTINCT FROM :tid
      ORDER BY created_at DESC
      LIMIT 50`,
     { tid: tenantId },
@@ -324,17 +328,17 @@ async function toolRecruitmentPreview(tenantId: string | null): Promise<AgentToo
 async function toolHrBacklog(tenantId: string | null): Promise<AgentToolResult> {
   const leave = await safeQuery(
     `SELECT COUNT(*)::int AS c FROM leave_requests
-     WHERE status = 'pending' AND (tenant_id IS NOT DISTINCT FROM :tid OR :tid IS NULL)`,
+     WHERE status = 'pending' AND tenant_id IS NOT DISTINCT FROM :tid`,
     { tid: tenantId },
   );
   const claims = await safeQuery(
     `SELECT COUNT(*)::int AS c FROM employee_claims
-     WHERE status = 'pending' AND (tenant_id IS NOT DISTINCT FROM :tid OR :tid IS NULL)`,
+     WHERE status = 'pending' AND tenant_id IS NOT DISTINCT FROM :tid`,
     { tid: tenantId },
   );
   const ot = await safeQuery(
     `SELECT COUNT(*)::int AS c FROM overtime_requests
-     WHERE status = 'pending' AND (tenant_id IS NOT DISTINCT FROM :tid OR :tid IS NULL)`,
+     WHERE status = 'pending' AND tenant_id IS NOT DISTINCT FROM :tid`,
     { tid: tenantId },
   );
 
@@ -356,7 +360,7 @@ async function toolLeavePendingDetail(tenantId: string | null): Promise<AgentToo
      FROM leave_requests lr
      LEFT JOIN employees e ON e.id = lr.employee_id
      WHERE lr.status = 'pending'
-       AND (lr.tenant_id IS NOT DISTINCT FROM :tid OR :tid IS NULL)
+       AND lr.tenant_id IS NOT DISTINCT FROM :tid
      ORDER BY lr.created_at ASC NULLS LAST
      LIMIT 12`,
     { tid: tenantId },
@@ -390,7 +394,7 @@ async function toolContractExpiry(tenantId: string | null): Promise<AgentToolRes
      WHERE c.status = 'active'
        AND c.end_date IS NOT NULL
        AND c.end_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days'
-       AND (c.tenant_id IS NOT DISTINCT FROM :tid OR :tid IS NULL)
+       AND c.tenant_id IS NOT DISTINCT FROM :tid
      ORDER BY c.end_date ASC
      LIMIT 15`,
     { tid: tenantId },
@@ -419,7 +423,7 @@ async function toolOnboardingStatus(tenantId: string | null): Promise<AgentToolR
     `SELECT id, employee_name, employee_uid, position, department, status, join_date::text, tasks
      FROM employee_onboarding_processes
      WHERE status IN ('in_progress','pending','active')
-       AND (tenant_id IS NOT DISTINCT FROM :tid OR :tid IS NULL)
+       AND tenant_id IS NOT DISTINCT FROM :tid
      ORDER BY join_date DESC NULLS LAST, created_at DESC NULLS LAST
      LIMIT 10`,
     { tid: tenantId },

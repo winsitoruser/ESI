@@ -132,7 +132,25 @@ async function handleGenerate(req: NextApiRequest, res: NextApiResponse, session
   }
 
   // Build company info from session/tenant
-  const companyInfo = await getCompanyInfoFromSession(session);
+  let companyInfo = await getCompanyInfoFromSession(session);
+  const tenantId = session.user.tenantId || '';
+  let docData = data || {};
+  if (tenantId) {
+    try {
+      const { hydrateDocumentFromTemplate } = await import('@/lib/hris/document-templates');
+      const hydrated = await hydrateDocumentFromTemplate({
+        tenantId,
+        docType: String(type),
+        data: docData,
+        company: companyInfo,
+        meta,
+      });
+      companyInfo = { ...companyInfo, ...hydrated.company };
+      docData = hydrated.data;
+    } catch (e) {
+      console.warn('[documents] template hydrate skipped', (e as Error)?.message);
+    }
+  }
   const branchInfo = meta?.branchId ? await getBranchInfo(meta.branchId) : undefined;
 
   // Build document meta
@@ -154,7 +172,7 @@ async function handleGenerate(req: NextApiRequest, res: NextApiResponse, session
   const request: DocumentRequest = {
     type: type as DocumentType,
     format: format as DocumentFormat,
-    data: data || {},
+    data: docData,
     company: companyInfo,
     branch: branchInfo,
     meta: documentMeta,
@@ -204,7 +222,25 @@ async function handlePreview(req: NextApiRequest, res: NextApiResponse, session:
 
   const { type, data, meta, options } = req.body;
 
-  const companyInfo = await getCompanyInfoFromSession(session);
+  let companyInfo = await getCompanyInfoFromSession(session);
+  const tenantId = session.user.tenantId || '';
+  let docData = data || {};
+  if (tenantId) {
+    try {
+      const { hydrateDocumentFromTemplate } = await import('@/lib/hris/document-templates');
+      const hydrated = await hydrateDocumentFromTemplate({
+        tenantId,
+        docType: String(type),
+        data: docData,
+        company: companyInfo,
+        meta,
+      });
+      companyInfo = { ...companyInfo, ...hydrated.company };
+      docData = hydrated.data;
+    } catch (e) {
+      console.warn('[documents] template hydrate skipped', (e as Error)?.message);
+    }
+  }
   const branchInfo = meta?.branchId ? await getBranchInfo(meta.branchId) : undefined;
 
   const documentMeta: DocumentMeta = {
@@ -221,7 +257,7 @@ async function handlePreview(req: NextApiRequest, res: NextApiResponse, session:
   const request: DocumentRequest = {
     type: type as DocumentType,
     format: 'html',
-    data: data || {},
+    data: docData,
     company: companyInfo,
     branch: branchInfo,
     meta: documentMeta,
@@ -260,6 +296,7 @@ function getPrefix(type: DocumentType): string {
     'employment-contract': 'KTK', 'attendance-report': 'ATT', 'leave-report': 'LVE',
     'kpi-report': 'KPI', 'travel-expense-claim': 'TEC', 'mutation-letter': 'MUT',
     'reference-letter': 'REF', 'employee-certificate': 'SKK',
+    'paklaring': 'PKL', 'offer-letter': 'OFR', 'nda': 'NDA',
     'purchase-order': 'PO', 'goods-receipt': 'GRN', 'delivery-note': 'SJ',
     'stock-transfer': 'STR', 'stock-opname-report': 'SOP', 'stock-card': 'SKR', 'stock-valuation': 'SVL',
     'quotation': 'QUO', 'sales-order': 'SO', 'sales-report': 'SLS', 'customer-statement': 'CST',
@@ -289,6 +326,11 @@ async function getCompanyInfoFromSession(session: any): Promise<CompanyInfo> {
       ) as any[];
 
       if (tenant) {
+        let logo = '';
+        try {
+          const { getTenantBranding } = await import('@/lib/saas/humanify-branding');
+          logo = (await getTenantBranding(tenantId)).logoUrl;
+        } catch { /* ignore */ }
         return {
           name: tenant.business_name || tenant.name || 'Bedagang',
           address: tenant.address || '-',
@@ -299,6 +341,7 @@ async function getCompanyInfoFromSession(session: any): Promise<CompanyInfo> {
           website: tenant.website || '',
           taxId: tenant.tax_id || '',
           businessCode: tenant.business_code || '',
+          logo,
         };
       }
     }

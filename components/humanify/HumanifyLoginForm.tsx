@@ -270,6 +270,12 @@ export default function HumanifyLoginForm({
             <div className="absolute -bottom-16 -left-16 w-40 h-40 bg-fuchsia-400/10 rounded-full blur-3xl pointer-events-none" />
 
             <div className="relative p-8 sm:p-10">
+              <a
+                href="#humanify-login-email"
+                className="sr-only focus:not-sr-only focus:absolute focus:z-20 focus:left-4 focus:top-4 focus:rounded-lg focus:bg-white focus:px-3 focus:py-2 focus:text-sm focus:text-slate-900"
+              >
+                Lompat ke formulir masuk
+              </a>
               <div className="mb-8">
                 <h2 className="text-2xl font-bold tracking-tight">Selamat datang</h2>
                 <p className="text-violet-300/60 text-sm mt-1.5">
@@ -367,10 +373,11 @@ export default function HumanifyLoginForm({
 
                 {mfaRequired && (
                   <div>
-                    <label className="block text-sm font-medium text-violet-200/80 mb-2">Kode 2FA</label>
+                    <label htmlFor="humanify-login-totp" className="block text-sm font-medium text-violet-200/80 mb-2">Kode 2FA</label>
                     <div className="relative group">
                       <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-violet-400/50 group-focus-within:text-violet-300 transition-colors" />
                       <input
+                        id="humanify-login-totp"
                         type="text"
                         name="totp"
                         inputMode="numeric"

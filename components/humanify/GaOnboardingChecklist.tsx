@@ -17,6 +17,8 @@ import {
   type FirstRunManual,
   type FirstRunStepId,
 } from '@/lib/humanify/first-run';
+import { emptyMonthPresence, type MonthPresenceMix } from '@/lib/hris/month-presence';
+import MonthPresencePie from '@/components/humanify/MonthPresencePie';
 
 const ICONS: Record<FirstRunStepId, typeof Users> = {
   import: Users,
@@ -41,6 +43,7 @@ export default function GaOnboardingChecklist() {
     essVisited: false,
   });
   const [ready, setReady] = useState(false);
+  const [monthPresence, setMonthPresence] = useState<MonthPresenceMix>(() => emptyMonthPresence());
 
   const loadLive = useCallback(async (tid: string | null) => {
     let employeeCount = 0;
@@ -55,9 +58,12 @@ export default function GaOnboardingChecklist() {
         const dash = await dashRes.json();
         if (dash.success) {
           employeeCount = Number(dash.stats?.active || dash.stats?.total || 0);
-          const dc = dash.docCompliance;
+          const dc = dash.documentCompliance || dash.docCompliance;
           if (dc && Number(dc.activeEmployees || 0) > 0) {
             docsComplete = Number(dc.incomplete || 0) === 0 && Number(dc.complete || 0) > 0;
+          }
+          if (dash.monthPresence?.buckets) {
+            setMonthPresence(dash.monthPresence);
           }
         }
       }
@@ -150,6 +156,11 @@ export default function GaOnboardingChecklist() {
   };
 
   if (!ready) return null;
+
+  const checklistComplete = completed === FIRST_RUN_STEPS.length;
+  if (checklistComplete) {
+    return <MonthPresencePie mix={monthPresence} />;
+  }
 
   return (
     <div

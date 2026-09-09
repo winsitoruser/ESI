@@ -3,6 +3,10 @@ import {
   computeMidtransSignature,
   buildHumanifySnapPayload,
   SNAP_ENABLED_PAYMENTS,
+  midtransIsProduction,
+  snapCreateUrl,
+  getIrisPublicConfig,
+  getMidtransPublicConfig,
 } from '@/lib/saas/midtrans';
 import { computeVoucherDiscount } from '@/lib/saas/billing-vouchers';
 
@@ -58,5 +62,41 @@ describe('Midtrans Snap billing helpers', () => {
     const r = computeVoucherDiscount(voucher, 1_499_000, 'growth');
     expect(r.ok).toBe(true);
     expect(r.discountIdr).toBe(100_000);
+  });
+
+  it('infers live Midtrans from Mid-server- prefix even if flag is unset', () => {
+    const prevKey = process.env.MIDTRANS_SERVER_KEY;
+    const prevFlag = process.env.MIDTRANS_IS_PRODUCTION;
+    const prevSnap = process.env.MIDTRANS_SNAP_URL;
+    process.env.MIDTRANS_SERVER_KEY = 'Mid-server-examplekey';
+    delete process.env.MIDTRANS_IS_PRODUCTION;
+    delete process.env.MIDTRANS_SNAP_URL;
+    expect(midtransIsProduction()).toBe(true);
+    expect(snapCreateUrl()).toBe('https://app.midtrans.com/snap/v1/transactions');
+    process.env.MIDTRANS_SERVER_KEY = 'SB-Mid-server-examplekey';
+    process.env.MIDTRANS_IS_PRODUCTION = 'true';
+    expect(midtransIsProduction()).toBe(false);
+    expect(snapCreateUrl()).toBe('https://app.sandbox.midtrans.com/snap/v1/transactions');
+    process.env.MIDTRANS_SNAP_URL = 'https://app.midtrans.com/snap/v1/transactions';
+    expect(snapCreateUrl()).toBe('https://app.midtrans.com/snap/v1/transactions');
+    if (prevKey === undefined) delete process.env.MIDTRANS_SERVER_KEY;
+    else process.env.MIDTRANS_SERVER_KEY = prevKey;
+    if (prevFlag === undefined) delete process.env.MIDTRANS_IS_PRODUCTION;
+    else process.env.MIDTRANS_IS_PRODUCTION = prevFlag;
+    if (prevSnap === undefined) delete process.env.MIDTRANS_SNAP_URL;
+    else process.env.MIDTRANS_SNAP_URL = prevSnap;
+  });
+
+  it('exposes Iris readiness without leaking secrets', () => {
+    const prev = process.env.MIDTRANS_IRIS_KEY_PROD;
+    process.env.MIDTRANS_SERVER_KEY = 'Mid-server-examplekey';
+    process.env.MIDTRANS_IRIS_KEY_PROD = 'IRIS-secret-should-not-leak';
+    const iris = getIrisPublicConfig();
+    const pub = getMidtransPublicConfig();
+    expect(iris.configured).toBe(true);
+    expect(JSON.stringify(iris)).not.toContain('IRIS-secret-should-not-leak');
+    expect(JSON.stringify(pub.iris)).not.toContain('IRIS-secret-should-not-leak');
+    if (prev === undefined) delete process.env.MIDTRANS_IRIS_KEY_PROD;
+    else process.env.MIDTRANS_IRIS_KEY_PROD = prev;
   });
 });

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
@@ -19,6 +19,7 @@ import {
   SETUP_LAUNCH_DASHBOARD_HREF,
   POST_LAUNCH_ACTIONS,
   industryLabel,
+  humanifyLoginHref,
 } from '@/lib/saas/company-onboarding-flow';
 
 const WIZARD_DEPARTMENTS = [
@@ -52,7 +53,7 @@ const selectClass =
 
 export default function SaasSetupWizard() {
   const router = useRouter();
-  const { data: session, status, update } = useSession();
+  const { data: session, update } = useSession();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [launching, setLaunching] = useState(false);
@@ -87,71 +88,114 @@ export default function SaasSetupWizard() {
     department: 'HR',
   });
   const [isAdditionalCompany, setIsAdditionalCompany] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
   const fromNewCompany = router.query.from === 'new-company';
+  const pendingCompanyId = typeof router.query.companyId === 'string' ? router.query.companyId : '';
   const additionalFlow = isAdditionalCompany || fromNewCompany;
+  const loadGen = useRef(0);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/humanify/saas-onboarding');
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error);
-      const d = json.data;
-      if (d.completed) {
-        try { await update({ setupCompleted: true }); } catch { /* */ }
-        router.replace(HUMANIFY_BRAND.appPath);
-        return;
-      }
-      setStep(d.step || 1);
-      setTenant(d.tenant);
-      setCareersUrl(d.tenant?.careersUrl || null);
+  const onboardingUrl = pendingCompanyId
+    ? `/api/humanify/saas-onboarding?companyId=${encodeURIComponent(pendingCompanyId)}`
+    : '/api/humanify/saas-onboarding';
+
+  useEffect(() => {
+    if (!router.isReady) return;
+
+    const gen = ++loadGen.current;
+    const ac = new AbortController();
+    let cancelled = false;
+    const timer = window.setTimeout(() => ac.abort(), 10000);
+
+    (async () => {
+      setLoading(true);
+      setLoadError(null);
       try {
-        const listRes = await fetch('/api/humanify/companies');
-        const listJson = await listRes.json();
-        const count = Array.isArray(listJson?.data?.companies) ? listJson.data.companies.length : 0;
-        setIsAdditionalCompany(count > 1);
-      } catch {
-        setIsAdditionalCompany(false);
+        const fetchOnboarding = () => fetch(onboardingUrl, { credentials: 'include', signal: ac.signal });
+        let res = await fetchOnboarding();
+        if (res.status === 401) {
+          await new Promise((resolve) => window.setTimeout(resolve, 500));
+          if (cancelled || gen !== loadGen.current) return;
+          res = await fetchOnboarding();
+        }
+        if (res.status === 401) {
+          const dest = `${window.location.pathname}${window.location.search}`;
+          window.location.replace(humanifyLoginHref(dest));
+          return;
+        }
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || 'Gagal memuat setup');
+        const d = json.data;
+        const loadedId = String(d?.tenant?.id || '');
+        if (cancelled || gen !== loadGen.current) return;
+
+        if (pendingCompanyId && loadedId && pendingCompanyId !== loadedId) {
+          setLoadError('Setup membuka perusahaan yang berbeda. Muat ulang halaman ini.');
+          return;
+        }
+
+        if (d.completed && !fromNewCompany) {
+          window.location.replace(HUMANIFY_BRAND.appPath);
+          return;
+        }
+
+        setStep(d.step || 1);
+        setTenant(d.tenant);
+        setCareersUrl(d.tenant?.careersUrl || null);
+        try {
+          const listRes = await fetch('/api/humanify/companies', { credentials: 'include', signal: ac.signal });
+          const listJson = await listRes.json();
+          const count = Array.isArray(listJson?.data?.companies) ? listJson.data.companies.length : 0;
+          setIsAdditionalCompany(count > 1);
+        } catch {
+          setIsAdditionalCompany(Boolean(pendingCompanyId));
+        }
+        if (d.saasOnboarding?.company) setCompany((c) => ({ ...c, ...d.saasOnboarding.company }));
+        if (d.saasOnboarding?.organization?.departments) {
+          setDepartments(
+            (d.saasOnboarding.organization.departments as string[]).map((x) => resolveDepartmentOption(x).code),
+          );
+        }
+        if (d.saasOnboarding?.policies) {
+          setPolicies((p) => ({ ...p, ...d.saasOnboarding.policies }));
+        }
+        if (d.saasOnboarding?.employee) {
+          const emp = d.saasOnboarding.employee;
+          setFirstEmployee((e) => ({
+            ...e,
+            ...emp,
+            department: resolveDepartmentOption(String(emp.department || e.department)).code,
+          }));
+        }
+      } catch (e: any) {
+        if (cancelled || gen !== loadGen.current) return;
+        if (e?.name === 'AbortError') {
+          setLoadError('Memuat setup terlalu lama. Periksa koneksi, lalu coba lagi.');
+        } else {
+          const message = e.message || 'Gagal memuat setup';
+          setLoadError(message);
+          toast.error(message);
+        }
+      } finally {
+        window.clearTimeout(timer);
+        if (!cancelled && gen === loadGen.current) setLoading(false);
       }
-      if (d.saasOnboarding?.company) setCompany((c) => ({ ...c, ...d.saasOnboarding.company }));
-      if (d.saasOnboarding?.organization?.departments) {
-        setDepartments(
-          (d.saasOnboarding.organization.departments as string[]).map((x) => resolveDepartmentOption(x).code),
-        );
-      }
-      if (d.saasOnboarding?.policies) {
-        setPolicies((p) => ({ ...p, ...d.saasOnboarding.policies }));
-      }
-      if (d.saasOnboarding?.employee) {
-        const emp = d.saasOnboarding.employee;
-        setFirstEmployee((e) => ({
-          ...e,
-          ...emp,
-          department: resolveDepartmentOption(String(emp.department || e.department)).code,
-        }));
-      }
-    } catch (e: any) {
-      toast.error(e.message || 'Gagal memuat setup');
-    } finally {
-      setLoading(false);
-    }
-  }, [router]);
+    })();
+
+    return () => {
+      cancelled = true;
+      ac.abort();
+      window.clearTimeout(timer);
+    };
+  }, [router.isReady, pendingCompanyId, fromNewCompany, retryNonce, onboardingUrl]);
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.replace(`${HUMANIFY_BRAND.loginPath}?callbackUrl=/humanify/setup`);
-      return;
-    }
-    if (status === 'authenticated') load();
-  }, [status, load, router]);
-
-  useEffect(() => {
-    if (status !== 'authenticated' || step !== 1) return;
+    if (loading || step !== 1) return;
     let cancelled = false;
     (async () => {
       setWilayahLoading(true);
       try {
-        const res = await fetch('/api/humanify/wilayah?level=provinces');
+        const res = await fetch('/api/humanify/wilayah?level=provinces', { credentials: 'include' });
         const json = await res.json();
         if (!json.success) throw new Error(json.error);
         if (!cancelled) setProvinces(json.data || []);
@@ -162,11 +206,11 @@ export default function SaasSetupWizard() {
       }
     })();
     return () => { cancelled = true; };
-  }, [status, step]);
+  }, [loading, step]);
 
   useEffect(() => {
     const code = company.provinceCode;
-    if (!code || status !== 'authenticated') {
+    if (!code) {
       setRegencies([]);
       return;
     }
@@ -188,7 +232,7 @@ export default function SaasSetupWizard() {
       }
     })();
     return () => { cancelled = true; };
-  }, [company.provinceCode, status]);
+  }, [company.provinceCode]);
 
   // Resolve province/city codes from saved names (legacy free-text) once lists load
   useEffect(() => {
@@ -233,7 +277,12 @@ export default function SaasSetupWizard() {
       const res = await fetch('/api/humanify/saas-onboarding', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'save', step: stepKey, data }),
+        body: JSON.stringify({
+          action: 'save',
+          step: stepKey,
+          data,
+          ...(pendingCompanyId ? { companyId: pendingCompanyId } : {}),
+        }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
@@ -257,11 +306,16 @@ export default function SaasSetupWizard() {
       const res = await fetch('/api/humanify/saas-onboarding', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'complete' }),
+        body: JSON.stringify({
+          action: 'complete',
+          ...(pendingCompanyId ? { companyId: pendingCompanyId } : {}),
+        }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
-      try { await update({ setupCompleted: true }); } catch { /* session refresh optional */ }
+      const patch: Record<string, unknown> = { setupCompleted: true };
+      if (pendingCompanyId) patch.switchCompanyId = pendingCompanyId;
+      try { await update(patch); } catch { /* session refresh optional */ }
       // Soft delay so brand loader finishes a beat before hard navigation
       await new Promise((r) => setTimeout(r, 900));
       window.location.href = additionalFlow ? NEW_COMPANY_DASHBOARD_HREF : SETUP_LAUNCH_DASHBOARD_HREF;
@@ -285,8 +339,47 @@ export default function SaasSetupWizard() {
     }));
   }
 
-  if (status === 'loading' || loading) {
+  if (loading && !loadError) {
     return <HumanifyBrandLoader variant="boot" />;
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-violet-50">
+        <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur sticky top-0 z-10">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-3 min-w-0">
+            <HumanifyLogo size="sm" variant="withText" />
+            <span className="text-xs text-slate-500 truncate max-w-[50%]">{session?.user?.email}</span>
+          </div>
+        </header>
+        <main className="max-w-lg mx-auto px-4 sm:px-6 py-16">
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h1 className="text-lg font-semibold text-slate-900">Setup belum bisa dibuka</h1>
+            <p className="mt-2 text-sm text-slate-600">{loadError}</p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setLoadError(null);
+                  setLoading(true);
+                  setRetryNonce((n) => n + 1);
+                }}
+                className="inline-flex items-center px-4 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700"
+              >
+                Coba lagi
+              </button>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="inline-flex items-center px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 border border-slate-200"
+              >
+                Muat ulang halaman
+              </button>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
   }
 
   if (launching) {

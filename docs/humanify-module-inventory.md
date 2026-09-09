@@ -1,9 +1,9 @@
 # Humanify — Inventaris modul, halaman, fungsi, dan komponen
 
 **Produk:** Humanify HRIS SaaS (`humanify.id`)  
-**Cutoff kode:** 8 September 2026  
+**Cutoff kode:** 9 September 2026  
 
-**Ekspor:** [Excel](./humanify-module-inventory.xlsx) · [PDF](./pdf/humanify-module-inventory.pdf) — `npm run docs:humanify-inventory` 
+**Ekspor:** [Excel](./humanify-module-inventory.xlsx) — `npm run docs:humanify-inventory` (scan kode: halaman, API, form, komponen, akses). PDF naratif: `node scripts/export-humanify-module-inventory.mjs` 
 **Sumber kanonik UI:** `config/humanify-sidebar.config.ts` · `pages/humanify/index.tsx` · `components/humanify/PlatformOpsNav.tsx`  
 **Bukan SIMESI / ESI ERP.**
 
@@ -11,26 +11,31 @@ Dokumen ini menginventarisir permukaan produk yang ada di kode. Status mengikuti
 
 ## Ringkasan kuantitas
 
-| Permukaan | Jumlah file halaman | Catatan |
+Scan kode 9 September 2026 (`npm run docs:humanify-inventory` → Excel 15 sheet).
+
+| Permukaan | Jumlah | Catatan |
 |---|---|---|
-| HQ tenant `/humanify/*` | 100 | Termasuk auth, LMS lanjut, alias |
+| Halaman semua permukaan | 136 | HQ app 87 + publik/auth 13 + platform 24 + ESS 8 + karir 4 |
+| HQ tenant `/humanify/*` | 100 file | Termasuk auth, LMS lanjut, alias |
 | Admin Total `/platform/*` | 24 | Control plane operator Naincode |
 | Portal karyawan `/employee/*` | 8 | ESS + deep-link training/payslip |
-| Portal karir `/careers/*` | 2 | Publik, tenant-scoped lowongan |
-| API `/api/humanify/*` | 122 | Tenant HRIS + billing + LMS |
+| Portal karir `/careers` + `/c/[slug]/careers` | 4 | Publik + tenant-scoped |
+| API `/api/humanify/*` | 123 | Tenant HRIS + billing + LMS |
 | API `/api/platform/*` | 6 | Ops observabilitas, banner, email |
+| API `/api/employee/*` | 8 | Portal ESS/MSS |
 | API publik `/api/v1/*` | 6 | Enterprise API keys |
-| Komponen `components/humanify` | 76 | Layout, chrome modul, form, AIMAN |
-| Komponen `components/employee` | 20 | Portal ESS/MSS lapangan |
+| Komponen frontend | 102 | `components/humanify` + `components/employee` |
+| Backend `lib/hris` + `lib/saas` + `lib/humanify` | 213 | Logika domain |
+| Form / input panel terdeteksi | 100 | Sheet `07_Form` |
 
-Paket paket (`lib/saas/plan-entitlements.ts`):
+Paket (`lib/saas/plan-entitlements.ts` + add-on `seat-pricing.ts`):
 
 | Paket | Fitur |
 |---|---|
 | Trial (14 hari) | Semua fitur |
 | Starter | Core + absensi + rekrutmen |
 | Growth | Starter + payroll + analitik |
-| Enterprise | Growth + LMS + AIMAN + API + white-label + SSO |
+| Enterprise | Growth + API + white-label + SSO. **LMS dan AIMAN add-on** (bukan bundled). |
 
 ---
 
@@ -144,20 +149,20 @@ Paket **Growth+**. Approve/paid memakai pemisahan tugas finance (`payroll-financ
 |---|---|---|---|---|
 | Rekrutmen | `/humanify/recruitment` | Lowongan, kandidat, pipeline | Publish ke `/careers`, webhook ATS. | GA |
 | Portal Karir | `/careers` | Situs lowongan publik | Buka di tab baru dari sidebar. | GA |
-| Dasbor LMS | `/humanify/lms` | Ringkasan kursus/tes | Core LMS **Enterprise**. | GA Ent. |
-| Kursus & Learning Path | `/humanify/lms/courses` | CRUD kursus, player | Detail: `/humanify/lms/courses/[id]`. | GA Ent. |
-| Tes & Ujian | `/humanify/lms/tests` | Jadwal ujian | Detail: `/humanify/lms/tests/[id]`. | GA Ent. |
-| Bank Soal | `/humanify/lms/question-bank` | Item soal, blueprint | Dipakai tes. | GA Ent. |
-| Penilaian | `/humanify/lms/grading` | Nilai & kelulusan | Manual + otomatis. | GA Ent. |
-| Kompetensi & Sertifikat | `/humanify/lms/competency` | Skill map + issue sertifikat | Registry juga di halaman sertifikat. | GA Ent. |
-| Analitik L&D | `/humanify/lms/analytics` | Completion, skor | Laporan L&D. | GA Ent. |
+| Dasbor LMS | `/humanify/lms` | Ringkasan kursus/tes | Core LMS **add-on** (bukan bundled Enterprise). | GA add-on |
+| Kursus & Learning Path | `/humanify/lms/courses` | CRUD kursus, player | Detail: `/humanify/lms/courses/[id]`. | GA add-on |
+| Tes & Ujian | `/humanify/lms/tests` | Jadwal ujian | Detail: `/humanify/lms/tests/[id]`. | GA add-on |
+| Bank Soal | `/humanify/lms/question-bank` | Item soal, blueprint | Dipakai tes. | GA add-on |
+| Penilaian | `/humanify/lms/grading` | Nilai & kelulusan | Manual + otomatis. | GA add-on |
+| Kompetensi & Sertifikat | `/humanify/lms/competency` | Skill map + issue sertifikat | Registry juga di halaman sertifikat. | GA add-on |
+| Analitik L&D | `/humanify/lms/analytics` | Completion, skor | Laporan L&D. | GA add-on |
 | Proctoring | `/humanify/lms/proctoring` | Pengawasan ujian | `HUMANIFY_LMS_LAB`. | Lab |
 | Psikometrik | `/humanify/lms/psychometric` | Tes kepribadian | Lab. Reports: `lms/psychometric-reports`. | Lab |
 | Academy | `/humanify/lms/academy` | Katalog academy | Lab. | Lab |
-| Program Pelatihan | `/humanify/training` | Batch pelatihan operasional | Bukan full LMS. | GA |
+| Program Pelatihan | `/humanify/training` | Batch pelatihan operasional | Entitlement sama dengan LMS add-on (`feature: lms`). | GA add-on |
 | L&D / kurikulum | `/humanify/training-development` | Kurikulum, outsourcing | URL lanjut, tidak selalu di sidebar. | Partial |
 | Skor Training | `/humanify/training-scoring` | Competency scoring | URL lanjut. | Partial |
-| Registri Sertifikat | `/humanify/certificates` | Lisensi kedaluwarsa | Reminder 30 hari. | GA |
+| Registri Sertifikat | `/humanify/certificates` | Lisensi kedaluwarsa | Reminder 30 hari. Entitlement LMS add-on. | GA add-on |
 
 URL LMS lanjut (tidak semua di sidebar): `lms/access`, `lms/ai-assistant`, `lms/blueprints`, `lms/schedules`, `lms/integrations`, `lms/reports`.
 
@@ -178,7 +183,7 @@ URL LMS lanjut (tidak semua di sidebar): `lms/access`, `lms/ai-assistant`, `lms/
 
 | Halaman | Route | Fungsi utama | Penjelasan | Status |
 |---|---|---|---|---|
-| AIMAN · Confirm | `/humanify/ai` | Copilot HR, wajib konfirmasi | Bukan otonom payroll. Flag `isHumanifyAiUiEnabled()`. Chat mengambang: `AimanFloatingChat`. | Partial / flag |
+| AIMAN · Confirm | `/humanify/ai` | Copilot HR, wajib konfirmasi | Add-on AIMAN (bukan bundled). Bukan otonom payroll. Flag `isHumanifyAiUiEnabled()`. Chat mengambang: `AimanFloatingChat`. | Partial / add-on |
 
 ### 3.9 Laporan & analitik
 
@@ -445,8 +450,9 @@ Kelompok file yang menjalankan aturan bisnis. Bukan daftar setiap helper.
 
 ## 10. Cara merawat inventaris ini
 
-1. Sidebar berubah → update bagian 3 dan `config/humanify-sidebar.config.ts`.
-2. Modul baru di Admin Total → update bagian 5 dan `PlatformOpsNav.tsx`.
-3. Tab ESS baru → update `ESS_PORTAL_MODULES` dan bagian 4.
+1. Sidebar berubah → update `config/humanify-sidebar.config.ts` lalu `npm run docs:humanify-inventory`.
+2. Modul baru di Admin Total → `PlatformOpsNav.tsx` + regenerate Excel.
+3. Tab ESS baru → `ESS_PORTAL_MODULES` dan sheet `11_ESS_Portal`.
 4. Status GA/lab/hidden → `docs/humanify-ga-scope.md` + hire-to-retire.
 5. Jangan menyamakan “file halaman ada” dengan “fitur GA” — cek flag env dan `hidden` di sidebar.
+6. Excel kanonik: `docs/humanify-module-inventory.xlsx` (15 sheet data list, bukan hanya tabel markdown).

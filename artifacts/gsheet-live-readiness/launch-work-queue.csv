@@ -1,0 +1,86 @@
+id,wave,phase,priority,gate,maps_to,owner,agent,env,action,acceptance,depends_on,effort_h,status
+WQ-001,0,T-14,P0,GATE-18,HT-0568 PERF-003,Product + Eng,signoff,n/a,Sign SLO health p95<200ms or raise written SLO; login p95<800ms; load error<1%,Signed memo in ready-to-launch plan §3,,0.5,in_progress
+WQ-002,0,T-14,P0,GATE-07,HT-0595 HT-0596,Eng + Finance,signoff,n/a,Accept RPO<=24h RTO<=2h from backup runbook,Named acceptance in HANDOFF,,0.25,in_progress
+WQ-003,0,T-14,P0,GATE-21,price-book,Product + QA,yes,staging,Audit landing/ROI/checkout/ops Plans vs docs/humanify-price-book.md + smoke:wave79-entitlements,All surfaces match seat-pricing.ts,,2,pass
+WQ-004,0,T-14,P0,GATE-21 GATE-22,ga-scope,Product,yes,repo,Align docs/humanify-ga-scope.md LMS/AIMAN add-on (not Enterprise bundle),ga-scope equals price-book,,0.5,pass
+WQ-005,0,T-14,P1,GATE-30,compat,QA Lead,signoff,n/a,Freeze browsers Chrome Edge Firefox Safari + Pixel 5,Written in plan §3,,0.25,in_progress
+WQ-006,0,T-14,P0,GATE-24 GATE-26,HT-0013,Eng + CS,signoff,n/a,Name on-call and HOLD/ROLLBACK authority,Roster + escalation owner,,0.5,todo
+WQ-007,0,T-14,P0,GATE-18,PERF-003 PERF-007,Growth + Eng,signoff,n/a,Confirm peak model or accept default 50 tenants / 200 login VU / 1000 clock req/min,Input for WAVE-5,,0.5,in_progress
+WQ-008,0,T-14,P0,GATE-01,privacy,Security,yes,staging,Security/perf envs use synthetic tenants only; no raw prod PII,Checklist signed,,0.5,pass
+WQ-010,1,T-14,P0,GATE-28,HT-0001 GTM-ACC-004,Finance + DevOps,ops,production,Install MIDTRANS_SERVER_KEY CLIENT_KEY IS_PRODUCTION on VPS; do not charge from agent,Scorecard shows configured; GATE-28 unblocked,,1,blocked
+WQ-011,1,T-14,P1,GATE-07,DR dump size,DevOps,ops,production,Explain dump 3.1MB (1 Sep) vs 58-112KB (2-8 Sep),Note: expected small DB or purge bug,,1,todo
+WQ-012,1,T-14,P1,GATE-29,sheet 27-42,QA Lead,ops,docs,Update Google Sheet statuses from EXECUTION-REPORT.md,Sheet not all Not Started,,2,todo
+WQ-013,1,T-14,P2,GATE-15,BUG-LR-009,QA,yes,repo,Commit ESS mobile harness if uncommitted,Pixel 5 uses Kembali ke beranda assert,,0.5,pass
+WQ-014,1,T-14,P0,GATE-05,HT-0001,DevOps + QA,ops,production,Compare VPS env vs release manifest (callbacks storage SMTP Midtrans secrets),No sandbox URL/secret gap except known Midtrans until WQ-010,WQ-010,1.5,todo
+WQ-015,1,T-13,P0,GATE-03 GATE-19,HT-0007,Ops + QA,ops,production-like,Send verify reset invite billing emails to real inboxes,All 4 arrive with prod hosts,,2,todo
+WQ-020,2,T-13,P0,GATE-08 GATE-21,seat-pricing,QA,yes,staging,Seat quote 10k/9.5k/9k + LMS 1500 + AIMAN 65k vs checkout summary,Amounts match including PPN,,1.5,pass
+WQ-021,2,T-13,P0,GATE-09,phase2 deny-matrix,QA,yes,staging,npm run smoke:phase2-entitlement && smoke:deny-matrix — LMS/AIMAN add-on not Enterprise bundle,Starter no payroll; Enterprise no LMS unless add-on,,1,pass
+WQ-022,2,T-13,P0,GATE-03 GATE-19,company-membership,QA,yes,staging,New company setup?companyId= loads without NextAuth JWT hang,Wizard completes; parent switch fire-and-forget,,1,pass
+WQ-023,2,T-13,P0,GATE-01,HT-0064,Security + QA,yes,staging,Switch company A to B; employees/payroll show only B,Zero tenant A rows in UI/API,,1.5,pass_star
+WQ-024,2,T-13,P0,GATE-01,public-upload,Security + QA,yes,staging/prod,Letter logo via public-upload 200; employee-documents not public,Docs path denied,,0.75,pass
+WQ-025,2,T-13,P1,GATE-25,month-presence,QA,yes,staging,Dashboard pie after Day-1 complete uses monthPresence,Counts match tenant attendance,,0.75,pass
+WQ-026,2,T-13,P1,GATE-21,billing UI,QA,yes,staging,Billing 3 plan cards; Midtrans Live KPI hidden,No Live KPI on tenant billing,,0.5,pass
+WQ-027,2,T-13,P0,GATE-22,HT-0005 wave85,Product + QA,yes,staging,npm run smoke:wave85 && smoke:lms-lab-gate,Lab/e-sign/autonomous AIMAN not GA,,1,pass
+WQ-030,3,T-12,P0,GATE-05,HT-0002,Engineering,yes,CI,Clean production build + artifact checksum,Build green; checksum stored,,1,pass
+WQ-031,3,T-12,P0,GATE-05,HT-0003,DBA + Eng,ops,staging-copy,Restore dump; migrate; measure locks; critical R/W,Deterministic migrate; no data loss,WQ-011,2,todo
+WQ-032,3,T-11,P0,GATE-06,HT-0004,DevOps,ops,staging,Deploy RC; write data; rollback prior artifact; login+CRUD,Stable release restored,,2,todo
+WQ-033,3,T-12,P0,GATE-22,HT-0005,Product + QA,yes,staging,Direct URL/API to hidden modules,Server deny not sidebar-only,,1.5,pass
+WQ-034,3,T-12,P0,GATE-16,HT-0006 smoke:ops-host,DevOps,yes,production,smoke:ops-host smoke:admin-host; TLS/HSTS,8/8 both hosts; HSTS present,,1,pass
+WQ-035,3,T-11,P0,GATE-03,SEC-004 phase15,QA,yes,staging,Reset token second use fails; e2e forgot-password,Single-use token,,1.5,pass_star
+WQ-036,3,T-11,P0,GATE-04,phase19-mfa,Security,yes,staging,MFA bypass API denied or MFA not sold as GA,Written gate or smoke pass,,1.5,pass_star
+WQ-037,3,T-11,P0,GATE-04,sso-acs,Security + Product,signoff,n/a,SSO not GA without customer IdP QC OR ACS+checklist pass,Sales sheet matches,,0.5,pass
+WQ-038,3,T-10,P0,GATE-11,HT-0014,QA + HR,yes,staging,Attendance around 23:59/00:00 WIB; duplicate clock,No date shift; duplicate rejected,,1.5,pass
+WQ-039,3,T-10,P0,GATE-11,device-sync,QA,yes,staging,npm run smoke:device-sync-idempotency,Idempotent sync,,0.5,pass
+WQ-040,3,T-10,P0,GATE-11,attendance settings,QA + HR,yes,staging,Geofence/GPS/face: out-of-radius clock denied on API,UI=API deny,,1.5,pass
+WQ-041,3,T-10,P0,GATE-12,ess-leave HT-0403,QA + HR,yes,staging,smoke:ess-leave + concurrent approve balance,No negative/double spend,,1.5,pass_star
+WQ-042,3,T-10,P0,GATE-13,payroll-golden,QA,yes,staging,smoke:payroll-golden fiscal depth,Golden 100% or documented rounding,,1.5,pass_star
+WQ-043,3,T-10,P0,GATE-14 GATE-15,payslip-gate,QA,yes,staging,smoke:payslip-gate payslip-idor,Own payslip only,,1,pass_star
+WQ-044,3,T-9,P0,GATE-02 GATE-16,SEC-028,Platform Ops + QA,yes,staging,Desk CS/Finance/Sales cannot refund/plan/suspend/publish via API,Deny logged,,2,pass
+WQ-045,3,T-9,P0,GATE-17,HT-0011 HT-0013,DevOps,ops,staging,Trigger health/error alert to on-call,Page received + runbook known,WQ-006,1,todo
+WQ-046,3,T-8,P0,GATE-20,GTM-ACC-003,Growth + QA,yes,staging,Signup with UTM params lands in CRM/events,source/medium/campaign retained,,2,pass
+WQ-047,3,T-8,P0,GATE-23,demo 15min,Sales + QA,ops,staging,Run demo tenant script; one lead in /platform/crm,Owner+SLA set,,2,todo
+WQ-048,3,T-8,P0,GATE-24,support drill,CS,ops,staging,Fake P0 ticket reaches named owner,Within agreed SLA,WQ-006,1.5,todo
+WQ-049,3,T-7,P1,GATE-27,campaign CTA,Marketing Ops,ops,production,All launch CTA/UTM URLs healthy,200/307 no broken dest,,1,todo
+WQ-050,3,T-7,P0,GATE-26,incident,Eng + Product,signoff,n/a,"SEV1/2, billing kill switch, rollback authority doc",Named person can HOLD without ambiguity,WQ-006,1,in_progress
+WQ-060,4,T-10,P0,GATE-03,SEC-002 SEC-003,Security,yes,security-staging,Session fixation + logout replay,Old session dead,,1.5,pass_star
+WQ-061,4,T-10,P0,GATE-02,SEC-007,Security,yes,security-staging,Mass-assign role/companyId/tenant_id,Server strips/rejects,,1.5,pass
+WQ-062,4,T-9,P0,GATE-01,SEC-012,Security,yes,security-staging,Stored XSS in name/announcement/job,No script exec,,1.5,pass
+WQ-063,4,T-9,P0,GATE-03,SEC-014,Security,yes,security-staging,CSRF state-changing routes,Mutation blocked,,1,pass
+WQ-064,4,T-9,P0,GATE-01,SEC-016,Security,yes,security-staging,SSRF in webhook/integration URL fields,Private IPs rejected,,1.5,pass
+WQ-065,4,T-9,P0,GATE-01,SEC-017 HT-0008,Security,yes,security-staging,Executable/polyglot upload vs employee-docs,Non-executable store or reject,,1.5,pass
+WQ-066,4,T-8,P0,GATE-16,SEC-028,Security,yes,staging,Low desk role hits platform finance/roles APIs,403 + audit,,1.5,pass
+WQ-067,4,T-8,P0,GATE-22,SEC-029 SEC-030,Security,yes,staging,AIMAN prompt other tenant / unauthorized tool,Confirm-required; deny cross-tenant,,1.5,pass
+WQ-068,4,T-8,P0,GATE-03,SEC-001 phase14/17,QA,yes,staging,smoke:phase14-ratelimit phase17-login-lockout,Throttle without user mix-up,,1,pass_star
+WQ-069,4,T-8,P0,GATE-01,SEC-009 SEC-010,Security,yes,staging,Export/search after tenant switch; back/cache,No foreign rows,,1.5,pass
+WQ-070,4,T-8,P0,GATE-03,HT-0019,DevOps + QA,yes,production,Inspect __Host-/__Secure- cookies on three hosts,Secure attributes match policy,,0.5,pass
+WQ-080,5,T-8,P0,GATE-18,PERF-003 HT-0568,SRE,ops,perf,k6 login 200 VU ramp; record p95/error/pool,Meets signed SLO or documented gap,WQ-001 WQ-007,3,in_progress
+WQ-081,5,T-8,P0,GATE-18,PERF-004,SRE,ops,perf,k6 dashboard 200 VU / 20 tenants,p95 OK; no tenant leak,WQ-007,3,in_progress
+WQ-082,5,T-7,P0,GATE-18 GATE-11,PERF-007,SRE + QA,ops,perf,Clock-in spike 1000 req/min,Zero duplicate attendance,,3,in_progress
+WQ-083,5,T-7,P0,GATE-18 GATE-13,PERF-010,SRE,ops,perf,Payroll volume 1k synthetic employees,Completes in window; no corrupt run,,3,todo
+WQ-084,5,T-7,P0,GATE-18 GATE-08,PERF-014,SRE,ops,perf,Webhook burst 500/min with duplicates,Idempotent; no extra entitlement,,2,todo
+WQ-085,5,T-6,P0,GATE-18,PERF-016 HT-0582,SRE,ops,perf,Soak representative mix 8h,No progressive leak,,8,todo
+WQ-086,5,T-6,P0,GATE-18,PERF-019 PERF-020 HT-0586,SRE,ops,perf,Stress to knee; recover without DB repair,Breaking point documented,,3,todo
+WQ-087,5,T-5,P0,GATE-18,cycle4 p97.5 329ms,Eng Lead,signoff,n/a,If health p95 still >200ms: optimize or change SLO then recertify,GATE-18 Pass or accepted new SLO,WQ-001 WQ-080,1,in_progress
+WQ-090,6,T-6,P0,GATE-10,UAT HT-0076,HR SME,ops,UAT,Create import org terminate employee,Signed UAT,,1.5,todo
+WQ-091,6,T-6,P0,GATE-11 GATE-12,UAT leave/attendance,HR SME,ops,UAT,Clock correction leave approve/reject/cancel,Signed UAT,,1.5,todo
+WQ-092,6,T-5,P0,GATE-13 GATE-14,HUMANIFY_FISCAL_SIGNED_OFF,Payroll SME,ops,UAT,Golden PPh21/BPJS/THR vs 2026 rules + bank file totals,Wet signature,,3,todo
+WQ-093,6,T-5,P0,GATE-08 GATE-28,Finance UAT,Finance,ops,UAT,Sandbox order reconcile; live after WQ-010,Finance sign-off,WQ-010,2,todo
+WQ-094,6,T-5,P0,GATE-15,ESS UAT,HR SME,ops,UAT,Employee+manager ESS home leave own payslip,Signed UAT,,1.5,todo
+WQ-095,6,T-4,P1,GATE-30,HT-0687,QA/A11y,yes,staging,Keyboard-only login + ESS leave form,No keyboard trap on critical path,,1.5,pass_star
+WQ-100,7,T-4,P0,GATE-08,Midtrans sandbox,QA + Finance,yes,sandbox,Settlement pending deny expire + invalid signature,Invalid rejected; one business effect,,2,pass_star
+WQ-101,7,T-3,P0,GATE-28,GTM-ACC-004,Finance + QA,ops,production,Small real payment; duplicate notify; reconcile,Single entitlement; finance OK,WQ-010 WQ-100,2,blocked
+WQ-102,7,T-4,P0,GATE-19,ga-journey trial,Growth + QA,yes,prod-safe,smoke:ga-journey phase1-signup trial + email verify,Tenant activated,,1.5,pass_star
+WQ-103,7,T-4,P0,GATE-21,GTM crawl,Product Marketing,yes,production,Crawl / pricing demo checkout vs price-book,Zero claim mismatch,WQ-003 WQ-004,2,pass
+WQ-110,8,T-3,P0,GATE-01,idor isolation payslip,QA,yes,prod-safe,smoke:idor tenant-isolation payslip-idor,0 fail,,2,pass
+WQ-111,8,T-3,P0,GATE-10 GATE-25,crud uat pages,QA,yes,prod-safe,smoke:functional-crud employees-uat-prod module-pages ga-journey,0 unexpected fail,,2,pass
+WQ-112,8,T-3,P0,GATE-13 GATE-14,payroll pack,QA,yes,prod-safe,smoke:payroll-golden fiscal depth payslip-gate,0 fail,,1.5,pass
+WQ-113,8,T-3,P0,GATE-08 GATE-09 GATE-22,billing entitlement lab,QA,yes,prod-safe,smoke:billing-idempotency phase2 deny-matrix wave79 lms-lab-gate wave85,0 fail,,1.5,pass
+WQ-114,8,T-2,P0,GATE-16 GATE-25,ops admin readiness,QA,yes,production,smoke:ops-host admin-host product-readiness page-crawl,Expected-only fails documented,,1.5,pass
+WQ-115,8,T-2,P0,GATE-25,HT-0700+,QA Lead,yes,production,Post-deploy smoke checklist 100%,GATE-25 Pass,,1,pass
+WQ-120,9,T-1,P1,GATE-30,BUG-LR-*,QA,yes,docs,Populate sheet defect log from BUG-LR-001..009 + new finds,No empty placeholder bugs,,1,pass
+WQ-121,9,T-1,P1,GATE-30,known issues,Product Owner,signoff,n/a,Residual P1/P2 owner workaround date acceptance,GATE-30 Pass — draft in docs/humanify-launch-known-issues.md; PO ticks still open,,1,pass_star
+WQ-122,9,T-1,P0,GATE-29,sheet 42 tracker,Launch Manager,signoff,n/a,Fill release certification + product tracker,Evidence links on every P0 gate — 42_Release_Certification.csv + docs/humanify-wave9-release-certification.md; wet signatures open,,1,pass_star
+WQ-123,9,T-1,P0,GATE-29 GATE-30,GO rule,Launch Manager,signoff,n/a,GO only if 28/06/18/UAT human PASS else HOLD,Written HOLD 2026-09-09; GO blocked until WQ-010 WQ-032 WQ-087 WQ-090-094 WQ-006,WQ-010 WQ-032 WQ-087 WQ-092 WQ-101,0.5,hold
+WQ-130,10,T+1,P0,GATE-25,hypercare synthetic,Ops + QA,ops,production,Daily health deep + login + one attendance/leave read,Green or SEV owned,,0.5,pass_star
+WQ-131,10,T0,P0,GATE-24,on-call T+7,CS + Eng,signoff,n/a,7-day on-call roster,Named coverage,WQ-006,0.25,todo
+WQ-132,10,T+7,P1,GATE-30,retro,Growth + CS,ops,n/a,Funnel/support/error-budget retro template,Template in docs/humanify-hypercare-retro-template.md; daily fill starts at T0,,1,pass_star

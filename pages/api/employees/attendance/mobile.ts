@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../auth/[...nextauth]';
-import { evaluateClockIn, evaluateClockOut } from '@/lib/hris/work-time-policy';
+import { evaluateClockIn, evaluateClockOut, businessDateInTimeZone } from '@/lib/hris/work-time-policy';
 import { loadWorkTimePolicy } from '@/lib/hris/work-time-policy-store';
 
 let EmployeeAttendance: any, Employee: any, Branch: any;
@@ -115,7 +115,7 @@ async function clockInOut(req: NextApiRequest, res: NextApiResponse, session: an
     });
   }
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = businessDateInTimeZone();
   const now = new Date();
 
   // Save selfie if provided

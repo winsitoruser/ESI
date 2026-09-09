@@ -8,6 +8,8 @@ import {
   PieChart, Activity, Brain, Bot, ScanLine, TrendingUp, MessageSquare, Zap, Cpu, Wand2,
 } from 'lucide-react';
 import { HUMANIFY_BRAND, HUMANIFY_FEATURES, NAINCODE } from '@/lib/humanify/branding';
+import { HUMANIFY_FEATURE_LABELS, HUMANIFY_PLANS } from '@/lib/saas/plan-entitlements';
+import { DEFAULT_SEAT_PRICING } from '@/lib/saas/seat-pricing-core';
 import Image from 'next/image';
 import { HumanifyLogo } from '@/components/humanify/HumanifyLogo';
 import { NaincodeFooter } from '@/components/humanify/NaincodeFooter';
@@ -842,6 +844,73 @@ export default function HumanifyWelcomePage({ banners = [], faqs = [] }: { banne
                 </FadeIn>
               ))}
             </div>
+          </div>
+        </section>
+
+        {/* Pricing */}
+        <section id="pricing" className="border-t border-white/[0.08] scroll-mt-20">
+          <div className="mx-auto max-w-7xl px-6 py-24 sm:py-32">
+            <FadeIn className="mb-16 text-center">
+              <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-violet-400">Pricing</p>
+              <h2 className="mb-4 text-3xl font-bold tracking-tight text-white sm:text-5xl">
+                Dihitung per karyawan, bayar aman via <span className="text-fuchsia-400">Midtrans</span>
+              </h2>
+              <p className="mx-auto max-w-xl text-violet-200/70 text-lg">
+                Mulai Rp {DEFAULT_SEAT_PRICING.pricePerUserIdr.toLocaleString('id-ID')}/karyawan/bulan.
+                251+ jadi Rp {DEFAULT_SEAT_PRICING.pricePerUserOver250Idr.toLocaleString('id-ID')}, 1.001+ jadi Rp {DEFAULT_SEAT_PRICING.pricePerUserOver1000Idr.toLocaleString('id-ID')}.
+                Trial 14 hari. PPN 11% sudah termasuk.
+              </p>
+            </FadeIn>
+            <div className="grid gap-6 md:grid-cols-3">
+              {(['starter', 'growth', 'enterprise'] as const).map((id, i) => {
+                const p = HUMANIFY_PLANS[id];
+                const featured = id === 'growth';
+                return (
+                  <FadeIn key={id} delay={i * 0.08}>
+                    <div className={`flex h-full flex-col rounded-3xl border p-8 ${
+                      featured
+                        ? 'border-violet-400/40 bg-violet-500/10'
+                        : 'border-white/[0.08] bg-[#110e1b]'
+                    }`}>
+                      <p className="text-sm font-semibold uppercase tracking-wide text-violet-300">{p.name}</p>
+                      <p className="mt-4 text-4xl font-bold text-white">
+                        Rp {DEFAULT_SEAT_PRICING.pricePerUserIdr.toLocaleString('id-ID')}
+                        <span className="text-base font-medium text-violet-200/60">/karyawan</span>
+                      </p>
+                      <p className="mt-2 text-sm text-violet-200/60">{p.description}</p>
+                      <p className="mt-4 text-xs text-violet-200/50">
+                        LMS +Rp {DEFAULT_SEAT_PRICING.lmsPerUserIdr.toLocaleString('id-ID')}/orang · AIMAN +Rp {DEFAULT_SEAT_PRICING.aiMonthlyIdr.toLocaleString('id-ID')}/bulan
+                      </p>
+                      <ul className="mt-6 flex-1 space-y-2">
+                        {p.features.slice(0, 6).map((f) => (
+                          <li key={f} className="flex items-center gap-2 text-sm text-violet-100/80">
+                            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                            {HUMANIFY_FEATURE_LABELS[f] || f}
+                          </li>
+                        ))}
+                      </ul>
+                      <Link
+                        href={`${HUMANIFY_BRAND.signupPath}?plan=${id}`}
+                        className={`mt-8 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition ${
+                          featured
+                            ? 'bg-white text-[#0a0812] hover:bg-violet-50'
+                            : 'border border-white/10 bg-white/5 text-white hover:bg-white/10'
+                        }`}
+                      >
+                        Mulai {p.name}
+                        <ArrowRight className="h-4 w-4" />
+                      </Link>
+                    </div>
+                  </FadeIn>
+                );
+              })}
+            </div>
+            <p className="mt-8 text-center text-sm text-violet-200/50">
+              Sudah punya akun?{' '}
+              <Link href={`${HUMANIFY_BRAND.loginPath}?callbackUrl=${encodeURIComponent('/humanify/billing')}`} className="font-semibold text-violet-300 hover:underline">
+                Lanjut ke pembayaran
+              </Link>
+            </p>
           </div>
         </section>
 

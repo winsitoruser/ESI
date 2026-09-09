@@ -20,7 +20,8 @@ import {
   CheckCircle,
   Clock,
   BookOpen,
-  Globe
+  Globe,
+  Lock,
 } from 'lucide-react';
 import {
   filterSidebarConfig,
@@ -84,6 +85,7 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
   const [searchLoading, setSearchLoading] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [planId, setPlanId] = useState<string | null>(null);
+  const [billingAddons, setBillingAddons] = useState<{ lms?: boolean; ai?: boolean }>({});
   const [accountAlerts, setAccountAlerts] = useState<AccountAlertUi[]>([]);
   const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([]);
 
@@ -101,10 +103,12 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
       ...byRole,
       groups: filterSidebarGroupsByPlan(byRole.groups, planId || 'starter', {
         bypass: isPlatformOp,
+        addons: billingAddons,
+        keepLocked: true,
       }),
     };
     return filterHumanifySidebarByPersona(byPlan, userRole);
-  }, [userRole, baseSidebarConfig, isHumanify, planId, isPlatformOp]);
+  }, [userRole, baseSidebarConfig, isHumanify, planId, isPlatformOp, billingAddons]);
 
   useEffect(() => {
     if (!isHumanify || !session?.user) return;
@@ -114,7 +118,8 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
         const res = await fetch('/api/humanify/saas-context');
         const json = await res.json();
         if (!cancelled && json.success) {
-          setPlanId(json.data?.entitlements?.planId || json.data?.subscriptionPlan || 'trial');
+          setPlanId(json.data?.entitlements?.planId || json.data?.subscriptionPlan || 'starter');
+          setBillingAddons(json.data?.addons || {});
           setAccountAlerts(Array.isArray(json.data?.alerts) ? json.data.alerts : []);
         }
       } catch {
@@ -424,7 +429,10 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
               {!sidebarCollapsed && <span className="text-[15px] font-semibold truncate">{getTranslatedItem(item.id, item.name)}</span>}
             </div>
             {!sidebarCollapsed && (
-              <ChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+              <span className="flex shrink-0 items-center gap-1">
+                {item.locked ? <Lock className="h-3.5 w-3.5 opacity-70" aria-label="Perlu upgrade paket" /> : null}
+                <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+              </span>
             )}
           </button>
           {!sidebarCollapsed && isExpanded && (
@@ -460,9 +468,14 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
             </span>
           )}
         </div>
-        {!sidebarCollapsed && item.badge !== undefined && (
-          <span className={`ml-auto flex-shrink-0 px-1.5 py-0.5 text-[10px] font-bold text-white rounded-full ${item.badgeColor || accent.badge}`}>
-            {item.badge}
+        {!sidebarCollapsed && (item.locked || item.badge !== undefined) && (
+          <span className="ml-auto flex shrink-0 items-center gap-1">
+            {item.locked ? <Lock className="h-3.5 w-3.5 opacity-60" aria-label="Perlu upgrade paket" /> : null}
+            {item.badge !== undefined && (
+              <span className={`px-1.5 py-0.5 text-[10px] font-bold text-white rounded-full ${item.badgeColor || accent.badge}`}>
+                {item.badge}
+              </span>
+            )}
           </span>
         )}
         {/* Collapsed tooltip */}
@@ -532,22 +545,22 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
       } lg:translate-x-0 ${
         sidebarCollapsed ? 'lg:w-20' : 'lg:w-72'
       } w-[min(18rem,calc(100vw-2.5rem))]`}>
-        {/* Logo */}
+        {/* Logo — same h-16 as the top header so the bottom border lines up */}
         <div className={`shrink-0 border-b ${
           isHumanify
-            ? `relative border-[var(--hf-border-subtle)] px-3 py-4 max-lg:pr-12 ${sidebarCollapsed ? 'lg:p-3' : ''}`
+            ? `relative flex h-16 items-center border-[var(--hf-border)] px-3 max-lg:pr-12 ${sidebarCollapsed ? 'lg:justify-center lg:px-2' : ''}`
             : 'flex h-16 items-center justify-between px-4 border-gray-100'
         }`}>
           {isHumanify ? (
             <>
               <Link
                 href={filteredConfig.logo.href}
-                className={`flex items-center rounded-[var(--hf-radius-lg)] px-1 py-0.5 transition hover:bg-[var(--hf-brand-50)]/70 ${
-                  sidebarCollapsed ? 'lg:justify-center lg:p-2' : 'justify-start'
+                className={`flex min-w-0 items-center rounded-[var(--hf-radius)] px-1 py-0.5 transition hover:bg-[var(--hf-brand-50)]/70 ${
+                  sidebarCollapsed ? 'lg:justify-center' : 'justify-start'
                 }`}
               >
                 {sidebarCollapsed ? (
-                  <span className="relative hidden h-11 w-11 shrink-0 overflow-hidden rounded-lg lg:block">
+                  <span className="relative hidden h-8 w-8 shrink-0 overflow-hidden rounded-md lg:block">
                     <img
                       src={HUMANIFY_BRAND.logoPath}
                       alt={HUMANIFY_BRAND.name}
@@ -565,7 +578,7 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
               </Link>
               <button
                 onClick={() => setSidebarOpen(false)}
-                className="absolute right-3 top-3 p-1.5 rounded-md hover:bg-gray-100 text-gray-400 lg:hidden"
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-md hover:bg-gray-100 text-gray-400 lg:hidden"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -596,7 +609,7 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
         </div>
 
         {/* Navigation */}
-        <nav className="min-h-0 flex-1 overflow-y-auto px-3 py-3 sidebar-scroll">
+        <nav className="min-h-0 flex-1 overflow-y-auto px-3 py-2 sidebar-scroll">
           {filteredConfig.groups.map((group, idx) => renderMenuGroup(group as any, idx))}
         </nav>
 
@@ -615,7 +628,7 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
       {/* Collapse Toggle Button - Desktop Only */}
       <button
         onClick={toggleSidebarCollapse}
-        className={`hidden lg:flex fixed top-[4.5rem] z-50 items-center justify-center w-7 h-7 bg-white border rounded-full shadow-sm hover:shadow-md transition-all ${
+        className={`hidden lg:flex fixed top-16 z-50 items-center justify-center w-7 h-7 bg-white border rounded-full shadow-sm hover:shadow-md transition-all ${
           isHumanify ? 'border-[var(--hf-border)] hover:border-[var(--hf-brand-100)]' : 'border-gray-200 hover:scale-110'
         } ${
           sidebarCollapsed ? 'left-16' : 'left-[17rem]'

@@ -13,21 +13,17 @@ import {
   Download,
   Loader2,
   RefreshCw,
-  Shield,
   Sparkles,
-  Ticket,
-  Users,
   X,
-  Zap,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import HumanifyLayout from '@/components/humanify/HumanifyLayout';
 import HRStatCard from '@/components/humanify/HRStatCard';
 import { OpsKpiShell } from '@/components/humanify/OpsPageChrome';
 import { PlatformAccessShell } from '@/components/humanify/PlatformAccessNav';
+import BillingCheckoutWizard from '@/components/humanify/BillingCheckoutWizard';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
 import { generatePDF } from '@/lib/documents';
-import { mapApiJsonError, humanifyErrorMessage } from '@/lib/humanify/api-error';
 import {
   HUMANIFY_FEATURE_LABELS,
   HUMANIFY_FEATURE_ORDER,
@@ -42,8 +38,6 @@ function formatIdr(n: number) {
     maximumFractionDigits: 0,
   }).format(n || 0);
 }
-
-const PLAN_RANK: Record<string, number> = { trial: 0, starter: 1, growth: 2, enterprise: 3 };
 
 function statusBadge(status?: string) {
   const s = String(status || '').toLowerCase();
@@ -63,8 +57,8 @@ function BillingSkeleton() {
   return (
     <div className="mx-auto max-w-6xl space-y-6 animate-pulse">
       <div className="h-24 rounded-[var(--hf-radius-xl)] bg-slate-100" />
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {[0, 1, 2, 3].map((i) => (
+      <div className="grid gap-3 sm:grid-cols-3">
+        {[0, 1, 2].map((i) => (
           <div key={i} className="h-28 rounded-[var(--hf-radius-xl)] bg-slate-100" />
         ))}
       </div>
@@ -78,18 +72,24 @@ function BillingSkeleton() {
 }
 
 export default function HumanifyBillingPage() {
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState<string | null>(null);
   const [plans, setPlans] = useState<any[]>([]);
   const [current, setCurrent] = useState<any>(null);
-  const [interval, setInterval] = useState<'monthly' | 'yearly'>('monthly');
   const [midtransConfigured, setMidtransConfigured] = useState(false);
   const [midtrans, setMidtrans] = useState<any>(null);
-  const [voucherCode, setVoucherCode] = useState('');
-  const [voucherHint, setVoucherHint] = useState('');
   const [offboarding, setOffboarding] = useState<any>(null);
+  const [intendedPlan, setIntendedPlan] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    const fromQuery = typeof router.query.plan === 'string' ? router.query.plan : '';
+    let stored = '';
+    try { stored = sessionStorage.getItem('humanify.intendedPlan') || ''; } catch { /* ignore */ }
+    const plan = fromQuery || stored;
+    if (plan && ['starter', 'growth', 'enterprise'].includes(plan)) setIntendedPlan(plan);
+  }, [router.query.plan]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -186,72 +186,6 @@ export default function HumanifyBillingPage() {
       return true;
     }
     return false;
-  }
-
-  async function previewVoucher() {
-    const code = voucherCode.trim();
-    if (!code) {
-      setVoucherHint('');
-      return;
-    }
-    const planId = 'growth';
-    const res = await fetch(
-      `/api/humanify/billing?action=voucher-preview&code=${encodeURIComponent(code)}&plan=${planId}&interval=${interval}`,
-    );
-    const j = await res.json();
-    if (!j.success) setVoucherHint(j.error || 'Voucher tidak valid');
-    else setVoucherHint(`Diskon ${formatIdr(j.data.discountIdr)} · bayar ${formatIdr(j.data.payableIdr)}`);
-  }
-
-  async function checkout(planId: string) {
-    setActing(planId);
-    try {
-      const res = await fetch('/api/humanify/billing?action=checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          plan: planId,
-          interval,
-          voucherCode: voucherCode.trim() || undefined,
-        }),
-      });
-      const j = await res.json();
-      if (!j.success) throw new Error(mapApiJsonError(j, 'Checkout gagal'));
-
-      const data = j.data;
-      if (data.activated) {
-        toast.success(`Paket ${planId} aktif`);
-        load();
-        return;
-      }
-
-      if (data.provider === 'midtrans' && (data.snapToken || data.redirectUrl)) {
-        const opened = openSnap(data.snapToken, data.orderCode, data.redirectUrl);
-        if (!opened) throw new Error('Snap Midtrans belum siap. Muat ulang halaman, lalu coba lagi.');
-        return;
-      }
-
-      if (midtransConfigured) {
-        toast('Order dibuat. Menunggu konfirmasi Midtrans…', { icon: '💳' });
-        load();
-        return;
-      }
-
-      toast('Order dibuat (manual). Mengaktifkan paket…', { icon: '💳' });
-      const conf = await fetch('/api/humanify/billing?action=confirm-manual', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderCode: data.orderCode }),
-      });
-      const confJ = await conf.json();
-      if (!confJ.success) throw new Error(confJ.error || 'Konfirmasi gagal');
-      toast.success(`Paket ${planId} aktif`);
-      load();
-    } catch (e: any) {
-      toast.error(humanifyErrorMessage(e, 'Checkout gagal'));
-    } finally {
-      setActing(null);
-    }
   }
 
   async function changePlan(planId: string) {
@@ -414,7 +348,7 @@ export default function HumanifyBillingPage() {
         <PlatformAccessShell
           current="billing"
           title="Billing & Upgrade"
-          subtitle="Pilih paket sesuai skala tim HR Anda — upgrade kapan saja, invoice siap unduh."
+          subtitle="Pilih paket, masukkan jumlah user yang dibeli, lalu bayar via Midtrans."
           icon={CreditCard}
           actions={
             <Link
@@ -426,7 +360,7 @@ export default function HumanifyBillingPage() {
             </Link>
           }
         >
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-3">
             <OpsKpiShell>
             <HRStatCard
               label="Paket aktif"
@@ -445,15 +379,6 @@ export default function HumanifyBillingPage() {
                 : 'Periode langganan'}
               icon={Calendar}
               accent="blue"
-            />
-            </OpsKpiShell>
-            <OpsKpiShell>
-            <HRStatCard
-              label="Pembayaran"
-              value={midtransConfigured ? (midtrans?.isProduction ? 'Midtrans Live' : 'Midtrans Sandbox') : 'Manual'}
-              sub={midtransConfigured ? 'Snap: QRIS, VA, e-wallet, kartu' : 'Konfirmasi admin'}
-              icon={Shield}
-              accent="emerald"
             />
             </OpsKpiShell>
             <OpsKpiShell>
@@ -550,192 +475,37 @@ export default function HumanifyBillingPage() {
             );
           })()}
 
-          <section className="space-y-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="hf-section-label">Paket</p>
-                <h2 className="mt-1 text-lg font-semibold tracking-tight text-[color:var(--hf-ink)]">
-                  Pilih yang cocok untuk tim Anda
-                </h2>
-                <p className="mt-1 text-sm text-[color:var(--hf-ink-muted)]">
-                  Semua paket multi-tenant, Action Inbox, dan kepatuhan Indonesia.
-                  {midtransConfigured
-                    ? ' Bayar via Midtrans Snap (QRIS, VA, GoPay, ShopeePay, kartu).'
-                    : ''}
-                </p>
-                <div className="mt-3 flex max-w-md flex-col gap-1.5">
-                  <label className="text-xs font-medium text-[color:var(--hf-ink-muted)]" htmlFor="hf-voucher">
-                    Kode voucher
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      id="hf-voucher"
-                      value={voucherCode}
-                      onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
-                      onBlur={previewVoucher}
-                      placeholder="CONTOH: HFPROMO"
-                      className="hf-input min-w-0 flex-1 font-mono text-sm uppercase"
-                    />
-                    <button type="button" onClick={previewVoucher} className="hf-btn-secondary inline-flex items-center gap-1.5 text-sm">
-                      <Ticket className="h-3.5 w-3.5" />
-                      Cek
-                    </button>
-                  </div>
-                  {voucherHint ? (
-                    <p className="text-xs text-[color:var(--hf-ink-muted)]">{voucherHint}</p>
-                  ) : null}
-                </div>
-              </div>
-
-              <div
-                className="inline-flex rounded-[var(--hf-radius-lg)] border border-[var(--hf-border)] bg-[var(--hf-surface-muted)] p-1"
-                role="group"
-                aria-label="Interval tagihan"
-              >
-                <button
-                  type="button"
-                  onClick={() => setInterval('monthly')}
-                  className={`rounded-[calc(var(--hf-radius-lg)-2px)] px-4 py-2 text-sm font-medium transition ${
-                    interval === 'monthly'
-                      ? 'bg-white text-[color:var(--hf-ink)] shadow-[var(--hf-shadow)]'
-                      : 'text-[color:var(--hf-ink-muted)] hover:text-[color:var(--hf-ink)]'
-                  }`}
-                >
-                  Bulanan
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setInterval('yearly')}
-                  className={`inline-flex items-center gap-1.5 rounded-[calc(var(--hf-radius-lg)-2px)] px-4 py-2 text-sm font-medium transition ${
-                    interval === 'yearly'
-                      ? 'bg-white text-[color:var(--hf-ink)] shadow-[var(--hf-shadow)]'
-                      : 'text-[color:var(--hf-ink-muted)] hover:text-[color:var(--hf-ink)]'
-                  }`}
-                >
-                  Tahunan
-                  <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
-                    −20%
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            {midtransConfigured && Array.isArray(midtrans?.methods) && midtrans.methods.length > 0 && (
-              <p className="flex flex-wrap items-center gap-1.5 text-xs text-[color:var(--hf-ink-faint)]">
-                Metode:
-                {midtrans.methods.map((m: any) => (
-                  <span
-                    key={m.id}
-                    className="rounded-md border border-[var(--hf-border)] bg-white px-1.5 py-0.5 font-medium text-[color:var(--hf-ink-muted)]"
-                  >
-                    {m.label}
-                  </span>
-                ))}
+          <div className="space-y-3">
+            <div>
+              <p className="hf-section-label">Checkout</p>
+              <h2 className="mt-1 text-lg font-semibold text-[color:var(--hf-ink)]">Beli langganan per user</h2>
+              <p className="mt-1 text-sm text-[color:var(--hf-ink-muted)]">
+                Urutan: pilih paket → isi jumlah user → bayar. Satu user = satu karyawan.
               </p>
-            )}
-
-            <div className="grid gap-4 md:grid-cols-3">
-              {plans.map((plan) => {
-                const price = interval === 'yearly' ? plan.priceYearlyIdr : plan.priceMonthlyIdr;
-                const monthlyEquiv =
-                  interval === 'yearly' && plan.priceYearlyIdr
-                    ? Math.round(plan.priceYearlyIdr / 12)
-                    : null;
-                const isCurrent = current?.plan === plan.id;
-                const currentRank = PLAN_RANK[current?.plan] ?? 0;
-                const isDowngrade = (PLAN_RANK[plan.id] ?? 0) < currentRank;
-                const isFeatured = plan.id === 'growth';
-
-                return (
-                  <div
-                    key={plan.id}
-                    className={`hf-tile hf-tile-interactive relative flex flex-col overflow-hidden ${
-                      isCurrent ? 'ring-2 ring-[var(--hf-brand-500)]/25' : ''
-                    }`}
-                  >
-                    <span className="absolute inset-y-3 left-0 w-[3px] rounded-r-full bg-[var(--hf-brand-500)]" aria-hidden />
-
-                    <div className="flex flex-1 flex-col p-6 pl-7">
-                      <div className="mb-4 flex items-start justify-between gap-2">
-                        <div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="text-lg font-semibold tracking-tight text-[color:var(--hf-ink)]">
-                              {plan.name}
-                            </h3>
-                            {isFeatured && (
-                              <span className="inline-flex items-center gap-1 rounded-md bg-[var(--hf-brand-50)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[color:var(--hf-brand-600)]">
-                                <Zap className="h-3 w-3" /> Populer
-                              </span>
-                            )}
-                            {isCurrent && (
-                              <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
-                                Aktif
-                              </span>
-                            )}
-                          </div>
-                          <p className="mt-1.5 text-sm leading-relaxed text-[color:var(--hf-ink-muted)]">
-                            {plan.description}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="mb-5">
-                        <p className="text-3xl font-semibold tracking-tight text-[color:var(--hf-ink)] tabular-nums">
-                          {formatIdr(price)}
-                        </p>
-                        <p className="mt-1 text-xs text-[color:var(--hf-ink-faint)]">
-                          per {interval === 'yearly' ? 'tahun' : 'bulan'}
-                          {monthlyEquiv != null ? ` · ~${formatIdr(monthlyEquiv)}/bln` : ''}
-                        </p>
-                      </div>
-
-                      <ul className="mb-6 flex-1 space-y-2.5">
-                        {(plan.features || []).map((f: string) => (
-                          <li key={f} className="flex items-start gap-2 text-sm text-[color:var(--hf-ink-secondary)]">
-                            <Check className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--hf-success)]" />
-                            <span>{f}</span>
-                          </li>
-                        ))}
-                        <li className="flex items-start gap-2 text-sm text-[color:var(--hf-ink-secondary)]">
-                          <Users className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--hf-brand-600)]" />
-                          <span>Maks. {plan.maxEmployees?.toLocaleString('id-ID')} karyawan</span>
-                        </li>
-                      </ul>
-
-                      <button
-                        type="button"
-                        disabled={isCurrent || acting === plan.id}
-                        onClick={() => (isDowngrade ? changePlan(plan.id) : checkout(plan.id))}
-                        className={`inline-flex w-full items-center justify-center gap-2 rounded-[var(--hf-radius)] py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                          isCurrent
-                            ? 'border border-[var(--hf-border)] bg-[var(--hf-surface-muted)] text-[color:var(--hf-ink-muted)]'
-                            : isDowngrade
-                              ? 'hf-btn-secondary'
-                              : isFeatured
-                                ? 'hf-btn-primary'
-                                : 'bg-[color:var(--hf-ink)] text-white hover:bg-slate-800'
-                        }`}
-                      >
-                        {acting === plan.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <CreditCard className="h-4 w-4" />
-                        )}
-                        {isCurrent ? 'Paket aktif' : isDowngrade ? 'Turunkan paket' : 'Upgrade sekarang'}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
             </div>
-          </section>
+          <BillingCheckoutWizard
+            plans={plans}
+            currentPlan={current?.plan}
+            midtransConfigured={midtransConfigured}
+            midtrans={midtrans}
+            customerEmail={session?.user?.email}
+            initialPlan={intendedPlan}
+            initialSeats={current?.billedSeats || undefined}
+            initialAddons={current?.addons}
+            acting={acting}
+            setActing={setActing}
+            onPaid={() => { void update(); load(); }}
+            onDowngrade={changePlan}
+            openSnap={openSnap}
+          />
+          </div>
 
           <section className="hf-card overflow-hidden !p-0">
             <div className="border-b border-[var(--hf-border)] px-6 py-5">
               <p className="hf-section-label">Perbandingan</p>
               <h3 className="mt-1 text-base font-semibold text-[color:var(--hf-ink)]">Matriks fitur paket</h3>
               <p className="mt-1 text-sm text-[color:var(--hf-ink-muted)]">
-                Entitlement resmi Humanify — centang = termasuk di paket.
+                Entitlement resmi Humanify. LMS (+Rp 1.500/karyawan) dan AIMAN (+Rp 65.000/bulan) adalah add-on.
               </p>
             </div>
             <div className="overflow-x-auto">
@@ -773,6 +543,7 @@ export default function HumanifyBillingPage() {
                       </td>
                       {(['starter', 'growth', 'enterprise'] as HumanifyPlanId[]).map((pid) => {
                         const on = HUMANIFY_PLANS[pid].features.includes(feat);
+                        const addOn = feat === 'lms' || feat === 'ai';
                         const active = current?.plan === pid;
                         return (
                           <td
@@ -782,6 +553,10 @@ export default function HumanifyBillingPage() {
                             {on ? (
                               <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50">
                                 <Check className="h-3.5 w-3.5 text-[color:var(--hf-success)]" />
+                              </span>
+                            ) : addOn ? (
+                              <span className="text-[10px] font-semibold uppercase tracking-wide text-[color:var(--hf-brand-600)]">
+                                Add-on
                               </span>
                             ) : (
                               <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-100">

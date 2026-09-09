@@ -17,6 +17,33 @@ export const FUNNEL_STEPS = [
 
 export type FunnelStep = (typeof FUNNEL_STEPS)[number];
 
+const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'] as const;
+
+function pickAttr(raw: unknown): string | undefined {
+  const val = Array.isArray(raw) ? raw[0] : raw;
+  const s = String(val || '').trim().slice(0, 80);
+  if (!s || /[\r\n]/.test(s)) return undefined;
+  return s;
+}
+
+/** UTM from signup body or query — never stores email/PII. */
+export function parseMarketingAttribution(
+  query?: Record<string, unknown> | null,
+  body?: Record<string, unknown> | null,
+): Record<string, string> {
+  const src: Record<string, unknown> = { ...(query || {}) };
+  for (const [k, v] of Object.entries(body || {})) {
+    if (v != null && v !== '') src[k] = v;
+  }
+  const out: Record<string, string> = {};
+  for (const key of UTM_KEYS) {
+    const camel = key.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+    const v = pickAttr(src[key] ?? src[camel]);
+    if (v) out[key] = v;
+  }
+  return out;
+}
+
 let ready = false;
 
 export async function ensureFunnelTable() {

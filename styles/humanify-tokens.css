@@ -514,11 +514,11 @@ button.hf-tile-interactive:focus-visible,
   height: auto;
 }
 
-/* Beat the fluid-img rule so the sidebar wordmark can actually grow. */
+/* Sidebar wordmark — keep shorter than the 4rem header so the divider lines up. */
 .humanify-theme img.hf-app-logo {
   display: block;
-  height: 3.75rem;
-  max-height: 3.75rem;
+  height: 1.75rem;
+  max-height: 1.75rem;
   width: auto;
   max-width: 100%;
   object-fit: contain;
@@ -526,13 +526,13 @@ button.hf-tile-interactive:focus-visible,
 }
 @media (min-width: 1024px) {
   .humanify-theme img.hf-app-logo {
-    height: 4.5rem;
-    max-height: 4.5rem;
+    height: 2rem;
+    max-height: 2rem;
   }
 }
 .humanify-theme img.hf-app-mark {
-  height: 2.75rem;
-  width: 2.75rem;
+  height: 2rem;
+  width: 2rem;
   max-width: none;
   max-height: none;
 }

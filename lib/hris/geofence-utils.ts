@@ -82,3 +82,18 @@ export function geofenceStatusLabel(match: GeofenceMatch | null): string {
   if (match.inside) return `Dalam geofence · ${match.name}`;
   return `Di luar geofence · ${match.distanceM}m dari ${match.name}`;
 }
+
+/** Clock is allowed when no fences exist, outside is permitted, or the punch is inside. */
+export function geofenceClockAllowed(
+  match: GeofenceMatch | null,
+  opts: { fenceCount: number; allowOutside?: boolean },
+): { ok: true } | { ok: false; error: string; code: 'OUTSIDE_GEOFENCE' } {
+  if (!opts.fenceCount || opts.allowOutside) return { ok: true };
+  if (match?.inside) return { ok: true };
+  const dist = match ? `${match.distanceM}m dari ${match.name}, max ${match.radiusM}m` : 'lokasi tidak terdeteksi';
+  return {
+    ok: false,
+    code: 'OUTSIDE_GEOFENCE',
+    error: `Anda berada di luar area kantor (${dist})`,
+  };
+}

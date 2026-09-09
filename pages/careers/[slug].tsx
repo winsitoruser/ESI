@@ -5,6 +5,7 @@ import { useRouter } from 'next/router';
 import { ArrowLeft, MapPin, Building2, Send, CheckCircle2 } from 'lucide-react';
 import { HumanifyLogo } from '@/components/humanify/HumanifyLogo';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
+import { toJsonLdScript } from '@/lib/security/sanitize-user-text';
 
 export default function CareerDetailPage() {
   const router = useRouter();
@@ -53,7 +54,7 @@ export default function CareerDetailPage() {
           <script
             type="application/ld+json"
             dangerouslySetInnerHTML={{
-              __html: JSON.stringify({
+              __html: toJsonLdScript({
                 '@context': 'https://schema.org/',
                 '@type': 'JobPosting',
                 title: job.title,

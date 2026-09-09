@@ -213,6 +213,12 @@ export default function EmployeePortalLoginForm({ csrfToken }: Props) {
             <div className="hidden lg:block absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-400/40 to-transparent" />
 
             <div className="relative p-5 sm:p-6 lg:p-9">
+              <a
+                href="#ess-login-email"
+                className="sr-only focus:not-sr-only focus:absolute focus:z-20 focus:left-4 focus:top-4 focus:rounded-lg focus:bg-white focus:px-3 focus:py-2 focus:text-sm focus:text-slate-900"
+              >
+                Lompat ke formulir masuk
+              </a>
               <div className="mb-5 lg:mb-7">
                 <h2 className="text-lg lg:text-xl font-bold tracking-tight text-slate-900 lg:text-white">
                   Masuk ke akun Anda
@@ -224,12 +230,13 @@ export default function EmployeePortalLoginForm({ csrfToken }: Props) {
                 <input type="hidden" name="csrfToken" value={csrfToken} />
 
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 lg:text-slate-400 mb-2">
+                  <label htmlFor="ess-login-email" className="block text-xs font-semibold uppercase tracking-wider text-slate-500 lg:text-slate-400 mb-2">
                     Email karyawan
                   </label>
                   <div className="relative group">
                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-[17px] h-[17px] text-slate-400 lg:text-slate-500 group-focus-within:text-teal-600 lg:group-focus-within:text-indigo-400 transition-colors" />
                     <input
+                      id="ess-login-email"
                       type="email"
                       name="email"
                       inputMode="email"
@@ -244,12 +251,13 @@ export default function EmployeePortalLoginForm({ csrfToken }: Props) {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 lg:text-slate-400 mb-2">
+                  <label htmlFor="ess-login-password" className="block text-xs font-semibold uppercase tracking-wider text-slate-500 lg:text-slate-400 mb-2">
                     Password
                   </label>
                   <div className="relative group">
                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-[17px] h-[17px] text-slate-400 lg:text-slate-500 group-focus-within:text-teal-600 lg:group-focus-within:text-indigo-400 transition-colors" />
                     <input
+                      id="ess-login-password"
                       type={showPassword ? 'text' : 'password'}
                       name="password"
                       value={formData.password}

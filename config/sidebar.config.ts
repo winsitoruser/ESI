@@ -184,6 +184,8 @@ export interface MenuItem {
   // Visibility
   hidden?: boolean;
   comingSoon?: boolean;
+  /** Plan-gated: still shown in sidebar, page/billing enforces access */
+  locked?: boolean;
 }
 
 export interface MenuGroup {

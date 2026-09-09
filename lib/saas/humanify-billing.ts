@@ -9,6 +9,18 @@ import {
   type HumanifyPlanId,
 } from './plan-entitlements';
 import { getTenantColumns, parseTenantSettings } from './tenant-schema';
+import { countTenantSeats } from './seat-metering';
+import {
+  getSeatPricingRates,
+  normalizeAddons,
+  parseOrderAddons,
+  persistTenantBillingState,
+  quoteSeatSubscription,
+  readTenantBillingState,
+  parseTenantBillingState,
+  type BillingAddons,
+  type SeatQuote,
+} from './seat-pricing';
 import { estimatePartnerCommission, resolvePartnerByCode } from './partners';
 import {
   buildHumanifySnapPayload,
@@ -64,6 +76,8 @@ export async function ensureBillingOrdersTable() {
     'ADD COLUMN IF NOT EXISTS voucher_code VARCHAR(40)',
     'ADD COLUMN IF NOT EXISTS discount_idr INTEGER',
     'ADD COLUMN IF NOT EXISTS midtrans_transaction_id VARCHAR(80)',
+    'ADD COLUMN IF NOT EXISTS billed_seats INTEGER',
+    'ADD COLUMN IF NOT EXISTS addons JSONB',
   ]) {
     try {
       await sequelize.query(`ALTER TABLE saas_billing_orders ${col}`);
@@ -72,24 +86,20 @@ export async function ensureBillingOrdersTable() {
   ordersReady = true;
 }
 
-export function quoteAmount(planId: string, interval: BillingInterval = 'monthly'): number {
+export function quoteAmount(
+  planId: string,
+  interval: BillingInterval = 'monthly',
+  seats = 1,
+): number {
   const plan = HUMANIFY_PLANS[normalizeHumanifyPlan(planId)];
   if (!plan || plan.id === 'trial') throw new Error('Pilih paket berbayar (starter/growth/enterprise)');
-  try {
-    // Sync path: use in-memory catalog override when cache warm
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { getPlanCatalogOverride } = require('./plan-pricing-store') as typeof import('./plan-pricing-store');
-    const o = getPlanCatalogOverride(plan.id);
-    const monthly = o?.priceMonthlyIdr ?? plan.priceMonthlyIdr;
-    if (interval === 'yearly') return Math.round(monthly * 12 * 0.8);
-    return monthly;
-  } catch {
-    if (interval === 'yearly') return Math.round(plan.priceMonthlyIdr * 12 * 0.8);
-    return plan.priceMonthlyIdr;
-  }
+  return quoteSeatSubscription({ seats, interval }).periodIdr;
 }
 
-export function listBillablePlans() {
+export async function listBillablePlans() {
+  const rates = await getSeatPricingRates();
+  const fromMonthly = quoteSeatSubscription({ seats: 1, interval: 'monthly', rates }).periodIdr;
+  const fromYearly = quoteSeatSubscription({ seats: 1, interval: 'yearly', rates }).periodIdr;
   return (Object.values(HUMANIFY_PLANS) as typeof HUMANIFY_PLANS[HumanifyPlanId][])
     .filter((p) => p.id !== 'trial')
     .map((p) => {
@@ -111,13 +121,225 @@ export function listBillablePlans() {
         features: def.features,
         maxUsers: def.maxUsers,
         maxEmployees: def.maxEmployees,
-        priceMonthlyIdr: def.priceMonthlyIdr,
-        priceYearlyIdr: Math.round(def.priceMonthlyIdr * 12 * 0.8),
+        priceMonthlyIdr: fromMonthly,
+        priceYearlyIdr: fromYearly,
+        pricingModel: 'per_seat' as const,
+        seatPricing: rates,
       };
     });
 }
 
 export { getMidtransPublicConfig, isMidtransConfigured };
+
+export type CheckoutQuote = {
+  plan: HumanifyPlanId;
+  planName: string;
+  interval: BillingInterval;
+  listPriceIdr: number;
+  discountIdr: number;
+  payableIdr: number;
+  voucherCode: string | null;
+  voucherLabel: string | null;
+  money: ReturnType<typeof splitInclusivePpn>;
+  seat: SeatQuote;
+  minSeats: number;
+  activeEmployees: number;
+  change: null | {
+    currentPlan: HumanifyPlanId;
+    direction: 'upgrade' | 'downgrade' | 'same';
+    seats: { users: number; employees: number };
+    targetMaxUsers: number;
+    targetMaxEmployees: number;
+    fits: boolean;
+    blockers: string[];
+    requiresCheckout: boolean;
+  };
+  errors: string[];
+  warnings: string[];
+  canCheckout: boolean;
+  canDowngrade: boolean;
+  isRenewal: boolean;
+};
+
+export async function quoteHumanifyCheckout(opts: {
+  tenantId?: string | null;
+  plan: string;
+  interval?: BillingInterval;
+  voucherCode?: string;
+  seats?: number;
+  addons?: { lms?: boolean; ai?: boolean } | null;
+}): Promise<CheckoutQuote> {
+  const plan = normalizeHumanifyPlan(opts.plan);
+  const interval: BillingInterval = opts.interval === 'yearly' ? 'yearly' : 'monthly';
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const rates = await getSeatPricingRates();
+  const addons = normalizeAddons(opts.addons);
+
+  if (plan === 'trial') {
+    errors.push('Pilih paket berbayar: Starter, Growth, atau Enterprise.');
+  }
+
+  let activeEmployees = 0;
+  let billedSeats: number | null = null;
+  let currentAddons: BillingAddons = { lms: false, ai: false };
+  if (opts.tenantId) {
+    try {
+      const usage = await countTenantSeats(opts.tenantId);
+      activeEmployees = usage.employees;
+    } catch { /* */ }
+    try {
+      const billing = await readTenantBillingState(opts.tenantId);
+      billedSeats = billing.billedSeats;
+      currentAddons = billing.addons;
+    } catch { /* */ }
+  }
+
+  const minSeats = Math.max(rates.minSeats, activeEmployees || 0, 1);
+  const requestedRaw = opts.seats != null ? Number(opts.seats) : (billedSeats || minSeats);
+  const seats = quoteSeatSubscription({ seats: requestedRaw, interval, addons, rates }).seats;
+  if (seats < minSeats) {
+    errors.push(`Minimal ${minSeats.toLocaleString('id-ID')} kursi sesuai jumlah karyawan aktif.`);
+  }
+
+  const seat = quoteSeatSubscription({
+    seats: Math.max(seats, minSeats),
+    addons,
+    interval,
+    rates,
+  });
+
+  const listPriceIdr = plan === 'trial' ? 0 : seat.periodIdr;
+
+  let voucherCode: string | null = null;
+  let voucherLabel: string | null = null;
+  let discountIdr = 0;
+  const rawVoucher = String(opts.voucherCode || '').trim();
+  if (rawVoucher && plan !== 'trial') {
+    const voucher = await findBillingVoucherByCode(rawVoucher);
+    if (!voucher) {
+      errors.push('Kode voucher tidak ditemukan.');
+    } else {
+      const applied = computeVoucherDiscount(voucher, listPriceIdr, plan);
+      if (!applied.ok) {
+        errors.push(applied.error || 'Voucher tidak dapat dipakai.');
+      } else {
+        voucherCode = voucher.code;
+        voucherLabel = voucher.label || voucher.code;
+        discountIdr = applied.discountIdr;
+      }
+    }
+  }
+
+  const payableIdr = Math.max(0, Math.round(listPriceIdr - discountIdr));
+  const money = splitInclusivePpn(payableIdr);
+
+  let change: CheckoutQuote['change'] = null;
+  if (opts.tenantId) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { previewPlanChange } = require('./plan-change') as typeof import('./plan-change');
+      const preview = await previewPlanChange(opts.tenantId, plan);
+      change = {
+        currentPlan: preview.currentPlan,
+        direction: preview.direction,
+        seats: preview.seats,
+        targetMaxUsers: preview.targetMaxUsers,
+        targetMaxEmployees: preview.targetMaxEmployees,
+        fits: preview.fits,
+        blockers: preview.blockers,
+        requiresCheckout: preview.requiresCheckout,
+      };
+      if (!preview.fits) errors.push(...preview.blockers);
+      if (preview.direction === 'downgrade') {
+        warnings.push('Penurunan paket tidak lewat Midtrans — berlaku segera setelah konfirmasi.');
+      }
+      if (preview.direction === 'same' && plan !== 'trial') {
+        const sameAddons = currentAddons.lms === addons.lms && currentAddons.ai === addons.ai;
+        const sameSeats = billedSeats === seat.seats;
+        if (sameAddons && sameSeats) {
+          warnings.push('Paket, kursi, dan add-on ini sudah aktif. Melanjutkan akan memperpanjang langganan.');
+        } else {
+          warnings.push('Perubahan kursi atau add-on akan ditagih lewat checkout.');
+        }
+      }
+    } catch {
+      warnings.push('Tidak bisa cek kuota karyawan — lanjutkan dengan hati-hati.');
+    }
+  }
+
+  const canDowngrade = Boolean(change?.direction === 'downgrade' && change.fits);
+  const canCheckout =
+    errors.length === 0 &&
+    plan !== 'trial' &&
+    change?.direction !== 'downgrade';
+
+  return {
+    plan,
+    planName: HUMANIFY_PLANS[plan]?.name || plan,
+    interval,
+    listPriceIdr,
+    discountIdr,
+    payableIdr,
+    voucherCode,
+    voucherLabel,
+    money,
+    seat,
+    minSeats,
+    activeEmployees,
+    change,
+    errors,
+    warnings,
+    canCheckout,
+    canDowngrade,
+    isRenewal: change?.direction === 'same' && plan !== 'trial',
+  };
+}
+
+function snapItemsFromSeatQuote(quote: CheckoutQuote): Array<{
+  id: string;
+  price: number;
+  quantity: number;
+  name: string;
+  category: string;
+}> {
+  const scale = quote.listPriceIdr > 0 ? quote.payableIdr / quote.listPriceIdr : 1;
+  const lines: Array<{ id: string; amount: number; name: string }> = [];
+  if (quote.seat.periodCoreIdr > 0) {
+    lines.push({
+      id: `${quote.plan}-seats`,
+      amount: quote.seat.periodCoreIdr,
+      name: `Humanify ${quote.planName} · ${quote.seat.seats} karyawan`,
+    });
+  }
+  if (quote.seat.periodLmsIdr > 0) {
+    lines.push({
+      id: 'addon-lms',
+      amount: quote.seat.periodLmsIdr,
+      name: `Add-on LMS · ${quote.seat.seats} karyawan`,
+    });
+  }
+  if (quote.seat.periodAiIdr > 0) {
+    lines.push({
+      id: 'addon-ai',
+      amount: quote.seat.periodAiIdr,
+      name: 'Add-on AIMAN Copilot',
+    });
+  }
+  const items = lines
+    .map((line) => ({
+      id: line.id,
+      price: Math.max(0, Math.round(line.amount * scale)),
+      quantity: 1,
+      name: line.name.slice(0, 50),
+      category: 'SaaS',
+    }))
+    .filter((item) => item.price > 0);
+  const sum = items.reduce((s, item) => s + item.price, 0);
+  const delta = quote.payableIdr - sum;
+  if (items.length && delta !== 0) items[0].price = Math.max(0, items[0].price + delta);
+  return items;
+}
 
 export async function createHumanifyCheckout(opts: {
   tenantId: string;
@@ -128,27 +350,36 @@ export async function createHumanifyCheckout(opts: {
   successUrl?: string;
   forceManual?: boolean;
   voucherCode?: string;
+  seats?: number;
+  addons?: { lms?: boolean; ai?: boolean } | null;
 }) {
   if (!sequelize) throw new Error('Database unavailable');
   await ensureBillingOrdersTable();
 
-  const plan = normalizeHumanifyPlan(opts.plan);
-  if (plan === 'trial') throw new Error('Paket trial tidak perlu checkout');
-  const interval: BillingInterval = opts.interval === 'yearly' ? 'yearly' : 'monthly';
-  const listPrice = quoteAmount(plan, interval);
-
-  let voucherCode: string | null = null;
-  let discountIdr = 0;
-  const rawVoucher = String(opts.voucherCode || '').trim();
-  if (rawVoucher) {
-    const voucher = await findBillingVoucherByCode(rawVoucher);
-    if (!voucher) throw new Error('Kode voucher tidak ditemukan');
-    const applied = computeVoucherDiscount(voucher, listPrice, plan);
-    if (!applied.ok) throw new Error(applied.error || 'Voucher tidak dapat dipakai');
-    voucherCode = voucher.code;
-    discountIdr = applied.discountIdr;
+  const quote = await quoteHumanifyCheckout({
+    tenantId: opts.tenantId,
+    plan: opts.plan,
+    interval: opts.interval,
+    voucherCode: opts.voucherCode,
+    seats: opts.seats,
+    addons: opts.addons,
+  });
+  if (!quote.canCheckout) {
+    throw Object.assign(
+      new Error(quote.errors[0] || 'Checkout tidak dapat dilanjutkan. Periksa paket dan kuota karyawan.'),
+      { statusCode: 422, quote },
+    );
   }
-  const amount = Math.max(0, listPrice - discountIdr);
+
+  const plan = quote.plan;
+  const interval = quote.interval;
+  const listPrice = quote.listPriceIdr;
+  const voucherCode = quote.voucherCode;
+  const discountIdr = quote.discountIdr;
+  const amount = quote.payableIdr;
+  const billedSeats = quote.seat.seats;
+  const addons = quote.seat.addons;
+  const addonsJson = JSON.stringify(addons);
 
   const [pendingRows] = await sequelize.query(`
     SELECT * FROM saas_billing_orders
@@ -156,9 +387,22 @@ export async function createHumanifyCheckout(opts: {
       AND status = 'pending' AND provider = 'midtrans'
       AND created_at > NOW() - INTERVAL '20 hours'
       AND COALESCE(amount_idr, 0) = :amount
+      AND COALESCE(billed_seats, 0) = :billedSeats
+      AND COALESCE(addons->>'lms', 'false') = :lms
+      AND COALESCE(addons->>'ai', 'false') = :ai
     ORDER BY created_at DESC
     LIMIT 1
-  `, { replacements: { tid: opts.tenantId, plan, interval, amount } });
+  `, {
+    replacements: {
+      tid: opts.tenantId,
+      plan,
+      interval,
+      amount,
+      billedSeats,
+      lms: String(addons.lms),
+      ai: String(addons.ai),
+    },
+  });
   const existing = pendingRows?.[0];
   if (existing?.snap_token && isMidtransConfigured() && !opts.forceManual) {
     const pub = getMidtransPublicConfig();
@@ -171,6 +415,8 @@ export async function createHumanifyCheckout(opts: {
       listPriceIdr: listPrice,
       discountIdr: existing.discount_idr || 0,
       voucherCode: existing.voucher_code || voucherCode,
+      billedSeats,
+      addons,
       provider: 'midtrans' as const,
       snapToken: existing.snap_token,
       redirectUrl: existing.redirect_url,
@@ -230,6 +476,7 @@ export async function createHumanifyCheckout(opts: {
       customerName: opts.customerName,
       customerEmail: opts.customerEmail,
       finishUrl,
+      itemDetails: snapItemsFromSeatQuote(quote),
     }));
     snapToken = snap.token;
     redirectUrl = snap.redirectUrl || finishUrl;
@@ -241,10 +488,10 @@ export async function createHumanifyCheckout(opts: {
   await sequelize.query(`
     INSERT INTO saas_billing_orders
       (id, tenant_id, order_code, plan, interval, amount_idr, status, provider, snap_token, redirect_url, raw,
-       partner_code, commission_pct, commission_idr, voucher_code, discount_idr)
+       partner_code, commission_pct, commission_idr, voucher_code, discount_idr, billed_seats, addons)
     VALUES
       (:id, :tenantId, :orderCode, :plan, :interval, :amount, 'pending', :provider, :snapToken, :redirectUrl, CAST(:raw AS jsonb),
-       :partnerCode, :commissionPct, :commissionIdr, :voucherCode, :discountIdr)
+       :partnerCode, :commissionPct, :commissionIdr, :voucherCode, :discountIdr, :billedSeats, CAST(:addons AS jsonb))
   `, {
     replacements: {
       id,
@@ -262,6 +509,8 @@ export async function createHumanifyCheckout(opts: {
       commissionIdr,
       voucherCode,
       discountIdr,
+      billedSeats,
+      addons: addonsJson,
     },
   });
 
@@ -277,6 +526,8 @@ export async function createHumanifyCheckout(opts: {
       listPriceIdr: listPrice,
       discountIdr,
       voucherCode,
+      billedSeats,
+      addons,
       provider: 'manual' as const,
       snapToken: null,
       redirectUrl: null,
@@ -299,6 +550,8 @@ export async function createHumanifyCheckout(opts: {
     listPriceIdr: listPrice,
     discountIdr,
     voucherCode,
+    billedSeats,
+    addons,
     provider,
     snapToken,
     redirectUrl,
@@ -346,6 +599,13 @@ export async function activatePaidOrder(orderCodeOrId: string, opts?: { raw?: an
   }
 
   await sequelize.query(`UPDATE tenants SET ${sets.join(', ')} WHERE id = :id`, { replacements });
+
+  try {
+    await persistTenantBillingState(String(order.tenant_id), {
+      billedSeats: order.billed_seats != null ? Number(order.billed_seats) : undefined,
+      addons: parseOrderAddons(order.addons),
+    });
+  } catch { /* settings column optional */ }
 
   await sequelize.query(`
     UPDATE saas_billing_orders
@@ -508,7 +768,7 @@ export async function getTenantBillingStatus(tenantId: string) {
 
   const [orders] = await sequelize.query(`
     SELECT id, order_code, plan, interval, amount_idr, status, provider, redirect_url, snap_token,
-           paid_at, created_at, payment_type, voucher_code, discount_idr
+           paid_at, created_at, payment_type, voucher_code, discount_idr, billed_seats, addons
     FROM saas_billing_orders
     WHERE tenant_id = :tid
     ORDER BY created_at DESC
@@ -516,6 +776,7 @@ export async function getTenantBillingStatus(tenantId: string) {
   `, { replacements: { tid: tenantId } });
 
   const planId = normalizeHumanifyPlan(cols.has('subscription_plan') ? t.subscription_plan : 'trial');
+  const billing = parseTenantBillingState(t.settings);
   const trialEndsAt = cols.has('trial_ends_at') ? (t.trial_ends_at || null) : null;
   let trialDaysLeft: number | null = null;
   if (trialEndsAt) {
@@ -537,6 +798,8 @@ export async function getTenantBillingStatus(tenantId: string) {
     trialDaysLeft,
     trialExpiringSoon: Boolean(isTrial && trialDaysLeft != null && trialDaysLeft <= 7),
     trialExpired: Boolean(trialEndsAt && trialDaysLeft != null && trialDaysLeft < 0),
+    billedSeats: billing.billedSeats,
+    addons: billing.addons,
     orders: (orders || []).map((o: any) => ({
       ...o,
       snap_token: o.status === 'pending' ? o.snap_token : undefined,
@@ -613,7 +876,8 @@ export async function getPaidOrderInvoice(tenantId: string, orderCode: string) {
   const cols = await getTenantColumns();
 
   const [orders] = await sequelize.query(`
-    SELECT id, tenant_id, order_code, plan, interval, amount_idr, status, provider, paid_at, created_at
+    SELECT id, tenant_id, order_code, plan, interval, amount_idr, status, provider, paid_at, created_at,
+           billed_seats, addons
     FROM saas_billing_orders
     WHERE tenant_id = :tid
       AND (order_code = :code OR id::text = :code)
@@ -649,6 +913,51 @@ export async function getPaidOrderInvoice(tenantId: string, orderCode: string) {
   const planName = HUMANIFY_PLANS[planId]?.name || String(order.plan);
   const intervalLabel = order.interval === 'yearly' ? 'Tahunan' : 'Bulanan';
   const paidAt = order.paid_at || order.created_at;
+  const addons = parseOrderAddons(order.addons);
+  const billedSeats = order.billed_seats != null ? Number(order.billed_seats) : 0;
+  const seatQuote = billedSeats > 0
+    ? quoteSeatSubscription({
+        seats: billedSeats,
+        addons,
+        interval: order.interval === 'yearly' ? 'yearly' : 'monthly',
+      })
+    : null;
+  const scale = seatQuote && seatQuote.periodIdr > 0 ? money.subtotal / seatQuote.periodIdr : 1;
+  const items = seatQuote
+    ? [
+        {
+          description: `Humanify ${planName} · ${seatQuote.seats} karyawan (${intervalLabel})`,
+          quantity: seatQuote.seats,
+          unit: 'karyawan',
+          unitPrice: Math.round((seatQuote.periodCoreIdr * scale) / Math.max(1, seatQuote.seats)),
+          total: Math.round(seatQuote.periodCoreIdr * scale),
+        },
+        ...(seatQuote.periodLmsIdr > 0 ? [{
+          description: `Add-on LMS (${intervalLabel})`,
+          quantity: seatQuote.seats,
+          unit: 'karyawan',
+          unitPrice: Math.round((seatQuote.periodLmsIdr * scale) / Math.max(1, seatQuote.seats)),
+          total: Math.round(seatQuote.periodLmsIdr * scale),
+        }] : []),
+        ...(seatQuote.periodAiIdr > 0 ? [{
+          description: `Add-on AIMAN Copilot (${intervalLabel})`,
+          quantity: 1,
+          unit: 'paket',
+          unitPrice: Math.round(seatQuote.periodAiIdr * scale),
+          total: Math.round(seatQuote.periodAiIdr * scale),
+        }] : []),
+      ]
+    : [{
+        description: `Langganan Humanify ${planName} (${intervalLabel})`,
+        quantity: 1,
+        unit: 'paket',
+        unitPrice: money.subtotal,
+        total: money.subtotal,
+      }];
+  const itemSum = items.reduce((s, i) => s + i.total, 0);
+  if (items.length && itemSum !== money.subtotal) {
+    items[0].total += money.subtotal - itemSum;
+  }
 
   return {
     orderCode: order.order_code,
@@ -679,13 +988,7 @@ export async function getPaidOrderInvoice(tenantId: string, orderCode: string) {
       npwp,
       slug: t.slug || null,
     },
-    items: [{
-      description: `Langganan Humanify ${planName} (${intervalLabel})`,
-      quantity: 1,
-      unit: 'paket',
-      unitPrice: money.subtotal,
-      total: money.subtotal,
-    }],
+    items,
     documentNumber: `INV-${order.order_code}`,
     notes: cols.has('slug') ? `Tenant: ${t.slug}` : undefined,
   };

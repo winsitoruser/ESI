@@ -25,8 +25,9 @@ function has(rel, re, label) {
 
 // Pricing truth
 has('lib/saas/plan-entitlements.ts', /HUMANIFY_CANONICAL_PRICES_IDR/, 'PR-001 canonical price book');
-has('lib/humanify/roi-calculator.ts', /HUMANIFY_PLANS/, 'PR-001 ROI uses HUMANIFY_PLANS');
-has('docs/humanify-sales-feature-status.md', /Rp499\.000/, 'PR-001 sales sheet list price');
+has('lib/humanify/roi-calculator.ts', /quoteSeatSubscription/, 'PR-001 ROI uses seat quote');
+has('docs/humanify-sales-feature-status.md', /Rp 10\.000/, 'PR-001 sales sheet list price');
+has('lib/saas/seat-pricing-core.ts', /pricePerUserIdr: 10_000/, 'PR-001 per-user rate card');
 if (!/1_800_000|9_500_000/.test(read('lib/humanify/roi-calculator.ts'))) ok('PR-001 no legacy ROI prices');
 else fail('PR-001 legacy ROI prices');
 

@@ -19,6 +19,9 @@ import {
   notifyDisciplinaryStakeholders,
 } from '../../../lib/hris/disciplinary-notifications';
 import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
+import { getTenantBranding } from '@/lib/saas/humanify-branding';
+import { disciplinaryTemplateType, getHrTemplate, templateToDraft } from '@/lib/hris/document-templates';
+import { buildMergeContext } from '@/lib/hris/letter-merge-fields';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch (_) {}
@@ -101,6 +104,46 @@ async function loadLetterScoped(id: string, session: any): Promise<any | null> {
 function getUserId(session: any): number | null {
   const id = (session.user as any)?.id;
   return id ? parseInt(String(id), 10) : null;
+}
+
+async function draftFromEnterpriseTemplate(tenantId: string | null, params: {
+  letterType: DisciplinaryLetterType;
+  employeeName: string;
+  employeeCode?: string;
+  position?: string;
+  department?: string;
+  violationType?: string;
+  violationDescription: string;
+  incidentDate?: string;
+}) {
+  const fallback = buildDefaultDraftContent(params);
+  if (!tenantId) return fallback;
+  try {
+    const branding = await getTenantBranding(tenantId);
+    const type = disciplinaryTemplateType(params.letterType);
+    const template = await getHrTemplate(tenantId, type);
+    const context = buildMergeContext({
+      letterData: {
+        employeeName: params.employeeName,
+        employeeId: params.employeeCode,
+        position: params.position,
+        department: params.department,
+        violationType: params.violationType,
+        violationDescription: params.violationDescription,
+        incidentDate: params.incidentDate,
+        warningType: params.letterType,
+        letter_type: params.letterType,
+      },
+      companyName: branding.companyName || undefined,
+    });
+    const draft = templateToDraft(template, branding, context);
+    if (!draft.letterhead?.logoUrl && branding.logoUrl && draft.letterhead) {
+      draft.letterhead.logoUrl = branding.logoUrl;
+    }
+    return draft;
+  } catch {
+    return fallback;
+  }
 }
 
 async function ensureSchema() {
@@ -463,7 +506,7 @@ async function createLetter(req: NextApiRequest, res: NextApiResponse, session: 
   const [countRes] = await sequelize.query(`SELECT COUNT(*) as cnt FROM hr_disciplinary_letters`);
   const refNumber = `REF-${generateLetterNumber(letterType, parseInt(countRes[0]?.cnt || 0) + 1)}`;
 
-  const defaultDraft = buildDefaultDraftContent({
+  const defaultDraft = await draftFromEnterpriseTemplate(tenantId, {
     letterType,
     employeeName: emp.name,
     employeeCode: emp.employee_code,
@@ -546,7 +589,7 @@ async function regenerateDraft(req: NextApiRequest, res: NextApiResponse, sessio
   const letter = letters[0];
   if (!letter) return res.status(404).json({ success: false, error: 'Not found' });
 
-  const defaultDraft = buildDefaultDraftContent({
+  const defaultDraft = await draftFromEnterpriseTemplate(getTenantId(session), {
     letterType: letter.letter_type,
     employeeName: letter.employee_name,
     employeeCode: letter.employee_code,
@@ -846,7 +889,7 @@ async function completeInvestigation(req: NextApiRequest, res: NextApiResponse, 
 
   let draftContent = parseDraftContent(letter.draft_content);
   if (!draftContent?.body) {
-    draftContent = buildDefaultDraftContent({
+    draftContent = await draftFromEnterpriseTemplate(getTenantId(session), {
       letterType: letter.letter_type,
       employeeName: letter.employee_name,
       employeeCode: letter.employee_code,

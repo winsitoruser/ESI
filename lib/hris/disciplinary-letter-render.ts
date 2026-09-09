@@ -18,7 +18,7 @@ import {
   type ViolationType,
 } from './disciplinary-workflow';
 
-export const DRAFT_LETTER_TYPES = ['warning-letter', 'reprehend-letter', 'termination-letter'] as const;
+export const DRAFT_LETTER_TYPES = ['warning-letter', 'reprehend-letter', 'termination-letter', 'paklaring', 'offer-letter', 'nda', 'reference-letter', 'employee-certificate', 'mutation-letter', 'employment-contract'] as const;
 
 export interface DisciplinaryLetterRenderData {
   employeeName?: string;

@@ -1,0 +1,26 @@
+Humanify — Release Certification & Go/No-Go Sign-off,,,,,,,
+,,,,,,,
+Gate,Required Evidence,Owner,Status,Open P0?,Risk Accepted By,Decision / Notes,Evidence Link
+System readiness,Build/config/migration/health green,Engineering + DevOps,Pass*,Yes — Midtrans env,,"Pass* WAVE-8 + WQ-030; VPS Midtrans keys still missing",artifacts/gsheet-live-readiness/run-wave8-20260909T013500Z/SUMMARY.txt
+Functional critical suite,All P0 core product test pass,QA + Product,Pass,No,,WAVE-8 CRUD/UAT/pages 0 unexpected fail,run-wave8 functional-crud employees-uat module-pages
+Tenant isolation & RBAC,Security evidence for two-tenant / role matrix,Security + QA,Pass,No,,IDOR 94/0 + isolation + payslip-idor + desk RBAC,run-wave8 idor.log tenant-isolation.log
+Payroll acceptance,Payroll SME reconciliation and sign-off,Payroll SME,Pass*,Yes — SME unsigned,,"Automated golden/fiscal/depth/payslip-gate Pass; WQ-092 wet signature Open",run-wave8 payroll-*.log
+Attendance/Leave acceptance,HR SME critical scenarios pass,HR SME,Pass*,Yes — SME unsigned,,"API geofence + Jakarta date + ess-leave Pass; WQ-090/091 Open",run-wave8 ess-leave.log
+Billing/payment,Finance reconciliation + webhook/idempotency pass,Finance + QA,Partial,Yes — no live Snap,,"Invalid signature + replay Pass; WQ-010/101 Blocked",run-wave8 billing-idempotency.log
+ESS/MSS,Employee and manager journeys pass,HR SME + QA,Pass*,Yes — human UAT,,"WAVE-8 claim-proof/docs + Pixel 5 login; WQ-094 Open",run-wave8 claim-proof.log
+Admin Total,Platform ops roles/system/billing/approval ready,Platform Ops,Pass,No,,ops 8/0 admin 8/0,run-wave8 ops-host.log admin-host.log
+Performance capacity,P0 workloads within SLO and stress limit known,Engineering + DevOps,Partial,Yes — health p95,,"Login p97.5 434ms OK; health p97.5 329ms vs 200ms; soak not run",docs/humanify-wave5-perf-runbook.md
+Backup/DR/Rollback,Restore + rollback rehearsal successful,DevOps,Partial,Yes — no app rollback drill,,"DB restore scratch Pass cycle 4; WQ-032 Open",EXECUTION-REPORT.md GATE-07
+UAT,P0 UAT signed off,Business Owners,Open,Yes,,Automated UAT is not wet signature,docs/humanify-launch-known-issues.md
+GTM readiness,Pricing/features/funnel/CRM/support assets verified,Growth + Commercial,Pass*,Yes — live pay,,"Price crawl 10k/9.5k/9k + add-on; campaign after WQ-101",smoke:price-crawl
+Production smoke,100% P0 smoke after deploy,QA Lead,Pass,No,,WAVE-8 GATE-25 pack,run-wave8 page-crawl.log
+Live payment,Controlled production payment reconciles,Finance + QA,Blocked,Yes,,WQ-010 keys not on VPS; do not charge from agent,WQ-010
+Known issues,All remaining P1/P2 documented with owner/date,Product Owner,Draft,Yes — P0 not accepted,,WQ-121 draft awaiting PO ticks,docs/humanify-launch-known-issues.md
+,,,,,,,
+FINAL DECISION,,,,,,,
+Release Candidate / Commit,WAVE-8 pack 9 Sep 2026,,,,,,
+Decision,HOLD,,,,,,
+Decision Date,2026-09-09,,,,,,
+Approved By,(unsigned — Launch Manager),,,,,,
+Rollback Authority,(unsigned — WQ-006),,,,,,
+GO rule,GO only if GATE-28 + GATE-06 + GATE-18 SLO + UAT SME + named on-call PASS; else HOLD,Launch Manager,HOLD,Yes,,docs/humanify-wave9-release-certification.md,WQ-123

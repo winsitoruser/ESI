@@ -75,6 +75,13 @@ describe('control center commercial helpers', () => {
     expect(deskHasPermission('management', 'roles.assign')).toBe(true);
     expect(permissionForAction('finance-refund', 'POST')).toBe('finance.refund');
     expect(permissionForAction('overview', 'GET')).toBeNull();
+    expect(deskHasPermission('cs', 'billing.edit')).toBe(false);
+    expect(deskHasPermission('cs', 'content.publish')).toBe(false);
+    expect(deskHasPermission('sales', 'finance.refund')).toBe(false);
+    expect(deskHasPermission('sales', 'content.publish')).toBe(false);
+    expect(permissionForAction('tenant-plan', 'POST')).toBe('clients.edit');
+    expect(permissionForAction('article-advance', 'POST')).toBe('content.publish');
+    expect(permissionForAction('billing-cancel', 'POST')).toBe('finance.refund');
   });
 
   it('slugifies articles and forecasts MRR', () => {

@@ -103,6 +103,25 @@ export function weekdayInTimeZone(date: Date, timeZone = 'Asia/Jakarta'): number
   return map[wd] ?? date.getDay();
 }
 
+/** Calendar date in the business timezone (YYYY-MM-DD). Not UTC. */
+export function businessDateInTimeZone(date: Date = new Date(), timeZone = 'Asia/Jakarta'): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}
+
+export function clockHmInTimeZone(date: Date = new Date(), timeZone = 'Asia/Jakarta'): string {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone, hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(date);
+  const h = parts.find((p) => p.type === 'hour')?.value || '00';
+  const m = parts.find((p) => p.type === 'minute')?.value || '00';
+  return `${h}:${m}`;
+}
+
 export function isWorkDay(policy: Pick<WorkTimePolicy, 'workDays'>, date: Date, timeZone = 'Asia/Jakarta'): boolean {
   const days = Array.isArray(policy.workDays) && policy.workDays.length ? policy.workDays : DEFAULT_DAYS;
   return days.includes(weekdayInTimeZone(date, timeZone));

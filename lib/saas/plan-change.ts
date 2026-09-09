@@ -76,12 +76,6 @@ export async function previewPlanChange(
   if (targetPlan === 'trial') {
     blockers.push('Tidak bisa turun ke Trial. Gunakan penutupan akun untuk berhenti berlangganan.');
   }
-  if (seats.employees > targetDef.maxEmployees) {
-    blockers.push(`Karyawan aktif ${seats.employees} melebihi batas paket ${targetDef.name} (${targetDef.maxEmployees}).`);
-  }
-  if (seats.users > targetDef.maxUsers) {
-    blockers.push(`User ${seats.users} melebihi batas paket ${targetDef.name} (${targetDef.maxUsers}).`);
-  }
 
   const fits = blockers.length === 0;
   // Upgrades to a higher paid tier require payment via checkout.

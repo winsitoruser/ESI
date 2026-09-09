@@ -4,11 +4,12 @@
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
 import {
+  entitlementsHaveFeature,
   featureForApiPath,
-  planHasFeature,
   type HumanifyFeature,
 } from '@/lib/saas/plan-entitlements';
 import { getTenantColumns } from '@/lib/saas/tenant-schema';
+import { readTenantBillingState } from '@/lib/saas/seat-pricing';
 
 let sequelize: any;
 try { sequelize = require('../sequelize'); } catch {}
@@ -24,6 +25,16 @@ export async function resolveTenantPlan(tenantId: string | null | undefined): Pr
     { replacements: { id: tenantId } },
   );
   return rows?.[0]?.subscription_plan || null;
+}
+
+export async function resolveTenantBillingAddons(tenantId: string | null | undefined) {
+  if (!tenantId) return { lms: false, ai: false, billedSeats: null as number | null };
+  try {
+    const state = await readTenantBillingState(tenantId);
+    return { ...state.addons, billedSeats: state.billedSeats };
+  } catch {
+    return { lms: false, ai: false, billedSeats: null as number | null };
+  }
 }
 
 export async function assertHumanifyFeature(
@@ -47,7 +58,8 @@ export async function assertHumanifyFeature(
     const { refreshPlanCatalogCache } = await import('@/lib/saas/plan-pricing-store');
     await refreshPlanCatalogCache();
   } catch { /* catalog optional */ }
-  if (planHasFeature(plan, feature)) return true;
+  const addons = await resolveTenantBillingAddons(opts.tenantId);
+  if (entitlementsHaveFeature(plan, feature, addons)) return true;
 
   res.status(403).json({
     success: false,

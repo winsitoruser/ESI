@@ -12,7 +12,7 @@ import {
 } from '@/lib/humanify/ops-host';
 import { HUMANIFY_WELCOME } from '@/lib/humanify/paths';
 import { extractTenantSlugFromHost } from '@/lib/saas/tenant-host';
-import { featureForPath, isPathAllowedForPlan } from '@/lib/saas/plan-entitlements';
+import { featureForPath, isPathAllowedForEntitlements } from '@/lib/saas/plan-entitlements';
 import { isLmsLabEnabled, isLmsLabPath } from '@/lib/humanify/lms-surface';
 
 const authSecret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET;
@@ -231,7 +231,7 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL('/', request.url));
       }
       const loginUrl = new URL('/humanify/login', request.url);
-      loginUrl.searchParams.set('callbackUrl', pathname);
+      loginUrl.searchParams.set('callbackUrl', `${pathname}${request.nextUrl.search || ''}`);
       return NextResponse.redirect(loginUrl);
     }
 
@@ -272,7 +272,11 @@ export async function middleware(request: NextRequest) {
     if (
       !bypassSetup &&
       !allowCoreNav &&
-      !isPathAllowedForPlan(pathname, (token.subscriptionPlan as string | null) ?? 'starter')
+      !isPathAllowedForEntitlements(
+        pathname,
+        (token.subscriptionPlan as string | null) ?? 'starter',
+        { lms: Boolean(token.addonLms), ai: Boolean(token.addonAi) },
+      )
     ) {
       const feat = featureForPath(pathname);
       const url = new URL('/humanify/billing', request.url);

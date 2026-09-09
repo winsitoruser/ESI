@@ -112,11 +112,21 @@ export function getDocumentTypesByCategory(category: EmployeeDocumentCategory): 
   return EMPLOYEE_DOCUMENT_TYPES.filter((t) => t.category === category);
 }
 
+/** Names that look like executables / HTML even if the last suffix is .pdf */
+const BLOCKED_UPLOAD_NAME = /\.(exe|dll|bat|cmd|com|msi|scr|js|mjs|html?|xhtml|svg|php|sh|ps1)(\.|$)/i;
+
 export function isAcceptedFile(file: { name?: string; type?: string }): boolean {
-  const ext = (file.name || '').toLowerCase().match(/\.[^.]+$/)?.[0] || '';
-  const mime = file.type || EXT_MIME[ext] || '';
-  if (mime && ACCEPTED_DOCUMENT_MIME.includes(mime)) return true;
-  return ACCEPTED_DOCUMENT_EXTENSIONS.includes(ext);
+  const name = String(file.name || '');
+  if (!name || BLOCKED_UPLOAD_NAME.test(name)) return false;
+  const ext = name.toLowerCase().match(/\.[^.]+$/)?.[0] || '';
+  if (!ACCEPTED_DOCUMENT_EXTENSIONS.includes(ext)) return false;
+  const mime = String(file.type || '').toLowerCase().split(';')[0].trim();
+  if (mime) {
+    const expected = EXT_MIME[ext];
+    if (expected && mime !== expected) return false;
+    if (!ACCEPTED_DOCUMENT_MIME.includes(mime)) return false;
+  }
+  return true;
 }
 
 export function getAcceptAttribute(): string {

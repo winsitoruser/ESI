@@ -138,6 +138,21 @@ describe('company onboarding flow', () => {
     } = require('../lib/saas/company-onboarding-flow');
     expect(NEW_COMPANY_SETUP_HREF).toContain('/humanify/setup');
     expect(NEW_COMPANY_SETUP_HREF).toContain('from=new-company');
+    const { newCompanySetupHref } = require('../lib/saas/company-onboarding-flow');
+    expect(newCompanySetupHref('db41fafc-7424-4333-bd4e-a42159d9fdae')).toContain('companyId=db41fafc-7424-4333-bd4e-a42159d9fdae');
+    const { humanifyLoginHref } = require('../lib/saas/company-onboarding-flow');
+    expect(humanifyLoginHref('/humanify/setup?from=new-company&companyId=abc')).toContain(
+      encodeURIComponent('/humanify/setup?from=new-company&companyId=abc'),
+    );
+    const { requestedSetupCompanyId } = require('../lib/saas/setup-tenant');
+    expect(requestedSetupCompanyId(
+      { companyId: 'db41fafc-7424-4333-bd4e-a42159d9fdae', from: 'new-company' },
+    )).toBe('db41fafc-7424-4333-bd4e-a42159d9fdae');
+    expect(requestedSetupCompanyId({ companyId: 'not-a-uuid' })).toBe('');
+    expect(requestedSetupCompanyId(
+      { companyId: 'db41fafc-7424-4333-bd4e-a42159d9fdae' },
+      { companyId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee' },
+    )).toBe('aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee');
     expect(NEW_COMPANY_DASHBOARD_HREF).toContain('onboard=new-company');
     expect(industryLabel('software_house')).toBe('Teknologi / IT');
   });

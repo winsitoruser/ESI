@@ -10,6 +10,7 @@ import {
 } from '@/lib/saas/tenant-slug';
 import { buildEntitlementSnapshot } from '@/lib/saas/plan-entitlements';
 import { getSeatUsage } from '@/lib/saas/seat-metering';
+import { readTenantBillingState } from '@/lib/saas/seat-pricing';
 import { getTenantColumns } from '@/lib/saas/tenant-schema';
 import { isTenantEmailVerified } from '@/lib/saas/email-verify';
 import { getGoLiveStatus } from '@/lib/saas/go-live';
@@ -60,7 +61,13 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 
     const plan = isPlatform ? 'enterprise' : (tenant?.subscriptionPlan || 'trial');
-    const entitlements = buildEntitlementSnapshot(plan);
+    const billing = isPlatform
+      ? { billedSeats: null as number | null, addons: { lms: true, ai: true } }
+      : await readTenantBillingState(tenantId);
+    const entitlements = buildEntitlementSnapshot(plan, {
+      addons: isPlatform ? { lms: true, ai: true } : billing.addons,
+      billedSeats: billing.billedSeats,
+    });
     const seats = isPlatform ? null : await getSeatUsage(tenantId, plan);
     const emailVerified = isPlatform ? true : await isTenantEmailVerified(tenantId);
     let goLivePct: number | null = null;
@@ -122,6 +129,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         subscriptionPlan: plan,
         careersUrl: tenant?.slug ? `/c/${tenant.slug}/careers` : null,
         entitlements,
+        billedSeats: billing.billedSeats,
+        addons: billing.addons,
         seats,
         emailVerified,
         goLivePct,

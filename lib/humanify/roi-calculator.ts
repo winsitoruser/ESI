@@ -1,4 +1,4 @@
-import { HUMANIFY_PLANS } from '@/lib/saas/plan-entitlements';
+import { quoteSeatSubscription } from '@/lib/saas/seat-pricing-core';
 
 /** Humanify ROI Calculator — estimasi penghematan HRIS */
 
@@ -57,29 +57,28 @@ export const ROI_ASSUMPTIONS = {
 } as const;
 
 /**
- * List-price tiers aligned with `HUMANIFY_PLANS` (billable source of truth).
- * Headcount bands use plan maxEmployees ceilings.
+ * Per-user volume pricing — ROI uses billed headcount, not flat plan list.
  */
 export const HUMANIFY_PRICING_TIERS = [
   {
-    nama: `${HUMANIFY_PLANS.starter.name} (≤${HUMANIFY_PLANS.starter.maxEmployees} karyawan)`,
+    nama: 'Standar (1–250 karyawan)',
     minKaryawan: 1,
-    maxKaryawan: HUMANIFY_PLANS.starter.maxEmployees,
-    hargaBulanan: HUMANIFY_PLANS.starter.priceMonthlyIdr,
+    maxKaryawan: 250,
+    hargaPerUser: 10_000,
     planId: 'starter' as const,
   },
   {
-    nama: `${HUMANIFY_PLANS.growth.name} (≤${HUMANIFY_PLANS.growth.maxEmployees} karyawan)`,
-    minKaryawan: HUMANIFY_PLANS.starter.maxEmployees + 1,
-    maxKaryawan: HUMANIFY_PLANS.growth.maxEmployees,
-    hargaBulanan: HUMANIFY_PLANS.growth.priceMonthlyIdr,
+    nama: 'Volume 251–1.000',
+    minKaryawan: 251,
+    maxKaryawan: 1000,
+    hargaPerUser: 9_500,
     planId: 'growth' as const,
   },
   {
-    nama: `${HUMANIFY_PLANS.enterprise.name} (${HUMANIFY_PLANS.growth.maxEmployees + 1}+ karyawan)`,
-    minKaryawan: HUMANIFY_PLANS.growth.maxEmployees + 1,
+    nama: 'Volume 1.001+',
+    minKaryawan: 1001,
     maxKaryawan: Infinity,
-    hargaBulanan: HUMANIFY_PLANS.enterprise.priceMonthlyIdr,
+    hargaPerUser: 9_000,
     planId: 'enterprise' as const,
   },
 ] as const;
@@ -113,7 +112,7 @@ export function calculateRoi(input: RoiInput): RoiResult {
   const totalPenghematan = penghematanBiayaHRStaff + penguranganErrorPayroll;
 
   const tier = getPricingTier(input.jumlahKaryawan);
-  const biayaLangganan = tier.hargaBulanan;
+  const biayaLangganan = quoteSeatSubscription({ seats: input.jumlahKaryawan, interval: 'monthly' }).monthlyIdr;
   const netSaving = totalPenghematan - biayaLangganan;
 
   const biayaSebelum =

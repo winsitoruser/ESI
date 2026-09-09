@@ -9,6 +9,7 @@ import {
   generateDraftLetterPDF,
   isDraftBasedLetter,
 } from '@/lib/hris/disciplinary-letter-render';
+import { jsPdfImageFormat, resolveLogoDataUrl } from './logo';
 
 /** Resolve jspdf-autotable export (default vs named) for CJS/ESM interop */
 function callAutoTable(doc: any, options: any): void {
@@ -67,7 +68,8 @@ export async function generatePDF(request: DocumentRequest): Promise<Blob> {
 
   // ── Header ──
   if (opts.includeHeader !== false) {
-    currentY = renderHeader(doc, request.company, request.branch, request.meta, pageWidth, margin);
+    const logoData = opts.showLogo !== false ? resolveLogoDataUrl(request.company.logo) : null;
+    currentY = renderHeader(doc, request.company, request.branch, request.meta, pageWidth, margin, logoData);
   }
 
   // ── Document Title ──
@@ -94,34 +96,54 @@ export async function generatePDF(request: DocumentRequest): Promise<Blob> {
   return doc.output('blob');
 }
 
-function renderHeader(doc: any, company: CompanyInfo, branch: BranchInfo | undefined, meta: DocumentMeta, pageWidth: number, margin: number): number {
+function renderHeader(doc: any, company: CompanyInfo, branch: BranchInfo | undefined, meta: DocumentMeta, pageWidth: number, margin: number, logoData?: string | null): number {
   let y = margin;
+  const logoSize = 16;
+  const hasLogo = Boolean(logoData);
 
-  // Company name
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'bold');
-  doc.text(company.name.toUpperCase(), pageWidth / 2, y, { align: 'center' });
-  y += 5;
+  if (hasLogo && logoData) {
+    try {
+      const fmt = jsPdfImageFormat(logoData) || 'PNG';
+      doc.addImage(logoData, fmt, margin, y, logoSize, logoSize);
+    } catch {
+      // skip unreadable logos (e.g. SVG)
+    }
+    const textX = margin + logoSize + 4;
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text(company.name.toUpperCase(), textX, y + 5);
+    y += 8;
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(80, 80, 80);
+    doc.text(company.address || '', textX, y);
+    y += 4;
+    const contactLine = [company.phone, company.email, company.website].filter(Boolean).join(' | ');
+    if (contactLine) { doc.text(contactLine, textX, y); y += 3; }
+    if (company.taxId) { doc.text(`NPWP: ${company.taxId}`, textX, y); y += 3; }
+    y = Math.max(y, margin + logoSize + 3);
+  } else {
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text(company.name.toUpperCase(), pageWidth / 2, y, { align: 'center' });
+    y += 5;
 
-  // Company address
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(80, 80, 80);
-  doc.text(company.address, pageWidth / 2, y, { align: 'center' });
-  y += 4;
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(80, 80, 80);
+    doc.text(company.address || '', pageWidth / 2, y, { align: 'center' });
+    y += 4;
 
-  // Contact info
-  const contactLine = [company.phone, company.email, company.website].filter(Boolean).join(' | ');
-  doc.text(contactLine, pageWidth / 2, y, { align: 'center' });
-  y += 3;
-
-  // NPWP
-  if (company.taxId) {
-    doc.text(`NPWP: ${company.taxId}`, pageWidth / 2, y, { align: 'center' });
+    const contactLine = [company.phone, company.email, company.website].filter(Boolean).join(' | ');
+    doc.text(contactLine, pageWidth / 2, y, { align: 'center' });
     y += 3;
+
+    if (company.taxId) {
+      doc.text(`NPWP: ${company.taxId}`, pageWidth / 2, y, { align: 'center' });
+      y += 3;
+    }
   }
 
-  // Separator line
   doc.setDrawColor(0, 102, 204);
   doc.setLineWidth(0.5);
   doc.line(margin, y, pageWidth - margin, y);
@@ -173,6 +195,9 @@ function renderDocumentTitle(doc: any, request: DocumentRequest, y: number, page
     'kpi-report': 'LAPORAN KPI',
     'mutation-letter': 'SURAT KEPUTUSAN MUTASI',
     'reference-letter': 'SURAT KETERANGAN KERJA',
+    'paklaring': 'SURAT PENGALAMAN KERJA (PAKLARING)',
+    'offer-letter': 'SURAT PENAWARAN KERJA',
+    'nda': 'PERJANJIAN KERAHASIAAN',
     'employee-certificate': 'SURAT KETERANGAN KARYAWAN',
     'travel-expense-claim': 'FORMULIR KLAIM PERJALANAN DINAS',
     'vehicle-inspection': 'LAPORAN INSPEKSI KENDARAAN',
@@ -253,6 +278,9 @@ function renderDocumentBody(doc: any, request: DocumentRequest, y: number, pageW
       return renderMutationLetterBody(doc, data, y, pageWidth, margin);
     case 'reference-letter':
     case 'employee-certificate':
+    case 'paklaring':
+    case 'offer-letter':
+    case 'nda':
       return renderReferenceLetterBody(doc, data, y, pageWidth, margin);
     default:
       return renderGenericTableBody(doc, data, y, pageWidth, margin);
@@ -343,6 +371,14 @@ function renderReceiptBody(doc: any, data: any, y: number, pw: number, m: number
 
 // ── PAYSLIP ──
 function renderPayslipBody(doc: any, data: any, y: number, pw: number, m: number): number {
+  if (data.body || data.intro) {
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'italic');
+    const split = doc.splitTextToSize(String(data.body || data.intro), pw - 2 * m);
+    doc.text(split, m, y);
+    y += split.length * 3.5 + 3;
+    doc.setFont('helvetica', 'normal');
+  }
   // Employee info box
   doc.setFillColor(245, 245, 250);
   doc.rect(m, y - 2, pw - 2 * m, 22, 'F');
@@ -762,7 +798,23 @@ function renderReferenceLetterBody(doc: any, data: any, y: number, pw: number, m
 
 // ── GENERIC TABLE (for reports) ──
 function renderGenericTableBody(doc: any, data: any, y: number, pw: number, m: number): number {
-  if (!data || (!data.rows && !data.items && !Array.isArray(data))) return y;
+  const intro = data.intro || data.body;
+  if (intro && typeof intro === 'string') {
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    const split = doc.splitTextToSize(intro, pw - 2 * m);
+    doc.text(split, m, y);
+    y += split.length * 4 + 5;
+  }
+
+  if (!data || (!data.rows && !data.items && !Array.isArray(data))) {
+    if (data?.closing) {
+      const split = doc.splitTextToSize(String(data.closing), pw - 2 * m);
+      doc.text(split, m, y);
+      y += split.length * 4 + 3;
+    }
+    return y;
+  }
   const rows = data.rows || data.items || (Array.isArray(data) ? data : []);
   if (rows.length === 0) { doc.text('Tidak ada data', m, y); return y + 5; }
 
@@ -782,7 +834,15 @@ callAutoTable(doc, {
     styles: { overflow: 'linebreak', cellPadding: 2 },
   });
 
-  return doc.lastAutoTable.finalY + 5;
+  y = doc.lastAutoTable.finalY + 5;
+  if (data.closing) {
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'italic');
+    const split = doc.splitTextToSize(String(data.closing), pw - 2 * m);
+    doc.text(split, m, y);
+    y += split.length * 4;
+  }
+  return y;
 }
 
 // ── SIGNATURES ──

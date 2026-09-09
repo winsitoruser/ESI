@@ -922,21 +922,21 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
             {modal === 'leave' && (
               <>
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Jenis Cuti</label>
-                  <select value={leaveForm.leaveType} onChange={e => setLeaveForm(f => ({ ...f, leaveType: e.target.value }))}
+                  <label htmlFor="ess-leave-type" className="text-sm font-medium text-gray-700 mb-1 block">Jenis Cuti</label>
+                  <select id="ess-leave-type" value={leaveForm.leaveType} onChange={e => setLeaveForm(f => ({ ...f, leaveType: e.target.value }))}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     {LEAVE_TYPES.map(lt => <option key={lt.value} value={lt.value}>{lt.label}</option>)}
                   </select>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-sm font-medium text-gray-700 mb-1 block">Tanggal Mulai</label>
-                    <input type="date" value={leaveForm.startDate} onChange={e => setLeaveForm(f => ({ ...f, startDate: e.target.value }))}
+                    <label htmlFor="ess-leave-start" className="text-sm font-medium text-gray-700 mb-1 block">Tanggal Mulai</label>
+                    <input id="ess-leave-start" type="date" value={leaveForm.startDate} onChange={e => setLeaveForm(f => ({ ...f, startDate: e.target.value }))}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500" />
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700 mb-1 block">Tanggal Selesai</label>
-                    <input type="date" value={leaveForm.endDate} onChange={e => setLeaveForm(f => ({ ...f, endDate: e.target.value }))}
+                    <label htmlFor="ess-leave-end" className="text-sm font-medium text-gray-700 mb-1 block">Tanggal Selesai</label>
+                    <input id="ess-leave-end" type="date" value={leaveForm.endDate} onChange={e => setLeaveForm(f => ({ ...f, endDate: e.target.value }))}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500" />
                   </div>
                 </div>
@@ -946,16 +946,17 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
                   </div>
                 )}
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Alasan</label>
-                  <textarea value={leaveForm.reason} onChange={e => setLeaveForm(f => ({ ...f, reason: e.target.value }))}
+                  <label htmlFor="ess-leave-reason" className="text-sm font-medium text-gray-700 mb-1 block">Alasan</label>
+                  <textarea id="ess-leave-reason" value={leaveForm.reason} onChange={e => setLeaveForm(f => ({ ...f, reason: e.target.value }))}
                     rows={3} placeholder="Jelaskan alasan pengajuan cuti..."
                     className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 resize-none" />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">
+                  <label htmlFor="ess-leave-file" className="text-sm font-medium text-gray-700 mb-1 block">
                     Lampiran {['sick', 'sakit', 'medical'].includes(leaveForm.leaveType) ? '(wajib untuk sakit)' : '(opsional)'}
                   </label>
                   <input
+                    id="ess-leave-file"
                     type="file"
                     accept="image/*,.pdf"
                     onChange={(e) => setLeaveFile(e.target.files?.[0] || null)}
@@ -963,7 +964,7 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
                   />
                   {leaveFile && <p className="text-xs text-slate-500 mt-1">{leaveFile.name}</p>}
                 </div>
-                <button onClick={handleSubmitLeave} disabled={submitting}
+                <button type="button" onClick={handleSubmitLeave} disabled={submitting}
                   className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2">
                   {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                   {submitting ? 'Mengirim...' : 'Ajukan Cuti'}

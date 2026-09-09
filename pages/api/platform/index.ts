@@ -144,6 +144,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(403).json({ success: false, error: 'Platform operator only' });
   }
 
+  const { mutationOriginAllowed } = await import('@/lib/security/csrf-origin');
+  if (!mutationOriginAllowed({
+    method: req.method,
+    origin: String(req.headers.origin || ''),
+    host: String(req.headers.host || ''),
+    forwardedHost: String(req.headers['x-forwarded-host'] || ''),
+  })) {
+    return res.status(403).json({ success: false, error: 'CSRF_ORIGIN' });
+  }
+
   if (!sequelize) return res.status(503).json({ success: false, error: 'Database unavailable' });
 
   const action = String(req.query.action || 'overview');
@@ -1244,6 +1254,35 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.json({ success: true, message: 'Order dibatalkan' });
     }
 
+    if (req.method === 'POST' && action === 'billing-sync-midtrans') {
+      const code = String(req.body?.orderCode || req.body?.id || '').trim();
+      if (!code) return res.status(400).json({ success: false, error: 'orderCode required' });
+      try {
+        const { syncOrderFromMidtrans } = await import('@/lib/saas/humanify-billing');
+        const result = await syncOrderFromMidtrans(code);
+        return res.json({
+          success: true,
+          data: result,
+          message: (result as any)?.paid || (result as any)?.alreadyPaid
+            ? 'Status Midtrans: lunas'
+            : (result as any)?.failed
+              ? 'Status Midtrans: gagal/kadaluarsa'
+              : 'Status Midtrans disinkronkan',
+        });
+      } catch (e: any) {
+        return res.status(e.statusCode || 400).json({ success: false, error: e.message });
+      }
+    }
+
+    if (req.method === 'GET' && action === 'midtrans-status') {
+      const { getMidtransPublicConfig, probeMidtransHealth } = await import('@/lib/saas/midtrans');
+      const probe = req.query.probe === '1' ? await probeMidtransHealth() : null;
+      return res.json({
+        success: true,
+        data: { ...getMidtransPublicConfig(), probe },
+      });
+    }
+
     if (req.method === 'GET' && action === 'billing-vouchers') {
       const vouchers = await listBillingVouchers(100);
       return res.json({ success: true, data: { vouchers } });
@@ -1291,10 +1330,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (req.method === 'GET' && action === 'plan-catalog') {
       await refreshPlanCatalogCache(true);
       const plans = await listPlanCatalog();
+      const { getSeatPricingRates } = await import('@/lib/saas/seat-pricing');
+      const seatPricing = await getSeatPricingRates();
       return res.json({
         success: true,
         data: {
           plans,
+          seatPricing,
           featureOrder: HUMANIFY_FEATURE_ORDER,
           featureLabels: HUMANIFY_FEATURE_LABELS,
         },
@@ -1527,6 +1569,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         features,
       });
       return res.json({ success: true, data: row, message: `Paket ${planId} diperbarui` });
+    }
+
+    if (req.method === 'PATCH' && action === 'seat-pricing') {
+      const body = req.body || {};
+      const { upsertSeatPricingRates } = await import('@/lib/saas/seat-pricing');
+      const row = await upsertSeatPricingRates({
+        pricePerUserIdr: body.pricePerUserIdr != null ? Number(body.pricePerUserIdr) : undefined,
+        pricePerUserOver250Idr: body.pricePerUserOver250Idr != null ? Number(body.pricePerUserOver250Idr) : undefined,
+        pricePerUserOver1000Idr: body.pricePerUserOver1000Idr != null ? Number(body.pricePerUserOver1000Idr) : undefined,
+        lmsPerUserIdr: body.lmsPerUserIdr != null ? Number(body.lmsPerUserIdr) : undefined,
+        aiMonthlyIdr: body.aiMonthlyIdr != null ? Number(body.aiMonthlyIdr) : undefined,
+        yearlyDiscountPct: body.yearlyDiscountPct != null ? Number(body.yearlyDiscountPct) : undefined,
+      });
+      return res.json({ success: true, data: row, message: 'Harga per karyawan diperbarui' });
     }
 
     const actorEmail = String((session.user as any)?.email || 'platform_ops');

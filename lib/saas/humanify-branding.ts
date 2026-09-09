@@ -1,25 +1,47 @@
 /**
- * Humanify SaaS Phase 5 — tenant white-label branding (settings JSON)
+ * Humanify SaaS — tenant white-label branding + kop surat (settings JSON)
  */
 import { getTenantColumns, parseTenantSettings } from './tenant-schema';
 
 let sequelize: any;
 try { sequelize = require('../sequelize'); } catch {}
 
+export type LetterheadLayout = 'centered' | 'left' | 'split';
+
 export interface TenantBranding {
   logoUrl: string;
+  stampUrl: string;
   primaryColor: string;
   accentColor: string;
   hidePoweredBy: boolean;
   careersHeadline: string;
+  companyName: string;
+  tagline: string;
+  address: string;
+  phone: string;
+  email: string;
+  website: string;
+  npwp: string;
+  logoText: string;
+  letterheadLayout: LetterheadLayout;
 }
 
 export const DEFAULT_BRANDING: TenantBranding = {
   logoUrl: '',
+  stampUrl: '',
   primaryColor: '#1d4ed8',
   accentColor: '#0f172a',
   hidePoweredBy: false,
   careersHeadline: '',
+  companyName: '',
+  tagline: '',
+  address: '',
+  phone: '',
+  email: '',
+  website: '',
+  npwp: '',
+  logoText: '',
+  letterheadLayout: 'split',
 };
 
 function sanitizeColor(raw: unknown, fallback: string): string {
@@ -35,15 +57,35 @@ function sanitizeUrl(raw: unknown): string {
   return '';
 }
 
+function sanitizeText(raw: unknown, max: number): string {
+  return String(raw || '').trim().slice(0, max);
+}
+
+function sanitizeLayout(raw: unknown): LetterheadLayout {
+  const s = String(raw || '').trim();
+  if (s === 'centered' || s === 'left' || s === 'split') return s;
+  return DEFAULT_BRANDING.letterheadLayout;
+}
+
 export function readTenantBranding(settings: unknown): TenantBranding {
   const parsed = parseTenantSettings(settings);
   const b = parsed.branding || {};
   return {
     logoUrl: sanitizeUrl(b.logoUrl),
+    stampUrl: sanitizeUrl(b.stampUrl),
     primaryColor: sanitizeColor(b.primaryColor, DEFAULT_BRANDING.primaryColor),
     accentColor: sanitizeColor(b.accentColor, DEFAULT_BRANDING.accentColor),
     hidePoweredBy: Boolean(b.hidePoweredBy),
-    careersHeadline: String(b.careersHeadline || '').trim().slice(0, 120),
+    careersHeadline: sanitizeText(b.careersHeadline, 120),
+    companyName: sanitizeText(b.companyName, 160),
+    tagline: sanitizeText(b.tagline, 160),
+    address: sanitizeText(b.address, 300),
+    phone: sanitizeText(b.phone, 40),
+    email: sanitizeText(b.email, 120),
+    website: sanitizeText(b.website, 120),
+    npwp: sanitizeText(b.npwp, 40),
+    logoText: sanitizeText(b.logoText, 8),
+    letterheadLayout: sanitizeLayout(b.letterheadLayout),
   };
 }
 
@@ -76,6 +118,7 @@ export async function saveTenantBranding(
   const current = readTenantBranding(settings);
   const next: TenantBranding = {
     logoUrl: patch.logoUrl !== undefined ? sanitizeUrl(patch.logoUrl) : current.logoUrl,
+    stampUrl: patch.stampUrl !== undefined ? sanitizeUrl(patch.stampUrl) : current.stampUrl,
     primaryColor:
       patch.primaryColor !== undefined
         ? sanitizeColor(patch.primaryColor, current.primaryColor)
@@ -88,8 +131,18 @@ export async function saveTenantBranding(
       patch.hidePoweredBy !== undefined ? Boolean(patch.hidePoweredBy) : current.hidePoweredBy,
     careersHeadline:
       patch.careersHeadline !== undefined
-        ? String(patch.careersHeadline || '').trim().slice(0, 120)
+        ? sanitizeText(patch.careersHeadline, 120)
         : current.careersHeadline,
+    companyName: patch.companyName !== undefined ? sanitizeText(patch.companyName, 160) : current.companyName,
+    tagline: patch.tagline !== undefined ? sanitizeText(patch.tagline, 160) : current.tagline,
+    address: patch.address !== undefined ? sanitizeText(patch.address, 300) : current.address,
+    phone: patch.phone !== undefined ? sanitizeText(patch.phone, 40) : current.phone,
+    email: patch.email !== undefined ? sanitizeText(patch.email, 120) : current.email,
+    website: patch.website !== undefined ? sanitizeText(patch.website, 120) : current.website,
+    npwp: patch.npwp !== undefined ? sanitizeText(patch.npwp, 40) : current.npwp,
+    logoText: patch.logoText !== undefined ? sanitizeText(patch.logoText, 8) : current.logoText,
+    letterheadLayout:
+      patch.letterheadLayout !== undefined ? sanitizeLayout(patch.letterheadLayout) : current.letterheadLayout,
   };
   settings.branding = next;
   await sequelize.query(
