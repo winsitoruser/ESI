@@ -2,6 +2,7 @@
  * Server-only loader for attendance work-time policy (JSON blob in attendance_settings).
  */
 import { normalizeWorkTimePolicy, toTimeInput, type WorkTimePolicy } from '@/lib/hris/work-time-policy';
+import { ensureShiftScheduleEmployeeIdText } from '@/lib/hris/shift-schedule-schema';
 
 export type ShiftWindow = { shiftStart?: string; shiftEnd?: string; source: 'schedule' | 'default_shift' | 'policy' };
 
@@ -58,10 +59,11 @@ export async function resolveShiftWindow(
   dateIso: string,
 ): Promise<ShiftWindow> {
   const fallback: ShiftWindow = { source: 'policy' };
-  if (!sequelize || policy.workTimeSystem !== 'shift') return fallback;
+  if (!sequelize) return fallback;
 
   if (employeeId) {
     try {
+      await ensureShiftScheduleEmployeeIdText(sequelize);
       const [rows] = await sequelize.query(`
         SELECT COALESCE(ss.custom_start_time, ws.start_time) AS start_time,
                COALESCE(ss.custom_end_time, ws.end_time) AS end_time
@@ -81,7 +83,7 @@ export async function resolveShiftWindow(
     }
   }
 
-  if (policy.defaultShiftId) {
+  if (policy.workTimeSystem === 'shift' && policy.defaultShiftId) {
     try {
       const [rows] = await sequelize.query(`
         SELECT start_time, end_time

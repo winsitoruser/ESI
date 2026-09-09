@@ -11,6 +11,8 @@ import {
   mapDailyToExportRows, mapMonthlyToExportRows, mapLiveToExportRows,
   DAILY_PDF_COLUMNS, MONTHLY_PDF_COLUMNS,
 } from '@/lib/hq/attendance-export-import';
+import { WORK_TIME_SYSTEMS } from '@/lib/hris/work-time-policy';
+import { normalizeWorkShift } from '@/lib/hris/shift-record';
 import {
   Clock, Users, UserCheck, UserX, MapPin, Settings, Calendar,
   RefreshCw, CheckCircle, AlertCircle,
@@ -74,6 +76,14 @@ export default function AttendancePage() {
   const [lastBatchId, setLastBatchId] = useState<string | null>(null);
   const [undoExpiresAt, setUndoExpiresAt] = useState<string | null>(null);
   const [toast, setToast] = useState<{ type: string; message: string } | null>(null);
+  const [workPolicy, setWorkPolicy] = useState<{
+    system: string;
+    start: string;
+    end: string;
+    shiftsOn: number;
+    shiftsOff: number;
+    scheduled: number;
+  } | null>(null);
   const showToast = (type: string, message: string) => { setToast({ type, message }); setTimeout(() => setToast(null), 3500); };
 
   const fetchLiveData = async () => {
@@ -85,6 +95,19 @@ export default function AttendancePage() {
         setTodayRecords(json.todayRecords || []);
         if (json.dataSource) setDataSource(json.dataSource);
         else setDataSource((json.todayRecords?.length || json.todayStats?.total) ? 'live' : 'empty');
+        const sh = (json.shifts || []).map(normalizeWorkShift);
+        const polRes = await fetch('/api/humanify/attendance/settings');
+        const polJson = await polRes.json().catch(() => ({}));
+        const pol = polJson.data || {};
+        const sys = WORK_TIME_SYSTEMS.find((s) => s.code === pol.workTimeSystem);
+        setWorkPolicy({
+          system: sys?.label || pol.workTimeSystem || 'Jam tetap',
+          start: pol.workStartTime || '08:00',
+          end: pol.workEndTime || '17:00',
+          shiftsOn: sh.filter((s) => s.is_active).length,
+          shiftsOff: sh.filter((s) => !s.is_active).length,
+          scheduled: Array.isArray(json.schedules) ? json.schedules.length : 0,
+        });
       }
     } catch {
       showToast('error', 'Gagal memuat data live');
@@ -322,6 +345,28 @@ export default function AttendancePage() {
             </div>
           ))}
         </div>
+
+        {workPolicy && (
+          <div className="hf-card flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--hf-ink-faint)]">Manajemen jam kerja</p>
+              <p className="mt-0.5 text-sm font-semibold text-[color:var(--hf-ink)]">
+                {workPolicy.system} · {workPolicy.start}–{workPolicy.end}
+              </p>
+              <p className="text-xs text-[color:var(--hf-ink-muted)]">
+                Shift {workPolicy.shiftsOn} aktif{workPolicy.shiftsOff ? `, ${workPolicy.shiftsOff} off` : ''} · {workPolicy.scheduled} baris jadwal karyawan
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/humanify/attendance/settings" className="hf-btn-secondary inline-flex items-center gap-1.5 px-3 py-2 text-sm">
+                <Settings className="h-4 w-4" /> Kebijakan jam kerja
+              </Link>
+              <Link href="/humanify/attendance-management" className="hf-btn-primary inline-flex items-center gap-1.5 px-3 py-2 text-sm">
+                <Sun className="h-4 w-4" /> Jadwal &amp; Shift
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* Quick links ke modul terkait */}
         <div className="flex flex-wrap gap-2">

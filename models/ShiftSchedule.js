@@ -15,7 +15,7 @@ const ShiftSchedule = sequelize.define('ShiftSchedule', {
     field: 'tenant_id'
   },
   employeeId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.STRING(64),
     allowNull: false,
     field: 'employee_id'
   },
@@ -44,7 +44,7 @@ const ShiftSchedule = sequelize.define('ShiftSchedule', {
     defaultValue: 'scheduled'
   },
   swapRequestedWith: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.STRING(64),
     allowNull: true,
     field: 'swap_requested_with'
   },

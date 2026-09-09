@@ -3,6 +3,8 @@ import { withHQAuth } from '@/lib/middleware/withHQAuth';
 import { allowHrMockFallback, resolveDataSource } from '@/lib/hris/data-source';
 import { tenantIdFromSession, findScopedById, destroyScoped } from '@/lib/saas/tenant-scope';
 import { markGoLiveFlagSafe } from '@/lib/saas/go-live';
+import { normalizeGeofence, normalizeRotation, normalizeWorkShift, workShiftWriteAttrs } from '@/lib/hris/shift-record';
+import { ensureShiftScheduleEmployeeIdText } from '@/lib/hris/shift-schedule-schema';
 
 let sequelize: any, Op: any;
 try { sequelize = require('../../../lib/sequelize'); Op = require('sequelize').Op; } catch (e) {}
@@ -147,26 +149,26 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
   }
 
   const tenantWhere = { tenantId };
-  const shifts = await safeModelFindAll(
+  const shifts = (await safeModelFindAll(
     WorkShift,
-    { where: { isActive: true, ...tenantWhere }, order: [['sort_order', 'ASC']] },
+    { where: tenantWhere, order: [['sort_order', 'ASC']] },
     mockShifts
-  );
+  )).map(normalizeWorkShift);
   const schedules = await safeModelFindAll(
     ShiftSchedule,
     { where: tenantWhere, limit: 200, order: [['schedule_date', 'DESC']] },
     []
   );
-  const rotations = await safeModelFindAll(
+  const rotations = (await safeModelFindAll(
     ShiftRotation,
     { where: tenantWhere, order: [['created_at', 'DESC']] },
     mockRotations
-  );
-  const geofences = await safeModelFindAll(
+  )).map(normalizeRotation);
+  const geofences = (await safeModelFindAll(
     GeofenceLocation,
     { where: tenantWhere, order: [['name', 'ASC']] },
     mockGeofences
-  );
+  )).map(normalizeGeofence);
   const settingsRaw = await safeModelFindAll(AttendanceSetting, { where: tenantWhere }, mockSettings);
 
   const isDemoRow = (row: any) => {
@@ -196,10 +198,13 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
 
 // ================= GET: Work Shifts =================
 async function getWorkShifts(req: NextApiRequest, res: NextApiResponse, session: any) {
-  const mock = allowHrMockFallback() ? getMockShifts() : [];
+  const mock = (allowHrMockFallback() ? getMockShifts() : []).map(normalizeWorkShift);
   if (!WorkShift) return res.json({ success: true, data: mock, dataSource: mock.length ? 'demo' : 'empty' });
   try {
-    const data = await WorkShift.findAll({ order: [['sort_order', 'ASC']] });
+    const tenantId = tenantIdFromSession(session);
+    if (!tenantId) return res.json({ success: true, data: mock, dataSource: mock.length ? 'demo' : 'empty' });
+    const rows = await WorkShift.findAll({ where: { tenantId }, order: [['sort_order', 'ASC']] });
+    const data = rows.map((r: any) => normalizeWorkShift(r?.toJSON ? r.toJSON() : r));
     return res.json({ success: true, data });
   } catch (e: any) {
     console.warn('[attendance-management shifts]', e?.message);
@@ -307,19 +312,18 @@ async function getTodayLive(req: NextApiRequest, res: NextApiResponse, session: 
 async function createWorkShift(req: NextApiRequest, res: NextApiResponse, session: any) {
   if (!WorkShift) return res.json({ success: true, message: 'Created (mock)' });
   try {
-    const body = { ...req.body, tenantId: session.user.tenantId };
-    if (!body.code) {
-      const base = String(body.name || 'SHIFT').toUpperCase().replace(/[^A-Z0-9]+/g, '_').slice(0, 20);
-      body.code = `${base}_${Date.now().toString(36).slice(-4)}`.slice(0, 30);
+    const tenantId = tenantIdFromSession(session) || session.user?.tenantId;
+    const attrs: any = workShiftWriteAttrs(req.body || {}, tenantId);
+    if (!attrs.code) {
+      const base = String(attrs.name || 'SHIFT').toUpperCase().replace(/[^A-Z0-9]+/g, '_').slice(0, 30);
+      attrs.code = `${base}_${Date.now().toString(36).slice(-4)}`.slice(0, 30);
     }
-    if (!body.startTime && body.start_time) body.startTime = body.start_time;
-    if (!body.endTime && body.end_time) body.endTime = body.end_time;
-    if (body.breakMinutes != null && body.breakDurationMinutes == null) {
-      body.breakDurationMinutes = body.breakMinutes;
+    if (!attrs.startTime || !attrs.endTime || !attrs.name) {
+      return res.status(400).json({ success: false, error: 'Nama, jam mulai, dan jam selesai wajib' });
     }
-    const data = await WorkShift.create(body);
-    await markGoLiveFlagSafe(body.tenantId || session.user?.tenantId, 'attendanceConfigured');
-    return res.status(201).json({ success: true, data });
+    const data = await WorkShift.create(attrs);
+    await markGoLiveFlagSafe(tenantId, 'attendanceConfigured');
+    return res.status(201).json({ success: true, data: normalizeWorkShift(data?.toJSON ? data.toJSON() : data) });
   } catch (e: any) { return res.status(500).json({ success: false, error: e.message }); }
 }
 
@@ -333,8 +337,10 @@ async function updateWorkShift(req: NextApiRequest, res: NextApiResponse, sessio
     const item = await findScopedById(WorkShift, id, tenantId);
     if (!item) return res.status(404).json({ error: 'Not found' });
     delete (data as any).tenantId;
-    await item.update(data);
-    return res.json({ success: true, data: item });
+    const attrs = workShiftWriteAttrs({ ...data }, tenantId);
+    delete (attrs as any).tenantId;
+    await item.update(attrs);
+    return res.json({ success: true, data: normalizeWorkShift(item?.toJSON ? item.toJSON() : item) });
   } catch (e: any) { return res.status(500).json({ success: false, error: e.message }); }
 }
 
@@ -370,6 +376,7 @@ async function bulkCreateSchedule(req: NextApiRequest, res: NextApiResponse, ses
     return res.status(400).json({ success: false, error: 'Missing required fields' });
   }
   try {
+    await ensureShiftScheduleEmployeeIdText(sequelize);
     const [owned] = await sequelize.query(
       `SELECT id::text AS id FROM employees WHERE tenant_id = :tid AND id::text = ANY(:ids)`,
       { replacements: { tid: tenantId, ids: employeeIds.map(String) } },
@@ -466,6 +473,7 @@ async function generateRotationSchedules(req: NextApiRequest, res: NextApiRespon
   try {
     const tenantId = tenantIdFromSession(session);
     if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
+    await ensureShiftScheduleEmployeeIdText(sequelize);
     const rotation = await findScopedById(ShiftRotation, rotationId, tenantId);
     if (!rotation) return res.status(404).json({ error: 'Rotation not found' });
 
@@ -714,11 +722,20 @@ async function updateSettings(req: NextApiRequest, res: NextApiResponse, session
   const { key, value } = req.body;
   if (!key) return res.status(400).json({ error: 'key required' });
   try {
-    await sequelize.query(`
-      INSERT INTO attendance_settings (id, tenant_id, setting_key, setting_value, created_at, updated_at)
-      VALUES (uuid_generate_v4(), :tenantId, :key, :value, NOW(), NOW())
-      ON CONFLICT (tenant_id, branch_id, setting_key) DO UPDATE SET setting_value = :value, updated_at = NOW()
-    `, { replacements: { tenantId: session.user.tenantId || null, key, value: JSON.stringify(value) } });
+    const tenantId = session.user.tenantId || null;
+    const payload = JSON.stringify(value);
+    const [updated] = await sequelize.query(`
+      UPDATE attendance_settings
+      SET setting_value = :value::jsonb, updated_at = NOW()
+      WHERE tenant_id = :tenantId AND setting_key = :key AND branch_id IS NULL
+      RETURNING id
+    `, { replacements: { tenantId, key, value: payload } });
+    if (!(updated as any[])?.length) {
+      await sequelize.query(`
+        INSERT INTO attendance_settings (id, tenant_id, branch_id, setting_key, setting_value, created_at, updated_at)
+        VALUES (uuid_generate_v4(), :tenantId, NULL, :key, :value::jsonb, NOW(), NOW())
+      `, { replacements: { tenantId, key, value: payload } });
+    }
     await markGoLiveFlagSafe(session.user?.tenantId, 'attendanceConfigured');
     return res.json({ success: true, message: 'Setting updated' });
   } catch (e: any) { return res.status(500).json({ success: false, error: e.message }); }

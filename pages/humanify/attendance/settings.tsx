@@ -17,6 +17,7 @@ import {
   type WorkTimePolicy,
   type WorkTimeSystem,
 } from '@/lib/hris/work-time-policy';
+import { normalizeWorkShift } from '@/lib/hris/shift-record';
 import {
   Settings, Clock, MapPin, Fingerprint, Bell, Save, Calendar, Timer,
   Coffee, Layers, Smartphone, Globe, ArrowRight, CheckCircle, AlertTriangle,
@@ -117,6 +118,7 @@ export default function AttendanceSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState<TabKey>('system');
   const [shifts, setShifts] = useState<ShiftOpt[]>([]);
+  const [dirty, setDirty] = useState(false);
 
   const fetchSettings = async () => {
     setLoading(true);
@@ -127,6 +129,7 @@ export default function AttendanceSettingsPage() {
       if (json.success && json.data) {
         setSettings(hydrateSettings(json.data));
         setDataSource('live');
+        setDirty(false);
       } else {
         setDataSource('empty');
       }
@@ -143,15 +146,18 @@ export default function AttendanceSettingsPage() {
       const res = await fetch('/api/humanify/attendance-management?action=shifts');
       if (!res.ok) return;
       const json = await res.json();
-      const list = Array.isArray(json.data) ? json.data : [];
-      setShifts(list.map((s: any) => ({
-        id: String(s.id),
-        name: s.name || s.code || 'Shift',
-        code: s.code,
-        start: toTimeInput(s.start_time || s.startTime),
-        end: toTimeInput(s.end_time || s.endTime),
-        crossDay: Boolean(s.is_cross_day ?? s.isCrossDay),
-      })));
+      const list = Array.isArray(json.data) ? json.data : (Array.isArray(json.shifts) ? json.shifts : []);
+      setShifts(list.map((s: any) => {
+        const n = normalizeWorkShift(s);
+        return {
+          id: n.id,
+          name: n.name || n.code || 'Shift',
+          code: n.code,
+          start: n.start_time,
+          end: n.end_time,
+          crossDay: n.is_cross_day,
+        };
+      }));
     } catch { /* catalog optional */ }
   };
 
@@ -175,11 +181,15 @@ export default function AttendanceSettingsPage() {
 
   if (!mounted) return null;
 
-  const patch = (partial: Partial<AttSettings>) => setSettings((s) => ({ ...s, ...partial }));
+  const patch = (partial: Partial<AttSettings>) => {
+    setSettings((s) => ({ ...s, ...partial }));
+    setDirty(true);
+  };
 
   const applySystem = (code: WorkTimeSystem) => {
     const preset = presetForSystem(code);
     setSettings((s) => hydrateSettings({ ...s, ...preset, workTimeSystem: code }));
+    setDirty(true);
   };
 
   const toggleDay = (day: number) => {
@@ -202,6 +212,7 @@ export default function AttendanceSettingsPage() {
       if (json.success) {
         toast.success('Pengaturan jam kerja & absensi disimpan');
         if (json.data) setSettings(hydrateSettings(json.data));
+        setDirty(false);
       } else {
         toast.error(json.error || 'Gagal menyimpan');
       }
@@ -244,6 +255,16 @@ export default function AttendanceSettingsPage() {
             accent={previewIn.status === 'late' ? 'amber' : 'emerald'}
           />
         </div>
+
+        {dirty && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--hf-radius-lg)] border border-amber-200 bg-amber-50 px-4 py-3">
+            <p className="text-sm text-amber-950">Perubahan jam kerja belum disimpan. Clock-in karyawan masih memakai kebijakan lama sampai Anda menekan Simpan.</p>
+            <button type="button" onClick={handleSave} disabled={saving} className="hf-btn-primary inline-flex items-center gap-2 px-4 py-2 text-sm disabled:opacity-50">
+              <Save className="h-4 w-4" />
+              {saving ? 'Menyimpan…' : 'Simpan sekarang'}
+            </button>
+          </div>
+        )}
 
         <EnterpriseTabBar
           tabs={[
@@ -298,7 +319,7 @@ export default function AttendanceSettingsPage() {
                     );
                   })}
                 </div>
-                <p className="text-[11px] text-[color:var(--hf-ink-faint)]">Memilih sistem mengisi nilai umum industri. Sesuaikan di tab Jam &amp; hari sebelum menyimpan.</p>
+                <p className="text-[11px] text-[color:var(--hf-ink-faint)]">Memilih sistem mengisi nilai umum industri. Tekan <strong>Simpan pengaturan</strong> agar kebijakan dipakai di clock-in karyawan.</p>
               </div>
             )}
 

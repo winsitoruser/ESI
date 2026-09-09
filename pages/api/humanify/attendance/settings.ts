@@ -141,12 +141,25 @@ async function upsertSettings(req: NextApiRequest, res: NextApiResponse, session
   const branchId = body.branchId;
 
   const sequelize = await getSequelize();
-  await sequelize.query(`
-    INSERT INTO attendance_settings (id, tenant_id, branch_id, setting_key, setting_value, description, created_at, updated_at)
-    VALUES (uuid_generate_v4(), :tenantId, :branchId, :policyKey, :policy::jsonb, 'Kebijakan absensi terstruktur', NOW(), NOW())
-    ON CONFLICT (tenant_id, branch_id, setting_key)
-    DO UPDATE SET setting_value = EXCLUDED.setting_value, updated_at = NOW()
-  `, { replacements: { tenantId, branchId: branchId || null, policyKey: POLICY_KEY, policy: JSON.stringify(policy) } });
+  const branch = branchId || null;
+  // UNIQUE(tenant_id, branch_id, setting_key) does not match two NULLs — UPDATE then INSERT.
+  const [updated] = await sequelize.query(`
+    UPDATE attendance_settings
+    SET setting_value = :policy::jsonb, updated_at = NOW(), description = 'Kebijakan absensi terstruktur'
+    WHERE tenant_id = :tenantId
+      AND setting_key = :policyKey
+      AND (
+        (:branchId::uuid IS NULL AND branch_id IS NULL)
+        OR branch_id = :branchId::uuid
+      )
+    RETURNING id
+  `, { replacements: { tenantId, branchId: branch, policyKey: POLICY_KEY, policy: JSON.stringify(policy) } });
+  if (!(updated as any[])?.length) {
+    await sequelize.query(`
+      INSERT INTO attendance_settings (id, tenant_id, branch_id, setting_key, setting_value, description, created_at, updated_at)
+      VALUES (uuid_generate_v4(), :tenantId, :branchId, :policyKey, :policy::jsonb, 'Kebijakan absensi terstruktur', NOW(), NOW())
+    `, { replacements: { tenantId, branchId: branch, policyKey: POLICY_KEY, policy: JSON.stringify(policy) } });
+  }
   await markGoLiveFlagSafe(tenantId, 'attendanceConfigured');
 
   return res.status(200).json({

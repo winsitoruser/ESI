@@ -5,13 +5,14 @@ import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import HrisEmptyState from '@/components/humanify/HrisEmptyState';
 import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
+import { normalizeGeofence, normalizeRotation, normalizeWorkShift } from '@/lib/hris/shift-record';
 import {
   Clock, Users, UserCheck, UserX, MapPin, Shield, Settings, Calendar,
   Plus, Edit, Trash2, Save, X, RefreshCw, CheckCircle, AlertCircle,
   Search, Filter, Download, Eye, ChevronRight, ArrowRight, Copy,
   Fingerprint, Camera, QrCode, Smartphone, Wifi, Globe, Timer,
   Sun, Moon, Sunset, Coffee, Building2, Navigation, ToggleLeft, ToggleRight,
-  Layers, RotateCcw, AlertTriangle, Info, Palette, TrendingUp
+  Layers, RotateCcw, AlertTriangle, Info, Palette, TrendingUp, UserPlus
 } from 'lucide-react';
 
 // ===== Types =====
@@ -82,12 +83,14 @@ export default function AttendanceManagementPage() {
   const { t } = useTranslation();
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'shifts' | 'geofence' | 'rotations' | 'settings'>('shifts');
+  const [activeTab, setActiveTab] = useState<'shifts' | 'assign' | 'geofence' | 'rotations' | 'settings'>('shifts');
 
   // Data
   const [shifts, setShifts] = useState<WorkShift[]>([]);
   const [geofences, setGeofences] = useState<GeofenceLocation[]>([]);
   const [rotations, setRotations] = useState<ShiftRotation[]>([]);
+  const [schedules, setSchedules] = useState<any[]>([]);
+  const [employeeOpts, setEmployeeOpts] = useState<{ id: string; name: string; department?: string }[]>([]);
   const [settings, setSettings] = useState<Record<string, any>>({});
   const [settingsRaw, setSettingsRaw] = useState<any[]>([]);
   const [todayStats, setTodayStats] = useState<any>(EMPTY_AM_STATS);
@@ -126,8 +129,19 @@ export default function AttendanceManagementPage() {
     name: '', description: '', rotation_type: 'weekly',
     rotation_pattern: [] as any[], is_active: true,
     auto_generate: true, generate_weeks_ahead: 2,
+    employee_ids: [] as string[],
   };
   const [rotForm, setRotForm] = useState(defaultRotForm);
+
+  const todayIso = new Date().toISOString().split('T')[0];
+  const weekAhead = new Date(Date.now() + 6 * 86400000).toISOString().split('T')[0];
+  const [assignForm, setAssignForm] = useState({
+    workShiftId: '',
+    startDate: todayIso,
+    endDate: weekAhead,
+    employeeIds: [] as string[],
+  });
+  const [assignBusy, setAssignBusy] = useState(false);
 
   // Toast
   const [toast, setToast] = useState<{ type: string; message: string } | null>(null);
@@ -145,9 +159,10 @@ export default function AttendanceManagementPage() {
       const res = await fetch('/api/humanify/attendance-management');
       const json = await res.json();
       if (json.success) {
-        setShifts(json.shifts || []);
-        setGeofences(json.geofences || []);
-        setRotations(json.rotations || []);
+        setShifts((json.shifts || []).map(normalizeWorkShift));
+        setGeofences((json.geofences || []).map(normalizeGeofence));
+        setRotations((json.rotations || []).map(normalizeRotation));
+        setSchedules(json.schedules || []);
         setSettings(json.settings || {});
         setSettingsRaw(json.settingsRaw || []);
         setTodayStats(json.todayStats || EMPTY_AM_STATS);
@@ -155,10 +170,18 @@ export default function AttendanceManagementPage() {
         if (json.dataSource) setDataSource(json.dataSource);
         else setDataSource((json.shifts?.length || json.todayRecords?.length) ? 'live' : 'empty');
       }
+      const empRes = await fetch('/api/humanify/employees?status=ACTIVE&limit=200');
+      const empJson = await empRes.json().catch(() => ({}));
+      const empList = Array.isArray(empJson.data) ? empJson.data : [];
+      setEmployeeOpts(empList.map((e: any) => ({
+        id: String(e.id),
+        name: e.name || e.email || 'Karyawan',
+        department: e.department || e.position || '',
+      })));
     } catch {
       if (USE_MOCK_UI) {
-        setShifts(MOCK_AM_SHIFTS);
-        setGeofences(MOCK_AM_GEO);
+        setShifts(MOCK_AM_SHIFTS.map(normalizeWorkShift));
+        setGeofences(MOCK_AM_GEO.map(normalizeGeofence));
         setTodayStats(MOCK_AM_STATS);
         setTodayRecords(MOCK_AM_RECORDS);
         setDataSource('demo');
@@ -251,7 +274,7 @@ export default function AttendanceManagementPage() {
     if (!rotForm.name || rotForm.rotation_pattern.length === 0) { showToast('error', 'Nama dan minimal 1 pola wajib'); return; }
     try {
       const isEdit = !!editingRotation;
-      const payload: any = { ...rotForm, rotationType: rotForm.rotation_type, rotationPattern: rotForm.rotation_pattern, isActive: rotForm.is_active, autoGenerate: rotForm.auto_generate, generateWeeksAhead: rotForm.generate_weeks_ahead };
+      const payload: any = { ...rotForm, rotationType: rotForm.rotation_type, rotationPattern: rotForm.rotation_pattern, isActive: rotForm.is_active, autoGenerate: rotForm.auto_generate, generateWeeksAhead: rotForm.generate_weeks_ahead, employeeIds: rotForm.employee_ids };
       if (isEdit) payload.id = editingRotation!.id;
       const res = await fetch('/api/humanify/attendance-management?action=rotation', { method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const json = await res.json();
@@ -276,6 +299,46 @@ export default function AttendanceManagementPage() {
       else showToast('error', json.error || 'Gagal');
       fetchData();
     } catch { showToast('error', 'Gagal generate'); }
+  };
+
+  const handleAssignEmployees = async () => {
+    if (!assignForm.workShiftId || !assignForm.employeeIds.length) {
+      showToast('error', 'Pilih shift dan minimal satu karyawan');
+      return;
+    }
+    setAssignBusy(true);
+    try {
+      const shift = shifts.find((s) => s.id === assignForm.workShiftId);
+      const res = await fetch('/api/humanify/attendance-management?action=schedule-bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workShiftId: assignForm.workShiftId,
+          employeeIds: assignForm.employeeIds,
+          startDate: assignForm.startDate,
+          endDate: assignForm.endDate,
+          days: shift?.applicable_days?.length ? shift.applicable_days : [1, 2, 3, 4, 5],
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        showToast('success', json.message || 'Jadwal karyawan disimpan');
+        fetchData();
+      } else {
+        showToast('error', json.error || 'Gagal menugaskan jadwal');
+      }
+    } catch {
+      showToast('error', 'Gagal menugaskan jadwal');
+    } finally {
+      setAssignBusy(false);
+    }
+  };
+
+  const toggleAssignEmployee = (id: string) => {
+    setAssignForm((f) => ({
+      ...f,
+      employeeIds: f.employeeIds.includes(id) ? f.employeeIds.filter((x) => x !== id) : [...f.employeeIds, id],
+    }));
   };
 
   // ===== Settings handler =====
@@ -330,8 +393,8 @@ export default function AttendanceManagementPage() {
           <Link href="/humanify/attendance" className="inline-flex items-center gap-2 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50 text-gray-700">
             <TrendingUp className="w-4 h-4" /> Lihat Kehadiran Live & Rekap
           </Link>
-          <Link href="/humanify/attendance/daily" className="inline-flex items-center gap-2 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50 text-gray-700">
-            <Calendar className="w-4 h-4" /> Rekap Harian
+          <Link href="/humanify/attendance/settings" className="inline-flex items-center gap-2 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50 text-gray-700">
+            <Settings className="w-4 h-4" /> Kebijakan jam kerja
           </Link>
         </div>
 
@@ -340,6 +403,7 @@ export default function AttendanceManagementPage() {
           <div className="flex border-b overflow-x-auto">
             {[
               { key: 'shifts', label: 'Manajemen Shift', icon: Clock },
+              { key: 'assign', label: 'Jadwal karyawan', icon: UserPlus },
               { key: 'geofence', label: 'Geofencing', icon: MapPin },
               { key: 'rotations', label: 'Rotasi Shift', icon: RotateCcw },
               { key: 'settings', label: 'Pengaturan', icon: Settings },
@@ -381,7 +445,9 @@ export default function AttendanceManagementPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
                             <h4 className="font-semibold text-sm truncate">{s.name}</h4>
-                            {!s.is_active && <span className="px-1.5 py-0.5 bg-gray-200 text-gray-500 text-[9px] rounded">OFF</span>}
+                            <span className={`px-1.5 py-0.5 text-[9px] rounded font-medium ${s.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}`}>
+                              {s.is_active ? 'ON' : 'OFF'}
+                            </span>
                             {s.is_cross_day && <span className="px-1.5 py-0.5 bg-purple-100 text-purple-600 text-[9px] rounded">Cross-Day</span>}
                           </div>
                           <p className="text-xs text-gray-500">{s.code} &middot; {s.shift_type}</p>
@@ -418,6 +484,101 @@ export default function AttendanceManagementPage() {
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {activeTab === 'assign' && (
+            <div className="p-4 space-y-4">
+              <div>
+                <h3 className="font-semibold text-lg">Tugaskan shift ke karyawan</h3>
+                <p className="text-sm text-gray-500">
+                  Jadwal harian dipakai saat clock-in/out (telat, pulang awal, jam acuan). Karyawan tanpa jadwal memakai jam di{' '}
+                  <Link href="/humanify/attendance/settings" className="font-medium text-[color:var(--hf-brand-600)] hover:underline">kebijakan absensi</Link>.
+                </p>
+              </div>
+              {shifts.filter((s) => s.is_active).length === 0 ? (
+                <HrisEmptyState
+                  title="Belum ada shift aktif"
+                  description="Buat shift di tab Manajemen Shift, lalu tugaskan ke karyawan."
+                />
+              ) : (
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                  <div className="space-y-3 rounded-[var(--hf-radius-lg)] border border-[var(--hf-border)] p-4">
+                    <label className="block text-xs font-medium text-gray-500">Shift
+                      <select
+                        className="hf-input mt-1 w-full"
+                        value={assignForm.workShiftId}
+                        onChange={(e) => setAssignForm((f) => ({ ...f, workShiftId: e.target.value }))}
+                      >
+                        <option value="">— Pilih shift —</option>
+                        {shifts.filter((s) => s.is_active).map((s) => (
+                          <option key={s.id} value={s.id}>{s.code} · {s.name} ({s.start_time}–{s.end_time})</option>
+                        ))}
+                      </select>
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="block text-xs font-medium text-gray-500">Dari
+                        <input type="date" className="hf-input mt-1 w-full" value={assignForm.startDate} onChange={(e) => setAssignForm((f) => ({ ...f, startDate: e.target.value }))} />
+                      </label>
+                      <label className="block text-xs font-medium text-gray-500">Sampai
+                        <input type="date" className="hf-input mt-1 w-full" value={assignForm.endDate} onChange={(e) => setAssignForm((f) => ({ ...f, endDate: e.target.value }))} />
+                      </label>
+                    </div>
+                    <div>
+                      <div className="mb-2 flex items-center justify-between">
+                        <p className="text-xs font-medium text-gray-500">Karyawan ({assignForm.employeeIds.length} dipilih)</p>
+                        <button type="button" className="text-xs text-[color:var(--hf-brand-600)]" onClick={() => setAssignForm((f) => ({ ...f, employeeIds: employeeOpts.map((e) => e.id) }))}>Pilih semua</button>
+                      </div>
+                      <div className="max-h-56 space-y-1 overflow-y-auto rounded-lg border border-[var(--hf-border)] p-2">
+                        {employeeOpts.length === 0 ? (
+                          <p className="px-2 py-3 text-sm text-gray-400">Tidak ada karyawan aktif. Tambah di menu Karyawan dulu.</p>
+                        ) : employeeOpts.map((e) => (
+                          <label key={e.id} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-[var(--hf-surface-muted)]">
+                            <input type="checkbox" checked={assignForm.employeeIds.includes(e.id)} onChange={() => toggleAssignEmployee(e.id)} className="rounded" />
+                            <span className="min-w-0 truncate font-medium text-[color:var(--hf-ink)]">{e.name}</span>
+                            {e.department && <span className="ml-auto shrink-0 text-[11px] text-gray-400">{e.department}</span>}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <button type="button" disabled={assignBusy} onClick={handleAssignEmployees} className="hf-btn-primary inline-flex items-center gap-2 px-4 py-2 text-sm disabled:opacity-50">
+                      <UserPlus className="h-4 w-4" />
+                      {assignBusy ? 'Menyimpan…' : 'Simpan jadwal'}
+                    </button>
+                  </div>
+                  <div className="rounded-[var(--hf-radius-lg)] border border-[var(--hf-border)] p-4">
+                    <p className="mb-2 text-sm font-semibold text-[color:var(--hf-ink)]">Jadwal tersimpan (200 terakhir)</p>
+                    {schedules.length === 0 ? (
+                      <p className="text-sm text-gray-400">Belum ada penugasan. Setelah disimpan, baris muncul di sini dan dipakai saat absen karyawan.</p>
+                    ) : (
+                      <div className="max-h-80 overflow-auto">
+                        <table className="w-full text-left text-xs">
+                          <thead className="text-gray-400">
+                            <tr>
+                              <th className="py-1 font-medium">Tanggal</th>
+                              <th className="py-1 font-medium">Karyawan</th>
+                              <th className="py-1 font-medium">Shift</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[var(--hf-border)]">
+                            {schedules.slice(0, 40).map((row: any) => {
+                              const sid = row.work_shift_id || row.workShiftId;
+                              const sh = shifts.find((s) => s.id === String(sid));
+                              return (
+                                <tr key={row.id}>
+                                  <td className="py-1.5 font-mono">{row.schedule_date || row.scheduleDate}</td>
+                                  <td className="py-1.5">{employeeOpts.find((e) => e.id === String(row.employee_id || row.employeeId))?.name || row.employee_id || row.employeeId}</td>
+                                  <td className="py-1.5">{sh ? `${sh.code} ${sh.start_time}–${sh.end_time}` : (sid || '—')}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -925,6 +1086,9 @@ export default function AttendanceManagementPage() {
                 </div>
               </div>
 
+              <p className="text-xs text-gray-500">
+                Generate memakai karyawan yang dipilih di tab <strong>Jadwal karyawan</strong> lewat pola ini, atau semua karyawan aktif jika daftar di rotasi kosong.
+              </p>
               <div className="flex gap-4">
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={rotForm.auto_generate} onChange={e => setRotForm(f => ({ ...f, auto_generate: e.target.checked }))} className="rounded" /> Auto-generate jadwal</label>
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={rotForm.is_active} onChange={e => setRotForm(f => ({ ...f, is_active: e.target.checked }))} className="rounded" /> Aktif</label>
