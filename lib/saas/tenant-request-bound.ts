@@ -68,8 +68,15 @@ async function withStandalonePgQuery<T>(
   }
   let Client: any;
   try {
-    Client = require('pg').Client;
+    if (typeof window !== 'undefined') return null;
+    // webpackIgnore: pages such as ESS import withDbSavepoint; do not bundle `pg`.
+    const req = Function('return typeof require === "function" ? require : null')();
+    Client = req && req('pg').Client;
   } catch {
+    console.warn(`[withAutocommitQuery:${label}] pg client unavailable`);
+    return null;
+  }
+  if (!Client) {
     console.warn(`[withAutocommitQuery:${label}] pg client unavailable`);
     return null;
   }

@@ -30,7 +30,7 @@ const nextConfig = {
   // Enable standalone output for Docker deployment (only in production)
   ...(process.env.NODE_ENV === 'production' ? { output: 'standalone' } : {}),
   // Keep Node-only packages out of the client/webpack graph
-  serverExternalPackages: ['ioredis', 'samlify', '@xmldom/xmldom', 'qrcode', '@sentry/node', 'cls-hooked'],
+  serverExternalPackages: ['ioredis', 'samlify', '@xmldom/xmldom', 'qrcode', '@sentry/node', 'cls-hooked', 'pg'],
   experimental: {
     workerThreads: false,
     cpus: 1,
@@ -90,7 +90,7 @@ const nextConfig = {
     if (isServer) {
       config.externals = config.externals || [];
       if (Array.isArray(config.externals)) {
-        config.externals.push('ioredis', 'samlify', 'cls-hooked');
+        config.externals.push('ioredis', 'samlify', 'cls-hooked', 'pg');
       }
     }
     return config;
