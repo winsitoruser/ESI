@@ -128,7 +128,6 @@ async function compressImageFile(file: File, maxWidth = 1280, quality = 0.72): P
 export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
   const [activeTab, setActiveTab] = useState<MgrTab>('approvals');
   const [loading, setLoading] = useState(true);
-  const [summary, setSummary] = useState({ leave: 0, claims: 0, overtime: 0, total: 0 });
   const [pending, setPending] = useState<{ leave: any[]; claims: any[]; overtime: any[] }>({ leave: [], claims: [], overtime: [] });
   const [team, setTeam] = useState<any[]>([]);
   const [letters, setLetters] = useState<any[]>([]);
@@ -154,10 +153,9 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [sumRes, pendRes, teamRes, letRes] = await Promise.all([
-        mgrApi('summary'), mgrApi('pending-approvals'), mgrApi('team'), mgrApi('disciplinary-letters'),
+      const [pendRes, teamRes, letRes] = await Promise.all([
+        mgrApi('pending-approvals'), mgrApi('team'), mgrApi('disciplinary-letters'),
       ]);
-      if (sumRes.success) setSummary(sumRes.data);
       if (pendRes.success) setPending(pendRes.data);
       if (teamRes.success) setTeam(teamRes.data || []);
       if (letRes.success) setLetters(letRes.data || []);
@@ -303,7 +301,14 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
     ...pending.claims.map(i => ({ ...i, approval_type: 'claim' })),
     ...pending.overtime.map(i => ({ ...i, approval_type: 'overtime' })),
   ].filter(i => approvalFilter === 'all' || i.approval_type === approvalFilter)
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+
+  const displaySummary = {
+    leave: pending.leave.length,
+    claims: pending.claims.length,
+    overtime: pending.overtime.length,
+    total: pending.leave.length + pending.claims.length + pending.overtime.length,
+  };
 
   if (loading) {
     return (
@@ -328,17 +333,17 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
         <p className="mt-2 text-[11px] text-violet-50/90 bg-white/10 rounded-lg px-2.5 py-1.5">
           Lingkup <strong>tim saja</strong>. Antrian HR tenant-wide ada di MSS HQ (`/humanify/mss`).
         </p>
-        {summary.total > 0 && (
-          <p className="mt-2 text-sm font-semibold">{summary.total} pengajuan menunggu persetujuan</p>
+        {displaySummary.total > 0 && (
+          <p className="mt-2 text-sm font-semibold">{displaySummary.total} pengajuan menunggu persetujuan</p>
         )}
       </div>
 
       {/* Summary cards */}
       <div className="grid grid-cols-3 gap-2">
         {[
-          { key: 'leave', icon: Calendar, label: 'Cuti', count: summary.leave, color: 'text-blue-600 bg-blue-50' },
-          { key: 'claims', icon: Wallet, label: 'Klaim', count: summary.claims, color: 'text-emerald-600 bg-emerald-50' },
-          { key: 'overtime', icon: Timer, label: 'Lembur', count: summary.overtime, color: 'text-orange-600 bg-orange-50' },
+          { key: 'leave', icon: Calendar, label: 'Cuti', count: displaySummary.leave, color: 'text-blue-600 bg-blue-50' },
+          { key: 'claims', icon: Wallet, label: 'Klaim', count: displaySummary.claims, color: 'text-emerald-600 bg-emerald-50' },
+          { key: 'overtime', icon: Timer, label: 'Lembur', count: displaySummary.overtime, color: 'text-orange-600 bg-orange-50' },
         ].map(s => (
           <button
             key={s.key}
@@ -358,7 +363,7 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
       <div className="overflow-x-auto -mx-1 px-1 scrollbar-hide">
         <div className="flex gap-1 bg-slate-100 rounded-xl p-1 min-w-max sm:min-w-0">
         {([
-          { key: 'approvals' as MgrTab, label: 'Persetujuan', icon: CheckCircle, badge: summary.total },
+          { key: 'approvals' as MgrTab, label: 'Persetujuan', icon: CheckCircle, badge: displaySummary.total },
           { key: 'visits' as MgrTab, label: 'Kunjungan', icon: Navigation },
           { key: 'disciplinary' as MgrTab, label: 'Surat SP', icon: FileWarning },
           { key: 'team' as MgrTab, label: 'Tim', icon: Users },

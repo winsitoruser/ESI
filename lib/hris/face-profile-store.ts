@@ -57,10 +57,12 @@ export async function getFaceStatus(
   employeeId: string,
 ): Promise<FaceProfileStatus> {
   await ensureFaceProfileSchema(sequelize);
-  const [rows] = await sequelize.query(
+  const rows = await safeQueryWithSavepoint(
+    sequelize,
     `SELECT enrolled_at FROM ${TABLE}
      WHERE tenant_id = :tid AND employee_id = :eid LIMIT 1`,
-    { replacements: { tid: tenantId, eid: employeeId } },
+    { tid: tenantId, eid: employeeId },
+    'face_status',
   );
   const row = rows?.[0];
   return {
@@ -91,9 +93,11 @@ export async function enrollFace(opts: {
   if (!quality.ok) return { ok: false, error: quality.reason || 'Foto pendaftaran ditolak' };
 
   await ensureFaceProfileSchema(opts.sequelize);
-  const [existing] = await opts.sequelize.query(
+  const existing = await safeQueryWithSavepoint(
+    opts.sequelize,
     `SELECT id FROM ${TABLE} WHERE tenant_id = :tid AND employee_id = :eid LIMIT 1`,
-    { replacements: { tid: opts.tenantId, eid: opts.employeeId } },
+    { tid: opts.tenantId, eid: opts.employeeId },
+    'face_enroll_exists',
   );
   if (existing?.[0]) {
     return { ok: false, error: 'Wajah sudah terdaftar. Hubungi HR jika perlu daftar ulang.' };

@@ -92,6 +92,11 @@ export default function DeviceManagementPage() {
     fetchDevices();
   }, [statusFilter, typeFilter]);
 
+  useEffect(() => {
+    if (!showAddModal || formData.branchId || !branches[0]?.id) return;
+    setFormData((f: any) => ({ ...f, branchId: branches[0].id }));
+  }, [branches, showAddModal, formData.branchId]);
+
   if (!mounted) return null;
 
   const filteredDevices = devices.filter(d =>
@@ -110,8 +115,9 @@ export default function DeviceManagementPage() {
       toast.error('Nama device wajib diisi');
       return;
     }
-    if (!formData.branchId) {
-      toast.error('Cabang wajib dipilih');
+    const branchId = formData.branchId || branches[0]?.id;
+    if (!branchId) {
+      toast.error('Cabang belum tersedia. Muat ulang halaman, lalu coba lagi.');
       return;
     }
     try {
@@ -123,8 +129,8 @@ export default function DeviceManagementPage() {
         ...editable
       } = formData;
       const body = isEdit
-        ? { id: editDevice.id, ...editable }
-        : editable;
+        ? { id: editDevice.id, ...editable, branchId }
+        : { ...editable, branchId };
 
       const res = await fetch('/api/humanify/attendance/devices', {
         method, headers: { 'Content-Type': 'application/json' },
@@ -344,7 +350,7 @@ export default function DeviceManagementPage() {
                   <div className="flex flex-wrap items-center justify-center gap-2">
                     <button
                       type="button"
-                      onClick={() => { setEditDevice(null); setFormData({}); setShowAddModal(true); }}
+                      onClick={openAdd}
                       className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white"
                       style={{ background: 'var(--hf-brand-600)' }}
                     >
@@ -530,11 +536,14 @@ export default function DeviceManagementPage() {
                     onChange={(e) => setFormData({ ...formData, branchId: e.target.value })}
                     className="w-full px-3 py-2 border rounded-lg text-sm"
                   >
-                    <option value="">Pilih cabang</option>
+                    <option value="">{branches.length ? 'Pilih cabang' : 'Kantor Pusat (dibuat otomatis)'}</option>
                     {branches.map((b) => (
                       <option key={b.id} value={b.id}>{b.name}{b.code ? ` (${b.code})` : ''}</option>
                     ))}
                   </select>
+                  {!branches.length && (
+                    <p className="mt-1 text-xs text-slate-500">Belum ada cabang. Saat simpan, sistem memakai Kantor Pusat tenant ini.</p>
+                  )}
                 </div>
               </div>
 

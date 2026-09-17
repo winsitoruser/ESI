@@ -1,5 +1,24 @@
 # Handoff — SIMESI (fka ESI ERP)
 
+> Diperbarui: 18 September 2026 — **Fix IUAT tester GAGAL (clock-in TX, devices cabang, MSS count, shift bulk)** — belum deploy
+
+| Kode | Gejala | Perbaikan |
+|---|---|---|
+| IUAT-097 | Clock-in wajah → `TX_ABORTED` / "Sesi database terganggu" | Kolom gaji schema-safe; DDL/lookup opsional tidak `ROLLBACK` TX RLS; shift `employee_id` ALTER di koneksi terpisah |
+| IUAT-104 | Device: dropdown cabang kosong / "Cabang wajib dipilih" | Auto-buat `Kantor Pusat` per tenant; API + form memakai cabang default |
+| IUAT-111 | MSS: banner 1 pending, daftar kosong | Count & list pakai filter langkah yang sama (`las` NULL atau langkah saya) |
+| IUAT-100 | Shift bulk `malformed array literal` | `asPgTextArray` → `ANY(CAST(:ids AS text[]))` |
+
+Deploy: rsync ke `humanify.id` (wipe scripts di-hold). HOLD launch tetap.
+
+---
+
+> Diperbarui: 10 September 2026 — **Akun demo sales `demo@humanify.id` (tenant slug `demo`, sudah berdata HR)**
+
+Seed: `npm run seed:demo-account` → `scripts/seed-humanify-sales-demo-account.js`. Login: `https://humanify.id/humanify/login` · `demo@humanify.id` / `DemoHumanify1!`. Tenant **bukan** superadmin.
+
+---
+
 > Diperbarui: 9 September 2026 — **WAVE-9 sertifikasi HOLD (draft lengkap, tanda tangan basah masih kosong)**
 
 ## Launch WAVE-9 (9 Sep 2026)

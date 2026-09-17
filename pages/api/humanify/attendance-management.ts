@@ -4,7 +4,7 @@ import { allowHrMockFallback, resolveDataSource } from '@/lib/hris/data-source';
 import { tenantIdFromSession, findScopedById, destroyScoped } from '@/lib/saas/tenant-scope';
 import { markGoLiveFlagSafe } from '@/lib/saas/go-live';
 import { normalizeGeofence, normalizeRotation, normalizeWorkShift, workShiftWriteAttrs } from '@/lib/hris/shift-record';
-import { ensureShiftScheduleEmployeeIdText } from '@/lib/hris/shift-schedule-schema';
+import { asPgTextArray } from '@/lib/hris/pg-uuid-array';
 
 let sequelize: any, Op: any;
 try { sequelize = require('../../../lib/sequelize'); Op = require('sequelize').Op; } catch (e) {}
@@ -377,9 +377,13 @@ async function bulkCreateSchedule(req: NextApiRequest, res: NextApiResponse, ses
   }
   try {
     await ensureShiftScheduleEmployeeIdText(sequelize);
+    const idsLiteral = asPgTextArray(employeeIds);
+    if (idsLiteral === '{}') {
+      return res.status(400).json({ success: false, error: 'Pilih minimal satu karyawan' });
+    }
     const [owned] = await sequelize.query(
-      `SELECT id::text AS id FROM employees WHERE tenant_id = :tid AND id::text = ANY(:ids)`,
-      { replacements: { tid: tenantId, ids: employeeIds.map(String) } },
+      `SELECT id::text AS id FROM employees WHERE tenant_id = :tid AND id::text = ANY(CAST(:ids AS text[]))`,
+      { replacements: { tid: tenantId, ids: idsLiteral } },
     );
     const ownedSet = new Set((owned || []).map((r: any) => String(r.id)));
     const validIds = employeeIds.filter((id: string) => ownedSet.has(String(id)));

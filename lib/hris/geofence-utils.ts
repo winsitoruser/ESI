@@ -1,6 +1,7 @@
 /**
  * Geofence helpers — SFA visit & attendance validation
  */
+import { safeQueryWithSavepoint } from '@/lib/saas/tenant-request-bound';
 
 export type GeofenceMatch = {
   id: string;
@@ -60,21 +61,19 @@ export async function loadActiveGeofences(
   customerId?: string | null,
 ): Promise<any[]> {
   if (!sequelize) return [];
-  try {
-    const customerClause = customerId ? 'OR customer_id = :customerId::uuid' : '';
-    const [rows] = await sequelize.query(`
-      SELECT id, name, center_lat, center_lng, radius_meters, customer_id, reference_type
-      FROM sfa_geofences
-      WHERE is_active = true
-        ${tenantId ? 'AND tenant_id = :tenantId::uuid' : 'AND 1=0'}
-        ${customerClause}
-      ORDER BY name ASC
-      LIMIT 50
-    `, { replacements: { tenantId, customerId: customerId || null } });
-    return rows || [];
-  } catch {
-    return [];
-  }
+  const customerClause = customerId ? 'OR customer_id = :customerId::uuid' : '';
+  return safeQueryWithSavepoint(
+    sequelize,
+    `SELECT id, name, center_lat, center_lng, radius_meters, customer_id, reference_type
+     FROM sfa_geofences
+     WHERE is_active = true
+       ${tenantId ? 'AND tenant_id = :tenantId::uuid' : 'AND 1=0'}
+       ${customerClause}
+     ORDER BY name ASC
+     LIMIT 50`,
+    { tenantId, customerId: customerId || null },
+    'sfa_geofences',
+  );
 }
 
 export function geofenceStatusLabel(match: GeofenceMatch | null): string {

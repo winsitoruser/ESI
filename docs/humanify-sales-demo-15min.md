@@ -1,11 +1,23 @@
 # Humanify — Demo sales 15 menit
 
-> Skrip demo untuk tenant `demo` (seed: `npm run seed:demo-tenant`).
+> Skrip demo untuk tenant `demo` (seed: `npm run seed:demo-account`).
+
+## Akun demo (sudah berdata)
+
+| Field | Nilai |
+|---|---|
+| URL | `https://humanify.id/humanify/login` |
+| Email | `demo@humanify.id` |
+| Password | `DemoHumanify1!` |
+| Perusahaan | PT Nusantara Karya Demo |
+| Role | owner (plan Growth) |
+
+Seed di VPS: `npm run seed:demo-account` (idempotent; tenant slug `demo` saja — tidak menempel ke superadmin).
 
 ## Persiapan (2 menit)
 
-1. Login: `https://humanify.id/auth/login` (akun demo / superadmin).
-2. Pastikan tenant seed: `DEMO_TENANT_SLUG=demo npm run seed:demo-tenant` (di VPS dengan `DATABASE_URL`).
+1. Login: `https://humanify.id/humanify/login` dengan akun demo di atas.
+2. Refresh data: `npm run seed:demo-account` (di VPS dengan `DATABASE_URL`).
 3. Pastikan partner DEMO: `npm run ensure:demo-partner` (upsert kode `DEMO` 10%; attach ke slug `demo`).
 4. Signup referral: `/humanify/signup?ref=DEMO` atau `?partner=DEMO` — preview: tombol **Preview DEMO · Rp1jt** di `/platform`.
 5. Cek chip **DEMO walkthrough: present** di `/platform` (Partner / referral codes).

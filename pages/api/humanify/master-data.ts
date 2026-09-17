@@ -121,20 +121,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     const sequelize = require('../../../lib/sequelize');
 
     if (tenantId) {
-      const [branchRows] = await sequelize.query(
-        `SELECT id, code, name, city FROM branches
-         WHERE tenant_id = :tenantId AND is_active IS NOT FALSE
-         ORDER BY name ASC LIMIT 100`,
-        { replacements: { tenantId } }
-      );
-      if (branchRows?.length) {
-        branches = branchRows.map((b: any) => ({
-          id: String(b.id),
-          code: b.code || '',
-          name: b.name || '',
-          city: b.city || '',
-        }));
-      }
+      const { ensureTenantDefaultBranch } = await import('@/lib/hris/ensure-tenant-branch');
+      branches = await ensureTenantDefaultBranch(sequelize, tenantId);
 
       await ensureOrgTables(sequelize);
       await syncOrgDepartments(sequelize, tenantId);

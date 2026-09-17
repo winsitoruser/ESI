@@ -10,7 +10,7 @@ import {
   isPlatformOperatorRole,
   opsUrl,
 } from '@/lib/humanify/ops-host';
-import { HUMANIFY_WELCOME } from '@/lib/humanify/paths';
+import { HUMANIFY_WELCOME, rewriteHumanifyShortPublicPath } from '@/lib/humanify/paths';
 import { extractTenantSlugFromHost } from '@/lib/saas/tenant-host';
 import { featureForPath, isPathAllowedForEntitlements } from '@/lib/saas/plan-entitlements';
 import { isLmsLabEnabled, isLmsLabPath } from '@/lib/humanify/lms-surface';
@@ -170,6 +170,16 @@ export async function middleware(request: NextRequest) {
   // humanify.id root → landing di URL pendek `/` (rewrite, bukan redirect ke /humanify/welcome)
   if (pathname === '/' && isHumanifyHost(host)) {
     return NextResponse.rewrite(new URL(HUMANIFY_WELCOME, request.url));
+  }
+
+  // humanify.id/login → aplikasi login (bukan /auth/login SIMESI)
+  if (isHumanifyHost(host)) {
+    const shortDest = rewriteHumanifyShortPublicPath(pathname);
+    if (shortDest) {
+      const dest = new URL(shortDest, request.url);
+      request.nextUrl.searchParams.forEach((v, k) => dest.searchParams.set(k, v));
+      return NextResponse.rewrite(dest);
+    }
   }
 
   // Canonical singkat: /humanify/welcome → / pada domain Humanify

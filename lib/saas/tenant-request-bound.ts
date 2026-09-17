@@ -52,6 +52,48 @@ async function rawConnectionQuery(connection: any, sql: string, replacements?: R
   return await Promise.resolve(result);
 }
 
+function probeAssignedTx(result: any): boolean {
+  const row = result?.rows?.[0] || (Array.isArray(result) ? result[0] : result);
+  return row?.tx != null && row.tx !== '';
+}
+
+async function withStandalonePgQuery<T>(
+  fn: (query: (sql: string, opts?: any) => Promise<any>) => Promise<T>,
+  label: string,
+): Promise<T | null> {
+  const url = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+  if (!url) {
+    console.warn(`[withAutocommitQuery:${label}] no DATABASE_URL for standalone client`);
+    return null;
+  }
+  let Client: any;
+  try {
+    Client = require('pg').Client;
+  } catch {
+    console.warn(`[withAutocommitQuery:${label}] pg client unavailable`);
+    return null;
+  }
+  const local = /localhost|127\.0\.0\.1/.test(url);
+  const client = new Client({
+    connectionString: url,
+    ssl: local ? false : { rejectUnauthorized: false },
+  });
+  try {
+    await client.connect();
+    const query = async (sql: string, opts?: any) => {
+      const { text, values } = interpolateReplacements(sql, opts?.replacements);
+      const result = await client.query(text, values);
+      return [result.rows, result];
+    };
+    return await fn(query);
+  } catch (e: any) {
+    console.warn(`[withAutocommitQuery:${label}] standalone`, e?.message || e);
+    return null;
+  } finally {
+    try { await client.end(); } catch { /* ignore */ }
+  }
+}
+
 /**
  * Run DDL / one-off schema work on a dedicated connection so it cannot
  * abort the request-bound RLS transaction (25P02).
@@ -74,7 +116,18 @@ export async function withAutocommitQuery<T>(
   let connection: any;
   try {
     connection = await sequelize.connectionManager.getConnection({ type: 'write' });
-    // Ensure we are not inside an open aborted TX on this borrowed connection.
+    // If CLS handed us the request-bound TX connection, ROLLBACK would abort
+    // clock-in / ESS writes (25P02 → "Sesi database terganggu").
+    try {
+      const probe = await rawConnectionQuery(connection, 'SELECT txid_current_if_assigned() AS tx');
+      if (probeAssignedTx(probe)) {
+        try { await sequelize.connectionManager.releaseConnection(connection); } catch { /* ignore */ }
+        connection = null;
+        return await withStandalonePgQuery(fn, label);
+      }
+    } catch {
+      /* probe failed — still try ROLLBACK on a presumed idle pooled connection */
+    }
     try {
       await rawConnectionQuery(connection, 'ROLLBACK');
     } catch {

@@ -106,6 +106,7 @@ rsync_cmd --delete \
   --exclude 'public/uploads/' \
   --exclude 'storage/' \
   --exclude artifacts --exclude .cursor --exclude docs/pdf \
+  --exclude 'scripts/wipe-prod*.js' \
   --filter='protect public/uploads/' \
   --filter='protect storage/' \
   --filter='protect node_modules/' \

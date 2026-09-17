@@ -143,17 +143,33 @@ async function getDevices(req: NextApiRequest, res: NextApiResponse, session: an
 }
 
 async function createDevice(req: NextApiRequest, res: NextApiResponse, session: any) {
-  const {
+  let {
     branchId, deviceName, deviceType, deviceBrand, deviceModel,
     serialNumber, ipAddress, port, communicationKey, connectionType,
     apiEndpoint, apiKey, webhookSecret, syncMode, syncInterval,
     maxCapacity, firmwareVersion, location, notes, settings
   } = req.body;
 
-  if (!branchId || !deviceName || !deviceType) {
+  if (!deviceName || !deviceType) {
     return res.status(400).json({
       success: false,
-      error: 'branchId, deviceName, and deviceType are required'
+      error: 'deviceName and deviceType are required'
+    });
+  }
+
+  if (!branchId && session.user?.tenantId) {
+    try {
+      const sequelize = require('../../../../lib/sequelize');
+      const { ensureTenantDefaultBranch } = require('@/lib/hris/ensure-tenant-branch');
+      const branches = await ensureTenantDefaultBranch(sequelize, session.user.tenantId);
+      branchId = branches[0]?.id || null;
+    } catch { /* keep null */ }
+  }
+
+  if (!branchId) {
+    return res.status(400).json({
+      success: false,
+      error: 'Cabang belum tersedia. Tambah cabang di pengaturan perusahaan, atau coba simpan ulang.'
     });
   }
 

@@ -1,12 +1,15 @@
 /**
  * shift_schedules.employee_id was created as INTEGER; Humanify employees.id is UUID.
+ * DDL must not run on the request-bound RLS transaction (25P02 / clock-in abort).
  */
+import { withAutocommitQuery } from '@/lib/saas/tenant-request-bound';
+
 let ensured = false;
 
 export async function ensureShiftScheduleEmployeeIdText(sequelize: any): Promise<void> {
   if (ensured || !sequelize) return;
-  try {
-    await sequelize.query(`
+  const ok = await withAutocommitQuery(sequelize, async (query) => {
+    await query(`
       DO $shift$
       BEGIN
         IF EXISTS (
@@ -24,8 +27,7 @@ export async function ensureShiftScheduleEmployeeIdText(sequelize: any): Promise
       END
       $shift$;
     `);
-    ensured = true;
-  } catch (err: any) {
-    console.warn('[shift-schedules] employee_id migrate skipped', err?.message);
-  }
+    return true;
+  }, 'shift_emp_id_text');
+  if (ok) ensured = true;
 }

@@ -234,6 +234,7 @@
     "test:e2e:humanify:invite-docs:prod": "PLAYWRIGHT_BASE_URL=https://humanify.id playwright test e2e/humanify-invite-docs-ui.spec.ts",
     "seed:qa-golden": "node scripts/seed-humanify-qa-golden.js",
     "seed:demo-tenant": "node scripts/seed-humanify-demo-tenant.js",
+    "seed:demo-account": "node scripts/seed-humanify-sales-demo-account.js",
     "backup:humanify": "bash scripts/backup-humanify-db.sh",
     "digest:action-inbox": "node scripts/send-humanify-action-inbox-digest.js",
     "check:email-dns": "bash scripts/check-humanify-email-dns.sh",

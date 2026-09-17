@@ -4,7 +4,7 @@
  */
 
 import { resolveEmployeeContext } from '@/lib/employee-portal';
-import { withAutocommitQuery } from '@/lib/saas/tenant-request-bound';
+import { safeQueryWithSavepoint, withAutocommitQuery } from '@/lib/saas/tenant-request-bound';
 import { evaluateClockIn, evaluateClockOut, businessDateInTimeZone } from '@/lib/hris/work-time-policy';
 import { loadWorkTimePolicy, resolveShiftWindow } from '@/lib/hris/work-time-policy-store';
 
@@ -266,11 +266,13 @@ export async function portalClockOut(
   let overtimeMinutes = 0;
   let earlyLeaveMinutes = 0;
   try {
-    const [existing] = await sequelize.query(
+    const existing = await safeQueryWithSavepoint(
+      sequelize,
       `SELECT clock_in FROM ${ATTENDANCE_TABLE} WHERE employee_id = :employeeId AND date = :today LIMIT 1`,
-      { replacements: { employeeId: ctx.employeeId, today } },
+      { employeeId: ctx.employeeId, today },
+      'clock_out_existing',
     );
-    const clockInAt = (existing as any[])?.[0]?.clock_in;
+    const clockInAt = existing?.[0]?.clock_in;
     if (clockInAt) {
       const policy = await loadWorkTimePolicy(sequelize, scopedTenant, ctx.branchId);
       const window = await resolveShiftWindow(sequelize, scopedTenant, ctx.employeeId, policy, today);

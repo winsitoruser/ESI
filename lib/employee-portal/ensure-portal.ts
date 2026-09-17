@@ -49,6 +49,17 @@ async function tableColumns(sequelize: any, table: string): Promise<Set<string>>
   return new Set((rows || []).map((r: any) => String(r.column_name)));
 }
 
+async function employeeSalarySelect(sequelize: any): Promise<string> {
+  const cols = await withDbSavepoint(
+    sequelize,
+    () => tableColumns(sequelize, 'employees'),
+    'emp_salary_cols',
+  );
+  if (cols?.has('salary')) return 'COALESCE(e.salary, 0) AS salary';
+  if (cols?.has('base_salary')) return 'COALESCE(e.base_salary, 0) AS salary';
+  return '0::numeric AS salary';
+}
+
 async function hasTable(sequelize: any, table: string): Promise<boolean> {
   const [rows] = await sequelize.query(
     `SELECT 1 FROM information_schema.tables
@@ -330,33 +341,40 @@ export async function ensurePortalEmployee(
   }
 
   await ensureTenantLeaveTypes(sequelize, String(tid));
+  const salarySelect = await employeeSalarySelect(sequelize);
 
-  const [inTenant] = await sequelize.query(
-    `SELECT e.id, e.name, e.email, e.tenant_id, e.branch_id, COALESCE(e.salary, 0) AS salary
-     FROM employees e
-     WHERE e.tenant_id = :tid
-       AND (
-         e.user_id::text = :uid::text
-         OR (
-           e.email IS NOT NULL AND :email IS NOT NULL
-           AND LOWER(TRIM(e.email)) = LOWER(TRIM(:email))
-         )
-       )
-     ORDER BY CASE WHEN e.user_id::text = :uid::text THEN 0 ELSE 1 END
-     LIMIT 1`,
-    { replacements: { uid, tid: String(tid), email: user.email || null } },
-  );
-  let row = inTenant?.[0] || null;
-  if (!row?.id) {
-    const [byUser] = await sequelize.query(
-      `SELECT e.id, e.name, e.email, e.tenant_id, e.branch_id, COALESCE(e.salary, 0) AS salary
+  const inTenant = await withDbSavepoint(sequelize, async () => {
+    const [rows] = await sequelize.query(
+      `SELECT e.id, e.name, e.email, e.tenant_id, e.branch_id, ${salarySelect}
        FROM employees e
-       INNER JOIN tenants t ON t.id = e.tenant_id
-       WHERE e.user_id::text = :uid::text
+       WHERE e.tenant_id = :tid
+         AND (
+           e.user_id::text = :uid::text
+           OR (
+             e.email IS NOT NULL AND :email IS NOT NULL
+             AND LOWER(TRIM(e.email)) = LOWER(TRIM(:email))
+           )
+         )
+       ORDER BY CASE WHEN e.user_id::text = :uid::text THEN 0 ELSE 1 END
        LIMIT 1`,
-      { replacements: { uid } },
+      { replacements: { uid, tid: String(tid), email: user.email || null } },
     );
-    row = byUser?.[0] || null;
+    return rows?.[0] || null;
+  }, 'portal_emp_lookup');
+  let row = inTenant || null;
+  if (!row?.id) {
+    const byUser = await withDbSavepoint(sequelize, async () => {
+      const [rows] = await sequelize.query(
+        `SELECT e.id, e.name, e.email, e.tenant_id, e.branch_id, ${salarySelect}
+         FROM employees e
+         INNER JOIN tenants t ON t.id = e.tenant_id
+         WHERE e.user_id::text = :uid::text
+         LIMIT 1`,
+        { replacements: { uid } },
+      );
+      return rows?.[0] || null;
+    }, 'portal_emp_by_user');
+    row = byUser || null;
   }
   if (row?.id) {
     const rowTid = String(row.tenant_id || tid);
@@ -386,6 +404,12 @@ export async function ensurePortalEmployee(
       : 'Staff';
 
   const emp = await withDbSavepoint(sequelize, async () => {
+    const empCols = await tableColumns(sequelize, 'employees');
+    const returningSalary = empCols.has('salary')
+      ? 'COALESCE(salary, 0) AS salary'
+      : empCols.has('base_salary')
+        ? 'COALESCE(base_salary, 0) AS salary'
+        : '0::numeric AS salary';
     const [created] = await sequelize.query(
       `INSERT INTO employees (
          id, tenant_id, user_id, employee_code, employee_id, name, email, phone,
@@ -394,7 +418,7 @@ export async function ensurePortalEmployee(
          gen_random_uuid(), :tenantId, :uid, :code, :code, :name, :email, :phone,
          :position, 'GENERAL', CURRENT_DATE, 'active', true, 'permanent', NOW(), NOW()
        )
-       RETURNING id, name, email, tenant_id, branch_id, COALESCE(salary, 0) AS salary`,
+       RETURNING id, name, email, tenant_id, branch_id, ${returningSalary}`,
       {
         replacements: {
           tenantId: tid,

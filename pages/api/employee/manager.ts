@@ -29,6 +29,7 @@ import {
   getTeamVisitSummary,
 } from '@/lib/hris/manager-visit-service';
 import { withEmployeeAuth } from '@/lib/middleware/withEmployeeAuth';
+import { withDbSavepoint } from '@/lib/saas/tenant-request-bound';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch (_) {}
@@ -129,44 +130,77 @@ async function assertPendingOnTeam(opts: {
   }
 }
 
-async function safeCount(sql: string, replacements: any = {}) {
+async function tryCount(sql: string, replacements: any = {}): Promise<number | null> {
   if (!sequelize) return 0;
-  try {
-    const [rows] = await sequelize.query(sql, { replacements });
-    return Number(rows?.[0]?.cnt || 0);
-  } catch { return 0; }
+  const rows = await withDbSavepoint(
+    sequelize,
+    async () => {
+      const [r] = await sequelize.query(sql, { replacements });
+      return r;
+    },
+    'mgr_count',
+  );
+  if (rows == null) return null;
+  return Number(rows?.[0]?.cnt || 0);
+}
+
+async function tryRows(sql: string, replacements: any = {}, label = 'mgr_rows'): Promise<any[] | null> {
+  if (!sequelize) return [];
+  return withDbSavepoint(
+    sequelize,
+    async () => {
+      const [r] = await sequelize.query(sql, { replacements });
+      return Array.isArray(r) ? r : [];
+    },
+    label,
+  );
 }
 
 async function getSummary(res: NextApiResponse, userId: string, tenantId: string, isSuperAdmin: boolean) {
   const ctx = await resolveManagerContextLocal(userId);
   const tf = teamFilterClause(isSuperAdmin, ctx, userId);
+  const myEmpId = ctx?.employee_id
+    ? String(ctx.employee_id)
+    : (tenantId ? await resolveEmployeeIdForUser({ tenantId, userId, email: null }) : null);
   const tenantClause = tenantId ? 'AND lr.tenant_id = :tenantId' : '';
   const claimTenant = tenantId ? 'AND c.tenant_id = :tenantId' : '';
   const otTenant = tenantId ? 'AND ot.tenant_id = :tenantId' : '';
-  const base = { tenantId, ...tf.replacements };
+  const base = { tenantId, myEmpId: myEmpId || null, ...tf.replacements };
+  const myStep = myEmpId && !isSuperAdmin
+    ? `AND (las.id IS NULL OR ${myPendingLeaveStepClause('las', 'e')})`
+    : '';
 
-  const leavePending = await safeCount(`
+  let leavePending = await tryCount(`
     SELECT COUNT(*)::int as cnt FROM leave_requests lr
-    JOIN employees e ON lr.employee_id = e.id
-    WHERE lr.status = 'pending' ${tenantClause} ${tf.sql}
+    JOIN employees e ON lr.employee_id::text = e.id::text
+    LEFT JOIN leave_approval_steps las ON las.leave_request_id = lr.id AND las.status = 'pending'
+    WHERE lr.status = 'pending' ${tenantClause} ${tf.sql} ${myStep}
   `, base);
+  // Only fall back when leave_approval_steps is missing (query error), not when the count is truly 0.
+  if (leavePending == null) {
+    leavePending = (await tryCount(`
+      SELECT COUNT(*)::int as cnt FROM leave_requests lr
+      JOIN employees e ON lr.employee_id::text = e.id::text
+      WHERE lr.status = 'pending' ${tenantClause} ${tf.sql}
+    `, base)) ?? 0;
+  }
 
-  const claimsPending = await safeCount(`
+  const claimsPending = (await tryCount(`
     SELECT COUNT(*)::int as cnt FROM employee_claims c
     JOIN employees e ON c.employee_id::text = e.id::text
     WHERE c.status = 'pending' ${claimTenant} ${tf.sql}
-  `, base);
+  `, base)) ?? 0;
 
-  const overtimePending = await safeCount(`
+  const overtimePending = (await tryCount(`
     SELECT COUNT(*)::int as cnt FROM overtime_requests ot
     JOIN employees e ON ot.employee_id::text = e.id::text
     WHERE ot.status = 'pending' ${otTenant} ${tf.sql}
-  `, base);
+  `, base)) ?? 0;
 
-  const disciplinaryDraft = await safeCount(`
+  const disciplinaryDraft = (await tryCount(`
     SELECT COUNT(*)::int as cnt FROM hr_disciplinary_letters dl
     WHERE dl.requested_by = :userId AND dl.status IN ('draft','drafting','pending_approval')
-  `, { userId: parseInt(userId, 10) || userId });
+  `, { userId: parseInt(userId, 10) || userId })) ?? 0;
 
   return res.json({
     success: true,
@@ -191,23 +225,45 @@ async function getPendingApprovals(res: NextApiResponse, userId: string, tenantI
 
   const tenantLeave = tenantId ? 'AND lr.tenant_id = :tenantId' : '';
   const myStep = myEmpId && !isSuperAdmin
-    ? `AND las.id IS NOT NULL AND ${myPendingLeaveStepClause('las', 'e')}`
+    ? `AND (las.id IS NULL OR ${myPendingLeaveStepClause('las', 'e')})`
     : '';
-  const [leave] = await sequelize.query(`
-    SELECT lr.id, lr.leave_type, lr.start_date, lr.end_date, lr.total_days, lr.reason, lr.status,
-      lr.created_at, lr.current_approval_step, lr.total_approval_steps,
-      e.name AS employee_name, e.position, e.department, e.photo_url, 'leave' AS approval_type,
-      las.approver_role AS pending_approver_role, las.step_order AS pending_step_order,
-      las.approver_id::text AS pending_approver_id
-    FROM leave_requests lr
-    JOIN employees e ON lr.employee_id::text = e.id::text
-    LEFT JOIN leave_approval_steps las ON las.leave_request_id = lr.id AND las.status = 'pending'
-    WHERE lr.status = 'pending' ${tenantLeave} ${tf.sql} ${myStep}
-    ORDER BY lr.created_at ASC LIMIT 50
-  `, { replacements: base }).catch(() => [[]]);
+  let leave = await tryRows(`
+      SELECT lr.id, lr.leave_type, lr.start_date, lr.end_date, lr.total_days, lr.reason, lr.status,
+        lr.created_at, lr.current_approval_step, lr.total_approval_steps,
+        e.name AS employee_name, e.position, e.department, e.photo_url, 'leave' AS approval_type,
+        las.approver_role AS pending_approver_role, las.step_order AS pending_step_order,
+        las.approver_id::text AS pending_approver_id
+      FROM leave_requests lr
+      JOIN employees e ON lr.employee_id::text = e.id::text
+      LEFT JOIN leave_approval_steps las ON las.leave_request_id = lr.id AND las.status = 'pending'
+      WHERE lr.status = 'pending' ${tenantLeave} ${tf.sql} ${myStep}
+      ORDER BY lr.created_at ASC LIMIT 50
+    `, base, 'leave_pending');
+  if (leave == null) {
+    leave = await tryRows(`
+        SELECT lr.id, lr.leave_type, lr.start_date, lr.end_date, lr.total_days, lr.reason, lr.status,
+          lr.created_at, e.name AS employee_name, e.position, e.department, NULL::text AS photo_url,
+          'leave' AS approval_type
+        FROM leave_requests lr
+        JOIN employees e ON lr.employee_id::text = e.id::text
+        LEFT JOIN leave_approval_steps las ON las.leave_request_id = lr.id AND las.status = 'pending'
+        WHERE lr.status = 'pending' ${tenantLeave} ${tf.sql} ${myStep}
+        ORDER BY lr.created_at ASC LIMIT 50
+      `, base, 'leave_pending_nophoto');
+  }
+  if (leave == null) {
+    leave = (await tryRows(`
+        SELECT lr.id, lr.leave_type, lr.start_date, lr.end_date, lr.total_days, lr.reason, lr.status,
+          lr.created_at, e.name AS employee_name, e.position, e.department, 'leave' AS approval_type
+        FROM leave_requests lr
+        JOIN employees e ON lr.employee_id::text = e.id::text
+        WHERE lr.status = 'pending' ${tenantLeave} ${tf.sql}
+        ORDER BY lr.created_at ASC LIMIT 50
+      `, base, 'leave_pending_plain')) || [];
+  }
 
   const claimTenant = tenantId ? 'AND c.tenant_id = :tenantId' : '';
-  const [claims] = await sequelize.query(`
+  let claims = await tryRows(`
     SELECT c.id, c.claim_type, c.amount, c.claim_date, c.description, c.status, c.created_at,
       c.receipt_url, c.attachments_count,
       e.name AS employee_name, e.position, e.department, e.photo_url, 'claim' AS approval_type
@@ -215,10 +271,20 @@ async function getPendingApprovals(res: NextApiResponse, userId: string, tenantI
     JOIN employees e ON c.employee_id::text = e.id::text
     WHERE c.status = 'pending' ${claimTenant} ${tf.sql}
     ORDER BY c.created_at ASC LIMIT 50
-  `, { replacements: base }).catch(() => [[]]);
+  `, base, 'claim_pending');
+  if (claims == null) {
+    claims = (await tryRows(`
+      SELECT c.id, c.claim_type, c.amount, c.claim_date, c.description, c.status, c.created_at,
+        e.name AS employee_name, e.position, e.department, 'claim' AS approval_type
+      FROM employee_claims c
+      JOIN employees e ON c.employee_id::text = e.id::text
+      WHERE c.status = 'pending' ${claimTenant} ${tf.sql}
+      ORDER BY c.created_at ASC LIMIT 50
+    `, base, 'claim_pending_plain')) || [];
+  }
 
   const otTenant = tenantId ? 'AND ot.tenant_id = :tenantId' : '';
-  const [overtime] = await sequelize.query(`
+  let overtime = await tryRows(`
     SELECT ot.id,
       COALESCE(ot.date, ot.request_date) AS date,
       ot.start_time, ot.end_time,
@@ -229,7 +295,21 @@ async function getPendingApprovals(res: NextApiResponse, userId: string, tenantI
     JOIN employees e ON ot.employee_id::text = e.id::text
     WHERE ot.status = 'pending' ${otTenant} ${tf.sql}
     ORDER BY ot.created_at ASC LIMIT 50
-  `, { replacements: base }).catch(() => [[]]);
+  `, base, 'ot_pending');
+  if (overtime == null) {
+    overtime = (await tryRows(`
+      SELECT ot.id,
+        COALESCE(ot.date, ot.request_date) AS date,
+        ot.start_time, ot.end_time,
+        COALESCE(ot.duration_hours, ot.hours, 0) AS duration_hours,
+        ot.reason, ot.status, ot.created_at,
+        e.name AS employee_name, e.position, e.department, 'overtime' AS approval_type
+      FROM overtime_requests ot
+      JOIN employees e ON ot.employee_id::text = e.id::text
+      WHERE ot.status = 'pending' ${otTenant} ${tf.sql}
+      ORDER BY ot.created_at ASC LIMIT 50
+    `, base, 'ot_pending_plain')) || [];
+  }
 
   return res.json({ success: true, data: { leave: leave || [], claims: claims || [], overtime: overtime || [] } });
 }
