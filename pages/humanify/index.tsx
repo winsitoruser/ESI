@@ -28,7 +28,7 @@ import {
   Calendar, BarChart3, Target, Star, AlertTriangle,
   Building2, Eye,
   Briefcase, DollarSign, FileText, Shield, Plane,
-  GraduationCap, UserPlus, Settings, FolderOpen, ClipboardList,
+  GraduationCap, UserPlus, UserMinus, Settings, FolderOpen, ClipboardList,
   CheckCircle2, XCircle, ArrowRight, Bell, Activity,
   PieChart, Layers, Megaphone, KeyRound, PenTool, BookOpen, Timer, RefreshCw, LayoutDashboard,
   Inbox, Home,
@@ -209,7 +209,11 @@ export default function HRISDashboard() {
   const [deptStats, setDeptStats] = useState<any[]>(USE_MOCK_UI ? MOCK_DEPT_STATS : []);
   const [workforceTrend, setWorkforceTrend] = useState<Array<{ week: string; Kehadiran: number; Kinerja: number }>>([]);
   const [topPerformersList, setTopPerformersList] = useState<any[]>([]);
+  const [newHiresThisMonth, setNewHiresThisMonth] = useState<any[]>([]);
+  const [resignationsThisMonth, setResignationsThisMonth] = useState<any[]>([]);
+  const [disciplinarySpList, setDisciplinarySpList] = useState<any[]>([]);
   const [deptAnalyticsTab, setDeptAnalyticsTab] = useState<'headcount' | 'combined' | 'kinerja' | 'kehadiran'>('headcount');
+  const [peopleInsightTab, setPeopleInsightTab] = useState<'kpi' | 'new' | 'resign' | 'sp'>('kpi');
   const [monthPresence, setMonthPresence] = useState<MonthPresenceMix>(() => emptyMonthPresence());
   const [upcoming, setUpcoming] = useState<any[]>(USE_MOCK_UI ? MOCK_UPCOMING : []);
   const [dataSource, setDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
@@ -269,6 +273,9 @@ export default function HRISDashboard() {
           setDeptStats(Array.isArray(dash.deptStats) ? dash.deptStats : []);
           setWorkforceTrend(Array.isArray(dash.workforceTrend) ? dash.workforceTrend : []);
           setTopPerformersList(Array.isArray(dash.topPerformersList) ? dash.topPerformersList : []);
+          setNewHiresThisMonth(Array.isArray(dash.newHiresThisMonth) ? dash.newHiresThisMonth : []);
+          setResignationsThisMonth(Array.isArray(dash.resignationsThisMonth) ? dash.resignationsThisMonth : []);
+          setDisciplinarySpList(Array.isArray(dash.disciplinarySpList) ? dash.disciplinarySpList : []);
           if (dash.monthPresence?.buckets) setMonthPresence(dash.monthPresence);
           setPendingApprovals(Array.isArray(dash.pendingApprovals) ? dash.pendingApprovals : []);
           setUpcoming(Array.isArray(dash.upcoming) ? dash.upcoming : []);
@@ -834,7 +841,7 @@ export default function HRISDashboard() {
                 <div className="border-b border-[var(--hf-border-subtle)] px-4 py-3 pl-5 md:px-5 md:pl-6">
                   <p className="text-sm font-semibold text-[color:var(--hf-ink)]">Ringkasan per Departemen</p>
                   <p className="text-xs text-[color:var(--hf-ink-muted)]">
-                    Komposisi lanjutan, top performance, headcount/kinerja (tab), kehadiran bulan ini, dan AIMAN tools
+                    Komposisi lanjutan, top KPI / karyawan baru / resign / SP (tab), headcount/kinerja, kehadiran bulan ini, dan AIMAN tools
                   </p>
                 </div>
                 <div className="w-full p-4 pl-5 md:p-5 md:pl-6">
@@ -905,67 +912,261 @@ export default function HRISDashboard() {
                               <Award className="h-4 w-4 text-[color:var(--hf-brand-600)]" />
                               <p className="text-sm font-semibold text-[color:var(--hf-ink)]">Top performance & KPI</p>
                             </div>
-                            <Link href="/humanify/kpi" className="text-[11px] font-medium text-[color:var(--hf-brand-600)] hover:underline">
+                            <Link
+                              href={
+                                peopleInsightTab === 'new'
+                                  ? '/humanify/employees'
+                                  : peopleInsightTab === 'resign'
+                                    ? '/humanify/offboarding'
+                                    : peopleInsightTab === 'sp'
+                                      ? '/humanify/industrial-relations'
+                                      : '/humanify/kpi'
+                              }
+                              className="text-[11px] font-medium text-[color:var(--hf-brand-600)] hover:underline"
+                            >
                               Lihat semua →
                             </Link>
                           </div>
+                          <div className="mb-3 flex flex-wrap gap-1 rounded-lg border border-[var(--hf-border)] p-0.5 text-[11px]">
+                            {([
+                              { key: 'kpi', label: 'Top KPI', count: topPerformersList.length },
+                              { key: 'new', label: 'Baru bulan ini', count: newHiresThisMonth.length },
+                              { key: 'resign', label: 'Resign bulan ini', count: resignationsThisMonth.length },
+                              { key: 'sp', label: 'Terkena SP', count: disciplinarySpList.length },
+                            ] as const).map((tab) => (
+                              <button
+                                key={tab.key}
+                                type="button"
+                                onClick={() => setPeopleInsightTab(tab.key)}
+                                className={`inline-flex flex-1 items-center justify-center gap-1 rounded-md px-2 py-1.5 font-medium transition min-w-[5.5rem] ${
+                                  peopleInsightTab === tab.key
+                                    ? 'bg-[var(--hf-brand-600)] text-white'
+                                    : 'bg-white text-[color:var(--hf-ink-muted)] hover:bg-[var(--hf-surface-muted)]'
+                                }`}
+                              >
+                                <span className="truncate">{tab.label}</span>
+                                <span
+                                  className={`rounded px-1 py-0.5 text-[10px] tabular-nums ${
+                                    peopleInsightTab === tab.key ? 'bg-white/20' : 'bg-[var(--hf-surface-muted)]'
+                                  }`}
+                                >
+                                  {tab.count}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
                           <p className="mb-3 text-[11px] text-[color:var(--hf-ink-muted)]">
-                            Peringkat karyawan berdasarkan pencapaian KPI periode berjalan
+                            {peopleInsightTab === 'kpi'
+                              ? 'Peringkat karyawan berdasarkan pencapaian KPI periode berjalan'
+                              : peopleInsightTab === 'new'
+                                ? 'Karyawan dengan tanggal bergabung di bulan berjalan'
+                                : peopleInsightTab === 'resign'
+                                  ? 'Karyawan yang resign / offboarding di bulan berjalan'
+                                  : 'Karyawan dengan surat peringatan (SP) aktif'}
                           </p>
-                          {topPerformersList.length === 0 ? (
-                            <HrisEmptyState
-                              title="Belum ada data KPI"
-                              description="Assign target KPI ke karyawan agar ranking tampil di sini."
-                              source={dataSource}
-                              action={
-                                <Link href="/humanify/kpi" className="hf-btn-secondary inline-flex items-center gap-1 text-xs">
-                                  Buka KPI
-                                </Link>
-                              }
-                            />
-                          ) : (
-                            <div className="overflow-x-auto rounded-lg border border-[var(--hf-border)]">
-                              <table className="min-w-full text-left text-sm">
-                                <thead className="bg-[var(--hf-surface-muted)] text-[10px] uppercase tracking-wide text-[color:var(--hf-ink-muted)]">
-                                  <tr>
-                                    <th className="px-3 py-2 font-semibold">#</th>
-                                    <th className="px-3 py-2 font-semibold">Karyawan</th>
-                                    <th className="px-3 py-2 font-semibold">Departemen</th>
-                                    <th className="px-3 py-2 font-semibold text-right">KPI</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-[var(--hf-border-subtle)] bg-white">
-                                  {topPerformersList.map((row) => (
-                                    <tr key={row.id || row.rank} className="hover:bg-[var(--hf-brand-50)]/40">
-                                      <td className="px-3 py-2.5 tabular-nums text-[color:var(--hf-ink-faint)]">{row.rank}</td>
-                                      <td className="px-3 py-2.5">
-                                        <div className="flex items-center gap-2 min-w-0">
-                                          <EmployeeAvatar name={row.name} photoUrl={row.photoUrl} size="sm" />
-                                          <div className="min-w-0">
-                                            <p className="truncate font-medium text-[color:var(--hf-ink)]">{row.name}</p>
-                                            <p className="truncate text-[11px] text-[color:var(--hf-ink-muted)]">{row.position || row.employeeCode || '—'}</p>
-                                          </div>
-                                        </div>
-                                      </td>
-                                      <td className="px-3 py-2.5 text-[color:var(--hf-ink-muted)]">{row.department || '—'}</td>
-                                      <td className="px-3 py-2.5 text-right">
-                                        <span
-                                          className={`inline-flex rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums ${
-                                            row.kpiScore >= 100
-                                              ? 'bg-emerald-50 text-emerald-700'
-                                              : row.kpiScore >= 70
-                                                ? 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)]'
-                                                : 'bg-amber-50 text-amber-700'
-                                          }`}
-                                        >
-                                          {row.kpiScore}%
-                                        </span>
-                                      </td>
+
+                          {peopleInsightTab === 'kpi' && (
+                            topPerformersList.length === 0 ? (
+                              <HrisEmptyState
+                                title="Belum ada data KPI"
+                                description="Assign target KPI ke karyawan agar ranking tampil di sini."
+                                source={dataSource}
+                                action={
+                                  <Link href="/humanify/kpi" className="hf-btn-secondary inline-flex items-center gap-1 text-xs">
+                                    Buka KPI
+                                  </Link>
+                                }
+                              />
+                            ) : (
+                              <div className="overflow-x-auto rounded-lg border border-[var(--hf-border)]">
+                                <table className="min-w-full text-left text-sm">
+                                  <thead className="bg-[var(--hf-surface-muted)] text-[10px] uppercase tracking-wide text-[color:var(--hf-ink-muted)]">
+                                    <tr>
+                                      <th className="px-3 py-2 font-semibold">#</th>
+                                      <th className="px-3 py-2 font-semibold">Karyawan</th>
+                                      <th className="px-3 py-2 font-semibold">Departemen</th>
+                                      <th className="px-3 py-2 font-semibold text-right">KPI</th>
                                     </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
+                                  </thead>
+                                  <tbody className="divide-y divide-[var(--hf-border-subtle)] bg-white">
+                                    {topPerformersList.map((row) => (
+                                      <tr key={row.id || row.rank} className="hover:bg-[var(--hf-brand-50)]/40">
+                                        <td className="px-3 py-2.5 tabular-nums text-[color:var(--hf-ink-faint)]">{row.rank}</td>
+                                        <td className="px-3 py-2.5">
+                                          <div className="flex items-center gap-2 min-w-0">
+                                            <EmployeeAvatar name={row.name} photoUrl={row.photoUrl} size="sm" />
+                                            <div className="min-w-0">
+                                              <p className="truncate font-medium text-[color:var(--hf-ink)]">{row.name}</p>
+                                              <p className="truncate text-[11px] text-[color:var(--hf-ink-muted)]">{row.position || row.employeeCode || '—'}</p>
+                                            </div>
+                                          </div>
+                                        </td>
+                                        <td className="px-3 py-2.5 text-[color:var(--hf-ink-muted)]">{row.department || '—'}</td>
+                                        <td className="px-3 py-2.5 text-right">
+                                          <span
+                                            className={`inline-flex rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums ${
+                                              row.kpiScore >= 100
+                                                ? 'bg-emerald-50 text-emerald-700'
+                                                : row.kpiScore >= 70
+                                                  ? 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)]'
+                                                  : 'bg-amber-50 text-amber-700'
+                                            }`}
+                                          >
+                                            {row.kpiScore}%
+                                          </span>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )
+                          )}
+
+                          {peopleInsightTab === 'new' && (
+                            newHiresThisMonth.length === 0 ? (
+                              <HrisEmptyState
+                                title="Belum ada karyawan baru bulan ini"
+                                description="Karyawan dengan hire date di bulan berjalan akan tampil di sini."
+                                source={dataSource}
+                                action={
+                                  <Link href="/humanify/employees?add=1" className="hf-btn-secondary inline-flex items-center gap-1 text-xs">
+                                    <UserPlus className="h-3.5 w-3.5" /> Tambah karyawan
+                                  </Link>
+                                }
+                              />
+                            ) : (
+                              <div className="overflow-x-auto rounded-lg border border-[var(--hf-border)]">
+                                <table className="min-w-full text-left text-sm">
+                                  <thead className="bg-[var(--hf-surface-muted)] text-[10px] uppercase tracking-wide text-[color:var(--hf-ink-muted)]">
+                                    <tr>
+                                      <th className="px-3 py-2 font-semibold">Karyawan</th>
+                                      <th className="px-3 py-2 font-semibold">Departemen</th>
+                                      <th className="px-3 py-2 font-semibold text-right">Bergabung</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-[var(--hf-border-subtle)] bg-white">
+                                    {newHiresThisMonth.map((row) => (
+                                      <tr key={row.id} className="hover:bg-[var(--hf-brand-50)]/40">
+                                        <td className="px-3 py-2.5">
+                                          <div className="flex items-center gap-2 min-w-0">
+                                            <EmployeeAvatar name={row.name} photoUrl={row.photoUrl} size="sm" />
+                                            <div className="min-w-0">
+                                              <p className="truncate font-medium text-[color:var(--hf-ink)]">{row.name}</p>
+                                              <p className="truncate text-[11px] text-[color:var(--hf-ink-muted)]">{row.position || row.employeeCode || '—'}</p>
+                                            </div>
+                                          </div>
+                                        </td>
+                                        <td className="px-3 py-2.5 text-[color:var(--hf-ink-muted)]">{row.department || '—'}</td>
+                                        <td className="px-3 py-2.5 text-right tabular-nums text-[color:var(--hf-ink)]">
+                                          {row.eventDate
+                                            ? new Date(`${row.eventDate}T00:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
+                                            : '—'}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )
+                          )}
+
+                          {peopleInsightTab === 'resign' && (
+                            resignationsThisMonth.length === 0 ? (
+                              <HrisEmptyState
+                                title="Tidak ada resign bulan ini"
+                                description="Karyawan yang offboarding / resign di bulan berjalan akan tampil di sini."
+                                source={dataSource}
+                                action={
+                                  <Link href="/humanify/offboarding" className="hf-btn-secondary inline-flex items-center gap-1 text-xs">
+                                    <UserMinus className="h-3.5 w-3.5" /> Buka offboarding
+                                  </Link>
+                                }
+                              />
+                            ) : (
+                              <div className="overflow-x-auto rounded-lg border border-[var(--hf-border)]">
+                                <table className="min-w-full text-left text-sm">
+                                  <thead className="bg-[var(--hf-surface-muted)] text-[10px] uppercase tracking-wide text-[color:var(--hf-ink-muted)]">
+                                    <tr>
+                                      <th className="px-3 py-2 font-semibold">Karyawan</th>
+                                      <th className="px-3 py-2 font-semibold">Departemen</th>
+                                      <th className="px-3 py-2 font-semibold text-right">Tanggal</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-[var(--hf-border-subtle)] bg-white">
+                                    {resignationsThisMonth.map((row) => (
+                                      <tr key={row.id} className="hover:bg-[var(--hf-brand-50)]/40">
+                                        <td className="px-3 py-2.5">
+                                          <div className="flex items-center gap-2 min-w-0">
+                                            <EmployeeAvatar name={row.name} photoUrl={row.photoUrl} size="sm" />
+                                            <div className="min-w-0">
+                                              <p className="truncate font-medium text-[color:var(--hf-ink)]">{row.name}</p>
+                                              <p className="truncate text-[11px] text-[color:var(--hf-ink-muted)]">{row.detail || row.position || row.employeeCode || '—'}</p>
+                                            </div>
+                                          </div>
+                                        </td>
+                                        <td className="px-3 py-2.5 text-[color:var(--hf-ink-muted)]">{row.department || '—'}</td>
+                                        <td className="px-3 py-2.5 text-right tabular-nums text-rose-700">
+                                          {row.eventDate
+                                            ? new Date(`${row.eventDate}T00:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
+                                            : '—'}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )
+                          )}
+
+                          {peopleInsightTab === 'sp' && (
+                            disciplinarySpList.length === 0 ? (
+                              <HrisEmptyState
+                                title="Tidak ada SP aktif"
+                                description="Karyawan dengan surat peringatan (SP1–SP3) aktif akan tampil di sini."
+                                source={dataSource}
+                                action={
+                                  <Link href="/humanify/industrial-relations" className="hf-btn-secondary inline-flex items-center gap-1 text-xs">
+                                    <AlertTriangle className="h-3.5 w-3.5" /> Hubungan industri
+                                  </Link>
+                                }
+                              />
+                            ) : (
+                              <div className="overflow-x-auto rounded-lg border border-[var(--hf-border)]">
+                                <table className="min-w-full text-left text-sm">
+                                  <thead className="bg-[var(--hf-surface-muted)] text-[10px] uppercase tracking-wide text-[color:var(--hf-ink-muted)]">
+                                    <tr>
+                                      <th className="px-3 py-2 font-semibold">Karyawan</th>
+                                      <th className="px-3 py-2 font-semibold">Departemen</th>
+                                      <th className="px-3 py-2 font-semibold text-right">SP</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-[var(--hf-border-subtle)] bg-white">
+                                    {disciplinarySpList.map((row) => (
+                                      <tr key={row.id} className="hover:bg-[var(--hf-brand-50)]/40">
+                                        <td className="px-3 py-2.5">
+                                          <div className="flex items-center gap-2 min-w-0">
+                                            <EmployeeAvatar name={row.name} photoUrl={row.photoUrl} size="sm" />
+                                            <div className="min-w-0">
+                                              <p className="truncate font-medium text-[color:var(--hf-ink)]">{row.name}</p>
+                                              <p className="truncate text-[11px] text-[color:var(--hf-ink-muted)]">
+                                                {row.letterNumber || row.position || row.employeeCode || '—'}
+                                              </p>
+                                            </div>
+                                          </div>
+                                        </td>
+                                        <td className="px-3 py-2.5 text-[color:var(--hf-ink-muted)]">{row.department || '—'}</td>
+                                        <td className="px-3 py-2.5 text-right">
+                                          <span className="inline-flex rounded-md bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-700">
+                                            {row.warningType || 'SP'}
+                                          </span>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )
                           )}
 
                           {docCompliance && docCompliance.activeEmployees > 0 && (

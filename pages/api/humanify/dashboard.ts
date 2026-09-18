@@ -20,6 +20,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       deptStats: [],
       workforceTrend: [],
       topPerformersList: [],
+      newHiresThisMonth: [],
+      resignationsThisMonth: [],
+      disciplinarySpList: [],
       pendingApprovals: [],
       pendingSummary: { total: 0, overdue: 0, byType: { leave: 0, overtime: 0, claim: 0, travel: 0, mutation: 0 } },
       recentActivities: [],
@@ -238,6 +241,218 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       }));
     } catch {
       topPerformersList = [];
+    }
+
+    // Workforce movement lists (current calendar month, Asia/Jakarta)
+    let newHiresThisMonth: any[] = [];
+    try {
+      const [hireRows] = await sequelize.query(`
+        SELECT
+          e.id,
+          e.name,
+          e.employee_code,
+          e.department,
+          e.position,
+          e.photo_url,
+          e.hire_date::text AS event_date
+        FROM employees e
+        WHERE e.tenant_id = :tenantId
+          AND e.hire_date IS NOT NULL
+          AND e.hire_date >= date_trunc('month', (NOW() AT TIME ZONE 'Asia/Jakarta'))::date
+          AND e.hire_date < (date_trunc('month', (NOW() AT TIME ZONE 'Asia/Jakarta')) + INTERVAL '1 month')::date
+        ORDER BY e.hire_date DESC NULLS LAST, e.name ASC
+        LIMIT 12
+      `, { replacements: r });
+      newHiresThisMonth = (hireRows || []).map((row: any) => ({
+        id: row.id,
+        name: row.name,
+        employeeCode: row.employee_code,
+        department: row.department || '—',
+        position: row.position || '—',
+        photoUrl: row.photo_url || null,
+        eventDate: row.event_date ? String(row.event_date).slice(0, 10) : null,
+      }));
+    } catch {
+      newHiresThisMonth = [];
+    }
+
+    let resignationsThisMonth: any[] = [];
+    try {
+      const [resignRows] = await sequelize.query(`
+        SELECT * FROM (
+          SELECT
+            COALESCE(e.id::text, ob.employee_uid) AS id,
+            COALESCE(e.name, ob.employee_name) AS name,
+            COALESCE(e.employee_code, ob.employee_uid) AS employee_code,
+            COALESCE(e.department, ob.department_label, '—') AS department,
+            COALESCE(e.position, '—') AS position,
+            e.photo_url,
+            COALESCE(ob.last_working_date, ob.resign_date)::text AS event_date,
+            COALESCE(ob.reason, e.status, 'resign') AS detail
+          FROM employee_offboarding_processes ob
+          LEFT JOIN employees e
+            ON (e.id::text = ob.employee_uid OR e.employee_code = ob.employee_uid)
+            AND e.tenant_id = :tenantId
+          WHERE ob.tenant_id = :tenantId
+            AND COALESCE(ob.last_working_date, ob.resign_date) IS NOT NULL
+            AND COALESCE(ob.last_working_date, ob.resign_date)
+              >= date_trunc('month', (NOW() AT TIME ZONE 'Asia/Jakarta'))::date
+            AND COALESCE(ob.last_working_date, ob.resign_date)
+              < (date_trunc('month', (NOW() AT TIME ZONE 'Asia/Jakarta')) + INTERVAL '1 month')::date
+
+          UNION ALL
+
+          SELECT
+            e.id::text AS id,
+            e.name,
+            e.employee_code,
+            COALESCE(e.department, '—') AS department,
+            COALESCE(e.position, '—') AS position,
+            e.photo_url,
+            COALESCE(e.updated_at::date, e.hire_date)::text AS event_date,
+            COALESCE(e.status, 'resigned') AS detail
+          FROM employees e
+          WHERE e.tenant_id = :tenantId
+            AND (
+              LOWER(COALESCE(e.status, '')) IN ('resigned', 'terminated', 'exited', 'offboarded')
+              OR e.is_active = false
+            )
+            AND e.updated_at >= date_trunc('month', (NOW() AT TIME ZONE 'Asia/Jakarta'))
+            AND e.updated_at < (date_trunc('month', (NOW() AT TIME ZONE 'Asia/Jakarta')) + INTERVAL '1 month')
+            AND NOT EXISTS (
+              SELECT 1 FROM employee_offboarding_processes ob2
+              WHERE ob2.tenant_id = :tenantId
+                AND (ob2.employee_uid = e.id::text OR ob2.employee_uid = e.employee_code)
+            )
+        ) x
+        ORDER BY event_date DESC NULLS LAST, name ASC
+        LIMIT 12
+      `, { replacements: r });
+      resignationsThisMonth = (resignRows || []).map((row: any) => ({
+        id: row.id,
+        name: row.name,
+        employeeCode: row.employee_code,
+        department: row.department || '—',
+        position: row.position || '—',
+        photoUrl: row.photo_url || null,
+        eventDate: row.event_date ? String(row.event_date).slice(0, 10) : null,
+        detail: row.detail || null,
+      }));
+    } catch {
+      try {
+        const [fallbackResign] = await sequelize.query(`
+          SELECT
+            e.id,
+            e.name,
+            e.employee_code,
+            e.department,
+            e.position,
+            e.photo_url,
+            e.updated_at::date::text AS event_date,
+            e.status AS detail
+          FROM employees e
+          WHERE e.tenant_id = :tenantId
+            AND (
+              LOWER(COALESCE(e.status, '')) IN ('resigned', 'terminated', 'exited', 'offboarded')
+              OR e.is_active = false
+            )
+            AND e.updated_at >= date_trunc('month', (NOW() AT TIME ZONE 'Asia/Jakarta'))
+            AND e.updated_at < (date_trunc('month', (NOW() AT TIME ZONE 'Asia/Jakarta')) + INTERVAL '1 month')
+          ORDER BY e.updated_at DESC NULLS LAST
+          LIMIT 12
+        `, { replacements: r });
+        resignationsThisMonth = (fallbackResign || []).map((row: any) => ({
+          id: row.id,
+          name: row.name,
+          employeeCode: row.employee_code,
+          department: row.department || '—',
+          position: row.position || '—',
+          photoUrl: row.photo_url || null,
+          eventDate: row.event_date ? String(row.event_date).slice(0, 10) : null,
+          detail: row.detail || null,
+        }));
+      } catch {
+        resignationsThisMonth = [];
+      }
+    }
+
+    let disciplinarySpList: any[] = [];
+    try {
+      const [spRows] = await sequelize.query(`
+        SELECT
+          dl.id,
+          e.id AS employee_id,
+          e.name,
+          e.employee_code,
+          e.department,
+          e.position,
+          e.photo_url,
+          dl.letter_type AS warning_type,
+          COALESCE(dl.letter_number, dl.reference_number) AS letter_number,
+          COALESCE(dl.effective_date, dl.created_at::date)::text AS event_date,
+          dl.status
+        FROM hr_disciplinary_letters dl
+        LEFT JOIN employees e ON dl.employee_id::text = e.id::text AND e.tenant_id = :tenantId
+        WHERE dl.tenant_id = :tenantId
+          AND dl.letter_type IN ('SP1', 'SP2', 'SP3')
+          AND dl.status IN ('issued', 'acknowledged', 'active')
+        ORDER BY COALESCE(dl.effective_date, dl.created_at) DESC NULLS LAST
+        LIMIT 12
+      `, { replacements: r });
+      disciplinarySpList = (spRows || []).map((row: any) => ({
+        id: row.id,
+        employeeId: row.employee_id,
+        name: row.name || 'Karyawan',
+        employeeCode: row.employee_code,
+        department: row.department || '—',
+        position: row.position || '—',
+        photoUrl: row.photo_url || null,
+        warningType: row.warning_type || 'SP',
+        letterNumber: row.letter_number || null,
+        eventDate: row.event_date ? String(row.event_date).slice(0, 10) : null,
+        status: row.status || null,
+      }));
+    } catch {
+      try {
+        const [spFallback] = await sequelize.query(`
+          SELECT
+            w.id,
+            e.id AS employee_id,
+            e.name,
+            e.employee_code,
+            e.department,
+            e.position,
+            e.photo_url,
+            w.warning_type,
+            w.letter_number,
+            COALESCE(w.issue_date, w.created_at::date)::text AS event_date,
+            w.status
+          FROM warning_letters w
+          LEFT JOIN employees e ON e.id = w.employee_id AND e.tenant_id = :tenantId
+          WHERE w.tenant_id = :tenantId
+            AND (
+              w.status IN ('active', 'issued', 'acknowledged')
+              OR (w.status IS NULL AND (w.expiry_date IS NULL OR w.expiry_date >= CURRENT_DATE))
+            )
+          ORDER BY COALESCE(w.issue_date, w.created_at) DESC NULLS LAST
+          LIMIT 12
+        `, { replacements: r });
+        disciplinarySpList = (spFallback || []).map((row: any) => ({
+          id: row.id,
+          employeeId: row.employee_id,
+          name: row.name || 'Karyawan',
+          employeeCode: row.employee_code,
+          department: row.department || '—',
+          position: row.position || '—',
+          photoUrl: row.photo_url || null,
+          warningType: row.warning_type || 'SP',
+          letterNumber: row.letter_number || null,
+          eventDate: row.event_date ? String(row.event_date).slice(0, 10) : null,
+          status: row.status || null,
+        }));
+      } catch {
+        disciplinarySpList = [];
+      }
     }
 
     // Pending approvals — unified inbox
@@ -533,6 +748,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       deptStats,
       workforceTrend,
       topPerformersList,
+      newHiresThisMonth,
+      resignationsThisMonth,
+      disciplinarySpList,
       pendingApprovals: visibleApprovals.slice(0, 16),
       pendingSummary: {
         total: visibleApprovals.length,
