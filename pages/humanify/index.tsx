@@ -883,21 +883,21 @@ export default function HRISDashboard() {
                 </div>
                 <div className="w-full p-4 pl-5 md:p-5 md:pl-6">
                   {deptStats.length === 0 ? (
-                    <div className="grid w-full gap-4 lg:grid-cols-2">
-                      <HrisEmptyState
-                        title="Belum ada headcount per departemen"
-                        description="Tambah karyawan dengan field departemen untuk melihat chart dan breakdown."
-                        source={dataSource}
-                        action={
-                          <Link href="/humanify/employees?add=1" className="hf-btn-secondary inline-flex items-center gap-1 text-xs">
-                            <UserPlus className="h-3.5 w-3.5" /> Tambah karyawan
-                          </Link>
-                        }
-                      />
-                      <div className="flex min-w-0 flex-col gap-4">
+                    <div className="flex w-full min-w-0 flex-col gap-4">
+                      <div className="grid w-full gap-4 lg:grid-cols-2">
+                        <HrisEmptyState
+                          title="Belum ada headcount per departemen"
+                          description="Tambah karyawan dengan field departemen untuk melihat chart dan breakdown."
+                          source={dataSource}
+                          action={
+                            <Link href="/humanify/employees?add=1" className="hf-btn-secondary inline-flex items-center gap-1 text-xs">
+                              <UserPlus className="h-3.5 w-3.5" /> Tambah karyawan
+                            </Link>
+                          }
+                        />
                         <MonthPresencePie mix={monthPresence} />
-                        <AimanToolsFunctionsCard />
                       </div>
+                      <AimanToolsFunctionsCard />
                     </div>
                   ) : (
                     <div className="flex w-full min-w-0 flex-col gap-5">
@@ -1196,11 +1196,10 @@ export default function HRISDashboard() {
                           )}
                         </div>
 
-                        <div className="flex min-w-0 flex-col gap-4">
-                          <MonthPresencePie mix={monthPresence} />
-                          <AimanToolsFunctionsCard />
-                        </div>
+                        <MonthPresencePie mix={monthPresence} />
                       </div>
+
+                      <AimanToolsFunctionsCard />
                     </div>
                   )}
                 </div>
