@@ -15,7 +15,7 @@ import { DashboardBannerRail } from '@/components/humanify/MarketingBannerCarous
 import { HrisHeroMetricCard, HrisHeroNavCard, HrisHeroQueueCard } from '@/components/humanify/HrisHeroMetricCard';
 import { OpsStage, OpsPageHero, OpsPanel } from '@/components/humanify/OpsPageChrome';
 import { EnterpriseTabBar } from '@/components/humanify/PerformanceModuleChrome';
-import { OpsBarChart } from '@/components/humanify/ops-charts';
+import { OpsBarChart, OpsPieChart } from '@/components/humanify/ops-charts';
 import { HF_CHART_COLORS_SOLID } from '@/lib/humanify/chart-tokens';
 import { useTranslation } from '@/lib/i18n';
 import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
@@ -649,6 +649,25 @@ export default function HRISDashboard() {
     Total: d.total,
   }));
 
+  const deptCompositionData = deptStats
+    .filter((d) => Number(d.total) > 0)
+    .map((d) => ({
+      name: d.department || '—',
+      value: Number(d.total) || 0,
+    }));
+
+  const deptPerfAttendData = deptStats.map((d) => ({
+    name: d.department?.length > 16 ? `${d.department.slice(0, 14)}…` : (d.department || '—'),
+    Kinerja: Number(d.perf) || 0,
+    Kehadiran: Number(d.attend) || 0,
+  }));
+
+  const statusCompositionData = [
+    { name: 'Aktif', value: Number(stats.active) || 0 },
+    { name: 'Cuti', value: Number(stats.onLeave) || 0 },
+    { name: 'Tidak aktif', value: Number(stats.inactive) || 0 },
+  ].filter((d) => d.value > 0);
+
   const toneRail = {
     danger: 'bg-[color:var(--hf-danger)]',
     warning: 'bg-[color:var(--hf-warning)]',
@@ -818,14 +837,22 @@ export default function HRISDashboard() {
             <section className="col-span-full block w-full min-w-0">
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <p className="hf-section-label mb-0">{t('hris.deptOverview')}</p>
-                <Link href="/humanify/organization" className="inline-flex items-center gap-1 text-xs font-medium text-[color:var(--hf-brand-600)] hover:underline">
-                  Organisasi <ArrowRight className="h-3 w-3" />
-                </Link>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Link href="/humanify/workforce-analytics" className="inline-flex items-center gap-1 text-xs font-medium text-[color:var(--hf-brand-600)] hover:underline">
+                    Analytics lengkap <ArrowRight className="h-3 w-3" />
+                  </Link>
+                  <Link href="/humanify/organization" className="inline-flex items-center gap-1 text-xs font-medium text-[color:var(--hf-brand-600)] hover:underline">
+                    Organisasi <ArrowRight className="h-3 w-3" />
+                  </Link>
+                </div>
               </div>
               <div className="hf-card hf-analytics-panel w-full max-w-none overflow-hidden">
                 <span className="hf-analytics-panel__rail" aria-hidden />
                 <div className="border-b border-[var(--hf-border-subtle)] px-4 py-3 pl-5 md:px-5 md:pl-6">
-                  <p className="text-xs text-[color:var(--hf-ink-muted)]">Headcount aktif per departemen</p>
+                  <p className="text-sm font-semibold text-[color:var(--hf-ink)]">Ringkasan per Departemen</p>
+                  <p className="text-xs text-[color:var(--hf-ink-muted)]">
+                    Komposisi headcount (doughnut), headcount aktif, serta kinerja & kehadiran per departemen
+                  </p>
                 </div>
                 <div className="w-full p-4 pl-5 md:p-5 md:pl-6">
                   {deptStats.length === 0 ? (
@@ -840,52 +867,122 @@ export default function HRISDashboard() {
                       }
                     />
                   ) : (
-                    <div className="flex w-full min-w-0 flex-col gap-4">
-                      <div className="w-full min-w-0">
-                        <OpsBarChart
-                          data={deptChartData}
-                          xKey="name"
-                          bars={[
-                            { key: 'Aktif', label: 'Aktif', color: HF_CHART_COLORS_SOLID[0] },
-                            { key: 'Total', label: 'Total', color: HF_CHART_COLORS_SOLID[1] },
-                          ]}
-                          height={300}
-                          angledLabels
-                        />
-                      </div>
-                      <div className="grid w-full gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                        {deptStats.map((d) => (
-                          <div key={d.department} className="hf-tile-nested p-3">
-                            <div className="mb-2 flex items-start justify-between gap-2">
-                              <h4 className="min-w-0 flex-1 break-words text-sm font-semibold leading-snug text-[color:var(--hf-ink)]">{d.department}</h4>
-                              <span className="shrink-0 rounded-md border border-[var(--hf-border)] bg-white px-2 py-0.5 text-[11px] tabular-nums text-[color:var(--hf-ink-muted)]">{d.active}/{d.total}</span>
-                            </div>
-                            <div className="space-y-2">
-                              <div>
-                                <div className="mb-1 flex justify-between text-[11px]">
-                                  <span className="text-[color:var(--hf-ink-muted)]">{t('hris.performance')}</span>
-                                  <span className="font-medium tabular-nums">{d.perf > 0 ? `${d.perf}%` : '—'}</span>
-                                </div>
-                                {d.perf > 0 && (
-                                  <div className="h-1.5 overflow-hidden rounded-full bg-white">
-                                    <div className="h-full rounded-full bg-[var(--hf-brand-600)]" style={{ width: `${Math.min(100, d.perf)}%` }} />
-                                  </div>
-                                )}
-                              </div>
-                              <div>
-                                <div className="mb-1 flex justify-between text-[11px]">
-                                  <span className="text-[color:var(--hf-ink-muted)]">{t('hris.attendance')}</span>
-                                  <span className="font-medium tabular-nums">{d.attend > 0 ? `${d.attend}%` : '—'}</span>
-                                </div>
-                                {d.attend > 0 && (
-                                  <div className="h-1.5 overflow-hidden rounded-full bg-white">
-                                    <div className="h-full rounded-full bg-[color:var(--hf-success)]" style={{ width: `${Math.min(100, d.attend)}%` }} />
-                                  </div>
-                                )}
-                              </div>
-                            </div>
+                    <div className="flex w-full min-w-0 flex-col gap-5">
+                      {/* Row 1: doughnut composition + status */}
+                      <div className="grid w-full gap-4 lg:grid-cols-2">
+                        <div className="hf-tile-nested min-w-0 p-4">
+                          <div className="mb-1 flex items-center gap-2">
+                            <PieChart className="h-4 w-4 text-[color:var(--hf-brand-600)]" />
+                            <p className="text-sm font-semibold text-[color:var(--hf-ink)]">Komposisi departemen</p>
                           </div>
-                        ))}
+                          <p className="mb-2 text-[11px] text-[color:var(--hf-ink-muted)]">Proporsi karyawan (doughnut)</p>
+                          <OpsPieChart data={deptCompositionData} nameKey="name" valueKey="value" height={260} />
+                        </div>
+                        <div className="hf-tile-nested min-w-0 p-4">
+                          <div className="mb-1 flex items-center gap-2">
+                            <Users className="h-4 w-4 text-[color:var(--hf-brand-600)]" />
+                            <p className="text-sm font-semibold text-[color:var(--hf-ink)]">Status workforce</p>
+                          </div>
+                          <p className="mb-2 text-[11px] text-[color:var(--hf-ink-muted)]">Aktif · cuti · tidak aktif</p>
+                          {statusCompositionData.length > 0 ? (
+                            <OpsPieChart data={statusCompositionData} nameKey="name" valueKey="value" height={260} />
+                          ) : (
+                            <p className="py-10 text-center text-xs text-slate-400">Belum ada data status</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Row 2: bar headcount + perf/attendance */}
+                      <div className="grid w-full gap-4 lg:grid-cols-2">
+                        <div className="hf-tile-nested min-w-0 p-4">
+                          <div className="mb-1 flex items-center gap-2">
+                            <BarChart3 className="h-4 w-4 text-[color:var(--hf-brand-600)]" />
+                            <p className="text-sm font-semibold text-[color:var(--hf-ink)]">Headcount per departemen</p>
+                          </div>
+                          <p className="mb-2 text-[11px] text-[color:var(--hf-ink-muted)]">Aktif vs total</p>
+                          <OpsBarChart
+                            data={deptChartData}
+                            xKey="name"
+                            bars={[
+                              { key: 'Aktif', label: 'Aktif', color: HF_CHART_COLORS_SOLID[0] },
+                              { key: 'Total', label: 'Total', color: HF_CHART_COLORS_SOLID[1] },
+                            ]}
+                            height={280}
+                            angledLabels
+                          />
+                        </div>
+                        <div className="hf-tile-nested min-w-0 p-4">
+                          <div className="mb-1 flex items-center gap-2">
+                            <Award className="h-4 w-4 text-[color:var(--hf-brand-600)]" />
+                            <p className="text-sm font-semibold text-[color:var(--hf-ink)]">Kinerja & kehadiran</p>
+                          </div>
+                          <p className="mb-2 text-[11px] text-[color:var(--hf-ink-muted)]">Rata-rata KPI (%) dan hadir hari ini (%)</p>
+                          <OpsBarChart
+                            data={deptPerfAttendData}
+                            xKey="name"
+                            bars={[
+                              { key: 'Kinerja', label: 'Kinerja', color: HF_CHART_COLORS_SOLID[0] },
+                              { key: 'Kehadiran', label: 'Kehadiran', color: HF_CHART_COLORS_SOLID[2] },
+                            ]}
+                            height={280}
+                            angledLabels
+                          />
+                        </div>
+                      </div>
+
+                      {/* Detail tiles */}
+                      <div>
+                        <p className="mb-2 text-xs font-medium text-[color:var(--hf-ink-muted)]">Detail per departemen</p>
+                        <div className="grid w-full gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                          {deptStats.map((d, i) => {
+                            const share = stats.total > 0 ? Math.round((Number(d.total) / Number(stats.total)) * 100) : 0;
+                            return (
+                              <div key={d.department} className="hf-tile-nested p-3">
+                                <div className="mb-2 flex items-start justify-between gap-2">
+                                  <div className="flex min-w-0 items-center gap-2">
+                                    <span
+                                      className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full"
+                                      style={{ backgroundColor: HF_CHART_COLORS_SOLID[i % HF_CHART_COLORS_SOLID.length] }}
+                                    />
+                                    <h4 className="min-w-0 flex-1 break-words text-sm font-semibold leading-snug text-[color:var(--hf-ink)]">
+                                      {d.department}
+                                    </h4>
+                                  </div>
+                                  <span className="shrink-0 rounded-md border border-[var(--hf-border)] bg-white px-2 py-0.5 text-[11px] tabular-nums text-[color:var(--hf-ink-muted)]">
+                                    {d.active}/{d.total}
+                                  </span>
+                                </div>
+                                <p className="mb-2 text-[10px] text-[color:var(--hf-ink-faint)]">{share}% dari total workforce</p>
+                                <div className="space-y-2">
+                                  <div>
+                                    <div className="mb-1 flex justify-between text-[11px]">
+                                      <span className="text-[color:var(--hf-ink-muted)]">{t('hris.performance')}</span>
+                                      <span className="font-medium tabular-nums">{d.perf > 0 ? `${d.perf}%` : '—'}</span>
+                                    </div>
+                                    <div className="h-1.5 overflow-hidden rounded-full bg-white">
+                                      <div
+                                        className="h-full rounded-full bg-[var(--hf-brand-600)]"
+                                        style={{ width: `${Math.min(100, Math.max(0, Number(d.perf) || 0))}%` }}
+                                      />
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div className="mb-1 flex justify-between text-[11px]">
+                                      <span className="text-[color:var(--hf-ink-muted)]">{t('hris.attendance')}</span>
+                                      <span className="font-medium tabular-nums">{d.attend > 0 ? `${d.attend}%` : '—'}</span>
+                                    </div>
+                                    <div className="h-1.5 overflow-hidden rounded-full bg-white">
+                                      <div
+                                        className="h-full rounded-full bg-[color:var(--hf-success)]"
+                                        style={{ width: `${Math.min(100, Math.max(0, Number(d.attend) || 0))}%` }}
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
                   )}

@@ -77,21 +77,59 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     const attPresent = parseInt(attToday[0]?.present || 0);
     const attendanceToday = attTotal > 0 ? Math.round((attPresent / attTotal) * 100) : (stats.active > 0 ? 0 : 0);
 
-    // Department breakdown
-    const [deptRows] = await sequelize.query(`
-      SELECT COALESCE(department, 'Other') AS department,
-        COUNT(*)::int AS total,
-        COUNT(*) FILTER (WHERE is_active = true)::int AS active
-      FROM employees e WHERE 1=1 ${etf}
-      GROUP BY department ORDER BY total DESC LIMIT 8
-    `, { replacements: r });
+    // Department breakdown — headcount + KPI + kehadiran hari ini per dept
+    let deptRows: any[] = [];
+    try {
+      const [rows] = await sequelize.query(`
+        SELECT
+          COALESCE(NULLIF(TRIM(e.department), ''), 'Other') AS department,
+          COUNT(DISTINCT e.id)::int AS total,
+          COUNT(DISTINCT e.id) FILTER (
+            WHERE COALESCE(e.is_active, true) = true
+              AND UPPER(COALESCE(e.status, 'ACTIVE')) IN ('ACTIVE', 'AKTIF')
+          )::int AS active,
+          COALESCE(ROUND(AVG(
+            CASE WHEN k.target > 0 THEN LEAST(150, (k.actual / NULLIF(k.target, 0)) * 100) END
+          )), 0)::int AS perf,
+          COALESCE(ROUND(
+            100.0 * COUNT(DISTINCT ea.employee_id) FILTER (WHERE ea.status IN ('present', 'late'))
+            / NULLIF(
+              COUNT(DISTINCT e.id) FILTER (
+                WHERE COALESCE(e.is_active, true) = true
+                  AND UPPER(COALESCE(e.status, 'ACTIVE')) IN ('ACTIVE', 'AKTIF', 'ON_LEAVE')
+              ),
+              0
+            )
+          ), 0)::int AS attend
+        FROM employees e
+        LEFT JOIN employee_kpis k
+          ON k.employee_id = e.id AND k.period = :period AND k.tenant_id = e.tenant_id
+        LEFT JOIN employee_attendance ea
+          ON ea.employee_id = e.id AND ea.date = :today AND ea.tenant_id = e.tenant_id
+        WHERE e.tenant_id = :tenantId
+        GROUP BY COALESCE(NULLIF(TRIM(e.department), ''), 'Other')
+        ORDER BY total DESC
+        LIMIT 8
+      `, { replacements: { ...r, period, today } });
+      deptRows = rows || [];
+    } catch {
+      const [rows] = await sequelize.query(`
+        SELECT COALESCE(NULLIF(TRIM(department), ''), 'Other') AS department,
+          COUNT(*)::int AS total,
+          COUNT(*) FILTER (WHERE COALESCE(is_active, true) = true)::int AS active
+        FROM employees e WHERE 1=1 ${etf}
+        GROUP BY COALESCE(NULLIF(TRIM(department), ''), 'Other')
+        ORDER BY total DESC LIMIT 8
+      `, { replacements: r });
+      deptRows = rows || [];
+    }
     const colors = ['blue', 'green', 'yellow', 'purple', 'indigo', 'cyan', 'orange', 'pink'];
     const deptStats = deptRows.map((d: any, i: number) => ({
       department: d.department,
-      total: d.total,
-      active: d.active,
-      perf: avgPerf || 0,
-      attend: attendanceToday || 0,
+      total: Number(d.total || 0),
+      active: Number(d.active || 0),
+      perf: Number(d.perf || 0) || avgPerf || 0,
+      attend: Number(d.attend || 0) || attendanceToday || 0,
       color: colors[i % colors.length],
     }));
 

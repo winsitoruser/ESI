@@ -38,38 +38,62 @@ export function OpsPieChart({
   nameKey = 'name',
   valueKey = 'value',
   height = 220,
+  showTotal = true,
 }: {
   data: Array<Record<string, any>>;
   nameKey?: string;
   valueKey?: string;
   height?: number;
+  showTotal?: boolean;
 }) {
   if (!data?.length) {
     return <p className="py-10 text-center text-xs text-slate-400">Belum ada data</p>;
   }
+  const total = data.reduce((sum, row) => sum + (Number(row[valueKey]) || 0), 0);
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      <PieChart>
-        <Pie
-          data={data}
-          dataKey={valueKey}
-          nameKey={nameKey}
-          cx="50%"
-          cy="50%"
-          innerRadius={48}
-          outerRadius={78}
-          paddingAngle={2}
-        >
-          {data.map((_, i) => (
-            <Cell key={i} fill={HF_CHART_COLORS_SOLID[i % HF_CHART_COLORS_SOLID.length]} />
-          ))}
-        </Pie>
-        <Tooltip
-          contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}
-        />
-        <Legend wrapperStyle={{ fontSize: 11 }} />
-      </PieChart>
-    </ResponsiveContainer>
+    <div className="relative w-full" style={{ height }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie
+            data={data}
+            dataKey={valueKey}
+            nameKey={nameKey}
+            cx="50%"
+            cy="46%"
+            innerRadius={52}
+            outerRadius={82}
+            paddingAngle={2}
+            stroke="none"
+          >
+            {data.map((_, i) => (
+              <Cell key={i} fill={HF_CHART_COLORS_SOLID[i % HF_CHART_COLORS_SOLID.length]} />
+            ))}
+          </Pie>
+          <Tooltip
+            contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}
+            formatter={(v: any, _n: any, props: any) => [
+              `${Number(v || 0).toLocaleString('id-ID')}${total ? ` (${Math.round((Number(v || 0) / total) * 100)}%)` : ''}`,
+              props?.payload?.[nameKey] || '',
+            ]}
+          />
+          <Legend
+            layout="horizontal"
+            verticalAlign="bottom"
+            iconType="circle"
+            iconSize={8}
+            wrapperStyle={{ fontSize: 11, paddingTop: 4 }}
+          />
+        </PieChart>
+      </ResponsiveContainer>
+      {showTotal && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center" style={{ marginBottom: 36 }}>
+          <div className="text-center">
+            <p className="text-xl font-bold tabular-nums text-slate-900">{total.toLocaleString('id-ID')}</p>
+            <p className="text-[10px] uppercase tracking-wide text-slate-500">Total</p>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
