@@ -1194,66 +1194,6 @@ export default function HRISDashboard() {
 
                         <MonthPresencePie mix={monthPresence} />
                       </div>
-
-                      {/* Detail tiles */}
-                      <div>
-                        <p className="mb-2 text-xs font-medium text-[color:var(--hf-ink-muted)]">Detail per departemen</p>
-                        <div className="grid w-full gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                          {deptStats.map((d, i) => {
-                            const share = stats.total > 0 ? Math.round((Number(d.total) / Number(stats.total)) * 100) : 0;
-                            return (
-                              <div key={d.department} className="hf-tile-nested p-3">
-                                <div className="mb-2 flex items-start justify-between gap-2">
-                                  <div className="flex min-w-0 items-center gap-2">
-                                    <span
-                                      className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full"
-                                      style={{ backgroundColor: HF_CHART_COLORS_SOLID[i % HF_CHART_COLORS_SOLID.length] }}
-                                    />
-                                    <h4 className="min-w-0 flex-1 break-words text-sm font-semibold leading-snug text-[color:var(--hf-ink)]">
-                                      {d.department}
-                                    </h4>
-                                  </div>
-                                  <span className="shrink-0 rounded-md border border-[var(--hf-border)] bg-white px-2 py-0.5 text-[11px] tabular-nums text-[color:var(--hf-ink-muted)]">
-                                    {d.active}/{d.total}
-                                  </span>
-                                </div>
-                                <p className="mb-2 text-[10px] text-[color:var(--hf-ink-faint)]">{share}% dari total workforce</p>
-                                <div className="mb-2 flex flex-wrap gap-1">
-                                  <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">Aktif {d.active || 0}</span>
-                                  <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">Cuti {d.onLeave || 0}</span>
-                                  <span className="rounded bg-rose-50 px-1.5 py-0.5 text-[10px] font-medium text-rose-700">Nonaktif {d.inactive || 0}</span>
-                                </div>
-                                <div className="space-y-2">
-                                  <div>
-                                    <div className="mb-1 flex justify-between text-[11px]">
-                                      <span className="text-[color:var(--hf-ink-muted)]">{t('hris.performance')}</span>
-                                      <span className="font-medium tabular-nums">{d.perf > 0 ? `${d.perf}%` : '—'}</span>
-                                    </div>
-                                    <div className="h-1.5 overflow-hidden rounded-full bg-white">
-                                      <div
-                                        className="h-full rounded-full bg-[var(--hf-brand-600)]"
-                                        style={{ width: `${Math.min(100, Math.max(0, Number(d.perf) || 0))}%` }}
-                                      />
-                                    </div>
-                                  </div>
-                                  <div>
-                                    <div className="mb-1 flex justify-between text-[11px]">
-                                      <span className="text-[color:var(--hf-ink-muted)]">{t('hris.attendance')}</span>
-                                      <span className="font-medium tabular-nums">{d.attend > 0 ? `${d.attend}%` : '—'}</span>
-                                    </div>
-                                    <div className="h-1.5 overflow-hidden rounded-full bg-white">
-                                      <div
-                                        className="h-full rounded-full bg-[color:var(--hf-success)]"
-                                        style={{ width: `${Math.min(100, Math.max(0, Number(d.attend) || 0))}%` }}
-                                      />
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
                     </div>
                   )}
                 </div>
