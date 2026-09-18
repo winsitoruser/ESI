@@ -12,12 +12,15 @@ import {
   AIMAN_SUGGESTIONS,
   AIMAN_THINKING_LABEL,
 } from '@/lib/hris/ai-persona';
+import { AimanCtaButtons, AimanStructuredReply } from '@/components/humanify/AimanChatExtras';
+import type { AgentCta } from '@/lib/hris/aiman-agent-catalog';
 
 type PendingAction = { tool: string; label: string; description: string; risk?: string };
 type ChatMsg = {
   role: 'user' | 'assistant';
   content: string;
   pendingActions?: PendingAction[];
+  ctas?: AgentCta[];
 };
 
 const API = '/api/humanify/ai-hub';
@@ -132,6 +135,7 @@ export default function AimanAppFloatingChat() {
           role: 'assistant',
           content: String(reply),
           pendingActions: json?.data?.agent?.pendingActions || undefined,
+          ctas: json?.data?.ctas || json?.data?.agent?.ctas || undefined,
         },
       ]);
     } catch {
@@ -157,7 +161,14 @@ export default function AimanAppFloatingChat() {
       const reply = json?.success
         ? (json?.data?.reply || json?.message || `Aksi ${tool} dikonfirmasi.`)
         : (json?.error || 'Konfirmasi gagal');
-      setMessages((prev) => [...prev, { role: 'assistant', content: String(reply) }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: String(reply),
+          ctas: json?.data?.ctas || undefined,
+        },
+      ]);
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -282,7 +293,11 @@ export default function AimanAppFloatingChat() {
                     {m.role === 'assistant' && (
                       <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[color:var(--hf-brand-600)]">AIMAN</p>
                     )}
-                    <p className="whitespace-pre-wrap">{m.content.replace(/\*\*(.*?)\*\*/g, '$1')}</p>
+                    {m.role === 'assistant' ? (
+                      <AimanStructuredReply content={m.content} />
+                    ) : (
+                      <p className="whitespace-pre-wrap">{m.content}</p>
+                    )}
                     {m.pendingActions && m.pendingActions.length > 0 && (
                       <div className="mt-2 space-y-1.5 border-t border-slate-100 pt-2">
                         {m.pendingActions.map((a) => (
@@ -299,6 +314,7 @@ export default function AimanAppFloatingChat() {
                         ))}
                       </div>
                     )}
+                    {m.role === 'assistant' && <AimanCtaButtons ctas={m.ctas} compact />}
                   </div>
                 </div>
               ))}

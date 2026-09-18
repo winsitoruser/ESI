@@ -9,6 +9,9 @@ import {
   type AgentToolName,
   type AgentToolResult,
 } from './aiman-agent-tools';
+import { AIMAN_TOOL_CTAS, type AgentCta } from './aiman-agent-catalog';
+
+export type { AgentCta };
 
 export type AgentPendingAction = {
   tool: AgentToolName;
@@ -40,6 +43,7 @@ export type AgentRunResult = {
   reply: string;
   steps: AgentStep[];
   pendingActions: AgentPendingAction[];
+  ctas: AgentCta[];
   source: 'agent' | 'agent+llm';
 };
 
@@ -128,27 +132,150 @@ function toolMeta(name: AgentToolName) {
   return AIMAN_AGENT_TOOLS.find((t) => t.name === name)!;
 }
 
+function mergeCtas(...groups: AgentCta[][]): AgentCta[] {
+  const map = new Map<string, AgentCta>();
+  for (const group of groups) {
+    for (const c of group) {
+      if (!c?.href || !c?.label) continue;
+      if (!map.has(c.href)) map.set(c.href, c);
+    }
+  }
+  return [...map.values()];
+}
+
+export function collectAgentCtas(steps: AgentStep[], tools: AgentToolName[] = []): AgentCta[] {
+  const fromData: AgentCta[] = [];
+  for (const s of steps) {
+    const links = (s.data?.nextLinks as AgentCta[] | undefined) || [];
+    fromData.push(...links);
+  }
+  const fromCatalog = tools.flatMap((t) => AIMAN_TOOL_CTAS[t] || []);
+  const fromSteps = steps.flatMap((s) => AIMAN_TOOL_CTAS[s.tool] || []);
+  return mergeCtas(fromData, fromCatalog, fromSteps);
+}
+
+function formatSampleLines(items: any[], mapFn: (item: any, i: number) => string, limit = 5): string[] {
+  if (!Array.isArray(items) || !items.length) return [];
+  return items.slice(0, limit).map(mapFn);
+}
+
+function formatStepDetail(step: AgentStep): string[] {
+  const d = (step.data || {}) as Record<string, any>;
+  const lines: string[] = [];
+
+  switch (step.tool) {
+    case 'payroll_prep_checklist':
+      lines.push(`• Periode: ${d.period || '—'}`);
+      lines.push(`• Karyawan aktif: ${d.activeEmployees ?? 0}`);
+      lines.push(`• Belum punya komponen gaji: ${d.missingSalaryCount ?? 0}`);
+      lines.push(`• Payroll run terbuka: ${Array.isArray(d.openRuns) ? d.openRuns.length : 0}`);
+      if (d.lateRate != null) lines.push(`• Tingkat keterlambatan: ${d.lateRate}%`);
+      if (Array.isArray(d.blockers) && d.blockers.length) {
+        lines.push('• Blocker:');
+        d.blockers.forEach((b: string) => lines.push(`  – ${b}`));
+      }
+      if (Array.isArray(d.missingSalarySample) && d.missingSalarySample.length) {
+        lines.push('• Contoh karyawan tanpa gaji:');
+        formatSampleLines(d.missingSalarySample, (r, i) => `  ${i + 1}. ${r.name || r.code || r.id}`, 5)
+          .forEach((l) => lines.push(l));
+      }
+      break;
+    case 'recruitment_screen_preview':
+      lines.push(`• Kandidat applied: ${d.appliedCount ?? 0}`);
+      lines.push(`• Lolos ambang (≥70, tanpa flag): ${d.wouldAdvanceCount ?? 0}`);
+      formatSampleLines(d.top, (r, i) => `  ${i + 1}. ${r.name} — skor ${r.score}${r.wouldAdvance ? ' · siap advance' : ''}`, 5)
+        .forEach((l, idx) => {
+          if (idx === 0) lines.push('• Top skor:');
+          lines.push(l);
+        });
+      break;
+    case 'list_hr_backlog':
+      lines.push(`• Cuti pending: ${d.leavePending ?? 0}`);
+      lines.push(`• Klaim pending: ${d.claimsPending ?? 0}`);
+      lines.push(`• Lembur pending: ${d.overtimePending ?? 0}`);
+      break;
+    case 'leave_pending_detail':
+      lines.push(`• Jumlah antrian: ${d.count ?? 0}`);
+      formatSampleLines(d.items, (r, i) => `  ${i + 1}. ${r.employee} (${r.code || '—'}) · ${r.type || 'cuti'} · ${r.start} → ${r.end}`, 6)
+        .forEach((l, idx) => {
+          if (idx === 0) lines.push('• Detail pengajuan:');
+          lines.push(l);
+        });
+      break;
+    case 'contract_expiry_check':
+      lines.push(`• Kontrak berakhir ≤30 hari: ${d.count ?? 0}`);
+      formatSampleLines(d.items, (r, i) => `  ${i + 1}. ${r.employee} (${r.code || '—'}) · habis ${r.endDate}`, 6)
+        .forEach((l, idx) => {
+          if (idx === 0) lines.push('• Daftar kontrak:');
+          lines.push(l);
+        });
+      break;
+    case 'onboarding_status':
+      lines.push(`• Onboarding aktif: ${d.activeCount ?? 0}`);
+      formatSampleLines(d.items, (r, i) => {
+        const prog = r.progress != null ? ` · progress ${r.progress}%` : '';
+        return `  ${i + 1}. ${r.employee} · ${r.department || r.position || '—'}${prog}`;
+      }, 6).forEach((l, idx) => {
+        if (idx === 0) lines.push('• Proses berjalan:');
+        lines.push(l);
+      });
+      break;
+    default:
+      break;
+  }
+  return lines;
+}
+
 function buildReply(title: string, steps: AgentStep[], pending: AgentPendingAction[]): string {
   const lines: string[] = [
-    `Saya AIMAN — menjalankan workflow **${title}** (assisted agent).`,
+    `## ${title}`,
+    '',
+    'Saya **AIMAN** sudah menjalankan assisted workflow ini. Ringkasan terstruktur:',
     '',
   ];
-  for (const s of steps) {
-    const mark = s.status === 'ok' ? '✓' : s.status === 'pending_confirm' ? '⏳' : s.status === 'error' ? '✗' : '·';
-    lines.push(`${mark} ${s.label}: ${s.summary}`);
-  }
-  if (pending.length) {
+
+  const reads = steps.filter((s) => s.kind === 'read');
+  const writes = steps.filter((s) => s.kind === 'write');
+
+  if (reads.length) {
+    lines.push('### Temuan data');
+    for (const s of reads) {
+      const mark = s.status === 'ok' ? '✓' : s.status === 'error' ? '✗' : '·';
+      lines.push('');
+      lines.push(`**${mark} ${s.label}**`);
+      lines.push(s.summary);
+      const detail = formatStepDetail(s);
+      if (detail.length) lines.push(...detail);
+    }
     lines.push('');
-    lines.push('Langkah berikut membutuhkan **konfirmasi Anda** (human-in-the-loop):');
+  }
+
+  if (writes.length) {
+    lines.push('### Status aksi');
+    for (const s of writes) {
+      const mark =
+        s.status === 'ok' ? '✓'
+          : s.status === 'pending_confirm' ? '⏳'
+            : s.status === 'skipped' ? '·'
+              : '✗';
+      lines.push(`${mark} **${s.label}** — ${s.summary}`);
+    }
+    lines.push('');
+  }
+
+  if (pending.length) {
+    lines.push('### Perlu konfirmasi Anda');
+    lines.push('Aksi write berikut human-in-the-loop (belum dijalankan):');
     pending.forEach((p, i) => {
-      lines.push(`${i + 1}. ${p.label} — ${p.description}`);
+      lines.push(`${i + 1}. **${p.label}** — ${p.description}`);
     });
     lines.push('');
-    lines.push('Klik tombol konfirmasi, atau ketik **konfirmasi** / **ya jalankan**.');
+    lines.push('Klik tombol konfirmasi di bawah, atau ketik **konfirmasi** / **ya jalankan**.');
   } else {
-    lines.push('');
-    lines.push('Tidak ada aksi write yang menunggu. Anda bisa lanjut ke halaman terkait dari ringkasan di atas.');
+    lines.push('### Langkah lanjut');
+    lines.push('Tidak ada aksi write yang menunggu. Gunakan tombol CTA di bawah untuk membuka halaman data terkait.');
   }
+
   return lines.join('\n');
 }
 
@@ -164,6 +291,7 @@ export async function runAimanAgent(opts: {
       reply: '',
       steps: [],
       pendingActions: [],
+      ctas: [],
       source: 'agent',
     };
   }
@@ -245,28 +373,31 @@ export async function runAimanAgent(opts: {
   }
 
   let reply = buildReply(wf.title, steps, pendingActions);
+  const ctas = collectAgentCtas(steps, [...wf.readTools, ...wf.suggestWrites]);
 
   const cfg = getSumopodConfig();
   if (cfg.llmEnabled) {
     const polished = await sumopodChat({
       system: `${AIMAN_SYSTEM_PROMPT}
 
-Anda merangkum hasil ASSISTED AGENT workflow. Jangan mengarang angka.
-Sebutkan blocker dan langkah konfirmasi jika ada. Bahasa Indonesia, padat.`,
+Anda merangkum hasil ASSISTED AGENT workflow menjadi penjelasan TERSTRUKTUR.
+Wajib: heading singkat, bullet temuan, angka dari data (jangan mengarang), saran langkah lanjut.
+Bahasa Indonesia profesional. Jangan hapus angka/nama dari data tool.`,
       user: `Workflow: ${wf.title}\nHasil tool:\n${JSON.stringify(steps.map((s) => ({ tool: s.tool, status: s.status, summary: s.summary, data: s.data })), null, 2)}\nPending: ${JSON.stringify(pendingActions)}`,
-      maxTokens: 500,
+      maxTokens: 700,
       temperature: 0.25,
     });
     if (polished) {
       reply = polished;
       if (pendingActions.length) {
-        reply += `\n\n⏳ Menunggu konfirmasi: ${pendingActions.map((p) => p.label).join(', ')}. Ketik "konfirmasi" atau klik tombol.`;
+        reply += `\n\n### Perlu konfirmasi Anda\n⏳ ${pendingActions.map((p) => p.label).join(', ')}. Klik tombol konfirmasi atau ketik "konfirmasi".`;
       }
-      return { workflowId, reply, steps, pendingActions, source: 'agent+llm' };
+      reply += `\n\n### Langkah lanjut\nGunakan tombol CTA di bawah untuk membuka halaman data terkait.`;
+      return { workflowId, reply, steps, pendingActions, ctas, source: 'agent+llm' };
     }
   }
 
-  return { workflowId, reply, steps, pendingActions, source: 'agent' };
+  return { workflowId, reply, steps, pendingActions, ctas, source: 'agent' };
 }
 
 export async function confirmAimanAgentAction(opts: {
@@ -274,7 +405,7 @@ export async function confirmAimanAgentAction(opts: {
   tenantId: string | null;
   actorUserId?: string | null;
   actorEmail?: string | null;
-}): Promise<{ reply: string; result: AgentToolResult; step: AgentStep }> {
+}): Promise<{ reply: string; result: AgentToolResult; step: AgentStep; ctas: AgentCta[] }> {
   const meta = toolMeta(opts.tool);
   const { logAdminAction } = await import('@/lib/saas/admin-audit');
   const { mustFailClosed } = await import('@/lib/saas/fail-closed');
@@ -304,9 +435,28 @@ export async function confirmAimanAgentAction(opts: {
     summary: result.summary,
     data: result.data,
   };
+  const detail = formatStepDetail(step);
   const reply = result.ok
-    ? `✓ Konfirmasi diterima. ${meta.label}: ${result.summary}`
-    : `✗ Gagal menjalankan ${meta.label}: ${result.summary}`;
+    ? [
+        `## ${meta.label}`,
+        '',
+        `✓ **Berhasil dijalankan** (${meta.kind === 'write' ? 'write · terkonfirmasi' : 'read'}).`,
+        '',
+        result.summary,
+        ...(detail.length ? ['', '### Detail', ...detail] : []),
+        '',
+        '### Langkah lanjut',
+        'Buka halaman terkait lewat tombol CTA di bawah untuk meninjau atau menindaklanjuti data ini.',
+      ].join('\n')
+    : [
+        `## ${meta.label}`,
+        '',
+        `✗ **Gagal**: ${result.summary}`,
+        '',
+        'Coba lagi atau buka modul terkait untuk cek data secara manual.',
+      ].join('\n');
+
+  const ctas = collectAgentCtas([step], [opts.tool]);
 
   try {
     await logAdminAction({
@@ -322,7 +472,7 @@ export async function confirmAimanAgentAction(opts: {
     if (mustFailClosed()) throw err;
   }
 
-  return { reply, result, step };
+  return { reply, result, step, ctas };
 }
 
 /** Confirm one or many pending tools (chat "konfirmasi"). */
@@ -331,7 +481,7 @@ export async function confirmAimanAgentActions(opts: {
   tenantId: string | null;
   actorUserId?: string | null;
   actorEmail?: string | null;
-}): Promise<{ reply: string; steps: AgentStep[]; results: AgentToolResult[] }> {
+}): Promise<{ reply: string; steps: AgentStep[]; results: AgentToolResult[]; ctas: AgentCta[] }> {
   const steps: AgentStep[] = [];
   const results: AgentToolResult[] = [];
   for (const tool of opts.tools) {
@@ -346,10 +496,18 @@ export async function confirmAimanAgentActions(opts: {
   }
   const okN = results.filter((r) => r.ok).length;
   const reply = [
-    `✓ Konfirmasi batch: ${okN}/${results.length} aksi berhasil.`,
-    ...steps.map((s) => `• ${s.label}: ${s.summary}`),
+    '## Konfirmasi batch AIMAN',
+    '',
+    `✓ ${okN}/${results.length} aksi berhasil.`,
+    '',
+    '### Hasil per tool',
+    ...steps.map((s) => `• **${s.label}**: ${s.summary}`),
+    '',
+    '### Langkah lanjut',
+    'Gunakan tombol CTA di bawah untuk membuka data terkait.',
   ].join('\n');
-  return { reply, steps, results };
+  const ctas = collectAgentCtas(steps, opts.tools);
+  return { reply, steps, results, ctas };
 }
 
 export { AIMAN_AGENT_TOOLS };

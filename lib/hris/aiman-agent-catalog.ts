@@ -107,6 +107,56 @@ export type AgentWorkflowCatalogItem = {
   tools: AgentToolName[];
 };
 
+export type AgentCta = {
+  href: string;
+  label: string;
+  description?: string;
+};
+
+/** Default CTAs per tool — open the Humanify page that owns the explained data. */
+export const AIMAN_TOOL_CTAS: Record<AgentToolName, AgentCta[]> = {
+  payroll_prep_checklist: [
+    { href: '/humanify/payroll/main', label: 'Buka Proses Gaji', description: 'Lanjutkan run payroll' },
+    { href: '/humanify/employees', label: 'Database Karyawan', description: 'Lengkapi komponen gaji' },
+    { href: '/humanify/attendance', label: 'Absensi', description: 'Cek keterlambatan' },
+  ],
+  recruitment_screen_preview: [
+    { href: '/humanify/recruitment', label: 'Buka Rekrutmen', description: 'Pipeline kandidat' },
+    { href: '/humanify/recruitment?tab=candidates', label: 'Daftar Kandidat', description: 'Lihat skor & stage' },
+  ],
+  list_hr_backlog: [
+    { href: '/humanify/mss', label: 'Action Inbox MSS', description: 'Antrian approval' },
+    { href: '/humanify/leave', label: 'Manajemen Cuti', description: 'Cuti pending' },
+    { href: '/humanify/reimbursement', label: 'Klaim', description: 'Klaim pending' },
+    { href: '/humanify/payroll/lembur', label: 'Lembur', description: 'Lembur pending' },
+  ],
+  leave_pending_detail: [
+    { href: '/humanify/leave', label: 'Manajemen Cuti', description: 'Review & setujui cuti' },
+    { href: '/humanify/mss', label: 'Action Inbox', description: 'Antrian manajer' },
+  ],
+  contract_expiry_check: [
+    { href: '/humanify/contracts', label: 'Kontrak & Reminder', description: 'Kontrak hampir habis' },
+    { href: '/humanify/employees', label: 'Database Karyawan', description: 'Profil karyawan' },
+  ],
+  onboarding_status: [
+    { href: '/humanify/onboarding', label: 'Onboarding', description: 'Proses karyawan baru' },
+    { href: '/humanify/employees', label: 'Database Karyawan', description: 'Lengkapi data' },
+  ],
+  run_automation_scan: [
+    { href: '/humanify/ai?tab=automation', label: 'Otomasi AIMAN', description: 'Aturan & log scan' },
+  ],
+  execute_recruitment_screening: [
+    { href: '/humanify/recruitment', label: 'Buka Rekrutmen', description: 'Cek stage kandidat' },
+  ],
+  execute_contract_expiry_alert: [
+    { href: '/humanify/contracts', label: 'Kontrak & Reminder', description: 'Tindak lanjut kontrak' },
+  ],
+  execute_leave_backlog_alert: [
+    { href: '/humanify/leave', label: 'Manajemen Cuti', description: 'Kurangi backlog cuti' },
+    { href: '/humanify/ai?tab=automation', label: 'Otomasi AIMAN', description: 'Log alert' },
+  ],
+};
+
 /** Assisted functions — phrases that trigger AIMAN workflows in copilot. */
 export const AIMAN_AGENT_WORKFLOWS: AgentWorkflowCatalogItem[] = [
   {

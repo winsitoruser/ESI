@@ -244,6 +244,10 @@ async function toolRecruitmentPreview(tenantId: string | null): Promise<AgentToo
       wouldAdvanceCount: wouldAdvance.length,
       top,
       confirmTool: 'execute_recruitment_screening' as AgentToolName,
+      nextLinks: [
+        { href: '/humanify/recruitment', label: 'Buka Rekrutmen' },
+        { href: '/humanify/recruitment?tab=candidates', label: 'Daftar Kandidat' },
+      ],
     },
   };
 }
@@ -272,7 +276,17 @@ async function toolHrBacklog(tenantId: string | null): Promise<AgentToolResult> 
   return {
     ok: true,
     summary: `Backlog HR: cuti pending ${leaveC}, klaim ${claimC}, lembur ${otC}.`,
-    data: { leavePending: leaveC, claimsPending: claimC, overtimePending: otC },
+    data: {
+      leavePending: leaveC,
+      claimsPending: claimC,
+      overtimePending: otC,
+      nextLinks: [
+        { href: '/humanify/mss', label: 'Action Inbox MSS' },
+        { href: '/humanify/leave', label: 'Manajemen Cuti' },
+        { href: '/humanify/reimbursement', label: 'Klaim' },
+        { href: '/humanify/payroll/lembur', label: 'Lembur' },
+      ],
+    },
   };
 }
 

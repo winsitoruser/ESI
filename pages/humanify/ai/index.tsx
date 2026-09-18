@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import { AIMAN_GREETING, AIMAN_SUGGESTIONS, AIMAN_THINKING_LABEL } from '@/lib/hris/ai-persona';
 import { isHumanifyAiUiEnabled } from '@/lib/hris/ai-enabled';
+import { AimanCtaButtons, AimanStructuredReply } from '@/components/humanify/AimanChatExtras';
+import type { AgentCta } from '@/lib/hris/aiman-agent-catalog';
 
 const API = '/api/humanify/ai-hub';
 
@@ -42,6 +44,7 @@ export default function AiHubPage() {
     steps?: any[];
     pendingActions?: { tool: string; label: string; description: string; risk?: string }[];
     workflowId?: string | null;
+    ctas?: AgentCta[];
   }[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
   const [confirmingTool, setConfirmingTool] = useState<string | null>(null);
@@ -99,6 +102,7 @@ export default function AiHubPage() {
               steps: data.data.agent?.steps,
               pendingActions: data.data.agent?.pendingActions,
               workflowId: data.data.agent?.workflowId,
+              ctas: data.data.ctas || data.data.agent?.ctas,
             }]);
             if (data.data.source === 'agent-confirm') await load();
           }
@@ -123,6 +127,7 @@ export default function AiHubPage() {
           role: 'assistant',
           content: data.data.reply,
           steps: data.data.step ? [data.data.step] : undefined,
+          ctas: data.data.ctas,
         }]);
         await load();
       } else {
@@ -369,7 +374,11 @@ export default function AiHubPage() {
                         AIMAN{m.workflowId ? ` · Agent · ${m.workflowId}` : ''}
                       </p>
                     )}
-                    <p className="whitespace-pre-wrap">{m.content.replace(/\*\*(.*?)\*\*/g, '$1')}</p>
+                    {m.role === 'assistant' ? (
+                      <AimanStructuredReply content={m.content} />
+                    ) : (
+                      <p className="whitespace-pre-wrap">{m.content}</p>
+                    )}
                     {m.steps && m.steps.length > 0 && (
                       <div className="mt-3 space-y-1.5 border-t border-slate-200/80 pt-2">
                         <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Langkah agent</p>
@@ -406,6 +415,7 @@ export default function AiHubPage() {
                         ))}
                       </div>
                     )}
+                    {m.role === 'assistant' && <AimanCtaButtons ctas={m.ctas} />}
                   </div>
                 </div>
               ))}

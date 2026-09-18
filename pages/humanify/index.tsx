@@ -16,7 +16,7 @@ import QuickActionsDock from '@/components/humanify/QuickActionsDock';
 import HrisEmptyState from '@/components/humanify/HrisEmptyState';
 import EmployeeAvatar from '@/components/humanify/EmployeeAvatar';
 import { DashboardBannerRail } from '@/components/humanify/MarketingBannerCarousel';
-import { HrisHeroMetricCard, HrisHeroNavCard, HrisHeroQueueCard } from '@/components/humanify/HrisHeroMetricCard';
+import { HrisHeroMetricCard, HrisHeroNavCard } from '@/components/humanify/HrisHeroMetricCard';
 import { OpsStage, OpsPageHero, OpsPanel } from '@/components/humanify/OpsPageChrome';
 import { EnterpriseTabBar } from '@/components/humanify/PerformanceModuleChrome';
 import { OpsBarChart, OpsPieChart, OpsLineChart } from '@/components/humanify/ops-charts';
@@ -540,8 +540,6 @@ export default function HRISDashboard() {
     docAvg: docCompliance?.avgPercent,
   });
   const moduleCount = HRIS_MODULES.reduce((acc, c) => acc + c.modules.length, 0);
-  const byType = pendingSummary.byType || {};
-
   const attention = [
     trialInfo?.trialExpired
       ? { tone: 'danger' as const, text: 'Masa trial sudah berakhir. Upgrade paket agar modul berbayar tetap aktif.', href: '/humanify/billing', cta: 'Buka billing' }
@@ -816,20 +814,6 @@ export default function HRISDashboard() {
                 ))}
               </div>
             </div>
-
-            {(byType.leave || byType.overtime || byType.claim || byType.contract || byType.attendance) ? (
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-                {[
-                  { k: 'leave', label: 'Cuti', href: '/humanify/leave' },
-                  { k: 'overtime', label: 'Lembur', href: '/humanify/payroll/lembur' },
-                  { k: 'claim', label: 'Klaim', href: '/humanify/reimbursement' },
-                  { k: 'contract', label: 'Kontrak', href: '/humanify/contracts' },
-                  { k: 'attendance', label: 'Absen', href: '/humanify/attendance' },
-                ].map((row) => (
-                  <HrisHeroQueueCard key={row.k} label={row.label} value={byType[row.k] || 0} href={row.href} />
-                ))}
-              </div>
-            ) : null}
 
             <GaOnboardingChecklist />
 

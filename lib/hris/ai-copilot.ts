@@ -18,6 +18,7 @@ import {
   type AgentPendingAction,
   type AgentStep,
   type AgentWorkflowId,
+  type AgentCta,
 } from './aiman-agent';
 import type { AgentToolName } from './aiman-agent-tools';
 
@@ -37,10 +38,12 @@ export type CopilotChatResult = {
   source: string;
   persona: string;
   dataContext?: AimanDataContext;
+  ctas?: AgentCta[];
   agent?: {
     workflowId: AgentWorkflowId | null;
     steps: AgentStep[];
     pendingActions: AgentPendingAction[];
+    ctas?: AgentCta[];
   };
 };
 
@@ -136,10 +139,12 @@ export async function chatWithCopilot(opts: {
       insights: [],
       source: 'agent-confirm',
       persona: AIMAN.name,
+      ctas: confirmed.ctas,
       agent: {
         workflowId: null,
         steps: confirmed.steps,
         pendingActions: [],
+        ctas: confirmed.ctas,
       },
     };
   }
@@ -167,10 +172,12 @@ export async function chatWithCopilot(opts: {
       insights: [],
       source: agent.source,
       persona: AIMAN.name,
+      ctas: agent.ctas,
       agent: {
         workflowId: agent.workflowId,
         steps: agent.steps,
         pendingActions: agent.pendingActions,
+        ctas: agent.ctas,
       },
     };
   }
