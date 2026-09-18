@@ -7,6 +7,8 @@ import DashboardModuleGrid from '@/components/humanify/DashboardModuleGrid';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import GaOnboardingChecklist from '@/components/humanify/GaOnboardingChecklist';
 import NewCompanyLaunchBanner from '@/components/humanify/NewCompanyLaunchBanner';
+import { emptyMonthPresence, type MonthPresenceMix } from '@/lib/hris/month-presence';
+import MonthPresencePie from '@/components/humanify/MonthPresencePie';
 import FirstRunTour from '@/components/humanify/FirstRunTour';
 import QuickActionsDock from '@/components/humanify/QuickActionsDock';
 import HrisEmptyState from '@/components/humanify/HrisEmptyState';
@@ -205,7 +207,8 @@ export default function HRISDashboard() {
   const [deptStats, setDeptStats] = useState<any[]>(USE_MOCK_UI ? MOCK_DEPT_STATS : []);
   const [workforceTrend, setWorkforceTrend] = useState<Array<{ week: string; Kehadiran: number; Kinerja: number }>>([]);
   const [topPerformersList, setTopPerformersList] = useState<any[]>([]);
-  const [perfChartTab, setPerfChartTab] = useState<'combined' | 'kinerja' | 'kehadiran'>('combined');
+  const [deptAnalyticsTab, setDeptAnalyticsTab] = useState<'headcount' | 'combined' | 'kinerja' | 'kehadiran'>('headcount');
+  const [monthPresence, setMonthPresence] = useState<MonthPresenceMix>(() => emptyMonthPresence());
   const [upcoming, setUpcoming] = useState<any[]>(USE_MOCK_UI ? MOCK_UPCOMING : []);
   const [dataSource, setDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
   const [pendingSummary, setPendingSummary] = useState<{ total: number; overdue: number; byType?: Record<string, number> }>({ total: 0, overdue: 0 });
@@ -264,6 +267,7 @@ export default function HRISDashboard() {
           setDeptStats(Array.isArray(dash.deptStats) ? dash.deptStats : []);
           setWorkforceTrend(Array.isArray(dash.workforceTrend) ? dash.workforceTrend : []);
           setTopPerformersList(Array.isArray(dash.topPerformersList) ? dash.topPerformersList : []);
+          if (dash.monthPresence?.buckets) setMonthPresence(dash.monthPresence);
           setPendingApprovals(Array.isArray(dash.pendingApprovals) ? dash.pendingApprovals : []);
           setUpcoming(Array.isArray(dash.upcoming) ? dash.upcoming : []);
           if (Array.isArray(dash.recentActivities) && dash.recentActivities.length > 0) {
@@ -873,21 +877,24 @@ export default function HRISDashboard() {
                 <div className="border-b border-[var(--hf-border-subtle)] px-4 py-3 pl-5 md:px-5 md:pl-6">
                   <p className="text-sm font-semibold text-[color:var(--hf-ink)]">Ringkasan per Departemen</p>
                   <p className="text-xs text-[color:var(--hf-ink-muted)]">
-                    Komposisi lanjutan (dept + status), top performance & KPI, serta chart kinerja/kehadiran + tren
+                    Komposisi lanjutan, top performance, headcount/kinerja (tab), dan kehadiran bulan ini
                   </p>
                 </div>
                 <div className="w-full p-4 pl-5 md:p-5 md:pl-6">
                   {deptStats.length === 0 ? (
-                    <HrisEmptyState
-                      title="Belum ada headcount per departemen"
-                      description="Tambah karyawan dengan field departemen untuk melihat chart dan breakdown."
-                      source={dataSource}
-                      action={
-                        <Link href="/humanify/employees?add=1" className="hf-btn-secondary inline-flex items-center gap-1 text-xs">
-                          <UserPlus className="h-3.5 w-3.5" /> Tambah karyawan
-                        </Link>
-                      }
-                    />
+                    <div className="grid w-full gap-4 lg:grid-cols-2">
+                      <HrisEmptyState
+                        title="Belum ada headcount per departemen"
+                        description="Tambah karyawan dengan field departemen untuk melihat chart dan breakdown."
+                        source={dataSource}
+                        action={
+                          <Link href="/humanify/employees?add=1" className="hf-btn-secondary inline-flex items-center gap-1 text-xs">
+                            <UserPlus className="h-3.5 w-3.5" /> Tambah karyawan
+                          </Link>
+                        }
+                      />
+                      <MonthPresencePie mix={monthPresence} />
+                    </div>
                   ) : (
                     <div className="flex w-full min-w-0 flex-col gap-5">
                       {/* Row 1: advanced composition + top performers table */}
@@ -1003,107 +1010,17 @@ export default function HRISDashboard() {
                         </div>
                       </div>
 
-                      {/* Row 2: headcount + kinerja/kehadiran variants + trend */}
+                      {/* Row 2: tabbed headcount/kinerja card + kehadiran bulan ini */}
                       <div className="grid w-full gap-4 lg:grid-cols-2">
-                        <div className="hf-tile-nested min-w-0 p-4">
-                          <div className="mb-1 flex items-center gap-2">
-                            <BarChart3 className="h-4 w-4 text-[color:var(--hf-brand-600)]" />
-                            <p className="text-sm font-semibold text-[color:var(--hf-ink)]">Headcount per departemen</p>
-                          </div>
-                          <p className="mb-2 text-[11px] text-[color:var(--hf-ink-muted)]">Aktif vs total</p>
-                          <OpsBarChart
-                            data={deptChartData}
-                            xKey="name"
-                            bars={[
-                              { key: 'Aktif', label: 'Aktif', color: HF_CHART_COLORS_SOLID[0] },
-                              { key: 'Total', label: 'Total', color: HF_CHART_COLORS_SOLID[1] },
-                            ]}
-                            height={260}
-                            angledLabels
-                          />
-                          <div className="mt-4 border-t border-[var(--hf-border-subtle)] pt-3">
-                            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--hf-ink-faint)]">
-                              Data headcount
-                            </p>
-                            <div className="overflow-x-auto rounded-lg border border-[var(--hf-border)]">
-                              <table className="min-w-full text-left text-sm">
-                                <thead className="bg-[var(--hf-surface-muted)] text-[10px] uppercase tracking-wide text-[color:var(--hf-ink-muted)]">
-                                  <tr>
-                                    <th className="px-3 py-2 font-semibold">#</th>
-                                    <th className="px-3 py-2 font-semibold">Departemen</th>
-                                    <th className="px-3 py-2 font-semibold text-right">Aktif</th>
-                                    <th className="px-3 py-2 font-semibold text-right">Cuti</th>
-                                    <th className="px-3 py-2 font-semibold text-right">Nonaktif</th>
-                                    <th className="px-3 py-2 font-semibold text-right">Total</th>
-                                    <th className="px-3 py-2 font-semibold text-right">Share</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-[var(--hf-border-subtle)] bg-white">
-                                  {deptStats.map((d, i) => {
-                                    const total = Number(d.total) || 0;
-                                    const share = stats.total > 0 ? ((total / Number(stats.total)) * 100) : 0;
-                                    return (
-                                      <tr key={d.department} className="hover:bg-[var(--hf-brand-50)]/40">
-                                        <td className="px-3 py-2 tabular-nums text-[color:var(--hf-ink-faint)]">{i + 1}</td>
-                                        <td className="px-3 py-2">
-                                          <div className="flex items-center gap-2 min-w-0">
-                                            <span
-                                              className="h-2 w-2 shrink-0 rounded-full"
-                                              style={{ backgroundColor: HF_CHART_COLORS_SOLID[i % HF_CHART_COLORS_SOLID.length] }}
-                                            />
-                                            <span className="truncate font-medium text-[color:var(--hf-ink)]">{d.department}</span>
-                                          </div>
-                                        </td>
-                                        <td className="px-3 py-2 text-right tabular-nums text-emerald-700">{d.active || 0}</td>
-                                        <td className="px-3 py-2 text-right tabular-nums text-amber-700">{d.onLeave || 0}</td>
-                                        <td className="px-3 py-2 text-right tabular-nums text-rose-700">{d.inactive || 0}</td>
-                                        <td className="px-3 py-2 text-right font-semibold tabular-nums text-[color:var(--hf-ink)]">{total}</td>
-                                        <td className="px-3 py-2 text-right">
-                                          <div className="inline-flex min-w-[72px] flex-col items-end gap-1">
-                                            <span className="text-xs tabular-nums text-[color:var(--hf-ink-muted)]">{share.toFixed(1)}%</span>
-                                            <div className="h-1 w-16 overflow-hidden rounded-full bg-[var(--hf-surface-muted)]">
-                                              <div
-                                                className="h-full rounded-full bg-[var(--hf-brand-600)]"
-                                                style={{ width: `${Math.min(100, share)}%` }}
-                                              />
-                                            </div>
-                                          </div>
-                                        </td>
-                                      </tr>
-                                    );
-                                  })}
-                                </tbody>
-                                <tfoot className="border-t border-[var(--hf-border)] bg-[var(--hf-surface-muted)]/60 text-xs font-semibold">
-                                  <tr>
-                                    <td className="px-3 py-2" colSpan={2}>Total</td>
-                                    <td className="px-3 py-2 text-right tabular-nums text-emerald-700">
-                                      {deptStats.reduce((s, d) => s + (Number(d.active) || 0), 0)}
-                                    </td>
-                                    <td className="px-3 py-2 text-right tabular-nums text-amber-700">
-                                      {deptStats.reduce((s, d) => s + (Number(d.onLeave) || 0), 0)}
-                                    </td>
-                                    <td className="px-3 py-2 text-right tabular-nums text-rose-700">
-                                      {deptStats.reduce((s, d) => s + (Number(d.inactive) || 0), 0)}
-                                    </td>
-                                    <td className="px-3 py-2 text-right tabular-nums text-[color:var(--hf-ink)]">
-                                      {deptStats.reduce((s, d) => s + (Number(d.total) || 0), 0)}
-                                    </td>
-                                    <td className="px-3 py-2 text-right tabular-nums text-[color:var(--hf-ink-muted)]">100%</td>
-                                  </tr>
-                                </tfoot>
-                              </table>
-                            </div>
-                          </div>
-                        </div>
-
                         <div className="hf-tile-nested min-w-0 p-4">
                           <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
-                              <Award className="h-4 w-4 text-[color:var(--hf-brand-600)]" />
-                              <p className="text-sm font-semibold text-[color:var(--hf-ink)]">Kinerja & kehadiran</p>
+                              <BarChart3 className="h-4 w-4 text-[color:var(--hf-brand-600)]" />
+                              <p className="text-sm font-semibold text-[color:var(--hf-ink)]">Headcount per departemen</p>
                             </div>
                             <div className="flex rounded-lg border border-[var(--hf-border)] overflow-hidden text-[11px]">
                               {([
+                                { key: 'headcount', label: 'Headcount' },
                                 { key: 'combined', label: 'Gabungan' },
                                 { key: 'kinerja', label: 'Kinerja' },
                                 { key: 'kehadiran', label: 'Kehadiran' },
@@ -1111,9 +1028,9 @@ export default function HRISDashboard() {
                                 <button
                                   key={tab.key}
                                   type="button"
-                                  onClick={() => setPerfChartTab(tab.key)}
+                                  onClick={() => setDeptAnalyticsTab(tab.key)}
                                   className={`px-2.5 py-1 font-medium transition ${
-                                    perfChartTab === tab.key
+                                    deptAnalyticsTab === tab.key
                                       ? 'bg-[var(--hf-brand-600)] text-white'
                                       : 'bg-white text-[color:var(--hf-ink-muted)] hover:bg-[var(--hf-surface-muted)]'
                                   }`}
@@ -1124,9 +1041,104 @@ export default function HRISDashboard() {
                             </div>
                           </div>
                           <p className="mb-2 text-[11px] text-[color:var(--hf-ink-muted)]">
-                            Varian bar chart per departemen · {perfChartTab === 'combined' ? 'KPI + hadir hari ini' : perfChartTab === 'kinerja' ? 'Hanya kinerja (KPI %)' : 'Hanya kehadiran (%)'}
+                            {deptAnalyticsTab === 'headcount'
+                              ? 'Aktif vs total per departemen'
+                              : deptAnalyticsTab === 'combined'
+                                ? 'Varian bar · KPI + hadir hari ini'
+                                : deptAnalyticsTab === 'kinerja'
+                                  ? 'Varian bar · hanya kinerja (KPI %)'
+                                  : 'Varian bar · hanya kehadiran (%)'}
                           </p>
-                          {perfChartTab === 'combined' && (
+
+                          {deptAnalyticsTab === 'headcount' && (
+                            <>
+                              <OpsBarChart
+                                data={deptChartData}
+                                xKey="name"
+                                bars={[
+                                  { key: 'Aktif', label: 'Aktif', color: HF_CHART_COLORS_SOLID[0] },
+                                  { key: 'Total', label: 'Total', color: HF_CHART_COLORS_SOLID[1] },
+                                ]}
+                                height={260}
+                                angledLabels
+                              />
+                              <div className="mt-4 border-t border-[var(--hf-border-subtle)] pt-3">
+                                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--hf-ink-faint)]">
+                                  Data headcount
+                                </p>
+                                <div className="overflow-x-auto rounded-lg border border-[var(--hf-border)]">
+                                  <table className="min-w-full text-left text-sm">
+                                    <thead className="bg-[var(--hf-surface-muted)] text-[10px] uppercase tracking-wide text-[color:var(--hf-ink-muted)]">
+                                      <tr>
+                                        <th className="px-3 py-2 font-semibold">#</th>
+                                        <th className="px-3 py-2 font-semibold">Departemen</th>
+                                        <th className="px-3 py-2 font-semibold text-right">Aktif</th>
+                                        <th className="px-3 py-2 font-semibold text-right">Cuti</th>
+                                        <th className="px-3 py-2 font-semibold text-right">Nonaktif</th>
+                                        <th className="px-3 py-2 font-semibold text-right">Total</th>
+                                        <th className="px-3 py-2 font-semibold text-right">Share</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-[var(--hf-border-subtle)] bg-white">
+                                      {deptStats.map((d, i) => {
+                                        const total = Number(d.total) || 0;
+                                        const share = stats.total > 0 ? ((total / Number(stats.total)) * 100) : 0;
+                                        return (
+                                          <tr key={d.department} className="hover:bg-[var(--hf-brand-50)]/40">
+                                            <td className="px-3 py-2 tabular-nums text-[color:var(--hf-ink-faint)]">{i + 1}</td>
+                                            <td className="px-3 py-2">
+                                              <div className="flex items-center gap-2 min-w-0">
+                                                <span
+                                                  className="h-2 w-2 shrink-0 rounded-full"
+                                                  style={{ backgroundColor: HF_CHART_COLORS_SOLID[i % HF_CHART_COLORS_SOLID.length] }}
+                                                />
+                                                <span className="truncate font-medium text-[color:var(--hf-ink)]">{d.department}</span>
+                                              </div>
+                                            </td>
+                                            <td className="px-3 py-2 text-right tabular-nums text-emerald-700">{d.active || 0}</td>
+                                            <td className="px-3 py-2 text-right tabular-nums text-amber-700">{d.onLeave || 0}</td>
+                                            <td className="px-3 py-2 text-right tabular-nums text-rose-700">{d.inactive || 0}</td>
+                                            <td className="px-3 py-2 text-right font-semibold tabular-nums text-[color:var(--hf-ink)]">{total}</td>
+                                            <td className="px-3 py-2 text-right">
+                                              <div className="inline-flex min-w-[72px] flex-col items-end gap-1">
+                                                <span className="text-xs tabular-nums text-[color:var(--hf-ink-muted)]">{share.toFixed(1)}%</span>
+                                                <div className="h-1 w-16 overflow-hidden rounded-full bg-[var(--hf-surface-muted)]">
+                                                  <div
+                                                    className="h-full rounded-full bg-[var(--hf-brand-600)]"
+                                                    style={{ width: `${Math.min(100, share)}%` }}
+                                                  />
+                                                </div>
+                                              </div>
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                    <tfoot className="border-t border-[var(--hf-border)] bg-[var(--hf-surface-muted)]/60 text-xs font-semibold">
+                                      <tr>
+                                        <td className="px-3 py-2" colSpan={2}>Total</td>
+                                        <td className="px-3 py-2 text-right tabular-nums text-emerald-700">
+                                          {deptStats.reduce((s, d) => s + (Number(d.active) || 0), 0)}
+                                        </td>
+                                        <td className="px-3 py-2 text-right tabular-nums text-amber-700">
+                                          {deptStats.reduce((s, d) => s + (Number(d.onLeave) || 0), 0)}
+                                        </td>
+                                        <td className="px-3 py-2 text-right tabular-nums text-rose-700">
+                                          {deptStats.reduce((s, d) => s + (Number(d.inactive) || 0), 0)}
+                                        </td>
+                                        <td className="px-3 py-2 text-right tabular-nums text-[color:var(--hf-ink)]">
+                                          {deptStats.reduce((s, d) => s + (Number(d.total) || 0), 0)}
+                                        </td>
+                                        <td className="px-3 py-2 text-right tabular-nums text-[color:var(--hf-ink-muted)]">100%</td>
+                                      </tr>
+                                    </tfoot>
+                                  </table>
+                                </div>
+                              </div>
+                            </>
+                          )}
+
+                          {deptAnalyticsTab === 'combined' && (
                             <OpsBarChart
                               data={deptPerfAttendData}
                               xKey="name"
@@ -1134,48 +1146,53 @@ export default function HRISDashboard() {
                                 { key: 'Kinerja', label: 'Kinerja', color: HF_CHART_COLORS_SOLID[0] },
                                 { key: 'Kehadiran', label: 'Kehadiran', color: HF_CHART_COLORS_SOLID[2] },
                               ]}
-                              height={220}
+                              height={260}
                               angledLabels
                             />
                           )}
-                          {perfChartTab === 'kinerja' && (
+                          {deptAnalyticsTab === 'kinerja' && (
                             <OpsBarChart
                               data={deptPerfOnlyData}
                               xKey="name"
                               bars={[{ key: 'Kinerja', label: 'Kinerja', color: HF_CHART_COLORS_SOLID[0] }]}
-                              height={220}
+                              height={260}
                               angledLabels
                             />
                           )}
-                          {perfChartTab === 'kehadiran' && (
+                          {deptAnalyticsTab === 'kehadiran' && (
                             <OpsBarChart
                               data={deptAttendOnlyData}
                               xKey="name"
                               bars={[{ key: 'Kehadiran', label: 'Kehadiran', color: HF_CHART_COLORS_SOLID[2] }]}
-                              height={220}
+                              height={260}
                               angledLabels
                             />
                           )}
-                          <div className="mt-4 border-t border-[var(--hf-border-subtle)] pt-3">
-                            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--hf-ink-faint)]">
-                              Tren 8 minggu — kinerja & kehadiran
-                            </p>
-                            {workforceTrend.length > 0 ? (
-                              <OpsLineChart
-                                data={workforceTrend}
-                                xKey="week"
-                                lines={[
-                                  { key: 'Kinerja', label: 'Kinerja', color: HF_CHART_COLORS_SOLID[0] },
-                                  { key: 'Kehadiran', label: 'Kehadiran', color: HF_CHART_COLORS_SOLID[2] },
-                                ]}
-                                height={200}
-                                angledLabels
-                              />
-                            ) : (
-                              <p className="py-8 text-center text-xs text-slate-400">Belum ada tren absensi/KPI untuk digambar.</p>
-                            )}
-                          </div>
+
+                          {deptAnalyticsTab !== 'headcount' && (
+                            <div className="mt-4 border-t border-[var(--hf-border-subtle)] pt-3">
+                              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--hf-ink-faint)]">
+                                Tren 8 minggu — kinerja & kehadiran
+                              </p>
+                              {workforceTrend.length > 0 ? (
+                                <OpsLineChart
+                                  data={workforceTrend}
+                                  xKey="week"
+                                  lines={[
+                                    { key: 'Kinerja', label: 'Kinerja', color: HF_CHART_COLORS_SOLID[0] },
+                                    { key: 'Kehadiran', label: 'Kehadiran', color: HF_CHART_COLORS_SOLID[2] },
+                                  ]}
+                                  height={200}
+                                  angledLabels
+                                />
+                              ) : (
+                                <p className="py-8 text-center text-xs text-slate-400">Belum ada tren absensi/KPI untuk digambar.</p>
+                              )}
+                            </div>
+                          )}
                         </div>
+
+                        <MonthPresencePie mix={monthPresence} />
                       </div>
 
                       {/* Detail tiles */}
