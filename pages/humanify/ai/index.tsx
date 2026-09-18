@@ -47,6 +47,7 @@ export default function AiHubPage() {
   const [confirmingTool, setConfirmingTool] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const bootLaunchRef = useRef(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -70,6 +71,71 @@ export default function AiHubPage() {
     finally { setLoading(false); }
   }, []);
 
+  const sendChat = useCallback(async (preset?: string) => {
+    const msg = (preset ?? chatInput).trim();
+    if (!msg || chatLoading) return;
+    setChatInput('');
+    setChatHistory((h) => {
+      const pendingTools = [...h].reverse()
+        .find((m) => m.role === 'assistant' && m.pendingActions?.length)?.pendingActions
+        ?.map((a) => a.tool) || [];
+      // Kick off fetch with snapshot of history before user msg
+      void (async () => {
+        setChatLoading(true);
+        try {
+          const res = await fetch(`${API}?action=chat`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: msg,
+              history: h.map(({ role, content }) => ({ role, content })),
+              pendingTools,
+            }),
+          });
+          const data = await res.json();
+          if (data.success) {
+            setChatHistory((prev) => [...prev, {
+              role: 'assistant',
+              content: data.data.reply,
+              steps: data.data.agent?.steps,
+              pendingActions: data.data.agent?.pendingActions,
+              workflowId: data.data.agent?.workflowId,
+            }]);
+            if (data.data.source === 'agent-confirm') await load();
+          }
+        } finally { setChatLoading(false); }
+      })();
+      return [...h, { role: 'user', content: msg }];
+    });
+  }, [chatInput, chatLoading, load]);
+
+  const confirmAgentAction = useCallback(async (tool: string) => {
+    if (confirmingTool) return;
+    setConfirmingTool(tool);
+    try {
+      const res = await fetch(`${API}?action=agent-confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tool }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setChatHistory((h) => [...h, {
+          role: 'assistant',
+          content: data.data.reply,
+          steps: data.data.step ? [data.data.step] : undefined,
+        }]);
+        await load();
+      } else {
+        setChatHistory((h) => [...h, {
+          role: 'assistant',
+          content: `Gagal konfirmasi: ${data.error || 'unknown'}`,
+        }]);
+      }
+    } finally {
+      setConfirmingTool(null);
+    }
+  }, [confirmingTool, load]);
+
   useEffect(() => { if (aiOn) load(); else setLoading(false); }, [load, aiOn]);
   useEffect(() => {
     const q = router.query.tab as Tab | undefined;
@@ -77,15 +143,29 @@ export default function AiHubPage() {
   }, [router.query.tab]);
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatHistory]);
 
-  const promptFromQuery = typeof router.query.prompt === 'string' ? router.query.prompt : '';
+  // Auto-run from dashboard deep-link: ?run=... | ?tool=... | ?prompt=...
   useEffect(() => {
-    if (!aiOn || !promptFromQuery || loading) return;
+    if (!aiOn || loading || !router.isReady || bootLaunchRef.current) return;
+    const run = typeof router.query.run === 'string' ? router.query.run.trim() : '';
+    const tool = typeof router.query.tool === 'string' ? router.query.tool.trim() : '';
+    const prompt = typeof router.query.prompt === 'string' ? router.query.prompt.trim() : '';
+    if (!run && !tool && !prompt) return;
+
+    bootLaunchRef.current = true;
     setTab('copilot');
-    setChatInput(promptFromQuery);
-    // Clear prompt from URL so refresh doesn't re-trigger
-    const { prompt: _p, ...rest } = router.query;
-    void router.replace({ pathname: router.pathname, query: { ...rest, tab: 'copilot' } }, undefined, { shallow: true });
-  }, [aiOn, promptFromQuery, loading]); // eslint-disable-line react-hooks/exhaustive-deps
+    void router.replace(
+      { pathname: router.pathname, query: { tab: 'copilot' } },
+      undefined,
+      { shallow: true },
+    );
+
+    if (tool) {
+      setChatHistory((h) => [...h, { role: 'user', content: `Jalankan tool: ${tool}` }]);
+      void confirmAgentAction(tool);
+    } else {
+      void sendChat(run || prompt);
+    }
+  }, [aiOn, loading, router.isReady, router.query.run, router.query.tool, router.query.prompt, confirmAgentAction, sendChat, router]);
 
   if (!aiOn) {
     return (
@@ -105,66 +185,6 @@ export default function AiHubPage() {
       </PageGuard>
     );
   }
-
-  const sendChat = async (preset?: string) => {
-    const msg = (preset ?? chatInput).trim();
-    if (!msg || chatLoading) return;
-    setChatInput('');
-    const pendingTools = [...chatHistory].reverse()
-      .find((m) => m.role === 'assistant' && m.pendingActions?.length)?.pendingActions
-      ?.map((a) => a.tool) || [];
-    setChatHistory(h => [...h, { role: 'user', content: msg }]);
-    setChatLoading(true);
-    try {
-      const res = await fetch(`${API}?action=chat`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: msg,
-          history: chatHistory.map(({ role, content }) => ({ role, content })),
-          pendingTools,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setChatHistory(h => [...h, {
-          role: 'assistant',
-          content: data.data.reply,
-          steps: data.data.agent?.steps,
-          pendingActions: data.data.agent?.pendingActions,
-          workflowId: data.data.agent?.workflowId,
-        }]);
-        if (data.data.source === 'agent-confirm') await load();
-      }
-    } finally { setChatLoading(false); }
-  };
-
-  const confirmAgentAction = async (tool: string) => {
-    if (confirmingTool) return;
-    setConfirmingTool(tool);
-    try {
-      const res = await fetch(`${API}?action=agent-confirm`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tool }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setChatHistory(h => [...h, {
-          role: 'assistant',
-          content: data.data.reply,
-          steps: data.data.step ? [data.data.step] : undefined,
-        }]);
-        await load();
-      } else {
-        setChatHistory(h => [...h, {
-          role: 'assistant',
-          content: `Gagal konfirmasi: ${data.error || 'unknown'}`,
-        }]);
-      }
-    } finally {
-      setConfirmingTool(null);
-    }
-  };
 
   const runScan = async () => {
     setScanning(true);

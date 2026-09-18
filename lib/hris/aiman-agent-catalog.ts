@@ -22,6 +22,8 @@ export type AgentToolDef = {
   kind: AgentToolKind;
   label: string;
   description: string;
+  /** Phrase that triggers the matching AIMAN agent workflow / tool via chat. */
+  prompt: string;
 };
 
 export const AIMAN_AGENT_TOOLS: AgentToolDef[] = [
@@ -30,60 +32,70 @@ export const AIMAN_AGENT_TOOLS: AgentToolDef[] = [
     kind: 'read',
     label: 'Checklist persiapan payroll',
     description: 'Cek karyawan tanpa gaji, run payroll terbuka, dan sinyal absensi.',
+    prompt: 'Persiapkan payroll bulan ini',
   },
   {
     name: 'recruitment_screen_preview',
     kind: 'read',
     label: 'Pratinjau screening kandidat',
     description: 'Hitung skor kandidat applied tanpa mengubah stage.',
+    prompt: 'Pratinjau screening kandidat',
   },
   {
     name: 'list_hr_backlog',
     kind: 'read',
     label: 'Backlog HR',
     description: 'Ringkas cuti, klaim, dan lembur pending.',
+    prompt: 'Backlog HR',
   },
   {
     name: 'leave_pending_detail',
     kind: 'read',
     label: 'Detail cuti pending',
     description: 'Daftar singkat pengajuan cuti yang menunggu approval.',
+    prompt: 'Meja cuti — detail pending',
   },
   {
     name: 'contract_expiry_check',
     kind: 'read',
     label: 'Cek kontrak hampir habis',
     description: 'Kontrak aktif yang berakhir dalam 30 hari.',
+    prompt: 'Cek kontrak hampir habis',
   },
   {
     name: 'onboarding_status',
     kind: 'read',
     label: 'Status onboarding',
     description: 'Proses onboarding karyawan baru yang masih berjalan.',
+    prompt: 'Cek onboarding',
   },
   {
     name: 'run_automation_scan',
     kind: 'write',
     label: 'Jalankan scan otomasi',
     description: 'Scan semua aturan otomasi aktif (bisa memicu aksi).',
+    prompt: 'Jalankan scan otomasi',
   },
   {
     name: 'execute_recruitment_screening',
     kind: 'write',
     label: 'Advance kandidat lolos screening',
     description: 'Naikkan stage kandidat skor tinggi (applied → screening).',
+    prompt: 'Jalankan screening kandidat',
   },
   {
     name: 'execute_contract_expiry_alert',
     kind: 'write',
     label: 'Jalankan alert kontrak',
     description: 'Evaluasi & catat alert kontrak hampir habis.',
+    prompt: 'Jalankan alert kontrak hampir habis',
   },
   {
     name: 'execute_leave_backlog_alert',
     kind: 'write',
     label: 'Jalankan alert backlog cuti',
     description: 'Evaluasi & catat alert jika cuti pending menumpuk.',
+    prompt: 'Jalankan alert backlog cuti',
   },
 ];
 

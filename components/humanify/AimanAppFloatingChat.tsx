@@ -168,6 +168,28 @@ export default function AimanAppFloatingChat() {
     }
   }, [confirming]);
 
+  useEffect(() => {
+    if (hideHere) return;
+    const onLaunch = (e: Event) => {
+      const ce = e as CustomEvent<{ run?: string; tool?: string; label?: string }>;
+      ce.preventDefault();
+      setOpen(true);
+      setUnreadNudge(false);
+      const { run, tool, label } = ce.detail || {};
+      if (tool) {
+        setMessages((prev) => [
+          ...prev,
+          { role: 'user', content: label ? `Jalankan: ${label}` : `Jalankan tool ${tool}` },
+        ]);
+        void confirmAction(tool);
+      } else if (run) {
+        void send(run);
+      }
+    };
+    window.addEventListener('aiman:launch', onLaunch as EventListener);
+    return () => window.removeEventListener('aiman:launch', onLaunch as EventListener);
+  }, [hideHere, send, confirmAction]);
+
   if (hideHere) return null;
 
   const showPulse = !open;

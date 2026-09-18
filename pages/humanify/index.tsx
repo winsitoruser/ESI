@@ -10,6 +10,7 @@ import NewCompanyLaunchBanner from '@/components/humanify/NewCompanyLaunchBanner
 import { emptyMonthPresence, type MonthPresenceMix } from '@/lib/hris/month-presence';
 import MonthPresencePie from '@/components/humanify/MonthPresencePie';
 import AimanToolsFunctionsCard from '@/components/humanify/AimanToolsFunctionsCard';
+import FireProgressBar from '@/components/humanify/FireProgressBar';
 import FirstRunTour from '@/components/humanify/FirstRunTour';
 import QuickActionsDock from '@/components/humanify/QuickActionsDock';
 import HrisEmptyState from '@/components/humanify/HrisEmptyState';
@@ -816,35 +817,6 @@ export default function HRISDashboard() {
               </div>
             </div>
 
-            {docCompliance && docCompliance.activeEmployees > 0 && (
-              <OpsPanel
-                title="Kelengkapan dokumen"
-                subtitle={`Rata-rata ${docCompliance.avgPercent}% · ${docCompliance.complete}/${docCompliance.activeEmployees} karyawan lengkap`}
-                action={
-                  <Link href="/humanify/employees" className="inline-flex items-center gap-1 text-xs font-medium text-[color:var(--hf-brand-600)] hover:underline">
-                    Buka karyawan <ArrowRight className="h-3 w-3" />
-                  </Link>
-                }
-              >
-                <div className="h-2 overflow-hidden rounded-full bg-[var(--hf-surface-muted)]">
-                  <div
-                    className={`h-full rounded-full ${docCompliance.avgPercent >= 80 ? 'bg-[color:var(--hf-success)]' : docCompliance.avgPercent >= 50 ? 'bg-[color:var(--hf-warning)]' : 'bg-[color:var(--hf-danger)]'}`}
-                    style={{ width: `${Math.min(100, docCompliance.avgPercent)}%` }}
-                  />
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                  <span className="hf-tile-nested px-2 py-1 text-xs text-[color:var(--hf-ink)]">{docCompliance.incomplete} belum lengkap</span>
-                  {docCompliance.expiredDocs > 0 && <span className="hf-tile-nested px-2 py-1 text-xs text-[color:var(--hf-ink)]">{docCompliance.expiredDocs} kedaluwarsa</span>}
-                  {docCompliance.expiringSoonDocs > 0 && <span className="hf-tile-nested px-2 py-1 text-xs text-[color:var(--hf-ink)]">{docCompliance.expiringSoonDocs} ≤30 hari</span>}
-                  {docCompliance.topMissing?.slice(0, 3).map((m) => (
-                    <span key={m.type} className="hf-tile-nested px-2 py-1 text-xs text-[color:var(--hf-ink-muted)]">
-                      Minus {m.label.split('(')[0].trim()}: {m.count}
-                    </span>
-                  ))}
-                </div>
-              </OpsPanel>
-            )}
-
             {(byType.leave || byType.overtime || byType.claim || byType.contract || byType.attendance) ? (
               <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
                 {[
@@ -1009,6 +981,46 @@ export default function HRISDashboard() {
                                   ))}
                                 </tbody>
                               </table>
+                            </div>
+                          )}
+
+                          {docCompliance && docCompliance.activeEmployees > 0 && (
+                            <div className="mt-4 border-t border-[var(--hf-border-subtle)] pt-3">
+                              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <FolderOpen className="h-3.5 w-3.5 shrink-0 text-[color:var(--hf-brand-600)]" />
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-semibold text-[color:var(--hf-ink)]">Kelengkapan dokumen</p>
+                                    <p className="text-[10px] text-[color:var(--hf-ink-muted)]">
+                                      Rata-rata {docCompliance.avgPercent}% · {docCompliance.complete}/{docCompliance.activeEmployees} lengkap
+                                    </p>
+                                  </div>
+                                </div>
+                                <Link href="/humanify/employees" className="text-[11px] font-medium text-[color:var(--hf-brand-600)] hover:underline">
+                                  Buka karyawan →
+                                </Link>
+                              </div>
+                              <FireProgressBar value={docCompliance.avgPercent} height={12} className="mt-1" />
+                              <div className="mt-3 flex flex-wrap gap-1.5">
+                                <span className="rounded-md bg-[var(--hf-surface-muted)] px-2 py-0.5 text-[10px] font-medium text-[color:var(--hf-ink)]">
+                                  {docCompliance.incomplete} belum lengkap
+                                </span>
+                                {docCompliance.expiredDocs > 0 && (
+                                  <span className="rounded-md bg-rose-50 px-2 py-0.5 text-[10px] font-medium text-rose-700">
+                                    {docCompliance.expiredDocs} kedaluwarsa
+                                  </span>
+                                )}
+                                {docCompliance.expiringSoonDocs > 0 && (
+                                  <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+                                    {docCompliance.expiringSoonDocs} ≤30 hari
+                                  </span>
+                                )}
+                                {docCompliance.topMissing?.slice(0, 3).map((m) => (
+                                  <span key={m.type} className="rounded-md bg-white px-2 py-0.5 text-[10px] text-[color:var(--hf-ink-muted)] ring-1 ring-[var(--hf-border-subtle)]">
+                                    Minus {m.label.split('(')[0].trim()}: {m.count}
+                                  </span>
+                                ))}
+                              </div>
                             </div>
                           )}
                         </div>

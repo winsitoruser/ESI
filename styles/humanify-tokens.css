@@ -599,3 +599,85 @@ body.hf-quick-dock-active .humanify-theme main {
 body.hf-quick-dock-collapsed .humanify-theme main {
   padding-bottom: max(4.5rem, env(safe-area-inset-bottom));
 }
+
+/* ── Fire-tipped progress bar (doc compliance / KPI) ── */
+@keyframes hf-flame-flicker {
+  0% { transform: translateY(-50%) scale(1) rotate(-4deg); opacity: 0.92; filter: brightness(1); }
+  50% { transform: translateY(-58%) scale(1.12) rotate(3deg); opacity: 1; filter: brightness(1.25); }
+  100% { transform: translateY(-46%) scale(0.95) rotate(-2deg); opacity: 0.88; filter: brightness(1.05); }
+}
+@keyframes hf-flame-glow {
+  0%, 100% { box-shadow: 0 0 6px 2px rgba(249, 115, 22, 0.45), 0 0 14px 4px rgba(239, 68, 68, 0.25); }
+  50% { box-shadow: 0 0 10px 4px rgba(251, 191, 36, 0.65), 0 0 20px 6px rgba(249, 115, 22, 0.4); }
+}
+@keyframes hf-fire-shimmer {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+
+.humanify-theme .hf-fire-progress {
+  position: relative;
+  width: 100%;
+  overflow: visible;
+  border-radius: 9999px;
+  background: var(--hf-surface-muted, #f1f5f9);
+}
+.humanify-theme .hf-fire-progress__fill {
+  position: relative;
+  height: 100%;
+  border-radius: inherit;
+  max-width: 100%;
+  transition: width 1.15s cubic-bezier(0.22, 1, 0.36, 1);
+  background-size: 200% 100%;
+  animation: hf-fire-shimmer 2.4s linear infinite, hf-flame-glow 1.6s ease-in-out infinite;
+}
+.humanify-theme .hf-fire-progress--ok .hf-fire-progress__fill {
+  background-image: linear-gradient(90deg, #059669, #34d399, #fbbf24, #f97316);
+}
+.humanify-theme .hf-fire-progress--warn .hf-fire-progress__fill {
+  background-image: linear-gradient(90deg, #d97706, #f59e0b, #fb923c, #ef4444);
+}
+.humanify-theme .hf-fire-progress--danger .hf-fire-progress__fill {
+  background-image: linear-gradient(90deg, #dc2626, #f97316, #fbbf24, #ef4444);
+}
+.humanify-theme .hf-fire-progress__flame {
+  position: absolute;
+  right: -2px;
+  top: 50%;
+  width: 16px;
+  height: 22px;
+  pointer-events: none;
+  animation: hf-flame-flicker 0.35s ease-in-out infinite alternate;
+  z-index: 2;
+}
+.humanify-theme .hf-fire-progress__flame-core,
+.humanify-theme .hf-fire-progress__flame-outer {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  border-radius: 50% 50% 40% 40% / 60% 60% 35% 35%;
+}
+.humanify-theme .hf-fire-progress__flame-outer {
+  width: 14px;
+  height: 18px;
+  background: radial-gradient(ellipse at 50% 80%, #fbbf24 0%, #f97316 45%, #ef4444 75%, transparent 100%);
+  filter: blur(0.4px);
+  opacity: 0.95;
+}
+.humanify-theme .hf-fire-progress__flame-core {
+  width: 7px;
+  height: 11px;
+  bottom: 2px;
+  background: radial-gradient(ellipse at 50% 70%, #fff7ed 0%, #fde68a 40%, #fbbf24 80%, transparent 100%);
+  z-index: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .humanify-theme .hf-fire-progress__fill,
+  .humanify-theme .hf-fire-progress__flame {
+    animation: none !important;
+  }
+  .humanify-theme .hf-fire-progress__fill {
+    transition: none !important;
+  }
+}

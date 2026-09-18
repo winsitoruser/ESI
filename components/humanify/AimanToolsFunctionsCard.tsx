@@ -1,20 +1,46 @@
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { Bot, Sparkles, Wrench, Zap, ArrowRight, ShieldCheck } from 'lucide-react';
 import {
   AIMAN_AGENT_TOOLS,
   AIMAN_AGENT_WORKFLOWS,
+  type AgentToolName,
 } from '@/lib/hris/aiman-agent-catalog';
 import { isHumanifyAiUiEnabled } from '@/lib/hris/ai-enabled';
 
-function copilotHref(prompt: string) {
-  return `/humanify/ai?tab=copilot&prompt=${encodeURIComponent(prompt)}`;
+export type AimanLaunchDetail = {
+  /** Chat phrase — runs agent workflow via copilot. */
+  run?: string;
+  /** Execute tool immediately via agent-confirm (read or write). */
+  tool?: AgentToolName;
+  label?: string;
+};
+
+/** Open FAB chat (if present) or fall back to AI Hub with auto-run. */
+export function launchAimanAction(detail: AimanLaunchDetail, navigate?: (href: string) => void) {
+  if (typeof window !== 'undefined') {
+    const ev = new CustomEvent('aiman:launch', { detail, cancelable: true });
+    window.dispatchEvent(ev);
+    if (ev.defaultPrevented) return;
+  }
+  const qs = new URLSearchParams({ tab: 'copilot' });
+  if (detail.tool) qs.set('tool', detail.tool);
+  else if (detail.run) qs.set('run', detail.run);
+  const href = `/humanify/ai?${qs.toString()}`;
+  if (navigate) navigate(href);
+  else if (typeof window !== 'undefined') window.location.assign(href);
 }
 
 export default function AimanToolsFunctionsCard() {
+  const router = useRouter();
   if (!isHumanifyAiUiEnabled()) return null;
 
   const readTools = AIMAN_AGENT_TOOLS.filter((t) => t.kind === 'read');
   const writeTools = AIMAN_AGENT_TOOLS.filter((t) => t.kind === 'write');
+
+  const go = (detail: AimanLaunchDetail) => {
+    launchAimanAction(detail, (href) => { void router.push(href); });
+  };
 
   return (
     <div className="hf-card relative w-full overflow-hidden">
@@ -27,7 +53,7 @@ export default function AimanToolsFunctionsCard() {
               <h3 className="font-semibold text-[color:var(--hf-ink)]">AIMAN · Tools & Functions</h3>
             </div>
             <p className="mt-0.5 text-xs text-[color:var(--hf-ink-muted)]">
-              Baca langsung · aksi write butuh konfirmasi Anda
+              Klik untuk langsung menjalankan · write tetap tercatat sebagai konfirmasi
             </p>
           </div>
           <Link
@@ -41,7 +67,6 @@ export default function AimanToolsFunctionsCard() {
       </div>
 
       <div className="grid w-full divide-y divide-[var(--hf-border-subtle)] md:grid-cols-3 md:divide-x md:divide-y-0">
-        {/* Functions · workflow */}
         <section className="min-w-0 px-5 py-4 pl-6 md:pl-6">
           <div className="mb-3 flex items-center gap-1.5">
             <Zap className="h-3.5 w-3.5 text-[color:var(--hf-brand-600)]" />
@@ -54,10 +79,11 @@ export default function AimanToolsFunctionsCard() {
           </div>
           <div className="space-y-1.5">
             {AIMAN_AGENT_WORKFLOWS.map((wf) => (
-              <Link
+              <button
                 key={wf.id}
-                href={copilotHref(wf.prompt)}
-                className="group flex items-start gap-2 rounded-lg border border-[var(--hf-border-subtle)] bg-white px-2.5 py-2 transition hover:border-[var(--hf-brand-200)] hover:bg-[var(--hf-brand-50)]/50"
+                type="button"
+                onClick={() => go({ run: wf.prompt, label: wf.title })}
+                className="group flex w-full items-start gap-2 rounded-lg border border-[var(--hf-border-subtle)] bg-white px-2.5 py-2 text-left transition hover:border-[var(--hf-brand-200)] hover:bg-[var(--hf-brand-50)]/50"
               >
                 <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)]">
                   <Zap className="h-3 w-3" />
@@ -69,12 +95,11 @@ export default function AimanToolsFunctionsCard() {
                   </span>
                   <span className="mt-0.5 block text-[10px] leading-snug text-[color:var(--hf-ink-muted)]">{wf.description}</span>
                 </span>
-              </Link>
+              </button>
             ))}
           </div>
         </section>
 
-        {/* Tools · read */}
         <section className="min-w-0 px-5 py-4">
           <div className="mb-3 flex items-center gap-1.5">
             <Wrench className="h-3.5 w-3.5 text-emerald-600" />
@@ -88,9 +113,10 @@ export default function AimanToolsFunctionsCard() {
           <ul className="space-y-1">
             {readTools.map((tool) => (
               <li key={tool.name}>
-                <Link
-                  href={copilotHref(tool.label)}
-                  className="flex items-start gap-2 rounded-md px-1.5 py-1.5 text-left transition hover:bg-[var(--hf-surface-muted)]"
+                <button
+                  type="button"
+                  onClick={() => go({ tool: tool.name, label: tool.label })}
+                  className="flex w-full items-start gap-2 rounded-md px-1.5 py-1.5 text-left transition hover:bg-[var(--hf-surface-muted)]"
                 >
                   <span className="mt-0.5 shrink-0 rounded bg-emerald-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-emerald-700">
                     Read
@@ -99,13 +125,12 @@ export default function AimanToolsFunctionsCard() {
                     <span className="block text-xs font-medium text-[color:var(--hf-ink)]">{tool.label}</span>
                     <span className="block text-[10px] leading-snug text-[color:var(--hf-ink-muted)]">{tool.description}</span>
                   </span>
-                </Link>
+                </button>
               </li>
             ))}
           </ul>
         </section>
 
-        {/* Tools · write (confirm) */}
         <section className="min-w-0 px-5 py-4 md:pr-5">
           <div className="mb-3 flex items-center gap-1.5">
             <ShieldCheck className="h-3.5 w-3.5 text-amber-600" />
@@ -119,9 +144,10 @@ export default function AimanToolsFunctionsCard() {
           <ul className="space-y-1">
             {writeTools.map((tool) => (
               <li key={tool.name}>
-                <Link
-                  href={copilotHref(tool.label)}
-                  className="flex items-start gap-2 rounded-md px-1.5 py-1.5 text-left transition hover:bg-[var(--hf-surface-muted)]"
+                <button
+                  type="button"
+                  onClick={() => go({ tool: tool.name, label: tool.label })}
+                  className="flex w-full items-start gap-2 rounded-md px-1.5 py-1.5 text-left transition hover:bg-[var(--hf-surface-muted)]"
                 >
                   <span className="mt-0.5 shrink-0 rounded bg-amber-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-700">
                     Write
@@ -130,7 +156,7 @@ export default function AimanToolsFunctionsCard() {
                     <span className="block text-xs font-medium text-[color:var(--hf-ink)]">{tool.label}</span>
                     <span className="block text-[10px] leading-snug text-[color:var(--hf-ink-muted)]">{tool.description}</span>
                   </span>
-                </Link>
+                </button>
               </li>
             ))}
           </ul>
