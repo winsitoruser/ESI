@@ -2,22 +2,38 @@ import { GetServerSideProps } from 'next';
 import { getServerSession } from 'next-auth/next';
 import HumanifySignupForm from '@/components/humanify/HumanifySignupForm';
 import HumanifySeoHead from '@/components/humanify/HumanifySeoHead';
-import PublicAuthShell from '@/components/humanify/PublicAuthShell';
 import { authOptions } from '../api/auth/[...nextauth]';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
+import { buildBreadcrumbJsonLd, buildSoftwareApplicationJsonLd, buildWebPageJsonLd } from '@/lib/humanify/seo';
 
 export default function HumanifySignupPage() {
   return (
     <>
       <HumanifySeoHead
         title={`Daftar Trial ${HUMANIFY_BRAND.name} HRIS — 14 Hari Gratis`}
-        description={`Daftar gratis ${HUMANIFY_BRAND.name} — trial 14 hari HRIS untuk perusahaan Anda. Tanpa kartu kredit.`}
+        description={`Daftar gratis ${HUMANIFY_BRAND.name} — trial 14 hari HRIS untuk perusahaan Anda. Tanpa kartu kredit. Mulai kelola SDM hari ini.`}
         path={HUMANIFY_BRAND.signupPath}
-        keywords="daftar HRIS, trial HRIS gratis, software HR Indonesia, Humanify signup"
+        keywords={[
+          'daftar HRIS',
+          'trial HRIS gratis',
+          'software HR Indonesia',
+          'Humanify signup',
+          'demo payroll',
+        ]}
+        jsonLd={[
+          buildSoftwareApplicationJsonLd(),
+          buildWebPageJsonLd({
+            name: `Daftar ${HUMANIFY_BRAND.name}`,
+            description: `Trial 14 hari gratis ${HUMANIFY_BRAND.name} HRIS.`,
+            path: HUMANIFY_BRAND.signupPath,
+          }),
+          buildBreadcrumbJsonLd([
+            { name: 'Beranda', path: '/' },
+            { name: 'Daftar', path: HUMANIFY_BRAND.signupPath },
+          ]),
+        ]}
       />
-      <PublicAuthShell variant="dark">
-        <HumanifySignupForm />
-      </PublicAuthShell>
+      <HumanifySignupForm />
     </>
   );
 }

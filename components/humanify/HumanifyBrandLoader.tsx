@@ -36,6 +36,7 @@ type HumanifyBrandLoaderProps = {
 /**
  * Branded Humanify loading — logo pulse, orbit rings, rotating status.
  * CSS transforms only (GPU) to stay smooth during signup / go-live.
+ * Light marketing surface so signup → loader does not flash dark.
  */
 export default function HumanifyBrandLoader({
   mode = 'fullscreen',
@@ -69,32 +70,32 @@ export default function HumanifyBrandLoader({
   const status = message || lines[idx];
 
   const body = (
-    <div className={`relative flex flex-col items-center justify-center text-center px-6 ${className}`}>
+    <div className={`relative flex flex-col items-center justify-center px-6 text-center ${className}`}>
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-        <div className="absolute left-1/2 top-1/2 h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-600/20 blur-[90px]" />
-        <div className="absolute left-[35%] top-[40%] h-48 w-48 -translate-x-1/2 rounded-full bg-fuchsia-500/15 blur-[60px] animate-pulse" />
+        <div className="absolute left-1/2 top-1/2 h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#f6e6ff] blur-[90px]" />
+        <div className="absolute left-[35%] top-[40%] h-48 w-48 -translate-x-1/2 animate-pulse rounded-full bg-[#e6deeb]/80 blur-[60px]" />
       </div>
 
       <div className="relative z-10 mb-8 flex h-28 w-28 items-center justify-center">
-        <span className="hfy-orbit absolute inset-0 rounded-full border border-violet-400/25" />
-        <span className="hfy-orbit-rev absolute inset-2 rounded-full border border-dashed border-fuchsia-400/30" />
-        <span className="absolute inset-[-6px] rounded-full border border-violet-500/10" />
+        <span className="hfy-orbit absolute inset-0 rounded-full border border-[#592277]/20" />
+        <span className="hfy-orbit-rev absolute inset-2 rounded-full border border-dashed border-[#592277]/25" />
+        <span className="absolute inset-[-6px] rounded-full border border-[#eee9f1]" />
 
         <span className="hfy-orbit absolute inset-0">
-          <span className="absolute left-1/2 top-0 h-2 w-2 -translate-x-1/2 rounded-full bg-violet-400 shadow-[0_0_12px_rgba(167,139,250,0.9)]" />
+          <span className="absolute left-1/2 top-0 h-2 w-2 -translate-x-1/2 rounded-full bg-[#592277] shadow-[0_0_12px_rgba(89,34,119,0.45)]" />
         </span>
         <span className="hfy-orbit-rev absolute inset-2">
-          <span className="absolute left-1/2 top-0 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-fuchsia-400 shadow-[0_0_10px_rgba(232,121,249,0.9)]" />
+          <span className="absolute left-1/2 top-0 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-[#cc7bf9] shadow-[0_0_10px_rgba(204,123,249,0.5)]" />
         </span>
 
         <motion.div
-          className="relative z-10 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-white ring-1 ring-white/20"
+          className="relative z-10 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-white ring-1 ring-[#eee9f1]"
           animate={{
             scale: [1, 1.06, 1],
             boxShadow: [
-              '0 0 28px rgba(139,92,246,0.35)',
-              '0 0 48px rgba(192,132,252,0.55)',
-              '0 0 28px rgba(139,92,246,0.35)',
+              '0 0 28px rgba(89,34,119,0.18)',
+              '0 0 48px rgba(89,34,119,0.28)',
+              '0 0 28px rgba(89,34,119,0.18)',
             ],
           }}
           transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
@@ -110,13 +111,13 @@ export default function HumanifyBrandLoader({
       </div>
 
       <motion.p
-        className="relative z-10 text-lg font-semibold tracking-tight text-white"
+        className="relative z-10 text-lg font-semibold tracking-tight text-[#35393f]"
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
       >
         {HUMANIFY_BRAND.name}
       </motion.p>
-      <p className="relative z-10 mt-1 text-xs font-medium uppercase tracking-[0.2em] text-violet-300/70">
+      <p className="relative z-10 mt-1 text-xs font-medium uppercase tracking-[0.2em] text-[#592277]/70">
         {HUMANIFY_BRAND.productType}
       </p>
 
@@ -128,21 +129,21 @@ export default function HumanifyBrandLoader({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.35 }}
-            className="text-sm text-violet-100/80"
+            className="text-sm text-[#656565]"
           >
             {status}
           </motion.p>
         </AnimatePresence>
       </div>
 
-      <div className="relative z-10 mt-5 h-1.5 w-56 overflow-hidden rounded-full bg-white/10">
+      <div className="relative z-10 mt-5 h-1.5 w-56 overflow-hidden rounded-full bg-[#eee9f1]">
         <motion.div
-          className="h-full rounded-full bg-gradient-to-r from-violet-500 via-fuchsia-400 to-violet-400"
+          className="h-full rounded-full bg-gradient-to-r from-[#592277] via-[#cc7bf9] to-[#592277]"
           initial={false}
           animate={{ width: `${pct}%` }}
           transition={{ type: 'spring', stiffness: 60, damping: 18 }}
         />
-        <div className="hfy-shimmer pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+        <div className="hfy-shimmer pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/60 to-transparent" />
       </div>
     </div>
   );
@@ -170,12 +171,12 @@ export default function HumanifyBrandLoader({
   return (
     <>
       {styles}
-      <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-[#0a0812]">
+      <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-white">
         <div
-          className="pointer-events-none absolute inset-0 opacity-40"
+          className="pointer-events-none absolute inset-0 opacity-60"
           style={{
             backgroundImage:
-              'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
+              'linear-gradient(rgba(89,34,119,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(89,34,119,0.04) 1px, transparent 1px)',
             backgroundSize: '48px 48px',
             maskImage: 'radial-gradient(ellipse 70% 60% at 50% 45%, #000 40%, transparent 100%)',
           }}

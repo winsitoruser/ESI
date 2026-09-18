@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/router';
 import { signIn } from 'next-auth/react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
 import {
   Mail,
@@ -20,8 +21,7 @@ import {
   Zap,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { HUMANIFY_BRAND, NAINCODE } from '@/lib/humanify/branding';
-import { HumanifyLogo } from '@/components/humanify/HumanifyLogo';
+import { HUMANIFY_BRAND, HUMANIFY_MARKETING, NAINCODE } from '@/lib/humanify/branding';
 
 type Props = {
   csrfToken: string;
@@ -79,38 +79,27 @@ export default function EmployeePortalLoginForm({ csrfToken }: Props) {
 
   const inputClass =
     'w-full min-h-11 pl-11 pr-4 text-base lg:text-sm rounded-xl outline-none transition-all ' +
-    'bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 ' +
-    'focus:border-[color:var(--ep-accent)] focus:ring-2 focus:ring-teal-500/20 ' +
-    'lg:bg-white/[0.04] lg:border-white/[0.08] lg:text-white lg:placeholder:text-slate-600 ' +
-    'lg:focus:bg-white/[0.06] lg:focus:border-indigo-500/40 lg:focus:ring-indigo-500/15';
+    'bg-white border border-[#eee9f1] text-[#35393f] placeholder:text-[#656565]/50 ' +
+    'focus:border-[#592277] focus:ring-2 focus:ring-[rgba(89,34,119,0.2)]';
 
   return (
-    <div className="min-h-[100dvh] lg:min-h-screen flex flex-col lg:flex-row bg-[#f8fafc] text-slate-900 lg:bg-[#080b14] lg:text-white overflow-x-hidden">
-      <div className="pointer-events-none fixed inset-0 hidden lg:block">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(99,102,241,0.18),transparent)]" />
-        <motion.div
-          className="absolute top-[-5%] right-[10%] w-[500px] h-[500px] bg-indigo-600/15 rounded-full blur-[120px]"
-          animate={{ opacity: [0.4, 0.6, 0.4] }}
-          transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <motion.div
-          className="absolute bottom-[-10%] left-[-5%] w-[420px] h-[420px] bg-violet-600/12 rounded-full blur-[100px]"
-          animate={{ opacity: [0.3, 0.5, 0.3] }}
-          transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
-        />
+    <div className="flex min-h-[100dvh] flex-col overflow-x-hidden bg-white text-[#35393f] lg:min-h-screen lg:flex-row">
+      <div className="pointer-events-none fixed inset-0" aria-hidden>
+        <div className="absolute left-[15%] top-[-8%] h-[420px] w-[420px] rounded-full bg-[#f6e6ff] blur-[100px]" />
+        <div className="absolute bottom-[-5%] right-[5%] h-[360px] w-[360px] rounded-full bg-[#e6deeb]/70 blur-[90px]" />
       </div>
 
-      {/* Left — enterprise branding (desktop only) */}
-      <div className="hidden lg:flex lg:w-[54%] relative z-10 flex-col justify-between p-12 xl:p-16 border-r border-white/[0.06]">
-        <HumanifyLogo
-          href={HUMANIFY_BRAND.welcomePath}
-          size="lg"
-          variant="full"
-          src={HUMANIFY_BRAND.welcomeLogoPath}
-          aspect={HUMANIFY_BRAND.welcomeLogoAspect}
-          className="rounded-lg"
-          priority
-        />
+      {/* Left — branding (desktop) */}
+      <div className="relative z-10 hidden flex-col justify-between border-r border-[#eee9f1] bg-[#f6e6ff]/40 p-12 lg:flex lg:w-[54%] xl:p-16">
+        <Link href={HUMANIFY_BRAND.welcomePath} className="relative h-10 w-36 shrink-0">
+          <Image
+            src={HUMANIFY_BRAND.marketingLogoPath}
+            alt={HUMANIFY_BRAND.name}
+            fill
+            className="object-contain object-left"
+            priority
+          />
+        </Link>
 
         <motion.div
           initial={false}
@@ -118,123 +107,127 @@ export default function EmployeePortalLoginForm({ csrfToken }: Props) {
           transition={{ duration: 0.6, delay: 0.1 }}
           className="max-w-xl"
         >
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-indigo-400/25 bg-indigo-500/10 text-indigo-200 text-xs font-medium mb-8">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-[#eee9f1] bg-white px-3.5 py-1.5 text-xs font-medium text-[#592277]">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
             Employee Self-Service · {NAINCODE.name}
           </div>
 
-          <h1 className="text-4xl xl:text-[2.75rem] font-bold leading-[1.1] tracking-tight mb-5">
+          <h1 className="mb-5 text-4xl font-bold leading-[1.1] tracking-tight xl:text-[2.75rem]">
             Portal Karyawan
-            <span className="block mt-2 text-lg xl:text-xl font-normal text-slate-400">
+            <span className="mt-2 block text-lg font-normal text-[#656565] xl:text-xl">
               untuk organisasi skala enterprise
             </span>
           </h1>
 
-          <p className="text-slate-400 text-base leading-relaxed mb-10 max-w-md">
+          <p className="mb-10 max-w-md text-base leading-relaxed text-[#656565]">
             Kelola absensi, cuti, slip gaji, dan klaim — aman, terintegrasi, dan dapat diakses kapan saja.
           </p>
 
-          <div className="grid grid-cols-2 gap-3 mb-10">
+          <div className="mb-10 grid grid-cols-2 gap-3">
             {ESS_FEATURES.map((f, i) => (
               <motion.div
                 key={f.title}
                 initial={false}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.35, delay: 0.2 + i * 0.07 }}
-                className="group p-4 rounded-2xl border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.05] hover:border-white/[0.12] transition-all"
+                className="group rounded-2xl border border-[#eee9f1] bg-white p-4 transition-all hover:border-[#592277]/30 hover:shadow-sm"
               >
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500/20 to-violet-500/10 border border-indigo-400/20 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-                  <f.icon className="w-4 h-4 text-indigo-300" />
+                <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl border border-[#eee9f1] bg-[#f6e6ff] transition-transform group-hover:scale-105">
+                  <f.icon className="h-4 w-4 text-[#592277]" />
                 </div>
-                <p className="text-sm font-semibold text-white/95">{f.title}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{f.desc}</p>
+                <p className="text-sm font-semibold text-[#35393f]">{f.title}</p>
+                <p className="mt-0.5 text-xs text-[#656565]">{f.desc}</p>
               </motion.div>
             ))}
           </div>
 
           <div className="flex flex-wrap gap-4">
             {TRUST_BADGES.map((b) => (
-              <div key={b.label} className="flex items-center gap-2 text-xs text-slate-500">
-                <b.icon className="w-3.5 h-3.5 text-indigo-400/70" />
+              <div key={b.label} className="flex items-center gap-2 text-xs text-[#656565]">
+                <b.icon className="h-3.5 w-3.5 text-[#592277]/70" />
                 {b.label}
               </div>
             ))}
           </div>
         </motion.div>
 
-        <p className="text-xs text-slate-600">
+        <p className="text-xs text-[#656565]">
           © {new Date().getFullYear()} {NAINCODE.legalName} · {HUMANIFY_BRAND.name} HRIS
         </p>
       </div>
 
-      {/* Form column — phone shell on mobile, card on desktop */}
-      <div className="flex-1 relative z-10 flex flex-col lg:items-center lg:justify-center min-h-[100dvh] lg:min-h-0 lg:p-12">
+      {/* Form column */}
+      <div className="relative z-10 flex min-h-[100dvh] flex-1 flex-col lg:min-h-0 lg:items-center lg:justify-center lg:p-12">
         <motion.div
           initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="w-full max-w-none lg:max-w-[420px] flex flex-col flex-1 lg:flex-none px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] lg:p-0"
+          className="flex w-full max-w-none flex-1 flex-col px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] lg:max-w-[420px] lg:flex-none lg:p-0"
         >
-          <header className="lg:hidden mb-5">
-            <HumanifyLogo
-              href={HUMANIFY_BRAND.welcomePath}
-              size="sm"
-              variant="full"
-              src={HUMANIFY_BRAND.welcomeLogoPath}
-              aspect={HUMANIFY_BRAND.welcomeLogoAspect}
-              className="rounded-md h-8 w-auto"
-            />
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-teal-700 mt-3">
+          <header className="mb-5 lg:hidden">
+            <Link href={HUMANIFY_BRAND.welcomePath} className="relative mb-1 block h-8 w-28">
+              <Image
+                src={HUMANIFY_BRAND.marketingLogoPath}
+                alt={HUMANIFY_BRAND.name}
+                fill
+                className="object-contain object-left"
+                priority
+              />
+            </Link>
+            <p className="mt-3 text-[11px] font-semibold uppercase tracking-wider text-[#592277]">
               Employee Self-Service
             </p>
-            <h1 className="text-[1.65rem] font-bold tracking-tight text-slate-900 leading-tight mt-1">
+            <h1 className="mt-1 text-[1.65rem] font-bold leading-tight tracking-tight text-[#35393f]">
               Portal Karyawan
             </h1>
-            <p className="text-sm text-slate-500 mt-1 leading-snug">
+            <p className="mt-1 text-sm leading-snug text-[#656565]">
               Masuk untuk absensi, cuti, slip gaji, dan klaim.
             </p>
           </header>
 
-          <div className="lg:hidden grid grid-cols-4 gap-2 mb-5">
+          <div className="mb-5 grid grid-cols-4 gap-2 lg:hidden">
             {ESS_FEATURES.map((f) => (
               <div
                 key={f.title}
-                className="flex flex-col items-center gap-1.5 rounded-2xl border border-slate-200/80 bg-white px-1 py-2.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+                className="flex flex-col items-center gap-1.5 rounded-2xl border border-[#eee9f1] bg-white px-1 py-2.5 shadow-[0_1px_2px_rgba(53,57,63,0.04)]"
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#f6e6ff] text-[#592277]">
                   <f.icon className="h-4 w-4" aria-hidden />
                 </div>
-                <p className="text-[10px] font-semibold text-slate-700 text-center leading-tight">{f.short}</p>
+                <p className="text-center text-[10px] font-semibold leading-tight text-[#35393f]">
+                  {f.short}
+                </p>
               </div>
             ))}
           </div>
 
-          <div className="relative flex-1 lg:flex-none rounded-2xl lg:rounded-3xl border border-slate-200/90 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.06)] lg:border-white/[0.1] lg:bg-white/[0.04] lg:backdrop-blur-2xl lg:shadow-2xl lg:shadow-black/40 overflow-hidden">
-            <div className="hidden lg:block absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-400/40 to-transparent" />
-
+          <div className="relative flex-1 overflow-hidden rounded-2xl border border-[#eee9f1] bg-white shadow-[0_8px_30px_rgba(53,57,63,0.06)] lg:flex-none lg:rounded-3xl">
             <div className="relative p-5 sm:p-6 lg:p-9">
               <a
                 href="#ess-login-email"
-                className="sr-only focus:not-sr-only focus:absolute focus:z-20 focus:left-4 focus:top-4 focus:rounded-lg focus:bg-white focus:px-3 focus:py-2 focus:text-sm focus:text-slate-900"
+                className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-20 focus:rounded-lg focus:bg-white focus:px-3 focus:py-2 focus:text-sm focus:text-[#35393f]"
               >
                 Lompat ke formulir masuk
               </a>
               <div className="mb-5 lg:mb-7">
-                <h2 className="text-lg lg:text-xl font-bold tracking-tight text-slate-900 lg:text-white">
+                <h2 className="text-lg font-bold tracking-tight text-[#35393f] lg:text-xl">
                   Masuk ke akun Anda
                 </h2>
-                <p className="text-slate-500 text-sm mt-1">Gunakan kredensial karyawan perusahaan</p>
+                <p className="mt-1 text-sm text-[#656565]">Gunakan kredensial karyawan perusahaan</p>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4 lg:space-y-5">
                 <input type="hidden" name="csrfToken" value={csrfToken} />
 
                 <div>
-                  <label htmlFor="ess-login-email" className="block text-xs font-semibold uppercase tracking-wider text-slate-500 lg:text-slate-400 mb-2">
+                  <label
+                    htmlFor="ess-login-email"
+                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#656565]"
+                  >
                     Email karyawan
                   </label>
-                  <div className="relative group">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-[17px] h-[17px] text-slate-400 lg:text-slate-500 group-focus-within:text-teal-600 lg:group-focus-within:text-indigo-400 transition-colors" />
+                  <div className="group relative">
+                    <Mail className="absolute left-4 top-1/2 h-[17px] w-[17px] -translate-y-1/2 text-[#656565]/70 transition-colors group-focus-within:text-[#592277]" />
                     <input
                       id="ess-login-email"
                       type="email"
@@ -251,11 +244,14 @@ export default function EmployeePortalLoginForm({ csrfToken }: Props) {
                 </div>
 
                 <div>
-                  <label htmlFor="ess-login-password" className="block text-xs font-semibold uppercase tracking-wider text-slate-500 lg:text-slate-400 mb-2">
+                  <label
+                    htmlFor="ess-login-password"
+                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#656565]"
+                  >
                     Password
                   </label>
-                  <div className="relative group">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-[17px] h-[17px] text-slate-400 lg:text-slate-500 group-focus-within:text-teal-600 lg:group-focus-within:text-indigo-400 transition-colors" />
+                  <div className="group relative">
+                    <Lock className="absolute left-4 top-1/2 h-[17px] w-[17px] -translate-y-1/2 text-[#656565]/70 transition-colors group-focus-within:text-[#592277]" />
                     <input
                       id="ess-login-password"
                       type={showPassword ? 'text' : 'password'}
@@ -270,10 +266,10 @@ export default function EmployeePortalLoginForm({ csrfToken }: Props) {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 min-h-11 min-w-11 inline-flex items-center justify-center text-slate-400 hover:text-slate-700 lg:text-slate-500 lg:hover:text-slate-300 transition-colors"
+                      className="absolute right-2 top-1/2 inline-flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center text-[#656565] transition-colors hover:text-[#592277]"
                       aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
                     >
-                      {showPassword ? <EyeOff className="w-[17px] h-[17px]" /> : <Eye className="w-[17px] h-[17px]" />}
+                      {showPassword ? <EyeOff className="h-[17px] w-[17px]" /> : <Eye className="h-[17px] w-[17px]" />}
                     </button>
                   </div>
                 </div>
@@ -283,14 +279,14 @@ export default function EmployeePortalLoginForm({ csrfToken }: Props) {
                   disabled={isLoading}
                   whileHover={{ scale: isLoading ? 1 : 1.01 }}
                   whileTap={{ scale: isLoading ? 1 : 0.99 }}
-                  className="relative w-full mt-1 min-h-11 rounded-xl font-semibold text-white overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed group text-base lg:text-sm"
+                  className="group relative mt-1 min-h-11 w-full overflow-hidden rounded-[10px] text-base font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 lg:text-sm"
+                  style={{ background: HUMANIFY_MARKETING.brand }}
                 >
-                  <div className="absolute inset-0 bg-[color:var(--ep-accent)] lg:bg-gradient-to-r lg:from-indigo-600 lg:via-violet-600 lg:to-indigo-600 lg:bg-[length:200%_100%] lg:group-hover:animate-[shimmer_2s_ease_infinite]" />
                   <span className="relative flex items-center justify-center gap-2">
                     {isLoading ? (
                       <>
                         <motion.div
-                          className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
+                          className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white"
                           animate={{ rotate: 360 }}
                           transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
                         />
@@ -299,32 +295,35 @@ export default function EmployeePortalLoginForm({ csrfToken }: Props) {
                     ) : (
                       <>
                         Masuk Portal Karyawan
-                        <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                       </>
                     )}
                   </span>
                 </motion.button>
               </form>
 
-              <div className="mt-6 lg:mt-8 pt-5 lg:pt-6 border-t border-slate-100 lg:border-white/[0.06] space-y-3">
-                <p className="text-center text-sm lg:text-xs text-slate-500">
-                  <Link href="/humanify/forgot-password" className="inline-flex min-h-10 items-center hover:text-teal-700 lg:hover:text-indigo-400 transition-colors">
+              <div className="mt-6 space-y-3 border-t border-[#eee9f1] pt-5 lg:mt-8 lg:pt-6">
+                <p className="text-center text-sm text-[#656565] lg:text-xs">
+                  <Link
+                    href="/humanify/forgot-password"
+                    className="inline-flex min-h-10 items-center transition-colors hover:text-[#592277]"
+                  >
                     Lupa password?
                   </Link>
                 </p>
                 <Link
                   href={HUMANIFY_BRAND.loginPath}
-                  className="flex items-center justify-between min-h-11 p-3.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 lg:border-white/[0.06] lg:bg-white/[0.02] lg:hover:bg-white/[0.05] lg:hover:border-indigo-500/20 transition-all group"
+                  className="group flex min-h-11 items-center justify-between rounded-xl border border-[#eee9f1] bg-[#f6e6ff]/50 p-3.5 transition-all hover:border-[#592277]/30 hover:bg-[#f6e6ff]"
                 >
                   <div>
-                    <p className="text-sm font-medium text-slate-800 lg:text-slate-300">Login HR / Admin</p>
-                    <p className="text-xs text-slate-500 lg:text-slate-600 mt-0.5">Untuk tim SDM & manajemen</p>
+                    <p className="text-sm font-medium text-[#35393f]">Login HR / Admin</p>
+                    <p className="mt-0.5 text-xs text-[#656565]">Untuk tim SDM & manajemen</p>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-slate-400 lg:text-slate-600 group-hover:text-teal-700 lg:group-hover:text-indigo-400 group-hover:translate-x-0.5 transition-all" />
+                  <ChevronRight className="h-4 w-4 text-[#656565] transition-all group-hover:translate-x-0.5 group-hover:text-[#592277]" />
                 </Link>
                 <Link
                   href={HUMANIFY_BRAND.welcomePath}
-                  className="flex min-h-10 items-center justify-center text-center text-xs text-slate-500 hover:text-teal-700 lg:text-slate-600 lg:hover:text-indigo-400 transition-colors"
+                  className="flex min-h-10 items-center justify-center text-center text-xs text-[#656565] transition-colors hover:text-[#592277]"
                 >
                   Kembali ke beranda Humanify
                 </Link>
@@ -332,19 +331,12 @@ export default function EmployeePortalLoginForm({ csrfToken }: Props) {
             </div>
           </div>
 
-          <p className="lg:hidden text-center text-[11px] text-slate-400 mt-4 flex items-center justify-center gap-1.5">
-            <Clock className="w-3.5 h-3.5" />
+          <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-[11px] text-[#656565] lg:hidden">
+            <Clock className="h-3.5 w-3.5" />
             Absensi · Cuti · Slip Gaji · Klaim
           </p>
         </motion.div>
       </div>
-
-      <style jsx global>{`
-        @keyframes shimmer {
-          0%, 100% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-        }
-      `}</style>
     </div>
   );
 }

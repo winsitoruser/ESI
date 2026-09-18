@@ -1,142 +1,52 @@
-import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
+import React from 'react';
 import dynamic from 'next/dynamic';
 import { Calculator } from 'lucide-react';
-import { HumanifyLogo } from '@/components/humanify/HumanifyLogo';
-import { NaincodeFooter } from '@/components/humanify/NaincodeFooter';
-import { HUMANIFY_BRAND, NAINCODE } from '@/lib/humanify/branding';
+import HumanifyMarketingShell from '@/components/humanify/HumanifyMarketingShell';
+import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
 
 const HumanifyRoiCalculator = dynamic(
   () => import('@/components/humanify/HumanifyRoiCalculator'),
   {
     ssr: false,
     loading: () => (
-      <div className="max-w-7xl mx-auto animate-pulse h-96 rounded-2xl bg-white/[0.03] border border-white/[0.06]" />
+      <div className="mx-auto h-96 max-w-7xl animate-pulse rounded-2xl border border-[#eee9f1] bg-[#f6e6ff]/50" />
     ),
   },
 );
 
 export default function HumanifyRoiCalculatorPage() {
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
   return (
-    <div className="min-h-screen bg-[#050508] text-white overflow-x-hidden">
-      <style>{`
-        @keyframes grid-fade {
-          0%, 100% { opacity: 0.03; }
-          50% { opacity: 0.06; }
-        }
-        .hf-grid-bg {
-          background-image:
-            linear-gradient(rgba(139,92,246,0.15) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(139,92,246,0.15) 1px, transparent 1px);
-          background-size: 64px 64px;
-          animation: grid-fade 8s ease-in-out infinite;
-        }
-      `}</style>
-
-      <div className="pointer-events-none fixed inset-0">
-        <div className="absolute inset-0 hf-grid-bg" />
-        <div className="absolute top-[-15%] left-[30%] w-[700px] h-[700px] bg-violet-600/15 rounded-full blur-[140px]" />
-        <div className="absolute bottom-[-10%] right-[5%] w-[500px] h-[500px] bg-fuchsia-600/10 rounded-full blur-[120px]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(139,92,246,0.08),_transparent_60%)]" />
-      </div>
-
-      <header
-        className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${
-          scrolled
-            ? 'bg-[#050508]/80 backdrop-blur-xl border-b border-white/[0.06] shadow-lg shadow-black/20'
-            : 'bg-transparent'
-        }`}
-      >
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <HumanifyLogo
-            href={HUMANIFY_BRAND.welcomePath}
-            size="lg"
-            variant="full"
-            src={HUMANIFY_BRAND.welcomeLogoPath}
-            aspect={HUMANIFY_BRAND.welcomeLogoAspect}
-            className="rounded-lg"
-            priority
-          />
-          <nav className="flex items-center gap-2 sm:gap-5">
-            <Link
-              href={HUMANIFY_BRAND.welcomePath}
-              className="hidden md:inline text-sm text-violet-300/60 hover:text-violet-200 transition"
-            >
-              Beranda
-            </Link>
-            <Link
-              href={HUMANIFY_BRAND.partnersPath}
-              className="hidden md:inline text-sm text-violet-300/60 hover:text-violet-200 transition"
-            >
-              Partner
-            </Link>
-            <a
-              href={NAINCODE.website}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden md:inline text-sm text-violet-300/60 hover:text-violet-200 transition"
-            >
-              {NAINCODE.name}
-            </a>
-            <Link
-              href={HUMANIFY_BRAND.employeeLoginPath}
-              className="hidden sm:inline text-sm text-violet-200/80 hover:text-white transition"
-            >
-              Portal Karyawan
-            </Link>
-            <Link
-              href={HUMANIFY_BRAND.signupPath}
-              className="hidden sm:inline text-sm text-violet-200/80 hover:text-white transition"
-            >
-              Daftar
-            </Link>
-            <Link
-              href={HUMANIFY_BRAND.loginPath}
-              className="px-4 py-2 rounded-xl bg-white text-violet-900 text-sm font-semibold hover:bg-violet-50 shadow-md shadow-violet-500/10 transition"
-            >
-              Masuk
-            </Link>
-          </nav>
+    <HumanifyMarketingShell footerVariant="brand">
+      <div className="relative overflow-x-hidden">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+          <div className="absolute left-[20%] top-[-10%] h-[480px] w-[480px] rounded-full bg-[#f6e6ff] blur-[100px]" />
+          <div className="absolute bottom-[10%] right-[-5%] h-[360px] w-[360px] rounded-full bg-[#e6deeb]/80 blur-[90px]" />
         </div>
-      </header>
 
-      <main className="relative z-10">
-        <section className="pt-32 pb-12 px-4 sm:px-6 lg:px-8">
-          <div className="max-w-7xl mx-auto text-center">
-            <div className="inline-flex items-center gap-2 bg-violet-500/10 text-violet-300 px-4 py-2 rounded-full mb-6 border border-violet-400/20">
-              <Calculator className="w-4 h-4" />
+        <section className="relative px-4 pb-10 pt-16 sm:px-6 lg:px-8 lg:pt-20">
+          <div className="mx-auto max-w-7xl text-center">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#eee9f1] bg-[#f6e6ff] px-4 py-2 text-[#592277]">
+              <Calculator className="h-4 w-4" />
               <span className="text-sm font-semibold">Kalkulator ROI</span>
             </div>
 
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 tracking-tight">
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-300 via-fuchsia-300 to-violet-200">
-                Hitung Berapa Banyak
-              </span>
+            <h1 className="mb-6 text-3xl font-bold tracking-tight text-[#35393f] md:text-4xl lg:text-5xl xl:text-6xl">
+              Hitung Berapa Banyak
               <br />
-              <span className="text-white">yang Bisa Anda Hemat</span>
+              <span className="text-[#592277]">yang Bisa Anda Hemat</span>
             </h1>
 
-            <p className="text-lg text-violet-200/60 max-w-2xl mx-auto mb-10">
+            <p className="mx-auto mb-10 max-w-2xl text-lg text-[#656565]">
               Masukkan data perusahaan Anda dan lihat estimasi penghematan biaya serta waktu dengan
               menggunakan {HUMANIFY_BRAND.name}
             </p>
           </div>
         </section>
 
-        <section className="pb-24 px-4 sm:px-6 lg:px-8">
+        <section className="relative px-4 pb-24 sm:px-6 lg:px-8">
           <HumanifyRoiCalculator />
         </section>
-      </main>
-
-      <NaincodeFooter />
-    </div>
+      </div>
+    </HumanifyMarketingShell>
   );
 }

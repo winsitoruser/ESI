@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { ArrowLeft, CheckCircle2, Eye, EyeOff, Loader2, Lock, ShieldCheck } from 'lucide-react';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
 import PublicAuthShell from '@/components/humanify/PublicAuthShell';
+import HumanifySeoHead from '@/components/humanify/HumanifySeoHead';
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -54,16 +54,17 @@ export default function ResetPasswordPage() {
 
   return (
     <>
-      <Head>
-        <title>Reset Password · {HUMANIFY_BRAND.name}</title>
-        <meta name="robots" content="noindex, nofollow" />
-        <link rel="icon" href={HUMANIFY_BRAND.welcomeLogoPath} type="image/png" />
-      </Head>
+      <HumanifySeoHead
+        title={`Reset Password — ${HUMANIFY_BRAND.name}`}
+        description={`Buat password baru untuk akun ${HUMANIFY_BRAND.name}.`}
+        path="/humanify/reset-password"
+        robots="noindex, nofollow"
+      />
       <PublicAuthShell>
-        <div className="w-full max-w-md hf-card p-8" style={{ borderColor: 'var(--hf-border)' }}>
+        <div className="w-full max-w-md rounded-2xl border border-[#eee9f1] bg-white p-5 shadow-sm sm:p-8">
           <div className="text-center">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-3">
-              <ShieldCheck className="w-6 h-6 text-emerald-600" />
+            <div className="w-12 h-12 rounded-2xl bg-[#f6e6ff] flex items-center justify-center mx-auto mb-3">
+              <ShieldCheck className="w-6 h-6 text-[#592277]" />
             </div>
             <h1 className="text-xl font-semibold text-slate-900">Buat password baru</h1>
             <p className="mt-1.5 text-sm text-slate-500">Minimal 8 karakter.</p>
@@ -72,13 +73,13 @@ export default function ResetPasswordPage() {
           {noToken ? (
             <div className="mt-6 text-center text-sm text-slate-600 space-y-3">
               <p className="text-red-600">Tautan tidak lengkap — token reset tidak ditemukan.</p>
-              <Link href="/humanify/forgot-password" className="text-emerald-600 underline">
+              <Link href="/humanify/forgot-password" className="text-[#592277] underline">
                 Minta tautan reset baru
               </Link>
               <p>
                 <Link
                   href="/humanify/login"
-                  className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-emerald-600"
+                  className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-[#592277]"
                 >
                   <ArrowLeft className="w-4 h-4" /> Kembali ke login
                 </Link>
@@ -86,11 +87,11 @@ export default function ResetPasswordPage() {
             </div>
           ) : status === 'ok' ? (
             <div className="mt-6 text-center space-y-3">
-              <p className="flex items-center justify-center gap-2 text-emerald-700 text-sm">
+              <p className="flex items-center justify-center gap-2 text-[#501f6b] text-sm">
                 <CheckCircle2 className="w-5 h-5" /> {message}
               </p>
               <p className="text-xs text-slate-400">Mengarahkan ke halaman login…</p>
-              <Link href="/humanify/login" className="inline-block text-emerald-600 underline text-sm">
+              <Link href="/humanify/login" className="inline-block text-[#592277] underline text-sm">
                 Masuk sekarang
               </Link>
             </div>
@@ -106,12 +107,12 @@ export default function ResetPasswordPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Password baru"
                     required
-                    className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-300 text-sm outline-none focus:border-[var(--hf-ring)] focus:ring-2 focus:ring-[var(--hf-ring-soft)]"
+                    className="w-full pl-10 pr-10 min-h-11 rounded-xl border border-slate-300 text-base sm:text-sm outline-none focus:border-[var(--hf-ring)] focus:ring-2 focus:ring-[var(--hf-ring-soft)]"
                   />
                   <button
                     type="button"
                     onClick={() => setShow((s) => !s)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    className="absolute right-1 top-1/2 inline-flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center text-slate-400 hover:text-slate-600"
                   >
                     {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -127,7 +128,7 @@ export default function ResetPasswordPage() {
                     onChange={(e) => setConfirm(e.target.value)}
                     placeholder="Ulangi password"
                     required
-                    className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-slate-300 text-sm outline-none focus:border-[var(--hf-ring)] focus:ring-2 focus:ring-[var(--hf-ring-soft)]"
+                    className="w-full pl-10 pr-3 min-h-11 rounded-xl border border-slate-300 text-base sm:text-sm outline-none focus:border-[var(--hf-ring)] focus:ring-2 focus:ring-[var(--hf-ring-soft)]"
                   />
                 </div>
               </div>
@@ -135,7 +136,7 @@ export default function ResetPasswordPage() {
               <button
                 type="submit"
                 disabled={status === 'loading'}
-                className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50"
+                className="w-full inline-flex items-center justify-center gap-2 min-h-11 rounded-xl bg-[#592277] text-white text-sm font-medium hover:bg-[#501f6b] disabled:opacity-50"
               >
                 {status === 'loading' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
                 Simpan password baru
@@ -143,7 +144,7 @@ export default function ResetPasswordPage() {
               <p className="text-center">
                 <Link
                   href="/humanify/login"
-                  className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-emerald-600"
+                  className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-[#592277]"
                 >
                   <ArrowLeft className="w-4 h-4" /> Kembali ke login
                 </Link>

@@ -19,6 +19,7 @@ test.describe('Humanify SEO public surfaces (soft)', () => {
     expect(body).toMatch(/Allow:\s*\/humans\.txt/i);
     expect(body).toMatch(/Allow:\s*\/careers/i);
     expect(body).toMatch(/Allow:\s*\/c\//i);
+    expect(body).toMatch(/Allow:\s*\/humanify\/blog/i);
     expect(body).toMatch(/Sitemap:\s*https:\/\/humanify\.id\/sitemap\.xml/i);
   });
 
@@ -36,6 +37,7 @@ test.describe('Humanify SEO public surfaces (soft)', () => {
     expect(body).toMatch(/humanify\.id\/humanify\/pricing\/roi-calculator/i);
     expect(body).toMatch(/humanify\.id\/humanify\/signup/i);
     expect(body).toMatch(/humanify\.id\/employee\/login/i);
+    expect(body).toMatch(/<loc>https:\/\/humanify\.id\/<\/loc>/i);
   });
 
   test('security.txt is reachable with Contact', async ({ page }) => {
@@ -60,6 +62,7 @@ test.describe('Humanify SEO public surfaces (soft)', () => {
     const body = await page.locator('body').innerText();
     expect(body).toMatch(/Humanify/i);
     expect(body).toMatch(/humanify\.id\/humanify\/welcome/i);
+    expect(body).toMatch(/humanify\.id\/humanify\/blog/i);
     expect(body).toMatch(/sitemap\.xml/i);
     expect(body).toMatch(/humans\.txt/i);
     expect(body).toMatch(/\.well-known\/security\.txt/i);

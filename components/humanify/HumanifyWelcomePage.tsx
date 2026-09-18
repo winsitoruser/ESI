@@ -1,981 +1,1288 @@
+/**
+ * Humanify marketing landing — pixel-mapped from Figma
+ * https://www.figma.com/design/fmA9xALNbVbH9OOrfbMleo/Humanify?node-id=658-384
+ */
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { motion, useInView, useMotionValue, useSpring } from 'framer-motion';
-import {
-  UserCheck, Users, Clock, DollarSign, Target, GraduationCap, Smartphone,
-  ArrowRight, Sparkles, BarChart3, Shield, Layers,
-  Building2, Lock, Globe, CheckCircle2,
-  PieChart, Activity, Brain, Bot, ScanLine, TrendingUp, MessageSquare, Zap, Cpu, Wand2,
-} from 'lucide-react';
-import { HUMANIFY_BRAND, HUMANIFY_FEATURES, NAINCODE } from '@/lib/humanify/branding';
-import { HUMANIFY_FEATURE_LABELS, HUMANIFY_PLANS } from '@/lib/saas/plan-entitlements';
-import { DEFAULT_SEAT_PRICING } from '@/lib/saas/seat-pricing-core';
 import Image from 'next/image';
-import { HumanifyLogo } from '@/components/humanify/HumanifyLogo';
-import { NaincodeFooter } from '@/components/humanify/NaincodeFooter';
+import { AnimatePresence, motion, useInView } from 'framer-motion';
+import {
+  CheckCircle2,
+  Plus,
+  Minus,
+  Mail,
+  Phone,
+  MapPin,
+  Linkedin,
+  Instagram,
+  Github,
+  Youtube,
+  Menu,
+  X,
+} from 'lucide-react';
+import { HUMANIFY_BRAND, NAINCODE } from '@/lib/humanify/branding';
+import { DEFAULT_SEAT_PRICING } from '@/lib/saas/seat-pricing-core';
 import AimanFloatingChat from '@/components/humanify/AimanFloatingChat';
 import MarketingBannerCarousel from '@/components/humanify/MarketingBannerCarousel';
 import type { PublicBanner } from '@/lib/saas/landing-banners';
 import type { PublicFaq } from '@/lib/saas/cms-content';
 
-const ICONS = [Users, Clock, DollarSign, Target, GraduationCap, Smartphone, PieChart, Activity];
-const MODULE_ICON_BG = [
-  'bg-violet-500/10 text-violet-400',
-  'bg-white/[0.05] text-violet-200/80',
-  'bg-emerald-500/10 text-emerald-400',
-  'bg-indigo-500/10 text-indigo-400',
-  'bg-cyan-500/10 text-cyan-400',
-  'bg-fuchsia-500/10 text-fuchsia-400',
-  'bg-amber-500/10 text-amber-400',
-  'bg-rose-500/10 text-rose-400',
-  'bg-orange-500/10 text-orange-400',
-  'bg-sky-500/10 text-sky-400',
-];
+const IMG = '/images/landing';
+const priceLabel = `Rp${DEFAULT_SEAT_PRICING.pricePerUserIdr.toLocaleString('id-ID')}`;
 
-const STATS = [
-  { value: 10000, suffix: '+', label: 'Karyawan Terkelola' },
-  { value: 99.9, suffix: '%', label: 'Akurasi Kehadiran', decimals: 1 },
-  { value: 50, suffix: '+', label: 'Fitur Terintegrasi' },
-  { value: 24, suffix: '/7', label: 'Portal Karyawan' },
-];
-
-const MARQUEE_ITEMS = [
-  'AIMAN AI Copilot', 'AI Screening Kandidat', 'Prediksi Cuti', 'OCR Reimbursement',
-  'Hire-to-Retire', 'Dealls & LinkedIn', 'OKR Cascading', 'Payroll Otomatis',
-  'Rekrutmen AI Search', 'Onboarding & Asset', 'Offboarding & Exit', 'BPJS & THR', 'PPh 21',
-  'Reimbursement', 'Bonus & Pinjaman', '360° Appraisal', 'Certificate Tracker', 'Geofence Absensi',
-  'Workforce Analytics', 'Multi-approval Workflow', 'Portal Karyawan',
-];
-
-const WHY_ITEMS = [
+const DEFAULT_FAQS: PublicFaq[] = [
   {
-    icon: Layers,
-    title: 'All-in-One HRIS',
-    desc: 'Satu platform untuk seluruh siklus hidup karyawan — dari rekrutmen hingga offboarding.',
+    id: 'faq-1',
+    category: 'general',
+    question: 'Apakah Humanify cocok untuk perusahaan kecil?',
+    answer:
+      'Cocok. Humanify dapat digunakan oleh perusahaan dengan berbagai skala. HR dapat memulai dari kebutuhan dasar seperti data karyawan, absensi, dan rekrutmen, lalu berkembang ke payroll, analytics, dan modul lainnya sesuai pertumbuhan perusahaan.',
   },
   {
-    icon: Shield,
-    title: 'Compliance Indonesia',
-    desc: 'BPJS, PPh 21, THR, dan regulasi ketenagakerjaan — sudah terintegrasi dari awal.',
+    id: 'faq-2',
+    category: 'payroll',
+    question: 'Apakah payroll mendukung PPh 21 dan BPJS?',
+    answer:
+      'Ya. Modul payroll Humanify mendukung perhitungan PPh 21, BPJS, THR, reimbursement, bonus, kasbon, dan pinjaman yang terintegrasi dengan data kehadiran dan karyawan.',
   },
   {
-    icon: BarChart3,
-    title: 'Data-Driven HR',
-    desc: 'Workforce analytics, dashboard real-time, dan laporan yang actionable.',
+    id: 'faq-3',
+    category: 'general',
+    question: 'Apakah Humanify mendukung multi-cabang?',
+    answer:
+      'Ya. Anda dapat mengelola beberapa lokasi/unit dalam satu tenant dengan isolasi data per organisasi dan kontrol akses berbasis peran.',
   },
   {
-    icon: Smartphone,
-    title: 'Mobile-First ESS',
-    desc: 'Portal karyawan responsif — absensi, cuti, dan slip gaji dari mana saja.',
+    id: 'faq-4',
+    category: 'ess',
+    question: 'Apakah karyawan memiliki portal sendiri?',
+    answer:
+      'Ya. Portal karyawan (ESS) memungkinkan absensi, cuti, slip gaji, klaim, dan layanan self-service lainnya dari perangkat mobile maupun desktop.',
   },
   {
-    icon: Lock,
-    title: 'Enterprise Security',
-    desc: 'Multi-tenant, role-based access, audit trail, dan enkripsi data.',
-  },
-  {
-    icon: Globe,
-    title: 'Ekosistem Naincode',
-    desc: 'Terintegrasi dengan portofolio produk teknologi Naincode untuk skala bisnis.',
+    id: 'faq-5',
+    category: 'ai',
+    question: 'Apakah AIMAN wajib digunakan?',
+    answer:
+      'Tidak. AIMAN bersifat opsional sebagai AI copilot. Tim HR tetap dapat menjalankan seluruh proses tanpa mengaktifkan fitur AI.',
   },
 ];
 
-const PROCESS_STEPS = [
+/** Order matches Figma grid: Talent → Employee → Time → Payroll (row1), Performance → Documents → Services → Offboarding (row2) */
+const MODULES = [
   {
-    step: '01',
-    title: 'Rekrutmen → Onboarding',
-    desc: 'Dealls, LinkedIn, Indeed, Google Jobs, WhatsApp 1-click, checklist onboarding & asset issue.',
-    duration: 'Minggu 1–2',
+    title: 'Talent Acquisition',
+    desc: 'Kelola kandidat, proses rekrutmen, hingga onboarding karyawan baru.',
+    icon: `${IMG}/icon-users.svg`,
+    iconBg: 'bg-[rgba(89,34,119,0.12)]',
   },
   {
-    step: '02',
-    title: 'HR Ops & Kehadiran',
-    desc: 'Absensi GPS, shift, cuti, lembur, reimbursement, bonus, kasbon, pinjaman — semua feed ke payroll.',
-    duration: 'Harian',
+    title: 'Employee Management',
+    desc: 'Kelola data dan administrasi karyawan melalui satu database terpusat.',
+    icon: `${IMG}/icon-dollar.svg`,
+    iconBg: 'bg-[rgba(16,185,129,0.12)]',
   },
   {
-    step: '03',
-    title: 'OKR, KPI & Pengembangan',
-    desc: 'Cascading OKR, penilaian 360°, training, certificate registry, workforce analytics.',
-    duration: 'Per kuartal',
+    title: 'Time Management',
+    desc: 'Atur attendance, shift, cuti, lembur, dan aktivitas operasional lainnya.',
+    icon: `${IMG}/icon-target.svg`,
+    iconBg: 'bg-[rgba(59,130,246,0.12)]',
   },
   {
-    step: '04',
-    title: 'Payroll & Offboarding',
-    desc: 'Gaji daily/weekly/monthly, PPh 21, BPJS report, exit interview, asset return, final settlement.',
-    duration: 'Bulanan',
-  },
-];
-
-const AI_FEATURES = [
-  {
-    icon: Bot,
-    title: 'AIMAN — AI Guide HR',
-    desc: 'Copilot percakapan yang memahami data live Humanify: absensi, cuti, rekrutmen, KPI, dan payroll — jawaban kontekstual dalam bahasa Indonesia.',
-    tag: 'Copilot',
-    accent: 'from-violet-500 to-fuchsia-500',
+    title: 'Payroll & Benefits',
+    desc: 'Kelola payroll, PPh 21, BPJS, THR, reimbursement, bonus, kasbon, dan pinjaman.',
+    icon: `${IMG}/icon-calendar.svg`,
+    iconBg: 'bg-[rgba(20,184,166,0.12)]',
   },
   {
-    icon: Wand2,
-    title: 'AI Screening Rekrutmen',
-    desc: 'Skor kandidat otomatis, ranking pipeline 7-stage, dan rekomendasi tindak lanjut — kurangi time-to-hire tanpa kehilangan kualitas.',
-    tag: 'Rekrutmen',
-    accent: 'from-fuchsia-500 to-pink-500',
+    title: 'Performance & Growth',
+    desc: 'Pantau OKR, KPI, performance review, training, dan pengembangan karyawan.',
+    icon: `${IMG}/icon-receipt.svg`,
+    iconBg: 'bg-[#d4f0fb]',
   },
   {
-    icon: TrendingUp,
-    title: 'Prediktif & Workforce Analytics',
-    desc: 'Forecast permintaan cuti, deteksi pola kehadiran, dan insight turnover — keputusan SDM berbasis sinyal, bukan asumsi.',
-    tag: 'Analytics',
-    accent: 'from-cyan-500 to-violet-500',
+    title: 'Employee Documents',
+    desc: 'Simpan dan kelola dokumen serta sertifikat karyawan secara terstruktur.',
+    icon: `${IMG}/icon-star.svg`,
+    iconBg: 'bg-[rgba(249,115,22,0.12)]',
   },
   {
-    icon: ScanLine,
-    title: 'OCR Klaim & Reimbursement',
-    desc: 'Upload foto struk → auto-fill nominal, tanggal, kategori. Vision AI opsional untuk struk kompleks.',
-    tag: 'OCR',
-    accent: 'from-emerald-500 to-cyan-500',
+    title: 'Employee Services',
+    desc: 'Permudah berbagai kebutuhan dan pengajuan karyawan melalui satu platform.',
+    icon: `${IMG}/icon-activity.svg`,
+    iconBg: 'bg-[rgba(236,72,153,0.12)]',
   },
   {
-    icon: Brain,
-    title: 'Insight Multi-Modul',
-    desc: 'Rekomendasi prioritas tinggi per modul HR — rekrutmen, absensi, kinerja, engagement — dengan confidence score & action items.',
-    tag: 'Insights',
-    accent: 'from-amber-500 to-orange-500',
-  },
-  {
-    icon: Shield,
-    title: 'Hybrid & Privacy-First',
-    desc: 'Rule-based intelligence default; LLM hanya saat dikonfigurasi. Data tenant tetap ter-scope — bukan chatbot generik.',
-    tag: 'Enterprise',
-    accent: 'from-indigo-500 to-violet-500',
+    title: 'Offboarding',
+    desc: 'Kelola proses keluar karyawan mulai dari exit interview hingga final settlement.',
+    icon: `${IMG}/icon-logout.svg`,
+    iconBg: 'bg-[rgba(180,83,9,0.12)]',
   },
 ];
 
-const AI_PIPELINE = [
-  { step: '01', label: 'Kumpulkan sinyal', desc: 'Data HR live dari modul terintegrasi — absensi, cuti, pipeline, KPI.' },
-  { step: '02', label: 'Analisis cerdas', desc: 'Rule engine + LLM (opsional) menghasilkan insight & skor.' },
-  { step: '03', label: 'Rekomendasi aksi', desc: 'AIMAN merangkum prioritas dan langkah operasional untuk tim SDM.' },
+const AI_CARDS = [
+  {
+    title: 'Ask',
+    desc: 'Cari informasi terkait workforce dengan lebih cepat melalui data HR yang terintegrasi.',
+    image: `${IMG}/ai-ask.png`,
+    icon: `${IMG}/icon-robot.svg`,
+    iconBox: 'bg-[#592277]',
+  },
+  {
+    title: 'Understand',
+    desc: 'Ubah data HR menjadi informasi yang lebih mudah dipahami dan digunakan.',
+    image: `${IMG}/ai-understand.png`,
+    icon: `${IMG}/icon-wand.svg`,
+    iconBox: 'bg-[#e6deeb]',
+  },
+  {
+    title: 'Act',
+    desc: 'Gunakan insight yang tersedia untuk membantu menentukan tindakan berikutnya.',
+    image: `${IMG}/ai-act.png`,
+    icon: `${IMG}/icon-trend.svg`,
+    iconBox: 'bg-[#592277]',
+  },
 ];
 
-const AIMAN_DEMO_LINES = [
-  { role: 'user' as const, text: 'Bagaimana kondisi absensi tim minggu ini?' },
-  { role: 'ai' as const, text: 'Tingkat kehadiran 94,2%. 3 karyawan terlambat berulang di divisi Operasional — saya sarankan review shift & reminder manager.' },
-  { role: 'user' as const, text: 'Prediksi kebutuhan cuti bulan depan?' },
-  { role: 'ai' as const, text: 'Forecast +18% vs rata-rata — puncak di minggu 2–3. Pertimbangkan backup shift dan approval cuti lebih awal.' },
+const INSIGHT_STEPS = [
+  {
+    n: '01',
+    title: 'Temukan yang Penting',
+    desc: 'Identifikasi informasi dan perubahan yang perlu mendapatkan perhatian.',
+  },
+  {
+    n: '02',
+    title: 'Pahami Kondisinya',
+    desc: 'Lihat pola dan konteks dari data workforce secara lebih jelas.',
+  },
+  {
+    n: '03',
+    title: 'Tentukan Langkah Berikutnya',
+    desc: 'Gunakan insight sebagai pendukung dalam mengambil keputusan dan menjalankan tindakan operasional.',
+  },
 ];
 
-function AnimatedCounter({ value, suffix = '', decimals = 0 }: { value: number; suffix?: string; decimals?: number }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const isInView = useInView(ref, { once: true, margin: '-80px' });
-  const motionVal = useMotionValue(0);
-  const spring = useSpring(motionVal, { duration: 2000, bounce: 0 });
-  const [display, setDisplay] = useState('0');
+const JOURNEY = [
+  {
+    id: 'attract',
+    label: 'Attract & Hire',
+    desc: 'Kelola proses pencarian kandidat, seleksi, hingga karyawan resmi bergabung.',
+    tab: 'bg-[#e6deeb] text-[#35393f]',
+    border: 'border-[#e6deeb]',
+    accent: '#e6deeb',
+  },
+  {
+    id: 'join',
+    label: 'Join & Operate',
+    desc: 'Kelola onboarding, data karyawan, attendance, cuti, dan lembur dalam satu alur.',
+    tab: 'bg-[#ccbad5] text-[#35393f]',
+    border: 'border-[#ccbad5]',
+    accent: '#ccbad5',
+  },
+  {
+    id: 'pay',
+    label: 'Pay & Manage',
+    desc: 'Proses payroll, pajak, BPJS, dan benefit menggunakan data HR yang terintegrasi.',
+    tab: 'bg-[#7e34a6] text-[#f8f8f9]',
+    border: 'border-[#7e34a6]',
+    accent: '#7e34a6',
+  },
+  {
+    id: 'exit',
+    label: 'Exit',
+    desc: 'Kelola proses offboarding, pengembalian aset, hingga final settlement secara terstruktur.',
+    tab: 'bg-[#592277] text-[#f8f8f9]',
+    border: 'border-[#592277]',
+    accent: '#592277',
+  },
+];
+
+const MOBILE_LEFT = [
+  {
+    title: 'Clock In & Clock Out',
+    desc: 'Karyawan dapat mencatat waktu masuk dan pulang langsung melalui aplikasi.',
+    icon: `${IMG}/icon-clock.svg`,
+  },
+  {
+    title: 'Monitoring Kehadiran',
+    desc: 'Pantau status hadir, terlambat, izin, dan absen secara praktis.',
+    icon: `${IMG}/icon-chart-bar.svg`,
+  },
+  {
+    title: 'Pengajuan Cuti & Izin',
+    desc: 'Karyawan dapat mengajukan cuti atau izin dan memantau proses persetujuannya.',
+    icon: `${IMG}/icon-calendar-check.svg`,
+  },
+];
+
+const MOBILE_RIGHT = [
+  {
+    title: 'Panel Manajer',
+    desc: 'Manajer dapat melihat dan memproses pengajuan tim seperti cuti, klaim, dan lembur.',
+    icon: `${IMG}/icon-user.svg`,
+  },
+  {
+    title: 'Surat Peringatan (SP)',
+    desc: 'Ajukan dan kelola surat peringatan anggota tim langsung melalui sistem.',
+    icon: `${IMG}/icon-warning.svg`,
+  },
+  {
+    title: 'Slip Gaji Digital',
+    desc: 'Karyawan dapat melihat slip gaji berdasarkan periode setelah payroll selesai.',
+    icon: `${IMG}/icon-receipt-sp.svg`,
+  },
+];
+
+const NAV_LINKS = [
+  { label: 'Kalkulator ROI', href: HUMANIFY_BRAND.roiCalculatorPath },
+  { label: 'Blog', href: '/humanify/blog' },
+  { label: 'Partner', href: HUMANIFY_BRAND.partnersPath },
+  { label: 'Karir', href: '/careers' },
+  { label: 'Naincode', href: NAINCODE.website, external: true as const },
+  { label: 'Portal Karyawan', href: HUMANIFY_BRAND.employeeLoginPath },
+];
+
+/** Product screens for hero fan — matches Figma node 680:62 */
+const HERO_SHOTS = [
+  { src: `${IMG}/hero-shot-left.png`, alt: 'Humanify dashboard — absensi & KPI' },
+  { src: `${IMG}/hero-shot-center.png`, alt: 'Humanify HRIS overview' },
+  { src: `${IMG}/hero-shot-right.png`, alt: 'Humanify analytics & AIMAN' },
+] as const;
+
+/** Figma-aligned slots: left (−6.68°), center (front), right (+6.68°) */
+const HERO_SLOTS = [
+  {
+    id: 'left',
+    left: '2%',
+    x: '0%',
+    top: '14%',
+    rotate: -6.68,
+    scale: 0.88,
+    zIndex: 1,
+    opacity: 0.9,
+  },
+  {
+    id: 'center',
+    left: '50%',
+    x: '-50%',
+    top: '4%',
+    rotate: 0,
+    scale: 1,
+    zIndex: 3,
+    opacity: 1,
+  },
+  {
+    id: 'right',
+    left: '26%',
+    x: '0%',
+    top: '14%',
+    rotate: 6.68,
+    scale: 0.88,
+    zIndex: 2,
+    opacity: 0.9,
+  },
+] as const;
+
+function HeroProductCarousel() {
+  const [active, setActive] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
 
   useEffect(() => {
-    if (isInView) motionVal.set(value);
-  }, [isInView, motionVal, value]);
+    setReduceMotion(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }, []);
 
   useEffect(() => {
-    const unsub = spring.on('change', (v) => {
-      setDisplay(decimals > 0 ? v.toFixed(decimals) : Math.round(v).toLocaleString('id-ID'));
-    });
-    return unsub;
-  }, [spring, decimals]);
+    if (paused || reduceMotion) return undefined;
+    const t = window.setInterval(() => {
+      setActive((i) => (i + 1) % HERO_SHOTS.length);
+    }, 3200);
+    return () => window.clearInterval(t);
+  }, [paused, reduceMotion]);
 
-  return <span ref={ref}>{display}{suffix}</span>;
+  return (
+    <div
+      className="relative w-full overflow-hidden rounded-2xl aspect-[4/3] min-h-[220px] sm:aspect-[1200/615] sm:min-h-0"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
+    >
+      <Image
+        src={`${IMG}/hero-bg.png`}
+        alt=""
+        fill
+        className="object-cover"
+        priority
+        sizes="1200px"
+      />
+
+      <div
+        className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/20"
+        aria-hidden
+      />
+
+      {/* Stage — cards lower on purple plane like Figma */}
+      <div className="absolute inset-x-[2%] bottom-0 top-[18%] sm:inset-x-[4%] sm:top-[20%]">
+        <div className="relative h-full w-full">
+          {HERO_SHOTS.map((shot, i) => {
+            const slotIndex = (i - active + HERO_SHOTS.length) % HERO_SHOTS.length;
+            const slot = HERO_SLOTS[slotIndex];
+            const isFront = slot.id === 'center';
+
+            return (
+              <motion.button
+                key={shot.src}
+                type="button"
+                aria-label={`${shot.alt}${isFront ? ' (aktif)' : ''}`}
+                onClick={() => setActive(i)}
+                className="absolute w-[86%] max-w-[883px] origin-center cursor-pointer border-0 bg-transparent p-0 text-left outline-none focus-visible:ring-2 focus-visible:ring-[#cc7bf9] sm:w-[74%]"
+                initial={false}
+                animate={{
+                  left: slot.left,
+                  x: slot.x,
+                  top: slot.top,
+                  rotate: slot.rotate,
+                  scale: slot.scale,
+                  opacity: slot.opacity,
+                  zIndex: slot.zIndex,
+                }}
+                transition={
+                  reduceMotion
+                    ? { duration: 0 }
+                    : { type: 'spring', stiffness: 140, damping: 24, mass: 0.85 }
+                }
+              >
+                <div
+                  className={`relative aspect-[883/459] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.4)] ring-1 ring-white/10 ${
+                    isFront ? 'rounded-t-2xl rounded-b-md' : 'rounded-2xl'
+                  }`}
+                >
+                  <Image
+                    src={shot.src}
+                    alt={shot.alt}
+                    fill
+                    className="object-cover object-top"
+                    sizes="(max-width: 768px) 90vw, 883px"
+                    priority={i === 1}
+                  />
+                  {!isFront && <div className="absolute inset-0 bg-[#12081c]/20" aria-hidden />}
+                </div>
+              </motion.button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="absolute bottom-2 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1 sm:bottom-5 sm:gap-2">
+        {HERO_SHOTS.map((shot, i) => (
+          <button
+            key={shot.src}
+            type="button"
+            aria-label={`Tampilkan mockup ${i + 1}`}
+            aria-current={i === active}
+            onClick={() => setActive(i)}
+            className="inline-flex min-h-11 min-w-11 items-center justify-center"
+          >
+            <span
+              className={`block h-2 rounded-full transition-all ${
+                i === active ? 'w-6 bg-white' : 'w-2 bg-white/45'
+              }`}
+            />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
-function FadeIn({ children, className = '', delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
+function Pill({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center justify-center rounded-full bg-[#f6e6ff] px-4 py-2 text-sm font-medium text-[#592277]">
+      {children}
+    </span>
+  );
+}
+
+function GradientText({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="bg-gradient-to-r from-[#cc7bf9] to-[#551777] bg-clip-text text-transparent">
+      {children}
+    </span>
+  );
+}
+
+function PrimaryBtn({
+  href,
+  children,
+  className = '',
+}: {
+  href: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-[#592277] px-6 py-3.5 text-base font-semibold text-[#f8f8f9] shadow-[0_0_0_6px_rgba(161,103,197,0.4)] transition hover:bg-[#501f6b] sm:w-auto sm:py-4 sm:text-lg ${className}`}
+    >
+      {children}
+    </Link>
+  );
+}
+
+function SecondaryBtn({
+  href,
+  children,
+  external,
+  className = '',
+}: {
+  href: string;
+  children: React.ReactNode;
+  external?: boolean;
+  className?: string;
+}) {
+  const cls = `inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-[#592277] px-6 py-3.5 text-base font-semibold text-[#592277] transition hover:bg-[#f6e6ff] sm:w-auto sm:py-4 sm:text-lg ${className}`;
+  if (external) {
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" className={cls}>
+        {children}
+      </a>
+    );
+  }
+  return (
+    <Link href={href} className={cls}>
+      {children}
+    </Link>
+  );
+}
+
+function FadeIn({
+  children,
+  className = '',
+  delay = 0,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  delay?: number;
+}) {
   const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: '-60px' });
+  const inView = useInView(ref, { once: true, margin: '-70px' });
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0, y: 24 }}
-      animate={isInView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.55, delay, ease: [0.22, 1, 0.36, 1] }}
       className={className}
+      initial={{ opacity: 0, y: 24 }}
+      animate={inView ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.55, delay, ease: [0.22, 1, 0.36, 1] }}
     >
       {children}
     </motion.div>
   );
 }
 
-function CorporateHeroBadge() {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, delay: 0.15 }}
-      className="mb-8 inline-flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-5 py-3 shadow-sm backdrop-blur-md"
-    >
-      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-500/10">
-        <Building2 className="h-4 w-4 text-violet-400" />
-      </div>
-      <div className="text-left">
-        <p className="text-xs font-semibold uppercase tracking-wider text-fuchsia-400">Enterprise HRIS</p>
-        <p className="text-sm text-violet-200/60">People-first platform untuk institusi & korporasi</p>
-      </div>
-    </motion.div>
-  );
-}
-
-function DashboardMockup() {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 40 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.8, delay: 0.5, ease: "easeOut" }}
-      className="relative mt-16 mx-auto w-full max-w-5xl rounded-t-2xl border-t border-x border-white/[0.1] bg-[#0a0812]/80 backdrop-blur-2xl shadow-[0_-20px_50px_rgba(139,92,246,0.15)] overflow-hidden"
-    >
-
-      {/* Mockup Content — render provided dashboard sample image for clarity */}
-      <div className="flex h-[400px] sm:h-[500px] w-full items-center justify-center pt-10">
-        <div className="relative w-full max-w-5xl">
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.05] bg-white/[0.02]">
-            <div className="w-3 h-3 rounded-full bg-rose-500/80" />
-            <div className="w-3 h-3 rounded-full bg-amber-500/80" />
-            <div className="w-3 h-3 rounded-full bg-emerald-500/80" />
-            <div className="ml-4 text-xs text-violet-200/40 font-mono flex-1 text-center pr-12">humanify.naincode.com</div>
-          </div>
-          <div className="relative">
-            <Image
-              src="/images/dashboard-sample.png"
-              alt="Dashboard sample"
-              width={1400}
-              height={700}
-              className="w-full h-[400px] sm:h-[500px] object-cover rounded-b-2xl border border-white/[0.05]"
-              priority
-            />
-            <div className="absolute bottom-0 inset-x-0 h-32 bg-gradient-to-t from-[#0a0812] to-transparent" />
-          </div>
-        </div>
-      </div>
-
-      {/* Bottom fade out */}
-      <div className="absolute bottom-0 inset-x-0 h-32 bg-gradient-to-t from-[#0a0812] to-transparent" />
-    </motion.div>
-  );
-}
-
-function SimpleParticles() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+/** Figma insight steps — numbers clear of vertical connector line */
+function InsightTimeline() {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: '-80px' });
+  const [active, setActive] = useState(0);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    const parent = canvas.parentElement;
-    if (!parent) return;
-
-    let particles: { x: number; y: number; r: number; dx: number; dy: number; alpha: number }[] = [];
-    let animationFrameId: number;
-    let width = 0;
-    let height = 0;
-
-    const init = () => {
-      width = canvas.width = parent.offsetWidth;
-      height = canvas.height = parent.offsetHeight;
-      particles = [];
-      const count = Math.floor(width / 10); // More particles
-      for (let i = 0; i < count; i++) {
-        particles.push({
-          x: Math.random() * width,
-          y: Math.random() * height,
-          r: Math.random() * 2 + 0.8, // Slightly larger
-          dx: (Math.random() - 0.5) * 0.8,
-          dy: (Math.random() - 0.5) * 0.8,
-          alpha: Math.random() * 0.5 + 0.3, // Higher opacity
-        });
-      }
-    };
-
-    const draw = () => {
-      ctx.clearRect(0, 0, width, height);
-      particles.forEach(p => {
-        p.x += p.dx;
-        p.y += p.dy;
-        if (p.x < 0) p.x = width;
-        if (p.x > width) p.x = 0;
-        if (p.y < 0) p.y = height;
-        if (p.y > height) p.y = 0;
-
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        // Bright violet/white color for better visibility
-        ctx.fillStyle = `rgba(196, 181, 253, ${p.alpha})`;
-        ctx.fill();
-      });
-      animationFrameId = requestAnimationFrame(draw);
-    };
-
-    init();
-    draw();
-
-    const observer = new ResizeObserver(() => {
-      init();
-    });
-    observer.observe(parent);
-
-    return () => {
-      observer.disconnect();
-      cancelAnimationFrame(animationFrameId);
-    };
-  }, []);
-
-  return <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none z-0" />;
-}
-
-function AimanChatMockup() {
-  const [visibleLines, setVisibleLines] = useState(0);
-
-  useEffect(() => {
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    AIMAN_DEMO_LINES.forEach((_, i) => {
-      timers.push(setTimeout(() => setVisibleLines(i + 1), 800 + i * 1200));
-    });
-    return () => timers.forEach(clearTimeout);
-  }, []);
+    if (!inView) return undefined;
+    const t = window.setInterval(() => {
+      setActive((i) => (i + 1) % INSIGHT_STEPS.length);
+    }, 2800);
+    return () => window.clearInterval(t);
+  }, [inView]);
 
   return (
-    <div className="relative rounded-3xl border border-white/[0.1] bg-[#0a0812]/80 backdrop-blur-xl overflow-hidden shadow-[0_0_60px_rgba(139,92,246,0.2)]">
-      <div className="absolute inset-0 bg-gradient-to-br from-violet-600/10 via-transparent to-fuchsia-600/10 pointer-events-none" />
-      <div className="flex items-center gap-3 border-b border-white/[0.08] px-5 py-4 bg-white/[0.02]">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 shadow-lg shadow-violet-500/30">
-          <Bot className="h-5 w-5 text-white" />
-        </div>
-        <div>
-          <p className="text-sm font-bold text-white">AIMAN</p>
-          <p className="text-xs text-violet-300/70">AI Guide HR · Humanify Intelligence</p>
-        </div>
-        <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-violet-500/10 border border-violet-500/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-violet-300">
-          Demo
-        </span>
-      </div>
-      <div className="p-5 space-y-3 min-h-[280px]">
-        <p className="text-[10px] text-violet-400/60 uppercase tracking-wider mb-2">Ilustrasi percakapan — bukan data live</p>
-        {AIMAN_DEMO_LINES.slice(0, visibleLines).map((line, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className={`flex ${line.role === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            <div
-              className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                line.role === 'user'
-                  ? 'bg-violet-600/30 border border-violet-500/20 text-violet-100'
-                  : 'bg-white/[0.05] border border-white/[0.08] text-violet-100/90'
-              }`}
+    <div ref={ref} className="relative w-full max-w-[491px]">
+      <div className="flex flex-col">
+        {INSIGHT_STEPS.map((step, i) => {
+          const isActive = active === i;
+          const isLast = i === INSIGHT_STEPS.length - 1;
+          const filled = i < active;
+          const filling = i === active;
+
+          return (
+            <motion.button
+              key={step.n}
+              type="button"
+              onClick={() => setActive(i)}
+              className="relative grid w-full grid-cols-[40px_16px_1fr] gap-x-2 border-0 bg-transparent p-0 text-left"
+              initial={{ opacity: 0, x: 16 }}
+              animate={inView ? { opacity: 1, x: 0 } : {}}
+              transition={{ delay: 0.15 + i * 0.12, duration: 0.45 }}
             >
-              {line.text}
-            </div>
-          </motion.div>
-        ))}
-        {visibleLines < AIMAN_DEMO_LINES.length && visibleLines > 0 && (
-          <div className="flex items-center gap-2 text-xs text-violet-300/50 pl-1">
-            <Cpu className="h-3.5 w-3.5 animate-spin" style={{ animationDuration: '2s' }} />
-            AIMAN menelusuri data Humanify...
-          </div>
-        )}
+              {/* Number — own column, never under the line */}
+              <span
+                className={`pt-0.5 text-xl font-light tabular-nums transition-colors ${
+                  isActive ? 'text-[#592277]' : 'text-[#592277]/70'
+                }`}
+              >
+                {step.n}
+              </span>
+
+              {/* Vertical rail between number & copy */}
+              <div className="relative flex justify-center self-stretch">
+                <motion.span
+                  className="absolute top-1.5 z-10 w-[3px] rounded-full bg-[#592277]"
+                  aria-hidden
+                  animate={{
+                    height: isActive ? 28 : 14,
+                    opacity: isActive ? 1 : 0.4,
+                  }}
+                  transition={{ type: 'spring', stiffness: 240, damping: 22 }}
+                />
+                {!isLast && (
+                  <div className="absolute bottom-0 top-9 w-px overflow-hidden bg-[#eee9f1]" aria-hidden>
+                    <motion.div
+                      className="w-[3px] -translate-x-px rounded-full bg-[#592277]"
+                      initial={{ height: '0%' }}
+                      animate={
+                        inView
+                          ? { height: filled || filling ? '100%' : '0%' }
+                          : { height: '0%' }
+                      }
+                      transition={{
+                        duration: filling ? 0.65 : 0.35,
+                        ease: [0.22, 1, 0.36, 1],
+                        delay: filling ? 0.05 : 0,
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className={isLast ? 'pb-0' : 'pb-8'}>
+                <motion.div animate={{ opacity: isActive ? 1 : 0.7 }} transition={{ duration: 0.25 }}>
+                  <h3 className="mb-1.5 text-xl font-semibold text-[#35393f]">{step.title}</h3>
+                  <p className="text-lg leading-snug text-[#5b616b]">{step.desc}</p>
+                </motion.div>
+              </div>
+            </motion.button>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-export default function HumanifyWelcomePage({ banners = [], faqs = [] }: { banners?: PublicBanner[]; faqs?: PublicFaq[] }) {
+/** Figma ONE CONNECTED JOURNEY — overlapping stage tabs + animated highlight */
+function JourneySection({
+  journeyIdx,
+  setJourneyIdx,
+}: {
+  journeyIdx: number;
+  setJourneyIdx: React.Dispatch<React.SetStateAction<number>>;
+}) {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: '-60px' });
+
+  return (
+    <div ref={ref} className="relative overflow-hidden rounded-2xl">
+      {/* Mobile: natural stack — image strip + content flow */}
+      <div className="lg:hidden">
+        <div className="relative h-48 min-h-[180px] w-full sm:h-56">
+          <Image src={`${IMG}/journey.png`} alt="" fill className="object-cover object-center" sizes="100vw" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#12081c]/70 to-[#12081c]" />
+          <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6">
+            <Pill>ONE CONNECTED JOURNEY</Pill>
+            <h2 className="mt-3 text-[28px] font-bold leading-tight text-[#f8f8f9] sm:text-[32px]">
+              Satu Alur untuk{' '}
+              <GradientText>Seluruh Perjalanan Karyawan</GradientText>
+            </h2>
+          </div>
+        </div>
+        <div className="space-y-5 bg-[#12081c] px-5 pb-6 pt-2 sm:px-6">
+          <p className="text-base leading-relaxed text-[#f8f8f9]/90 sm:text-lg">
+            Setiap proses HR saling terhubung, sehingga data karyawan dapat digunakan secara konsisten sejak rekrutmen hingga offboarding.
+          </p>
+          <div className="-mx-1 flex gap-2 overflow-x-auto pb-1 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {JOURNEY.map((j, i) => {
+              const active = i === journeyIdx;
+              return (
+                <button
+                  key={j.id}
+                  type="button"
+                  onClick={() => setJourneyIdx(i)}
+                  className={`snap-start inline-flex min-h-11 shrink-0 items-center rounded-full px-4 text-sm font-semibold ${j.tab} ${
+                    active ? 'ring-2 ring-white/60' : 'opacity-80'
+                  }`}
+                >
+                  <span className="opacity-70">{i + 1}. </span>
+                  {j.label}
+                </button>
+              );
+            })}
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <p className={`border-l-2 pl-3 text-sm leading-relaxed text-[#e9e9e9] sm:text-base ${JOURNEY[journeyIdx].border}`}>
+              {JOURNEY[journeyIdx].desc}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop: Figma overlay composition */}
+      <div className="relative hidden aspect-[1200/588] min-h-[520px] lg:block">
+        <Image src={`${IMG}/journey.png`} alt="" fill className="object-cover" sizes="1200px" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#12081c]/80 via-[#12081c]/25 to-[#12081c]/92" />
+
+        <div className="absolute inset-0 flex flex-col justify-between p-10 lg:p-[46px]">
+          <motion.div
+            className="max-w-2xl"
+            initial={{ opacity: 0, y: 20 }}
+            animate={inView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.55 }}
+          >
+            <Pill>ONE CONNECTED JOURNEY</Pill>
+            <h2 className="mt-4 text-[44px] font-bold leading-tight text-[#f8f8f9]">
+              Satu Alur untuk
+              <br />
+              <GradientText>Seluruh Perjalanan Karyawan</GradientText>
+            </h2>
+            <p className="mt-4 max-w-xl text-[22px] text-[#f8f8f9]">
+              Setiap proses HR saling terhubung, sehingga data karyawan dapat digunakan secara konsisten sejak rekrutmen hingga offboarding.
+            </p>
+          </motion.div>
+
+          <div>
+            <div className="relative mb-5 flex h-[70px]">
+              {JOURNEY.map((j, i) => {
+                const active = i === journeyIdx;
+                return (
+                  <motion.button
+                    key={j.id}
+                    type="button"
+                    onClick={() => setJourneyIdx(i)}
+                    className={`relative flex h-full flex-1 items-center px-5 text-left text-lg font-semibold ${j.tab} ${
+                      i === 0 ? 'rounded-l-[18px]' : ''
+                    } ${i === JOURNEY.length - 1 ? 'rounded-r-[18px]' : ''} ${
+                      i > 0 ? '-ml-7' : ''
+                    } rounded-[18px]`}
+                    style={{ zIndex: active ? 20 : i + 1 }}
+                    animate={{
+                      scale: active ? 1.04 : 1,
+                      y: active ? -2 : 0,
+                      boxShadow: active
+                        ? `0 0 0 2px rgba(255,255,255,0.55), 0 12px 28px ${j.accent}66`
+                        : '0 0 0 0 rgba(0,0,0,0)',
+                    }}
+                    transition={{ type: 'spring', stiffness: 260, damping: 22 }}
+                    whileHover={{ scale: active ? 1.04 : 1.02 }}
+                  >
+                    <span className="opacity-70">{i + 1}. </span>
+                    {j.label}
+                    {active && (
+                      <motion.span
+                        layoutId="journey-glow"
+                        className="pointer-events-none absolute inset-0 rounded-[18px] ring-2 ring-white/50"
+                        transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+                      />
+                    )}
+                  </motion.button>
+                );
+              })}
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-4">
+              {JOURNEY.map((j, i) => {
+                const active = i === journeyIdx;
+                return (
+                  <motion.div
+                    key={j.id}
+                    initial={{ opacity: 0, y: 14 }}
+                    animate={
+                      inView
+                        ? {
+                            opacity: active ? 1 : 0.55,
+                            y: 0,
+                            borderColor: j.accent,
+                          }
+                        : {}
+                    }
+                    transition={{ delay: 0.2 + i * 0.08, duration: 0.4 }}
+                    className={`border-l-2 pl-3 text-base text-[#e9e9e9] ${j.border}`}
+                  >
+                    <AnimatePresence mode="wait">
+                      <motion.p
+                        key={`${j.id}-${active}`}
+                        initial={{ opacity: 0.6 }}
+                        animate={{ opacity: 1 }}
+                        className={active ? 'font-medium' : ''}
+                      >
+                        {j.desc}
+                      </motion.p>
+                    </AnimatePresence>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SectionShell({
+  children,
+  className = '',
+  id,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  id?: string;
+}) {
+  return (
+    <section id={id} className={`mx-auto w-full max-w-[1200px] px-5 sm:px-6 ${className}`}>
+      {children}
+    </section>
+  );
+}
+
+export default function HumanifyWelcomePage({
+  banners = [],
+  faqs = [],
+}: {
+  banners?: PublicBanner[];
+  faqs?: PublicFaq[];
+}) {
+  const [journeyIdx, setJourneyIdx] = useState(2);
+  const [openFaq, setOpenFaq] = useState(0);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const faqItems = faqs.length > 0 ? faqs : DEFAULT_FAQS;
+  const demoHref = 'https://naincode.com/konsultasi';
+  const demoVideoSrc = '/videos/humanify-demo.mp4';
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20);
+    const onScroll = () => setScrolled(window.scrollY > 12);
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const marquee1 = MARQUEE_ITEMS.slice(0, Math.ceil(MARQUEE_ITEMS.length / 2));
-  const marquee2 = MARQUEE_ITEMS.slice(Math.ceil(MARQUEE_ITEMS.length / 2));
+  useEffect(() => {
+    const t = window.setInterval(() => {
+      setJourneyIdx((i) => (i + 1) % JOURNEY.length);
+    }, 5000);
+    return () => window.clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.muted = true;
+    v.defaultMuted = true;
+    const play = () => {
+      void v.play().catch(() => {});
+    };
+    play();
+    v.addEventListener('loadeddata', play);
+    return () => v.removeEventListener('loadeddata', play);
+  }, []);
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#0a0812] text-white">
-
-
-      {/* Header */}
+    <div className="min-h-screen overflow-x-hidden bg-white font-sans text-[#35393f] antialiased">
+      {/* ── Header (Figma 658:1078) ── */}
       <header
-        className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${scrolled
-            ? 'border-b border-white/[0.08] bg-[#0a0812]/80 shadow-sm backdrop-blur-md'
-            : 'bg-transparent'
-          }`}
+        className={`fixed inset-x-0 top-0 z-50 transition-all ${
+          scrolled
+            ? 'border-b border-[#eee9f1] bg-white/95 shadow-[0_4px_10px_rgba(0,0,0,0.06)] backdrop-blur-md'
+            : 'bg-white'
+        }`}
       >
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-          <HumanifyLogo
-            href={HUMANIFY_BRAND.welcomePath}
-            size="lg"
-            variant="full"
-            src={HUMANIFY_BRAND.welcomeLogoPath}
-            aspect={HUMANIFY_BRAND.welcomeLogoAspect}
-            priority
-          />
-          <nav className="flex items-center gap-2 sm:gap-5">
-            <Link href={HUMANIFY_BRAND.roiCalculatorPath} className="hidden text-sm text-violet-200/60 transition hover:text-white md:inline">
-              Kalkulator ROI
-            </Link>
-            <Link href="/humanify/blog" className="hidden text-sm text-violet-200/60 transition hover:text-white md:inline">
-              Blog
-            </Link>
-            <Link href={HUMANIFY_BRAND.partnersPath} className="hidden text-sm text-violet-200/60 transition hover:text-white md:inline">
-              Partner
-            </Link>
-            <Link href="/careers" className="hidden text-sm text-violet-200/60 transition hover:text-white md:inline">
-              Karir
-            </Link>
-            <a href={NAINCODE.website} target="_blank" rel="noopener noreferrer" className="hidden text-sm text-violet-200/60 transition hover:text-white md:inline">
-              {NAINCODE.name}
-            </a>
-            <Link href={HUMANIFY_BRAND.signupPath} className="hidden text-sm text-violet-200/80 transition hover:text-white sm:inline">
-              Daftar
-            </Link>
-            <Link href={HUMANIFY_BRAND.employeeLoginPath} className="hidden text-sm text-violet-200/80 transition hover:text-white sm:inline">
-              Portal Karyawan
-            </Link>
-            <Link href={HUMANIFY_BRAND.loginPath} className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-500">
+        <div className="mx-auto flex h-14 max-w-[1440px] items-center justify-between gap-3 px-4 pt-[env(safe-area-inset-top)] sm:h-16 sm:px-6 lg:h-[85px] lg:px-12">
+          <Link href={HUMANIFY_BRAND.welcomePath} className="relative h-8 w-28 shrink-0 sm:h-10 sm:w-36 lg:h-[53px] lg:w-[144px]">
+            <Image src={`${IMG}/logo-wordmark.png`} alt={HUMANIFY_BRAND.name} fill className="object-contain object-left" priority />
+          </Link>
+
+          <nav className="hidden items-center gap-[26px] xl:flex">
+            {NAV_LINKS.map((item) =>
+              item.external ? (
+                <a
+                  key={item.label}
+                  href={item.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex min-h-11 items-center text-base text-[#35393f] transition hover:text-[#592277]"
+                >
+                  {item.label}
+                </a>
+              ) : (
+                <Link key={item.label} href={item.href} className="inline-flex min-h-11 items-center text-base text-[#35393f] transition hover:text-[#592277]">
+                  {item.label}
+                </Link>
+              ),
+            )}
+          </nav>
+
+          <div className="hidden items-center gap-3 xl:flex">
+            <Link
+              href={HUMANIFY_BRAND.loginPath}
+              className="inline-flex min-h-11 items-center justify-center rounded-[10px] border border-[#592277] px-4 text-base font-medium text-[#592277] transition hover:bg-[#f6e6ff]"
+            >
               Masuk
             </Link>
-          </nav>
-        </div>
-      </header>
-
-      <main className="relative z-10">
-        {/* Hero */}
-        <section id="hero" className="relative pt-32 sm:pt-40 overflow-hidden border-b border-white/[0.08]">
-          <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-            <div className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-[0.05]" style={{ backgroundImage: "url('/images/humanify-hero-bg.png')" }} />
-
-            <SimpleParticles />
-
-            {/* Dynamic Grid */}
-            <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.06)_1px,transparent_1px)] bg-[size:48px_48px] [mask-image:radial-gradient(ellipse_80%_80%_at_50%_0%,#000_70%,transparent_100%)]" />
-
-            {/* Subtle glow blobs for hero */}
-            <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] bg-violet-600/20 rounded-full blur-[120px] mix-blend-screen" />
-            <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-fuchsia-600/10 rounded-full blur-[150px] mix-blend-screen" />
-
-            {/* Gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-b from-[#0a0812]/10 via-[#0a0812]/60 to-[#0a0812]" />
-
-            {/* Floating Decorative Elements */}
-            <motion.div animate={{ y: [0, -20, 0], opacity: [0.6, 1, 0.6] }} transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }} className="absolute top-[25%] right-[5%] lg:right-[15%] hidden lg:flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-[#0a0812]/40 p-4 backdrop-blur-xl shadow-[0_0_30px_rgba(139,92,246,0.15)] z-20">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-500/20 text-violet-400">
-                <Layers className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-violet-200/60 uppercase tracking-wider">Modul HRIS</p>
-                <p className="text-lg font-bold text-white">50<span className="text-fuchsia-400">+</span> fitur</p>
-              </div>
-            </motion.div>
-
-            <motion.div animate={{ y: [0, 20, 0], opacity: [0.5, 0.9, 0.5] }} transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut', delay: 1 }} className="absolute bottom-[20%] left-[2%] lg:left-[10%] hidden lg:flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-[#0a0812]/40 p-4 backdrop-blur-xl shadow-[0_0_30px_rgba(217,70,239,0.1)] z-20">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-                <Shield className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-violet-200/60 uppercase tracking-wider">Arsitektur</p>
-                <p className="text-lg font-bold text-white">Multi-tenant</p>
-              </div>
-            </motion.div>
+            <Link
+              href={HUMANIFY_BRAND.signupPath}
+              className="inline-flex min-h-11 items-center justify-center rounded-[10px] bg-[#592277] px-4 text-base font-medium text-[#fdfdfd] transition hover:bg-[#501f6b]"
+            >
+              Daftar
+            </Link>
           </div>
 
-          <div className="relative mx-auto max-w-7xl px-6">
-            <div className="mx-auto max-w-4xl text-center">
-              <CorporateHeroBadge />
+          <button
+            type="button"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-[#592277] xl:hidden"
+            aria-label={mobileOpen ? 'Tutup menu' : 'Buka menu'}
+            onClick={() => setMobileOpen((v) => !v)}
+          >
+            {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
+        </div>
 
-              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="mb-4 text-sm tracking-wide text-violet-200/60">
-                {NAINCODE.legalName}
-              </motion.p>
-
-              <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, delay: 0.25 }} className="mb-6 text-4xl sm:text-5xl lg:text-7xl font-bold leading-[1.1] tracking-tight text-white">
-                HRIS yang
-                <span className="mt-2 block text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-fuchsia-400">mengutamakan manusia</span>
-              </motion.h1>
-
-              <motion.p initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, delay: 0.45 }} className="mx-auto mb-10 max-w-2xl text-lg leading-relaxed text-violet-200/80 sm:text-xl">
-                {HUMANIFY_BRAND.description}
-              </motion.p>
-
-              <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, delay: 0.6 }} className="flex flex-col items-center justify-center gap-3 sm:flex-row relative z-30">
-                <Link href={HUMANIFY_BRAND.signupPath} className="group inline-flex min-w-[240px] items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-8 py-3.5 font-semibold text-white shadow-lg shadow-violet-500/25 transition hover:shadow-violet-500/40 hover:-translate-y-0.5">
-                  Mulai trial gratis
-                  <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
+        {mobileOpen && (
+          <div className="border-t border-[#eee9f1] bg-white px-4 py-4 sm:px-6 xl:hidden">
+            <div className="flex flex-col gap-1">
+              {NAV_LINKS.map((item) =>
+                item.external ? (
+                  <a key={item.label} href={item.href} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center text-[#35393f]">
+                    {item.label}
+                  </a>
+                ) : (
+                  <Link key={item.label} href={item.href} className="inline-flex min-h-11 items-center text-[#35393f]" onClick={() => setMobileOpen(false)}>
+                    {item.label}
+                  </Link>
+                ),
+              )}
+              <div className="mt-3 flex gap-3">
+                <Link href={HUMANIFY_BRAND.loginPath} className="inline-flex min-h-11 flex-1 items-center justify-center rounded-[10px] border border-[#592277] text-sm font-medium text-[#592277]">
+                  Masuk
                 </Link>
-                <Link href={HUMANIFY_BRAND.loginPath} className="inline-flex min-w-[240px] items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-md px-8 py-3.5 font-medium text-white transition hover:border-white/[0.15] hover:bg-white/[0.06]">
-                  Masuk ke Humanify
+                <Link href={HUMANIFY_BRAND.signupPath} className="inline-flex min-h-11 flex-1 items-center justify-center rounded-[10px] bg-[#592277] text-sm font-medium text-white">
+                  Daftar
                 </Link>
-              </motion.div>
+              </div>
             </div>
           </div>
+        )}
+      </header>
+
+      <main className="flex flex-col items-center gap-12 pt-24 pb-0 sm:gap-16 sm:pt-28 lg:gap-[70px] lg:pt-[152px]">
+        {/* ── Hero ── */}
+        <SectionShell className="flex flex-col items-center gap-[38px]">
+          <FadeIn className="flex w-full flex-col items-center gap-3 text-center">
+            <Pill>SMARTER HR STARTS HERE</Pill>
+            <h1 className="text-[32px] font-bold leading-tight sm:text-[40px] lg:text-[44px]">
+              Satu Platform untuk Cara Kerja HR
+              <br />
+              yang <GradientText>Lebih Baik</GradientText>
+            </h1>
+            <p className="max-w-[900px] text-lg text-[#656565] sm:text-[22px]">
+              Kelola seluruh perjalanan karyawan mulai dari rekrutmen, kehadiran, payroll, hingga performance dalam satu sistem yang saling terhubung.
+            </p>
+          </FadeIn>
+
+          <FadeIn delay={0.1} className="flex w-full max-w-md flex-col items-center gap-3 sm:max-w-none sm:flex-row sm:justify-center sm:gap-6">
+            <PrimaryBtn href={HUMANIFY_BRAND.signupPath}>Coba Humanify Gratis</PrimaryBtn>
+            <SecondaryBtn href="#features">Jelajahi Platform</SecondaryBtn>
+          </FadeIn>
 
           {banners.length > 0 && (
-            <div className="relative z-20 mx-auto mt-12 max-w-6xl px-6 pb-4">
+            <div className="w-full">
               <MarketingBannerCarousel banners={banners} variant="landing" />
             </div>
           )}
+        </SectionShell>
 
-          <DashboardMockup />
-        </section>
+        {/* ── Hero product mockup (Figma 680:62) + carousel ── */}
+        <SectionShell className="w-full">
+          <FadeIn>
+            <HeroProductCarousel />
+          </FadeIn>
+        </SectionShell>
 
-        {/* Stats */}
-        {/* <section className="border-b border-white/[0.08] bg-white/[0.02]">
-          <div className="mx-auto grid max-w-7xl grid-cols-2 gap-8 px-6 py-14 lg:grid-cols-4">
-            {STATS.map((stat, i) => (
-              <FadeIn key={stat.label} delay={i * 0.08} className="text-center relative">
-                <div className="absolute inset-0 bg-violet-500/5 blur-2xl rounded-full" />
-                <p className="relative text-3xl font-bold text-white sm:text-4xl">
-                  <AnimatedCounter value={stat.value} suffix={stat.suffix} decimals={stat.decimals} />
-                </p>
-                <p className="relative mt-2 text-sm font-medium uppercase tracking-widest text-violet-200/50">{stat.label}</p>
+        {/* ── AI for workforce ── */}
+        <SectionShell>
+          <FadeIn className="mx-auto mb-10 flex max-w-[900px] flex-col items-center gap-4 text-center">
+            <Pill>AI FOR YOUR WORKFORCE</Pill>
+            <h2 className="text-[32px] font-bold sm:text-[44px]">
+              Bukan Sekadar Data. Saatnya HR Punya <GradientText>Jawaban.</GradientText>
+            </h2>
+            <p className="text-lg text-[#656565] sm:text-[22px]">
+              Humanify menghubungkan data HR dengan AIMAN untuk membantu tim menemukan informasi penting, memahami kondisi workforce, dan menentukan langkah berikutnya dengan lebih cepat.
+            </p>
+          </FadeIn>
+
+          <div className="grid gap-6 md:grid-cols-3">
+            {AI_CARDS.map((card, i) => (
+              <FadeIn key={card.title} delay={i * 0.08}>
+                <article className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-[#eee9f1] bg-white">
+                  <div className="relative aspect-[1536/1024] w-full">
+                    <Image src={card.image} alt="" fill className="object-cover" sizes="400px" />
+                  </div>
+                  <div className="relative flex flex-1 flex-col gap-[7px] px-6 pb-6 pt-10">
+                    <div className={`absolute -top-6 left-6 flex h-12 w-12 items-center justify-center rounded-lg p-3 ${card.iconBox}`}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={card.icon} alt="" width={24} height={24} className="h-6 w-6" />
+                    </div>
+                    <h3 className="text-base font-semibold text-[#35393f]">{card.title}</h3>
+                    <p className="text-sm leading-normal text-[#5b616b]">{card.desc}</p>
+                  </div>
+                </article>
               </FadeIn>
             ))}
           </div>
-        </section> */}
+        </SectionShell>
 
-        {/* Marquee */}
-        <section className="overflow-hidden border-b border-white/[0.08] bg-white/[0.01] py-16">
-          <p className="mb-10 text-center text-xs font-semibold uppercase tracking-[0.25em] text-violet-200/40">
-            Ekosistem fitur terlengkap dalam satu platform
-          </p>
-          <div className="relative marquee-container flex flex-col gap-4">
-            {/* Left fades */}
-            <div className="absolute bottom-0 left-0 top-0 z-10 w-32 bg-gradient-to-r from-[#0a0812] to-transparent pointer-events-none" />
-            <div className="absolute bottom-0 right-0 top-0 z-10 w-32 bg-gradient-to-l from-[#0a0812] to-transparent pointer-events-none" />
+        {/* ── Lihat Humanify Beraksi ── */}
+        <SectionShell>
+          <FadeIn className="mb-8 max-w-[900px]">
+            <h2 className="mb-4 text-[28px] font-bold sm:text-[30px]">Lihat Humanify Beraksi</h2>
+            <p className="text-lg text-[#656565] sm:text-[22px]">
+              Saksikan bagaimana Humanify membantu tim HR mengelola data, menemukan insight, dan menjalankan proses kerja dalam satu platform.
+            </p>
+          </FadeIn>
 
-            {/* Row 1 */}
-            <div className="flex w-max animate-marquee-left whitespace-nowrap">
-              {[...marquee1, ...marquee1, ...marquee1].map((item, i) => (
-                <div key={`m1-${i}`} className="mx-3 inline-flex items-center gap-2 rounded-full border border-white/[0.06] bg-white/[0.03] px-5 py-2.5 backdrop-blur-sm transition-colors hover:bg-white/[0.08]">
-                  <Sparkles className="h-4 w-4 text-fuchsia-400" />
-                  <span className="text-sm font-medium text-violet-100/80">{item}</span>
-                </div>
+          <FadeIn delay={0.1}>
+            <div className="relative overflow-hidden rounded-[6px] border border-black/20 shadow-[0_12px_40px_rgba(0,0,0,0.18)]">
+              <div className="relative aspect-[1898/948] bg-[#1a1a1a]">
+                <video
+                  ref={videoRef}
+                  className="absolute inset-0 h-full w-full object-cover"
+                  src={demoVideoSrc}
+                  poster={`${IMG}/product-preview.png`}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  preload="auto"
+                  aria-label="Demo produk Humanify"
+                />
+              </div>
+            </div>
+          </FadeIn>
+        </SectionShell>
+
+        {/* ── Insights ── */}
+        <SectionShell className="flex flex-col items-center gap-[38px]">
+          <FadeIn className="flex w-full flex-col items-center gap-4 text-center">
+            <Pill>FROM DATA TO DECISION</Pill>
+            <h2 className="text-[32px] font-bold sm:text-[44px]">
+              Ubah Data HR Menjadi Insight
+              <br />
+              yang <GradientText>Lebih Bermakna</GradientText>
+            </h2>
+            <p className="max-w-[900px] text-lg text-[#656565] sm:text-[22px]">
+              Data yang tersimpan di Humanify membantu tim HR memahami kondisi organisasi dan menemukan informasi yang membutuhkan perhatian.
+            </p>
+          </FadeIn>
+
+          <div className="grid w-full items-start gap-8 lg:grid-cols-[623fr_491fr] lg:gap-8">
+            <FadeIn className="relative overflow-hidden rounded-2xl">
+              <div className="relative aspect-[623/394]">
+                <Image src={`${IMG}/insight-bg.png`} alt="" fill className="object-cover" sizes="623px" />
+              </div>
+              <div className="absolute left-[8%] right-[-5%] top-[15%] bottom-[5%] overflow-hidden rounded-lg shadow-xl sm:left-[13%]">
+                <Image src={`${IMG}/insight-ui.png`} alt="Insight dashboard" fill className="object-cover object-left-top" sizes="600px" />
+              </div>
+            </FadeIn>
+
+            <FadeIn delay={0.1} className="flex justify-start lg:justify-end">
+              <InsightTimeline />
+            </FadeIn>
+          </div>
+        </SectionShell>
+
+        {/* ── Features ── */}
+        <SectionShell id="features" className="scroll-mt-28">
+          <FadeIn className="mb-10 flex flex-col items-center gap-4 text-center">
+            <Pill>EVERYTHING HR NEEDS</Pill>
+            <h2 className="text-[32px] font-bold sm:text-[44px]">
+              Semua Kebutuhan HR <GradientText>dalam Satu Sistem</GradientText>
+            </h2>
+            <p className="max-w-[900px] text-lg text-[#656565] sm:text-[22px]">
+              Humanify menyatukan berbagai kebutuhan HR dalam satu platform sehingga tim tidak perlu berpindah-pindah sistem untuk menjalankan pekerjaan sehari-hari.
+            </p>
+          </FadeIn>
+
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {MODULES.map((m, i) => (
+              <FadeIn key={m.title} delay={i * 0.04}>
+                <article className="flex h-full min-h-[198px] flex-col gap-4 rounded-2xl border border-[#e2e8f0] bg-white p-6">
+                  <div className={`inline-flex h-12 w-12 items-center justify-center rounded-lg p-3 ${m.iconBg}`}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={m.icon} alt="" width={24} height={24} className="h-6 w-6" />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <h3 className="text-base font-bold text-[#0f172a]">{m.title}</h3>
+                    <p className="text-sm leading-[1.4] text-[#5b616b]">{m.desc}</p>
+                  </div>
+                </article>
+              </FadeIn>
+            ))}
+          </div>
+        </SectionShell>
+
+        {/* ── Journey ── */}
+        <SectionShell>
+          <FadeIn>
+            <JourneySection journeyIdx={journeyIdx} setJourneyIdx={setJourneyIdx} />
+          </FadeIn>
+        </SectionShell>
+
+        {/* ── Mobile ESS (Figma 773:2098) ── */}
+        <SectionShell>
+          <div className="grid items-center gap-6 lg:grid-cols-[1fr_auto_1fr] lg:gap-0">
+            <div className="order-2 flex flex-col gap-6 lg:order-1 lg:pr-[50px]">
+              {MOBILE_LEFT.map((item, i) => (
+                <FadeIn key={item.title} delay={i * 0.06}>
+                  <article className="flex min-h-[173px] flex-col gap-4 rounded-2xl border border-[#e2e8f0] bg-white p-6">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={item.icon} alt="" width={24} height={24} className="h-6 w-6" />
+                    <div className="flex flex-col gap-1.5">
+                      <h3 className="text-base font-semibold text-[#0f172a]">{item.title}</h3>
+                      <p className="text-sm leading-[1.4] text-[#5b616b]">{item.desc}</p>
+                    </div>
+                  </article>
+                </FadeIn>
               ))}
             </div>
 
-            {/* Row 2 */}
-            <div className="flex w-max animate-marquee-right whitespace-nowrap">
-              {[...marquee2, ...marquee2, ...marquee2].map((item, i) => (
-                <div key={`m2-${i}`} className="mx-3 inline-flex items-center gap-2 rounded-full border border-white/[0.06] bg-white/[0.03] px-5 py-2.5 backdrop-blur-sm transition-colors hover:bg-white/[0.08]">
-                  <CheckCircle2 className="h-4 w-4 text-violet-400" />
-                  <span className="text-sm font-medium text-violet-100/80">{item}</span>
-                </div>
+            <FadeIn className="order-1 mx-auto lg:order-2" delay={0.1}>
+              <div className="relative mx-auto h-[min(70vw,420px)] w-[min(52vw,264px)] sm:h-[529px] sm:w-[264px]">
+                <Image
+                  src={`${IMG}/phone-mockup.png`}
+                  alt="Portal Karyawan Humanify — clock in, clock out, dan ringkasan kehadiran"
+                  fill
+                  className="object-contain"
+                  sizes="264px"
+                  priority
+                />
+              </div>
+            </FadeIn>
+
+            <div className="order-3 flex flex-col gap-6 lg:pl-[50px]">
+              {MOBILE_RIGHT.map((item, i) => (
+                <FadeIn key={item.title} delay={i * 0.06}>
+                  <article className="flex min-h-[173px] flex-col gap-4 rounded-2xl border border-[#e2e8f0] bg-white p-6">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={item.icon} alt="" width={24} height={24} className="h-6 w-6" />
+                    <div className="flex flex-col gap-1.5">
+                      <h3 className="text-base font-semibold text-[#0f172a]">{item.title}</h3>
+                      <p className="text-sm leading-[1.4] text-[#5b616b]">{item.desc}</p>
+                    </div>
+                  </article>
+                </FadeIn>
               ))}
             </div>
           </div>
-        </section>
+        </SectionShell>
 
-        {/* AI — Fitur Unggulan */}
-        <section id="ai" className="relative overflow-hidden border-b border-white/[0.08] scroll-mt-20">
-          <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-violet-600/15 rounded-full blur-[120px]" />
-            <div className="absolute bottom-0 right-0 w-[500px] h-[300px] bg-fuchsia-600/10 rounded-full blur-[100px]" />
-            <div className="absolute inset-0 bg-[linear-gradient(rgba(139,92,246,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(139,92,246,0.03)_1px,transparent_1px)] bg-[size:64px_64px] [mask-image:radial-gradient(ellipse_70%_60%_at_50%_50%,#000_40%,transparent_100%)]" />
-          </div>
-
-          <div className="relative mx-auto max-w-7xl px-6 py-24 sm:py-32">
-            <FadeIn className="mb-16 text-center">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                className="mb-6 inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-4 py-2 text-sm font-semibold text-violet-200"
-              >
-                <Sparkles className="h-4 w-4 text-fuchsia-400" />
-                Fitur Unggulan AI
-                <Zap className="h-4 w-4 text-amber-400" />
-              </motion.div>
-              <h2 className="mb-4 text-3xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl">
-                SDM lebih cerdas dengan{' '}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-400">
-                  AI
+        {/* ── FAQ ── */}
+        <SectionShell id="faq" className="scroll-mt-28">
+          <div className="grid gap-10 lg:grid-cols-[438px_1fr] lg:gap-5">
+            <FadeIn>
+              <p className="mb-4 text-xl font-medium text-[#592277]">FAQ</p>
+              <h2 className="mb-4 text-[28px] font-bold sm:text-[30px]">
+                Pertanyaan Umum
+                <br />
+                <span className="bg-gradient-to-r from-[#d587ff] to-[#4f1071] bg-clip-text text-transparent">
+                  Seputar Humanify
                 </span>
               </h2>
-              <p className="mx-auto max-w-2xl text-lg text-violet-200/70">
-                Humanify memadukan rule engine, vision AI, dan LLM — dari screening kandidat hingga prediksi cuti.
-                Bukan gimmick: AI yang benar-benar membaca data HR tenant Anda.
+              <p className="text-lg text-[#656565] sm:text-xl">
+                Temukan jawaban atas pertanyaan yang paling sering diajukan sebelum mulai menggunakan Humanify.
               </p>
             </FadeIn>
 
-            <div className="grid gap-10 lg:grid-cols-2 lg:gap-16 items-start mb-20">
-              <FadeIn delay={0.1}>
-                <AimanChatMockup />
-              </FadeIn>
-              <FadeIn delay={0.2} className="space-y-6">
-                <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
-                  <div className="flex items-start gap-4">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 border border-violet-500/20">
-                      <MessageSquare className="h-6 w-6 text-violet-300" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-white mb-2">Kenalan dengan AIMAN</h3>
-                      <p className="text-sm leading-relaxed text-violet-200/70">
-                        AIMAN (<em>Artificial Intelligence Management Advisor for HR</em>) adalah asisten percakapan resmi Humanify.
-                        Tanya apa saja tentang workforce — AIMAN merangkum data live, memberi prioritas, dan menyarankan langkah operasional.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { val: '8+', label: 'Modul HR' },
-                    { val: 'Hybrid', label: 'Rules + LLM' },
-                    { val: 'ID', label: 'Bahasa Indonesia' },
-                  ].map((s) => (
-                    <div key={s.label} className="rounded-xl border border-white/[0.06] bg-[#110e1b]/60 px-4 py-3 text-center">
-                      <p className="text-lg font-bold text-white">{s.val}</p>
-                      <p className="text-[10px] uppercase tracking-wider text-violet-300/50 mt-0.5">{s.label}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {['Rekrutmen', 'Absensi', 'Cuti', 'KPI', 'Payroll', 'Engagement', 'Workforce'].map((m) => (
-                    <span key={m} className="inline-flex items-center gap-1 rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1 text-xs font-medium text-violet-200/80">
-                      <Brain className="h-3 w-3 text-fuchsia-400" />
-                      {m}
-                    </span>
-                  ))}
-                </div>
-              </FadeIn>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-16">
-              {AI_FEATURES.map((f, i) => (
-                <FadeIn key={f.title} delay={i * 0.06}>
-                  <motion.div
-                    whileHover={{ y: -4 }}
-                    className="group relative h-full overflow-hidden rounded-2xl border border-white/[0.08] bg-[#110e1b]/80 p-6 transition-all hover:border-violet-500/30"
-                  >
-                    <div className={`absolute -right-8 -top-8 h-24 w-24 rounded-full bg-gradient-to-br ${f.accent} opacity-10 blur-2xl group-hover:opacity-20 transition-opacity`} />
-                    <div className="relative">
-                      <div className="mb-4 flex items-center justify-between">
-                        <div className={`flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${f.accent} shadow-lg`}>
-                          <f.icon className="h-5 w-5 text-white" />
-                        </div>
-                        <span className="rounded-full bg-white/5 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-300/70">
-                          {f.tag}
-                        </span>
-                      </div>
-                      <h3 className="mb-2 text-lg font-bold text-white">{f.title}</h3>
-                      <p className="text-sm leading-relaxed text-violet-200/60">{f.desc}</p>
-                    </div>
-                  </motion.div>
-                </FadeIn>
-              ))}
-            </div>
-
-            <FadeIn>
-              <div className="rounded-3xl border border-white/[0.08] bg-gradient-to-br from-[#110e1b] to-[#0a0812] p-8 sm:p-12">
-                <div className="mb-10 text-center">
-                  <p className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-cyan-400">Penerapan AI</p>
-                  <h3 className="text-2xl font-bold text-white sm:text-3xl">
-                    Dari data mentah → insight → aksi
-                  </h3>
-                </div>
-                <div className="grid gap-6 md:grid-cols-3 relative">
-                  <div className="hidden md:block absolute top-1/2 left-[16%] right-[16%] h-px bg-gradient-to-r from-transparent via-violet-500/40 to-transparent -translate-y-1/2" />
-                  {AI_PIPELINE.map((p, i) => (
-                    <div key={p.step} className="relative text-center">
-                      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-violet-500/30 bg-violet-500/10 text-xl font-black text-violet-300">
-                        {p.step}
-                      </div>
-                      <h4 className="mb-2 font-bold text-white">{p.label}</h4>
-                      <p className="text-sm text-violet-200/60 leading-relaxed max-w-xs mx-auto">{p.desc}</p>
-                      {i < AI_PIPELINE.length - 1 && (
-                        <ArrowRight className="hidden md:block absolute top-7 -right-3 h-5 w-5 text-violet-500/50" />
-                      )}
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-                  <Link
-                    href={`${HUMANIFY_BRAND.loginPath}?callbackUrl=${encodeURIComponent('/humanify/ai')}`}
-                    className="group inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-6 py-3 font-semibold text-white shadow-lg shadow-violet-500/20 transition hover:shadow-violet-500/40"
-                  >
-                    Coba Humanify + AIMAN
-                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                  </Link>
-                  <p className="text-xs text-violet-300/50 text-center sm:text-left">
-                    LLM opsional · Rule-based selalu aktif · Data tenant terisolasi
-                  </p>
-                </div>
-              </div>
-            </FadeIn>
-          </div>
-        </section>
-
-        {/* Modules Bento Grid */}
-        <section id="modules" className="mx-auto max-w-7xl px-6 py-24 sm:py-32 scroll-mt-20">
-          <FadeIn className="mb-16 text-center">
-            <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-violet-400">Our Modules</p>
-            <h2 className="mb-4 text-3xl font-bold tracking-tight text-white sm:text-5xl">
-              Solusi HRIS <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-fuchsia-400">End-to-End</span>
-            </h2>
-            <p className="mx-auto max-w-xl text-violet-200/70 text-lg">
-              Dari rekrutmen hingga operasional harian — fitur canggih yang dirancang untuk skala enterprise.
-            </p>
-          </FadeIn>
-
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 auto-rows-[240px]">
-            {HUMANIFY_FEATURES.map((f, i) => {
-              const Icon = ICONS[i] || UserCheck;
-              const iconBg = MODULE_ICON_BG[i % MODULE_ICON_BG.length];
-
-              // Bento box sizing logic
-              let colSpan = 'col-span-1';
-              let rowSpan = 'row-span-1';
-
-              if (i === 0) { colSpan = 'md:col-span-2 xl:col-span-2'; rowSpan = 'md:row-span-2'; } // Large hero card
-              else if (i === 3) { colSpan = 'md:col-span-2 xl:col-span-2'; } // Wide card
-
-              return (
-                <FadeIn key={f.title} delay={i * 0.05} className={`${colSpan} ${rowSpan}`}>
-                  <Link
-                    href={`${HUMANIFY_BRAND.loginPath}?callbackUrl=${encodeURIComponent(f.href)}`}
-                    className="block h-full"
-                  >
-                  <motion.div
-                    whileHover={{ scale: 0.98 }}
-                    className="group relative h-full w-full overflow-hidden rounded-3xl border border-white/[0.08] bg-[#110e1b] p-8 transition-all hover:border-violet-500/30 flex flex-col justify-between"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <div className="absolute -right-12 -top-12 w-40 h-40 bg-violet-500/10 rounded-full blur-3xl group-hover:bg-violet-500/20 transition-colors" />
-
-                    <div>
-                      <div className={`mb-6 flex h-14 w-14 items-center justify-center rounded-2xl ${iconBg} shadow-inner`}>
-                        <Icon className="h-6 w-6" />
-                      </div>
-                      <h3 className={`font-bold text-white mb-3 ${i === 0 ? 'text-3xl' : 'text-xl'}`}>
-                        {f.title}
-                      </h3>
-                      <p className={`text-violet-200/60 leading-relaxed ${i === 0 ? 'text-lg max-w-md' : 'text-sm'}`}>
-                        {f.desc}
-                      </p>
-                    </div>
-
-                    <div className="mt-6 flex items-center gap-2 text-sm font-semibold text-violet-400 opacity-0 transform translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all">
-                      Pelajari modul <ArrowRight className="h-4 w-4" />
-                    </div>
-                  </motion.div>
-                  </Link>
-                </FadeIn>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* Why Humanify */}
-        <section id="why" className="border-y border-white/[0.08] bg-white/[0.01] scroll-mt-20">
-          <div className="mx-auto max-w-7xl px-6 py-24 sm:py-32">
-            <div className="grid items-center gap-16 lg:grid-cols-5">
-              <div className="lg:col-span-2">
-                <FadeIn>
-                  <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-fuchsia-400">Why Humanify</p>
-                  <h2 className="mb-6 text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl">
-                    Bukan sekadar software,
-                    <span className="mt-2 block text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-fuchsia-400">partner SDM Anda</span>
-                  </h2>
-                  <p className="mb-8 text-lg leading-relaxed text-violet-200/70">
-                    Kami tidak hanya membangun sistem HR — kami membangun fondasi untuk pertumbuhan tim Anda.
-                    Setiap fitur dirancang dengan standar enterprise, keamanan tinggi, dan kemudahan penggunaan.
-                  </p>
-                  <Link href={HUMANIFY_BRAND.loginPath} className="group inline-flex items-center gap-2 text-sm font-bold text-white bg-white/5 border border-white/10 px-6 py-3 rounded-xl transition hover:bg-white/10">
-                    Mulai sekarang
-                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                  </Link>
-                </FadeIn>
-              </div>
-
-              <div className="lg:col-span-3 grid gap-4 sm:grid-cols-2">
-                {WHY_ITEMS.map((item, i) => (
-                  <FadeIn key={item.title} delay={i * 0.1}>
-                    <div className="group h-full rounded-3xl border border-white/[0.06] bg-[#110e1b]/50 p-6 transition-all hover:border-fuchsia-500/30 hover:bg-[#110e1b]">
-                      <div className="mb-4 inline-flex p-3 rounded-xl bg-white/5 group-hover:bg-fuchsia-500/10 transition-colors">
-                        <item.icon className="h-6 w-6 text-violet-300 group-hover:text-fuchsia-400 transition-colors" />
-                      </div>
-                      <h4 className="mb-2 text-lg font-bold text-white">{item.title}</h4>
-                      <p className="text-sm leading-relaxed text-violet-200/60">{item.desc}</p>
-                    </div>
-                  </FadeIn>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Process */}
-        <section id="workflow" className="mx-auto max-w-7xl px-6 py-24 sm:py-32 relative scroll-mt-20">
-          <FadeIn className="mb-20 text-center relative z-10">
-            <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-violet-400">Workflow</p>
-            <h2 className="mb-4 text-3xl font-bold tracking-tight text-white sm:text-5xl">
-              Dari rekrutmen hingga <span className="text-fuchsia-400">payroll</span>
-            </h2>
-            <p className="mx-auto max-w-xl text-violet-200/70 text-lg">
-              Siklus hidup karyawan yang mulus dalam satu alur yang terotomatisasi.
-            </p>
-          </FadeIn>
-
-          <div className="relative">
-            {/* Connecting Line background */}
-            <div className="hidden lg:block absolute top-1/2 left-0 w-full h-0.5 bg-gradient-to-r from-violet-500/0 via-violet-500/50 to-fuchsia-500/0 -translate-y-1/2 z-0" />
-
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 relative z-10">
-              {PROCESS_STEPS.map((step, i) => (
-                <FadeIn key={step.step} delay={i * 0.15}>
-                  <div className="group relative h-full rounded-3xl border border-white/[0.08] bg-[#0a0812] p-8 shadow-xl transition-all hover:-translate-y-2 hover:border-violet-500/40 hover:shadow-violet-500/10">
-                    <div className="absolute -top-4 -right-4 w-24 h-24 bg-violet-500/10 rounded-full blur-2xl group-hover:bg-fuchsia-500/20 transition-all" />
-                    <span className="inline-block mb-4 text-4xl font-black text-transparent bg-clip-text bg-gradient-to-br from-violet-400 to-white/20">
-                      {step.step}
-                    </span>
-                    <h3 className="mb-3 text-lg font-bold text-white leading-snug">{step.title}</h3>
-                    <p className="mb-6 text-sm leading-relaxed text-violet-200/60">{step.desc}</p>
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-white/5 border border-white/10 px-3 py-1.5 text-xs font-medium text-violet-300">
-                      <Clock className="h-3.5 w-3.5" />
-                      {step.duration}
-                    </span>
-                  </div>
-                </FadeIn>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Pricing */}
-        <section id="pricing" className="border-t border-white/[0.08] scroll-mt-20">
-          <div className="mx-auto max-w-7xl px-6 py-24 sm:py-32">
-            <FadeIn className="mb-16 text-center">
-              <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-violet-400">Pricing</p>
-              <h2 className="mb-4 text-3xl font-bold tracking-tight text-white sm:text-5xl">
-                Dihitung per karyawan, bayar aman via <span className="text-fuchsia-400">Midtrans</span>
-              </h2>
-              <p className="mx-auto max-w-xl text-violet-200/70 text-lg">
-                Mulai Rp {DEFAULT_SEAT_PRICING.pricePerUserIdr.toLocaleString('id-ID')}/karyawan/bulan.
-                251+ jadi Rp {DEFAULT_SEAT_PRICING.pricePerUserOver250Idr.toLocaleString('id-ID')}, 1.001+ jadi Rp {DEFAULT_SEAT_PRICING.pricePerUserOver1000Idr.toLocaleString('id-ID')}.
-                Trial 14 hari. PPN 11% sudah termasuk.
-              </p>
-            </FadeIn>
-            <div className="grid gap-6 md:grid-cols-3">
-              {(['starter', 'growth', 'enterprise'] as const).map((id, i) => {
-                const p = HUMANIFY_PLANS[id];
-                const featured = id === 'growth';
-                return (
-                  <FadeIn key={id} delay={i * 0.08}>
-                    <div className={`flex h-full flex-col rounded-3xl border p-8 ${
-                      featured
-                        ? 'border-violet-400/40 bg-violet-500/10'
-                        : 'border-white/[0.08] bg-[#110e1b]'
-                    }`}>
-                      <p className="text-sm font-semibold uppercase tracking-wide text-violet-300">{p.name}</p>
-                      <p className="mt-4 text-4xl font-bold text-white">
-                        Rp {DEFAULT_SEAT_PRICING.pricePerUserIdr.toLocaleString('id-ID')}
-                        <span className="text-base font-medium text-violet-200/60">/karyawan</span>
-                      </p>
-                      <p className="mt-2 text-sm text-violet-200/60">{p.description}</p>
-                      <p className="mt-4 text-xs text-violet-200/50">
-                        LMS +Rp {DEFAULT_SEAT_PRICING.lmsPerUserIdr.toLocaleString('id-ID')}/orang · AIMAN +Rp {DEFAULT_SEAT_PRICING.aiMonthlyIdr.toLocaleString('id-ID')}/bulan
-                      </p>
-                      <ul className="mt-6 flex-1 space-y-2">
-                        {p.features.slice(0, 6).map((f) => (
-                          <li key={f} className="flex items-center gap-2 text-sm text-violet-100/80">
-                            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                            {HUMANIFY_FEATURE_LABELS[f] || f}
-                          </li>
-                        ))}
-                      </ul>
-                      <Link
-                        href={`${HUMANIFY_BRAND.signupPath}?plan=${id}`}
-                        className={`mt-8 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition ${
-                          featured
-                            ? 'bg-white text-[#0a0812] hover:bg-violet-50'
-                            : 'border border-white/10 bg-white/5 text-white hover:bg-white/10'
+            <FadeIn delay={0.08}>
+              <div className="rounded-xl bg-[#f9fbff] px-[22px] py-[30px]">
+                <div className="flex flex-col gap-[30px]">
+                  {faqItems.map((faq, i) => {
+                    const open = openFaq === i;
+                    return (
+                      <div
+                        key={faq.id}
+                        className={`rounded-xl px-3 py-3 transition ${
+                          open ? 'bg-gradient-to-r from-[#e8d1f8] to-white' : ''
                         }`}
                       >
-                        Mulai {p.name}
-                        <ArrowRight className="h-4 w-4" />
-                      </Link>
-                    </div>
-                  </FadeIn>
-                );
-              })}
-            </div>
-            <p className="mt-8 text-center text-sm text-violet-200/50">
-              Sudah punya akun?{' '}
-              <Link href={`${HUMANIFY_BRAND.loginPath}?callbackUrl=${encodeURIComponent('/humanify/billing')}`} className="font-semibold text-violet-300 hover:underline">
-                Lanjut ke pembayaran
-              </Link>
-            </p>
-          </div>
-        </section>
-
-        {faqs.length > 0 && (
-          <section id="faq" className="border-t border-white/[0.08] bg-white/[0.01] scroll-mt-20">
-            <div className="mx-auto max-w-3xl px-6 py-24 sm:py-32">
-              <FadeIn className="mb-12 text-center">
-                <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-violet-400">FAQ</p>
-                <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">Pertanyaan yang sering diajukan</h2>
-              </FadeIn>
-              <div className="space-y-3">
-                {faqs.map((faq) => (
-                  <details key={faq.id} className="group rounded-2xl border border-white/[0.08] bg-[#110e1b] px-5 py-4">
-                    <summary className="cursor-pointer list-none text-left text-base font-semibold text-white">
-                      {faq.question}
-                    </summary>
-                    <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-violet-200/70">{faq.answer}</p>
-                  </details>
-                ))}
+                        <button
+                          type="button"
+                          className="flex min-h-11 w-full items-center gap-2 py-1 text-left"
+                          onClick={() => setOpenFaq(open ? -1 : i)}
+                          aria-expanded={open}
+                        >
+                          <span className="flex-1 text-base font-medium text-[#35393f]">{faq.question}</span>
+                          {open ? (
+                            <Minus className="h-5 w-5 shrink-0 text-[#592277]" />
+                          ) : (
+                            <Plus className="h-5 w-5 shrink-0 text-[#592277]" />
+                          )}
+                        </button>
+                        <AnimatePresence initial={false}>
+                          {open && (
+                            <motion.p
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              className="overflow-hidden whitespace-pre-wrap text-sm leading-normal text-[#656565]"
+                            >
+                              <span className="mt-2 block">{faq.answer}</span>
+                            </motion.p>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          </section>
-        )}
+            </FadeIn>
+          </div>
+        </SectionShell>
 
-        {/* CTA */}
-        <section className="mx-auto max-w-7xl px-6 py-24 sm:py-32">
+        {/* ── Pricing banner ── */}
+        <SectionShell id="pricing" className="scroll-mt-28 w-full max-w-none px-0 sm:px-0 lg:max-w-[1200px] lg:px-6">
           <FadeIn>
-            <div className="relative overflow-hidden rounded-[2.5rem] border border-violet-500/20 bg-[#110e1b] p-10 text-center shadow-2xl sm:p-20">
-              {/* Complex background for CTA */}
-              <div className="absolute inset-0 bg-[url('/images/noise.png')] opacity-[0.03] mix-blend-overlay" />
-              <div className="absolute -right-20 -top-20 h-96 w-96 rounded-full bg-violet-600/20 blur-[100px]" />
-              <div className="absolute -bottom-20 -left-20 h-80 w-80 rounded-full bg-fuchsia-600/20 blur-[100px]" />
-
-              <div className="relative z-10">
-                <h2 className="mb-6 text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white">
-                  Siap transformasi
-                  <span className="mt-2 block text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-fuchsia-400">manajemen SDM Anda?</span>
-                </h2>
-                <p className="mx-auto mb-10 max-w-xl text-lg text-violet-200/70">
-                  Mulai kelola karyawan, kehadiran, dan payroll dalam satu platform modern — didukung teknologi Naincode.
+            <div className="relative mx-5 overflow-hidden rounded-2xl sm:mx-6 lg:mx-0">
+              <div className="relative min-h-[220px] sm:min-h-[243px]">
+                <Image src={`${IMG}/pricing-visual.png`} alt="" fill className="object-cover" sizes="1200px" />
+                <div className="absolute inset-0 bg-[#592277]/50" />
+              </div>
+              <div className="absolute inset-0 flex flex-col items-center justify-center px-4 py-8 text-center sm:px-6 sm:py-10">
+                <p className="text-2xl font-bold text-white sm:text-[32px] lg:text-[44px]">
+                  Mulai dari <span className="text-[#ffff54]">{priceLabel}</span>
                 </p>
-                <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-                  <Link href={HUMANIFY_BRAND.signupPath} className="group inline-flex min-w-[220px] items-center justify-center gap-2 rounded-2xl bg-white text-[#0a0812] px-8 py-4 font-bold transition hover:bg-violet-50 hover:scale-105">
-                    Daftar trial gratis
-                    <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
-                  </Link>
-                  <Link href={HUMANIFY_BRAND.loginPath} className="inline-flex min-w-[220px] items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-8 py-4 font-bold text-white transition hover:bg-white/10">
-                    Masuk ke aplikasi
-                  </Link>
-                </div>
-                <div className="mt-10 flex flex-wrap justify-center gap-6 text-sm font-medium text-violet-200/50">
-                  {['Gratis untuk tim internal', 'Tanpa kartu kredit', 'Onboarding terpandu'].map((t) => (
-                    <span key={t} className="inline-flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                      {t}
-                    </span>
-                  ))}
-                </div>
+                <p className="mt-3 max-w-2xl text-sm text-white sm:text-base lg:text-[22px]">
+                  Humanify dapat digunakan mulai dari {priceLabel} dengan fitur yang dapat disesuaikan berdasarkan kebutuhan dan skala perusahaan.
+                </p>
+                <Link
+                  href={HUMANIFY_BRAND.roiCalculatorPath}
+                  className="mt-6 inline-flex min-h-11 w-full max-w-xs items-center justify-center rounded-xl bg-white px-5 text-sm font-semibold text-[#592277] transition hover:bg-[#f6e6ff] sm:w-auto"
+                >
+                  Hitung ROI
+                </Link>
               </div>
             </div>
           </FadeIn>
-        </section>
+        </SectionShell>
+
+        {/* ── Final CTA ── */}
+        <SectionShell className="flex flex-col items-center gap-[38px] pb-4 text-center">
+          <FadeIn className="flex flex-col items-center gap-4">
+            <Pill>READY TO TRANSFORM HR?</Pill>
+            <h2 className="text-[32px] font-bold sm:text-[44px]">
+              Saatnya HR <GradientText>Bekerja Lebih Terhubung</GradientText>
+            </h2>
+            <p className="max-w-[900px] text-lg text-[#656565] sm:text-[22px]">
+              Satukan data, proses, dan kebutuhan workforce dalam Humanify agar pekerjaan HR lebih efisien dan informasi penting lebih mudah diakses.
+            </p>
+          </FadeIn>
+
+          <FadeIn delay={0.08} className="flex flex-col items-center gap-4 sm:flex-row sm:gap-6">
+            <PrimaryBtn href={HUMANIFY_BRAND.signupPath} className="text-base">
+              Coba Humanify Gratis
+            </PrimaryBtn>
+            <SecondaryBtn href={demoHref} external className="text-base">
+              Jadwalkan Demo
+            </SecondaryBtn>
+          </FadeIn>
+
+          <FadeIn delay={0.12} className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-base text-[#2d2d2d]">
+            {['Trial gratis', 'Dukungan onboarding', 'Siap untuk kebutuhan perusahaan'].map((t) => (
+              <span key={t} className="inline-flex items-center gap-1">
+                <CheckCircle2 className="h-[18px] w-[18px] text-[#592277]" />
+                {t}
+              </span>
+            ))}
+          </FadeIn>
+        </SectionShell>
+
+        {/* ── Footer (Figma #501f6b) ── */}
+        <footer className="w-full bg-[#501f6b] px-6 pt-[60px] text-[#dbdbdb] sm:px-10 lg:px-[60px]">
+          <div className="mx-auto flex max-w-[1320px] flex-col gap-10 lg:flex-row lg:justify-between">
+            <div className="max-w-[480px]">
+              <div className="relative mb-6 h-[53px] w-[144px]">
+                <Image src={HUMANIFY_BRAND.welcomeLogoPath} alt={HUMANIFY_BRAND.name} fill className="object-contain object-left" />
+              </div>
+              <p className="mb-6 text-base leading-normal">{NAINCODE.footerTagline}</p>
+              <div className="space-y-3 text-base">
+                <a href={`mailto:${NAINCODE.email}`} className="flex items-center gap-2 hover:text-white">
+                  <Mail className="h-6 w-6 shrink-0" />
+                  {NAINCODE.email}
+                </a>
+                <a href={`tel:${NAINCODE.phone.replace(/\D/g, '')}`} className="flex items-center gap-2 hover:text-white">
+                  <Phone className="h-6 w-6 shrink-0" />
+                  {NAINCODE.phone}
+                </a>
+                <p className="flex items-start gap-2">
+                  <MapPin className="mt-0.5 h-6 w-6 shrink-0" />
+                  <span>{NAINCODE.address}</span>
+                </p>
+              </div>
+              <div className="mt-6 flex gap-4">
+                {[
+                  { href: NAINCODE.social.linkedin, Icon: Linkedin, label: 'LinkedIn' },
+                  { href: NAINCODE.social.instagram, Icon: Instagram, label: 'Instagram' },
+                  { href: NAINCODE.social.github, Icon: Github, label: 'GitHub' },
+                  { href: NAINCODE.social.youtube, Icon: Youtube, label: 'YouTube' },
+                ].map(({ href, Icon, label }) => (
+                  <a
+                    key={label}
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={label}
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#f8f8f9] text-[#501f6b] transition hover:scale-105"
+                  >
+                    <Icon className="h-[22px] w-[22px]" />
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 sm:gap-8 lg:gap-10">
+              {(
+                [
+                  ['Services', NAINCODE.footerLinks.services],
+                  ['Industries', NAINCODE.footerLinks.industries],
+                  ['Company', NAINCODE.footerLinks.company],
+                ] as const
+              ).map(([title, links]) => (
+                <div key={title} className="min-w-0">
+                  <h3 className="mb-4 text-base font-semibold tracking-tight text-[#f8f8f9] sm:mb-6 sm:text-lg">{title}</h3>
+                  <ul className="space-y-3 sm:space-y-4">
+                    {links.map((link) => (
+                      <li key={link.label}>
+                        <a
+                          href={link.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm tracking-tight transition hover:text-white sm:text-base"
+                        >
+                          {link.label}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mx-auto mt-[22px] flex max-w-[1320px] flex-col items-center justify-between gap-3 border-t border-[#898989] py-[26px] text-sm text-[#f8f8f9] sm:flex-row">
+            <p>© {new Date().getFullYear()} Naincode Inti Technology. All rights reserved.</p>
+            <p>
+              Made with <span className="text-[#f10004]">❤️</span> in Indonesia
+            </p>
+          </div>
+        </footer>
       </main>
 
-      <NaincodeFooter variant="dark" />
       <AimanFloatingChat />
     </div>
   );

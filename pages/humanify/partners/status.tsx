@@ -46,15 +46,18 @@ export default function PartnerStatusPage() {
           { label: 'Daftar partner', href: '/humanify/partners' },
           { label: 'Beranda', href: HUMANIFY_BRAND.welcomePath },
         ]}
-        footerVariant="dark"
+        footerVariant="brand"
       >
-        <div className="max-w-xl mx-auto px-4 pb-16">
-          <Link href="/humanify/partners" className="inline-flex items-center gap-1 text-sm text-white/60 hover:text-white mb-6">
-            <ArrowLeft className="w-4 h-4" /> Partner Channel
+        <div className="mx-auto max-w-xl px-4 pb-16 pt-4">
+          <Link
+            href="/humanify/partners"
+            className="mb-6 inline-flex items-center gap-1 text-sm text-[#656565] hover:text-[#592277]"
+          >
+            <ArrowLeft className="h-4 w-4" /> Partner Channel
           </Link>
-          <div className="rounded-2xl bg-white text-slate-900 p-6 sm:p-8 shadow-xl">
-            <h1 className="text-2xl font-bold mb-2">Status lead & payout</h1>
-            <p className="text-slate-600 text-sm mb-4">
+          <div className="rounded-2xl border border-[#eee9f1] bg-white p-6 text-slate-900 shadow-sm sm:p-8">
+            <h1 className="mb-2 text-2xl font-bold text-[#35393f]">Status lead & payout</h1>
+            <p className="mb-4 text-sm text-slate-600">
               Masukkan email dan ID lead yang Anda terima saat submit formulir.
             </p>
             <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900">
@@ -66,23 +69,23 @@ export default function PartnerStatusPage() {
                 type="email"
                 required
                 placeholder="Email kontak"
-                className="w-full border rounded-xl px-3 py-2.5 text-sm"
+                className="w-full rounded-xl border border-[#eee9f1] px-3 py-2.5 text-sm outline-none focus:border-[#592277] focus:ring-2 focus:ring-[rgba(89,34,119,0.15)]"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
               <input
                 required
                 placeholder="ID lead (UUID)"
-                className="w-full border rounded-xl px-3 py-2.5 text-sm font-mono"
+                className="w-full rounded-xl border border-[#eee9f1] px-3 py-2.5 font-mono text-sm outline-none focus:border-[#592277] focus:ring-2 focus:ring-[rgba(89,34,119,0.15)]"
                 value={id}
                 onChange={(e) => setId(e.target.value)}
               />
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[var(--hf-brand-600)] text-white text-sm font-medium disabled:opacity-50"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#592277] py-2.5 text-sm font-medium text-white hover:bg-[#501f6b] disabled:opacity-50"
               >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                 Cek status
               </button>
             </form>

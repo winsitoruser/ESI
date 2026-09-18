@@ -3,9 +3,9 @@ import { getServerSession } from 'next-auth/next';
 import { getCsrfToken } from 'next-auth/react';
 import HumanifyLoginForm from '@/components/humanify/HumanifyLoginForm';
 import HumanifySeoHead from '@/components/humanify/HumanifySeoHead';
-import PublicAuthShell from '@/components/humanify/PublicAuthShell';
 import { authOptions } from '../api/auth/[...nextauth]';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
+import { buildBreadcrumbJsonLd, buildWebPageJsonLd } from '@/lib/humanify/seo';
 
 type Props = { csrfToken: string };
 
@@ -14,13 +14,22 @@ export default function HumanifyLoginPage({ csrfToken }: Props) {
     <>
       <HumanifySeoHead
         title={`Masuk — ${HUMANIFY_BRAND.name} ${HUMANIFY_BRAND.productType}`}
-        description={`Login ${HUMANIFY_BRAND.name} — ${HUMANIFY_BRAND.productType} oleh ${HUMANIFY_BRAND.company}`}
+        description={`Login ${HUMANIFY_BRAND.name} HRIS — kelola karyawan, absensi, payroll, dan kinerja. Akses aman untuk admin & HR.`}
         path={HUMANIFY_BRAND.loginPath}
-        robots="index, follow"
+        keywords={['login Humanify', 'login HRIS', 'masuk Humanify', 'HR software Indonesia']}
+        jsonLd={[
+          buildWebPageJsonLd({
+            name: `Masuk ${HUMANIFY_BRAND.name}`,
+            description: `Login ${HUMANIFY_BRAND.name} HRIS.`,
+            path: HUMANIFY_BRAND.loginPath,
+          }),
+          buildBreadcrumbJsonLd([
+            { name: 'Beranda', path: '/' },
+            { name: 'Masuk', path: HUMANIFY_BRAND.loginPath },
+          ]),
+        ]}
       />
-      <PublicAuthShell variant="dark">
-        <HumanifyLoginForm csrfToken={csrfToken} defaultRedirect={HUMANIFY_BRAND.appPath} />
-      </PublicAuthShell>
+      <HumanifyLoginForm csrfToken={csrfToken} defaultRedirect={HUMANIFY_BRAND.appPath} />
     </>
   );
 }

@@ -56,6 +56,8 @@ export const HUMANIFY_BRAND = {
   /** Full wordmark for light background (app/dashboard sidebar) */
   appLogoPath: '/images/humanify.png',
   appLogoAspect: 1024 / 405,
+  /** Landing / public marketing wordmark (Figma light surfaces) */
+  marketingLogoPath: '/images/landing/logo-wordmark.png',
   description:
     'Sistem HRIS lengkap untuk mengelola karyawan, kehadiran, payroll, rekrutmen, dan kinerja — bagian dari ekosistem produk Naincode.',
   company: NAINCODE.legalName,
@@ -71,6 +73,22 @@ export const HUMANIFY_BRAND = {
   appPath: '/humanify',
   employeePortalPath: '/employee',
   employeeLoginPath: '/employee/login',
+} as const;
+
+/** Public marketing / auth surfaces — aligned with Figma landing (#592277) */
+export const HUMANIFY_MARKETING = {
+  brand: '#592277',
+  brandHover: '#501f6b',
+  brandSoft: '#f6e6ff',
+  brandMuted: '#e6deeb',
+  brandBorder: '#eee9f1',
+  ink: '#35393f',
+  muted: '#656565',
+  footerBg: '#501f6b',
+  gradientFrom: '#cc7bf9',
+  gradientTo: '#551777',
+  cardBorder: '#e2e8f0',
+  inputFocusRing: 'rgba(89,34,119,0.2)',
 } as const;
 
 export const HUMANIFY_FEATURES = [

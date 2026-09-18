@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { CheckCircle2, Loader2, Mail } from 'lucide-react';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
 import PublicAuthShell from '@/components/humanify/PublicAuthShell';
+import HumanifySeoHead from '@/components/humanify/HumanifySeoHead';
 
 export default function VerifyEmailPage() {
   const router = useRouter();
@@ -55,14 +55,15 @@ export default function VerifyEmailPage() {
 
   return (
     <>
-      <Head>
-        <title>Verifikasi Email · {HUMANIFY_BRAND.name}</title>
-        <meta name="robots" content="noindex, nofollow" />
-        <link rel="icon" href={HUMANIFY_BRAND.welcomeLogoPath} type="image/png" />
-      </Head>
+      <HumanifySeoHead
+        title={`Verifikasi Email — ${HUMANIFY_BRAND.name}`}
+        description={`Verifikasi alamat email akun ${HUMANIFY_BRAND.name}.`}
+        path="/humanify/verify-email"
+        robots="noindex, nofollow"
+      />
       <PublicAuthShell>
-        <div className="w-full max-w-md hf-card p-8 text-center" style={{ borderColor: 'var(--hf-border)' }}>
-          <Mail className="w-10 h-10 text-emerald-600 mx-auto mb-3" />
+        <div className="w-full max-w-md rounded-2xl border border-[#eee9f1] bg-white p-5 text-center shadow-sm sm:p-8">
+          <Mail className="w-10 h-10 text-[#592277] mx-auto mb-3" />
           <h1 className="text-xl font-semibold text-slate-900">Verifikasi email</h1>
           {status === 'loading' && (
             <p className="mt-4 text-slate-500 flex items-center justify-center gap-2">
@@ -70,11 +71,11 @@ export default function VerifyEmailPage() {
             </p>
           )}
           {status === 'ok' && (
-            <div className="mt-4 text-emerald-700 text-sm space-y-3">
+            <div className="mt-4 text-[#501f6b] text-sm space-y-3">
               <p className="flex items-center justify-center gap-2">
                 <CheckCircle2 className="w-5 h-5" /> {message}
               </p>
-              <Link href="/humanify" className="inline-block text-emerald-600 underline">
+              <Link href="/humanify" className="inline-block text-[#592277] underline">
                 Lanjut ke Humanify
               </Link>
             </div>
@@ -88,14 +89,14 @@ export default function VerifyEmailPage() {
               <button
                 type="button"
                 onClick={resend}
-                className="rounded-lg bg-emerald-600 text-white px-4 py-2 text-sm"
+                className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#592277] px-4 text-sm font-medium text-white"
               >
                 Kirim ulang (perlu login)
               </button>
               <p className="space-x-3">
-                <Link href="/humanify/login" className="text-emerald-600 underline">Login</Link>
+                <Link href="/humanify/login" className="text-[#592277] underline">Login</Link>
                 <span className="text-slate-300">·</span>
-                <Link href={HUMANIFY_BRAND.welcomePath} className="text-emerald-600 underline">
+                <Link href={HUMANIFY_BRAND.welcomePath} className="text-[#592277] underline">
                   Pelajari Humanify
                 </Link>
               </p>

@@ -58,7 +58,7 @@ export default function MarketingBannerCarousel({
     <section
       className={`relative overflow-hidden ${
         landing
-          ? 'rounded-3xl border border-white/[0.1] shadow-[0_0_60px_rgba(139,92,246,0.18)]'
+          ? 'rounded-2xl border border-[#eee9f1] shadow-[0_12px_40px_rgba(89,34,119,0.12)]'
           : 'hf-card overflow-hidden'
       } ${className}`}
       aria-roledescription="carousel"
@@ -93,26 +93,26 @@ export default function MarketingBannerCarousel({
             <div
               className={`absolute inset-0 ${
                 landing
-                  ? 'bg-gradient-to-t from-[#0a0812] via-[#0a0812]/45 to-[#0a0812]/10'
+                  ? 'bg-gradient-to-t from-[#501f6b] via-[#501f6b]/45 to-transparent'
                   : 'bg-gradient-to-r from-slate-950/80 via-slate-950/35 to-transparent'
               }`}
             />
           </div>
         ))}
 
-        <div className={`relative z-10 flex h-full flex-col justify-end ${landing ? 'p-6 sm:p-10' : 'p-5 sm:p-7'}`}>
-          <p className={`max-w-2xl font-semibold tracking-tight ${landing ? 'text-2xl text-white sm:text-4xl' : 'text-lg text-white sm:text-2xl'}`}>
+        <div className={`relative z-10 flex h-full flex-col justify-end ${landing ? 'p-4 sm:p-6 lg:p-10' : 'p-5 sm:p-7'}`}>
+          <p className={`max-w-2xl font-semibold tracking-tight ${landing ? 'text-xl leading-snug text-white sm:text-2xl lg:text-4xl' : 'text-lg text-white sm:text-2xl'}`}>
             {current.title}
           </p>
           {current.subtitle && (
-            <p className={`mt-2 max-w-xl ${landing ? 'text-sm text-violet-100/80 sm:text-base' : 'text-sm text-white/80'}`}>
+            <p className={`mt-2 max-w-xl line-clamp-3 ${landing ? 'text-sm text-violet-100/80 sm:text-base' : 'text-sm text-white/80'}`}>
               {current.subtitle}
             </p>
           )}
           {current.ctaHref && current.ctaLabel && (
             <Link
               href={current.ctaHref}
-              className={`mt-4 inline-flex w-fit items-center rounded-xl px-4 py-2 text-sm font-semibold transition ${
+              className={`mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl px-4 text-sm font-semibold transition sm:w-fit ${
                 landing
                   ? 'bg-white text-slate-900 hover:bg-violet-100'
                   : 'bg-[var(--hf-brand-600)] text-white hover:opacity-90'
@@ -129,7 +129,7 @@ export default function MarketingBannerCarousel({
           <button
             type="button"
             onClick={() => go(-1)}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-black/55"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-black/55"
             aria-label="Banner sebelumnya"
           >
             <ChevronLeft className="h-5 w-5" />
@@ -137,7 +137,7 @@ export default function MarketingBannerCarousel({
           <button
             type="button"
             onClick={() => go(1)}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-black/55"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-black/55"
             aria-label="Banner berikutnya"
           >
             <ChevronRight className="h-5 w-5" />
@@ -145,7 +145,7 @@ export default function MarketingBannerCarousel({
         </div>
       )}
 
-      <div className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2">
+      <div className="absolute bottom-2 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1 sm:bottom-3 sm:gap-2">
         {slides.length > 1 && slides.map((slide, i) => (
           <button
             key={slide.id}
@@ -153,19 +153,23 @@ export default function MarketingBannerCarousel({
             aria-label={`Banner ${i + 1}`}
             aria-current={i === index}
             onClick={() => { setIndex(i); setPaused(true); }}
-            className={`h-2 rounded-full transition-all ${
-              i === index ? 'w-6 bg-white' : 'w-2 bg-white/45 hover:bg-white/70'
-            }`}
-          />
+            className="inline-flex min-h-11 min-w-11 items-center justify-center"
+          >
+            <span
+              className={`block h-2 rounded-full transition-all ${
+                i === index ? 'w-6 bg-white' : 'w-2 bg-white/45'
+              }`}
+            />
+          </button>
         ))}
         {slides.length > 1 && (
           <button
             type="button"
             onClick={() => setPaused((p) => !p)}
-            className="ml-1 flex h-7 w-7 items-center justify-center rounded-full bg-black/35 text-white"
+            className="ml-1 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/35 text-white"
             aria-label={paused ? 'Putar banner' : 'Jeda banner'}
           >
-            {paused ? <Play className="h-3 w-3" /> : <Pause className="h-3 w-3" />}
+            {paused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
           </button>
         )}
       </div>

@@ -7,23 +7,40 @@ import { HUMANIFY_BRAND, NAINCODE } from '@/lib/humanify/branding';
 import { listPublicBanners, type PublicBanner } from '@/lib/saas/landing-banners';
 import { listPublishedFaqs, type PublicFaq } from '@/lib/saas/cms-content';
 import {
+  HUMANIFY_DEFAULT_KEYWORDS,
+  buildBreadcrumbJsonLd,
+  buildFaqPageJsonLd,
   buildOrganizationJsonLd,
   buildSoftwareApplicationJsonLd,
+  buildWebPageJsonLd,
   buildWebSiteJsonLd,
 } from '@/lib/humanify/seo';
 
+const PAGE_DESCRIPTION =
+  'Humanify HRIS — kelola rekrutmen, absensi GPS, payroll PPh 21 & BPJS, cuti, OKR, dan portal karyawan dalam satu platform. Trial 14 hari gratis.';
+
 export default function WelcomePage({ banners, faqs }: { banners: PublicBanner[]; faqs: PublicFaq[] }) {
+  const faqLd = buildFaqPageJsonLd(faqs);
+
   return (
     <>
       <HumanifySeoHead
         title={`${HUMANIFY_BRAND.name} — ${HUMANIFY_BRAND.productType} | ${NAINCODE.name}`}
-        description={HUMANIFY_BRAND.description}
+        description={PAGE_DESCRIPTION}
         path={HUMANIFY_BRAND.welcomePath}
-        keywords="HRIS Indonesia, software HR, payroll Indonesia, absensi GPS, sistem kehadiran, Humanify, Naincode"
+        keywords={HUMANIFY_DEFAULT_KEYWORDS}
+        imageAlt={`${HUMANIFY_BRAND.name} dashboard HRIS`}
         jsonLd={[
           buildWebSiteJsonLd(),
           buildOrganizationJsonLd(),
           buildSoftwareApplicationJsonLd(),
+          buildWebPageJsonLd({
+            name: `${HUMANIFY_BRAND.name} HRIS`,
+            description: PAGE_DESCRIPTION,
+            path: HUMANIFY_BRAND.welcomePath,
+          }),
+          buildBreadcrumbJsonLd([{ name: 'Beranda', path: '/' }]),
+          ...(faqLd ? [faqLd] : []),
         ]}
       />
       <HumanifyWelcomePage banners={banners} faqs={faqs} />

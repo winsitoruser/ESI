@@ -14,8 +14,9 @@ export default function EmployeeLoginPage({ csrfToken }: Props) {
     <>
       <HumanifySeoHead
         title={`Portal Karyawan — ${HUMANIFY_BRAND.name}`}
-        description={`Login Portal Karyawan ${HUMANIFY_BRAND.name} — absensi, cuti, slip gaji, dan klaim mandiri.`}
+        description={`Login Portal Karyawan ${HUMANIFY_BRAND.name} — absensi GPS, cuti, slip gaji, dan klaim mandiri dari HP atau desktop.`}
         path={HUMANIFY_BRAND.employeeLoginPath}
+        keywords={['portal karyawan', 'ESS Humanify', 'login absensi', 'slip gaji online']}
       />
       <Head>
         <meta name="theme-color" content="#f8fafc" />

@@ -156,7 +156,8 @@ export async function middleware(request: NextRequest) {
     pathname === '/service-worker.js' ||
     pathname === '/.well-known/security.txt' ||
     pathname.startsWith('/.well-known/') ||
-    pathname.startsWith('/icons/')
+    pathname.startsWith('/icons/') ||
+    pathname.startsWith('/videos/')
   ) {
     return NextResponse.next();
   }
@@ -337,6 +338,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/_next') ||
     pathname.startsWith('/static') ||
     pathname.startsWith('/images/') ||
+    pathname.startsWith('/videos/') ||
     pathname.startsWith('/uploads/') ||
     pathname.startsWith('/procurement') ||
     pathname === '/favicon.ico'
@@ -412,6 +414,6 @@ export const config = {
   matcher: [
     '/api/platform',
     '/api/platform/:path*',
-    '/((?!_next/static|_next/image|favicon.ico|images/|icons/|uploads/|api/|procurement|robots\\.txt|sitemap\\.xml|llms\\.txt|humans\\.txt|manifest-employee\\.json|sw-employee\\.js|service-worker\\.js|\\.well-known/).*)',
+    '/((?!_next/static|_next/image|favicon.ico|images/|videos/|icons/|uploads/|api/|procurement|robots\\.txt|sitemap\\.xml|llms\\.txt|humans\\.txt|manifest-employee\\.json|sw-employee\\.js|service-worker\\.js|\\.well-known/).*)',
   ],
 };

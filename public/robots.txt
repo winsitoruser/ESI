@@ -5,9 +5,13 @@ Allow: /humanify/welcome
 Allow: /humanify/signup
 Allow: /humanify/login
 Allow: /humanify/pricing/
+Allow: /humanify/pricing/roi-calculator
 Allow: /humanify/partners
+Allow: /humanify/blog
+Allow: /humanify/blog/
 Allow: /employee/login
 Allow: /images/
+Allow: /videos/
 Allow: /careers
 Allow: /c/
 Allow: /.well-known/security.txt
@@ -24,6 +28,7 @@ Disallow: /humanify/join
 Disallow: /humanify/forgot-password
 Disallow: /humanify/reset-password
 Disallow: /humanify/verify-email
+Disallow: /humanify/partners/status
 Disallow: /api/
 Disallow: /hq/
 Disallow: /admin/
