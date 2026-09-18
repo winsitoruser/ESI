@@ -274,8 +274,8 @@ export default function AiHubPage() {
                 { label: 'Aturan Otomasi', value: dashboard?.totalRules ?? 0, icon: Zap, color: 'text-amber-600' },
                 { label: 'Aturan Aktif', value: dashboard?.activeRules ?? 0, icon: CheckCircle2, color: 'text-emerald-600' },
                 { label: 'Total Eksekusi', value: dashboard?.totalTriggers ?? 0, icon: Play, color: 'text-[color:var(--hf-brand-600)]' },
+                { label: 'Alert Belum Dibaca', value: dashboard?.unreadAlerts ?? 0, icon: AlertTriangle, color: 'text-orange-600' },
                 { label: 'AI Insights', value: insights.length, icon: Brain, color: 'text-purple-600' },
-                { label: 'Agent Workflow', value: 'Assisted', icon: Bot, color: 'text-[color:var(--hf-brand-600)]' },
               ].map((s) => (
                 <div key={s.label} className="bg-white border rounded-xl p-4">
                   <div className="flex items-center justify-between">
@@ -444,8 +444,52 @@ export default function AiHubPage() {
 
         {tab === 'automation' && (
           <div className="mt-6 space-y-4">
+            {(dashboard?.recentAlerts || []).length > 0 && (
+              <div className="bg-white border rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="font-semibold text-sm flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-500" />
+                    Alert otomasi
+                    {(dashboard?.unreadAlerts || 0) > 0 && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                        {dashboard.unreadAlerts} belum dibaca
+                      </span>
+                    )}
+                  </h3>
+                  <button
+                    type="button"
+                    className="text-xs text-[color:var(--hf-brand-600)] hover:underline"
+                    onClick={async () => {
+                      await fetch(`${API}?action=mark-alerts-read`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+                      load();
+                    }}
+                  >
+                    Tandai semua dibaca
+                  </button>
+                </div>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {(dashboard.recentAlerts as any[]).slice(0, 8).map((a: any) => (
+                    <div key={a.id} className={`text-sm border rounded-lg p-2.5 ${a.is_read ? 'opacity-70' : 'border-amber-200 bg-amber-50/40'}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-medium">{a.title}</p>
+                        {a.href && (
+                          <Link href={a.href} className="text-xs text-[color:var(--hf-brand-600)] shrink-0 hover:underline">
+                            Buka
+                          </Link>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-600 mt-0.5">{a.body}</p>
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        {a.created_at ? new Date(a.created_at).toLocaleString('id-ID') : ''}
+                        {a.notified_email ? ' · email terkirim' : ''}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="flex justify-between items-center">
-              <p className="text-sm text-slate-500">{rules.length} aturan otomasi HR</p>
+              <p className="text-sm text-slate-500">{rules.length} aturan otomasi HR · scan otomatis tiap 6 jam (cron)</p>
               <button type="button" onClick={runScan} disabled={scanning} className="flex items-center gap-1 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm disabled:opacity-50">
                 <Zap className="h-4 w-4" /> {scanning ? 'Memindai...' : 'Scan Semua Aturan'}
               </button>

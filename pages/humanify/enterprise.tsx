@@ -379,7 +379,9 @@ export default function HumanifyEnterprisePage() {
         {tab === 'templates' && (
           <section className="space-y-3">
             <p className="text-sm text-[color:var(--hf-ink-muted)]">
-              Edit draft kontrak, paklaring, surat peringatan, laporan KPI, dan dokumen HR lain. Sisipkan field seperti{' '}
+              Edit draft kontrak, paklaring, surat peringatan, laporan KPI, dan dokumen HR lain. Untuk{' '}
+              <strong className="font-medium text-[color:var(--hf-ink)]">Slip gaji</strong>, pilih salah satu
+              desain layout (gaya gallery Canva). Sisipkan field seperti{' '}
               <code className="rounded bg-[var(--hf-surface-muted)] px-1">{'{{employee_name}}'}</code>. Logo mengikuti pengaturan Branding.
             </p>
             <DocumentTemplateStudio

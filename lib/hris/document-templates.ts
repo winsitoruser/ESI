@@ -10,6 +10,11 @@ import {
   parseLetterStyle,
 } from '@/lib/hris/disciplinary-workflow';
 import { applyMergeFields, buildMergeContext, mergeLetterTexts, type LetterMergeContext } from '@/lib/hris/letter-merge-fields';
+import {
+  DEFAULT_PAYSLIP_LAYOUT,
+  isPayslipLayoutId,
+  type PayslipLayoutId,
+} from '@/lib/hris/payslip-templates';
 import type { TenantBranding } from '@/lib/saas/humanify-branding';
 import { getTenantBranding } from '@/lib/saas/humanify-branding';
 import { parseTenantSettings, getTenantColumns } from '@/lib/saas/tenant-schema';
@@ -39,6 +44,8 @@ export interface HrDocumentTemplate {
   useGlobalLetterhead: boolean;
   letterhead?: Partial<LetterheadConfig>;
   style?: Partial<LetterStyleConfig>;
+  /** Payslip visual layout (Canva-style variants). Only meaningful for kind=payslip. */
+  layoutVariant?: PayslipLayoutId;
   updatedAt?: string;
 }
 
@@ -59,7 +66,7 @@ export const HR_TEMPLATE_CATALOG: HrTemplateCatalogItem[] = [
   { type: 'attendance-report', name: 'Laporan kehadiran', description: 'Pengantar rekap absensi', kind: 'report', category: 'laporan', documentType: 'attendance-report' },
   { type: 'leave-report', name: 'Laporan cuti', description: 'Pengantar rekap cuti', kind: 'report', category: 'laporan', documentType: 'leave-report' },
   { type: 'payroll-summary', name: 'Rekap payroll', description: 'Pengantar rekap penggajian', kind: 'report', category: 'payroll', documentType: 'payroll-summary' },
-  { type: 'payslip', name: 'Slip gaji', description: 'Catatan kaki / pengantar slip', kind: 'payslip', category: 'payroll', documentType: 'payslip' },
+  { type: 'payslip', name: 'Slip gaji', description: 'Pilih layout visual + catatan kaki slip', kind: 'payslip', category: 'payroll', documentType: 'payslip' },
   { type: 'travel-expense-claim', name: 'Klaim perjalanan dinas', description: 'Formulir klaim biaya dinas', kind: 'report', category: 'laporan', documentType: 'travel-expense-claim' },
 ];
 
@@ -318,6 +325,7 @@ export function defaultTemplateFor(type: string): HrDocumentTemplate {
     closing: body.closing,
     place: body.place,
     useGlobalLetterhead: true,
+    ...(cat?.kind === 'payslip' ? { layoutVariant: DEFAULT_PAYSLIP_LAYOUT } : {}),
   };
 }
 
@@ -325,6 +333,9 @@ export function sanitizeHrTemplate(raw: unknown, fallbackType: string): HrDocume
   const base = defaultTemplateFor(fallbackType);
   if (!raw || typeof raw !== 'object') return base;
   const o = raw as Record<string, unknown>;
+  const layoutVariant = isPayslipLayoutId(o.layoutVariant)
+    ? o.layoutVariant
+    : base.layoutVariant;
   return {
     type: String(o.type || fallbackType).slice(0, 80),
     name: String(o.name || base.name).trim().slice(0, 160) || base.name,
@@ -336,6 +347,9 @@ export function sanitizeHrTemplate(raw: unknown, fallbackType: string): HrDocume
     useGlobalLetterhead: o.useGlobalLetterhead !== false,
     letterhead: o.letterhead && typeof o.letterhead === 'object' ? (o.letterhead as Partial<LetterheadConfig>) : undefined,
     style: o.style && typeof o.style === 'object' ? (o.style as Partial<LetterStyleConfig>) : undefined,
+    ...(getCatalogItem(fallbackType)?.kind === 'payslip' || layoutVariant
+      ? { layoutVariant: layoutVariant || DEFAULT_PAYSLIP_LAYOUT }
+      : {}),
     updatedAt: o.updatedAt ? String(o.updatedAt) : undefined,
   };
 }
@@ -552,5 +566,6 @@ export async function hydrateDocumentFromTemplate(opts: {
   if (!data.letterhead) data.letterhead = draft.letterhead;
   if (!data.style) data.style = draft.style;
   if (!data.place && draft.place) data.place = draft.place;
+  if (template.layoutVariant && !data.layoutVariant) data.layoutVariant = template.layoutVariant;
   return { data, company, branding };
 }

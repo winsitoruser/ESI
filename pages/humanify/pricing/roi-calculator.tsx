@@ -8,7 +8,7 @@ import {
 } from '@/lib/humanify/seo';
 
 const PAGE_TITLE = `Kalkulator ROI HRIS | Hitung Penghematan Anda — ${HUMANIFY_BRAND.name}`;
-const PAGE_DESCRIPTION = `Hitung estimasi penghematan biaya dan waktu dengan ${HUMANIFY_BRAND.name}. Kalkulator ROI interaktif untuk perusahaan di Indonesia.`;
+const PAGE_DESCRIPTION = `Hitung estimasi penghematan biaya dan waktu HR dengan ${HUMANIFY_BRAND.name}. Kalkulator ROI interaktif untuk payroll, absensi, dan portal karyawan di Indonesia.`;
 
 export default function RoiCalculatorRoute() {
   return (

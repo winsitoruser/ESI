@@ -9,6 +9,7 @@ import {
   generateDraftLetterPDF,
   isDraftBasedLetter,
 } from '@/lib/hris/disciplinary-letter-render';
+import { payslipPdfTheme } from '@/lib/hris/payslip-templates';
 import { jsPdfImageFormat, resolveLogoDataUrl } from './logo';
 
 /** Resolve jspdf-autotable export (default vs named) for CJS/ESM interop */
@@ -371,6 +372,8 @@ function renderReceiptBody(doc: any, data: any, y: number, pw: number, m: number
 
 // ── PAYSLIP ──
 function renderPayslipBody(doc: any, data: any, y: number, pw: number, m: number): number {
+  const theme = payslipPdfTheme(data.layoutVariant);
+
   if (data.body || data.intro) {
     doc.setFontSize(8);
     doc.setFont('helvetica', 'italic');
@@ -379,8 +382,21 @@ function renderPayslipBody(doc: any, data: any, y: number, pw: number, m: number
     y += split.length * 3.5 + 3;
     doc.setFont('helvetica', 'normal');
   }
+
+  if (theme.structure === 'thp-first') {
+    doc.setFillColor(...theme.accentDark);
+    doc.rect(m, y, pw - 2 * m, 12, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('GAJI BERSIH (TAKE HOME PAY)', m + 3, y + 7.5);
+    doc.text(fmtCurrency(data.netPay || 0), pw - m - 3, y + 7.5, { align: 'right' });
+    doc.setTextColor(0, 0, 0);
+    y += 16;
+  }
+
   // Employee info box
-  doc.setFillColor(245, 245, 250);
+  doc.setFillColor(...theme.surface);
   doc.rect(m, y - 2, pw - 2 * m, 22, 'F');
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
@@ -395,8 +411,8 @@ function renderPayslipBody(doc: any, data: any, y: number, pw: number, m: number
   doc.text('Periode', col3, y + 15); doc.text(`: ${data.period || '-'}`, col4, y + 15);
   y += 25;
 
-  // Earnings & Deductions side by side
-  const halfW = (pw - 2 * m - 5) / 2;
+  const stacked = theme.structure === 'stacked';
+  const halfW = stacked ? (pw - 2 * m) : (pw - 2 * m - 5) / 2;
 
   // Earnings
   callAutoTable(doc, {
@@ -404,48 +420,73 @@ function renderPayslipBody(doc: any, data: any, y: number, pw: number, m: number
     head: [['Pendapatan', 'Jumlah']],
     body: (data.earnings || []).map((e: any) => [e.name, fmtCurrency(e.amount)]),
     theme: 'striped',
-    headStyles: { fillColor: [34, 139, 34], fontSize: 8 },
+    headStyles: { fillColor: theme.earnHead, fontSize: 8 },
     bodyStyles: { fontSize: 8 },
     columnStyles: { 1: { halign: 'right' } },
-    margin: { left: m, right: pw - m - halfW },
+    margin: { left: m, right: stacked ? m : pw - m - halfW },
     tableWidth: halfW,
   });
 
+  if (stacked) {
+    y = (doc.lastAutoTable?.finalY || y) + 4;
+  }
+
   // Deductions
   callAutoTable(doc, {
-    startY: y,
+    startY: stacked ? y : y,
     head: [['Potongan', 'Jumlah']],
     body: (data.deductions || []).map((d: any) => [d.name, fmtCurrency(d.amount)]),
     theme: 'striped',
-    headStyles: { fillColor: [220, 53, 69], fontSize: 8 },
+    headStyles: { fillColor: theme.deductHead, fontSize: 8 },
     bodyStyles: { fontSize: 8 },
     columnStyles: { 1: { halign: 'right' } },
-    margin: { left: m + halfW + 5, right: m },
+    margin: stacked
+      ? { left: m, right: m }
+      : { left: m + halfW + 5, right: m },
     tableWidth: halfW,
   });
 
   y = Math.max(doc.lastAutoTable.finalY, doc.previousAutoTable?.finalY || 0) + 5;
 
   // Summary
-  doc.setFillColor(0, 102, 204);
-  doc.rect(m, y, pw - 2 * m, 10, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Total Pendapatan', m + 3, y + 4);
-  doc.text(fmtCurrency(data.totalEarnings || 0), pw / 2 - 5, y + 4, { align: 'right' });
-  doc.text('Total Potongan', pw / 2 + 5, y + 4);
-  doc.text(fmtCurrency(data.totalDeductions || 0), pw - m - 3, y + 4, { align: 'right' });
-  y += 10;
-  doc.setFillColor(0, 51, 102);
-  doc.rect(m, y, pw - 2 * m, 8, 'F');
-  doc.setFontSize(10);
-  doc.text('GAJI BERSIH (TAKE HOME PAY)', m + 3, y + 5.5);
-  doc.text(fmtCurrency(data.netPay || 0), pw - m - 3, y + 5.5, { align: 'right' });
-  y += 12;
-  doc.setTextColor(0, 0, 0);
+  if (theme.structure !== 'thp-first') {
+    doc.setFillColor(...theme.accent);
+    doc.rect(m, y, pw - 2 * m, 10, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Total Pendapatan', m + 3, y + 4);
+    doc.text(fmtCurrency(data.totalEarnings || 0), pw / 2 - 5, y + 4, { align: 'right' });
+    doc.text('Total Potongan', pw / 2 + 5, y + 4);
+    doc.text(fmtCurrency(data.totalDeductions || 0), pw - m - 3, y + 4, { align: 'right' });
+    y += 10;
+    doc.setFillColor(...theme.accentDark);
+    doc.rect(m, y, pw - 2 * m, 8, 'F');
+    doc.setFontSize(10);
+    doc.text('GAJI BERSIH (TAKE HOME PAY)', m + 3, y + 5.5);
+    doc.text(fmtCurrency(data.netPay || 0), pw - m - 3, y + 5.5, { align: 'right' });
+    y += 12;
+    doc.setTextColor(0, 0, 0);
+  } else {
+    doc.setFillColor(...theme.accent);
+    doc.rect(m, y, pw - 2 * m, 8, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Pendapatan ${fmtCurrency(data.totalEarnings || 0)}   ·   Potongan ${fmtCurrency(data.totalDeductions || 0)}`, m + 3, y + 5.5);
+    doc.setTextColor(0, 0, 0);
+    y += 12;
+  }
 
   // Notes
+  if (data.closing) {
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(120, 120, 120);
+    const closeSplit = doc.splitTextToSize(String(data.closing), pw - 2 * m);
+    doc.text(closeSplit, m, y);
+    y += closeSplit.length * 3 + 2;
+  }
   doc.setFontSize(7);
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(120, 120, 120);

@@ -36,6 +36,7 @@ export type AgentWorkflowId =
   | 'leave_desk'
   | 'contract_watch'
   | 'onboarding_check'
+  | 'ir_desk'
   | 'general_scan';
 
 export type AgentRunResult = {
@@ -56,9 +57,9 @@ const WORKFLOWS: Array<{
 }> = [
   {
     id: 'payroll_prep',
-    pattern: /persiap(kan)?\s+payroll|siap(kan)?\s+gaji|payroll\s+prep|cek\s+payroll|workflow\s+payroll/i,
+    pattern: /persiap(kan)?\s+payroll|siap(kan)?\s+gaji|payroll\s+prep|cek\s+payroll|workflow\s+payroll|buat\s+draft\s+payroll/i,
     readTools: ['payroll_prep_checklist', 'list_hr_backlog'],
-    suggestWrites: ['run_automation_scan'],
+    suggestWrites: ['payroll_create_draft_run'],
     title: 'Persiapan Payroll',
   },
   {
@@ -70,9 +71,9 @@ const WORKFLOWS: Array<{
   },
   {
     id: 'leave_desk',
-    pattern: /meja\s+cuti|desk\s+cuti|detail\s+cuti\s+pending|cuti\s+menunggu|workflow\s+cuti/i,
+    pattern: /meja\s+cuti|desk\s+cuti|detail\s+cuti\s+pending|cuti\s+menunggu|workflow\s+cuti|eskalasi\s+cuti/i,
     readTools: ['leave_pending_detail', 'list_hr_backlog'],
-    suggestWrites: ['execute_leave_backlog_alert'],
+    suggestWrites: ['run_leave_escalation'],
     title: 'Meja Cuti',
   },
   {
@@ -88,6 +89,13 @@ const WORKFLOWS: Array<{
     readTools: ['onboarding_status', 'list_hr_backlog'],
     suggestWrites: [],
     title: 'Cek Onboarding',
+  },
+  {
+    id: 'ir_desk',
+    pattern: /\bsp\b|surat\s+peringatan|disiplin|hubungan\s+industrial|\bir\b|reminder\s+sp|cek\s+sp/i,
+    readTools: ['ir_pending_sp_list'],
+    suggestWrites: ['ir_phase_reminder'],
+    title: 'Meja IR / SP',
   },
   {
     id: 'hr_backlog',
@@ -110,6 +118,9 @@ const WRITE_RISK: Partial<Record<AgentToolName, 'medium' | 'high'>> = {
   execute_contract_expiry_alert: 'medium',
   execute_leave_backlog_alert: 'medium',
   run_automation_scan: 'medium',
+  run_leave_escalation: 'medium',
+  ir_phase_reminder: 'medium',
+  payroll_create_draft_run: 'high',
 };
 
 export function detectAgentWorkflow(message: string): AgentWorkflowId | null {
@@ -219,6 +230,28 @@ function formatStepDetail(step: AgentStep): string[] {
         if (idx === 0) lines.push('• Proses berjalan:');
         lines.push(l);
       });
+      break;
+    case 'ir_pending_sp_list':
+      lines.push(`• SP/IR pipeline: ${d.count ?? 0}`);
+      formatSampleLines(d.items, (r, i) => `  ${i + 1}. ${r.employee} · ${r.type || 'SP'} · ${r.status}/${r.phase || '—'}`, 6)
+        .forEach((l, idx) => {
+          if (idx === 0) lines.push('• Daftar:');
+          lines.push(l);
+        });
+      break;
+    case 'payroll_create_draft_run':
+      lines.push(`• Periode: ${d.period || '—'}`);
+      lines.push(`• Dibuat baru: ${d.created ? 'ya' : 'tidak (sudah ada)'}`);
+      if (d.run?.run_code || d.existing?.run_code) {
+        lines.push(`• Kode: ${d.run?.run_code || d.existing?.run_code}`);
+      }
+      break;
+    case 'run_leave_escalation':
+      lines.push(`• Dicek: ${d.checked ?? 0}`);
+      lines.push(`• Dieskalasi: ${d.escalated ?? 0}`);
+      break;
+    case 'ir_phase_reminder':
+      lines.push(`• Notifikasi untuk: ${d.notified ?? d.count ?? 0} SP`);
       break;
     default:
       break;
@@ -352,6 +385,47 @@ export async function runAimanAgent(opts: {
           label: meta.label,
           status: 'skipped',
           summary: `Cuti pending ${count} (<5) — alert backlog tidak diperlukan.`,
+        });
+        continue;
+      }
+    }
+    if (tool === 'run_leave_escalation') {
+      const detail = steps.find((s) => s.tool === 'leave_pending_detail' || s.tool === 'list_hr_backlog');
+      const count = Number(detail?.data?.count ?? detail?.data?.leavePending ?? 0);
+      if (count <= 0) {
+        steps.push({
+          tool,
+          kind: 'write',
+          label: meta.label,
+          status: 'skipped',
+          summary: 'Tidak ada cuti pending — eskalasi dilewati.',
+        });
+        continue;
+      }
+    }
+    if (tool === 'ir_phase_reminder') {
+      const list = steps.find((s) => s.tool === 'ir_pending_sp_list');
+      if (Number(list?.data?.count || 0) <= 0) {
+        steps.push({
+          tool,
+          kind: 'write',
+          label: meta.label,
+          status: 'skipped',
+          summary: 'Tidak ada SP pending — reminder dilewati.',
+        });
+        continue;
+      }
+    }
+    if (tool === 'payroll_create_draft_run') {
+      const prep = steps.find((s) => s.tool === 'payroll_prep_checklist');
+      const open = Array.isArray(prep?.data?.openRuns) ? (prep!.data!.openRuns as unknown[]).length : 0;
+      if (open > 0) {
+        steps.push({
+          tool,
+          kind: 'write',
+          label: meta.label,
+          status: 'skipped',
+          summary: `Sudah ada ${open} payroll run terbuka — draft baru tidak disarankan.`,
         });
         continue;
       }

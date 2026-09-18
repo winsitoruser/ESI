@@ -4,10 +4,16 @@ import {
 } from 'lucide-react';
 import { LetterheadPanel, LetterStylePanel } from '@/components/humanify/disciplinary/LetterheadStylePanel';
 import { LetterPreviewPaper } from '@/components/humanify/disciplinary/LetterDraftEditor';
+import {
+  PayslipLayoutPicker,
+  PayslipPaperPreview,
+} from '@/components/humanify/enterprise/PayslipTemplatePreview';
 import { parseDraftContent, type DraftContent } from '@/lib/hris/disciplinary-workflow';
 import type { LetterMergeContext } from '@/lib/hris/letter-merge-fields';
+import type { PayslipLayoutId } from '@/lib/hris/payslip-templates';
+import { getPayslipLayout } from '@/lib/hris/payslip-templates';
 
-type EditorTab = 'content' | 'letterhead' | 'style';
+type EditorTab = 'content' | 'letterhead' | 'style' | 'layout';
 type EditorMode = 'split' | 'edit' | 'preview';
 
 export type CatalogItem = {
@@ -29,6 +35,7 @@ export type HrTemplate = {
   useGlobalLetterhead: boolean;
   letterhead?: DraftContent['letterhead'];
   style?: DraftContent['style'];
+  layoutVariant?: PayslipLayoutId | string;
   updatedAt?: string;
 };
 
@@ -67,13 +74,15 @@ export default function DocumentTemplateStudio({
 
   const tpl = map[selected];
   const cat = catalog.find((c) => c.type === selected);
+  const isPayslip = cat?.kind === 'payslip' || selected === 'payslip';
   const [draftTpl, setDraftTpl] = useState<HrTemplate | null>(null);
   const current = draftTpl && draftTpl.type === selected ? draftTpl : tpl;
 
   function select(type: string) {
     setSelected(type);
     setDraftTpl(null);
-    setTab('content');
+    const next = catalog.find((c) => c.type === type);
+    setTab(next?.kind === 'payslip' || type === 'payslip' ? 'layout' : 'content');
   }
 
   function patch(p: Partial<HrTemplate>) {
@@ -99,6 +108,18 @@ export default function DocumentTemplateStudio({
   }
 
   const visible = catalog.filter((c) => filter === 'all' || c.category === filter);
+
+  const editorTabs = isPayslip
+    ? ([
+        { id: 'layout' as const, label: 'Desain slip', icon: LayoutTemplate },
+        { id: 'content' as const, label: 'Catatan', icon: FileText },
+        { id: 'letterhead' as const, label: 'Kop / logo', icon: Palette },
+      ])
+    : ([
+        { id: 'content' as const, label: 'Isi dokumen', icon: FileText },
+        { id: 'letterhead' as const, label: 'Kop surat', icon: LayoutTemplate },
+        { id: 'style' as const, label: 'Style', icon: Palette },
+      ]);
 
   return (
     <div className="grid gap-4 lg:grid-cols-[240px_1fr]">
@@ -130,7 +151,13 @@ export default function DocumentTemplateStudio({
                   }`}
                 >
                   <p className="text-sm font-medium">{c.name}</p>
-                  <p className="text-[11px] text-[color:var(--hf-ink-muted)]">{saved?.updatedAt ? 'Disesuaikan' : 'Default sistem'}</p>
+                  <p className="text-[11px] text-[color:var(--hf-ink-muted)]">
+                    {c.kind === 'payslip'
+                      ? `Desain · ${getPayslipLayout(saved?.layoutVariant).name}`
+                      : saved?.updatedAt
+                        ? 'Disesuaikan'
+                        : 'Default sistem'}
+                  </p>
                 </button>
               </li>
             );
@@ -172,11 +199,7 @@ export default function DocumentTemplateStudio({
               {(mode === 'split' || mode === 'edit') && (
                 <div className="hf-card overflow-hidden">
                   <div className="flex border-b border-[var(--hf-border)] bg-[var(--hf-surface-muted)]">
-                    {([
-                      { id: 'content' as const, label: 'Isi dokumen', icon: FileText },
-                      { id: 'letterhead' as const, label: 'Kop surat', icon: LayoutTemplate },
-                      { id: 'style' as const, label: 'Style', icon: Palette },
-                    ]).map(({ id, label, icon: Icon }) => (
+                    {editorTabs.map(({ id, label, icon: Icon }) => (
                       <button key={id} type="button" onClick={() => setTab(id)}
                         className={`flex flex-1 items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-medium ${
                           tab === id ? 'border-b-2 border-[var(--hf-brand-600)] bg-white text-[color:var(--hf-brand-600)]' : 'text-[color:var(--hf-ink-muted)]'
@@ -186,6 +209,12 @@ export default function DocumentTemplateStudio({
                     ))}
                   </div>
                   <div className="p-4">
+                    {tab === 'layout' && isPayslip && (
+                      <PayslipLayoutPicker
+                        value={current.layoutVariant}
+                        onChange={(id) => patch({ layoutVariant: id })}
+                      />
+                    )}
                     {tab === 'content' && (
                       <div className="space-y-3">
                         <div>
@@ -208,29 +237,43 @@ export default function DocumentTemplateStudio({
                           <span className="text-xs text-[color:var(--hf-ink-muted)]">Nama template</span>
                           <input className="hf-input mt-0.5 w-full" value={current.name} onChange={(e) => patch({ name: e.target.value })} />
                         </label>
+                        {!isPayslip && (
+                          <>
+                            <label className="block text-sm">
+                              <span className="text-xs text-[color:var(--hf-ink-muted)]">Tempat</span>
+                              <input className="hf-input mt-0.5 w-full" value={current.place} onChange={(e) => patch({ place: e.target.value })} />
+                            </label>
+                            <label className="block text-sm">
+                              <span className="text-xs text-[color:var(--hf-ink-muted)]">Perihal / judul</span>
+                              <input className="hf-input mt-0.5 w-full font-medium" value={current.subject} onChange={(e) => patch({ subject: e.target.value })} />
+                            </label>
+                            <label className="block text-sm">
+                              <span className="text-xs text-[color:var(--hf-ink-muted)]">Sapaan</span>
+                              <textarea className="hf-input mt-0.5 w-full" rows={2} value={current.salutation} onChange={(e) => patch({ salutation: e.target.value })} />
+                            </label>
+                          </>
+                        )}
+                        {isPayslip && (
+                          <label className="block text-sm">
+                            <span className="text-xs text-[color:var(--hf-ink-muted)]">Judul slip</span>
+                            <input className="hf-input mt-0.5 w-full font-medium" value={current.subject} onChange={(e) => patch({ subject: e.target.value })} />
+                          </label>
+                        )}
                         <label className="block text-sm">
-                          <span className="text-xs text-[color:var(--hf-ink-muted)]">Tempat</span>
-                          <input className="hf-input mt-0.5 w-full" value={current.place} onChange={(e) => patch({ place: e.target.value })} />
-                        </label>
-                        <label className="block text-sm">
-                          <span className="text-xs text-[color:var(--hf-ink-muted)]">Perihal / judul</span>
-                          <input className="hf-input mt-0.5 w-full font-medium" value={current.subject} onChange={(e) => patch({ subject: e.target.value })} />
-                        </label>
-                        <label className="block text-sm">
-                          <span className="text-xs text-[color:var(--hf-ink-muted)]">Sapaan</span>
-                          <textarea className="hf-input mt-0.5 w-full" rows={2} value={current.salutation} onChange={(e) => patch({ salutation: e.target.value })} />
-                        </label>
-                        <label className="block text-sm">
-                          <span className="text-xs text-[color:var(--hf-ink-muted)]">Isi (editor)</span>
+                          <span className="text-xs text-[color:var(--hf-ink-muted)]">
+                            {isPayslip ? 'Pengantar / catatan atas' : 'Isi (editor)'}
+                          </span>
                           <textarea
                             className="hf-input mt-0.5 w-full font-[Georgia,serif] leading-relaxed"
-                            rows={12}
+                            rows={isPayslip ? 4 : 12}
                             value={current.body}
                             onChange={(e) => patch({ body: e.target.value })}
                           />
                         </label>
                         <label className="block text-sm">
-                          <span className="text-xs text-[color:var(--hf-ink-muted)]">Penutup</span>
+                          <span className="text-xs text-[color:var(--hf-ink-muted)]">
+                            {isPayslip ? 'Catatan kaki' : 'Penutup'}
+                          </span>
                           <textarea className="hf-input mt-0.5 w-full" rows={3} value={current.closing} onChange={(e) => patch({ closing: e.target.value })} />
                         </label>
                       </div>
@@ -258,7 +301,7 @@ export default function DocumentTemplateStudio({
                         )}
                       </div>
                     )}
-                    {tab === 'style' && (
+                    {tab === 'style' && !isPayslip && (
                       <LetterStylePanel
                         draft={dc}
                         onChange={(next) => patch({ style: next.style, letterhead: next.letterhead })}
@@ -270,26 +313,41 @@ export default function DocumentTemplateStudio({
 
               {(mode === 'split' || mode === 'preview') && (
                 <div className="max-h-[900px] overflow-auto rounded-[var(--hf-radius-xl)] bg-slate-100 p-4">
-                  <LetterPreviewPaper
-                    letter={{
-                      letter_type: selected.includes('termination') ? 'TERMINATION' : selected.includes('reprehend') ? 'TEGURAN' : 'SP1',
-                      letter_number: String(sampleContext.letter_number || 'DRAFT'),
-                      employee_name: String(sampleContext.employee_name || ''),
-                      employee_code: String(sampleContext.employee_code || ''),
-                      position: String(sampleContext.position || ''),
-                      department: String(sampleContext.department || ''),
-                      violation_type: cat?.category === 'disiplin' ? String(sampleContext.violation_type || '') : '',
-                      incident_date: String(sampleContext.incident_date || ''),
-                      effective_date: String(sampleContext.effective_date || ''),
-                    }}
-                    draft={{
-                      ...dc,
-                      subject: fill(dc.subject, sampleContext),
-                      salutation: fill(dc.salutation, sampleContext),
-                      body: fill(dc.body, sampleContext),
-                      closing: fill(dc.closing, sampleContext),
-                    }}
-                  />
+                  {isPayslip ? (
+                    <PayslipPaperPreview
+                      layoutId={current.layoutVariant}
+                      intro={fill(current.body, sampleContext)}
+                      closing={fill(current.closing, sampleContext)}
+                      brandingLogo={
+                        current.useGlobalLetterhead
+                          ? brandingLogo
+                          : current.letterhead?.logoUrl || brandingLogo
+                      }
+                      companyName={String(sampleContext.company_name || '')}
+                      companyAddress={String(sampleContext.company_address || '')}
+                    />
+                  ) : (
+                    <LetterPreviewPaper
+                      letter={{
+                        letter_type: selected.includes('termination') ? 'TERMINATION' : selected.includes('reprehend') ? 'TEGURAN' : 'SP1',
+                        letter_number: String(sampleContext.letter_number || 'DRAFT'),
+                        employee_name: String(sampleContext.employee_name || ''),
+                        employee_code: String(sampleContext.employee_code || ''),
+                        position: String(sampleContext.position || ''),
+                        department: String(sampleContext.department || ''),
+                        violation_type: cat?.category === 'disiplin' ? String(sampleContext.violation_type || '') : '',
+                        incident_date: String(sampleContext.incident_date || ''),
+                        effective_date: String(sampleContext.effective_date || ''),
+                      }}
+                      draft={{
+                        ...dc,
+                        subject: fill(dc.subject, sampleContext),
+                        salutation: fill(dc.salutation, sampleContext),
+                        body: fill(dc.body, sampleContext),
+                        closing: fill(dc.closing, sampleContext),
+                      }}
+                    />
+                  )}
                 </div>
               )}
             </div>

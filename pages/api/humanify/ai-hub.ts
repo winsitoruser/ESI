@@ -1,11 +1,12 @@
 /**
  * Humanify AI Hub API — copilot, automation rules, dashboard
- * GET  ?action=dashboard|automation-rules|automation-logs|insights
- * POST ?action=chat|automation-execute|automation-scan|toggle-rule
+ * GET  ?action=dashboard|automation-rules|automation-logs|automation-alerts|insights
+ * POST ?action=chat|automation-execute|automation-scan|toggle-rule|mark-alerts-read
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
 import {
-  listRules, listLogs, executeRule, scanAllRules, getAutomationDashboard, ensureDefaultRules,
+  listRules, listLogs, listAlerts, markAlertsRead, executeRule, scanAllRules,
+  getAutomationDashboard, ensureDefaultRules,
 } from '@/lib/hris/hr-automation';
 import { chatWithCopilot, saveConversation } from '@/lib/hris/ai-copilot';
 import { generateModuleInsightsBatchAsync } from '@/lib/hris/ai-service';
@@ -132,6 +133,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         return res.json({ success: true, data: logs });
       }
 
+      if (action === 'automation-alerts') {
+        const alerts = await listAlerts(tenantId, 30);
+        return res.json({ success: true, data: alerts });
+      }
+
       if (action === 'insights') {
         const contexts = sequelize ? await gatherBatchContext(period, tenantId) : [];
         const result = await generateModuleInsightsBatchAsync(contexts as any);
@@ -168,12 +174,16 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           'execute_recruitment_screening',
           'execute_contract_expiry_alert',
           'execute_leave_backlog_alert',
+          'run_leave_escalation',
           'payroll_prep_checklist',
+          'payroll_create_draft_run',
           'recruitment_screen_preview',
           'list_hr_backlog',
           'leave_pending_detail',
           'contract_expiry_check',
           'onboarding_status',
+          'ir_pending_sp_list',
+          'ir_phase_reminder',
         ]);
         const list: string[] = Array.isArray(tools) && tools.length
           ? tools.map(String)
@@ -228,6 +238,15 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           { replacements: { active: !!is_active, id: rule_id, tid: tenantId } },
         );
         return res.json({ success: true });
+      }
+
+      if (action === 'mark-alerts-read') {
+        const { alert_ids } = req.body || {};
+        const n = await markAlertsRead(
+          tenantId,
+          Array.isArray(alert_ids) ? alert_ids.map(String) : undefined,
+        );
+        return res.json({ success: true, data: { marked: n } });
       }
 
       return res.status(400).json({ success: false, error: 'Unknown action' });

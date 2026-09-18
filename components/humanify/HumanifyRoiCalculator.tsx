@@ -13,6 +13,7 @@ import {
   Check,
   Info,
   Calculator,
+  Sparkles,
 } from 'lucide-react';
 import {
   Bar,
@@ -26,18 +27,23 @@ import {
 } from 'recharts';
 import {
   ROI_ASSUMPTIONS,
+  ROI_COMPANY_PRESETS,
   ROI_DEFAULTS,
   ROI_FIELD_RANGES,
+  ROI_VALUE_DRIVERS,
   RoiInput,
   RoiResult,
   buildRoiQueryString,
   calculateRoi,
+  clampRoiInput,
   formatCurrency,
   formatNumber,
   getMonthlyProjection,
+  hasRoiQueryParams,
+  matchCompanyPreset,
   parseRoiQueryParams,
 } from '@/lib/humanify/roi-calculator';
-import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
+import { HUMANIFY_BRAND, HUMANIFY_MARKETING } from '@/lib/humanify/branding';
 import { DEFAULT_SEAT_PRICING } from '@/lib/saas/seat-pricing-core';
 
 type FieldKey = keyof RoiInput;
@@ -48,6 +54,7 @@ const FIELDS: Array<{
   icon: React.ElementType;
   suffix: string;
   format: (v: number) => string;
+  inputMode?: 'numeric' | 'decimal';
 }> = [
   {
     key: 'jumlahKaryawan',
@@ -95,17 +102,9 @@ const RESULT_CARDS: Array<{
   format: (v: number) => string;
 }> = [
   {
-    key: 'netSaving',
-    label: 'Estimasi Penghematan Bersih',
-    sublabel: 'per bulan',
-    icon: TrendingUp,
-    accent: 'bg-emerald-50 text-emerald-700',
-    format: formatCurrency,
-  },
-  {
     key: 'roiPersen',
     label: 'Return on Investment',
-    sublabel: '',
+    sublabel: 'vs biaya langganan',
     icon: Calculator,
     accent: 'bg-[#f6e6ff] text-[#592277]',
     format: (v) => `${Math.round(v)}%`,
@@ -165,6 +164,44 @@ function AnimatedValue({
   return <>{format(display)}</>;
 }
 
+function PresetChips({
+  activeId,
+  onSelect,
+}: {
+  activeId: string | null;
+  onSelect: (values: RoiInput) => void;
+}) {
+  return (
+    <div className="mb-6">
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#656565]">
+        Skala perusahaan
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {ROI_COMPANY_PRESETS.map((preset) => {
+          const active = activeId === preset.id;
+          return (
+            <button
+              key={preset.id}
+              type="button"
+              onClick={() => onSelect(preset.values)}
+              className={`inline-flex min-h-11 flex-col items-start rounded-xl border px-3 py-2 text-left transition ${
+                active
+                  ? 'border-[#592277] bg-[#f6e6ff] text-[#592277] shadow-sm'
+                  : 'border-[#eee9f1] bg-white text-[#35393f] hover:border-[#592277]/40'
+              }`}
+            >
+              <span className="text-sm font-semibold">{preset.label}</span>
+              <span className={`text-xs ${active ? 'text-[#592277]/80' : 'text-[#656565]'}`}>
+                {preset.hint}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function SliderPanel({
   values,
   onChange,
@@ -172,21 +209,25 @@ function SliderPanel({
   values: RoiInput;
   onChange: (next: RoiInput) => void;
 }) {
+  const activePreset = matchCompanyPreset(values);
+
   const handleChange = useCallback(
     (key: FieldKey, raw: number) => {
-      onChange({ ...values, [key]: raw });
+      onChange(clampRoiInput({ ...values, [key]: raw }));
     },
     [values, onChange],
   );
 
   return (
-    <div className="space-y-6">
-      <div className="mb-2">
+    <div className="space-y-5">
+      <div>
         <h3 className="mb-1 text-lg font-bold text-[#35393f]">Data Perusahaan Anda</h3>
         <p className="text-sm text-[#656565]">
-          Sesuaikan parameter di bawah untuk menghitung estimasi penghematan
+          Pilih skala atau sesuaikan slider — hasil diperbarui otomatis
         </p>
       </div>
+
+      <PresetChips activeId={activePreset} onSelect={onChange} />
 
       {FIELDS.map((field) => {
         const range = ROI_FIELD_RANGES[field.key];
@@ -197,16 +238,31 @@ function SliderPanel({
         return (
           <div key={field.key} className="group">
             <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <label className="flex items-center gap-2 text-sm font-semibold text-[#35393f]">
+              <label
+                htmlFor={`roi-${field.key}`}
+                className="flex items-center gap-2 text-sm font-semibold text-[#35393f]"
+              >
                 <Icon className="h-4 w-4 shrink-0 text-[#592277]" />
                 {field.label}
               </label>
-              <span className="w-fit rounded-full border border-[#eee9f1] bg-[#f6e6ff] px-3 py-1 text-sm font-bold text-[#592277]">
-                {field.format(current)} {field.suffix}
-              </span>
+              <div className="flex items-center gap-2">
+                <input
+                  id={`roi-${field.key}-num`}
+                  type="number"
+                  min={range.min}
+                  max={range.max}
+                  step={range.step}
+                  value={current}
+                  onChange={(e) => handleChange(field.key, Number(e.target.value))}
+                  aria-label={`${field.label} (angka)`}
+                  className="w-28 rounded-lg border border-[#eee9f1] bg-white px-2 py-1.5 text-right text-sm font-semibold text-[#592277] outline-none focus:border-[#592277] focus:ring-2 focus:ring-[rgba(89,34,119,0.15)]"
+                />
+                <span className="text-xs text-[#656565]">{field.suffix}</span>
+              </div>
             </div>
 
             <input
+              id={`roi-${field.key}`}
               type="range"
               min={range.min}
               max={range.max}
@@ -231,7 +287,7 @@ function SliderPanel({
       <button
         type="button"
         onClick={() => onChange({ ...ROI_DEFAULTS })}
-        className="mt-2 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-dashed border-[#eee9f1] text-sm text-[#656565] transition-colors hover:border-[#592277]/40 hover:text-[#592277]"
+        className="mt-1 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-dashed border-[#eee9f1] text-sm text-[#656565] transition-colors hover:border-[#592277]/40 hover:text-[#592277]"
       >
         Reset ke Nilai Default
       </button>
@@ -239,38 +295,125 @@ function SliderPanel({
   );
 }
 
+function HeroSaving({ result }: { result: RoiResult }) {
+  const positive = result.netSaving >= 0;
+
+  return (
+    <div
+      className="relative overflow-hidden rounded-2xl border border-[#eee9f1] p-6 text-white shadow-md sm:p-8"
+      style={{
+        background: `linear-gradient(135deg, ${HUMANIFY_MARKETING.brand} 0%, ${HUMANIFY_MARKETING.gradientTo} 55%, ${HUMANIFY_MARKETING.footerBg} 100%)`,
+      }}
+    >
+      <div
+        className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full opacity-30 blur-2xl"
+        style={{ background: HUMANIFY_MARKETING.gradientFrom }}
+        aria-hidden
+      />
+      <div className="relative">
+        <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold backdrop-blur-sm">
+          <TrendingUp className="h-3.5 w-3.5" />
+          Estimasi penghematan bersih
+        </div>
+        <p className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
+          <AnimatedValue
+            value={result.netSaving}
+            format={(v) => (positive ? formatCurrency(v) : `−${formatCurrency(Math.abs(v))}`)}
+          />
+        </p>
+        <p className="mt-2 text-sm text-white/80">per bulan · setelah biaya langganan Humanify</p>
+
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div className="rounded-xl bg-white/10 px-3 py-2.5 backdrop-blur-sm">
+            <p className="text-[11px] text-white/70">Langganan</p>
+            <p className="text-sm font-semibold">{formatCurrency(result.biayaLangganan)}/bln</p>
+          </div>
+          <div className="rounded-xl bg-white/10 px-3 py-2.5 backdrop-blur-sm">
+            <p className="text-[11px] text-white/70">Harga / karyawan</p>
+            <p className="text-sm font-semibold">Rp {formatNumber(result.hargaPerUser)}</p>
+          </div>
+          <div className="col-span-2 rounded-xl bg-white/10 px-3 py-2.5 backdrop-blur-sm sm:col-span-1">
+            <p className="text-[11px] text-white/70">Balik modal</p>
+            <p className="text-sm font-semibold">
+              {result.paybackPeriodHari > 0
+                ? `±${Math.round(result.paybackPeriodHari)} hari`
+                : '—'}
+            </p>
+          </div>
+        </div>
+
+        <p className="mt-4 text-xs text-white/65">{result.namaTier}</p>
+      </div>
+    </div>
+  );
+}
+
 function ResultCards({ result }: { result: RoiResult }) {
   return (
-    <div className="space-y-4">
-      <h3 className="mb-1 text-lg font-bold text-[#35393f]">Hasil Kalkulasi</h3>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {RESULT_CARDS.map((card) => {
-          const Icon = card.icon;
-          const value = result[card.key] as number;
-          return (
-            <div
-              key={card.key}
-              className="relative overflow-hidden rounded-2xl border border-[#eee9f1] bg-white p-5 shadow-sm"
-            >
-              <div className="flex items-start gap-3">
-                <div
-                  className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${card.accent}`}
-                >
-                  <Icon className="h-5 w-5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="mb-1 text-xs text-[#656565]">{card.label}</p>
-                  <p className="truncate text-xl font-bold text-[#35393f] sm:text-2xl">
-                    <AnimatedValue value={value} format={card.format} />
-                  </p>
-                  {card.sublabel && (
-                    <p className="mt-0.5 text-xs text-[#656565]/80">{card.sublabel}</p>
-                  )}
-                </div>
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      {RESULT_CARDS.map((card) => {
+        const Icon = card.icon;
+        const value = result[card.key] as number;
+        return (
+          <div
+            key={card.key}
+            className="relative overflow-hidden rounded-2xl border border-[#eee9f1] bg-white p-5 shadow-sm"
+          >
+            <div className="flex items-start gap-3">
+              <div
+                className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${card.accent}`}
+              >
+                <Icon className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="mb-1 text-xs text-[#656565]">{card.label}</p>
+                <p className="truncate text-xl font-bold text-[#35393f]">
+                  <AnimatedValue value={value} format={card.format} />
+                </p>
+                {card.sublabel && (
+                  <p className="mt-0.5 text-xs text-[#656565]/80">{card.sublabel}</p>
+                )}
               </div>
             </div>
-          );
-        })}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ValueDrivers({ result }: { result: RoiResult }) {
+  return (
+    <div className="rounded-2xl border border-[#eee9f1] bg-white p-6 shadow-sm">
+      <div className="mb-4 flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#f6e6ff] text-[#592277]">
+          <Sparkles className="h-5 w-5" />
+        </div>
+        <div>
+          <h4 className="font-semibold text-[#35393f]">Dari mana penghematannya?</h4>
+          <p className="text-sm text-[#656565]">
+            Estimasi setara ±{result.fteDihémat.toFixed(1)} FTE admin HR per bulan — didukung modul
+            inti Humanify
+          </p>
+        </div>
+      </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        {ROI_VALUE_DRIVERS.map((driver) => (
+          <div key={driver.id} className="rounded-xl border border-[#eee9f1] bg-[#faf8fb] p-4">
+            <p className="mb-1 text-sm font-semibold text-[#35393f]">{driver.title}</p>
+            <p className="mb-3 text-xs leading-relaxed text-[#656565]">{driver.desc}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {driver.modules.map((m) => (
+                <span
+                  key={m}
+                  className="rounded-md bg-white px-2 py-0.5 text-[10px] font-medium text-[#592277] ring-1 ring-[#eee9f1]"
+                >
+                  {m}
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -279,10 +422,16 @@ function ResultCards({ result }: { result: RoiResult }) {
 function BreakdownPanel({ result }: { result: RoiResult }) {
   const rows = [
     { label: 'Penghematan waktu admin HR', value: result.penghematanBiayaHRStaff, positive: true },
-    { label: 'Pengurangan error payroll', value: result.penguranganErrorPayroll, positive: true },
+    { label: 'Pengurangan koreksi payroll', value: result.penguranganErrorPayroll, positive: true },
     { label: 'Total penghematan', value: result.totalPenghematan, positive: true, bold: true },
     { label: `Biaya langganan (${result.namaTier})`, value: result.biayaLangganan, positive: false },
-    { label: 'Penghematan bersih', value: result.netSaving, positive: true, bold: true, highlight: true },
+    {
+      label: 'Penghematan bersih',
+      value: result.netSaving,
+      positive: true,
+      bold: true,
+      highlight: true,
+    },
   ];
 
   return (
@@ -306,7 +455,7 @@ function BreakdownPanel({ result }: { result: RoiResult }) {
                     : 'text-red-500'
               }`}
             >
-              {!row.positive && row.value > 0 ? '-' : ''}
+              {!row.positive && row.value > 0 ? '−' : ''}
               {formatCurrency(Math.abs(row.value))}
             </span>
           </div>
@@ -328,7 +477,7 @@ function BreakdownPanel({ result }: { result: RoiResult }) {
 function ComparisonChart({ result }: { result: RoiResult }) {
   const data = [
     { name: 'Sebelum HRIS', biaya: result.biayaSebelum },
-    { name: 'Setelah Humanify', biaya: Math.max(result.biayaSesudah, 0) },
+    { name: 'Dengan Humanify', biaya: Math.max(result.biayaSesudah, 0) },
   ];
 
   return (
@@ -427,25 +576,53 @@ function CtaPanel({ shareUrl }: { shareUrl: string }) {
   };
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-[#eee9f1] bg-[#f6e6ff] p-8 text-center md:p-10">
-      <div className="relative z-10">
-        <h3 className="mb-3 text-2xl font-bold text-[#35393f] md:text-3xl">Siap Mulai Menghemat?</h3>
-        <p className="mx-auto mb-8 max-w-lg text-[#656565]">
-          Buktikan langsung penghematan di perusahaan Anda. Mulai gunakan Humanify dan transformasi
-          operasional HR Anda.
-        </p>
-        <div className="flex flex-col justify-center gap-3 sm:flex-row">
-          <Link
-            href={HUMANIFY_BRAND.loginPath}
-            className="group inline-flex items-center justify-center gap-2 rounded-[10px] bg-[#592277] px-6 py-3.5 font-bold text-white shadow-md transition-all hover:bg-[#501f6b]"
-          >
-            Masuk ke Humanify
-            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-          </Link>
+    <div className="relative overflow-hidden rounded-2xl border border-[#eee9f1] bg-[#f6e6ff] p-8 md:p-10">
+      <div className="relative z-10 grid gap-8 lg:grid-cols-[1.2fr_1fr] lg:items-center">
+        <div>
+          <h3 className="mb-3 text-2xl font-bold text-[#35393f] md:text-3xl">
+            Siap mengubah estimasi jadi hasil nyata?
+          </h3>
+          <p className="mb-6 max-w-lg text-[#656565]">
+            Mulai dengan payroll, absensi, dan portal karyawan di satu HRIS. Trial 14 hari — tanpa
+            kartu kredit.
+          </p>
+          <ul className="mb-6 space-y-2 text-sm text-[#35393f]">
+            {[
+              'Setup tenant multi-user dalam hitungan menit',
+              'Payroll Indonesia: BPJS, PPh 21, THR',
+              'ESS karyawan + approval manajer',
+            ].map((item) => (
+              <li key={item} className="flex items-start gap-2">
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#592277]" />
+                {item}
+              </li>
+            ))}
+          </ul>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Link
+              href={HUMANIFY_BRAND.signupPath}
+              className="group inline-flex min-h-11 items-center justify-center gap-2 rounded-[10px] bg-[#592277] px-6 py-3.5 font-bold text-white shadow-md transition-all hover:bg-[#501f6b]"
+            >
+              Coba Humanify Gratis
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+            </Link>
+            <Link
+              href={HUMANIFY_BRAND.loginPath}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[10px] border border-[#592277] bg-white px-6 py-3.5 font-bold text-[#592277] transition-all hover:bg-[#f6e6ff]"
+            >
+              Masuk ke Humanify
+            </Link>
+          </div>
+        </div>
+        <div className="rounded-2xl border border-[#eee9f1] bg-white p-6 text-center shadow-sm">
+          <p className="mb-2 text-sm font-semibold text-[#35393f]">Bagikan hasil ini</p>
+          <p className="mb-4 text-xs text-[#656565]">
+            Link menyimpan parameter kalkulator Anda — cocok untuk diskusi dengan tim finance.
+          </p>
           <button
             type="button"
             onClick={handleCopy}
-            className="group inline-flex items-center justify-center gap-2 rounded-[10px] border border-[#592277] bg-white px-6 py-3.5 font-bold text-[#592277] transition-all hover:bg-[#f6e6ff]"
+            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[10px] border border-[#592277] bg-white px-6 py-3 font-bold text-[#592277] transition-all hover:bg-[#f6e6ff]"
           >
             {copied ? (
               <>
@@ -455,7 +632,7 @@ function CtaPanel({ shareUrl }: { shareUrl: string }) {
             ) : (
               <>
                 <Link2 className="h-4 w-4" />
-                Bagikan Hasil
+                Salin Link Hasil
               </>
             )}
           </button>
@@ -472,25 +649,34 @@ export default function HumanifyRoiCalculator() {
   const [values, setValues] = useState<RoiInput>(ROI_DEFAULTS);
   const [debouncedValues, setDebouncedValues] = useState<RoiInput>(ROI_DEFAULTS);
   const [hrisPrefilled, setHrisPrefilled] = useState(false);
+  const [ready, setReady] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const initRef = useRef(false);
 
   useEffect(() => {
-    if (!router.isReady) return;
-    const fromQuery = parseRoiQueryParams(router.query as Record<string, string | string[] | undefined>);
-    const hasQueryParams = Object.keys(router.query).some((k) =>
-      ['jumlahKaryawan', 'rataGajiKaryawan', 'jumlahStaffHR', 'rataGajiStaffHR', 'jamAdminPerMinggu'].includes(k),
-    );
-    if (hasQueryParams) {
+    if (!router.isReady || initRef.current) return;
+    initRef.current = true;
+
+    if (hasRoiQueryParams(router.query as Record<string, string | string[] | undefined>)) {
+      const fromQuery = parseRoiQueryParams(
+        router.query as Record<string, string | string[] | undefined>,
+      );
       setValues(fromQuery);
       setDebouncedValues(fromQuery);
+      setReady(true);
       return;
     }
+
     fetch('/api/humanify/roi-stats')
       .then((r) => r.json())
       .then((json) => {
         if (json.dataSource === 'live' && json.data) {
-          setValues(json.data);
-          setDebouncedValues(json.data);
+          const merged = clampRoiInput({
+            ...ROI_DEFAULTS,
+            ...json.data,
+          });
+          setValues(merged);
+          setDebouncedValues(merged);
           setHrisPrefilled(true);
         } else {
           setValues(ROI_DEFAULTS);
@@ -500,22 +686,41 @@ export default function HumanifyRoiCalculator() {
       .catch(() => {
         setValues(ROI_DEFAULTS);
         setDebouncedValues(ROI_DEFAULTS);
-      });
+      })
+      .finally(() => setReady(true));
   }, [router.isReady, router.query]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => setDebouncedValues(values), 500);
+    debounceRef.current = setTimeout(() => setDebouncedValues(clampRoiInput(values)), 400);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [values]);
 
   useEffect(() => {
-    if (!router.isReady) return;
+    if (!router.isReady || !ready) return;
     const qs = buildRoiQueryString(debouncedValues);
-    router.replace(`${pathname}?${qs}`, undefined, { shallow: true, scroll: false });
-  }, [debouncedValues, router]);
+    const currentQs = [
+      router.query.jk,
+      router.query.rg,
+      router.query.jh,
+      router.query.rh,
+      router.query.ja,
+    ]
+      .map((v) => (Array.isArray(v) ? v[0] : v) ?? '')
+      .join('|');
+    const nextQs = [
+      debouncedValues.jumlahKaryawan,
+      debouncedValues.rataGajiKaryawan,
+      debouncedValues.jumlahStaffHR,
+      debouncedValues.rataGajiStaffHR,
+      debouncedValues.jamAdminPerMinggu,
+    ].join('|');
+    if (currentQs === nextQs) return;
+    void router.replace(`${pathname}?${qs}`, undefined, { shallow: true, scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only sync URL when values change
+  }, [debouncedValues, ready, router.isReady]);
 
   const result = useMemo(() => calculateRoi(debouncedValues), [debouncedValues]);
 
@@ -540,7 +745,10 @@ export default function HumanifyRoiCalculator() {
               Data karyawan dimuat dari HRIS Anda — sesuaikan angka jika diperlukan.
             </div>
           )}
+
+          <HeroSaving result={result} />
           <ResultCards result={result} />
+          <ValueDrivers result={result} />
 
           <div className="grid gap-6 md:grid-cols-2">
             <BreakdownPanel result={result} />
@@ -554,12 +762,15 @@ export default function HumanifyRoiCalculator() {
           <div className="flex items-start gap-2 rounded-xl border border-[#eee9f1] bg-[#f6e6ff]/40 p-4">
             <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#592277]/70" />
             <p className="text-xs leading-relaxed text-[#656565]">
-              Hasil kalkulasi ini merupakan estimasi. Biaya langganan memakai harga per karyawan
-              (Rp{DEFAULT_SEAT_PRICING.pricePerUserIdr.toLocaleString('id-ID')}/orang, volume 251+ → Rp{DEFAULT_SEAT_PRICING.pricePerUserOver250Idr.toLocaleString('id-ID')},
-              1.001+ → Rp{DEFAULT_SEAT_PRICING.pricePerUserOver1000Idr.toLocaleString('id-ID')}).
-              LMS dan AIMAN belum termasuk. Hasil aktual dapat bervariasi.
-              Asumsi: {Math.round(ROI_ASSUMPTIONS.efisiensiWaktu * 100)}% pengurangan waktu admin,{' '}
-              {ROI_ASSUMPTIONS.errorRatePayroll * 100}% error rate payroll manual.
+              Hasil adalah estimasi untuk diskusi bisnis, bukan penawaran resmi. Biaya langganan
+              memakai harga per karyawan (Rp
+              {DEFAULT_SEAT_PRICING.pricePerUserIdr.toLocaleString('id-ID')}/orang; volume 251+ → Rp
+              {DEFAULT_SEAT_PRICING.pricePerUserOver250Idr.toLocaleString('id-ID')}; 1.001+ → Rp
+              {DEFAULT_SEAT_PRICING.pricePerUserOver1000Idr.toLocaleString('id-ID')}). LMS dan AIMAN
+              belum termasuk. Asumsi: {Math.round(ROI_ASSUMPTIONS.efisiensiWaktu * 100)}% otomasi
+              waktu admin HR, dan{' '}
+              {(ROI_ASSUMPTIONS.errorRatePayroll * 100).toFixed(1)}% koreksi/overpayment payroll
+              bulanan.
             </p>
           </div>
         </div>

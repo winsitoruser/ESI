@@ -7,11 +7,15 @@ export type AgentToolKind = 'read' | 'write';
 
 export type AgentToolName =
   | 'payroll_prep_checklist'
+  | 'payroll_create_draft_run'
   | 'recruitment_screen_preview'
   | 'list_hr_backlog'
   | 'leave_pending_detail'
+  | 'run_leave_escalation'
   | 'contract_expiry_check'
   | 'onboarding_status'
+  | 'ir_pending_sp_list'
+  | 'ir_phase_reminder'
   | 'run_automation_scan'
   | 'execute_recruitment_screening'
   | 'execute_contract_expiry_alert'
@@ -35,6 +39,13 @@ export const AIMAN_AGENT_TOOLS: AgentToolDef[] = [
     prompt: 'Persiapkan payroll bulan ini',
   },
   {
+    name: 'payroll_create_draft_run',
+    kind: 'write',
+    label: 'Buat draft payroll run',
+    description: 'Buat payroll run status draft untuk bulan berjalan (bukan approve/bayar).',
+    prompt: 'Buat draft payroll bulan ini',
+  },
+  {
     name: 'recruitment_screen_preview',
     kind: 'read',
     label: 'Pratinjau screening kandidat',
@@ -56,6 +67,13 @@ export const AIMAN_AGENT_TOOLS: AgentToolDef[] = [
     prompt: 'Meja cuti — detail pending',
   },
   {
+    name: 'run_leave_escalation',
+    kind: 'write',
+    label: 'Eskalasi cuti overtime SLA',
+    description: 'Notifikasi approver/HR untuk cuti melewati escalation_hours (tanpa auto-approve).',
+    prompt: 'Jalankan eskalasi cuti',
+  },
+  {
     name: 'contract_expiry_check',
     kind: 'read',
     label: 'Cek kontrak hampir habis',
@@ -68,6 +86,20 @@ export const AIMAN_AGENT_TOOLS: AgentToolDef[] = [
     label: 'Status onboarding',
     description: 'Proses onboarding karyawan baru yang masih berjalan.',
     prompt: 'Cek onboarding',
+  },
+  {
+    name: 'ir_pending_sp_list',
+    kind: 'read',
+    label: 'Daftar SP / IR pending',
+    description: 'Surat peringatan / disiplin yang masih dalam pipeline.',
+    prompt: 'Cek SP pending',
+  },
+  {
+    name: 'ir_phase_reminder',
+    kind: 'write',
+    label: 'Reminder fase IR/SP',
+    description: 'Kirim notifikasi HR untuk surat disiplin yang menumpuk di fase aktif.',
+    prompt: 'Kirim reminder SP pending',
   },
   {
     name: 'run_automation_scan',
@@ -120,6 +152,9 @@ export const AIMAN_TOOL_CTAS: Record<AgentToolName, AgentCta[]> = {
     { href: '/humanify/employees', label: 'Database Karyawan', description: 'Lengkapi komponen gaji' },
     { href: '/humanify/attendance', label: 'Absensi', description: 'Cek keterlambatan' },
   ],
+  payroll_create_draft_run: [
+    { href: '/humanify/payroll/main', label: 'Proses Gaji', description: 'Lanjutkan hitung/approve' },
+  ],
   recruitment_screen_preview: [
     { href: '/humanify/recruitment', label: 'Buka Rekrutmen', description: 'Pipeline kandidat' },
     { href: '/humanify/recruitment?tab=candidates', label: 'Daftar Kandidat', description: 'Lihat skor & stage' },
@@ -134,6 +169,10 @@ export const AIMAN_TOOL_CTAS: Record<AgentToolName, AgentCta[]> = {
     { href: '/humanify/leave', label: 'Manajemen Cuti', description: 'Review & setujui cuti' },
     { href: '/humanify/mss', label: 'Action Inbox', description: 'Antrian manajer' },
   ],
+  run_leave_escalation: [
+    { href: '/humanify/leave', label: 'Manajemen Cuti', description: 'Tindak lanjuti eskalasi' },
+    { href: '/humanify/mss', label: 'Action Inbox MSS', description: 'Antrian approval' },
+  ],
   contract_expiry_check: [
     { href: '/humanify/contracts', label: 'Kontrak & Reminder', description: 'Kontrak hampir habis' },
     { href: '/humanify/employees', label: 'Database Karyawan', description: 'Profil karyawan' },
@@ -141,6 +180,13 @@ export const AIMAN_TOOL_CTAS: Record<AgentToolName, AgentCta[]> = {
   onboarding_status: [
     { href: '/humanify/onboarding', label: 'Onboarding', description: 'Proses karyawan baru' },
     { href: '/humanify/employees', label: 'Database Karyawan', description: 'Lengkapi data' },
+  ],
+  ir_pending_sp_list: [
+    { href: '/humanify/disciplinary-letters', label: 'Surat Disiplin', description: 'Pipeline SP' },
+    { href: '/humanify/industrial-relations', label: 'Hubungan Industrial', description: 'IR overview' },
+  ],
+  ir_phase_reminder: [
+    { href: '/humanify/disciplinary-letters', label: 'Surat Disiplin', description: 'Tindak lanjut fase' },
   ],
   run_automation_scan: [
     { href: '/humanify/ai?tab=automation', label: 'Otomasi AIMAN', description: 'Aturan & log scan' },
@@ -163,8 +209,8 @@ export const AIMAN_AGENT_WORKFLOWS: AgentWorkflowCatalogItem[] = [
     id: 'payroll_prep',
     title: 'Persiapan Payroll',
     prompt: 'Persiapkan payroll bulan ini',
-    description: 'Checklist gaji + backlog HR sebelum run.',
-    tools: ['payroll_prep_checklist', 'list_hr_backlog'],
+    description: 'Checklist gaji + opsi buat draft run (konfirmasi).',
+    tools: ['payroll_prep_checklist', 'payroll_create_draft_run'],
   },
   {
     id: 'recruitment_screen',
@@ -177,8 +223,8 @@ export const AIMAN_AGENT_WORKFLOWS: AgentWorkflowCatalogItem[] = [
     id: 'leave_desk',
     title: 'Meja Cuti',
     prompt: 'Meja cuti — detail pending',
-    description: 'Detail cuti menunggu + opsi alert backlog.',
-    tools: ['leave_pending_detail', 'list_hr_backlog'],
+    description: 'Detail cuti menunggu + eskalasi SLA (konfirmasi).',
+    tools: ['leave_pending_detail', 'run_leave_escalation'],
   },
   {
     id: 'contract_watch',
@@ -193,6 +239,13 @@ export const AIMAN_AGENT_WORKFLOWS: AgentWorkflowCatalogItem[] = [
     prompt: 'Cek onboarding',
     description: 'Status onboarding karyawan baru.',
     tools: ['onboarding_status', 'list_hr_backlog'],
+  },
+  {
+    id: 'ir_desk',
+    title: 'Meja IR / SP',
+    prompt: 'Cek SP pending',
+    description: 'Pipeline surat disiplin + reminder fase (konfirmasi).',
+    tools: ['ir_pending_sp_list', 'ir_phase_reminder'],
   },
   {
     id: 'hr_backlog',

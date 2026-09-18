@@ -51,6 +51,14 @@ ensure_line "obs-alert" "*/10 * * * *" \
 ensure_line "db-backup" "30 2 * * *" \
   "bash scripts/backup-humanify-db.sh >> ${LOG_DIR}/humanify-db-backup.log 2>&1"
 
+# HR automation rule scan — every 6h (in-app alerts + email when SMTP set)
+ensure_line "hr-automation-scan" "15 */6 * * *" \
+  "node scripts/run-humanify-hr-automation-scan.js >> ${LOG_DIR}/humanify-hr-automation.log 2>&1 || true"
+
+# Leave approval SLA escalation — hourly (notify only, never auto-approve)
+ensure_line "leave-escalation" "20 * * * *" \
+  "node scripts/run-humanify-leave-escalation-scan.js >> ${LOG_DIR}/humanify-leave-escalation.log 2>&1 || true"
+
 # Weekly Action Inbox digest — Mon 01:00 UTC (08:00 WIB)
 ensure_line "action-digest" "0 1 * * 1" \
   "node scripts/send-humanify-action-inbox-digest.js >> ${LOG_DIR}/humanify-action-digest.log 2>&1"

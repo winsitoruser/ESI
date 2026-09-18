@@ -83,6 +83,36 @@ async function generateHTMLDocument(request: DocumentRequest): Promise<Blob> {
     return new Blob([html], { type: 'text/html;charset=utf-8' });
   }
 
+  if (type === 'payslip') {
+    const { renderPayslipHtml } = await import('@/lib/hris/payslip-templates');
+    const html = renderPayslipHtml(
+      {
+        companyName: company.name,
+        companyAddress: company.address,
+        companyPhone: company.phone,
+        companyEmail: company.email,
+        logoUrl: company.logo,
+        employeeName: data.employeeName || data.employee_name || '',
+        employeeCode: data.employeeId || data.employee_id || data.employee_code || '',
+        position: data.position || data.employee_position || '',
+        department: data.department || '',
+        employmentStatus: data.employmentStatus,
+        period: data.period || meta.period || '',
+        payDate: data.payDate || data.pay_date,
+        earnings: data.earnings || [],
+        deductions: data.deductions || [],
+        totalEarnings: data.totalEarnings ?? data.total_earnings ?? 0,
+        totalDeductions: data.totalDeductions ?? data.total_deductions ?? 0,
+        netPay: data.netPay ?? data.net_salary ?? 0,
+        intro: data.intro || data.body,
+        closing: data.closing,
+        documentNumber: meta.documentNumber,
+      },
+      data.layoutVariant,
+    );
+    return new Blob([html], { type: 'text/html;charset=utf-8' });
+  }
+
   const titleMap: Record<string, string> = {
     'invoice': 'INVOICE / FAKTUR',
     'receipt': 'KWITANSI PEMBAYARAN',

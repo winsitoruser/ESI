@@ -64,16 +64,33 @@ export async function executeAgentTool(
     switch (name) {
       case 'payroll_prep_checklist':
         return await toolPayrollPrep(tenantId);
+      case 'payroll_create_draft_run':
+        return await toolPayrollCreateDraft(tenantId);
       case 'recruitment_screen_preview':
         return await toolRecruitmentPreview(tenantId);
       case 'list_hr_backlog':
         return await toolHrBacklog(tenantId);
       case 'leave_pending_detail':
         return await toolLeavePendingDetail(tenantId);
+      case 'run_leave_escalation': {
+        const { escalateStaleLeaveForTenant } = await import('./leave-escalation');
+        const out = await escalateStaleLeaveForTenant(tenantId);
+        return {
+          ok: true,
+          summary: out.escalated
+            ? `Eskalasi cuti: ${out.escalated} pengajuan overtime SLA dinotifikasi (dari ${out.checked} kandidat).`
+            : `Tidak ada cuti yang perlu dieskalasi (${out.checked} dicek).`,
+          data: out as any,
+        };
+      }
       case 'contract_expiry_check':
         return await toolContractExpiry(tenantId);
       case 'onboarding_status':
         return await toolOnboardingStatus(tenantId);
+      case 'ir_pending_sp_list':
+        return await toolIrPendingList(tenantId);
+      case 'ir_phase_reminder':
+        return await toolIrPhaseReminder(tenantId);
       case 'run_automation_scan': {
         const result = await scanAllRules(tenantId);
         return {
@@ -394,6 +411,174 @@ async function toolOnboardingStatus(tenantId: string | null): Promise<AgentToolR
       activeCount: items.length,
       items,
       nextLinks: [{ href: '/humanify/onboarding', label: 'Onboarding' }],
+    },
+  };
+}
+
+function monthBounds(d = new Date()) {
+  const y = d.getFullYear();
+  const m = d.getMonth();
+  const start = new Date(y, m, 1);
+  const end = new Date(y, m + 1, 0);
+  const fmt = (x: Date) => x.toISOString().slice(0, 10);
+  return {
+    periodStart: fmt(start),
+    periodEnd: fmt(end),
+    label: `${y}-${String(m + 1).padStart(2, '0')}`,
+  };
+}
+
+async function toolPayrollCreateDraft(tenantId: string | null): Promise<AgentToolResult> {
+  if (!sequelize || !tenantId) {
+    return { ok: false, summary: 'Database/tenant tidak tersedia', error: 'NO_DB' };
+  }
+  const { periodStart, periodEnd, label } = monthBounds();
+
+  const existing = await safeQuery(
+    `SELECT id, run_code, status FROM payroll_runs
+     WHERE tenant_id = :tid
+       AND period_start::date = :ps::date
+       AND period_end::date = :pe::date
+       AND status IN ('draft','calculated','pending_approval','approved')
+     ORDER BY created_at DESC LIMIT 1`,
+    { tid: tenantId, ps: periodStart, pe: periodEnd },
+  );
+  if (existing.length) {
+    return {
+      ok: true,
+      summary: `Draft/run payroll ${label} sudah ada (${existing[0].run_code || existing[0].id}, status ${existing[0].status}). Tidak membuat duplikat.`,
+      data: {
+        created: false,
+        existing: existing[0],
+        period: label,
+        nextLinks: [{ href: '/humanify/payroll/main', label: 'Proses Gaji' }],
+      },
+    };
+  }
+
+  const runCode = `PR-${label.replace('-', '')}-${Date.now().toString(36).toUpperCase()}`;
+  try {
+    const [result] = await sequelize.query(`
+      INSERT INTO payroll_runs (id, tenant_id, run_code, name, period_start, period_end, pay_date,
+        pay_type, status, created_at, updated_at)
+      VALUES (uuid_generate_v4(), :tid, :runCode, :name, :periodStart, :periodEnd, :periodEnd,
+        'monthly', 'draft', NOW(), NOW())
+      RETURNING id, run_code, status, period_start, period_end
+    `, {
+      replacements: {
+        tid: tenantId,
+        runCode,
+        name: `Payroll ${label} (AIMAN draft)`,
+        periodStart,
+        periodEnd,
+      },
+    });
+    const row = result?.[0];
+    return {
+      ok: true,
+      summary: `Draft payroll ${label} dibuat (${row?.run_code || runCode}). Hitung & approve tetap manual — bukan transfer bank.`,
+      data: {
+        created: true,
+        run: row,
+        period: label,
+        nextLinks: [{ href: '/humanify/payroll/main', label: 'Proses Gaji' }],
+      },
+    };
+  } catch (e: any) {
+    return { ok: false, summary: e?.message || 'Gagal buat draft payroll', error: 'INSERT_FAIL' };
+  }
+}
+
+async function toolIrPendingList(tenantId: string | null): Promise<AgentToolResult> {
+  const rows = await safeQuery(
+    `SELECT l.id, l.letter_type, l.status, l.current_phase, l.reference_number,
+            COALESCE(e.full_name, e.name, 'Karyawan') AS employee_name,
+            l.created_at
+     FROM hr_disciplinary_letters l
+     LEFT JOIN employees e ON e.id::text = l.employee_id::text
+     WHERE l.tenant_id IS NOT DISTINCT FROM :tid
+       AND LOWER(COALESCE(l.status,'')) IN (
+         'draft','submitted','investigating','drafting','review','pending_approval'
+       )
+     ORDER BY l.created_at ASC NULLS LAST
+     LIMIT 15`,
+    { tid: tenantId },
+  );
+  return {
+    ok: true,
+    summary: rows.length
+      ? `${rows.length} surat disiplin/SP masih dalam pipeline.`
+      : 'Tidak ada SP/IR pending di pipeline aktif.',
+    data: {
+      count: rows.length,
+      items: rows.map((r: any) => ({
+        id: r.id,
+        type: r.letter_type,
+        status: r.status,
+        phase: r.current_phase,
+        ref: r.reference_number,
+        employee: r.employee_name,
+      })),
+      confirmTool: 'ir_phase_reminder' as AgentToolName,
+      nextLinks: [
+        { href: '/humanify/disciplinary-letters', label: 'Surat Disiplin' },
+        { href: '/humanify/industrial-relations', label: 'Hubungan Industrial' },
+      ],
+    },
+  };
+}
+
+async function toolIrPhaseReminder(tenantId: string | null): Promise<AgentToolResult> {
+  if (!sequelize || !tenantId) {
+    return { ok: false, summary: 'Database/tenant tidak tersedia', error: 'NO_DB' };
+  }
+  const rows = await safeQuery(
+    `SELECT l.id, l.letter_type, l.status, l.current_phase, l.reference_number,
+            COALESCE(e.full_name, e.name, 'Karyawan') AS employee_name
+     FROM hr_disciplinary_letters l
+     LEFT JOIN employees e ON e.id::text = l.employee_id::text
+     WHERE l.tenant_id = :tid
+       AND LOWER(COALESCE(l.status,'')) IN (
+         'submitted','investigating','drafting','review','pending_approval'
+       )
+     ORDER BY l.updated_at ASC NULLS LAST, l.created_at ASC NULLS LAST
+     LIMIT 20`,
+    { tid: tenantId },
+  );
+  if (!rows.length) {
+    return {
+      ok: true,
+      summary: 'Tidak ada SP aktif yang perlu diingatkan.',
+      data: { notified: 0, count: 0 },
+    };
+  }
+
+  const { notifyHRStaff } = await import('./disciplinary-notifications');
+  await notifyHRStaff(sequelize, tenantId, {
+    tenantId,
+    title: `Reminder IR: ${rows.length} SP menunggu tindak lanjut`,
+    message:
+      `Ada ${rows.length} surat disiplin di pipeline aktif. ` +
+      `Contoh: ${rows.slice(0, 3).map((r: any) => `${r.employee_name} (${r.letter_type}/${r.status})`).join('; ')}. ` +
+      `Buka modul Surat Disiplin untuk menindaklanjuti.`,
+    type: 'warning',
+    sourceType: 'aiman_ir_reminder',
+    sourceId: rows[0]?.id || null,
+  });
+
+  return {
+    ok: true,
+    summary: `Reminder dikirim ke HR untuk ${rows.length} SP/IR pending.`,
+    data: {
+      notified: rows.length,
+      sample: rows.slice(0, 5).map((r: any) => ({
+        id: r.id,
+        employee: r.employee_name,
+        type: r.letter_type,
+        status: r.status,
+        phase: r.current_phase,
+      })),
+      nextLinks: [{ href: '/humanify/disciplinary-letters', label: 'Surat Disiplin' }],
     },
   };
 }

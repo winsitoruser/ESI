@@ -51,6 +51,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         rataGajiKaryawan: avgSalary > 0 ? avgSalary : 5_000_000,
         jumlahStaffHR: hrStaff > 0 ? hrStaff : Math.max(1, Math.round(totalEmployees / 50)),
         rataGajiStaffHR: avgHrSalary > 0 ? avgHrSalary : 6_000_000,
+        /** Keep default admin hours when HRIS does not track this metric */
+        jamAdminPerMinggu: 30,
       },
     });
   } catch (error: any) {
