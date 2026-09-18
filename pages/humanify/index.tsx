@@ -1021,6 +1021,79 @@ export default function HRISDashboard() {
                             height={260}
                             angledLabels
                           />
+                          <div className="mt-4 border-t border-[var(--hf-border-subtle)] pt-3">
+                            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--hf-ink-faint)]">
+                              Data headcount
+                            </p>
+                            <div className="overflow-x-auto rounded-lg border border-[var(--hf-border)]">
+                              <table className="min-w-full text-left text-sm">
+                                <thead className="bg-[var(--hf-surface-muted)] text-[10px] uppercase tracking-wide text-[color:var(--hf-ink-muted)]">
+                                  <tr>
+                                    <th className="px-3 py-2 font-semibold">#</th>
+                                    <th className="px-3 py-2 font-semibold">Departemen</th>
+                                    <th className="px-3 py-2 font-semibold text-right">Aktif</th>
+                                    <th className="px-3 py-2 font-semibold text-right">Cuti</th>
+                                    <th className="px-3 py-2 font-semibold text-right">Nonaktif</th>
+                                    <th className="px-3 py-2 font-semibold text-right">Total</th>
+                                    <th className="px-3 py-2 font-semibold text-right">Share</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-[var(--hf-border-subtle)] bg-white">
+                                  {deptStats.map((d, i) => {
+                                    const total = Number(d.total) || 0;
+                                    const share = stats.total > 0 ? ((total / Number(stats.total)) * 100) : 0;
+                                    return (
+                                      <tr key={d.department} className="hover:bg-[var(--hf-brand-50)]/40">
+                                        <td className="px-3 py-2 tabular-nums text-[color:var(--hf-ink-faint)]">{i + 1}</td>
+                                        <td className="px-3 py-2">
+                                          <div className="flex items-center gap-2 min-w-0">
+                                            <span
+                                              className="h-2 w-2 shrink-0 rounded-full"
+                                              style={{ backgroundColor: HF_CHART_COLORS_SOLID[i % HF_CHART_COLORS_SOLID.length] }}
+                                            />
+                                            <span className="truncate font-medium text-[color:var(--hf-ink)]">{d.department}</span>
+                                          </div>
+                                        </td>
+                                        <td className="px-3 py-2 text-right tabular-nums text-emerald-700">{d.active || 0}</td>
+                                        <td className="px-3 py-2 text-right tabular-nums text-amber-700">{d.onLeave || 0}</td>
+                                        <td className="px-3 py-2 text-right tabular-nums text-rose-700">{d.inactive || 0}</td>
+                                        <td className="px-3 py-2 text-right font-semibold tabular-nums text-[color:var(--hf-ink)]">{total}</td>
+                                        <td className="px-3 py-2 text-right">
+                                          <div className="inline-flex min-w-[72px] flex-col items-end gap-1">
+                                            <span className="text-xs tabular-nums text-[color:var(--hf-ink-muted)]">{share.toFixed(1)}%</span>
+                                            <div className="h-1 w-16 overflow-hidden rounded-full bg-[var(--hf-surface-muted)]">
+                                              <div
+                                                className="h-full rounded-full bg-[var(--hf-brand-600)]"
+                                                style={{ width: `${Math.min(100, share)}%` }}
+                                              />
+                                            </div>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                                <tfoot className="border-t border-[var(--hf-border)] bg-[var(--hf-surface-muted)]/60 text-xs font-semibold">
+                                  <tr>
+                                    <td className="px-3 py-2" colSpan={2}>Total</td>
+                                    <td className="px-3 py-2 text-right tabular-nums text-emerald-700">
+                                      {deptStats.reduce((s, d) => s + (Number(d.active) || 0), 0)}
+                                    </td>
+                                    <td className="px-3 py-2 text-right tabular-nums text-amber-700">
+                                      {deptStats.reduce((s, d) => s + (Number(d.onLeave) || 0), 0)}
+                                    </td>
+                                    <td className="px-3 py-2 text-right tabular-nums text-rose-700">
+                                      {deptStats.reduce((s, d) => s + (Number(d.inactive) || 0), 0)}
+                                    </td>
+                                    <td className="px-3 py-2 text-right tabular-nums text-[color:var(--hf-ink)]">
+                                      {deptStats.reduce((s, d) => s + (Number(d.total) || 0), 0)}
+                                    </td>
+                                    <td className="px-3 py-2 text-right tabular-nums text-[color:var(--hf-ink-muted)]">100%</td>
+                                  </tr>
+                                </tfoot>
+                              </table>
+                            </div>
+                          </div>
                         </div>
 
                         <div className="hf-tile-nested min-w-0 p-4">
