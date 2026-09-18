@@ -56,8 +56,8 @@ async function main() {
       })
     ).json();
     const content = detail?.data?.content || '';
-    if (content.includes('flowchart') || content.includes('```flowchart')) {
-      ok(`kb detail has flowchart (${key})`);
+    if (content.includes('flowchart') || content.includes('```flowchart') || content.includes('```mockup') || content.includes('```steps')) {
+      ok(`kb detail has guide blocks (${key})`);
     } else if (content.length > 800) {
       ok(`kb detail long-form (${content.length} chars)`);
     } else {

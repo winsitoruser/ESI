@@ -112,20 +112,31 @@ export function OpsBarChart({
   xKey = 'name',
   bars,
   height = 220,
+  angledLabels = false,
 }: {
   data: Array<Record<string, any>>;
   xKey?: string;
   bars: Array<{ key: string; label?: string; color?: string }>;
   height?: number;
+  angledLabels?: boolean;
 }) {
   if (!data?.length || !bars?.length) {
     return <p className="py-10 text-center text-xs text-slate-400">Belum ada data</p>;
   }
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+      <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: angledLabels ? 56 : 0 }}>
         <CartesianGrid stroke={GRID} strokeDasharray="3 3" />
-        <XAxis dataKey={xKey} tick={TICK} axisLine={false} tickLine={false} />
+        <XAxis
+          dataKey={xKey}
+          tick={TICK}
+          axisLine={false}
+          tickLine={false}
+          interval={0}
+          angle={angledLabels ? -35 : 0}
+          textAnchor={angledLabels ? 'end' : 'middle'}
+          height={angledLabels ? 70 : undefined}
+        />
         <YAxis tick={TICK} axisLine={false} tickLine={false} width={40} />
         <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }} />
         <Legend wrapperStyle={{ fontSize: 11 }} />

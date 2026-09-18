@@ -97,6 +97,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     if (req.method === 'GET') {
       if (action === 'list') return getEmployeeList(req, res, await effectiveTenantId(req));
+      if (action === 'stats' || action === 'summary') {
+        return getEmployeeStats(req, res, await effectiveTenantId(req));
+      }
       if (action === 'detail' && employeeId) {
         return getEmployeeDetail(req, res, await effectiveTenantId(req, String(employeeId)), String(employeeId));
       }
@@ -260,6 +263,89 @@ async function getEmployeeList(req: NextApiRequest, res: NextApiResponse, tenant
 
   const normalized = employees.map((e: any) => normalizeEmployeeRecord(e));
   return res.json({ success: true, data: normalized, total, page: parseInt(String(page)), limit: parseInt(String(limit)) });
+}
+
+/** Aggregate metrics for Database Karyawan KPI cards (tenant-scoped). */
+async function getEmployeeStats(
+  _req: NextApiRequest,
+  res: NextApiResponse,
+  tenantId: string | null,
+) {
+  if (!sequelize) {
+    return res.json({
+      success: true,
+      data: { total: 0, active: 0, inactive: 0, onLeave: 0, joinedThisMonth: 0 },
+      dataSource: 'empty',
+    });
+  }
+  if (!tenantId) {
+    return res.json({
+      success: true,
+      data: { total: 0, active: 0, inactive: 0, onLeave: 0, joinedThisMonth: 0 },
+      dataSource: 'empty',
+    });
+  }
+
+  await ensureEmployeeProfileTables(sequelize);
+
+  const sqlFull = `
+    SELECT
+      COUNT(*)::int AS total,
+      COUNT(*) FILTER (
+        WHERE UPPER(COALESCE(e.status, '')) = 'ACTIVE'
+           OR (e.is_active = true AND UPPER(COALESCE(e.status, '')) NOT IN ('INACTIVE', 'ON_LEAVE', 'TERMINATED'))
+      )::int AS active,
+      COUNT(*) FILTER (
+        WHERE UPPER(COALESCE(e.status, '')) = 'INACTIVE'
+           OR (e.is_active = false AND UPPER(COALESCE(e.status, '')) NOT IN ('ON_LEAVE', 'TERMINATED', 'ACTIVE'))
+      )::int AS inactive,
+      COUNT(*) FILTER (WHERE UPPER(COALESCE(e.status, '')) = 'ON_LEAVE')::int AS on_leave,
+      COUNT(*) FILTER (
+        WHERE e.hire_date IS NOT NULL
+          AND e.hire_date >= date_trunc('month', (NOW() AT TIME ZONE 'Asia/Jakarta'))::date
+          AND e.hire_date < (date_trunc('month', (NOW() AT TIME ZONE 'Asia/Jakarta')) + INTERVAL '1 month')::date
+      )::int AS joined_this_month
+    FROM employees e
+    WHERE e.tenant_id = :tenantId
+  `;
+  const sqlStatusOnly = `
+    SELECT
+      COUNT(*)::int AS total,
+      COUNT(*) FILTER (WHERE UPPER(COALESCE(e.status, '')) = 'ACTIVE')::int AS active,
+      COUNT(*) FILTER (WHERE UPPER(COALESCE(e.status, '')) = 'INACTIVE')::int AS inactive,
+      COUNT(*) FILTER (WHERE UPPER(COALESCE(e.status, '')) = 'ON_LEAVE')::int AS on_leave,
+      COUNT(*) FILTER (
+        WHERE e.hire_date IS NOT NULL
+          AND e.hire_date >= date_trunc('month', (NOW() AT TIME ZONE 'Asia/Jakarta'))::date
+          AND e.hire_date < (date_trunc('month', (NOW() AT TIME ZONE 'Asia/Jakarta')) + INTERVAL '1 month')::date
+      )::int AS joined_this_month
+    FROM employees e
+    WHERE e.tenant_id = :tenantId
+  `;
+
+  let rows: any[] | null = null;
+  for (const sql of [sqlFull, sqlStatusOnly]) {
+    rows = await withDbSavepoint(sequelize, async () => {
+      const [r] = await sequelize.query(sql, { replacements: { tenantId } });
+      return Array.isArray(r) ? r : [];
+    }, 'emp_stats');
+    if (rows) break;
+  }
+
+  const row = rows?.[0] || {};
+  const data = {
+    total: Number(row.total || 0),
+    active: Number(row.active || 0),
+    inactive: Number(row.inactive || 0),
+    onLeave: Number(row.on_leave || 0),
+    joinedThisMonth: Number(row.joined_this_month || 0),
+  };
+
+  return res.json({
+    success: true,
+    data,
+    dataSource: data.total > 0 ? 'live' : 'empty',
+  });
 }
 
 // ===== Genealogy: shared employee query =====

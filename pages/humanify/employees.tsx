@@ -22,6 +22,8 @@ import EmployeeDocumentsPanel from '@/components/humanify/EmployeeDocumentsPanel
 import { getEmployeeDocumentDownloadUrl } from '@/lib/hris/employee-document-types';
 import EmployeeAvatar from '@/components/humanify/EmployeeAvatar';
 import EnterprisePageHeader from '@/components/humanify/EnterprisePageHeader';
+import HRStatCard from '@/components/humanify/HRStatCard';
+import { OpsKpiShell } from '@/components/humanify/OpsPageChrome';
 import {
   HRIS_DEPARTMENTS,
   HRIS_WORK_LOCATIONS,
@@ -37,6 +39,21 @@ type DetailTab =
   | 'experience' | 'documents' | 'contracts' | 'genealogy'
   | 'skills' | 'payroll' | 'leave' | 'attendance' | 'overtime' | 'kpi' | 'mutations';
 
+type EmployeeMetrics = {
+  total: number;
+  active: number;
+  inactive: number;
+  onLeave: number;
+  joinedThisMonth: number;
+};
+
+const EMPTY_METRICS: EmployeeMetrics = {
+  total: 0,
+  active: 0,
+  inactive: 0,
+  onLeave: 0,
+  joinedThisMonth: 0,
+};
 
 export default function EmployeeManagementPage() {
   const { t } = useTranslation();
@@ -53,6 +70,7 @@ export default function EmployeeManagementPage() {
   const [employees, setEmployees] = useState<any[]>([]);
   const [dataSource, setDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
   const [total, setTotal] = useState(0);
+  const [metrics, setMetrics] = useState<EmployeeMetrics>(EMPTY_METRICS);
   const [search, setSearch] = useState('');
   const [filterDept, setFilterDept] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -153,19 +171,6 @@ export default function EmployeeManagementPage() {
       <AddBtn label={label} onClick={onClick} size="lg" />
     </div>
   );
-
-  // Derived stats from employees list
-  const statsData = {
-    total:    employees.length,
-    active:   employees.filter(e => e.status === 'ACTIVE').length,
-    onLeave:  employees.filter(e => e.status === 'ON_LEAVE').length,
-    inactive: employees.filter(e => e.status === 'INACTIVE').length,
-    pkwtExpiring: employees.filter(e => {
-      if (!e.contract_end || e.contract_type !== 'PKWT') return false;
-      const days = (new Date(e.contract_end).getTime() - Date.now()) / 86400000;
-      return days > 0 && days <= 90;
-    }).length,
-  };
 
   // ── fetchTabExtra: load data for new tabs ─────────────────────────────────
   const fetchTabExtra = useCallback(async (tab: DetailTab, empId: any) => {
@@ -362,6 +367,24 @@ export default function EmployeeManagementPage() {
     }
   };
 
+  const fetchEmployeeStats = useCallback(async () => {
+    try {
+      const res = await fetch('/api/humanify/employee-profile?action=stats');
+      const json = await res.json();
+      if (json.success && json.data) {
+        setMetrics({
+          total: Number(json.data.total || 0),
+          active: Number(json.data.active || 0),
+          inactive: Number(json.data.inactive || 0),
+          onLeave: Number(json.data.onLeave || 0),
+          joinedThisMonth: Number(json.data.joinedThisMonth || 0),
+        });
+      }
+    } catch {
+      /* keep previous metrics */
+    }
+  }, []);
+
   const fetchEmployees = async () => {
     setLoading(true);
     try {
@@ -369,12 +392,15 @@ export default function EmployeeManagementPage() {
       if (search) params.set('search', search);
       if (filterDept) params.set('department', filterDept);
       if (filterStatus) params.set('status', filterStatus);
-      const res = await fetch(`/api/humanify/employee-profile?${params}`);
-      const json = await res.json();
+      const [listRes] = await Promise.all([
+        fetch(`/api/humanify/employee-profile?${params}`),
+        fetchEmployeeStats(),
+      ]);
+      const json = await listRes.json();
       const data = json.data || [];
       setEmployees(data);
       setTotal(json.total ?? data.length);
-      setDataSource(data.length ? 'live' : 'empty');
+      setDataSource(data.length || (json.total ?? 0) > 0 ? 'live' : 'empty');
     } catch (e) {
       console.error(e);
       setEmployees([]);
@@ -734,6 +760,59 @@ export default function EmployeeManagementPage() {
         {/* ===== LIST VIEW ===== */}
         {activeTab === 'list' && (
           <div className="space-y-4">
+            {/* Metric cards */}
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+              <OpsKpiShell>
+                <HRStatCard
+                  icon={Users}
+                  label="Total karyawan"
+                  value={loading ? '—' : metrics.total}
+                  sub="Seluruh status"
+                  accent="violet"
+                  onClick={() => { setFilterStatus(''); setPage(1); }}
+                />
+              </OpsKpiShell>
+              <OpsKpiShell>
+                <HRStatCard
+                  icon={UserCheck}
+                  label="Karyawan aktif"
+                  value={loading ? '—' : metrics.active}
+                  sub="Status ACTIVE"
+                  accent="emerald"
+                  onClick={() => { setFilterStatus('ACTIVE'); setPage(1); }}
+                />
+              </OpsKpiShell>
+              <OpsKpiShell>
+                <HRStatCard
+                  icon={UserX}
+                  label="Tidak aktif"
+                  value={loading ? '—' : metrics.inactive}
+                  sub="Status INACTIVE"
+                  accent="rose"
+                  onClick={() => { setFilterStatus('INACTIVE'); setPage(1); }}
+                />
+              </OpsKpiShell>
+              <OpsKpiShell>
+                <HRStatCard
+                  icon={CalendarDays}
+                  label="Karyawan cuti"
+                  value={loading ? '—' : metrics.onLeave}
+                  sub="Status ON_LEAVE"
+                  accent="amber"
+                  onClick={() => { setFilterStatus('ON_LEAVE'); setPage(1); }}
+                />
+              </OpsKpiShell>
+              <OpsKpiShell>
+                <HRStatCard
+                  icon={TrendingUp}
+                  label="Baru bergabung"
+                  value={loading ? '—' : metrics.joinedThisMonth}
+                  sub="Join bulan ini"
+                  accent="cyan"
+                />
+              </OpsKpiShell>
+            </div>
+
             {/* Filters */}
             <div className="hf-card p-4">
               <div className="flex flex-col gap-3">

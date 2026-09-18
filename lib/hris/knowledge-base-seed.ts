@@ -16,10 +16,10 @@ export const HUMANIFY_KB_SEED: KbSeedArticle[] = [
   {
     slug: 'panduan-lengkap-memulai-humanify',
     title: 'Panduan Lengkap Memulai Humanify',
-    summary: 'Onboarding tenant dari zero: organisasi, karyawan, absensi, cuti, payroll, ESS, dan go-live.',
+    summary: 'Onboarding tenant dari zero: organisasi, karyawan, absensi, cuti, payroll, ESS, dan go-live — lengkap dengan mockup & contoh.',
     category: 'getting_started',
     sort_order: 1,
-    tags: ['onboarding', 'setup', 'go-live'],
+    tags: ['onboarding', 'setup', 'go-live', 'mockup', 'langkah', 'contoh', 'workflow'],
     content: `# Panduan Lengkap Memulai Humanify
 
 Dokumen ini menjelaskan **cara menggunakan Humanify HRIS** dari akun baru hingga operasional harian. Ikuti urutan modul agar data induk (master) siap sebelum transaksi.
@@ -36,7 +36,19 @@ Humanify adalah **HRIS multi-tenant SaaS** untuk mengelola:
 
 Setiap perusahaan (tenant) data-nya terisolasi. Login HR: \`/humanify/login\`. Portal karyawan: \`/employee\`.
 
-## 2. Flowchart setup awal (Go-live)
+## 2. Screenshot mockup — Beranda HR
+
+Setelah login, Anda mendarat di Beranda. Gunakan kartu KPI untuk memantau kesehatan operasional harian.
+
+\`\`\`mockup dashboard
+Beranda menampilkan karyawan aktif, kehadiran, cuti pending, dan status payroll periode berjalan.
+\`\`\`
+
+## 3. Workflow setup awal (Go-live)
+
+\`\`\`workflow
+Login HR → Profil Organisasi → Struktur Organisasi → Tambah Karyawan → Atur Shift & Cuti → Isi Gaji Pokok → Uji Payroll Draft → Undang ESS + 2FA → Go-live ✓
+\`\`\`
 
 \`\`\`flowchart
 [Daftar / Login HR]
@@ -69,7 +81,27 @@ Setiap perusahaan (tenant) data-nya terisolasi. Login HR: \`/humanify/login\`. P
 [Go-live Checklist ✓]
 \`\`\`
 
-## 3. Checklist komponen yang harus siap
+## 4. Tata cara — hari pertama HR Admin
+
+\`\`\`steps
+1. Login ke Humanify Ops
+   Buka \`/humanify/login\` dengan akun owner/HR. Pastikan tenant yang benar (bukan akun platform lain).
+2. Lengkapi struktur organisasi
+   Menu **Karyawan → Struktur Organisasi**. Buat unit HQ + departemen inti (Ops, HR, Sales).
+3. Tambah karyawan pertama
+   Menu **Database Karyawan → Tambah**. Isi nama, email kerja, departemen, join date.
+4. Atur shift & uji clock-in
+   Assign shift ke karyawan, lalu uji clock dari portal ESS atau perangkat.
+5. Buat payroll run draft
+   Jangan mark Paid dulu — pastikan komponen gaji dan PTKP sudah terisi.
+\`\`\`
+
+\`\`\`example
+**Contoh tenant demo:** Perusahaan "Demo Humanify" punya 1 HQ, 3 departemen, 12 karyawan aktif.
+HR Admin login → buat unit **Kantor Pusat** → impor CSV 12 karyawan → assign shift **Office 09–18** → buat run **Mar 2026** status Draft → review take-home → baru Approve.
+\`\`\`
+
+## 5. Checklist komponen yang harus siap
 
 | Urutan | Modul | Halaman | Output yang diharapkan |
 |--------|--------|---------|-------------------------|
@@ -81,7 +113,7 @@ Setiap perusahaan (tenant) data-nya terisolasi. Login HR: \`/humanify/login\`. P
 | 6 | Akses | Tim & Undangan / Role | User HR + ESS |
 | 7 | Keamanan | 2FA | MFA aktif untuk admin |
 
-## 4. Peran pengguna
+## 6. Peran pengguna
 
 - **Owner / HR Admin** — konfigurasi penuh tenant, payroll, user.
 - **HR Staff** — operasional karyawan, absensi, cuti.
@@ -89,7 +121,7 @@ Setiap perusahaan (tenant) data-nya terisolasi. Login HR: \`/humanify/login\`. P
 - **Karyawan (ESS)** — absensi, cuti, slip, klaim.
 - **Platform Superadmin** — lintas tenant (ops Naincode).
 
-## 5. Tips sukses go-live
+## 7. Tips sukses go-live
 
 1. Jangan mulai payroll sebelum **master karyawan + gaji pokok** lengkap.
 2. Uji absensi di **1 cabang/shift** dulu.
@@ -97,7 +129,232 @@ Setiap perusahaan (tenant) data-nya terisolasi. Login HR: \`/humanify/login\`. P
 4. Simpan runbook internal di **Knowledge Center** (artikel tenant).
 5. Kendala produk → **Tiket Support**.
 
-Lanjut baca: *Peta Modul & Komponen Humanify*, *Alur Karyawan End-to-End*, *Payroll Deep Dive*.`,
+Lanjut baca: *Cara Pakai: Database Karyawan*, *Cara Pakai: Cuti & Approval*, *Cara Pakai: Payroll Run*.`,
+  },
+  {
+    slug: 'cara-pakai-database-karyawan',
+    title: 'Cara Pakai: Database Karyawan (contoh + mockup)',
+    summary: 'Tata cara menambah, mencari, dan mengelola karyawan — dengan screenshot mockup halaman dan contoh nyata.',
+    category: 'karyawan',
+    sort_order: 14,
+    tags: ['karyawan', 'mockup', 'langkah', 'contoh', 'workflow'],
+    content: `# Cara Pakai: Database Karyawan
+
+Halaman: \`/humanify/employees\`
+
+Modul ini adalah **master data** seluruh HRIS. Hampir semua modul lain (absensi, cuti, payroll) bergantung pada data di sini.
+
+## Screenshot mockup — daftar karyawan
+
+\`\`\`mockup employees
+Gunakan pencarian + filter departemen/status, lalu Tambah untuk karyawan baru atau Export CSV.
+\`\`\`
+
+## Workflow operasional
+
+\`\`\`workflow
+Buka Database Karyawan → Cari / Filter → Tambah atau Edit → Lengkapi tab (kontrak, gaji, dokumen) → Assign shift → Undang ESS
+\`\`\`
+
+## Tata cara menambah karyawan
+
+\`\`\`steps
+1. Buka menu Karyawan → Database Karyawan
+   Pastikan Anda login sebagai HR Admin / HR Staff dengan izin tulis.
+   @screenshot employees — Halaman Database Karyawan: pencarian, filter, tombol Tambah
+2. Klik tombol **Tambah** (ungu, pojok kanan atas)
+   Form master data terbuka.
+   @screenshot employees-form — Form Tambah Karyawan
+3. Isi field wajib
+   Nama lengkap, email kerja (unik per tenant), departemen, tanggal bergabung.
+   @screenshot employees-form — Contoh isi: Budi Santoso · budi@demo.co · Operations
+4. Simpan karyawan
+   Status default biasanya **ACTIVE**. Kode karyawan digenerate otomatis.
+5. Lengkapi tab detail
+   Kontrak, komponen gaji, dokumen KTP/NPWP, lalu assign shift di modul Absensi.
+\`\`\`
+
+\`\`\`example
+**Contoh:** Karyawan baru sales "Rina Kartika"
+1. Tambah → Nama: Rina Kartika · Email: rina@acme.id · Dept: Sales · Join: 1 Okt 2026
+2. Tab Payroll → Gaji pokok Rp 8.500.000 · PTKP: TK/0
+3. Tab Kontrak → PKWT 12 bulan
+4. Absensi → assign shift **Field 08–17**
+5. Tim & Undangan → undang portal ESS ke email Rina
+Hasil: Rina bisa clock-in, ajukan cuti, dan muncul di payroll run berikutnya.
+\`\`\`
+
+## Tips
+
+- Email harus unik per tenant.
+- Soft-nonaktifkan karyawan keluar daripada hapus keras jika sudah ada history payroll.
+- Impor massal: \`/humanify/employees-import\`.
+`,
+  },
+  {
+    slug: 'cara-pakai-cuti-dan-approval',
+    title: 'Cara Pakai: Cuti, ESS & Approval MSS',
+    summary: 'Dari pengajuan cuti karyawan hingga approval manajer — mockup ESS/MSS, langkah, dan workflow lengkap.',
+    category: 'kehadiran',
+    sort_order: 15,
+    tags: ['cuti', 'ess', 'mss', 'mockup', 'langkah', 'contoh', 'workflow'],
+    content: `# Cara Pakai: Cuti & Approval
+
+## 1. Setup jenis cuti (HR)
+
+Halaman: \`/humanify/leave\`
+
+\`\`\`mockup leave
+Kelola jenis cuti (annual/sick/unpaid), kuota, dan pantau antrian pending.
+\`\`\`
+
+\`\`\`steps
+1. Buka Manajemen Cuti
+   Menu **Kehadiran & Cuti → Manajemen Cuti**.
+2. Tambah jenis cuti
+   Mis. **Cuti tahunan** 12 hari/tahun, **Sakit** butuh lampiran.
+3. Set approval
+   Tentukan apakah butuh Manager (MSS) lalu HR, atau langsung HR.
+4. Pastikan kuota terisi per karyawan
+   Biasanya ikut policy tahunan / prorata join date.
+\`\`\`
+
+## 2. Karyawan mengajukan (ESS)
+
+\`\`\`mockup ess-leave
+Form ESS: pilih jenis, rentang tanggal, alasan, lalu Kirim pengajuan.
+\`\`\`
+
+\`\`\`workflow
+Login ESS → Menu Cuti → Ajukan → Cek kuota → Submit Pending → Notifikasi Approver → Approve/Reject → Kalender & kuota update
+\`\`\`
+
+\`\`\`example
+**Contoh:** Sari (HR Staff) ajukan cuti tahunan 20–22 Sep
+- Sisa kuota sebelum: 8 hari
+- Submit dari ESS → status **Pending**
+- Manager Andi di MSS menekan **Setujui**
+- Kuota jadi 5 hari; tanggal muncul di kalender tim
+\`\`\`
+
+## 3. Manajer approve (MSS)
+
+\`\`\`mockup mss-approvals
+Banner pending + tombol Setujui / Tolak per permintaan cuti atau klaim.
+\`\`\`
+
+\`\`\`steps
+1. Buka MSS / antrian approval
+   Manajer melihat banner jumlah pending.
+2. Review detail
+   Cek jenis cuti, tanggal, overlapping tim.
+3. Setujui atau Tolak
+   Tolak sebaiknya isi alasan agar karyawan paham.
+\`\`\`
+
+## Flowchart ringkas
+
+\`\`\`flowchart
+[Karyawan ajukan cuti ESS]
+        │
+        ▼
+[Cek kuota & overlapping]
+        │
+   ┌────┴────┐
+   │         │
+ OK        Tolak otomatis
+   │
+   ▼
+[Notifikasi approver MSS/HR]
+   │
+   ├── Approve → potong kuota
+   └── Reject  → status ditolak
+\`\`\`
+`,
+  },
+  {
+    slug: 'cara-pakai-payroll-run',
+    title: 'Cara Pakai: Payroll Run (draft → paid)',
+    summary: 'Step-by-step closing gaji bulanan: tiap langkah dilengkapi screenshot halaman Dasbor, Proses Gaji, modal buat run, review, transfer bank, dan slip.',
+    category: 'payroll',
+    sort_order: 16,
+    tags: ['payroll', 'mockup', 'langkah', 'contoh', 'workflow', 'screenshot'],
+    content: `# Cara Pakai: Payroll Run
+
+Panduan ini menjelaskan **cara memakai modul Payroll** dari membuat run hingga gaji dibayar. Setiap langkah di bawah punya **screenshot mockup halaman** yang sesuai di Humanify.
+
+## Prasyarat (sebelum buat run)
+
+- Master karyawan aktif + **gaji pokok** + PTKP di tab Gaji
+- Absensi / lembur / kasbon periode relatif final
+- Komponen BPJS & PPh 21 sudah dikonfigurasi
+
+## Workflow ringkas
+
+\`\`\`workflow
+Dasbor Payroll → Proses Gaji (tab Run) → Buat run → Hitung → Review THP → Setujui → Transfer bank → Tandai dibayar → Slip di ESS
+\`\`\`
+
+## Tata cara step-by-step + screenshot halaman
+
+\`\`\`steps
+1. Buka Dasbor Payroll
+   Menu sidebar **Payroll → Dasbor Payroll** (\`/humanify/payroll\`).
+   Di sini Anda melihat KPI karyawan/gaji dan tabel **Run penggajian** terakhir.
+   @screenshot payroll-hub — Halaman Dasbor Payroll: KPI + daftar run + pintasan modul
+2. Masuk ke Proses Gaji
+   Klik **Buka proses gaji** / menu **Payroll → Proses Gaji** (\`/humanify/payroll/main\`).
+   Pilih tab **Run** untuk mengelola siklus draft → dibayar.
+   @screenshot payroll-main — Halaman Proses Gaji, tab Run: daftar run + tombol Buat run / Hitung / Setujui
+3. Buat run baru untuk periode
+   Klik **Buat run**. Isi nama (contoh: Gaji Maret 2026), periode mulai–akhir, tanggal bayar, tipe **Bulanan**.
+   Simpan → status awal **Draf**.
+   @screenshot payroll-create — Modal Buat run baru di Proses Gaji
+4. Jalankan Hitung (Calculate)
+   Pilih run draf → klik **Hitung**. Sistem menarik gaji pokok, tunjangan, potongan, BPJS, PPh21, lembur (jika ada).
+   Status berubah jadi **Dihitung**.
+   @screenshot payroll-review — Hasil hitung: Gross / Potongan / THP + preview slip draft
+5. Review hasil sebelum Setujui
+   Cek outlier: THP Rp 0, karyawan baru tanpa rekening, pajak aneh.
+   Perbaiki master gaji jika perlu, lalu **Hitung ulang**.
+   @screenshot payroll-review — Preview slip draft — perbaiki baris bermasalah sebelum Setujui
+6. Setujui run
+   Role berwenang klik **Setujui**. Status **Disetujui**. Setelah ini angka terkunci untuk disbursement.
+   @screenshot payroll-main — Tab Run setelah status Disetujui
+7. Export Transfer Bank (opsional tapi disarankan)
+   Buka **Payroll → Transfer Bank** (\`/humanify/payroll/disbursement\`).
+   Unduh file BCA / Mandiri / CSV, proses di bank, lalu kembali ke Proses Gaji.
+   @screenshot payroll-disbursement — Halaman Transfer Bank: pilih format export
+8. Tandai Dibayar + cek Slip
+   Kembali ke Proses Gaji → **Tandai dibayar**.
+   Slip tersedia di **Payroll → Slip Gaji** dan di portal ESS karyawan.
+   @screenshot payroll-slip — Halaman Slip Gaji per karyawan untuk periode run
+\`\`\`
+
+\`\`\`example
+**Contoh closing Maret 2026 (128 karyawan)**
+1. Dasbor menampilkan run terakhir Feb status **Dibayar**
+2. Proses Gaji → Buat run **PR-2603 / Gaji Mar 2026** (1–31 Mar, bayar 28 Mar)
+3. Hitung → THP Rp 1,24 M — 1 karyawan THP 0 (belum ada gaji pokok) → perbaiki → hitung ulang
+4. Owner **Setujui** → export Mandiri CSV → transfer
+5. **Tandai dibayar** → karyawan unduh slip di ESS keesokan hari
+\`\`\`
+
+## Jangan
+
+- Mark Paid / Tandai dibayar sebelum review
+- Mengubah gaji pokok mid-run tanpa hitung ulang
+- Memakai data mock di production
+
+## Halaman terkait
+
+| Langkah | Halaman | URL |
+|---------|---------|-----|
+| Dasbor | Dasbor Payroll | \`/humanify/payroll\` |
+| Proses run | Proses Gaji | \`/humanify/payroll/main\` |
+| Slip | Slip Gaji | \`/humanify/payroll/slip-gaji\` |
+| Disbursement | Transfer Bank | \`/humanify/payroll/disbursement\` |
+`,
   },
   {
     slug: 'peta-modul-dan-komponen',
@@ -195,8 +452,18 @@ Gunakan dokumen ini sebagai **peta** sebelum masuk detail tiap modul.`,
     summary: 'Flowchart lengkap dari rekrutmen, onboarding, mutasi, hingga offboarding.',
     category: 'karyawan',
     sort_order: 3,
-    tags: ['karyawan', 'lifecycle', 'flowchart'],
+    tags: ['karyawan', 'lifecycle', 'flowchart', 'mockup', 'workflow'],
     content: `# Alur Karyawan End-to-End
+
+## Screenshot — Onboarding
+
+\`\`\`mockup onboarding
+Checklist onboarding: dokumen, kontrak, assign shift, undang ESS — progress bar per karyawan.
+\`\`\`
+
+\`\`\`mockup organization
+Master struktur: unit, golongan, departemen sebagai fondasi penempatan karyawan.
+\`\`\`
 
 ## 1. Flowchart siklus karyawan
 
@@ -274,7 +541,7 @@ Gunakan dokumen ini sebagai **peta** sebelum masuk detail tiap modul.`,
     summary: 'Detail shift, geofence, device, rekap, pengajuan cuti, dan approval.',
     category: 'kehadiran',
     sort_order: 4,
-    tags: ['absensi', 'cuti', 'shift', 'approval'],
+    tags: ['absensi', 'cuti', 'shift', 'approval', 'mockup', 'workflow'],
     content: `# Absensi & Cuti — Detail Lengkap
 
 ## 1. Modul terkait
@@ -289,6 +556,12 @@ Gunakan dokumen ini sebagai **peta** sebelum masuk detail tiap modul.`,
 | Manajemen Cuti | Jenis cuti, kuota, approval HR |
 
 Portal karyawan: clock-in/out + ajukan cuti di ESS.
+
+## Screenshot mockup — Absensi
+
+\`\`\`mockup attendance
+Rekap harian: kartu Hadir / Telat / Alpha dan daftar clock karyawan.
+\`\`\`
 
 ## 2. Flowchart absensi harian
 
@@ -589,12 +862,16 @@ Portal karyawan: clock-in/out + ajukan cuti di ESS.
     summary: 'Penjelasan portal mandiri karyawan dan layanan manajer.',
     category: 'ess',
     sort_order: 8,
-    tags: ['ess', 'mss', 'portal'],
+    tags: ['ess', 'mss', 'portal', 'mockup', 'langkah', 'workflow'],
     content: `# Portal ESS & MSS
 
 ## 1. ESS (Employee Self Service)
 
 URL: \`/employee\`
+
+\`\`\`mockup ess-home
+Beranda ESS: sapaan karyawan, Clock-in, Ajukan cuti, pintasan Slip / Klaim / Dokumen.
+\`\`\`
 
 Fitur tipikal:
 - Profil & dokumen
@@ -604,7 +881,11 @@ Fitur tipikal:
 - Klaim reimbursement
 - Notifikasi / kebijakan
 
-### Flowchart cuti dari ESS
+### Workflow cuti dari ESS
+
+\`\`\`workflow
+Login Portal Karyawan → Menu Cuti → Ajukan → Isi jenis & tanggal → Submit Pending → Approver MSS/HR
+\`\`\`
 
 \`\`\`flowchart
 [Login Portal Karyawan]
@@ -625,6 +906,10 @@ Fitur tipikal:
 ## 2. MSS (Manager Self Service)
 
 Halaman konfigurasi/layanan: \`/humanify/mss\`
+
+\`\`\`mockup mss-approvals
+Antrian approval: Setujui atau Tolak cuti/klaim tim.
+\`\`\`
 
 Manajer biasanya:
 - Approve cuti/klaim tim
@@ -701,7 +986,7 @@ Manajer biasanya:
     summary: 'Detail pengaduan ke tim Humanify, prioritas, status, dan praktik penulisan tiket bagus.',
     category: 'support',
     sort_order: 10,
-    tags: ['support', 'tiket', 'sla'],
+    tags: ['support', 'tiket', 'sla', 'mockup', 'langkah', 'contoh'],
     content: `# Tiket Support Humanify
 
 ## 1. Kapan buat tiket?
@@ -714,7 +999,29 @@ Manajer biasanya:
 
 Cek **Knowledge Center** dulu — banyak solusi sudah terdokumentasi.
 
-## 2. Flowchart siklus tiket
+\`\`\`mockup support
+Ringkasan Open / Progress / Resolved dan tombol Buat tiket baru.
+\`\`\`
+
+## 2. Tata cara buat tiket
+
+\`\`\`steps
+1. Buka /humanify/support
+   Login sebagai HR Admin tenant Anda.
+2. Klik Buat tiket baru
+   Isi subjek singkat dan deskripsi lengkap.
+3. Pilih kategori & prioritas
+   Urgent hanya untuk produksi down / payroll blocking.
+4. Kirim dan pantau thread
+   Balas jika status Waiting; tutup setelah Resolved.
+\`\`\`
+
+\`\`\`example
+**Contoh subjek bagus:** "[Payroll] Take-home 0 untuk karyawan EMP-0042 run Mar 2026"
+Sertakan: langkah reproduksi, hasil aktual vs diharapkan, waktu kejadian, screenshot.
+\`\`\`
+
+## 3. Flowchart siklus tiket
 
 \`\`\`flowchart
 [Buat tiket di /humanify/support]

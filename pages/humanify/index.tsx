@@ -644,7 +644,7 @@ export default function HRISDashboard() {
   ];
 
   const deptChartData = deptStats.map((d) => ({
-    name: d.department?.length > 14 ? `${d.department.slice(0, 12)}…` : d.department,
+    name: d.department || '—',
     Aktif: d.active,
     Total: d.total,
   }));
@@ -813,7 +813,87 @@ export default function HRISDashboard() {
               </div>
             ) : null}
 
-            <div className="grid gap-4 lg:grid-cols-2">
+            <GaOnboardingChecklist />
+
+            <section className="col-span-full block w-full min-w-0">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <p className="hf-section-label mb-0">{t('hris.deptOverview')}</p>
+                <Link href="/humanify/organization" className="inline-flex items-center gap-1 text-xs font-medium text-[color:var(--hf-brand-600)] hover:underline">
+                  Organisasi <ArrowRight className="h-3 w-3" />
+                </Link>
+              </div>
+              <div className="hf-card hf-analytics-panel w-full max-w-none overflow-hidden">
+                <span className="hf-analytics-panel__rail" aria-hidden />
+                <div className="border-b border-[var(--hf-border-subtle)] px-4 py-3 pl-5 md:px-5 md:pl-6">
+                  <p className="text-xs text-[color:var(--hf-ink-muted)]">Headcount aktif per departemen</p>
+                </div>
+                <div className="w-full p-4 pl-5 md:p-5 md:pl-6">
+                  {deptStats.length === 0 ? (
+                    <HrisEmptyState
+                      title="Belum ada headcount per departemen"
+                      description="Tambah karyawan dengan field departemen untuk melihat chart dan breakdown."
+                      source={dataSource}
+                      action={
+                        <Link href="/humanify/employees?add=1" className="hf-btn-secondary inline-flex items-center gap-1 text-xs">
+                          <UserPlus className="h-3.5 w-3.5" /> Tambah karyawan
+                        </Link>
+                      }
+                    />
+                  ) : (
+                    <div className="flex w-full min-w-0 flex-col gap-4">
+                      <div className="w-full min-w-0">
+                        <OpsBarChart
+                          data={deptChartData}
+                          xKey="name"
+                          bars={[
+                            { key: 'Aktif', label: 'Aktif', color: HF_CHART_COLORS_SOLID[0] },
+                            { key: 'Total', label: 'Total', color: HF_CHART_COLORS_SOLID[1] },
+                          ]}
+                          height={300}
+                          angledLabels
+                        />
+                      </div>
+                      <div className="grid w-full gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                        {deptStats.map((d) => (
+                          <div key={d.department} className="hf-tile-nested p-3">
+                            <div className="mb-2 flex items-start justify-between gap-2">
+                              <h4 className="min-w-0 flex-1 break-words text-sm font-semibold leading-snug text-[color:var(--hf-ink)]">{d.department}</h4>
+                              <span className="shrink-0 rounded-md border border-[var(--hf-border)] bg-white px-2 py-0.5 text-[11px] tabular-nums text-[color:var(--hf-ink-muted)]">{d.active}/{d.total}</span>
+                            </div>
+                            <div className="space-y-2">
+                              <div>
+                                <div className="mb-1 flex justify-between text-[11px]">
+                                  <span className="text-[color:var(--hf-ink-muted)]">{t('hris.performance')}</span>
+                                  <span className="font-medium tabular-nums">{d.perf > 0 ? `${d.perf}%` : '—'}</span>
+                                </div>
+                                {d.perf > 0 && (
+                                  <div className="h-1.5 overflow-hidden rounded-full bg-white">
+                                    <div className="h-full rounded-full bg-[var(--hf-brand-600)]" style={{ width: `${Math.min(100, d.perf)}%` }} />
+                                  </div>
+                                )}
+                              </div>
+                              <div>
+                                <div className="mb-1 flex justify-between text-[11px]">
+                                  <span className="text-[color:var(--hf-ink-muted)]">{t('hris.attendance')}</span>
+                                  <span className="font-medium tabular-nums">{d.attend > 0 ? `${d.attend}%` : '—'}</span>
+                                </div>
+                                {d.attend > 0 && (
+                                  <div className="h-1.5 overflow-hidden rounded-full bg-white">
+                                    <div className="h-full rounded-full bg-[color:var(--hf-success)]" style={{ width: `${Math.min(100, d.attend)}%` }} />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            <div className="grid w-full grid-cols-1 gap-4 lg:grid-cols-2">
               <OpsPanel
                 title="Action inbox"
                 subtitle="Cuti, lembur, klaim, kontrak, dan absensi yang perlu ditindak"
@@ -884,136 +964,61 @@ export default function HRISDashboard() {
                 )}
               </OpsPanel>
 
-              <div className="space-y-4">
-                <GaOnboardingChecklist />
-                <OpsPanel
-                  title={t('hris.recentActivities')}
-                  subtitle="Timeline operasional HR"
-                  action={
-                    <Link href="/humanify/activities" className="inline-flex items-center gap-1 text-xs font-medium text-[color:var(--hf-brand-600)] hover:underline">
-                      Lihat semua <ArrowRight className="h-3 w-3" />
-                    </Link>
-                  }
-                >
-                  {recentActivities.length === 0 ? (
-                    <HrisEmptyState title="Belum ada aktivitas" description="Join karyawan, payroll, cuti, dan KPI akan tampil setelah operasional dimulai." source={dataSource} />
-                  ) : (
-                    <div className="max-h-72 space-y-2 overflow-y-auto">
-                      {recentActivities.map((act) => (
-                        <div key={act.id} className="hf-tile-nested flex items-start gap-3 px-3 py-3">
-                          <div className="mt-0.5 shrink-0 rounded-[var(--hf-radius)] bg-[var(--hf-brand-50)] p-2 text-[color:var(--hf-brand-600)]">
-                            <act.icon className="h-4 w-4" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-[color:var(--hf-ink)]">{act.action}</p>
-                            <p className="mt-0.5 text-xs text-[color:var(--hf-ink-muted)]">{act.detail}</p>
-                          </div>
-                          <span className="shrink-0 text-[11px] text-[color:var(--hf-ink-faint)]">{act.time}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </OpsPanel>
-              </div>
-            </div>
-
-            <div className="grid gap-4 lg:grid-cols-3">
               <OpsPanel
-                className="lg:col-span-2"
-                title={t('hris.deptOverview')}
-                subtitle="Headcount aktif per departemen"
+                title={t('hris.recentActivities')}
+                subtitle="Timeline operasional HR"
                 action={
-                  <Link href="/humanify/organization" className="inline-flex items-center gap-1 text-xs font-medium text-[color:var(--hf-brand-600)] hover:underline">
-                    Organisasi <ArrowRight className="h-3 w-3" />
+                  <Link href="/humanify/activities" className="inline-flex items-center gap-1 text-xs font-medium text-[color:var(--hf-brand-600)] hover:underline">
+                    Lihat semua <ArrowRight className="h-3 w-3" />
                   </Link>
                 }
               >
-                {deptStats.length === 0 ? (
-                  <HrisEmptyState
-                    title="Belum ada headcount per departemen"
-                    description="Tambah karyawan dengan field departemen untuk melihat chart dan breakdown."
-                    source={dataSource}
-                    action={
-                      <Link href="/humanify/employees?add=1" className="hf-btn-secondary inline-flex items-center gap-1 text-xs">
-                        <UserPlus className="h-3.5 w-3.5" /> Tambah karyawan
-                      </Link>
-                    }
-                  />
+                {recentActivities.length === 0 ? (
+                  <HrisEmptyState title="Belum ada aktivitas" description="Join karyawan, payroll, cuti, dan KPI akan tampil setelah operasional dimulai." source={dataSource} />
                 ) : (
-                  <div className="grid gap-4 lg:grid-cols-2">
-                    <OpsBarChart
-                      data={deptChartData}
-                      xKey="name"
-                      bars={[
-                        { key: 'Aktif', label: 'Aktif', color: HF_CHART_COLORS_SOLID[0] },
-                        { key: 'Total', label: 'Total', color: HF_CHART_COLORS_SOLID[1] },
-                      ]}
-                      height={220}
-                    />
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {deptStats.map((d) => (
-                        <div key={d.department} className="hf-tile-nested p-3">
-                          <div className="mb-2 flex items-center justify-between gap-2">
-                            <h4 className="truncate text-sm font-semibold text-[color:var(--hf-ink)]">{d.department}</h4>
-                            <span className="shrink-0 rounded-md border border-[var(--hf-border)] bg-white px-2 py-0.5 text-[11px] tabular-nums text-[color:var(--hf-ink-muted)]">{d.active}/{d.total}</span>
-                          </div>
-                          <div className="space-y-2">
-                            <div>
-                              <div className="mb-1 flex justify-between text-[11px]">
-                                <span className="text-[color:var(--hf-ink-muted)]">{t('hris.performance')}</span>
-                                <span className="font-medium tabular-nums">{d.perf > 0 ? `${d.perf}%` : '—'}</span>
-                              </div>
-                              {d.perf > 0 && (
-                                <div className="h-1.5 overflow-hidden rounded-full bg-white">
-                                  <div className="h-full rounded-full bg-[var(--hf-brand-600)]" style={{ width: `${Math.min(100, d.perf)}%` }} />
-                                </div>
-                              )}
-                            </div>
-                            <div>
-                              <div className="mb-1 flex justify-between text-[11px]">
-                                <span className="text-[color:var(--hf-ink-muted)]">{t('hris.attendance')}</span>
-                                <span className="font-medium tabular-nums">{d.attend > 0 ? `${d.attend}%` : '—'}</span>
-                              </div>
-                              {d.attend > 0 && (
-                                <div className="h-1.5 overflow-hidden rounded-full bg-white">
-                                  <div className="h-full rounded-full bg-[color:var(--hf-success)]" style={{ width: `${Math.min(100, d.attend)}%` }} />
-                                </div>
-                              )}
-                            </div>
-                          </div>
+                  <div className="max-h-72 space-y-2 overflow-y-auto">
+                    {recentActivities.map((act) => (
+                      <div key={act.id} className="hf-tile-nested flex items-start gap-3 px-3 py-3">
+                        <div className="mt-0.5 shrink-0 rounded-[var(--hf-radius)] bg-[var(--hf-brand-50)] p-2 text-[color:var(--hf-brand-600)]">
+                          <act.icon className="h-4 w-4" />
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </OpsPanel>
-
-              <OpsPanel
-                title={t('hris.upcomingAgenda')}
-                subtitle="Cuti mendatang dan reminder payroll"
-                action={
-                  <Link href="/humanify/calendar" className="inline-flex items-center gap-1 text-xs font-medium text-[color:var(--hf-brand-600)] hover:underline">
-                    Kalender <ArrowRight className="h-3 w-3" />
-                  </Link>
-                }
-              >
-                {upcoming.length === 0 ? (
-                  <HrisEmptyState title="Agenda kosong" description="Cuti mendatang dan reminder payroll muncul setelah ada karyawan dan pengajuan." source={dataSource} />
-                ) : (
-                  <div className="space-y-2">
-                    {upcoming.map((ev) => (
-                      <div key={ev.id} className="hf-tile-nested flex items-center gap-3 px-3 py-3">
-                        <div className="h-8 w-1 shrink-0 rounded-full bg-[var(--hf-brand-500)]" />
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-[color:var(--hf-ink)]">{ev.title}</p>
-                          <p className="text-xs text-[color:var(--hf-ink-muted)]">{ev.date}</p>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-[color:var(--hf-ink)]">{act.action}</p>
+                          <p className="mt-0.5 text-xs text-[color:var(--hf-ink-muted)]">{act.detail}</p>
                         </div>
+                        <span className="shrink-0 text-[11px] text-[color:var(--hf-ink-faint)]">{act.time}</span>
                       </div>
                     ))}
                   </div>
                 )}
               </OpsPanel>
             </div>
+
+            <OpsPanel
+              title={t('hris.upcomingAgenda')}
+              subtitle="Cuti mendatang dan reminder payroll"
+              action={
+                <Link href="/humanify/calendar" className="inline-flex items-center gap-1 text-xs font-medium text-[color:var(--hf-brand-600)] hover:underline">
+                  Kalender <ArrowRight className="h-3 w-3" />
+                </Link>
+              }
+            >
+              {upcoming.length === 0 ? (
+                <HrisEmptyState title="Agenda kosong" description="Cuti mendatang dan reminder payroll muncul setelah ada karyawan dan pengajuan." source={dataSource} />
+              ) : (
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {upcoming.map((ev) => (
+                    <div key={ev.id} className="hf-tile-nested flex items-center gap-3 px-3 py-3">
+                      <div className="h-8 w-1 shrink-0 rounded-full bg-[var(--hf-brand-500)]" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium leading-snug text-[color:var(--hf-ink)]">{ev.title}</p>
+                        <p className="text-xs text-[color:var(--hf-ink-muted)]">{ev.date}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </OpsPanel>
 
             {!hasWorkforce && (
               <OpsPanel title="Mulai dari nol" subtitle="Dashboard terisi otomatis setelah operasional HR berjalan">

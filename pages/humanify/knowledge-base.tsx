@@ -1,12 +1,14 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
 import { OpsPageHero, OpsStage } from '@/components/humanify/OpsPageChrome';
 import HrisEmptyState from '@/components/humanify/HrisEmptyState';
+import KbMarkdown from '@/components/humanify/KbMarkdown';
 import {
   BookOpen, Search, Plus, X, Eye, ArrowLeft, Tag, LifeBuoy, RefreshCw,
+  Camera, ListOrdered, GitBranch, Lightbulb,
 } from 'lucide-react';
 
 type Article = {
@@ -20,7 +22,32 @@ type Article = {
   is_platform?: boolean;
   view_count?: number;
   tenant_id?: string | null;
+  tags?: string[] | string;
 };
+
+function articleTags(a: Article): string[] {
+  if (Array.isArray(a.tags)) return a.tags.map(String);
+  if (typeof a.tags === 'string') {
+    try {
+      const parsed = JSON.parse(a.tags);
+      return Array.isArray(parsed) ? parsed.map(String) : [];
+    } catch {
+      return a.tags.split(',').map((t) => t.trim()).filter(Boolean);
+    }
+  }
+  return [];
+}
+
+function articleHints(a: Article) {
+  const fromContent = contentHints(a.content);
+  const tags = articleTags(a).map((t) => t.toLowerCase());
+  return {
+    mockup: fromContent.mockup || tags.some((t) => /mockup|screenshot|ui/.test(t)),
+    steps: fromContent.steps || tags.some((t) => /langkah|steps|tata.?cara|panduan/.test(t)),
+    workflow: fromContent.workflow || tags.some((t) => /workflow|alur|flowchart/.test(t)),
+    example: fromContent.example || tags.some((t) => /contoh|example/.test(t)),
+  };
+}
 
 const CATEGORY_LABEL: Record<string, string> = {
   getting_started: 'Mulai Cepat',
@@ -35,194 +62,14 @@ const CATEGORY_LABEL: Record<string, string> = {
   umum: 'Umum',
 };
 
-function inlineHtml(text: string) {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 bg-gray-100 rounded text-[12px] font-mono">$1</code>');
-}
-
-function renderSimpleMarkdown(md: string) {
-  const lines = String(md || '').split('\n');
-  const nodes: ReactNode[] = [];
-  let i = 0;
-  let listItems: { ordered: boolean; text: string }[] = [];
-  let ordered = false;
-  let fence: { lang: string; body: string[] } | null = null;
-  let tableRows: string[][] = [];
-
-  const flushList = () => {
-    if (!listItems.length) return;
-    const Tag = ordered ? 'ol' : 'ul';
-    const cls = ordered
-      ? 'list-decimal pl-5 space-y-1.5 text-sm text-gray-700 mb-3'
-      : 'list-disc pl-5 space-y-1.5 text-sm text-gray-700 mb-3';
-    nodes.push(
-      <Tag key={`list-${i++}`} className={cls}>
-        {listItems.map((li, idx) => (
-          <li key={idx} dangerouslySetInnerHTML={{ __html: inlineHtml(li.text) }} />
-        ))}
-      </Tag>,
-    );
-    listItems = [];
+function contentHints(content?: string) {
+  const c = content || '';
+  return {
+    mockup: /```\s*(mockup|screenshot|ui)\b/i.test(c),
+    steps: /```\s*(steps|langkah|tata-cara)\b/i.test(c),
+    workflow: /```\s*(workflow|alur|flowchart)\b/i.test(c),
+    example: /```\s*(example|contoh)\b/i.test(c),
   };
-
-  const flushTable = () => {
-    if (!tableRows.length) return;
-    const [header, ...body] = tableRows;
-    const dataRows = body.filter((r) => !r.every((c) => /^:?-+:?$/.test(c.trim())));
-    nodes.push(
-      <div key={`tbl-${i++}`} className="overflow-x-auto mb-4 border rounded-lg">
-        <table className="min-w-full text-sm text-left">
-          <thead className="bg-gray-50 border-b">
-            <tr>
-              {header.map((c, idx) => (
-                <th key={idx} className="px-3 py-2 font-semibold text-gray-800 whitespace-nowrap">
-                  {c.trim()}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {dataRows.map((row, rIdx) => (
-              <tr key={rIdx} className="border-b last:border-0">
-                {row.map((c, cIdx) => (
-                  <td
-                    key={cIdx}
-                    className="px-3 py-2 text-gray-700 align-top"
-                    dangerouslySetInnerHTML={{ __html: inlineHtml(c.trim()) }}
-                  />
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>,
-    );
-    tableRows = [];
-  };
-
-  const flushFence = () => {
-    if (!fence) return;
-    const body = fence.body.join('\n');
-    const isFlow = /^(flowchart|mermaid|diagram)$/i.test(fence.lang);
-    if (isFlow) {
-      nodes.push(
-        <div
-          key={`flow-${i++}`}
-          className="hf-card mb-4 overflow-hidden"
-        >
-          <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500 bg-slate-100 border-b border-slate-200">
-            Flowchart
-          </div>
-          <pre className="p-4 text-[12px] leading-relaxed font-mono text-slate-800 whitespace-pre overflow-x-auto">
-            {body}
-          </pre>
-        </div>,
-      );
-    } else {
-      nodes.push(
-        <pre
-          key={`code-${i++}`}
-          className="mb-4 p-3 rounded-lg bg-gray-900 text-gray-100 text-[12px] font-mono overflow-x-auto"
-        >
-          {body}
-        </pre>,
-      );
-    }
-    fence = null;
-  };
-
-  for (const raw of lines) {
-    const line = raw.trimEnd();
-
-    if (fence) {
-      if (/^```/.test(line.trim())) {
-        flushFence();
-      } else {
-        fence.body.push(raw);
-      }
-      continue;
-    }
-
-    const fenceOpen = line.trim().match(/^```(\w+)?\s*$/);
-    if (fenceOpen) {
-      flushList();
-      flushTable();
-      fence = { lang: fenceOpen[1] || 'text', body: [] };
-      continue;
-    }
-
-    if (/^\|/.test(line) && line.includes('|')) {
-      flushList();
-      const cells = line
-        .replace(/^\|/, '')
-        .replace(/\|$/, '')
-        .split('|')
-        .map((c) => c.trim());
-      tableRows.push(cells);
-      continue;
-    }
-    if (tableRows.length) flushTable();
-
-    if (/^###\s+/.test(line)) {
-      flushList();
-      nodes.push(
-        <h3 key={`h3-${i++}`} className="text-base font-semibold text-gray-900 mt-4 mb-1.5">
-          {line.replace(/^###\s+/, '')}
-        </h3>,
-      );
-      continue;
-    }
-    if (/^##\s+/.test(line)) {
-      flushList();
-      nodes.push(
-        <h2 key={`h2-${i++}`} className="text-lg font-semibold text-gray-900 mt-5 mb-2 border-b border-gray-100 pb-1">
-          {line.replace(/^##\s+/, '')}
-        </h2>,
-      );
-      continue;
-    }
-    if (/^#\s+/.test(line)) {
-      flushList();
-      nodes.push(
-        <h1 key={`h1-${i++}`} className="text-xl font-bold text-gray-900 mt-2 mb-2">
-          {line.replace(/^#\s+/, '')}
-        </h1>,
-      );
-      continue;
-    }
-    if (/^[-*]\s+/.test(line)) {
-      if (listItems.length && ordered) flushList();
-      ordered = false;
-      listItems.push({ ordered: false, text: line.replace(/^[-*]\s+/, '') });
-      continue;
-    }
-    if (/^\d+\.\s+/.test(line)) {
-      if (listItems.length && !ordered) flushList();
-      ordered = true;
-      listItems.push({ ordered: true, text: line.replace(/^\d+\.\s+/, '') });
-      continue;
-    }
-    flushList();
-    if (!line.trim()) {
-      nodes.push(<div key={`sp-${i++}`} className="h-2" />);
-      continue;
-    }
-    nodes.push(
-      <p
-        key={`p-${i++}`}
-        className="text-sm text-gray-700 leading-relaxed mb-2"
-        dangerouslySetInnerHTML={{ __html: inlineHtml(line) }}
-      />,
-    );
-  }
-  flushList();
-  flushTable();
-  flushFence();
-  return nodes;
 }
 
 export default function KnowledgeBasePage() {
@@ -311,6 +158,8 @@ export default function KnowledgeBasePage() {
     return ['all', ...Array.from(set)];
   }, [articles]);
 
+  const selectedHints = useMemo(() => contentHints(selected?.content), [selected?.content]);
+
   if (selected) {
     return (
       <HQLayout title="Pusat Pengetahuan" subtitle={selected.title}>
@@ -336,7 +185,33 @@ export default function KnowledgeBasePage() {
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">{selected.title}</h1>
             {selected.summary && <p className="text-sm text-gray-500 mb-4">{selected.summary}</p>}
-            <div className="prose-sm">{renderSimpleMarkdown(selected.content || '')}</div>
+
+            {(selectedHints.mockup || selectedHints.steps || selectedHints.workflow || selectedHints.example) && (
+              <div className="mb-5 flex flex-wrap gap-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                {selectedHints.mockup && (
+                  <span className="inline-flex items-center gap-1 text-[11px] text-slate-600">
+                    <Camera className="h-3 w-3 text-[color:var(--hf-brand)]" /> Screenshot mockup
+                  </span>
+                )}
+                {selectedHints.steps && (
+                  <span className="inline-flex items-center gap-1 text-[11px] text-slate-600">
+                    <ListOrdered className="h-3 w-3 text-[color:var(--hf-brand)]" /> Tata cara
+                  </span>
+                )}
+                {selectedHints.workflow && (
+                  <span className="inline-flex items-center gap-1 text-[11px] text-slate-600">
+                    <GitBranch className="h-3 w-3 text-[color:var(--hf-brand)]" /> Workflow
+                  </span>
+                )}
+                {selectedHints.example && (
+                  <span className="inline-flex items-center gap-1 text-[11px] text-slate-600">
+                    <Lightbulb className="h-3 w-3 text-amber-600" /> Contoh penggunaan
+                  </span>
+                )}
+              </div>
+            )}
+
+            <KbMarkdown content={selected.content || ''} />
           </article>
           <div className="bg-[var(--hf-brand-50)] border border-[var(--hf-brand-100)] rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -358,17 +233,18 @@ export default function KnowledgeBasePage() {
   return (
     <HQLayout
       title="Pusat Pengetahuan"
-      subtitle="Panduan produk, fitur, flowchart, dan penjelasan modul Humanify"
+      subtitle="Panduan penggunaan dengan contoh, screenshot mockup, dan workflow"
     >
       <OpsStage>
         <OpsPageHero
           title="Pusat Pengetahuan"
-          subtitle="Panduan produk, fitur, flowchart, dan penjelasan modul Humanify"
+          subtitle="Panduan penggunaan Humanify: contoh nyata, screenshot mockup halaman, tata cara, dan workflow"
           badge="Knowledge Center"
           liveLabel="Docs"
           icon={BookOpen}
           chips={[
             { icon: Tag, label: `${articles.length} artikel`, tone: 'text-[color:var(--hf-brand-600)]' },
+            { icon: Camera, label: 'Screenshot mockup', tone: 'text-slate-600' },
             { icon: LifeBuoy, label: 'Support siap membantu', tone: 'text-emerald-700' },
           ]}
           actions={(
@@ -387,16 +263,30 @@ export default function KnowledgeBasePage() {
         <div className="hf-card p-4 md:p-5">
           <p className="mb-2 text-sm font-medium text-[color:var(--hf-ink)]">Bagaimana kami bisa membantu?</p>
           <p className="mb-3 text-xs text-[color:var(--hf-ink-muted)]">
-            Cari panduan mulai penggunaan, detail fitur, flowchart, serta penjelasan modul.
+            Cari panduan mulai penggunaan, contoh langkah, screenshot mockup halaman, serta workflow modul.
           </p>
           <div className="relative max-w-xl">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--hf-ink-faint)]" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Cari artikel…"
+              placeholder="Cari artikel… mis. cuti, payroll, karyawan"
               className="hf-input w-full pl-9"
             />
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-slate-500">
+            <span className="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-1 border border-slate-100">
+              <Camera className="h-3 w-3" /> Mockup UI
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-1 border border-slate-100">
+              <ListOrdered className="h-3 w-3" /> Tata cara
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-1 border border-slate-100">
+              <GitBranch className="h-3 w-3" /> Workflow
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-1 border border-amber-100 text-amber-800">
+              <Lightbulb className="h-3 w-3" /> Contoh penggunaan
+            </span>
           </div>
         </div>
 
@@ -435,27 +325,52 @@ export default function KnowledgeBasePage() {
             </div>
           )}
           {!loading &&
-            articles.map((a) => (
-              <button
-                key={a.id}
-                type="button"
-                onClick={() => openArticle(a)}
-                className="text-left bg-white border rounded-xl p-4 hover:border-[var(--hf-brand)] transition-colors"
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <Tag className="w-3.5 h-3.5 text-[color:var(--hf-brand)]" />
-                  <span className="text-[11px] text-gray-500">
-                    {CATEGORY_LABEL[a.category] || a.category}
-                  </span>
-                </div>
-                <h3 className="font-semibold text-gray-900 mb-1">{a.title}</h3>
-                <p className="text-xs text-gray-500 line-clamp-2">{a.summary || 'Buka untuk membaca panduan.'}</p>
-                <p className="text-[11px] text-gray-400 mt-3 inline-flex items-center gap-1">
-                  <Eye className="w-3 h-3" /> {a.view_count || 0}
-                  {a.is_platform ? ' · Official' : ' · Internal'}
-                </p>
-              </button>
-            ))}
+            articles.map((a) => {
+              const hints = articleHints(a);
+              return (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => openArticle(a)}
+                  className="text-left bg-white border rounded-xl p-4 hover:border-[var(--hf-brand)] transition-colors"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <Tag className="w-3.5 h-3.5 text-[color:var(--hf-brand)]" />
+                    <span className="text-[11px] text-gray-500">
+                      {CATEGORY_LABEL[a.category] || a.category}
+                    </span>
+                  </div>
+                  <h3 className="font-semibold text-gray-900 mb-1">{a.title}</h3>
+                  <p className="text-xs text-gray-500 line-clamp-2">{a.summary || 'Buka untuk membaca panduan.'}</p>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {hints.mockup && (
+                      <span className="inline-flex items-center gap-0.5 rounded bg-slate-50 px-1.5 py-0.5 text-[10px] text-slate-500">
+                        <Camera className="h-2.5 w-2.5" /> Mockup
+                      </span>
+                    )}
+                    {hints.steps && (
+                      <span className="inline-flex items-center gap-0.5 rounded bg-slate-50 px-1.5 py-0.5 text-[10px] text-slate-500">
+                        <ListOrdered className="h-2.5 w-2.5" /> Langkah
+                      </span>
+                    )}
+                    {hints.workflow && (
+                      <span className="inline-flex items-center gap-0.5 rounded bg-slate-50 px-1.5 py-0.5 text-[10px] text-slate-500">
+                        <GitBranch className="h-2.5 w-2.5" /> Alur
+                      </span>
+                    )}
+                    {hints.example && (
+                      <span className="inline-flex items-center gap-0.5 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700">
+                        <Lightbulb className="h-2.5 w-2.5" /> Contoh
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-gray-400 mt-2 inline-flex items-center gap-1">
+                    <Eye className="w-3 h-3" /> {a.view_count || 0}
+                    {a.is_platform ? ' · Official' : ' · Internal'}
+                  </p>
+                </button>
+              );
+            })}
         </div>
 
         <div className="bg-white border rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
@@ -514,13 +429,16 @@ export default function KnowledgeBasePage() {
                 </select>
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-600">Konten * (Markdown sederhana)</label>
+                <label className="text-xs font-medium text-gray-600">Konten * (Markdown + blok khusus)</label>
                 <textarea
                   className="mt-1 w-full border rounded-lg px-3 py-2 text-sm min-h-[160px] font-mono"
                   value={form.content}
                   onChange={(e) => setForm({ ...form, content: e.target.value })}
-                  placeholder={'## Judul\n\nIsi panduan...\n- poin 1\n- poin 2'}
+                  placeholder={'## Judul\n\n```steps\n1. Langkah pertama\n   Detail…\n```\n\n```mockup employees\n```\n\n```example\nContoh: …\n```\n\n```workflow\nA → B → C\n```'}
                 />
+                <p className="mt-1 text-[11px] text-gray-400">
+                  Blok: mockup, steps, example, workflow, flowchart
+                </p>
               </div>
             </div>
             <div className="px-5 py-4 border-t flex justify-end gap-2">
