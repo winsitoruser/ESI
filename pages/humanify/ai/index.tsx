@@ -77,6 +77,16 @@ export default function AiHubPage() {
   }, [router.query.tab]);
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatHistory]);
 
+  const promptFromQuery = typeof router.query.prompt === 'string' ? router.query.prompt : '';
+  useEffect(() => {
+    if (!aiOn || !promptFromQuery || loading) return;
+    setTab('copilot');
+    setChatInput(promptFromQuery);
+    // Clear prompt from URL so refresh doesn't re-trigger
+    const { prompt: _p, ...rest } = router.query;
+    void router.replace({ pathname: router.pathname, query: { ...rest, tab: 'copilot' } }, undefined, { shallow: true });
+  }, [aiOn, promptFromQuery, loading]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!aiOn) {
     return (
       <PageGuard>

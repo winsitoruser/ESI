@@ -9,6 +9,7 @@ import GaOnboardingChecklist from '@/components/humanify/GaOnboardingChecklist';
 import NewCompanyLaunchBanner from '@/components/humanify/NewCompanyLaunchBanner';
 import { emptyMonthPresence, type MonthPresenceMix } from '@/lib/hris/month-presence';
 import MonthPresencePie from '@/components/humanify/MonthPresencePie';
+import AimanToolsFunctionsCard from '@/components/humanify/AimanToolsFunctionsCard';
 import FirstRunTour from '@/components/humanify/FirstRunTour';
 import QuickActionsDock from '@/components/humanify/QuickActionsDock';
 import HrisEmptyState from '@/components/humanify/HrisEmptyState';
@@ -877,7 +878,7 @@ export default function HRISDashboard() {
                 <div className="border-b border-[var(--hf-border-subtle)] px-4 py-3 pl-5 md:px-5 md:pl-6">
                   <p className="text-sm font-semibold text-[color:var(--hf-ink)]">Ringkasan per Departemen</p>
                   <p className="text-xs text-[color:var(--hf-ink-muted)]">
-                    Komposisi lanjutan, top performance, headcount/kinerja (tab), dan kehadiran bulan ini
+                    Komposisi lanjutan, top performance, headcount/kinerja (tab), kehadiran bulan ini, dan AIMAN tools
                   </p>
                 </div>
                 <div className="w-full p-4 pl-5 md:p-5 md:pl-6">
@@ -893,7 +894,10 @@ export default function HRISDashboard() {
                           </Link>
                         }
                       />
-                      <MonthPresencePie mix={monthPresence} />
+                      <div className="flex min-w-0 flex-col gap-4">
+                        <MonthPresencePie mix={monthPresence} />
+                        <AimanToolsFunctionsCard />
+                      </div>
                     </div>
                   ) : (
                     <div className="flex w-full min-w-0 flex-col gap-5">
@@ -1192,7 +1196,10 @@ export default function HRISDashboard() {
                           )}
                         </div>
 
-                        <MonthPresencePie mix={monthPresence} />
+                        <div className="flex min-w-0 flex-col gap-4">
+                          <MonthPresencePie mix={monthPresence} />
+                          <AimanToolsFunctionsCard />
+                        </div>
                       </div>
                     </div>
                   )}

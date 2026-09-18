@@ -3,6 +3,13 @@
  */
 import { batchScreen, DEFAULT_SCREENING_CRITERIA } from './ai-screening';
 import { executeRule, listRules, scanAllRules } from './hr-automation';
+import {
+  AIMAN_AGENT_TOOLS,
+  type AgentToolName,
+} from './aiman-agent-catalog';
+
+export type { AgentToolKind, AgentToolName, AgentToolDef } from './aiman-agent-catalog';
+export { AIMAN_AGENT_TOOLS };
 
 let sequelize: any;
 try {
@@ -10,90 +17,6 @@ try {
 } catch {
   sequelize = null;
 }
-
-export type AgentToolKind = 'read' | 'write';
-
-export type AgentToolName =
-  | 'payroll_prep_checklist'
-  | 'recruitment_screen_preview'
-  | 'list_hr_backlog'
-  | 'leave_pending_detail'
-  | 'contract_expiry_check'
-  | 'onboarding_status'
-  | 'run_automation_scan'
-  | 'execute_recruitment_screening'
-  | 'execute_contract_expiry_alert'
-  | 'execute_leave_backlog_alert';
-
-export type AgentToolDef = {
-  name: AgentToolName;
-  kind: AgentToolKind;
-  label: string;
-  description: string;
-};
-
-export const AIMAN_AGENT_TOOLS: AgentToolDef[] = [
-  {
-    name: 'payroll_prep_checklist',
-    kind: 'read',
-    label: 'Checklist persiapan payroll',
-    description: 'Cek karyawan tanpa gaji, run payroll terbuka, dan sinyal absensi.',
-  },
-  {
-    name: 'recruitment_screen_preview',
-    kind: 'read',
-    label: 'Pratinjau screening kandidat',
-    description: 'Hitung skor kandidat applied tanpa mengubah stage.',
-  },
-  {
-    name: 'list_hr_backlog',
-    kind: 'read',
-    label: 'Backlog HR',
-    description: 'Ringkas cuti, klaim, dan lembur pending.',
-  },
-  {
-    name: 'leave_pending_detail',
-    kind: 'read',
-    label: 'Detail cuti pending',
-    description: 'Daftar singkat pengajuan cuti yang menunggu approval.',
-  },
-  {
-    name: 'contract_expiry_check',
-    kind: 'read',
-    label: 'Cek kontrak hampir habis',
-    description: 'Kontrak aktif yang berakhir dalam 30 hari.',
-  },
-  {
-    name: 'onboarding_status',
-    kind: 'read',
-    label: 'Status onboarding',
-    description: 'Proses onboarding karyawan baru yang masih berjalan.',
-  },
-  {
-    name: 'run_automation_scan',
-    kind: 'write',
-    label: 'Jalankan scan otomasi',
-    description: 'Scan semua aturan otomasi aktif (bisa memicu aksi).',
-  },
-  {
-    name: 'execute_recruitment_screening',
-    kind: 'write',
-    label: 'Advance kandidat lolos screening',
-    description: 'Naikkan stage kandidat skor tinggi (applied → screening).',
-  },
-  {
-    name: 'execute_contract_expiry_alert',
-    kind: 'write',
-    label: 'Jalankan alert kontrak',
-    description: 'Evaluasi & catat alert kontrak hampir habis.',
-  },
-  {
-    name: 'execute_leave_backlog_alert',
-    kind: 'write',
-    label: 'Jalankan alert backlog cuti',
-    description: 'Evaluasi & catat alert jika cuti pending menumpuk.',
-  },
-];
 
 export type AgentToolResult = {
   ok: boolean;
