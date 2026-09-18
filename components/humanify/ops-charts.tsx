@@ -102,30 +102,55 @@ export function OpsLineChart({
   xKey = 'x',
   yKey = 'y',
   yLabel,
+  lines,
   height = 220,
   color = HF_CHART_COLORS_SOLID[0],
+  angledLabels = false,
 }: {
   data: Array<Record<string, any>>;
   xKey?: string;
   yKey?: string;
   yLabel?: string;
+  lines?: Array<{ key: string; label?: string; color?: string }>;
   height?: number;
   color?: string;
+  angledLabels?: boolean;
 }) {
   if (!data?.length) {
     return <p className="py-10 text-center text-xs text-slate-400">Belum ada data</p>;
   }
+  const series = lines?.length
+    ? lines
+    : [{ key: yKey, label: yLabel || yKey, color }];
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+      <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: angledLabels ? 40 : 0 }}>
         <CartesianGrid stroke={GRID} strokeDasharray="3 3" />
-        <XAxis dataKey={xKey} tick={TICK} axisLine={false} tickLine={false} />
-        <YAxis tick={TICK} axisLine={false} tickLine={false} width={40} />
-        <Tooltip
-          contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}
-          formatter={(v: any) => [v, yLabel || yKey]}
+        <XAxis
+          dataKey={xKey}
+          tick={TICK}
+          axisLine={false}
+          tickLine={false}
+          interval={0}
+          angle={angledLabels ? -25 : 0}
+          textAnchor={angledLabels ? 'end' : 'middle'}
+          height={angledLabels ? 50 : undefined}
         />
-        <Line type="monotone" dataKey={yKey} stroke={color} strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+        <YAxis tick={TICK} axisLine={false} tickLine={false} width={40} domain={[0, 100]} />
+        <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }} />
+        <Legend wrapperStyle={{ fontSize: 11 }} />
+        {series.map((s, i) => (
+          <Line
+            key={s.key}
+            type="monotone"
+            dataKey={s.key}
+            name={s.label || s.key}
+            stroke={s.color || HF_CHART_COLORS_SOLID[i % HF_CHART_COLORS_SOLID.length]}
+            strokeWidth={2}
+            dot={{ r: 3 }}
+            activeDot={{ r: 5 }}
+          />
+        ))}
       </LineChart>
     </ResponsiveContainer>
   );

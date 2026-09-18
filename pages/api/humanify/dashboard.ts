@@ -18,6 +18,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       dataSource: 'empty',
       stats: { total: 0, active: 0, onLeave: 0, inactive: 0, avgPerf: 0, avgKpi: 0, topPerformers: 0, attendanceToday: 0 },
       deptStats: [],
+      workforceTrend: [],
+      topPerformersList: [],
       pendingApprovals: [],
       pendingSummary: { total: 0, overdue: 0, byType: { leave: 0, overtime: 0, claim: 0, travel: 0, mutation: 0 } },
       recentActivities: [],
@@ -77,7 +79,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     const attPresent = parseInt(attToday[0]?.present || 0);
     const attendanceToday = attTotal > 0 ? Math.round((attPresent / attTotal) * 100) : (stats.active > 0 ? 0 : 0);
 
-    // Department breakdown — headcount + KPI + kehadiran hari ini per dept
+    // Department breakdown — headcount by status + KPI + kehadiran hari ini
     let deptRows: any[] = [];
     try {
       const [rows] = await sequelize.query(`
@@ -88,6 +90,13 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             WHERE COALESCE(e.is_active, true) = true
               AND UPPER(COALESCE(e.status, 'ACTIVE')) IN ('ACTIVE', 'AKTIF')
           )::int AS active,
+          COUNT(DISTINCT e.id) FILTER (
+            WHERE UPPER(COALESCE(e.status, '')) IN ('ON_LEAVE', 'LEAVE', 'CUTI')
+          )::int AS on_leave,
+          COUNT(DISTINCT e.id) FILTER (
+            WHERE UPPER(COALESCE(e.status, '')) IN ('INACTIVE', 'TERMINATED', 'RESIGNED', 'EXITED', 'OFFBOARDED')
+              OR e.is_active = false
+          )::int AS inactive,
           COALESCE(ROUND(AVG(
             CASE WHEN k.target > 0 THEN LEAST(150, (k.actual / NULLIF(k.target, 0)) * 100) END
           )), 0)::int AS perf,
@@ -96,7 +105,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             / NULLIF(
               COUNT(DISTINCT e.id) FILTER (
                 WHERE COALESCE(e.is_active, true) = true
-                  AND UPPER(COALESCE(e.status, 'ACTIVE')) IN ('ACTIVE', 'AKTIF', 'ON_LEAVE')
+                  AND UPPER(COALESCE(e.status, 'ACTIVE')) IN ('ACTIVE', 'AKTIF', 'ON_LEAVE', 'LEAVE', 'CUTI')
               ),
               0
             )
@@ -116,7 +125,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       const [rows] = await sequelize.query(`
         SELECT COALESCE(NULLIF(TRIM(department), ''), 'Other') AS department,
           COUNT(*)::int AS total,
-          COUNT(*) FILTER (WHERE COALESCE(is_active, true) = true)::int AS active
+          COUNT(*) FILTER (WHERE COALESCE(is_active, true) = true)::int AS active,
+          0::int AS on_leave,
+          COUNT(*) FILTER (WHERE COALESCE(is_active, true) = false)::int AS inactive
         FROM employees e WHERE 1=1 ${etf}
         GROUP BY COALESCE(NULLIF(TRIM(department), ''), 'Other')
         ORDER BY total DESC LIMIT 8
@@ -128,10 +139,106 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       department: d.department,
       total: Number(d.total || 0),
       active: Number(d.active || 0),
+      onLeave: Number(d.on_leave || 0),
+      inactive: Number(d.inactive || 0),
       perf: Number(d.perf || 0) || avgPerf || 0,
       attend: Number(d.attend || 0) || attendanceToday || 0,
       color: colors[i % colors.length],
     }));
+
+    // Weekly attendance trend + monthly KPI history (mapped onto weeks)
+    let workforceTrend: Array<{ week: string; Kehadiran: number; Kinerja: number }> = [];
+    try {
+      const [trendRows] = await sequelize.query(`
+        WITH weeks AS (
+          SELECT generate_series(
+            date_trunc('week', CURRENT_DATE::timestamp) - INTERVAL '7 weeks',
+            date_trunc('week', CURRENT_DATE::timestamp),
+            INTERVAL '1 week'
+          )::date AS week_start
+        ),
+        att AS (
+          SELECT
+            date_trunc('week', ea.date::timestamp)::date AS week_start,
+            ROUND(
+              100.0 * COUNT(*) FILTER (WHERE ea.status IN ('present', 'late'))
+              / NULLIF(COUNT(*), 0)
+            )::int AS attend_pct
+          FROM employee_attendance ea
+          WHERE ea.tenant_id = :tenantId
+            AND ea.date >= (CURRENT_DATE - INTERVAL '56 days')
+          GROUP BY 1
+        )
+        SELECT
+          to_char(w.week_start, 'DD Mon') AS week_label,
+          to_char(w.week_start, 'YYYY-MM') AS month_key,
+          COALESCE(a.attend_pct, 0)::int AS attend_pct
+        FROM weeks w
+        LEFT JOIN att a ON a.week_start = w.week_start
+        ORDER BY w.week_start ASC
+      `, { replacements: r });
+
+      let kpiByMonth: Record<string, number> = {};
+      try {
+        const [kpiHist] = await sequelize.query(`
+          SELECT period,
+            ROUND(AVG(CASE WHEN target > 0 THEN LEAST(150, (actual / NULLIF(target, 0)) * 100) END))::int AS kpi_score
+          FROM employee_kpis
+          WHERE tenant_id = :tenantId AND target > 0
+          GROUP BY period
+          ORDER BY period DESC
+          LIMIT 12
+        `, { replacements: r });
+        for (const row of kpiHist || []) {
+          const key = String(row.period || '').slice(0, 7);
+          if (key) kpiByMonth[key] = Number(row.kpi_score || 0);
+        }
+      } catch { /* optional */ }
+
+      const fallbackKpi = avgKpi || avgPerf || 0;
+      workforceTrend = (trendRows || []).map((row: any) => ({
+        week: row.week_label,
+        Kehadiran: Number(row.attend_pct || 0),
+        Kinerja: kpiByMonth[String(row.month_key)] ?? fallbackKpi,
+      }));
+    } catch {
+      workforceTrend = [];
+    }
+
+    // Top performers by KPI achievement (current period)
+    let topPerformersList: any[] = [];
+    try {
+      const [topRows] = await sequelize.query(`
+        SELECT
+          e.id,
+          e.name,
+          e.employee_code,
+          e.department,
+          e.position,
+          e.photo_url,
+          ROUND(AVG(CASE WHEN k.target > 0 THEN LEAST(150, (k.actual / NULLIF(k.target, 0)) * 100) END))::int AS kpi_score,
+          COUNT(k.id)::int AS kpi_count
+        FROM employee_kpis k
+        INNER JOIN employees e ON e.id = k.employee_id AND e.tenant_id = k.tenant_id
+        WHERE k.tenant_id = :tenantId AND k.period = :period AND k.target > 0
+        GROUP BY e.id, e.name, e.employee_code, e.department, e.position, e.photo_url
+        ORDER BY kpi_score DESC NULLS LAST, e.name ASC
+        LIMIT 8
+      `, { replacements: { ...r, period } });
+      topPerformersList = (topRows || []).map((row: any, i: number) => ({
+        rank: i + 1,
+        id: row.id,
+        name: row.name,
+        employeeCode: row.employee_code,
+        department: row.department || '—',
+        position: row.position || '—',
+        photoUrl: row.photo_url || null,
+        kpiScore: Number(row.kpi_score || 0),
+        kpiCount: Number(row.kpi_count || 0),
+      }));
+    } catch {
+      topPerformersList = [];
+    }
 
     // Pending approvals — unified inbox
     const pendingApprovals: any[] = [];
@@ -424,6 +531,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         attendanceToday,
       },
       deptStats,
+      workforceTrend,
+      topPerformersList,
       pendingApprovals: visibleApprovals.slice(0, 16),
       pendingSummary: {
         total: visibleApprovals.length,

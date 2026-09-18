@@ -15,7 +15,7 @@ import { DashboardBannerRail } from '@/components/humanify/MarketingBannerCarous
 import { HrisHeroMetricCard, HrisHeroNavCard, HrisHeroQueueCard } from '@/components/humanify/HrisHeroMetricCard';
 import { OpsStage, OpsPageHero, OpsPanel } from '@/components/humanify/OpsPageChrome';
 import { EnterpriseTabBar } from '@/components/humanify/PerformanceModuleChrome';
-import { OpsBarChart, OpsPieChart } from '@/components/humanify/ops-charts';
+import { OpsBarChart, OpsPieChart, OpsLineChart } from '@/components/humanify/ops-charts';
 import { HF_CHART_COLORS_SOLID } from '@/lib/humanify/chart-tokens';
 import { useTranslation } from '@/lib/i18n';
 import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
@@ -169,12 +169,12 @@ const MOCK_PENDING_APPROVALS = [
 ];
 
 const MOCK_DEPT_STATS = [
-  { department: 'Operations', total: 45, active: 42, perf: 85, attend: 96, color: 'blue' },
-  { department: 'Sales', total: 32, active: 30, perf: 88, attend: 93, color: 'green' },
-  { department: 'Finance', total: 18, active: 17, perf: 82, attend: 97, color: 'yellow' },
-  { department: 'Warehouse', total: 28, active: 26, perf: 78, attend: 94, color: 'purple' },
-  { department: 'Kitchen', total: 22, active: 20, perf: 80, attend: 91, color: 'indigo' },
-  { department: 'IT & Admin', total: 17, active: 13, perf: 86, attend: 98, color: 'cyan' },
+  { department: 'Operations', total: 45, active: 42, onLeave: 2, inactive: 1, perf: 85, attend: 96, color: 'blue' },
+  { department: 'Sales', total: 32, active: 30, onLeave: 1, inactive: 1, perf: 88, attend: 93, color: 'green' },
+  { department: 'Finance', total: 18, active: 17, onLeave: 1, inactive: 0, perf: 82, attend: 97, color: 'yellow' },
+  { department: 'Warehouse', total: 28, active: 26, onLeave: 1, inactive: 1, perf: 78, attend: 94, color: 'purple' },
+  { department: 'Kitchen', total: 22, active: 20, onLeave: 2, inactive: 0, perf: 80, attend: 91, color: 'indigo' },
+  { department: 'IT & Admin', total: 17, active: 13, onLeave: 1, inactive: 3, perf: 86, attend: 98, color: 'cyan' },
 ];
 
 const MOCK_RECENT_ACTIVITIES = [
@@ -203,6 +203,9 @@ export default function HRISDashboard() {
   const [lastSnoozed, setLastSnoozed] = useState<{ id: string; type: string; title: string } | null>(null);
   const [recentActivities, setRecentActivities] = useState<any[]>(USE_MOCK_UI ? MOCK_RECENT_ACTIVITIES : []);
   const [deptStats, setDeptStats] = useState<any[]>(USE_MOCK_UI ? MOCK_DEPT_STATS : []);
+  const [workforceTrend, setWorkforceTrend] = useState<Array<{ week: string; Kehadiran: number; Kinerja: number }>>([]);
+  const [topPerformersList, setTopPerformersList] = useState<any[]>([]);
+  const [perfChartTab, setPerfChartTab] = useState<'combined' | 'kinerja' | 'kehadiran'>('combined');
   const [upcoming, setUpcoming] = useState<any[]>(USE_MOCK_UI ? MOCK_UPCOMING : []);
   const [dataSource, setDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
   const [pendingSummary, setPendingSummary] = useState<{ total: number; overdue: number; byType?: Record<string, number> }>({ total: 0, overdue: 0 });
@@ -259,6 +262,8 @@ export default function HRISDashboard() {
           setDocCompliance(dash.documentCompliance || null);
           if (dash.stats) setStats(dash.stats);
           setDeptStats(Array.isArray(dash.deptStats) ? dash.deptStats : []);
+          setWorkforceTrend(Array.isArray(dash.workforceTrend) ? dash.workforceTrend : []);
+          setTopPerformersList(Array.isArray(dash.topPerformersList) ? dash.topPerformersList : []);
           setPendingApprovals(Array.isArray(dash.pendingApprovals) ? dash.pendingApprovals : []);
           setUpcoming(Array.isArray(dash.upcoming) ? dash.upcoming : []);
           if (Array.isArray(dash.recentActivities) && dash.recentActivities.length > 0) {
@@ -656,6 +661,23 @@ export default function HRISDashboard() {
       value: Number(d.total) || 0,
     }));
 
+  const deptStatusStackData = deptStats.map((d) => ({
+    name: d.department?.length > 14 ? `${d.department.slice(0, 12)}…` : (d.department || '—'),
+    Aktif: Number(d.active) || 0,
+    Cuti: Number(d.onLeave) || 0,
+    'Tidak aktif': Number(d.inactive) || 0,
+  }));
+
+  const deptPerfOnlyData = deptStats.map((d) => ({
+    name: d.department?.length > 16 ? `${d.department.slice(0, 14)}…` : (d.department || '—'),
+    Kinerja: Number(d.perf) || 0,
+  }));
+
+  const deptAttendOnlyData = deptStats.map((d) => ({
+    name: d.department?.length > 16 ? `${d.department.slice(0, 14)}…` : (d.department || '—'),
+    Kehadiran: Number(d.attend) || 0,
+  }));
+
   const deptPerfAttendData = deptStats.map((d) => ({
     name: d.department?.length > 16 ? `${d.department.slice(0, 14)}…` : (d.department || '—'),
     Kinerja: Number(d.perf) || 0,
@@ -851,7 +873,7 @@ export default function HRISDashboard() {
                 <div className="border-b border-[var(--hf-border-subtle)] px-4 py-3 pl-5 md:px-5 md:pl-6">
                   <p className="text-sm font-semibold text-[color:var(--hf-ink)]">Ringkasan per Departemen</p>
                   <p className="text-xs text-[color:var(--hf-ink-muted)]">
-                    Komposisi headcount (doughnut), headcount aktif, serta kinerja & kehadiran per departemen
+                    Komposisi lanjutan (dept + status), top performance & KPI, serta chart kinerja/kehadiran + tren
                   </p>
                 </div>
                 <div className="w-full p-4 pl-5 md:p-5 md:pl-6">
@@ -868,31 +890,120 @@ export default function HRISDashboard() {
                     />
                   ) : (
                     <div className="flex w-full min-w-0 flex-col gap-5">
-                      {/* Row 1: doughnut composition + status */}
+                      {/* Row 1: advanced composition + top performers table */}
                       <div className="grid w-full gap-4 lg:grid-cols-2">
                         <div className="hf-tile-nested min-w-0 p-4">
                           <div className="mb-1 flex items-center gap-2">
                             <PieChart className="h-4 w-4 text-[color:var(--hf-brand-600)]" />
                             <p className="text-sm font-semibold text-[color:var(--hf-ink)]">Komposisi departemen</p>
                           </div>
-                          <p className="mb-2 text-[11px] text-[color:var(--hf-ink-muted)]">Proporsi karyawan (doughnut)</p>
-                          <OpsPieChart data={deptCompositionData} nameKey="name" valueKey="value" height={260} />
-                        </div>
-                        <div className="hf-tile-nested min-w-0 p-4">
-                          <div className="mb-1 flex items-center gap-2">
-                            <Users className="h-4 w-4 text-[color:var(--hf-brand-600)]" />
-                            <p className="text-sm font-semibold text-[color:var(--hf-ink)]">Status workforce</p>
+                          <p className="mb-3 text-[11px] text-[color:var(--hf-ink-muted)]">
+                            Proporsi headcount + status workforce (aktif / cuti / tidak aktif) per departemen
+                          </p>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <div>
+                              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--hf-ink-faint)]">Share departemen</p>
+                              <OpsPieChart data={deptCompositionData} nameKey="name" valueKey="value" height={220} />
+                            </div>
+                            <div>
+                              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--hf-ink-faint)]">Status global</p>
+                              {statusCompositionData.length > 0 ? (
+                                <OpsPieChart data={statusCompositionData} nameKey="name" valueKey="value" height={220} />
+                              ) : (
+                                <p className="py-10 text-center text-xs text-slate-400">Belum ada data status</p>
+                              )}
+                            </div>
                           </div>
-                          <p className="mb-2 text-[11px] text-[color:var(--hf-ink-muted)]">Aktif · cuti · tidak aktif</p>
-                          {statusCompositionData.length > 0 ? (
-                            <OpsPieChart data={statusCompositionData} nameKey="name" valueKey="value" height={260} />
+                          <div className="mt-3">
+                            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--hf-ink-faint)]">
+                              Breakdown status per departemen
+                            </p>
+                            <OpsBarChart
+                              data={deptStatusStackData}
+                              xKey="name"
+                              bars={[
+                                { key: 'Aktif', label: 'Aktif', color: HF_CHART_COLORS_SOLID[2] },
+                                { key: 'Cuti', label: 'Cuti', color: HF_CHART_COLORS_SOLID[3] },
+                                { key: 'Tidak aktif', label: 'Tidak aktif', color: HF_CHART_COLORS_SOLID[4] },
+                              ]}
+                              height={220}
+                              angledLabels
+                            />
+                          </div>
+                        </div>
+
+                        <div className="hf-tile-nested min-w-0 p-4">
+                          <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <Award className="h-4 w-4 text-[color:var(--hf-brand-600)]" />
+                              <p className="text-sm font-semibold text-[color:var(--hf-ink)]">Top performance & KPI</p>
+                            </div>
+                            <Link href="/humanify/kpi" className="text-[11px] font-medium text-[color:var(--hf-brand-600)] hover:underline">
+                              Lihat semua →
+                            </Link>
+                          </div>
+                          <p className="mb-3 text-[11px] text-[color:var(--hf-ink-muted)]">
+                            Peringkat karyawan berdasarkan pencapaian KPI periode berjalan
+                          </p>
+                          {topPerformersList.length === 0 ? (
+                            <HrisEmptyState
+                              title="Belum ada data KPI"
+                              description="Assign target KPI ke karyawan agar ranking tampil di sini."
+                              source={dataSource}
+                              action={
+                                <Link href="/humanify/kpi" className="hf-btn-secondary inline-flex items-center gap-1 text-xs">
+                                  Buka KPI
+                                </Link>
+                              }
+                            />
                           ) : (
-                            <p className="py-10 text-center text-xs text-slate-400">Belum ada data status</p>
+                            <div className="overflow-x-auto rounded-lg border border-[var(--hf-border)]">
+                              <table className="min-w-full text-left text-sm">
+                                <thead className="bg-[var(--hf-surface-muted)] text-[10px] uppercase tracking-wide text-[color:var(--hf-ink-muted)]">
+                                  <tr>
+                                    <th className="px-3 py-2 font-semibold">#</th>
+                                    <th className="px-3 py-2 font-semibold">Karyawan</th>
+                                    <th className="px-3 py-2 font-semibold">Departemen</th>
+                                    <th className="px-3 py-2 font-semibold text-right">KPI</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-[var(--hf-border-subtle)] bg-white">
+                                  {topPerformersList.map((row) => (
+                                    <tr key={row.id || row.rank} className="hover:bg-[var(--hf-brand-50)]/40">
+                                      <td className="px-3 py-2.5 tabular-nums text-[color:var(--hf-ink-faint)]">{row.rank}</td>
+                                      <td className="px-3 py-2.5">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                          <EmployeeAvatar name={row.name} photoUrl={row.photoUrl} size="sm" />
+                                          <div className="min-w-0">
+                                            <p className="truncate font-medium text-[color:var(--hf-ink)]">{row.name}</p>
+                                            <p className="truncate text-[11px] text-[color:var(--hf-ink-muted)]">{row.position || row.employeeCode || '—'}</p>
+                                          </div>
+                                        </div>
+                                      </td>
+                                      <td className="px-3 py-2.5 text-[color:var(--hf-ink-muted)]">{row.department || '—'}</td>
+                                      <td className="px-3 py-2.5 text-right">
+                                        <span
+                                          className={`inline-flex rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums ${
+                                            row.kpiScore >= 100
+                                              ? 'bg-emerald-50 text-emerald-700'
+                                              : row.kpiScore >= 70
+                                                ? 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)]'
+                                                : 'bg-amber-50 text-amber-700'
+                                          }`}
+                                        >
+                                          {row.kpiScore}%
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
                           )}
                         </div>
                       </div>
 
-                      {/* Row 2: bar headcount + perf/attendance */}
+                      {/* Row 2: headcount + kinerja/kehadiran variants + trend */}
                       <div className="grid w-full gap-4 lg:grid-cols-2">
                         <div className="hf-tile-nested min-w-0 p-4">
                           <div className="mb-1 flex items-center gap-2">
@@ -907,26 +1018,90 @@ export default function HRISDashboard() {
                               { key: 'Aktif', label: 'Aktif', color: HF_CHART_COLORS_SOLID[0] },
                               { key: 'Total', label: 'Total', color: HF_CHART_COLORS_SOLID[1] },
                             ]}
-                            height={280}
+                            height={260}
                             angledLabels
                           />
                         </div>
+
                         <div className="hf-tile-nested min-w-0 p-4">
-                          <div className="mb-1 flex items-center gap-2">
-                            <Award className="h-4 w-4 text-[color:var(--hf-brand-600)]" />
-                            <p className="text-sm font-semibold text-[color:var(--hf-ink)]">Kinerja & kehadiran</p>
+                          <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <Award className="h-4 w-4 text-[color:var(--hf-brand-600)]" />
+                              <p className="text-sm font-semibold text-[color:var(--hf-ink)]">Kinerja & kehadiran</p>
+                            </div>
+                            <div className="flex rounded-lg border border-[var(--hf-border)] overflow-hidden text-[11px]">
+                              {([
+                                { key: 'combined', label: 'Gabungan' },
+                                { key: 'kinerja', label: 'Kinerja' },
+                                { key: 'kehadiran', label: 'Kehadiran' },
+                              ] as const).map((tab) => (
+                                <button
+                                  key={tab.key}
+                                  type="button"
+                                  onClick={() => setPerfChartTab(tab.key)}
+                                  className={`px-2.5 py-1 font-medium transition ${
+                                    perfChartTab === tab.key
+                                      ? 'bg-[var(--hf-brand-600)] text-white'
+                                      : 'bg-white text-[color:var(--hf-ink-muted)] hover:bg-[var(--hf-surface-muted)]'
+                                  }`}
+                                >
+                                  {tab.label}
+                                </button>
+                              ))}
+                            </div>
                           </div>
-                          <p className="mb-2 text-[11px] text-[color:var(--hf-ink-muted)]">Rata-rata KPI (%) dan hadir hari ini (%)</p>
-                          <OpsBarChart
-                            data={deptPerfAttendData}
-                            xKey="name"
-                            bars={[
-                              { key: 'Kinerja', label: 'Kinerja', color: HF_CHART_COLORS_SOLID[0] },
-                              { key: 'Kehadiran', label: 'Kehadiran', color: HF_CHART_COLORS_SOLID[2] },
-                            ]}
-                            height={280}
-                            angledLabels
-                          />
+                          <p className="mb-2 text-[11px] text-[color:var(--hf-ink-muted)]">
+                            Varian bar chart per departemen · {perfChartTab === 'combined' ? 'KPI + hadir hari ini' : perfChartTab === 'kinerja' ? 'Hanya kinerja (KPI %)' : 'Hanya kehadiran (%)'}
+                          </p>
+                          {perfChartTab === 'combined' && (
+                            <OpsBarChart
+                              data={deptPerfAttendData}
+                              xKey="name"
+                              bars={[
+                                { key: 'Kinerja', label: 'Kinerja', color: HF_CHART_COLORS_SOLID[0] },
+                                { key: 'Kehadiran', label: 'Kehadiran', color: HF_CHART_COLORS_SOLID[2] },
+                              ]}
+                              height={220}
+                              angledLabels
+                            />
+                          )}
+                          {perfChartTab === 'kinerja' && (
+                            <OpsBarChart
+                              data={deptPerfOnlyData}
+                              xKey="name"
+                              bars={[{ key: 'Kinerja', label: 'Kinerja', color: HF_CHART_COLORS_SOLID[0] }]}
+                              height={220}
+                              angledLabels
+                            />
+                          )}
+                          {perfChartTab === 'kehadiran' && (
+                            <OpsBarChart
+                              data={deptAttendOnlyData}
+                              xKey="name"
+                              bars={[{ key: 'Kehadiran', label: 'Kehadiran', color: HF_CHART_COLORS_SOLID[2] }]}
+                              height={220}
+                              angledLabels
+                            />
+                          )}
+                          <div className="mt-4 border-t border-[var(--hf-border-subtle)] pt-3">
+                            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--hf-ink-faint)]">
+                              Tren 8 minggu — kinerja & kehadiran
+                            </p>
+                            {workforceTrend.length > 0 ? (
+                              <OpsLineChart
+                                data={workforceTrend}
+                                xKey="week"
+                                lines={[
+                                  { key: 'Kinerja', label: 'Kinerja', color: HF_CHART_COLORS_SOLID[0] },
+                                  { key: 'Kehadiran', label: 'Kehadiran', color: HF_CHART_COLORS_SOLID[2] },
+                                ]}
+                                height={200}
+                                angledLabels
+                              />
+                            ) : (
+                              <p className="py-8 text-center text-xs text-slate-400">Belum ada tren absensi/KPI untuk digambar.</p>
+                            )}
+                          </div>
                         </div>
                       </div>
 
@@ -953,6 +1128,11 @@ export default function HRISDashboard() {
                                   </span>
                                 </div>
                                 <p className="mb-2 text-[10px] text-[color:var(--hf-ink-faint)]">{share}% dari total workforce</p>
+                                <div className="mb-2 flex flex-wrap gap-1">
+                                  <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">Aktif {d.active || 0}</span>
+                                  <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">Cuti {d.onLeave || 0}</span>
+                                  <span className="rounded bg-rose-50 px-1.5 py-0.5 text-[10px] font-medium text-rose-700">Nonaktif {d.inactive || 0}</span>
+                                </div>
                                 <div className="space-y-2">
                                   <div>
                                     <div className="mb-1 flex justify-between text-[11px]">
