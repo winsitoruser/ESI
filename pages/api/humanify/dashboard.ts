@@ -226,7 +226,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         WHERE k.tenant_id = :tenantId AND k.period = :period AND k.target > 0
         GROUP BY e.id, e.name, e.employee_code, e.department, e.position, e.photo_url
         ORDER BY kpi_score DESC NULLS LAST, e.name ASC
-        LIMIT 8
+        LIMIT 50
       `, { replacements: { ...r, period } });
       topPerformersList = (topRows || []).map((row: any, i: number) => ({
         rank: i + 1,
@@ -261,7 +261,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           AND e.hire_date >= date_trunc('month', (NOW() AT TIME ZONE 'Asia/Jakarta'))::date
           AND e.hire_date < (date_trunc('month', (NOW() AT TIME ZONE 'Asia/Jakarta')) + INTERVAL '1 month')::date
         ORDER BY e.hire_date DESC NULLS LAST, e.name ASC
-        LIMIT 12
+        LIMIT 50
       `, { replacements: r });
       newHiresThisMonth = (hireRows || []).map((row: any) => ({
         id: row.id,
@@ -326,7 +326,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             )
         ) x
         ORDER BY event_date DESC NULLS LAST, name ASC
-        LIMIT 12
+        LIMIT 50
       `, { replacements: r });
       resignationsThisMonth = (resignRows || []).map((row: any) => ({
         id: row.id,
@@ -359,7 +359,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             AND e.updated_at >= date_trunc('month', (NOW() AT TIME ZONE 'Asia/Jakarta'))
             AND e.updated_at < (date_trunc('month', (NOW() AT TIME ZONE 'Asia/Jakarta')) + INTERVAL '1 month')
           ORDER BY e.updated_at DESC NULLS LAST
-          LIMIT 12
+          LIMIT 50
         `, { replacements: r });
         resignationsThisMonth = (fallbackResign || []).map((row: any) => ({
           id: row.id,
@@ -397,7 +397,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           AND dl.letter_type IN ('SP1', 'SP2', 'SP3')
           AND dl.status IN ('issued', 'acknowledged', 'active')
         ORDER BY COALESCE(dl.effective_date, dl.created_at) DESC NULLS LAST
-        LIMIT 12
+        LIMIT 50
       `, { replacements: r });
       disciplinarySpList = (spRows || []).map((row: any) => ({
         id: row.id,
@@ -435,7 +435,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
               OR (w.status IS NULL AND (w.expiry_date IS NULL OR w.expiry_date >= CURRENT_DATE))
             )
           ORDER BY COALESCE(w.issue_date, w.created_at) DESC NULLS LAST
-          LIMIT 12
+          LIMIT 50
         `, { replacements: r });
         disciplinarySpList = (spFallback || []).map((row: any) => ({
           id: row.id,

@@ -31,8 +31,103 @@ import {
   GraduationCap, UserPlus, UserMinus, Settings, FolderOpen, ClipboardList,
   CheckCircle2, XCircle, ArrowRight, Bell, Activity,
   PieChart, Layers, Megaphone, KeyRound, PenTool, BookOpen, Timer, RefreshCw, LayoutDashboard,
-  Inbox, Home,
+  Inbox, Home, ChevronLeft, ChevronRight,
 } from 'lucide-react';
+
+const PEOPLE_INSIGHT_PAGE_SIZE = 5;
+
+function slicePeopleInsightPage<T>(rows: T[], page: number): T[] {
+  const start = (Math.max(1, page) - 1) * PEOPLE_INSIGHT_PAGE_SIZE;
+  return rows.slice(start, start + PEOPLE_INSIGHT_PAGE_SIZE);
+}
+
+function PeopleInsightPager({
+  total,
+  page,
+  onChange,
+}: {
+  total: number;
+  page: number;
+  onChange: (page: number) => void;
+}) {
+  const totalPages = Math.max(1, Math.ceil(total / PEOPLE_INSIGHT_PAGE_SIZE));
+  if (total <= PEOPLE_INSIGHT_PAGE_SIZE) return null;
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const from = (safePage - 1) * PEOPLE_INSIGHT_PAGE_SIZE + 1;
+  const to = Math.min(safePage * PEOPLE_INSIGHT_PAGE_SIZE, total);
+
+  const windowSize = 5;
+  let startPage = Math.max(1, safePage - Math.floor(windowSize / 2));
+  let endPage = Math.min(totalPages, startPage + windowSize - 1);
+  startPage = Math.max(1, endPage - windowSize + 1);
+  const pageNumbers = Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-[var(--hf-border-subtle)] pt-2">
+      <p className="text-[10px] text-[color:var(--hf-ink-muted)]">
+        {from}–{to} dari {total}
+      </p>
+      <div className="inline-flex items-center gap-0.5">
+        <button
+          type="button"
+          disabled={safePage <= 1}
+          onClick={() => onChange(safePage - 1)}
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[var(--hf-border)] text-[color:var(--hf-ink-muted)] disabled:opacity-40 hover:bg-[var(--hf-surface-muted)]"
+          aria-label="Halaman sebelumnya"
+        >
+          <ChevronLeft className="h-3.5 w-3.5" />
+        </button>
+        {startPage > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={() => onChange(1)}
+              className="inline-flex h-7 min-w-[1.75rem] items-center justify-center rounded-md border border-[var(--hf-border)] px-1.5 text-[11px] font-semibold tabular-nums text-[color:var(--hf-ink-muted)] hover:bg-[var(--hf-surface-muted)]"
+            >
+              1
+            </button>
+            {startPage > 2 && <span className="px-0.5 text-[10px] text-[color:var(--hf-ink-faint)]">…</span>}
+          </>
+        )}
+        {pageNumbers.map((n) => (
+          <button
+            key={n}
+            type="button"
+            onClick={() => onChange(n)}
+            className={`inline-flex h-7 min-w-[1.75rem] items-center justify-center rounded-md px-1.5 text-[11px] font-semibold tabular-nums transition ${
+              n === safePage
+                ? 'bg-[var(--hf-brand-600)] text-white'
+                : 'border border-[var(--hf-border)] text-[color:var(--hf-ink-muted)] hover:bg-[var(--hf-surface-muted)]'
+            }`}
+          >
+            {n}
+          </button>
+        ))}
+        {endPage < totalPages && (
+          <>
+            {endPage < totalPages - 1 && <span className="px-0.5 text-[10px] text-[color:var(--hf-ink-faint)]">…</span>}
+            <button
+              type="button"
+              onClick={() => onChange(totalPages)}
+              className="inline-flex h-7 min-w-[1.75rem] items-center justify-center rounded-md border border-[var(--hf-border)] px-1.5 text-[11px] font-semibold tabular-nums text-[color:var(--hf-ink-muted)] hover:bg-[var(--hf-surface-muted)]"
+            >
+              {totalPages}
+            </button>
+          </>
+        )}
+        <button
+          type="button"
+          disabled={safePage >= totalPages}
+          onClick={() => onChange(safePage + 1)}
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[var(--hf-border)] text-[color:var(--hf-ink-muted)] disabled:opacity-40 hover:bg-[var(--hf-surface-muted)]"
+          aria-label="Halaman berikutnya"
+        >
+          <ChevronRight className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 // ── HRIS Module Definitions (translated via t()) ──
 function getHrisModules(t: (key: string) => string) {
@@ -214,6 +309,7 @@ export default function HRISDashboard() {
   const [disciplinarySpList, setDisciplinarySpList] = useState<any[]>([]);
   const [deptAnalyticsTab, setDeptAnalyticsTab] = useState<'headcount' | 'combined' | 'kinerja' | 'kehadiran'>('headcount');
   const [peopleInsightTab, setPeopleInsightTab] = useState<'kpi' | 'new' | 'resign' | 'sp'>('kpi');
+  const [peopleInsightPage, setPeopleInsightPage] = useState(1);
   const [monthPresence, setMonthPresence] = useState<MonthPresenceMix>(() => emptyMonthPresence());
   const [upcoming, setUpcoming] = useState<any[]>(USE_MOCK_UI ? MOCK_UPCOMING : []);
   const [dataSource, setDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
@@ -937,7 +1033,10 @@ export default function HRISDashboard() {
                               <button
                                 key={tab.key}
                                 type="button"
-                                onClick={() => setPeopleInsightTab(tab.key)}
+                                onClick={() => {
+                                  setPeopleInsightTab(tab.key);
+                                  setPeopleInsightPage(1);
+                                }}
                                 className={`inline-flex flex-1 items-center justify-center gap-1 rounded-md px-2 py-1.5 font-medium transition min-w-[5.5rem] ${
                                   peopleInsightTab === tab.key
                                     ? 'bg-[var(--hf-brand-600)] text-white'
@@ -978,6 +1077,7 @@ export default function HRISDashboard() {
                                 }
                               />
                             ) : (
+                              <>
                               <div className="overflow-x-auto rounded-lg border border-[var(--hf-border)]">
                                 <table className="min-w-full text-left text-sm">
                                   <thead className="bg-[var(--hf-surface-muted)] text-[10px] uppercase tracking-wide text-[color:var(--hf-ink-muted)]">
@@ -989,7 +1089,7 @@ export default function HRISDashboard() {
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-[var(--hf-border-subtle)] bg-white">
-                                    {topPerformersList.map((row) => (
+                                    {slicePeopleInsightPage(topPerformersList, peopleInsightPage).map((row) => (
                                       <tr key={row.id || row.rank} className="hover:bg-[var(--hf-brand-50)]/40">
                                         <td className="px-3 py-2.5 tabular-nums text-[color:var(--hf-ink-faint)]">{row.rank}</td>
                                         <td className="px-3 py-2.5">
@@ -1020,6 +1120,8 @@ export default function HRISDashboard() {
                                   </tbody>
                                 </table>
                               </div>
+                              <PeopleInsightPager total={topPerformersList.length} page={peopleInsightPage} onChange={setPeopleInsightPage} />
+                              </>
                             )
                           )}
 
@@ -1036,6 +1138,7 @@ export default function HRISDashboard() {
                                 }
                               />
                             ) : (
+                              <>
                               <div className="overflow-x-auto rounded-lg border border-[var(--hf-border)]">
                                 <table className="min-w-full text-left text-sm">
                                   <thead className="bg-[var(--hf-surface-muted)] text-[10px] uppercase tracking-wide text-[color:var(--hf-ink-muted)]">
@@ -1046,7 +1149,7 @@ export default function HRISDashboard() {
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-[var(--hf-border-subtle)] bg-white">
-                                    {newHiresThisMonth.map((row) => (
+                                    {slicePeopleInsightPage(newHiresThisMonth, peopleInsightPage).map((row) => (
                                       <tr key={row.id} className="hover:bg-[var(--hf-brand-50)]/40">
                                         <td className="px-3 py-2.5">
                                           <div className="flex items-center gap-2 min-w-0">
@@ -1068,6 +1171,8 @@ export default function HRISDashboard() {
                                   </tbody>
                                 </table>
                               </div>
+                              <PeopleInsightPager total={newHiresThisMonth.length} page={peopleInsightPage} onChange={setPeopleInsightPage} />
+                              </>
                             )
                           )}
 
@@ -1084,6 +1189,7 @@ export default function HRISDashboard() {
                                 }
                               />
                             ) : (
+                              <>
                               <div className="overflow-x-auto rounded-lg border border-[var(--hf-border)]">
                                 <table className="min-w-full text-left text-sm">
                                   <thead className="bg-[var(--hf-surface-muted)] text-[10px] uppercase tracking-wide text-[color:var(--hf-ink-muted)]">
@@ -1094,7 +1200,7 @@ export default function HRISDashboard() {
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-[var(--hf-border-subtle)] bg-white">
-                                    {resignationsThisMonth.map((row) => (
+                                    {slicePeopleInsightPage(resignationsThisMonth, peopleInsightPage).map((row) => (
                                       <tr key={row.id} className="hover:bg-[var(--hf-brand-50)]/40">
                                         <td className="px-3 py-2.5">
                                           <div className="flex items-center gap-2 min-w-0">
@@ -1116,6 +1222,8 @@ export default function HRISDashboard() {
                                   </tbody>
                                 </table>
                               </div>
+                              <PeopleInsightPager total={resignationsThisMonth.length} page={peopleInsightPage} onChange={setPeopleInsightPage} />
+                              </>
                             )
                           )}
 
@@ -1132,6 +1240,7 @@ export default function HRISDashboard() {
                                 }
                               />
                             ) : (
+                              <>
                               <div className="overflow-x-auto rounded-lg border border-[var(--hf-border)]">
                                 <table className="min-w-full text-left text-sm">
                                   <thead className="bg-[var(--hf-surface-muted)] text-[10px] uppercase tracking-wide text-[color:var(--hf-ink-muted)]">
@@ -1142,7 +1251,7 @@ export default function HRISDashboard() {
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-[var(--hf-border-subtle)] bg-white">
-                                    {disciplinarySpList.map((row) => (
+                                    {slicePeopleInsightPage(disciplinarySpList, peopleInsightPage).map((row) => (
                                       <tr key={row.id} className="hover:bg-[var(--hf-brand-50)]/40">
                                         <td className="px-3 py-2.5">
                                           <div className="flex items-center gap-2 min-w-0">
@@ -1166,6 +1275,8 @@ export default function HRISDashboard() {
                                   </tbody>
                                 </table>
                               </div>
+                              <PeopleInsightPager total={disciplinarySpList.length} page={peopleInsightPage} onChange={setPeopleInsightPage} />
+                              </>
                             )
                           )}
 
