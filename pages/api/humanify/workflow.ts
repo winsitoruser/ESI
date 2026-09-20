@@ -113,15 +113,33 @@ async function getClaims(req: NextApiRequest, res: NextApiResponse, session: any
 
   try {
     const [rows] = await sequelize.query(`
-      SELECT c.*, e.name as employee_name, e.employee_code, e.department, e.position, e.photo_url
+      SELECT c.*, e.name as employee_name, e.employee_code, e.department, e.position, e.photo_url,
+             tr.destination AS travel_destination,
+             tr.purpose AS travel_purpose,
+             tr.departure_date AS travel_departure_date,
+             tr.return_date AS travel_return_date,
+             tr.request_number AS travel_request_number
       FROM employee_claims c
       LEFT JOIN employees e ON c.employee_id::text = e.id::text
+      LEFT JOIN travel_requests tr ON tr.id::text = c.travel_request_id::text
       ${where}
       ORDER BY c.created_at DESC LIMIT 100
     `, { replacements });
     return res.json({ success: true, data: rows || [] });
   } catch {
-    return res.json({ success: true, data: [] });
+    // Fallback without travel join (older schema)
+    try {
+      const [rows] = await sequelize.query(`
+        SELECT c.*, e.name as employee_name, e.employee_code, e.department, e.position, e.photo_url
+        FROM employee_claims c
+        LEFT JOIN employees e ON c.employee_id::text = e.id::text
+        ${where}
+        ORDER BY c.created_at DESC LIMIT 100
+      `, { replacements });
+      return res.json({ success: true, data: rows || [] });
+    } catch {
+      return res.json({ success: true, data: [] });
+    }
   }
 }
 
@@ -235,16 +253,25 @@ async function getMutations(req: NextApiRequest, res: NextApiResponse, session: 
   const tenantId = getTenantId(session);
   if (!tenantId) return res.json({ success: true, data: [] });
   await ensureMutationPlacementColumns();
-  const { status, employee_id, mutation_type } = req.query;
+  const { status, employee_id, mutation_type, due_soon } = req.query;
   let where = 'WHERE m.tenant_id = :tenantId';
   const replacements: any = { tenantId };
-  if (status) { where += ' AND m.status = :status'; replacements.status = status; }
+  const dueSoon = String(due_soon || '').toLowerCase() === 'true' || String(due_soon || '') === '1';
+  if (dueSoon) {
+    // Approved mutations whose effective date is overdue or within 14 days
+    where += ` AND m.status = 'approved'
+      AND m.effective_date IS NOT NULL
+      AND m.effective_date::date <= (CURRENT_DATE + INTERVAL '14 days')`;
+  } else if (status) {
+    where += ' AND m.status = :status';
+    replacements.status = status;
+  }
   if (employee_id) { where += ' AND m.employee_id = :employee_id'; replacements.employee_id = employee_id; }
   if (mutation_type) { where += ' AND m.mutation_type = :mutation_type'; replacements.mutation_type = mutation_type; }
 
   try {
     const [rows] = await sequelize.query(`${MUTATION_SELECT} ${where} ORDER BY m.created_at DESC LIMIT 100`, { replacements });
-    return res.json({ success: true, data: rows || [] });
+    return res.json({ success: true, data: rows || [], meta: dueSoon ? { filter: 'due_soon', status: 'approved' } : undefined });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: e?.message, data: [] });
   }
@@ -462,10 +489,14 @@ async function approveMutationStep(req: NextApiRequest, res: NextApiResponse, se
     return res.json({ success: true, message: 'Tahap disetujui' });
   }
 
-  // Final approval — apply changes + e-file
-  await applyMutationToEmployee(mut, tenantId);
+  // Final approval — apply placement only when effective_date is due (else defer to cron)
+  const { isMutationEffectiveOnOrBeforeToday } = await import('@/lib/hris/mutation-apply-due');
+  const dueNow = isMutationEffectiveOnOrBeforeToday(mut.effective_date);
+  if (dueNow) {
+    await applyMutationToEmployee(mut, tenantId);
+  }
   const eFileId = await createMutationEFile(mut);
-  const finalStatus = new Date(mut.effective_date) <= new Date() ? 'executed' : 'approved';
+  const finalStatus = dueNow ? 'executed' : 'approved';
 
   await sequelize.query(`
     UPDATE employee_mutations SET status = :finalStatus, e_file_id = :eFileId,
@@ -479,7 +510,14 @@ async function approveMutationStep(req: NextApiRequest, res: NextApiResponse, se
     },
   });
 
-  return res.json({ success: true, message: 'Mutasi disetujui & diterapkan. E-Letter siap diunduh.', eFileId });
+  return res.json({
+    success: true,
+    message: dueNow
+      ? 'Mutasi disetujui & diterapkan. E-Letter siap diunduh.'
+      : `Mutasi disetujui — penempatan menunggu tanggal efektif ${mut.effective_date}. E-Letter siap diunduh.`,
+    eFileId,
+    deferred: !dueNow,
+  });
 }
 
 async function applyMutationToEmployee(mut: any, tenantId?: string | null) {
@@ -584,7 +622,7 @@ async function rejectMutation(req: NextApiRequest, res: NextApiResponse, session
 
   await sequelize.query(`
     UPDATE mutation_approval_steps SET status = 'rejected', comments = :comments, acted_at = NOW()
-    WHERE mutation_id = :id AND status = 'pending'
+    WHERE mutation_id = :id AND status IN ('pending', 'waiting')
   `, { replacements: { id, comments } });
 
   await sequelize.query(`
@@ -592,7 +630,7 @@ async function rejectMutation(req: NextApiRequest, res: NextApiResponse, session
     WHERE id = :id AND tenant_id = :tenantId
   `, { replacements: { id, tenantId, comments } });
 
-  return res.json({ success: true, message: 'Mutasi ditolak' });
+  return res.json({ success: true, message: 'Mutasi ditolak', clearedWaitingSteps: true });
 }
 
 async function getWorkflowSummary(req: NextApiRequest, res: NextApiResponse, session: any) {

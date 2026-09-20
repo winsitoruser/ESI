@@ -78,6 +78,7 @@ export default function SupportTicketsPage() {
   const [comments, setComments] = useState<Comment[]>([]);
   const [reply, setReply] = useState('');
   const [assigneeDraft, setAssigneeDraft] = useState('');
+  const [resolutionDraft, setResolutionDraft] = useState('');
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ type: string; message: string } | null>(null);
   const [form, setForm] = useState({
@@ -123,6 +124,7 @@ export default function SupportTicketsPage() {
   const openDetail = async (ticket: Ticket) => {
     setSelected(ticket);
     setAssigneeDraft(ticket.assigned_to || '');
+    setResolutionDraft(ticket.resolution_note || '');
     setReply('');
     try {
       const res = await fetch(`/api/humanify/support?action=detail&id=${ticket.id}`);
@@ -131,6 +133,7 @@ export default function SupportTicketsPage() {
         setSelected(json.data);
         setComments(json.data.comments || []);
         setAssigneeDraft(json.data.assigned_to || '');
+        setResolutionDraft(json.data.resolution_note || '');
       }
     } catch {
       setComments([]);
@@ -187,12 +190,19 @@ export default function SupportTicketsPage() {
 
   const updateStatus = async (status: string) => {
     if (!selected) return;
+    if ((status === 'resolved' || status === 'closed') && !String(resolutionDraft || selected.resolution_note || '').trim()) {
+      showToast('error', 'Catatan resolusi wajib sebelum resolved/closed');
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch(`/api/humanify/support?id=${selected.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({
+          status,
+          resolution_note: resolutionDraft.trim() || selected.resolution_note || null,
+        }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error || 'Gagal memperbarui status');
@@ -488,8 +498,9 @@ export default function SupportTicketsPage() {
               </div>
               <div className="flex gap-2 items-end">
                 <div className="flex-1">
-                  <label className="text-xs font-medium text-gray-600 mb-1 block">Ditugaskan ke</label>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block" htmlFor="support-assignee">Ditugaskan ke</label>
                   <input
+                    id="support-assignee"
                     className="w-full border rounded-lg px-3 py-2 text-sm"
                     placeholder="Nama / email handler"
                     value={assigneeDraft}
@@ -504,6 +515,17 @@ export default function SupportTicketsPage() {
                 >
                   Simpan
                 </button>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 mb-1 block" htmlFor="support-resolution">Catatan resolusi</label>
+                <textarea
+                  id="support-resolution"
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                  rows={2}
+                  placeholder="Wajib diisi sebelum resolved / closed"
+                  value={resolutionDraft}
+                  onChange={(e) => setResolutionDraft(e.target.value)}
+                />
               </div>
               <div>
                 <h4 className="text-sm font-semibold text-gray-800 mb-2">Percakapan</h4>

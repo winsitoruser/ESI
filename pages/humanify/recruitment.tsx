@@ -13,7 +13,7 @@ import { OpsKpiShell } from '@/components/humanify/OpsPageChrome';
 import { TalentShell } from '@/components/humanify/TalentModuleChrome';
 import { EnterpriseTabBar } from '@/components/humanify/PerformanceModuleChrome';
 import { USE_MOCK_UI, type HrisDataSource } from '@/lib/hris/data-source';
-
+import { countCustomAnswers, countFieldDefs } from '@/lib/hris/job-custom-fields';
 
 type TabKey = 'openings' | 'candidates' | 'pipeline' | 'analytics' | 'integrations' | 'screening';
 
@@ -477,8 +477,19 @@ export default function RecruitmentPage() {
                   </div>
                   <p className="text-sm text-gray-500 line-clamp-1 mb-3">{o.description}</p>
                   <div className="flex items-center justify-between pt-3 border-t">
-                    <div className="flex gap-4 text-xs">
+                    <div className="flex gap-3 text-xs items-center flex-wrap">
                       <span><strong className="text-gray-900">{o.applicants || 0}</strong> <span className="text-gray-500">pelamar</span></span>
+                      {countFieldDefs(o.custom_field_defs) > 0 && (
+                        <span className="px-2 py-0.5 rounded-full bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)] font-medium">
+                          {countFieldDefs(o.custom_field_defs)} custom fields
+                        </span>
+                      )}
+                      {o.deadline && (
+                        <span className="text-gray-400 flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          {new Date(o.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                        </span>
+                      )}
                     </div>
                     <span className="text-xs text-gray-400">{fmtCur(o.salary_min)} - {fmtCur(o.salary_max)}</span>
                   </div>
@@ -532,7 +543,17 @@ export default function RecruitmentPage() {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-full bg-gradient-to-r from-[var(--hf-brand-600)] to-purple-500 flex items-center justify-center text-white text-xs font-bold">{initials}</div>
-                            <div><p className="font-medium">{name}</p><p className="text-xs text-gray-500">{c.email}</p></div>
+                            <div>
+                              <p className="font-medium flex items-center gap-2">
+                                {name}
+                                {countCustomAnswers(c.custom_answers || c.custom_field_values) > 0 && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-700 font-semibold">
+                                    {countCustomAnswers(c.custom_answers || c.custom_field_values)} field
+                                  </span>
+                                )}
+                              </p>
+                              <p className="text-xs text-gray-500">{c.email}</p>
+                            </div>
                           </div>
                         </td>
                         <td className="px-4 py-3">{getCandidatePosition(c)}</td>
@@ -916,7 +937,7 @@ export default function RecruitmentPage() {
                           next[idx] = { ...next[idx], label: e.target.value, key: e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || next[idx].key };
                           setCreateForm({ ...createForm, custom_field_defs: next });
                         }}
-                        className="col-span-4 px-2 py-1.5 border rounded text-xs"
+                        className="col-span-3 px-2 py-1.5 border rounded text-xs"
                       />
                       <select
                         value={f.type}
@@ -925,7 +946,7 @@ export default function RecruitmentPage() {
                           next[idx] = { ...next[idx], type: e.target.value };
                           setCreateForm({ ...createForm, custom_field_defs: next });
                         }}
-                        className="col-span-3 px-2 py-1.5 border rounded text-xs"
+                        className="col-span-2 px-2 py-1.5 border rounded text-xs"
                       >
                         <option value="text">Teks</option>
                         <option value="number">Angka</option>
@@ -934,7 +955,7 @@ export default function RecruitmentPage() {
                         <option value="date">Tanggal</option>
                       </select>
                       <input
-                        placeholder="Opsi (a,b,c)"
+                        placeholder="Opsi: a, b, c"
                         value={f.options || ''}
                         disabled={f.type !== 'select'}
                         onChange={(e) => {
@@ -943,7 +964,20 @@ export default function RecruitmentPage() {
                           setCreateForm({ ...createForm, custom_field_defs: next });
                         }}
                         className="col-span-3 px-2 py-1.5 border rounded text-xs disabled:bg-gray-50"
+                        title="Pisahkan opsi dengan koma"
                       />
+                      <label className="col-span-2 flex items-center gap-1 text-[10px] text-gray-600 pt-1.5">
+                        <input
+                          type="checkbox"
+                          checked={!!f.required}
+                          onChange={(e) => {
+                            const next = [...(createForm.custom_field_defs || [])];
+                            next[idx] = { ...next[idx], required: e.target.checked };
+                            setCreateForm({ ...createForm, custom_field_defs: next });
+                          }}
+                        />
+                        Wajib
+                      </label>
                       <button
                         type="button"
                         onClick={() => setCreateForm({
@@ -956,6 +990,9 @@ export default function RecruitmentPage() {
                       </button>
                     </div>
                   ))}
+                  {(createForm.custom_field_defs || []).length === 0 && (
+                    <p className="text-[11px] text-gray-400 italic">Belum ada field kustom — klik + Tambah field.</p>
+                  )}
                 </div>
                 <div className="flex gap-2 pt-2">
                   <button type="button" onClick={() => setShowCreateModal(false)} className="flex-1 px-4 py-2 border rounded-lg text-sm">Batal</button>
@@ -995,6 +1032,20 @@ export default function RecruitmentPage() {
                   <div><p className="text-gray-500 text-xs">Tgl Melamar</p><p className="font-medium">{selectedCandidate.applied_date ? new Date(selectedCandidate.applied_date).toLocaleDateString('id-ID') : '-'}</p></div>
                 </div>
                 {selectedCandidate.notes && <div><p className="text-xs text-gray-500 mb-1">Catatan</p><p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">{selectedCandidate.notes}</p></div>}
+                {(selectedCandidate.custom_answers || selectedCandidate.custom_field_values) && countCustomAnswers(selectedCandidate.custom_answers || selectedCandidate.custom_field_values) > 0 && (
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Jawaban field kustom</p>
+                    <div className="bg-violet-50 rounded-lg p-3 space-y-1">
+                      {Object.entries(
+                        typeof (selectedCandidate.custom_answers || selectedCandidate.custom_field_values) === 'string'
+                          ? (() => { try { return JSON.parse(selectedCandidate.custom_answers || selectedCandidate.custom_field_values); } catch { return {}; } })()
+                          : (selectedCandidate.custom_answers || selectedCandidate.custom_field_values || {}),
+                      ).map(([k, v]) => (
+                        <p key={k} className="text-xs text-violet-900"><span className="font-medium">{k}:</span> {String(v)}</p>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="flex gap-2 pt-2">
                   {getCandidateStage(selectedCandidate) !== 'hired' && getCandidateStage(selectedCandidate) !== 'rejected' && (
                     <>

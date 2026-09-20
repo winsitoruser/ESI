@@ -598,6 +598,33 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       })));
     } catch { /* mutations table may not exist */ }
 
+    try {
+      const [dueMutations] = await sequelize.query(`
+        SELECT m.id, m.mutation_type, m.mutation_number, m.effective_date, m.status, m.created_at,
+               e.name AS employee_name, e.photo_url
+        FROM employee_mutations m
+        LEFT JOIN employees e ON m.employee_id::text = e.id::text
+        WHERE m.status = 'approved'
+          AND m.tenant_id = :tenantId
+          AND m.effective_date IS NOT NULL
+          AND m.effective_date::date <= (CURRENT_DATE + INTERVAL '14 days')
+        ORDER BY m.effective_date ASC LIMIT 8
+      `, { replacements: r });
+      pendingApprovals.push(...(dueMutations as any[]).map((m) => ({
+        id: m.id,
+        type: 'mutation_due',
+        title: `Mutasi menunggu efektif - ${m.employee_name || 'Karyawan'}`,
+        subtitle: `${m.mutation_number || m.mutation_type || 'Mutasi'} · efektif ${m.effective_date || '-'}`,
+        status: 'approved',
+        date: m.effective_date,
+        createdAt: m.created_at,
+        href: `/humanify/mutations?highlight=${m.id}&filter=due_soon`,
+        color: 'indigo',
+        employee_name: m.employee_name,
+        photo_url: m.photo_url || null,
+      })));
+    } catch { /* optional */ }
+
     // ── Action inbox extras: contracts / docs / attendance ──
     try {
       const [expiringContracts] = await sequelize.query(`

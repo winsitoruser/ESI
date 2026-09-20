@@ -1114,8 +1114,15 @@ export default function LeaveManagementPage() {
                     {typeSuggestions.map((s) => {
                       const code = String(s.code || '').toLowerCase();
                       const busy = applyingCodes.includes(code);
+                      const isCompOff = code === 'comp_off' || code.includes('pengganti');
                       return (
-                        <div key={s.id || s.code} className="inline-flex items-stretch rounded-full border overflow-hidden bg-white">
+                        <div
+                          key={s.id || s.code}
+                          className={`inline-flex items-stretch rounded-full border overflow-hidden ${
+                            isCompOff ? 'bg-cyan-50 border-cyan-200 ring-1 ring-cyan-100' : 'bg-white'
+                          }`}
+                          data-suggest-code={code}
+                        >
                           <button
                             type="button"
                             onClick={() => applyTypeSuggestion(s, false)}
@@ -1123,11 +1130,14 @@ export default function LeaveManagementPage() {
                             className={`px-3 py-1.5 text-xs font-medium transition ${
                               s.alreadyConfigured
                                 ? 'text-slate-400 cursor-default'
-                                : 'text-slate-700 hover:bg-[var(--hf-brand-50)] hover:text-[color:var(--hf-brand)]'
+                                : isCompOff
+                                  ? 'text-cyan-800 hover:bg-cyan-100'
+                                  : 'text-slate-700 hover:bg-[var(--hf-brand-50)] hover:text-[color:var(--hf-brand)]'
                             }`}
                             title={s.legalBasis ? `${s.rationale}\n${s.legalBasis}` : (s.rationale || s.description)}
                           >
-                            {s.alreadyConfigured ? '✓ ' : busy ? '… ' : '+ '}{s.name}
+                            {s.alreadyConfigured ? '✓ ' : busy ? '… ' : '+ '}
+                            {isCompOff ? `${s.name || s.code} (Comp-Off)` : (s.name || s.code)}
                             {s.priority === 'compliance' && !s.alreadyConfigured ? ' · wajib' : ''}
                           </button>
                           {!s.alreadyConfigured && (

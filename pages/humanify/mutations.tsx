@@ -8,7 +8,7 @@ import DocumentExportButton from '@/components/documents/DocumentExportButton';
 import {
   ArrowRightLeft, Plus, Search, Filter, Eye, CheckCircle, XCircle, Clock,
   Building2, Briefcase, Users, FileText, ChevronRight, RefreshCw, X, Save,
-  GitBranch, MapPin, Layers, AlertCircle,
+  GitBranch, MapPin, Layers, AlertCircle, Calendar,
 } from 'lucide-react';
 import { useHrisMasterData } from '@/hooks/useHrisMasterData';
 import {
@@ -21,6 +21,12 @@ import {
   type MutationType,
   type MutationScope,
 } from '@/lib/hris/mutation-workflow';
+import {
+  isMutationDeferredPending,
+  isMutationEffectiveOnOrBeforeToday,
+  mutationDaysUntilEffective,
+} from '@/lib/hris/mutation-apply-due';
+import { useRouter } from 'next/router';
 
 type Tab = 'list' | 'create' | 'detail';
 
@@ -41,6 +47,7 @@ const STEP_COLORS: Record<string, string> = {
 
 export default function MutationsPage() {
   const { t } = useTranslation();
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('list');
@@ -52,6 +59,8 @@ export default function MutationsPage() {
   const [selected, setSelected] = useState<any>(null);
   const [filterStatus, setFilterStatus] = useState('');
   const [filterType, setFilterType] = useState('');
+  const [filterChip, setFilterChip] = useState<'all' | 'due_soon' | 'deferred'>('all');
+  const [highlightId, setHighlightId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [toast, setToast] = useState<{ type: string; message: string } | null>(null);
 
@@ -84,17 +93,33 @@ export default function MutationsPage() {
   };
 
   const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
+  const fmtEffective = (d: string) => {
+    if (!d) return '-';
+    const label = fmtDate(d);
+    const days = mutationDaysUntilEffective(d);
+    if (days == null) return label;
+    if (days === 0) return `${label} (hari ini)`;
+    if (days > 0) return `${label} (H-${days})`;
+    return `${label} (terlambat ${Math.abs(days)}h)`;
+  };
 
   const loadMutations = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ action: 'mutations' });
-      if (filterStatus) params.set('status', filterStatus);
+      if (filterChip === 'due_soon') {
+        params.set('due_soon', '1');
+      } else {
+        if (filterStatus) params.set('status', filterStatus);
+      }
       if (filterType) params.set('mutation_type', filterType);
       const res = await fetch(`/api/humanify/workflow?${params}`);
       const json = await res.json();
       if (json.success) {
-        const rows = json.data || [];
+        let rows = json.data || [];
+        if (filterChip === 'deferred') {
+          rows = rows.filter((m: any) => isMutationDeferredPending(m.status, m.effective_date));
+        }
         setMutations(rows);
         setDataSource(rows.length ? 'live' : 'empty');
       } else showToast('error', json.error || 'Gagal memuat data');
@@ -103,7 +128,7 @@ export default function MutationsPage() {
     } finally {
       setLoading(false);
     }
-  }, [filterStatus, filterType]);
+  }, [filterStatus, filterType, filterChip]);
 
   const loadMaster = async () => {
     try {
@@ -144,10 +169,22 @@ export default function MutationsPage() {
 
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => {
+    if (!mounted || !router.isReady) return;
+    const hl = typeof router.query.highlight === 'string' ? router.query.highlight : null;
+    if (hl) setHighlightId(hl);
+    if (router.query.filter === 'due_soon') setFilterChip('due_soon');
+    if (router.query.filter === 'deferred') setFilterChip('deferred');
+  }, [mounted, router.isReady, router.query.highlight, router.query.filter]);
+  useEffect(() => {
     if (!mounted) return;
     loadMaster();
     loadMutations();
   }, [mounted, loadMutations]);
+  useEffect(() => {
+    if (!highlightId || !mutations.length) return;
+    const match = mutations.find((m) => String(m.id) === String(highlightId));
+    if (match) loadDetail(match.id);
+  }, [highlightId, mutations]);
 
   const handleSubmit = async () => {
     if (!form.employee_id || !form.effective_date || !form.mutation_type) {
@@ -199,7 +236,10 @@ export default function MutationsPage() {
       });
       const json = await res.json();
       if (json.success) {
-        showToast('success', json.message);
+        const deferred = !!json.deferred || /menunggu tanggal efektif/i.test(String(json.message || ''));
+        showToast('success', deferred
+          ? (json.message || 'Disetujui — penempatan menunggu tanggal efektif')
+          : (json.message || 'Berhasil'));
         setShowApproval(false);
         setApprovalComments('');
         loadDetail(selected.id);
@@ -223,6 +263,17 @@ export default function MutationsPage() {
     pending: mutations.filter((m) => m.status === 'pending').length,
     approved: mutations.filter((m) => ['approved', 'executed'].includes(m.status)).length,
     rejected: mutations.filter((m) => m.status === 'rejected').length,
+    deferred: mutations.filter((m) => isMutationDeferredPending(m.status, m.effective_date)).length,
+  };
+
+  const statusDisplay = (m: any) => {
+    if (isMutationDeferredPending(m.status, m.effective_date)) {
+      return { label: 'Menunggu efektif', className: 'bg-sky-100 text-sky-800' };
+    }
+    return {
+      label: MUTATION_STATUS_LABELS[m.status as keyof typeof MUTATION_STATUS_LABELS] || m.status,
+      className: STATUS_COLORS[m.status] || 'bg-gray-100',
+    };
   };
 
   if (!mounted) return null;
@@ -263,14 +314,15 @@ export default function MutationsPage() {
 
         {/* Stats */}
         {activeTab === 'list' && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 sm:gap-3">
             {[
-              { label: 'Menunggu Approval', value: stats.pending, color: 'text-amber-600 bg-amber-50', icon: Clock },
-              { label: 'Disetujui', value: stats.approved, color: 'text-green-600 bg-green-50', icon: CheckCircle },
-              { label: 'Ditolak', value: stats.rejected, color: 'text-red-600 bg-red-50', icon: XCircle },
+              { label: t('hris.mutationPending') || 'Menunggu Approval', value: stats.pending, color: 'text-amber-600 bg-amber-50', icon: Clock },
+              { label: t('hris.mutationApproved') || 'Disetujui', value: stats.approved, color: 'text-green-600 bg-green-50', icon: CheckCircle },
+              { label: t('hris.mutationDeferred') || 'Menunggu efektif', value: stats.deferred, color: 'text-sky-600 bg-sky-50', icon: Calendar },
+              { label: t('hris.mutationRejected') || 'Ditolak', value: stats.rejected, color: 'text-red-600 bg-red-50', icon: XCircle },
             ].map((c, i) => (
               <div key={i} className="hf-card flex items-center gap-3 p-4">
-                <div className={`p-2 rounded-lg ${c.color}`}><c.icon className="w-5 h-5" /></div>
+                <div className={`p-2 rounded-lg ${c.color}`}><c.icon className="w-5 h-5" aria-hidden /></div>
                 <div>
                   <p className="text-2xl font-bold text-gray-800">{c.value}</p>
                   <p className="text-xs text-gray-500">{c.label}</p>
@@ -285,30 +337,65 @@ export default function MutationsPage() {
           <div className="hf-card">
             <div className="p-4 border-b flex flex-wrap gap-3">
               <div className="relative flex-1 min-w-0 sm:min-w-[200px]">
-                <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-                <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari nama / nomor..."
-                  className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm" />
+                <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" aria-hidden />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Cari nama / nomor..."
+                  aria-label="Cari mutasi berdasarkan nama atau nomor"
+                  className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm"
+                />
               </div>
-              <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-3 py-2 border rounded-lg text-sm">
+              <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter chip mutasi">
+                {([
+                  { key: 'all', label: 'Semua' },
+                  { key: 'due_soon', label: 'Due soon' },
+                  { key: 'deferred', label: 'Menunggu efektif' },
+                ] as const).map((chip) => (
+                  <button
+                    key={chip.key}
+                    type="button"
+                    onClick={() => setFilterChip(chip.key)}
+                    className={`px-2.5 py-1 rounded-full text-[11px] font-medium border ${
+                      filterChip === chip.key
+                        ? 'bg-[var(--hf-brand-600)] text-white border-transparent'
+                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                    }`}
+                    aria-pressed={filterChip === chip.key}
+                  >
+                    {chip.label}
+                  </button>
+                ))}
+              </div>
+              <select
+                value={filterStatus}
+                onChange={(e) => { setFilterStatus(e.target.value); setFilterChip('all'); }}
+                aria-label="Filter status mutasi"
+                className="px-3 py-2 border rounded-lg text-sm"
+                disabled={filterChip === 'due_soon'}
+              >
                 <option value="">Semua Status</option>
                 {Object.entries(MUTATION_STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
-              <select value={filterType} onChange={(e) => setFilterType(e.target.value)}
-                className="px-3 py-2 border rounded-lg text-sm">
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                aria-label="Filter jenis mutasi"
+                className="px-3 py-2 border rounded-lg text-sm"
+              >
                 <option value="">Semua Jenis</option>
                 {Object.entries(MUTATION_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
-              <button onClick={loadMutations} className="p-2 border rounded-lg hover:bg-gray-50">
+              <button onClick={loadMutations} className="p-2 border rounded-lg hover:bg-gray-50" aria-label="Muat ulang daftar mutasi">
                 <RefreshCw className="w-4 h-4 text-gray-500" />
               </button>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm" aria-label="Daftar mutasi dan penugasan">
                 <thead className="bg-gray-50 border-b">
                   <tr>
                     {['No. Surat', 'Karyawan', 'Jenis', 'Lingkup', 'Dari → Ke', 'Efektif', 'Status', ''].map((h) => (
-                      <th key={h} className="px-4 py-3 text-left font-medium text-gray-600">{h}</th>
+                      <th key={h || 'aksi'} className="px-4 py-3 text-left font-medium text-gray-600">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -316,9 +403,23 @@ export default function MutationsPage() {
                   {loading ? (
                     <tr><td colSpan={8} className="text-center py-8 text-gray-400">Memuat...</td></tr>
                   ) : filtered.length === 0 ? (
-                    <tr><td colSpan={8} className="text-center py-8 text-gray-400">Belum ada pengajuan mutasi / penugasan</td></tr>
-                  ) : filtered.map((m) => (
-                    <tr key={m.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => loadDetail(m.id)}>
+                    <tr>
+                      <td colSpan={8} className="text-center py-10 text-gray-400">
+                        <ArrowRightLeft className="w-8 h-8 mx-auto mb-2 opacity-40" aria-hidden />
+                        <p className="font-medium text-gray-500">Belum ada pengajuan mutasi / penugasan</p>
+                        <p className="text-xs mt-1">Ajukan mutasi baru atau ubah filter status.</p>
+                      </td>
+                    </tr>
+                  ) : filtered.map((m) => {
+                    const st = statusDisplay(m);
+                    const scopeLabel = MUTATION_SCOPE_LABELS[m.mutation_scope as MutationScope] || m.mutation_scope || '-';
+                    const toBranch = m.to_branch_name || branches.find((b) => String(b.id) === String(m.to_branch_id))?.name;
+                    return (
+                    <tr
+                      key={m.id}
+                      className={`hover:bg-gray-50 cursor-pointer ${highlightId && String(highlightId) === String(m.id) ? 'ring-2 ring-inset ring-sky-300 bg-sky-50/60' : ''}`}
+                      onClick={() => loadDetail(m.id)}
+                    >
                       <td className="px-4 py-3 font-mono text-xs text-[color:var(--hf-brand-600)]">{m.mutation_number}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
@@ -330,21 +431,21 @@ export default function MutationsPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3">{MUTATION_TYPE_LABELS[m.mutation_type as MutationType] || m.mutation_type}</td>
-                      <td className="px-4 py-3 text-xs">{MUTATION_SCOPE_LABELS[m.mutation_scope as MutationScope] || m.mutation_scope || '-'}</td>
+                      <td className="px-4 py-3 text-xs">
+                        <span className="inline-flex px-1.5 py-0.5 rounded bg-slate-100 text-slate-700" title={scopeLabel}>{scopeLabel}</span>
+                      </td>
                       <td className="px-4 py-3 text-xs">
                         <span className="text-gray-500">{m.from_department || m.from_branch_name || '-'}</span>
                         <ChevronRight className="w-3 h-3 inline mx-1 text-gray-300" />
-                        <span className="text-gray-800">{m.to_department || m.to_branch_name || m.to_position || '-'}</span>
+                        <span className="text-gray-800">{m.to_department || toBranch || m.to_position || '-'}</span>
                       </td>
-                      <td className="px-4 py-3 text-xs">{fmtDate(m.effective_date)}</td>
+                      <td className="px-4 py-3 text-xs whitespace-nowrap" title={m.effective_date || ''}>{fmtEffective(m.effective_date)}</td>
                       <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${STATUS_COLORS[m.status] || 'bg-gray-100'}`}>
-                          {MUTATION_STATUS_LABELS[m.status as keyof typeof MUTATION_STATUS_LABELS] || m.status}
-                        </span>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${st.className}`}>{st.label}</span>
                       </td>
-                      <td className="px-4 py-3"><Eye className="w-4 h-4 text-gray-400" /></td>
+                      <td className="px-4 py-3"><Eye className="w-4 h-4 text-gray-400" aria-hidden /></td>
                     </tr>
-                  ))}
+                  );})}
                 </tbody>
               </table>
             </div>
@@ -476,9 +577,19 @@ export default function MutationsPage() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-mono text-sm text-[color:var(--hf-brand-600)]">{selected.mutation_number}</span>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${STATUS_COLORS[selected.status]}`}>
-                        {MUTATION_STATUS_LABELS[selected.status as keyof typeof MUTATION_STATUS_LABELS]}
-                      </span>
+                      {(() => {
+                        const st = statusDisplay(selected);
+                        return (
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${st.className}`}>
+                            {st.label}
+                          </span>
+                        );
+                      })()}
+                      {selected.mutation_scope && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-700">
+                          {MUTATION_SCOPE_LABELS[selected.mutation_scope as MutationScope] || selected.mutation_scope}
+                        </span>
+                      )}
                     </div>
                     <h2 className="text-lg font-bold text-gray-800 mt-1">{selected.employee_name}</h2>
                     <p className="text-sm text-gray-500">
@@ -529,7 +640,15 @@ export default function MutationsPage() {
                   {selected.to_supervisor_name && (
                     <p className="text-xs text-[color:var(--hf-brand-600)] mt-1">Atasan baru: {selected.to_supervisor_name}</p>
                   )}
-                  <p className="text-xs text-[color:var(--hf-brand-600)] mt-2">Efektif: {fmtDate(selected.effective_date)}</p>
+                  <p className="text-xs text-[color:var(--hf-brand-600)] mt-2">Efektif: {fmtEffective(selected.effective_date)}</p>
+                  {isMutationDeferredPending(selected.status, selected.effective_date) && (
+                    <p className="text-[11px] text-sky-700 mt-1 bg-sky-50 rounded px-2 py-1 inline-block">
+                      Penempatan menunggu tanggal efektif (cron mutation-apply-due)
+                    </p>
+                  )}
+                  {selected.status === 'executed' && isMutationEffectiveOnOrBeforeToday(selected.effective_date) && (
+                    <p className="text-[11px] text-green-700 mt-1">Penempatan sudah diterapkan</p>
+                  )}
                 </div>
               </div>
               {selected.reason && (
@@ -576,13 +695,27 @@ export default function MutationsPage() {
             </div>
 
             {/* E-File info */}
-            {selected.e_file_id && (
+            {(selected.e_file_id || letterData) && ['approved', 'executed'].includes(selected.status) && (
               <div className="hf-card flex items-center gap-3 p-4">
-                <FileText className="w-8 h-8 text-[color:var(--hf-brand-500)]" />
-                <div>
-                  <p className="text-sm font-medium text-gray-800">E-File Terdaftar</p>
-                  <p className="text-xs text-gray-500">Dokumen SK tersimpan di arsip karyawan (ID: {selected.e_file_id.slice(0, 8)}...)</p>
+                <FileText className="w-8 h-8 text-[color:var(--hf-brand-500)]" aria-hidden />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-800">E-File / E-Letter</p>
+                  <p className="text-xs text-gray-500">
+                    {selected.e_file_id
+                      ? `Dokumen SK tersimpan di arsip karyawan (ID: ${String(selected.e_file_id).slice(0, 8)}…)`
+                      : 'E-Letter siap diunduh'}
+                  </p>
                 </div>
+                {letterData && (
+                  <DocumentExportButton
+                    documentType="mutation-letter"
+                    data={letterData}
+                    meta={letterMeta}
+                    label="Unduh"
+                    variant="button"
+                    size="sm"
+                  />
+                )}
               </div>
             )}
           </div>

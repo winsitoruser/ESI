@@ -21,8 +21,9 @@ const LEAVE_TYPE_LABEL: Record<string, string> = {
 };
 
 const CLAIM_TYPE_LABEL: Record<string, string> = {
-  medical: 'Medis', transport: 'Transport', meals: 'Makan',
-  accommodation: 'Akomodasi', communication: 'Komunikasi', other: 'Lainnya',
+  medical: 'Medis', transport: 'Transport', meals: 'Makan', meal: 'Makan',
+  accommodation: 'Akomodasi', communication: 'Komunikasi',
+  travel: 'Perjalanan dinas', travel_expense: 'Biaya perjalanan', other: 'Lainnya',
 };
 
 const SP_STATUS_LABEL: Record<string, string> = {
@@ -200,15 +201,26 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
           body: JSON.stringify({ id }),
         });
         const json = await res.json();
-        if (json.success) { toast.success(json.message || 'Mutasi disetujui'); loadAll(); }
-        else toast.error(json.error || 'Gagal — proses via MSS jika perlu');
+        if (json.success) {
+          toast.success(json.deferred
+            ? (json.message || 'Disetujui — penempatan menunggu tanggal efektif')
+            : (json.message || 'Mutasi disetujui'));
+          loadAll();
+        } else toast.error(json.error || 'Gagal — proses via MSS jika perlu');
         return;
       }
       const actionMap: Record<string, string> = {
         leave: 'approve-leave', claim: 'approve-claim', overtime: 'approve-overtime',
       };
       const res = await mgrApi(actionMap[type], 'POST', { id });
-      if (res.success) { toast.success(res.message || 'Disetujui'); loadAll(); }
+      if (res.success) {
+        if (type === 'overtime' && Number(res.compOffDays || 0) > 0) {
+          toast.success(res.message || `Disetujui — ${res.compOffDays} hari cuti pengganti dikreditkan`);
+        } else {
+          toast.success(res.message || 'Disetujui');
+        }
+        loadAll();
+      }
       else toast.error(res.error || 'Gagal menyetujui');
     } catch { toast.error('Gagal menyetujui'); }
     finally { setSubmitting(false); }
@@ -464,8 +476,15 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
               {item.approval_type === 'claim' && (
                 <div className="text-xs text-slate-600 space-y-0.5 mb-3">
                   <p><span className="font-medium">Jenis:</span> {CLAIM_TYPE_LABEL[item.claim_type] || item.claim_type}</p>
+                  {item.claim_number && <p><span className="font-medium">No:</span> {item.claim_number}</p>}
                   <p><span className="font-medium">Nominal:</span> {fmtCur(item.amount)}</p>
                   <p><span className="font-medium">Keterangan:</span> {item.description}</p>
+                  {(item.travel_request_id || item.travel_destination) && (
+                    <p className="text-teal-700 font-medium">
+                      ✈️ Trip: {item.travel_request_number || item.travel_destination || 'Terhubung perjalanan dinas'}
+                      {item.travel_purpose ? ` · ${item.travel_purpose}` : ''}
+                    </p>
+                  )}
                   {(parseClaimReceipts(item.receipt_url).length || item.attachments_count || 0) > 0 && (
                     <button
                       type="button"
@@ -489,6 +508,9 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
                   <p><span className="font-medium">Ke:</span> {item.to_department || '-'} / {item.to_position || '-'}</p>
                   <p><span className="font-medium">Efektif:</span> {fmtDate(item.effective_date)}</p>
                   {item.reason && <p><span className="font-medium">Alasan:</span> {item.reason}</p>}
+                  {item.status === 'approved' && item.effective_date && new Date(item.effective_date) > new Date(new Date().toDateString()) && (
+                    <p className="text-sky-700 bg-sky-50 rounded px-2 py-1 mt-1">Menunggu efektif — penempatan ditunda hingga tanggal efektif</p>
+                  )}
                 </div>
               )}
 

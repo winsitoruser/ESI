@@ -44,16 +44,31 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
   try {
     if (req.method === 'GET') {
+      const [branchRows] = await sequelize.query(
+        `SELECT id, name, code FROM branches
+         WHERE tenant_id = :tid AND COALESCE(is_active, true) = true
+         ORDER BY name ASC LIMIT 200`,
+        { replacements: { tid: tenantId } },
+      ).catch(() => [[]]);
+
       const [rows] = await sequelize.query(
         `SELECT m.id, m.mutation_number, m.mutation_type, m.mutation_scope, m.effective_date,
-                m.status, m.to_department, m.to_position, m.reason, m.created_at,
+                m.status, m.to_department, m.to_position, m.to_branch_id, m.reason, m.created_at,
                 m.current_approval_step, m.total_approval_steps
          FROM employee_mutations m
          WHERE m.tenant_id = :tid AND m.employee_id = :eid
          ORDER BY m.created_at DESC LIMIT 50`,
         { replacements: { tid: tenantId, eid: emp.id } },
       ).catch(() => [[]]);
-      return res.json({ success: true, data: rows || [] });
+      return res.json({
+        success: true,
+        data: rows || [],
+        branches: (branchRows || []).map((b: any) => ({
+          id: b.id,
+          name: b.name,
+          code: b.code,
+        })),
+      });
     }
 
     if (req.method === 'POST') {

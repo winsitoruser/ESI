@@ -11,12 +11,22 @@ import { OpsKpiShell } from '@/components/humanify/OpsPageChrome';
 import { TalentShell } from '@/components/humanify/TalentModuleChrome';
 import { EnterpriseTabBar } from '@/components/humanify/PerformanceModuleChrome';
 
-type TabKey = 'programs' | 'schedule' | 'certifications' | 'reports';
+type TabKey = 'programs' | 'requests' | 'schedule' | 'certifications' | 'reports';
 
 const TYPE_ICONS: Record<string, any> = { workshop: BookOpen, course: GraduationCap, hands_on: Monitor, certification: Award, online: Video, training: GraduationCap };
 const STATUS_COLORS: Record<string, string> = { active: 'bg-green-100 text-green-700', upcoming: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]', completed: 'bg-gray-100 text-gray-600', cancelled: 'bg-red-100 text-red-700' };
 const CERT_STATUS_COLORS: Record<string, string> = { active: 'bg-green-100 text-green-700', expiring_soon: 'bg-yellow-100 text-yellow-700', expired: 'bg-red-100 text-red-700' };
 const LEVEL_COLORS: Record<string, string> = { beginner: 'text-green-600', intermediate: 'text-[color:var(--hf-brand-600)]', advanced: 'text-purple-600' };
+const REQ_STATUS_COLORS: Record<string, string> = {
+  pending: 'bg-amber-50 text-amber-800',
+  approved: 'bg-emerald-50 text-emerald-800',
+  rejected: 'bg-rose-50 text-rose-800',
+};
+const REQ_STATUS_LABEL: Record<string, string> = {
+  pending: 'Menunggu',
+  approved: 'Disetujui',
+  rejected: 'Ditolak',
+};
 
 const emptyProgramForm = { title: '', category: 'technical', type: 'training', trainer: '', location: '', status: 'upcoming', start_date: '', end_date: '', max_participants: '30', cost_per_person: '0', description: '' };
 
@@ -47,6 +57,9 @@ export default function TrainingPage() {
   const [tab, setTab] = useState<TabKey>('programs');
   const [programs, setPrograms] = useState<any[]>([]);
   const [certs, setCerts] = useState<any[]>([]);
+  const [trainingRequests, setTrainingRequests] = useState<any[]>([]);
+  const [reqStatusFilter, setReqStatusFilter] = useState('all');
+  const [decidingId, setDecidingId] = useState<string | null>(null);
   const [analytics, setAnalytics] = useState<any>({});
   const [dataSource, setDataSource] = useState<HrisDataSource>(USE_MOCK_UI ? 'demo' : 'empty');
   const [search, setSearch] = useState('');
@@ -104,10 +117,46 @@ export default function TrainingPage() {
     }
   }, []);
 
+  const fetchRequests = useCallback(async () => {
+    try {
+      const qs = reqStatusFilter && reqStatusFilter !== 'all' ? `&status=${encodeURIComponent(reqStatusFilter)}` : '';
+      const res = await fetch(`/api/humanify/training?action=requests${qs}`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        setTrainingRequests(data.data);
+        if (data.data.length) setDataSource('live');
+      } else setTrainingRequests([]);
+    } catch (e) {
+      console.warn('Failed to fetch training requests:', e);
+      setTrainingRequests([]);
+    }
+  }, [reqStatusFilter]);
+
   useEffect(() => {
     setLoading(true);
-    Promise.all([fetchPrograms(), fetchCerts(), fetchAnalytics()]).finally(() => setLoading(false));
-  }, [fetchPrograms, fetchCerts, fetchAnalytics]);
+    Promise.all([fetchPrograms(), fetchCerts(), fetchAnalytics(), fetchRequests()]).finally(() => setLoading(false));
+  }, [fetchPrograms, fetchCerts, fetchAnalytics, fetchRequests]);
+
+  async function decideRequest(id: string, decision: 'approve' | 'reject') {
+    setDecidingId(id);
+    try {
+      const action = decision === 'approve' ? 'approve-request' : 'reject-request';
+      const res = await fetch(`/api/humanify/training?action=${action}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(decision === 'approve' ? 'Permintaan disetujui — LMS enrollment diproses' : 'Permintaan ditolak');
+        fetchRequests();
+      } else showToast(data.error || 'Gagal memproses', 'error');
+    } catch {
+      showToast('Gagal memproses permintaan', 'error');
+    } finally {
+      setDecidingId(null);
+    }
+  }
 
   // ── CRUD handlers ──
   async function handleCreateProgram(e: React.FormEvent) {
@@ -164,8 +213,9 @@ export default function TrainingPage() {
   const avgRating = ratedPrograms.length > 0 ? ratedPrograms.reduce((s, p) => s + p.rating, 0) / ratedPrograms.length : 0;
   const expiringCerts = (analytics?.expiringCerts ?? 0) + (analytics?.expiredCerts ?? 0) || certs.filter(c => c.status === 'expiring_soon' || c.status === 'expired').length;
 
-  const tabs: { key: TabKey; label: string; icon: any }[] = [
+  const tabs: { key: TabKey; label: string; icon: any; count?: number }[] = [
     { key: 'programs', label: 'Program Pelatihan', icon: BookOpen },
+    { key: 'requests', label: 'Permintaan', icon: FileText, count: trainingRequests.filter((r) => r.status === 'pending').length || undefined },
     { key: 'schedule', label: 'Jadwal', icon: Calendar },
     { key: 'certifications', label: 'Sertifikasi', icon: Award },
     { key: 'reports', label: 'Laporan', icon: BarChart3 },
@@ -298,6 +348,109 @@ export default function TrainingPage() {
                 <p className="text-center text-gray-400 py-8 col-span-2">Tidak ada program ditemukan</p>
               )}
             </div>
+          </div>
+        )}
+
+        {/* REQUESTS TAB */}
+        {!loading && tab === 'requests' && (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              {(['all', 'pending', 'approved', 'rejected'] as const).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setReqStatusFilter(s)}
+                  className={`rounded-full px-3 py-1 text-xs font-medium ${
+                    reqStatusFilter === s ? 'bg-[var(--hf-brand-600)] text-white' : 'bg-[var(--hf-surface-muted)] text-[color:var(--hf-ink-secondary)]'
+                  }`}
+                  aria-pressed={reqStatusFilter === s}
+                >
+                  {s === 'all' ? 'Semua' : REQ_STATUS_LABEL[s] || s}
+                </button>
+              ))}
+            </div>
+            {trainingRequests.length === 0 ? (
+              <HrisEmptyState
+                source={dataSource}
+                title="Belum ada permintaan pelatihan"
+                description="Pengajuan dari portal karyawan (ESS) akan muncul di sini untuk disetujui dan dihubungkan ke LMS."
+              />
+            ) : (
+              <div className="hf-table-wrap overflow-x-auto">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Karyawan</th>
+                      <th>Topik</th>
+                      <th>Program</th>
+                      <th>Preferensi</th>
+                      <th>Status</th>
+                      <th>Enrollment / LMS</th>
+                      <th>Diajukan</th>
+                      <th className="text-right">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {trainingRequests.map((r) => {
+                      const preferred = r.preferredDate || r.preferred_date;
+                      const enrollId = r.enrollmentId || r.enrollment_id || r.lmsEnrollmentId;
+                      return (
+                        <tr key={r.id}>
+                          <td>
+                            <p className="font-medium text-[color:var(--hf-ink)]">{r.employeeName || r.employee_name || '—'}</p>
+                            <p className="text-xs text-[color:var(--hf-ink-faint)]">{r.employeeId || r.employee_id || ''}</p>
+                          </td>
+                          <td className="max-w-[180px] truncate">{r.topic || '—'}</td>
+                          <td className="max-w-[160px] truncate">{r.programTitle || r.program_title || '—'}</td>
+                          <td className="whitespace-nowrap tabular-nums text-xs">
+                            {preferred
+                              ? new Date(preferred).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+                              : '—'}
+                          </td>
+                          <td>
+                            <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${REQ_STATUS_COLORS[r.status] || 'bg-slate-100 text-slate-600'}`}>
+                              {REQ_STATUS_LABEL[r.status] || r.status}
+                            </span>
+                          </td>
+                          <td className="text-xs font-mono text-[color:var(--hf-ink-muted)]">
+                            {enrollId ? String(enrollId).slice(0, 8) + '…' : '—'}
+                          </td>
+                          <td className="whitespace-nowrap text-xs tabular-nums">
+                            {r.createdAt || r.created_at
+                              ? new Date(r.createdAt || r.created_at).toLocaleDateString('id-ID')
+                              : '—'}
+                          </td>
+                          <td className="text-right">
+                            {r.status === 'pending' ? (
+                              <div className="inline-flex gap-1">
+                                <button
+                                  type="button"
+                                  disabled={decidingId === r.id}
+                                  onClick={() => decideRequest(r.id, 'approve')}
+                                  className="hf-btn-primary !px-2.5 !py-1 text-xs disabled:opacity-50"
+                                >
+                                  Setujui
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={decidingId === r.id}
+                                  onClick={() => decideRequest(r.id, 'reject')}
+                                  className="hf-btn-secondary !px-2.5 !py-1 text-xs disabled:opacity-50"
+                                >
+                                  Tolak
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-[color:var(--hf-ink-faint)]">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 

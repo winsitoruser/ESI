@@ -27,6 +27,7 @@ import {
 } from '@/components/employee/portal-ui';
 import { HumanifyLogo } from '@/components/humanify/HumanifyLogo';
 import { claimHasLegacyReceipt } from '@/lib/hris/claim-receipt';
+import ClaimReceiptGallery from '@/components/humanify/ClaimReceiptGallery';
 import { isDemoRecordId, looksLikeEssMockPayload } from '@/lib/hris/data-source';
 import TravelItineraryEditor from '@/components/humanify/TravelItineraryEditor';
 import { isEssModuleEnabled } from '@/lib/hris/ess-portal-config';
@@ -119,8 +120,16 @@ const CLAIM_TYPES = [
   { value: 'meals', label: 'Makan' },
   { value: 'accommodation', label: 'Akomodasi' },
   { value: 'communication', label: 'Komunikasi' },
+  { value: 'travel', label: 'Perjalanan dinas' },
+  { value: 'travel_expense', label: 'Biaya perjalanan' },
   { value: 'other', label: 'Lainnya' },
 ];
+
+const TRAVEL_RELATED_CLAIM_TYPES = new Set([
+  'travel', 'travel_expense', 'accommodation', 'transport', 'meals',
+]);
+
+const isTravelRelatedClaim = (t: string) => TRAVEL_RELATED_CLAIM_TYPES.has(String(t || ''));
 
 const LEAVE_TYPES = [
   { value: 'annual', label: 'Cuti Tahunan' },
@@ -235,7 +244,8 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
   // ─── Form State ───
   const [leaveForm, setLeaveForm] = useState({ leaveType: 'annual', startDate: '', endDate: '', reason: '' });
   const [leaveFile, setLeaveFile] = useState<File | null>(null);
-  const [claimForm, setClaimForm] = useState({ claimType: 'medical', amount: '', description: '', receiptDate: '' });
+  const [claimForm, setClaimForm] = useState({ claimType: 'medical', amount: '', description: '', receiptDate: '', travelRequestId: '' });
+  const [claimFilter, setClaimFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [claimFiles, setClaimFiles] = useState<File[]>([]);
   const [claimPreviews, setClaimPreviews] = useState<{ url: string; name: string; type: string }[]>([]);
   const [deskForm, setDeskForm] = useState({ subject: '', description: '', category: 'it', priority: 'normal' });
@@ -697,13 +707,13 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
     const remaining = bal != null
       ? Number(bal.remaining ?? ((Number(bal.total) || 0) - (Number(bal.used) || 0)))
       : null;
-    if (remaining != null && remaining < leaveDays && !['unpaid', 'sick'].includes(leaveForm.leaveType)) {
+    if (remaining != null && remaining < leaveDays && !['unpaid', 'sick', 'maternity'].includes(leaveForm.leaveType)) {
       toast.error(`Saldo cuti tidak cukup (sisa ${remaining} hari, diajukan ${leaveDays} hari)`);
       return;
     }
     const needsAttachment = ['sick', 'sakit', 'medical'].includes(String(leaveForm.leaveType).toLowerCase());
     if (needsAttachment && !leaveFile) {
-      toast.error('Cuti sakit memerlukan lampiran'); return;
+      toast.error('Cuti sakit memerlukan lampiran surat dokter / bukti'); return;
     }
     setSubmitting(true);
     try {
@@ -765,7 +775,13 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
     setResubmitClaimId(c.id);
     setReplaceClaimId(null);
     setResubmitReason(c.rejection_reason || '');
-    setClaimForm({ claimType: c.claim_type, amount: String(c.amount || ''), description: c.description || '', receiptDate: c.receipt_date || '' });
+    setClaimForm({
+      claimType: c.claim_type,
+      amount: String(c.amount || ''),
+      description: c.description || '',
+      receiptDate: c.receipt_date || '',
+      travelRequestId: c.travel_request_id || '',
+    });
     setClaimFiles([]);
     setClaimPreviews([]);
     setModal('claim');
@@ -775,7 +791,13 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
     setReplaceClaimId(c.id);
     setResubmitClaimId(null);
     setResubmitReason('');
-    setClaimForm({ claimType: c.claim_type, amount: String(c.amount || ''), description: c.description || '', receiptDate: c.receipt_date || '' });
+    setClaimForm({
+      claimType: c.claim_type,
+      amount: String(c.amount || ''),
+      description: c.description || '',
+      receiptDate: c.receipt_date || '',
+      travelRequestId: c.travel_request_id || '',
+    });
     setClaimFiles([]);
     setClaimPreviews([]);
     setModal('claim');
@@ -812,7 +834,7 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
             || (replaceClaimId ? 'Bukti klaim diunggah ulang' : resubmitClaimId ? 'Klaim berhasil diajukan ulang' : 'Klaim berhasil dikirim'),
         );
         setModal(null);
-        setClaimForm({ claimType: 'medical', amount: '', description: '', receiptDate: '' });
+        setClaimForm({ claimType: 'medical', amount: '', description: '', receiptDate: '', travelRequestId: '' });
         setClaimFiles([]);
         setClaimPreviews([]);
         setResubmitClaimId(null);
@@ -1097,15 +1119,46 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
                   <>
                     <div>
                       <label className="text-sm font-medium text-gray-700 mb-1 block">Jenis Klaim</label>
-                      <select value={claimForm.claimType} onChange={e => setClaimForm(f => ({ ...f, claimType: e.target.value }))}
+                      <select value={claimForm.claimType} onChange={e => {
+                        const next = e.target.value;
+                        setClaimForm(f => ({
+                          ...f,
+                          claimType: next,
+                          travelRequestId: isTravelRelatedClaim(next) ? f.travelRequestId : '',
+                        }));
+                      }}
                         className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500">
                         {CLAIM_TYPES.map(ct => <option key={ct.value} value={ct.value}>{ct.label}</option>)}
                       </select>
                     </div>
+                    {isTravelRelatedClaim(claimForm.claimType) && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-700 mb-1 block">Perjalanan dinas terkait</label>
+                        <select
+                          value={claimForm.travelRequestId}
+                          onChange={e => setClaimForm(f => ({ ...f, travelRequestId: e.target.value }))}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-green-500"
+                        >
+                          <option value="">— Pilih perjalanan (opsional) —</option>
+                          {travel.map((tr: any) => (
+                            <option key={tr.id} value={tr.id}>
+                              {tr.request_number || tr.id?.slice?.(0, 8)} · {tr.destination || tr.purpose || 'Trip'}
+                              {tr.status ? ` (${tr.status})` : ''}
+                            </option>
+                          ))}
+                        </select>
+                        {travel.length === 0 && (
+                          <p className="text-[11px] text-amber-700 mt-1">Belum ada perjalanan dinas. Ajukan trip dulu di tab Perjalanan.</p>
+                        )}
+                      </div>
+                    )}
                     <div>
                       <label className="text-sm font-medium text-gray-700 mb-1 block">Jumlah (Rp)</label>
                       <input type="number" value={claimForm.amount} onChange={e => setClaimForm(f => ({ ...f, amount: e.target.value }))}
                         placeholder="0" className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-green-500" />
+                      {claimForm.amount && (
+                        <p className="text-[11px] text-gray-500 mt-1">{fmtCur(parseFloat(claimForm.amount) || 0)}</p>
+                      )}
                     </div>
                     <div>
                       <label className="text-sm font-medium text-gray-700 mb-1 block">Tanggal Kwitansi</label>
@@ -1270,6 +1323,19 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
                     <option value="desk">Permintaan Meja / Ruang</option>
                     <option value="access">Akses & Login</option>
                     <option value="other">Lainnya</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">Prioritas</label>
+                  <select
+                    value={deskForm.priority}
+                    onChange={(e) => setDeskForm((f) => ({ ...f, priority: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="low">Rendah</option>
+                    <option value="normal">Normal</option>
+                    <option value="high">Tinggi</option>
+                    <option value="urgent">Urgent</option>
                   </select>
                 </div>
                 <div>
@@ -1506,6 +1572,7 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
     const totalApproved = claims.filter((c: any) => c.status === 'approved').reduce((s: number, c: any) => s + parseFloat(c.amount || 0), 0);
     const totalPending = claims.filter((c: any) => c.status === 'pending').reduce((s: number, c: any) => s + parseFloat(c.amount || 0), 0);
     const legacyPending = claims.filter((c: any) => c.status === 'pending' && claimHasLegacyReceipt(c.receipt_url));
+    const filteredClaims = claimFilter === 'all' ? claims : claims.filter((c: any) => c.status === claimFilter);
     return (
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
@@ -1529,26 +1596,62 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
           </div>
         )}
         <div className="hf-card p-4 border-gray-100">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
             <h3 className="font-semibold text-gray-900">Daftar Klaim</h3>
-            <button onClick={() => { setReplaceClaimId(null); setResubmitClaimId(null); setModal('claim'); }} className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium flex items-center gap-1">
+            <button onClick={() => { setReplaceClaimId(null); setResubmitClaimId(null); setClaimForm({ claimType: 'medical', amount: '', description: '', receiptDate: '', travelRequestId: '' }); setModal('claim'); }} className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium flex items-center gap-1">
               <Plus className="w-3.5 h-3.5" /> Klaim Baru
             </button>
           </div>
-          {claims.length === 0 ? <p className="text-sm text-gray-400 text-center py-4">Belum ada klaim</p> : (
+          <div className="flex gap-1.5 mb-3 flex-wrap">
+            {(['all', 'pending', 'approved', 'rejected'] as const).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setClaimFilter(f)}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+                  claimFilter === f ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-600'
+                }`}
+              >
+                {f === 'all' ? 'Semua' : f === 'pending' ? 'Menunggu' : f === 'approved' ? 'Disetujui' : 'Ditolak'}
+              </button>
+            ))}
+          </div>
+          {filteredClaims.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">
+              <Wallet className="w-10 h-10 mx-auto mb-2 opacity-40" />
+              <p className="text-sm font-medium text-gray-500">
+                {claims.length === 0 ? 'Belum ada klaim' : 'Tidak ada klaim dengan filter ini'}
+              </p>
+              <p className="text-xs mt-1">Ajukan klaim reimbursement dengan bukti kwitansi.</p>
+            </div>
+          ) : (
             <div className="space-y-2.5">
-              {claims.map((c: any) => {
+              {filteredClaims.map((c: any) => {
                 const isLegacy = claimHasLegacyReceipt(c.receipt_url);
                 return (
                 <div key={c.id} className="p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full ${c.claim_type === 'medical' ? 'bg-red-400' : c.claim_type === 'transport' ? 'bg-blue-400' : c.claim_type === 'meals' ? 'bg-orange-400' : 'bg-gray-400'}`} />
-                      <span className="text-sm font-medium text-gray-900">Klaim {claimTypeLabel(c.claim_type)}</span>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${c.claim_type === 'medical' ? 'bg-red-400' : c.claim_type === 'transport' ? 'bg-blue-400' : c.claim_type === 'meals' ? 'bg-orange-400' : isTravelRelatedClaim(c.claim_type) ? 'bg-teal-400' : 'bg-gray-400'}`} />
+                      <span className="text-sm font-medium text-gray-900 truncate">Klaim {claimTypeLabel(c.claim_type)}</span>
+                      {c.claim_number && (
+                        <span className="text-[10px] font-mono text-gray-400 shrink-0">{c.claim_number}</span>
+                      )}
                     </div>
                     <StatusBadge status={c.status} />
                   </div>
                   <p className="text-xs text-gray-500 mb-1">{c.description}</p>
+                  {(c.travel_request_id || c.travel_destination) && (
+                    <p className="text-[11px] text-teal-700 mb-1 font-medium">
+                      ✈️ {c.travel_destination || 'Trip terhubung'}
+                      {c.travel_purpose ? ` · ${c.travel_purpose}` : ''}
+                    </p>
+                  )}
+                  {c.receipt_url && !isLegacy && (
+                    <div className="mb-2">
+                      <ClaimReceiptGallery receiptUrl={c.receipt_url} compact maxThumbs={3} />
+                    </div>
+                  )}
                   <div className="flex items-center justify-between text-[11px]">
                     <div className="flex items-center gap-2">
                       <span className="text-gray-400">{fmtDate(c.created_at || c.receipt_date)}</span>
@@ -1564,7 +1667,7 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
                         <span className="text-orange-500">🔁 ×{c.resubmit_count}</span>
                       )}
                     </div>
-                    <span className="font-semibold text-gray-700">{fmtCur(c.amount)}</span>
+                    <span className="font-semibold text-gray-700">{fmtCur(parseFloat(c.amount) || 0)}</span>
                   </div>
 
                   {c.status === 'pending' && isLegacy && (

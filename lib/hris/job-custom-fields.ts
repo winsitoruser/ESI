@@ -44,21 +44,49 @@ export function sanitizeFieldDefs(input: unknown): JobCustomFieldDef[] {
     const type = (['text', 'textarea', 'number', 'select', 'date', 'checkbox', 'url'].includes(r.type)
       ? r.type
       : 'text') as JobFieldType;
+    let options: string[] | undefined;
+    if (Array.isArray(r.options)) {
+      options = r.options.map((o: any) => String(o).slice(0, 80)).filter(Boolean).slice(0, 30);
+    } else if (typeof r.options === 'string' && r.options.trim()) {
+      // Wave-89: parse comma-separated options from UI builder
+      options = r.options.split(/[,;|]/).map((s: string) => s.trim().slice(0, 80)).filter(Boolean).slice(0, 30);
+    }
     out.push({
       id: String(r.id || key),
       key,
       label: String(r.label || key).slice(0, 120),
       type,
       required: !!r.required,
-      options: Array.isArray(r.options)
-        ? r.options.map((o: any) => String(o).slice(0, 80)).filter(Boolean).slice(0, 30)
-        : undefined,
+      options: options?.length ? options : undefined,
       placeholder: r.placeholder ? String(r.placeholder).slice(0, 120) : undefined,
       showOnCareers: r.showOnCareers !== false,
     });
     if (out.length >= 20) break;
   }
   return out;
+}
+
+/** Count non-empty custom answer keys for badge display */
+export function countCustomAnswers(raw: unknown): number {
+  if (!raw) return 0;
+  let obj = raw;
+  if (typeof raw === 'string') {
+    try { obj = JSON.parse(raw); } catch { return 0; }
+  }
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return 0;
+  return Object.values(obj as Record<string, unknown>).filter(
+    (v) => v !== null && v !== undefined && String(v).trim() !== '',
+  ).length;
+}
+
+/** Count field defs on a job opening row */
+export function countFieldDefs(raw: unknown): number {
+  if (!raw) return 0;
+  let arr = raw;
+  if (typeof raw === 'string') {
+    try { arr = JSON.parse(raw); } catch { return 0; }
+  }
+  return Array.isArray(arr) ? arr.length : 0;
 }
 
 export function sanitizeFieldValues(

@@ -27,9 +27,12 @@ const CLAIM_TYPES = [
   { value: 'medical', label: 'Medis & kesehatan' },
   { value: 'transport', label: 'Transportasi' },
   { value: 'meal', label: 'Makan & representasi' },
+  { value: 'meals', label: 'Makan (ESS)' },
   { value: 'travel', label: 'Perjalanan dinas' },
+  { value: 'travel_expense', label: 'Biaya perjalanan' },
   { value: 'training', label: 'Pelatihan' },
   { value: 'equipment', label: 'Peralatan' },
+  { value: 'accommodation', label: 'Akomodasi' },
   { value: 'other', label: 'Lainnya' },
 ];
 

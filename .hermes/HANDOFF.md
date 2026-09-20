@@ -1,5 +1,33 @@
 # Handoff — SIMESI (fka ESI ERP)
 
+> Diperbarui: 20 September 2026 — **Wave-86 + Wave-87 implemented (mutation defer + comp-off leave)**
+
+Checklist: `docs/humanify-waves-86-100.md` · smoke: `npm run smoke:wave86` · `npm run smoke:wave87`
+
+| Wave | Theme | Status |
+|---|---|---|
+| **86** | Mutation defer depth — Menunggu efektif UI, `due_soon`, inbox `mutation_due`, sidebar badge, reject clears waiting, apply stamp | Done (≥30) |
+| **87** | Comp-off & leave — LeaveTab highlight, maternity exempt, OT earn notes, MSS/Manager `compOffDays` toast | Done (≥30) |
+| 88–100 | Reserved in docs catalog | Pending |
+
+Belum deploy / belum commit. HOLD launch tetap.
+
+---
+
+> Diperbarui: 20 September 2026 — **FlowHCM alignment polish (defer mutasi + Manager Hub)**
+
+| Area | Enhancement |
+|---|---|
+| Mutasi defer | Final approve hanya apply jika `effective_date` ≤ hari ini; cron `mutation-apply-due` → `executed` |
+| Manager OT | `approve-overtime` kredit comp-off (selaras HQ) |
+| ESS mutasi | Picker cabang `to_branch_id` |
+| Manpower cards | List plan menampilkan position-title lines |
+| Manager cascade | Assign KPI / OKR ke direct report dari TeamMemberDetailSheet |
+
+Belum deploy. HOLD launch tetap.
+
+---
+
 > Diperbarui: 20 September 2026 — **FlowHCM apply-on-approve depth**
 
 | Area | Enhancement |

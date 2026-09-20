@@ -69,6 +69,154 @@ const mgrApi = async (action: string, params?: Record<string, string>) => {
   }
 };
 
+const mgrPost = async (action: string, body: Record<string, unknown>) => {
+  const r = await fetch(`/api/employee/manager?action=${encodeURIComponent(action)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return r.json().catch(() => ({ success: false, error: 'Respons tidak valid' }));
+};
+
+function AssignKpiOkrForm({ employeeId, onDone }: { employeeId: string; onDone: () => void }) {
+  const [mode, setMode] = useState<'kpi' | 'okr'>('kpi');
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [msgTone, setMsgTone] = useState<'ok' | 'err'>('ok');
+  const [kpiForm, setKpiForm] = useState({ metricName: '', target: '100', unit: '%', period: new Date().toISOString().slice(0, 7), weight: '1' });
+  const [okrForm, setOkrForm] = useState({ title: '', description: '', parentId: '', period: '' });
+
+  const validateKpi = (): string | null => {
+    if (!kpiForm.metricName.trim() || kpiForm.metricName.trim().length < 2) return 'Nama metric minimal 2 karakter';
+    const target = Number(kpiForm.target);
+    if (!Number.isFinite(target) || target <= 0) return 'Target harus angka positif';
+    if (!/^\d{4}-\d{2}$/.test(kpiForm.period)) return 'Periode wajib format YYYY-MM';
+    if (!kpiForm.unit.trim()) return 'Unit wajib diisi';
+    const weight = Number(kpiForm.weight);
+    if (!Number.isFinite(weight) || weight <= 0) return 'Bobot harus angka positif';
+    return null;
+  };
+
+  const validateOkr = (): string | null => {
+    const title = okrForm.title.trim();
+    if (!title || title.length < 3) return 'Judul OKR minimal 3 karakter';
+    if (title.length > 300) return 'Judul OKR maksimal 300 karakter';
+    if (okrForm.parentId.trim() && !/^[0-9a-f-]{8,}$/i.test(okrForm.parentId.trim())) {
+      return 'Parent ID tidak valid (UUID opsional)';
+    }
+    return null;
+  };
+
+  const submit = async () => {
+    setSaving(true);
+    setMsg('');
+    try {
+      if (mode === 'kpi') {
+        const err = validateKpi();
+        if (err) { setMsgTone('err'); setMsg(err); setSaving(false); return; }
+        const res = await mgrPost('assign-kpi', {
+          employeeId,
+          metricName: kpiForm.metricName.trim(),
+          target: Number(kpiForm.target) || 0,
+          unit: kpiForm.unit.trim(),
+          period: kpiForm.period,
+          weight: Number(kpiForm.weight) || 1,
+        });
+        if (res.success) {
+          setMsgTone('ok');
+          setMsg(res.message || 'KPI ditetapkan');
+          setKpiForm({ metricName: '', target: '100', unit: '%', period: new Date().toISOString().slice(0, 7), weight: '1' });
+          setOpen(false);
+          onDone();
+        } else { setMsgTone('err'); setMsg(res.error || 'Gagal'); }
+      } else {
+        const err = validateOkr();
+        if (err) { setMsgTone('err'); setMsg(err); setSaving(false); return; }
+        const res = await mgrPost('assign-okr', {
+          employeeId,
+          title: okrForm.title.trim(),
+          description: okrForm.description.trim() || null,
+          parentId: okrForm.parentId.trim() || null,
+          period: okrForm.period.trim() || undefined,
+        });
+        if (res.success) {
+          setMsgTone('ok');
+          setMsg(res.message || 'OKR ditetapkan');
+          setOkrForm({ title: '', description: '', parentId: '', period: '' });
+          setOpen(false);
+          onDone();
+        } else { setMsgTone('err'); setMsg(res.error || 'Gagal'); }
+      }
+    } catch {
+      setMsgTone('err');
+      setMsg('Gagal menyimpan');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-semibold text-slate-700">Tetapkan ke anggota tim</p>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="text-xs px-2.5 py-1 rounded-lg bg-indigo-600 text-white"
+        >
+          {open ? 'Tutup' : 'Assign'}
+        </button>
+      </div>
+      {msg && (
+        <p className={`text-[11px] ${msgTone === 'err' ? 'text-rose-600' : 'text-emerald-700'}`} role="status">{msg}</p>
+      )}
+      {open && (
+        <div className="space-y-2 pt-1">
+          <div className="flex gap-1">
+            <button type="button" onClick={() => { setMode('kpi'); setMsg(''); }} className={`flex-1 text-xs py-1.5 rounded-lg ${mode === 'kpi' ? 'bg-white shadow font-semibold' : 'text-slate-500'}`}>KPI</button>
+            <button type="button" onClick={() => { setMode('okr'); setMsg(''); }} className={`flex-1 text-xs py-1.5 rounded-lg ${mode === 'okr' ? 'bg-white shadow font-semibold' : 'text-slate-500'}`}>OKR</button>
+          </div>
+          {mode === 'kpi' ? (
+            <>
+              <input className="w-full border rounded-lg px-2.5 py-2 text-sm" placeholder="Nama metric *" value={kpiForm.metricName} onChange={(e) => setKpiForm({ ...kpiForm, metricName: e.target.value })} aria-label="Nama metric KPI" />
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <input className="border rounded-lg px-2.5 py-2 text-sm" type="number" min={0.01} step="any" placeholder="Target *" value={kpiForm.target} onChange={(e) => setKpiForm({ ...kpiForm, target: e.target.value })} aria-label="Target KPI" />
+                <input className="border rounded-lg px-2.5 py-2 text-sm" placeholder="Unit *" value={kpiForm.unit} onChange={(e) => setKpiForm({ ...kpiForm, unit: e.target.value })} aria-label="Unit KPI" />
+                <input className="border rounded-lg px-2.5 py-2 text-sm" type="month" value={kpiForm.period} onChange={(e) => setKpiForm({ ...kpiForm, period: e.target.value })} aria-label="Periode KPI" />
+                <input className="border rounded-lg px-2.5 py-2 text-sm" type="number" min={0.01} step="any" placeholder="Bobot" value={kpiForm.weight} onChange={(e) => setKpiForm({ ...kpiForm, weight: e.target.value })} aria-label="Bobot KPI" />
+              </div>
+            </>
+          ) : (
+            <>
+              <input className="w-full border rounded-lg px-2.5 py-2 text-sm" placeholder="Judul objective *" value={okrForm.title} onChange={(e) => setOkrForm({ ...okrForm, title: e.target.value })} aria-label="Judul OKR" />
+              <textarea className="w-full border rounded-lg px-2.5 py-2 text-sm" rows={2} placeholder="Deskripsi (opsional)" value={okrForm.description} onChange={(e) => setOkrForm({ ...okrForm, description: e.target.value })} aria-label="Deskripsi OKR" />
+              <input
+                className="w-full border rounded-lg px-2.5 py-2 text-sm"
+                placeholder="Parent OKR ID (opsional — cascade)"
+                value={okrForm.parentId}
+                onChange={(e) => setOkrForm({ ...okrForm, parentId: e.target.value })}
+                aria-label="Parent OKR ID"
+              />
+              <input
+                className="w-full border rounded-lg px-2.5 py-2 text-sm"
+                placeholder="Periode (opsional, mis. 2026-Q3)"
+                value={okrForm.period}
+                onChange={(e) => setOkrForm({ ...okrForm, period: e.target.value })}
+                aria-label="Periode OKR"
+              />
+            </>
+          )}
+          <button type="button" disabled={saving} onClick={submit} className="w-full py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold disabled:opacity-50 inline-flex items-center justify-center gap-2">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+            Simpan
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function TeamMemberDetailSheet({ employeeId, employeeName, onClose }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -296,6 +444,8 @@ export default function TeamMemberDetailSheet({ employeeId, employeeName, onClos
                     </div>
                     <p className="text-sm font-medium text-slate-600">Skor KPI — {month}</p>
                   </div>
+
+                  <AssignKpiOkrForm employeeId={employeeId} onDone={() => loadDetail()} />
 
                   {kpiMetrics.length === 0 ? (
                     <p className="text-center text-sm text-slate-400 py-6">Belum ada data KPI untuk periode ini</p>

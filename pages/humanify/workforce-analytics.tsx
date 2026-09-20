@@ -515,6 +515,29 @@ export default function WorkforceAnalyticsPage() {
                   <div><p className="text-xs text-gray-500">Disetujui</p><p className="text-lg font-bold text-green-600">{p.approved_headcount || '-'}</p></div>
                   <div><p className="text-xs text-gray-500">Anggaran</p><p className="text-lg font-bold">Rp {fmtNum(p.budget_amount)}</p></div>
                 </div>
+                {Array.isArray(p.details) && p.details.length > 0 && (
+                  <div className="mt-3 pt-3 border-t space-y-1.5">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Position title</p>
+                    {p.details.map((d: any, idx: number) => {
+                      const title = d.positionTitle || d.position_title || d.title || '—';
+                      const cur = Number(d.currentCount ?? d.current_count ?? 0) || 0;
+                      const planned = Number(d.plannedCount ?? d.planned_count ?? 0) || 0;
+                      return (
+                        <div key={idx} className="flex items-center justify-between text-sm gap-2">
+                          <span className="text-gray-800 truncate">{title}</span>
+                          <span className="shrink-0 tabular-nums text-gray-600">
+                            {cur} → <span className="font-semibold text-[color:var(--hf-brand-600)]">{planned}</span>
+                            {planned !== cur && (
+                              <span className={`ml-1 text-[10px] ${planned > cur ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                ({planned > cur ? '+' : ''}{planned - cur})
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
                 {p.justification && <p className="text-sm text-gray-500 mt-2 italic">"{p.justification}"</p>}
               </div>
             ))}

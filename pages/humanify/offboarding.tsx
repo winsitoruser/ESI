@@ -9,10 +9,17 @@ import {
   KeyRound, Plus, Search, X, CheckCircle, AlertCircle, Clock,
   User, Briefcase, Calendar, FileText, Laptop, DollarSign,
   Eye, Trash2, ShieldCheck, Receipt, MessageSquare, Heart,
-  LayoutGrid, Table2,
+  LayoutGrid, Table2, Banknote, ArrowUpDown, ChevronUp, ChevronDown,
 } from 'lucide-react';
+import Link from 'next/link';
 import EmployeePicker, { type PickedEmployee } from '@/components/humanify/EmployeePicker';
 import { getDepartmentLabel } from '@/lib/hris/master-data';
+
+type SettlementFilter = 'all' | 'ready' | 'disbursed' | 'none';
+type SortKey = 'employeeName' | 'resignDate' | 'lastWorkingDate' | 'clearance' | 'status' | 'settlement' | 'net';
+
+const fmtCurrency = (n: number) =>
+  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n || 0);
 
 interface TaskItem {
   key: string;
@@ -67,6 +74,19 @@ const CATEGORY_COLORS: Record<string, string> = {
   tax: 'text-amber-600 bg-amber-100',
 };
 
+function settlementStatusOf(entry: any, readyIds: Set<string>): 'ready' | 'disbursed' | 'none' {
+  const ds = entry?.settlementData?.disbursementStatus;
+  if (ds === 'disbursed') return 'disbursed';
+  if (ds === 'ready' || readyIds.has(entry?.id)) return 'ready';
+  return 'none';
+}
+
+const SETTLEMENT_CHIP: Record<string, { label: string; cls: string }> = {
+  ready: { label: 'Siap cair', cls: 'bg-amber-50 text-amber-800' },
+  disbursed: { label: 'Cair', cls: 'bg-emerald-50 text-emerald-800' },
+  none: { label: 'Belum', cls: 'bg-slate-50 text-slate-500' },
+};
+
 export default function OffboardingPage() {
   const [mounted, setMounted] = useState(false);
   const [items, setItems] = useState<OffEntry[]>([]);
@@ -83,6 +103,10 @@ export default function OffboardingPage() {
   const [settlementForm, setSettlementForm] = useState({ baseSalary: 8000000, remainingLeaveDays: 5, unpaidOvertimeHours: 0, loanBalance: 0, cashAdvanceBalance: 0 });
   const [calculatingSettlement, setCalculatingSettlement] = useState(false);
   const [readySettlements, setReadySettlements] = useState<any[]>([]);
+  const [settlementFilter, setSettlementFilter] = useState<SettlementFilter>('all');
+  const [sortKey, setSortKey] = useState<SortKey>('resignDate');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [disbursingId, setDisbursingId] = useState<string | null>(null);
   const [form, setForm] = useState<any>({ reasonCategory: 'resignation' });
   const [toast, setToast] = useState<{ type: string; message: string } | null>(null);
 
@@ -261,10 +285,51 @@ export default function OffboardingPage() {
     }
   }
 
-  const fmt = (n: number) => `Rp ${(n || 0).toLocaleString('id-ID')}`;
+  async function disburseSettlement(id: string, opts?: { closeDetail?: boolean }) {
+    if (disbursingId) return;
+    setDisbursingId(id);
+    try {
+      const res = await fetch(`/api/humanify/offboarding-settlement?action=disburse&id=${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const json = await res.json();
+      if (json.success) {
+        showToast('success', 'Settlement ditandai disbursed — siap unduh file bank');
+        if (viewing?.id === id) {
+          setSettlement((s: any) => ({
+            ...(s || {}),
+            ...json.data?.settlementData,
+            disbursementStatus: 'disbursed',
+          }));
+          setViewing((v) => (v ? { ...v, settlementData: json.data?.settlementData || (v as any).settlementData } : v));
+        }
+        await fetchAll();
+        if (opts?.closeDetail) setViewing(null);
+      } else {
+        showToast('error', json.error || 'Gagal disburse');
+      }
+    } catch {
+      showToast('error', 'Gagal disburse settlement');
+    } finally {
+      setDisbursingId(null);
+    }
+  }
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else { setSortKey(key); setSortDir(key === 'employeeName' ? 'asc' : 'desc'); }
+  };
+
+  const readyIds = useMemo(() => new Set(readySettlements.map((r) => r.id)), [readySettlements]);
+  const readyTotalNet = useMemo(
+    () => readySettlements.reduce((s, r) => s + (Number(r.netSettlement) || 0), 0),
+    [readySettlements],
+  );
 
   const filtered = useMemo(() => {
-    return items.filter((i) => {
+    const rows = items.filter((i) => {
       const q = searchQuery.toLowerCase();
       const matchSearch = !q ||
         i.employeeName?.toLowerCase().includes(q) ||
@@ -272,17 +337,70 @@ export default function OffboardingPage() {
         (i.position || '').toLowerCase().includes(q);
       const matchStatus = statusFilter === 'all' || i.status === statusFilter;
       const matchReason = reasonFilter === 'all' || i.reasonCategory === reasonFilter;
-      return matchSearch && matchStatus && matchReason;
+      const settle = settlementStatusOf(i, readyIds);
+      const matchSettle = settlementFilter === 'all' || settle === settlementFilter;
+      return matchSearch && matchStatus && matchReason && matchSettle;
     });
-  }, [items, searchQuery, statusFilter, reasonFilter]);
+
+    const dir = sortDir === 'asc' ? 1 : -1;
+    rows.sort((a, b) => {
+      const settleA = settlementStatusOf(a, readyIds);
+      const settleB = settlementStatusOf(b, readyIds);
+      const { pct: pctA } = requiredProgress(a.tasks);
+      const { pct: pctB } = requiredProgress(b.tasks);
+      const netA = Number((a as any)?.settlementData?.settlement?.netSettlement
+        ?? readySettlements.find((r) => r.id === a.id)?.netSettlement ?? 0);
+      const netB = Number((b as any)?.settlementData?.settlement?.netSettlement
+        ?? readySettlements.find((r) => r.id === b.id)?.netSettlement ?? 0);
+      let cmp = 0;
+      switch (sortKey) {
+        case 'employeeName':
+          cmp = (a.employeeName || '').localeCompare(b.employeeName || '', 'id');
+          break;
+        case 'resignDate':
+          cmp = String(a.resignDate || '').localeCompare(String(b.resignDate || ''));
+          break;
+        case 'lastWorkingDate':
+          cmp = String(a.lastWorkingDate || '').localeCompare(String(b.lastWorkingDate || ''));
+          break;
+        case 'clearance':
+          cmp = pctA - pctB;
+          break;
+        case 'status':
+          cmp = String(a.status).localeCompare(String(b.status));
+          break;
+        case 'settlement':
+          cmp = settleA.localeCompare(settleB);
+          break;
+        case 'net':
+          cmp = netA - netB;
+          break;
+        default:
+          cmp = 0;
+      }
+      return cmp * dir;
+    });
+    return rows;
+  }, [items, searchQuery, statusFilter, reasonFilter, settlementFilter, readyIds, sortKey, sortDir, readySettlements]);
 
   const stats = useMemo(() => {
     const inProgress = items.filter(i => i.status === 'in_progress').length;
     const completed = items.filter(i => i.status === 'completed').length;
     const byReason: Record<string, number> = {};
     items.forEach((i) => { byReason[i.reasonCategory] = (byReason[i.reasonCategory] || 0) + 1; });
-    return { total: items.length, inProgress, completed, topReason: Object.entries(byReason).sort((a, b) => b[1] - a[1])[0]?.[0] };
-  }, [items]);
+    const readyCount = readySettlements.length;
+    const disbursedCount = items.filter((i) => settlementStatusOf(i, readyIds) === 'disbursed').length;
+    return {
+      total: items.length,
+      inProgress,
+      completed,
+      topReason: Object.entries(byReason).sort((a, b) => b[1] - a[1])[0]?.[0],
+      readyCount,
+      disbursedCount,
+    };
+  }, [items, readySettlements, readyIds]);
+
+  const fmt = fmtCurrency;
 
   if (!mounted) return null;
 
@@ -300,6 +418,7 @@ export default function OffboardingPage() {
           chips={[
             { icon: Clock, label: `${stats.inProgress} sedang proses`, tone: 'text-amber-700' },
             { icon: CheckCircle, label: `${stats.completed} selesai`, tone: 'text-emerald-700' },
+            { icon: Banknote, label: `${stats.readyCount} siap cair`, tone: 'text-teal-700' },
             { icon: ShieldCheck, label: stats.topReason ? `Utama: ${REASON_LABELS[stats.topReason]?.label || '-'}` : 'Belum ada alasan dominan', tone: 'text-[color:var(--hf-brand-600)]' },
           ]}
           actions={(
@@ -316,7 +435,7 @@ export default function OffboardingPage() {
           )}
         />
 
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
           <OpsKpiShell>
             <HRStatCard icon={KeyRound} label="Total Proses" value={stats.total} accent="rose" />
           </OpsKpiShell>
@@ -325,6 +444,15 @@ export default function OffboardingPage() {
           </OpsKpiShell>
           <OpsKpiShell>
             <HRStatCard icon={CheckCircle} label="Selesai" value={stats.completed} accent="emerald" />
+          </OpsKpiShell>
+          <OpsKpiShell>
+            <HRStatCard
+              icon={Banknote}
+              label="Siap Cair"
+              value={stats.readyCount}
+              accent="cyan"
+              onClick={() => setSettlementFilter('ready')}
+            />
           </OpsKpiShell>
           <OpsKpiShell>
             <HRStatCard icon={ShieldCheck} label="Alasan Utama" value={stats.topReason ? REASON_LABELS[stats.topReason]?.label || '—' : '—'} accent="violet" />
@@ -341,15 +469,16 @@ export default function OffboardingPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="hf-input w-full pl-9"
+                aria-label="Cari offboarding"
               />
             </div>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="hf-input">
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="hf-input" aria-label="Filter status proses">
               <option value="all">Semua Status</option>
               <option value="in_progress">Sedang Proses</option>
               <option value="completed">Selesai</option>
               <option value="paused">Ditunda</option>
             </select>
-            <select value={reasonFilter} onChange={(e) => setReasonFilter(e.target.value)} className="hf-input">
+            <select value={reasonFilter} onChange={(e) => setReasonFilter(e.target.value)} className="hf-input" aria-label="Filter alasan">
               <option value="all">Semua Alasan</option>
               {Object.entries(REASON_LABELS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
             </select>
@@ -357,42 +486,97 @@ export default function OffboardingPage() {
           <ViewToggle value={listView} onChange={setListView} />
         </OpsToolbar>
 
-        {readySettlements.length > 0 && (
-          <div className="hf-card border border-emerald-200 bg-emerald-50/60 p-4 space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <p className="text-sm font-semibold text-emerald-900">Settlement siap cair ({readySettlements.length})</p>
-                <p className="text-xs text-emerald-700">Hitung &amp; terapkan selesai — lanjut disburse atau Transfer Bank.</p>
-              </div>
-              <a href="/humanify/payroll/disbursement?mode=settlement" className="text-xs font-medium text-emerald-800 underline">
-                Buka Transfer Bank
-              </a>
+        <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter status settlement">
+          {([
+            { key: 'all' as SettlementFilter, label: 'Semua settlement', count: items.length },
+            { key: 'ready' as SettlementFilter, label: 'Siap cair', count: stats.readyCount },
+            { key: 'disbursed' as SettlementFilter, label: 'Sudah cair', count: stats.disbursedCount },
+            { key: 'none' as SettlementFilter, label: 'Belum settlement', count: Math.max(0, items.length - stats.readyCount - stats.disbursedCount) },
+          ]).map((chip) => (
+            <button
+              key={chip.key}
+              type="button"
+              onClick={() => setSettlementFilter(chip.key)}
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                settlementFilter === chip.key
+                  ? 'bg-[var(--hf-brand-600)] text-white'
+                  : 'bg-[var(--hf-surface-muted)] text-[color:var(--hf-ink-secondary)] hover:bg-[var(--hf-brand-50)]'
+              }`}
+              aria-pressed={settlementFilter === chip.key}
+            >
+              {chip.label}
+              <span className="tabular-nums opacity-80">{chip.count}</span>
+            </button>
+          ))}
+          <Link
+            href="/humanify/payroll/disbursement?mode=settlement"
+            className="ml-auto inline-flex items-center gap-1.5 text-xs font-medium text-emerald-800 underline"
+          >
+            <Banknote className="h-3.5 w-3.5" /> Transfer Bank settlement
+          </Link>
+        </div>
+
+        <div className="hf-card border border-emerald-200 bg-emerald-50/60 p-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-semibold text-emerald-900">Settlement siap cair ({readySettlements.length})</p>
+              <p className="text-xs text-emerald-700">
+                Hitung &amp; terapkan selesai — disburse dari antrean atau unduh file Transfer Bank.
+                {readySettlements.length > 0 && (
+                  <span className="ml-1 font-semibold tabular-nums">Total {fmtCurrency(readyTotalNet)}</span>
+                )}
+              </p>
             </div>
+            <Link href="/humanify/payroll/disbursement?mode=settlement" className="text-xs font-medium text-emerald-800 underline inline-flex items-center gap-1">
+              <Banknote className="h-3.5 w-3.5" /> Buka Transfer Bank
+            </Link>
+          </div>
+          {readySettlements.length === 0 ? (
+            <div className="rounded-lg bg-white/70 px-3 py-6 text-center" data-testid="ready-settlement-empty">
+              <p className="text-sm font-medium text-emerald-900">Belum ada settlement siap cair</p>
+              <p className="mt-1 text-xs text-emerald-700">Hitung &amp; terapkan settlement di detail offboarding untuk mengisi antrean ini.</p>
+            </div>
+          ) : (
             <div className="space-y-2">
-              {readySettlements.slice(0, 8).map((r: any) => (
-                <div key={r.id} className="flex items-center justify-between gap-3 rounded-lg bg-white/80 px-3 py-2 text-sm">
+              {readySettlements.slice(0, 12).map((r: any) => (
+                <div key={r.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-white/80 px-3 py-2 text-sm">
                   <div className="min-w-0">
                     <p className="font-medium text-[color:var(--hf-ink)] truncate">{r.employeeName}</p>
-                    <p className="text-xs text-[color:var(--hf-ink-faint)]">
-                      Net {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(r.netSettlement || 0)}
+                    <p className="text-xs text-[color:var(--hf-ink-faint)] tabular-nums">
+                      Net {fmtCurrency(r.netSettlement || 0)}
+                      {r.resignDate ? ` · Resign ${r.resignDate}` : ''}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    className="hf-btn-secondary !px-2.5 !py-1 text-xs"
-                    onClick={() => {
-                      const entry = items.find((i) => i.id === r.id);
-                      if (entry) setViewing(entry);
-                      else showToast('info', 'Buka detail dari daftar untuk disburse');
-                    }}
-                  >
-                    Detail
-                  </button>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      className="hf-btn-secondary !px-2.5 !py-1 text-xs"
+                      onClick={() => {
+                        const entry = items.find((i) => i.id === r.id);
+                        if (entry) setViewing(entry);
+                        else showToast('info', 'Buka detail dari daftar untuk lihat clearance');
+                      }}
+                    >
+                      Detail
+                    </button>
+                    <button
+                      type="button"
+                      disabled={disbursingId === r.id}
+                      className="hf-btn-primary !px-2.5 !py-1 text-xs disabled:opacity-50"
+                      onClick={() => disburseSettlement(r.id)}
+                      aria-label={`Disburse settlement ${r.employeeName}`}
+                    >
+                      {disbursingId === r.id ? 'Memproses…' : 'Disburse'}
+                    </button>
+                  </div>
                 </div>
               ))}
+              {readySettlements.length > 12 && (
+                <p className="text-xs text-emerald-700">+{readySettlements.length - 12} lainnya — filter chip &ldquo;Siap cair&rdquo; untuk melihat di tabel.</p>
+              )}
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {!loading && filtered.length === 0 ? (
           <HrisEmptyState
@@ -410,14 +594,15 @@ export default function OffboardingPage() {
             <table>
               <thead>
                 <tr>
-                  <th>Karyawan</th>
+                  <SortTh label="Karyawan" active={sortKey === 'employeeName'} dir={sortDir} onClick={() => toggleSort('employeeName')} />
                   <th>Jabatan</th>
                   <th>Alasan</th>
-                  <th>Resign</th>
-                  <th>Hari terakhir</th>
-                  <th className="text-right">Clearance</th>
-                  <th>Status</th>
-                  <th>Settlement</th>
+                  <SortTh label="Resign" active={sortKey === 'resignDate'} dir={sortDir} onClick={() => toggleSort('resignDate')} />
+                  <SortTh label="Hari terakhir" active={sortKey === 'lastWorkingDate'} dir={sortDir} onClick={() => toggleSort('lastWorkingDate')} />
+                  <SortTh label="Clearance" active={sortKey === 'clearance'} dir={sortDir} onClick={() => toggleSort('clearance')} align="right" />
+                  <SortTh label="Status" active={sortKey === 'status'} dir={sortDir} onClick={() => toggleSort('status')} />
+                  <SortTh label="Settlement" active={sortKey === 'settlement'} dir={sortDir} onClick={() => toggleSort('settlement')} />
+                  <SortTh label="Net" active={sortKey === 'net'} dir={sortDir} onClick={() => toggleSort('net')} align="right" />
                   <th className="text-right">Aksi</th>
                 </tr>
               </thead>
@@ -425,14 +610,16 @@ export default function OffboardingPage() {
                 {loading
                   ? [0, 1, 2, 3, 4].map((n) => (
                     <tr key={n}>
-                      <td colSpan={9}><div className="h-8 animate-pulse rounded-md bg-[var(--hf-surface-muted)]" /></td>
+                      <td colSpan={10}><div className="h-8 animate-pulse rounded-md bg-[var(--hf-surface-muted)]" /></td>
                     </tr>
                   ))
                   : filtered.map((i) => {
                     const { doneReq, totalReq, pct } = requiredProgress(i.tasks);
                     const rConf = REASON_LABELS[i.reasonCategory] || REASON_LABELS.other;
-                    const settleStatus = (i as any)?.settlementData?.disbursementStatus
-                      || (readySettlements.some((r) => r.id === i.id) ? 'ready' : null);
+                    const settleStatus = settlementStatusOf(i, readyIds);
+                    const settleChip = SETTLEMENT_CHIP[settleStatus];
+                    const net = Number((i as any)?.settlementData?.settlement?.netSettlement
+                      ?? readySettlements.find((r) => r.id === i.id)?.netSettlement ?? 0);
                     return (
                       <tr key={i.id}>
                         <td>
@@ -451,16 +638,23 @@ export default function OffboardingPage() {
                         </td>
                         <td><StatusPill status={i.status} /></td>
                         <td>
-                          {settleStatus === 'disbursed' ? (
-                            <span className="text-xs text-emerald-700 font-medium">Cair</span>
-                          ) : settleStatus === 'ready' ? (
-                            <span className="text-xs text-amber-700 font-medium">Siap cair</span>
-                          ) : (
-                            <span className="text-xs text-[color:var(--hf-ink-faint)]">—</span>
-                          )}
+                          <span className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium ${settleChip.cls}`}>{settleChip.label}</span>
+                        </td>
+                        <td className="text-right tabular-nums text-xs">
+                          {net > 0 ? fmtCurrency(net) : '—'}
                         </td>
                         <td className="text-right">
                           <div className="flex items-center justify-end gap-1">
+                            {settleStatus === 'ready' && (
+                              <button
+                                type="button"
+                                disabled={disbursingId === i.id}
+                                onClick={() => disburseSettlement(i.id)}
+                                className="hf-btn-primary inline-flex items-center gap-1 !px-2.5 !py-1 text-xs disabled:opacity-50"
+                              >
+                                Disburse
+                              </button>
+                            )}
                             <button type="button" onClick={() => setViewing(i)} className="hf-btn-secondary inline-flex items-center gap-1 !px-2.5 !py-1 text-xs">
                               <Eye className="h-3.5 w-3.5" /> Detail
                             </button>
@@ -575,38 +769,19 @@ export default function OffboardingPage() {
                     || (!!settlement?.settlement && !(viewing as any)?.settlementData?.disbursedAt)) && (
                     <button
                       type="button"
-                      onClick={async () => {
-                        try {
-                          const res = await fetch(`/api/humanify/offboarding-settlement?action=disburse&id=${viewing.id}`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({}),
-                          });
-                          const json = await res.json();
-                          if (json.success) {
-                            showToast('success', 'Settlement ditandai disbursed — siap unduh file bank');
-                            setSettlement((s: any) => ({
-                              ...(s || {}),
-                              ...json.data?.settlementData,
-                              disbursementStatus: 'disbursed',
-                            }));
-                            fetchAll();
-                          } else showToast('error', json.error || 'Gagal disburse');
-                        } catch {
-                          showToast('error', 'Gagal disburse settlement');
-                        }
-                      }}
-                      className="px-3 py-1.5 bg-teal-700 text-white text-xs rounded-lg hover:bg-teal-800"
+                      disabled={disbursingId === viewing.id}
+                      onClick={() => disburseSettlement(viewing.id)}
+                      className="px-3 py-1.5 bg-teal-700 text-white text-xs rounded-lg hover:bg-teal-800 disabled:opacity-50"
                     >
-                      Tandai Disburse
+                      {disbursingId === viewing.id ? 'Memproses…' : 'Tandai Disburse'}
                     </button>
                   )}
-                  <a
+                  <Link
                     href="/humanify/payroll/disbursement?mode=settlement"
-                    className="px-3 py-1.5 border border-green-300 text-green-800 text-xs rounded-lg hover:bg-green-100 inline-flex items-center"
+                    className="px-3 py-1.5 border border-green-300 text-green-800 text-xs rounded-lg hover:bg-green-100 inline-flex items-center gap-1"
                   >
-                    File Transfer Bank
-                  </a>
+                    <Banknote className="h-3.5 w-3.5" /> File Transfer Bank
+                  </Link>
                 </div>
                 {(viewing as any)?.settlementData?.disbursementStatus === 'disbursed' && (
                   <p className="mt-2 text-xs text-teal-700">
@@ -756,6 +931,25 @@ function StatusPill({ status }: { status: OffEntry['status'] }) {
         : 'bg-orange-50 text-orange-700';
   const label = status === 'completed' ? 'Selesai' : status === 'paused' ? 'Ditunda' : 'Proses';
   return <span className={`inline-flex shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold ${cls}`}>{label}</span>;
+}
+
+function SortTh({
+  label, active, dir, onClick, align,
+}: { label: string; active: boolean; dir: 'asc' | 'desc'; onClick: () => void; align?: 'right' }) {
+  const Icon = !active ? ArrowUpDown : dir === 'asc' ? ChevronUp : ChevronDown;
+  return (
+    <th className={align === 'right' ? 'text-right' : undefined}>
+      <button
+        type="button"
+        onClick={onClick}
+        className={`inline-flex items-center gap-1 text-xs font-semibold ${active ? 'text-[color:var(--hf-brand-600)]' : 'text-[color:var(--hf-ink-muted)]'}`}
+        aria-sort={active ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+      >
+        {label}
+        <Icon className="h-3.5 w-3.5" />
+      </button>
+    </th>
+  );
 }
 
 function ViewToggle({ value, onChange }: { value: 'card' | 'table'; onChange: (v: 'card' | 'table') => void }) {

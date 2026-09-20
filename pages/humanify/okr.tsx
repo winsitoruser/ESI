@@ -310,7 +310,13 @@ export default function OkrPage() {
               <Pill className={STATUS_CLS[o.status]}>{STATUS_LABELS[o.status]}</Pill>
               <span className="text-xs text-[color:var(--hf-ink-faint)]">{o.period}</span>
               {o.department && <span className="text-xs text-[color:var(--hf-ink-muted)]">· {getDepartmentLabel(o.department)}</span>}
-              {o.ownerName && <span className="text-xs text-[color:var(--hf-ink-muted)]">· {o.ownerName}</span>}
+              {o.ownerName ? (
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-[color:var(--hf-ink)]">
+                  <User className="h-3 w-3 text-[color:var(--hf-ink-faint)]" /> Owner: {o.ownerName}
+                </span>
+              ) : (
+                <span className="text-xs text-[color:var(--hf-ink-faint)]">· Owner belum diisi</span>
+              )}
             </div>
             <h3 className="text-sm font-semibold text-[color:var(--hf-ink)] sm:text-base">{o.title}</h3>
             {o.description && !opts?.compact && (
@@ -480,6 +486,23 @@ export default function OkrPage() {
                   {summary.byLevel[l] ? <span className="tabular-nums opacity-80">{summary.byLevel[l]}</span> : null}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => setStatusFilter(statusFilter === 'pending_approval' ? 'all' : 'pending_approval')}
+                className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-sm font-medium ${
+                  statusFilter === 'pending_approval'
+                    ? 'bg-amber-600 text-white'
+                    : 'bg-amber-50 text-amber-800 ring-1 ring-amber-200'
+                }`}
+                aria-pressed={statusFilter === 'pending_approval'}
+                data-testid="okr-pending-filter-chip"
+              >
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Menunggu persetujuan
+                <span className="tabular-nums opacity-90">
+                  {okrs.filter((o) => o.status === 'pending_approval').length}
+                </span>
+              </button>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as OkrStatus | 'all')} className="hf-input" aria-label="Filter status">

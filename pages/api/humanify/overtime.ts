@@ -273,6 +273,19 @@ async function approve(req: NextApiRequest, res: NextApiResponse, session: any, 
         overtimeId: id,
         dayType: ot.day_type,
       });
+      // Best-effort earn log into OT notes when credited
+      if (compOff.creditedDays > 0) {
+        const earnNote = `comp_off_earn=${compOff.creditedDays}d@${new Date().toISOString().slice(0, 10)}`;
+        await q(
+          `UPDATE overtime_requests SET notes = CASE
+             WHEN notes IS NULL OR notes = '' THEN :earn
+             WHEN notes LIKE '%comp_off_earn=%' THEN notes
+             ELSE notes || E'\\n' || :earn
+           END, updated_at = NOW()
+           WHERE id = :id AND tenant_id = :tid`,
+          { earn: earnNote, id, tid: tenantId },
+        ).catch(() => {});
+      }
     }
   } catch { /* accrual best-effort */ }
 

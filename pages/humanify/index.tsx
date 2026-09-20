@@ -223,6 +223,7 @@ const INBOX_TYPE_LABELS: Record<string, string> = {
   claim: 'Klaim',
   travel: 'Dinas',
   mutation: 'Mutasi',
+  mutation_due: 'Mutasi efektif',
   contract: 'Kontrak',
   documents: 'Dokumen',
   attendance: 'Absensi',

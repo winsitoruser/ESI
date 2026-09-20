@@ -104,12 +104,14 @@ export async function ensurePortalSchema(sequelize: any): Promise<void> {
           paid_date DATE,
           paid_by UUID,
           payment_ref VARCHAR(100),
+          travel_request_id UUID,
           created_at TIMESTAMPTZ DEFAULT NOW(),
           updated_at TIMESTAMPTZ DEFAULT NOW()
         )
       `);
       await query(`CREATE INDEX IF NOT EXISTS idx_emp_claim_empid ON employee_claims(employee_id)`);
       await query(`CREATE INDEX IF NOT EXISTS idx_emp_claim_status ON employee_claims(status)`);
+      await query(`CREATE INDEX IF NOT EXISTS idx_emp_claim_travel ON employee_claims(travel_request_id)`).catch(() => null);
     } else {
       const cols = await tableColumnsWith(query, 'employee_claims');
       const add = async (col: string, ddl: string) => {
@@ -121,6 +123,9 @@ export async function ensurePortalSchema(sequelize: any): Promise<void> {
       await add('rejected_by_name', 'rejected_by_name VARCHAR(255)');
       await add('rejected_at', 'rejected_at TIMESTAMPTZ');
       await add('resubmit_count', 'resubmit_count INTEGER DEFAULT 0');
+      await add('travel_request_id', 'travel_request_id UUID');
+      await add('claim_number', 'claim_number VARCHAR(50)');
+      await query(`CREATE INDEX IF NOT EXISTS idx_emp_claim_travel ON employee_claims(travel_request_id)`).catch(() => null);
     }
 
     if (await hasTableWith(query, 'overtime_requests')) {

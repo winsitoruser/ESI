@@ -1038,12 +1038,18 @@ async function getClaims(res: NextApiResponse, userId: string, tenantId: string)
     await ensurePortalSchema(sequelize);
     const [rows] = await sequelize.query(`
       SELECT c.*, c.rejection_reason, c.rejected_by_name, c.rejected_at, c.resubmit_count,
-             COALESCE(c.attachments_count, 0) as attachments_count
+             COALESCE(c.attachments_count, 0) as attachments_count,
+             tr.destination AS travel_destination,
+             tr.purpose AS travel_purpose,
+             tr.departure_date AS travel_departure_date,
+             tr.return_date AS travel_return_date,
+             tr.status AS travel_status
       FROM employee_claims c
       LEFT JOIN employees e ON c.employee_id = e.id
+      LEFT JOIN travel_requests tr ON tr.id = c.travel_request_id
       WHERE (e.user_id = :userId OR e.email = (SELECT email FROM users WHERE id = :userId))
       ${tenantId ? 'AND e.tenant_id = :tenantId AND c.tenant_id = :tenantId' : 'AND 1=0'}
-      ORDER BY c.created_at DESC LIMIT 20
+      ORDER BY c.created_at DESC LIMIT 50
     `, { replacements: { userId, tenantId } });
     if (!rows || rows.length === 0) {
       return res.json({ success: true, data: allowHrMockFallback() ? mockClaims() : [] });
@@ -1054,59 +1060,102 @@ async function getClaims(res: NextApiResponse, userId: string, tenantId: string)
   }
 }
 
+const TRAVEL_RELATED_CLAIM_TYPES = new Set([
+  'travel', 'travel_expense', 'accommodation', 'transport', 'meals', 'meal',
+]);
+
 async function createClaim(req: NextApiRequest, res: NextApiResponse, userId: string, tenantId: string) {
   const { claimType, amount, description, receiptDate, attachments } = req.body || {};
+  const travelRequestId = req.body?.travelRequestId || req.body?.travel_request_id || null;
   if (!claimType || !amount || !description) {
     return res.status(400).json({ success: false, error: 'Semua field harus diisi' });
   }
   if (!sequelize) {
     if (allowHrMockFallback()) {
-      return res.json({ success: true, data: { id: 'cl-new', claim_type: claimType, amount, description, status: 'pending' } });
+      return res.json({
+        success: true,
+        data: {
+          id: 'cl-new', claim_type: claimType, amount, description, status: 'pending',
+          travel_request_id: travelRequestId || null,
+        },
+      });
     }
     return res.status(503).json({ success: false, error: 'Database tidak tersedia' });
   }
   try {
     await ensurePortalSchema(sequelize);
+    // Wave-88: ensure link column exists even on older DBs
+    await sequelize.query(`ALTER TABLE employee_claims ADD COLUMN IF NOT EXISTS travel_request_id UUID`).catch(() => null);
+    await sequelize.query(`ALTER TABLE employee_claims ADD COLUMN IF NOT EXISTS claim_number VARCHAR(50)`).catch(() => null);
+
     const emp = await ensurePortalEmployee(sequelize, userId, tenantId);
     if (!emp?.id) {
       return res.status(400).json({ success: false, error: 'Profil karyawan belum tersedia' });
     }
+
+    let linkedTravelId: string | null = null;
+    if (travelRequestId) {
+      const [owned] = await sequelize.query(`
+        SELECT tr.id FROM travel_requests tr
+        WHERE tr.id = :trid
+          AND tr.employee_id = :empId
+          AND tr.tenant_id = :tenantId
+        LIMIT 1
+      `, { replacements: { trid: travelRequestId, empId: emp.id, tenantId: tenantId || emp.tenantId } });
+      if (!owned || (owned as any[]).length === 0) {
+        return res.status(400).json({ success: false, error: 'Perjalanan dinas tidak ditemukan atau bukan milik Anda' });
+      }
+      linkedTravelId = String(travelRequestId);
+    } else if (TRAVEL_RELATED_CLAIM_TYPES.has(String(claimType))) {
+      // travel-related types may omit trip; allow but do not force
+    }
+
     const now = new Date().toISOString();
     const { persistPortalClaimAttachments, serializeClaimReceipts } = await import('@/lib/hris/claim-receipt');
     const savedFiles = await persistPortalClaimAttachments(attachments, tenantId || emp.tenantId || '');
     const attachmentsCount = savedFiles.length;
     const receiptUrl = attachmentsCount > 0 ? serializeClaimReceipts(savedFiles) : null;
+
+    const tid = tenantId || emp.tenantId;
+    const [countRes] = await sequelize.query(
+      `SELECT COUNT(*)::int as cnt FROM employee_claims WHERE tenant_id = :tenantId`,
+      { replacements: { tenantId: tid } },
+    ).catch(() => [[{ cnt: 0 }]]);
+    const claimNumber = `CLM-${String((countRes?.[0]?.cnt || 0) + 1).padStart(5, '0')}`;
+
     await sequelize.query(`
       INSERT INTO employee_claims (
-        id, employee_id, claim_type, amount, description, receipt_date, claim_date,
-        status, tenant_id, receipt_url, attachments_count, created_at, updated_at
+        id, employee_id, claim_number, claim_type, amount, description, receipt_date, claim_date,
+        status, tenant_id, receipt_url, attachments_count, travel_request_id, created_at, updated_at
       ) VALUES (
-        uuid_generate_v4(), :employeeId, :claimType, :amount, :description, :receiptDate, :receiptDate,
-        'pending', :tenantId, :receiptUrl, :attachmentsCount, :now, :now
+        uuid_generate_v4(), :employeeId, :claimNumber, :claimType, :amount, :description, :receiptDate, :receiptDate,
+        'pending', :tenantId, :receiptUrl, :attachmentsCount, :travelRequestId, :now, :now
       )
     `, {
       replacements: {
         employeeId: emp.id,
+        claimNumber,
         claimType,
         amount: parseFloat(amount),
         description,
         receiptDate: receiptDate || now.slice(0, 10),
-        tenantId: tenantId || emp.tenantId,
+        tenantId: tid,
         receiptUrl,
         attachmentsCount,
+        travelRequestId: linkedTravelId,
         now,
       },
     });
 
     await notifyManagersForEmployee(sequelize, emp.id, {
-      tenantId: tenantId || emp.tenantId,
+      tenantId: tid,
       title: 'Klaim Baru Menunggu Persetujuan',
       message: `Klaim ${claimType} sebesar Rp ${parseFloat(amount).toLocaleString('id-ID')} menunggu persetujuan Anda.`,
       type: 'approval',
       sourceType: 'employee_claim',
     });
 
-    return res.json({ success: true, message: 'Klaim berhasil dikirim' });
+    return res.json({ success: true, message: 'Klaim berhasil dikirim', claimNumber });
   } catch (e: any) {
     console.warn('createClaim error:', e?.message || e);
     return res.status(500).json({ success: false, error: 'Gagal mengirim klaim', details: e?.message });
@@ -1114,7 +1163,8 @@ async function createClaim(req: NextApiRequest, res: NextApiResponse, userId: st
 }
 
 async function resubmitClaim(req: NextApiRequest, res: NextApiResponse, userId: string, tenantId: string) {
-  const { claimId, amount, description, receiptDate, attachments } = req.body;
+  const { claimId, amount, description, receiptDate, attachments } = req.body || {};
+  const travelRequestId = req.body?.travelRequestId || req.body?.travel_request_id;
   if (!claimId) return res.status(400).json({ success: false, error: 'claimId wajib diisi' });
   if (!sequelize) {
     return res.json({ success: true, message: 'Klaim berhasil diajukan ulang' });
@@ -1122,8 +1172,9 @@ async function resubmitClaim(req: NextApiRequest, res: NextApiResponse, userId: 
   try {
     // Verify ownership — employee can only resubmit their own rejected claim
     if (!tenantId) return res.status(403).json({ success: false, error: 'Tenant context required' });
+    await sequelize.query(`ALTER TABLE employee_claims ADD COLUMN IF NOT EXISTS travel_request_id UUID`).catch(() => null);
     const [owned] = await sequelize.query(`
-      SELECT c.id FROM employee_claims c
+      SELECT c.id, c.employee_id, c.travel_request_id FROM employee_claims c
       LEFT JOIN employees e ON c.employee_id = e.id
       WHERE c.id = :claimId AND c.status = 'rejected' AND c.tenant_id = :tenantId
         AND e.tenant_id = :tenantId
@@ -1133,6 +1184,20 @@ async function resubmitClaim(req: NextApiRequest, res: NextApiResponse, userId: 
     if (!owned || (owned as any[]).length === 0) {
       return res.status(404).json({ success: false, error: 'Klaim tidak ditemukan atau tidak bisa diajukan ulang' });
     }
+    const claimRow = (owned as any[])[0];
+    let nextTravelId = claimRow.travel_request_id || null;
+    if (travelRequestId !== undefined && travelRequestId !== null && travelRequestId !== '') {
+      const [trip] = await sequelize.query(`
+        SELECT tr.id FROM travel_requests tr
+        WHERE tr.id = :trid AND tr.employee_id = :empId AND tr.tenant_id = :tenantId
+        LIMIT 1
+      `, { replacements: { trid: travelRequestId, empId: claimRow.employee_id, tenantId } });
+      if (!trip || (trip as any[]).length === 0) {
+        return res.status(400).json({ success: false, error: 'Perjalanan dinas tidak ditemukan atau bukan milik Anda' });
+      }
+      nextTravelId = String(travelRequestId);
+    }
+    // If travelRequestId explicitly null/empty and sent, keep existing (do not wipe on resubmit)
     const attachmentsCount = Array.isArray(attachments) ? attachments.length : null;
     const { persistPortalClaimAttachments, serializeClaimReceipts } = await import('@/lib/hris/claim-receipt');
     const savedFiles = attachmentsCount
@@ -1148,6 +1213,7 @@ async function resubmitClaim(req: NextApiRequest, res: NextApiResponse, userId: 
           receipt_date = COALESCE(:receiptDate, receipt_date),
           receipt_url = COALESCE(:receiptUrl, receipt_url),
           attachments_count = COALESCE(:attachmentsCount, attachments_count),
+          travel_request_id = COALESCE(:travelRequestId, travel_request_id),
           rejection_reason = NULL,
           rejected_by = NULL,
           rejected_by_name = NULL,
@@ -1156,7 +1222,18 @@ async function resubmitClaim(req: NextApiRequest, res: NextApiResponse, userId: 
           resubmit_count = COALESCE(resubmit_count, 0) + 1,
           updated_at = NOW()
       WHERE id = :claimId AND tenant_id = :tenantId
-    `, { replacements: { claimId, tenantId, amount: amount ? parseFloat(amount) : null, description: description || null, receiptDate: receiptDate || null, receiptUrl, attachmentsCount: finalAttachmentsCount } });
+    `, {
+      replacements: {
+        claimId,
+        tenantId,
+        amount: amount ? parseFloat(amount) : null,
+        description: description || null,
+        receiptDate: receiptDate || null,
+        receiptUrl,
+        attachmentsCount: finalAttachmentsCount,
+        travelRequestId: nextTravelId,
+      },
+    });
     return res.json({ success: true, message: 'Klaim berhasil diajukan ulang dan sedang menunggu persetujuan' });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: 'Gagal mengajukan ulang klaim', details: e.message });

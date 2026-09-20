@@ -59,6 +59,10 @@ ensure_line "hr-automation-scan" "15 */6 * * *" \
 ensure_line "leave-escalation" "20 * * * *" \
   "node scripts/run-humanify-leave-escalation-scan.js >> ${LOG_DIR}/humanify-leave-escalation.log 2>&1 || true"
 
+# Deferred mutation apply — daily 01:15 UTC (08:15 WIB)
+ensure_line "mutation-apply-due" "15 1 * * *" \
+  "node scripts/run-humanify-mutation-apply-due-scan.js >> ${LOG_DIR}/humanify-mutation-apply-due.log 2>&1 || true"
+
 # Weekly Action Inbox digest — Mon 01:00 UTC (08:00 WIB)
 ensure_line "action-digest" "0 1 * * 1" \
   "node scripts/send-humanify-action-inbox-digest.js >> ${LOG_DIR}/humanify-action-digest.log 2>&1"

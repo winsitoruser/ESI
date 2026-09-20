@@ -153,8 +153,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       let customBlock = '';
       const answers = body.customAnswers || body.custom_answers;
-      if (answers && typeof answers === 'object') {
-        const lines = Object.entries(answers)
+      const answersObj = answers && typeof answers === 'object' && !Array.isArray(answers)
+        ? answers
+        : {};
+      if (Object.keys(answersObj).length) {
+        const lines = Object.entries(answersObj)
           .filter(([, v]) => v !== null && v !== undefined && String(v).trim() !== '')
           .map(([k, v]) => `${k}: ${String(v).slice(0, 500)}`);
         if (lines.length) customBlock = `\n\n--- Jawaban field kustom ---\n${lines.join('\n')}`;
@@ -162,14 +165,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       try {
         await sequelize.query(`ALTER TABLE hris_candidates ADD COLUMN IF NOT EXISTS custom_answers JSONB DEFAULT '{}'`);
+        await sequelize.query(`ALTER TABLE hris_candidates ADD COLUMN IF NOT EXISTS custom_field_values JSONB DEFAULT '{}'`);
       } catch { /* optional */ }
+
+      const answersJson = JSON.stringify(answersObj);
 
       const [rows] = await sequelize.query(`
         INSERT INTO hris_candidates (
           tenant_id, job_opening_id, full_name, email, phone, current_stage, status,
-          source, experience_summary, education_level, notes, applied_date, custom_answers
+          source, experience_summary, education_level, notes, applied_date,
+          custom_answers, custom_field_values
         ) VALUES (
-          $1, $2, $3, $4, $5, 'applied', 'active', 'careers_portal', $6, $7, $8, CURRENT_DATE, $9::jsonb
+          $1, $2, $3, $4, $5, 'applied', 'active', 'careers_portal', $6, $7, $8, CURRENT_DATE,
+          $9::jsonb, $9::jsonb
         ) RETURNING id, full_name, email, current_stage, applied_date
       `, {
         bind: [
@@ -181,7 +189,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           body.experience || body.coverLetter || '',
           body.education || '',
           `${body.coverLetter || ''}${customBlock}`.trim(),
-          JSON.stringify(answers && typeof answers === 'object' ? answers : {}),
+          answersJson,
         ],
       });
 
@@ -194,7 +202,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(201).json({
         success: true,
         data: rows?.[0],
-        message: 'Lamaran berhasil dikirim. Tim HR akan menghubungi Anda.',
+        message: 'Lamaran berhasil dikirim. Tim HR akan menghubungi Anda dalam 3–5 hari kerja.',
         tenant: { slug: tenant.slug, name: tenant.name },
       });
     }

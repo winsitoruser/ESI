@@ -79,6 +79,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         case 'create-disciplinary': return createDisciplinary(req, res, session);
         case 'submit-disciplinary': return submitDisciplinary(req, res, session);
         case 'issue-disciplinary': return issueDisciplinary(req, res, session, isSuperAdmin);
+        case 'assign-kpi': return assignKpiToReport(req, res, session, isSuperAdmin);
+        case 'assign-okr': return assignOkrToReport(req, res, session, isSuperAdmin);
         default: return res.status(400).json({ error: 'Unknown action' });
       }
     }
@@ -265,13 +267,27 @@ async function getPendingApprovals(res: NextApiResponse, userId: string, tenantI
   const claimTenant = tenantId ? 'AND c.tenant_id = :tenantId' : '';
   let claims = await tryRows(`
     SELECT c.id, c.claim_type, c.amount, c.claim_date, c.description, c.status, c.created_at,
-      c.receipt_url, c.attachments_count,
+      c.receipt_url, c.attachments_count, c.claim_number, c.travel_request_id,
+      tr.destination AS travel_destination, tr.purpose AS travel_purpose,
+      tr.request_number AS travel_request_number,
       e.name AS employee_name, e.position, e.department, e.photo_url, 'claim' AS approval_type
     FROM employee_claims c
     JOIN employees e ON c.employee_id::text = e.id::text
+    LEFT JOIN travel_requests tr ON tr.id::text = c.travel_request_id::text
     WHERE c.status = 'pending' ${claimTenant} ${tf.sql}
     ORDER BY c.created_at ASC LIMIT 50
   `, base, 'claim_pending');
+  if (claims == null) {
+    claims = (await tryRows(`
+      SELECT c.id, c.claim_type, c.amount, c.claim_date, c.description, c.status, c.created_at,
+        c.receipt_url, c.attachments_count,
+        e.name AS employee_name, e.position, e.department, e.photo_url, 'claim' AS approval_type
+      FROM employee_claims c
+      JOIN employees e ON c.employee_id::text = e.id::text
+      WHERE c.status = 'pending' ${claimTenant} ${tf.sql}
+      ORDER BY c.created_at ASC LIMIT 50
+    `, base, 'claim_pending_fallback')) || [];
+  }
   if (claims == null) {
     claims = (await tryRows(`
       SELECT c.id, c.claim_type, c.amount, c.claim_date, c.description, c.status, c.created_at,
@@ -656,15 +672,49 @@ async function approveOvertime(req: NextApiRequest, res: NextApiResponse, sessio
       WHERE id = :id AND tenant_id = :tenantId AND status = 'pending'
     `, { replacements: { id, approverId, comments: comments || null, tenantId } });
 
+    let compOffDays = 0;
+    try {
+      const { creditCompOffFromOvertime } = await import('@/lib/hris/comp-off-earn');
+      const hours = Number(row.duration_hours ?? row.hours ?? 0) || 0;
+      const credited = await creditCompOffFromOvertime({
+        tenantId,
+        employeeId: String(row.employee_id),
+        hours,
+        overtimeId: String(id),
+        dayType: row.day_type,
+      });
+      compOffDays = credited.creditedDays || 0;
+      if (compOffDays > 0) {
+        const earnNote = `comp_off_earn=${compOffDays}d@${new Date().toISOString().slice(0, 10)}`;
+        await sequelize.query(
+          `UPDATE overtime_requests SET notes = CASE
+             WHEN notes IS NULL OR notes = '' THEN :earn
+             WHEN notes LIKE '%comp_off_earn=%' THEN notes
+             ELSE notes || E'\\n' || :earn
+           END, updated_at = NOW()
+           WHERE id = :id AND tenant_id = :tenantId`,
+          { replacements: { earn: earnNote, id, tenantId } },
+        ).catch(() => {});
+      }
+    } catch { /* accrual best-effort */ }
+
     await notifyEmployeeByEmployeeId(sequelize, row.employee_id, {
       tenantId,
       title: 'Lembur Disetujui',
-      message: `Pengajuan lembur ${row.date || row.request_date} (${row.duration_hours || row.hours || 0} jam) telah disetujui.`,
+      message: compOffDays > 0
+        ? `Pengajuan lembur ${row.date || row.request_date} (${row.duration_hours || row.hours || 0} jam) disetujui — ${compOffDays} hari cuti pengganti dikreditkan.`
+        : `Pengajuan lembur ${row.date || row.request_date} (${row.duration_hours || row.hours || 0} jam) telah disetujui.`,
       type: 'success',
       sourceType: 'employee_overtime',
       sourceId: String(id),
     });
-    return res.json({ success: true, message: 'Lembur disetujui' });
+    return res.json({
+      success: true,
+      message: compOffDays > 0
+        ? `Lembur disetujui — ${compOffDays} hari cuti pengganti dikreditkan`
+        : 'Lembur disetujui',
+      compOffDays,
+    });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: e.message });
   }
@@ -887,6 +937,141 @@ async function issueDisciplinary(req: NextApiRequest, res: NextApiResponse, sess
   });
 
   return res.json({ success: true, message: `${letter.letter_type} ${letterNumber} berhasil diterbitkan` });
+}
+
+/** Assert employeeId is on manager's team (or super admin). */
+async function assertEmployeeOnTeam(opts: {
+  employeeId: string;
+  tenantId: string;
+  userId: string;
+  isSuperAdmin: boolean;
+}): Promise<{ ok: true; row: any } | { ok: false; status: number; error: string }> {
+  if (!sequelize) return { ok: false, status: 503, error: 'DB unavailable' };
+  const ctx = await resolveManagerContextLocal(opts.userId);
+  const tf = teamFilterClause(opts.isSuperAdmin, ctx, opts.userId);
+  const [rows] = await sequelize.query(
+    `SELECT e.id, e.name, e.department, e.branch_id, e.position
+     FROM employees e
+     WHERE e.id::text = :eid AND e.tenant_id = :tid ${tf.sql}
+     LIMIT 1`,
+    { replacements: { eid: opts.employeeId, tid: opts.tenantId, ...tf.replacements } },
+  ).catch(() => [[]]);
+  if (!rows?.[0]) return { ok: false, status: 403, error: 'Karyawan tidak dalam tim Anda' };
+  return { ok: true, row: rows[0] };
+}
+
+async function assignKpiToReport(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  session: any,
+  isSuperAdmin: boolean,
+) {
+  const tenantId = String(session.user?.tenantId || '');
+  if (!tenantId) return res.status(403).json({ success: false, error: 'Tenant context required' });
+  const body = req.body || {};
+  const employeeId = String(body.employeeId || '');
+  const metricName = String(body.metricName || body.metric_name || '').trim();
+  const target = Number(body.target);
+  if (!employeeId || !metricName || !Number.isFinite(target)) {
+    return res.status(400).json({ success: false, error: 'employeeId, metricName, dan target wajib' });
+  }
+  const scoped = await assertEmployeeOnTeam({
+    employeeId,
+    tenantId,
+    userId: String(session.user?.id || ''),
+    isSuperAdmin,
+  });
+  if (!scoped.ok) return res.status(scoped.status).json({ success: false, error: scoped.error });
+
+  const period = String(body.period || new Date().toISOString().slice(0, 7));
+  const unit = String(body.unit || '%');
+  const weight = Number(body.weight) || 1;
+  const category = String(body.category || 'performance');
+
+  try {
+    const [result] = await sequelize.query(`
+      INSERT INTO employee_kpis (id, employee_id, branch_id, period, metric_name, category, target, actual, unit, weight, status)
+      VALUES (gen_random_uuid(), :eid, :bid, :period, :name, :category, :target, 0, :unit, :weight, 'pending')
+      ON CONFLICT (employee_id, metric_name, period) DO UPDATE SET
+        target = EXCLUDED.target, weight = EXCLUDED.weight, category = EXCLUDED.category, unit = EXCLUDED.unit
+      RETURNING id, metric_name, target, period
+    `, {
+      replacements: {
+        eid: employeeId,
+        bid: scoped.row.branch_id || null,
+        period,
+        name: metricName.slice(0, 200),
+        category,
+        target,
+        unit,
+        weight,
+      },
+    });
+    await notifyEmployeeByEmployeeId(sequelize, employeeId, {
+      tenantId,
+      title: 'KPI baru dari atasan',
+      message: `Metric "${metricName}" (target ${target}${unit}) untuk periode ${period} telah ditetapkan.`,
+      type: 'info',
+      sourceType: 'employee_kpi',
+      sourceId: String(result?.[0]?.id || ''),
+    }).catch(() => null);
+    return res.json({ success: true, data: result?.[0], message: 'KPI ditetapkan ke anggota tim' });
+  } catch (e: any) {
+    return res.status(500).json({ success: false, error: e.message || 'Gagal assign KPI' });
+  }
+}
+
+async function assignOkrToReport(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  session: any,
+  isSuperAdmin: boolean,
+) {
+  const tenantId = String(session.user?.tenantId || '');
+  if (!tenantId) return res.status(403).json({ success: false, error: 'Tenant context required' });
+  const body = req.body || {};
+  const employeeId = String(body.employeeId || '');
+  const title = String(body.title || '').trim();
+  if (!employeeId || !title) {
+    return res.status(400).json({ success: false, error: 'employeeId dan title wajib' });
+  }
+  const scoped = await assertEmployeeOnTeam({
+    employeeId,
+    tenantId,
+    userId: String(session.user?.id || ''),
+    isSuperAdmin,
+  });
+  if (!scoped.ok) return res.status(scoped.status).json({ success: false, error: scoped.error });
+
+  try {
+    const { createOkr } = await import('@/lib/hris/okr-store');
+    const okr = await createOkr({
+      tenantId,
+      title: title.slice(0, 300),
+      description: body.description || null,
+      level: 'individual',
+      ownerId: employeeId,
+      ownerName: scoped.row.name,
+      department: scoped.row.department || null,
+      parentId: body.parentId || null,
+      cycle: body.cycle || 'quarterly',
+      period: body.period || undefined,
+      status: 'active',
+      keyResults: Array.isArray(body.keyResults) ? body.keyResults : [],
+    });
+    if (!okr) return res.status(500).json({ success: false, error: 'Gagal membuat OKR' });
+    await notifyEmployeeByEmployeeId(sequelize, employeeId, {
+      tenantId,
+      title: 'OKR baru dari atasan',
+      message: `Objective "${title}" telah ditetapkan untuk Anda.`,
+      type: 'info',
+      sourceType: 'okr',
+      sourceId: String((okr as any).id || ''),
+    }).catch(() => null);
+    return res.json({ success: true, data: okr, message: 'OKR ditetapkan ke anggota tim' });
+  } catch (e: any) {
+    return res.status(500).json({ success: false, error: e.message || 'Gagal assign OKR' });
+  }
 }
 
 export default withEmployeeAuth(handler);

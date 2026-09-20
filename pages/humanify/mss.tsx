@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import HQLayout from '@/components/humanify/HumanifyLayout';
 import DataSourceBadge from '@/components/humanify/DataSourceBadge';
 import type { HrisDataSource } from '@/lib/hris/data-source';
@@ -16,6 +17,7 @@ import HrisEmptyState from '@/components/humanify/HrisEmptyState';
 import HRStatCard from '@/components/humanify/HRStatCard';
 import { OpsKpiShell } from '@/components/humanify/OpsPageChrome';
 import { PlatformAccessShell } from '@/components/humanify/PlatformAccessNav';
+import { isMutationDeferredPending } from '@/lib/hris/mutation-apply-due';
 
 type MSSTab = 'overview' | 'claims-approval' | 'mutations-approval' | 'overtime-approval' | 'training-approval' | 'okr-approval' | 'travel-approval' | 'team';
 
@@ -204,7 +206,13 @@ export default function MSSPortalPage() {
       });
       const json = await res.json();
       if (json.success) {
-        showToast('success', json.message || 'Berhasil');
+        const deferred = !!json.deferred;
+        const msg = deferred
+          ? (json.message || 'Disetujui — penempatan menunggu tanggal efektif')
+          : (approvalType === 'overtime' && json.compOffDays > 0
+            ? (json.message || `Lembur disetujui — ${json.compOffDays} hari cuti pengganti`)
+            : (json.message || 'Berhasil'));
+        showToast('success', msg);
         setShowApprovalModal(false);
         if (approvalType === 'claim')    fetchClaims(filterStatus || undefined);
         else if (approvalType === 'mutation') fetchMutations(filterStatus || undefined);
@@ -374,6 +382,19 @@ export default function MSSPortalPage() {
                             </div>
                             <p className="text-xs text-[color:var(--hf-ink-faint)] mt-0.5">Tanggal: {fmtDate(c.claim_date)} {c.description ? `• ${c.description}` : ''}</p>
                             <p className="text-lg font-bold text-[color:var(--hf-ink)] mt-1">{fmtCurrency(c.amount)}</p>
+                            {(c.travel_request_id || c.travel_destination) && (
+                              <p className="mt-1 text-xs text-teal-700 font-medium">
+                                ✈️ Trip:{' '}
+                                <Link
+                                  href={`/humanify/travel-expense?request=${c.travel_request_id || ''}`}
+                                  className="underline hover:text-teal-900"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {c.travel_request_number || c.travel_destination || 'Lihat perjalanan'}
+                                </Link>
+                                {c.travel_purpose ? ` · ${c.travel_purpose}` : ''}
+                              </p>
+                            )}
                             {c.approved_amount && c.approved_amount !== c.amount && (
                               <p className="text-xs text-green-600">Disetujui: {fmtCurrency(c.approved_amount)}</p>
                             )}
@@ -486,6 +507,11 @@ export default function MSSPortalPage() {
                               </div>
                             </div>
                             <p className="text-xs text-[color:var(--hf-ink-faint)] mt-2">Efektif: {fmtDate(m.effective_date)} {m.reason ? `• Alasan: ${m.reason}` : ''}</p>
+                            {isMutationDeferredPending(m.status, m.effective_date) && (
+                              <p className="text-[11px] text-sky-700 mt-1 bg-sky-50 inline-block px-2 py-0.5 rounded">
+                                Menunggu efektif — penempatan belum diterapkan
+                              </p>
+                            )}
                             {m.new_salary && <p className="text-xs text-[color:var(--hf-ink-muted)]">Gaji baru: {fmtCurrency(m.new_salary)}</p>}
                           </div>
                           {m.status === 'pending' && (
@@ -570,11 +596,32 @@ export default function MSSPortalPage() {
                 <h3 className="font-semibold text-[color:var(--hf-ink)]">Permintaan Pelatihan</h3>
                 {trainingReqs.length === 0 ? (
                   <HrisEmptyState source={dataSource} title="Tidak ada permintaan pelatihan" description="Pengajuan dari ESS akan muncul di sini." />
-                ) : trainingReqs.map((r: any) => (
+                ) : trainingReqs.map((r: any) => {
+                  const preferred = r.preferredDate || r.preferred_date;
+                  const programTitle = r.programTitle || r.program_title;
+                  const statusCls = r.status === 'pending'
+                    ? 'bg-amber-50 text-amber-800'
+                    : r.status === 'approved'
+                      ? 'bg-emerald-50 text-emerald-800'
+                      : 'bg-slate-100 text-slate-600';
+                  return (
                   <div key={r.id} className="border rounded-lg p-4 flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-medium text-[color:var(--hf-ink)]">{r.topic || r.programTitle}</p>
-                      <p className="text-xs text-[color:var(--hf-ink-muted)] mt-1">{r.employeeName || r.employee_name} · {r.status}</p>
+                    <div className="min-w-0">
+                      <p className="font-medium text-[color:var(--hf-ink)]">{r.topic || programTitle || 'Pelatihan'}</p>
+                      {programTitle && (
+                        <p className="text-xs text-[color:var(--hf-brand-600)] mt-0.5 font-medium">Program: {programTitle}</p>
+                      )}
+                      <p className="text-xs text-[color:var(--hf-ink-muted)] mt-1 flex flex-wrap items-center gap-2">
+                        <span>{r.employeeName || r.employee_name}</span>
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusCls}`}>
+                          {r.status === 'pending' ? 'Menunggu' : r.status === 'approved' ? 'Disetujui' : r.status}
+                        </span>
+                        {preferred && (
+                          <span className="tabular-nums">
+                            Preferensi {new Date(preferred).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </span>
+                        )}
+                      </p>
                       {r.justification && <p className="text-xs text-[color:var(--hf-ink-faint)] mt-1">{r.justification}</p>}
                     </div>
                     {r.status === 'pending' && (
@@ -584,7 +631,8 @@ export default function MSSPortalPage() {
                       </div>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -597,7 +645,11 @@ export default function MSSPortalPage() {
                   <div key={o.id} className="border rounded-lg p-4 flex items-start justify-between gap-3">
                     <div>
                       <p className="font-medium text-[color:var(--hf-ink)]">{o.title}</p>
-                      <p className="text-xs text-[color:var(--hf-ink-muted)] mt-1">{o.ownerName || o.owner_name} · {o.level} · {o.period}</p>
+                      <p className="text-xs text-[color:var(--hf-ink-muted)] mt-1">
+                        <span className="font-semibold text-[color:var(--hf-ink)]">Owner: {o.ownerName || o.owner_name || '—'}</span>
+                        {' · '}{o.level} · {o.period}
+                      </p>
+                      {o.description && <p className="text-xs text-[color:var(--hf-ink-faint)] mt-1 line-clamp-2">{o.description}</p>}
                     </div>
                     <div className="flex gap-2 shrink-0">
                       <button type="button" onClick={() => openApproval('okr', o, 'approve')} className="px-3 py-1.5 text-sm rounded-[var(--hf-radius)] bg-[var(--hf-success)] text-white">Setujui</button>
