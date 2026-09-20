@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import {
   listPayrollInputs, createPayrollInput, updatePayrollInputStatus, getPayrollInputsSummary,
+  earlySettlePayrollInput,
   type PayrollInputType,
 } from '@/lib/hris/payroll-inputs-store';
 import { withHQAuth } from '@/lib/middleware/withHQAuth';
@@ -36,6 +37,16 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     if (req.method === 'POST') {
       const body = req.body || {};
+      // Early settle active kasbon/loan (remaining → 0, status completed)
+      if (body.action === 'settle' || action === 'settle') {
+        const settleId = String(body.id || id || '');
+        if (!settleId) return res.status(400).json({ error: 'id wajib untuk settle' });
+        const record = await earlySettlePayrollInput(settleId, tenantId, approvedByName);
+        if (!record) {
+          return res.status(404).json({ error: 'Kasbon/pinjaman aktif tidak ditemukan' });
+        }
+        return res.json({ success: true, data: record, message: 'Pelunasan dini berhasil — sisa = 0' });
+      }
       if (!VALID_TYPES.has(body.type)) {
         return res.status(400).json({ error: 'type wajib: bonus | cash_advance | loan' });
       }
@@ -51,7 +62,18 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 
     if (req.method === 'PUT' && id) {
-      const { status, approvedBy } = req.body || {};
+      const body = req.body || {};
+      if (body.action === 'settle' || body.status === 'completed') {
+        // Prefer dedicated early-settle path when marking completed on balance types
+        if (body.action === 'settle') {
+          const record = await earlySettlePayrollInput(id as string, tenantId, approvedByName);
+          if (!record) {
+            return res.status(404).json({ error: 'Kasbon/pinjaman aktif tidak ditemukan' });
+          }
+          return res.json({ success: true, data: record, message: 'Pelunasan dini berhasil — sisa = 0' });
+        }
+      }
+      const { status, approvedBy } = body;
       if (!VALID_STATUSES.has(String(status))) {
         return res.status(400).json({ error: 'Status tidak valid' });
       }

@@ -1,5 +1,33 @@
 # Handoff — SIMESI (fka ESI ERP)
 
+> Diperbarui: 20 September 2026 — **Waves 86–100 Done (catalog + guards + AGG smoke)**
+
+Checklist: `docs/humanify-waves-86-100.md` · aggregate: `npm run smoke:waves-86-100`
+
+| Wave | Theme | Status |
+|---|---|---|
+| **86** | Mutation defer depth — Menunggu efektif, `due_soon`, inbox `mutation_due`, sidebar badge, cron apply | Done (≥30) |
+| **87** | Comp-off & leave — LeaveTab highlight, maternity exempt, OT earn notes, MSS/Manager `compOffDays` | Done (≥30) |
+| **88** | Claims ↔ travel | Done (≥30) |
+| **89** | Recruitment ATS / careers | Done (≥30) |
+| **90** | Offboarding / final settlement | Done (≥30) |
+| **91** | Training request → LMS | Done (≥30) |
+| **92** | OKR / KPI cascade | Done (≥30) |
+| **93** | Desk / support — sanitize, NO_TENANT, rate-limit | Done (≥30) |
+| **94** | Workforce / manpower position titles | Done (≥30) |
+| **95** | MSS inbox OKR/Travel/Training | Done (≥30) |
+| **96** | Kasbon / settlement — early settle, HQ chips, ESS progress, offboarding breakdown | Done |
+| **97** | ESS mutasi — cancel pending, past-date block, days-until, pending cap=1, leave/desk polish | Done |
+| **98** | Crons — `--check` mode, UTC↔WIB docs, logrotate hint, appliedCount | Done |
+| **99** | Auth / guards — desk sanitize, team asserts, HOLD wipe | Done (≥30) |
+| **100** | Closeout docs + meta + AGG smoke + package dedupe | Done (≥30) |
+
+**Smoke:** `npm run smoke:waves-86-100` · **Deployed 20 Sep 2026** (humanify.id · BUILD_OK) · **HOLD launch** tetap.
+
+Gaps closed: ESS `cancel-leave` + cron `--check` keduanya Done.
+
+---
+
 > Diperbarui: 20 September 2026 — **Wave-86 + Wave-87 implemented (mutation defer + comp-off leave)**
 
 Checklist: `docs/humanify-waves-86-100.md` · smoke: `npm run smoke:wave86` · `npm run smoke:wave87`
@@ -8,7 +36,7 @@ Checklist: `docs/humanify-waves-86-100.md` · smoke: `npm run smoke:wave86` · `
 |---|---|---|
 | **86** | Mutation defer depth — Menunggu efektif UI, `due_soon`, inbox `mutation_due`, sidebar badge, reject clears waiting, apply stamp | Done (≥30) |
 | **87** | Comp-off & leave — LeaveTab highlight, maternity exempt, OT earn notes, MSS/Manager `compOffDays` toast | Done (≥30) |
-| 88–100 | Reserved in docs catalog | Pending |
+| 88–100 | See scorecard above | Done |
 
 Belum deploy / belum commit. HOLD launch tetap.
 

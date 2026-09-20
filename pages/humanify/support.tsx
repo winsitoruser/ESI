@@ -23,6 +23,7 @@ type Ticket = {
   created_at?: string;
   updated_at?: string;
   resolution_note?: string;
+  last_comment_snippet?: string;
 };
 
 type Comment = {
@@ -73,6 +74,7 @@ export default function SupportTicketsPage() {
   const [q, setQ] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState<'all' | 'high_urgent'>('all');
   const [showCreate, setShowCreate] = useState(false);
   const [selected, setSelected] = useState<Ticket | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -99,6 +101,7 @@ export default function SupportTicketsPage() {
       const params = new URLSearchParams();
       if (statusFilter !== 'all') params.set('status', statusFilter);
       if (categoryFilter !== 'all') params.set('category', categoryFilter);
+      if (priorityFilter !== 'all') params.set('priority', priorityFilter);
       if (q.trim()) params.set('q', q.trim());
       const [listRes, sumRes] = await Promise.all([
         fetch(`/api/humanify/support?${params}`),
@@ -115,7 +118,7 @@ export default function SupportTicketsPage() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, categoryFilter, q]);
+  }, [statusFilter, categoryFilter, priorityFilter, q]);
 
   useEffect(() => {
     load();
@@ -303,8 +306,27 @@ export default function SupportTicketsPage() {
               className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm"
             />
           </div>
-          <div className="flex items-center gap-2 text-sm text-gray-500">
+          <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
             <Filter className="w-4 h-4" />
+            <div className="flex gap-1.5">
+              {([
+                { id: 'all' as const, label: 'Semua prioritas' },
+                { id: 'high_urgent' as const, label: 'Tinggi & Mendesak' },
+              ]).map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setPriorityFilter(p.id)}
+                  className={`text-xs px-2.5 py-1.5 rounded-full border transition-colors ${
+                    priorityFilter === p.id
+                      ? 'bg-[var(--hf-brand)] text-white border-[var(--hf-brand)]'
+                      : 'bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -502,7 +524,7 @@ export default function SupportTicketsPage() {
                   <input
                     id="support-assignee"
                     className="w-full border rounded-lg px-3 py-2 text-sm"
-                    placeholder="Nama / email handler"
+                    placeholder="Nama atau email handler (contoh: budi@perusahaan.com)"
                     value={assigneeDraft}
                     onChange={(e) => setAssigneeDraft(e.target.value)}
                   />

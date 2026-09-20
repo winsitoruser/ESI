@@ -53,6 +53,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         tenantId,
         status: req.query.status as string | undefined,
         category: req.query.category as string | undefined,
+        priority: req.query.priority as string | undefined,
         q: req.query.q as string | undefined,
       });
       return res.json({ success: true, data, dataSource: data.length ? 'live' : 'empty' });

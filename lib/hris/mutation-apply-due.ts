@@ -172,20 +172,24 @@ export async function scanDueMutations(opts?: {
 export async function scanAllTenantsDueMutations(opts?: { dryRun?: boolean }): Promise<{
   tenants: number;
   applied: number;
+  scanned: number;
   dryRun: boolean;
 }> {
-  if (!sequelize) return { tenants: 0, applied: 0, dryRun: !!opts?.dryRun };
+  if (!sequelize) return { tenants: 0, applied: 0, scanned: 0, dryRun: !!opts?.dryRun };
   const [tenants] = await sequelize.query(
     `SELECT DISTINCT tenant_id FROM employee_mutations
      WHERE status = 'approved' AND effective_date::date <= CURRENT_DATE AND tenant_id IS NOT NULL`,
   ).catch(() => [[]]);
   let applied = 0;
+  let scanned = 0;
   for (const t of tenants || []) {
     const r = await scanDueMutations({ tenantId: t.tenant_id, dryRun: opts?.dryRun });
     applied += r.applied;
+    scanned += r.scanned;
   }
   // Also handle rows without tenant_id
   const orphan = await scanDueMutations({ dryRun: opts?.dryRun });
   applied += orphan.applied;
-  return { tenants: (tenants || []).length, applied, dryRun: !!opts?.dryRun };
+  scanned += orphan.scanned;
+  return { tenants: (tenants || []).length, applied, scanned, dryRun: !!opts?.dryRun };
 }

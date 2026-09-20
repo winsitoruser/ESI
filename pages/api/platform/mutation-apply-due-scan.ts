@@ -69,7 +69,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const result = tenantId
       ? await scanDueMutations({ tenantId: String(tenantId), dryRun })
       : await scanAllTenantsDueMutations({ dryRun });
-    return res.json({ success: true, data: result });
+    // Flatten applied/scanned for cron log grepping / observability
+    const applied = Number((result as any).applied || 0);
+    const scanned = Number((result as any).scanned ?? (result as any).tenants ?? 0);
+    return res.json({
+      success: true,
+      data: {
+        ...result,
+        applied,
+        scanned,
+        appliedCount: applied,
+        scannedCount: scanned,
+        dryRun: !!dryRun,
+      },
+    });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: e.message || 'Scan failed' });
   }

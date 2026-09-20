@@ -1,17 +1,21 @@
 /**
  * ESS internal helpdesk / desk request (FlowHCM Desk Management).
  * Creates tenant support tickets with HR/IT/facility categories.
+ * Fail-closed: missing tenant → 403 NO_TENANT (no mock fallback).
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 import { withEmployeeAuth } from '@/lib/middleware/withEmployeeAuth';
 import { createTicket, listTickets } from '@/lib/hris/support-store';
+import { sanitizePlainText } from '@/lib/security/sanitize-user-text';
+import { checkLimit, RateLimitTier } from '@/lib/middleware/rateLimit';
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
   if (!session?.user) return res.status(401).json({ error: 'Unauthorized' });
   const tenantId = (session.user as any)?.tenantId || null;
+  // Fail-closed: never create/list desk tickets without tenant binding
   if (!tenantId) return res.status(403).json({ error: 'NO_TENANT' });
 
   const user = session.user as any;
@@ -30,9 +34,10 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 
     if (req.method === 'POST') {
+      if (!(await checkLimit(req, res, RateLimitTier.SENSITIVE))) return;
       const body = req.body || {};
-      const subject = String(body.subject || '').trim();
-      const description = String(body.description || '').trim();
+      const subject = sanitizePlainText(body.subject, 300);
+      const description = sanitizePlainText(body.description, 5000);
       if (!subject || !description) {
         return res.status(400).json({ error: 'Subjek dan deskripsi wajib' });
       }
@@ -40,8 +45,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       if (!INTERNAL.has(category)) category = 'other';
       const ticket = await createTicket({
         tenantId,
-        subject: subject.slice(0, 300),
-        description: description.slice(0, 5000),
+        subject,
+        description,
         category,
         priority: body.priority || 'normal',
         requesterName: user.name || user.email,

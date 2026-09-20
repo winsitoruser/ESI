@@ -754,6 +754,13 @@ export default function OffboardingPage() {
                   <label className="text-xs">Sisa Pinjaman<input type="number" value={settlementForm.loanBalance} onChange={e => setSettlementForm(f => ({ ...f, loanBalance: +e.target.value }))} className="w-full mt-0.5 px-2 py-1 border rounded text-sm" /></label>
                   <label className="text-xs">Sisa Kasbon<input type="number" value={settlementForm.cashAdvanceBalance} onChange={e => setSettlementForm(f => ({ ...f, cashAdvanceBalance: +e.target.value }))} className="w-full mt-0.5 px-2 py-1 border rounded text-sm" /></label>
                 </div>
+                {(settlementForm.cashAdvanceBalance > 0 || settlementForm.loanBalance > 0) && (
+                  <p className="mb-3 text-[11px] text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5" data-testid="kasbon-settlement-breakdown">
+                    Potongan settlement: kasbon {fmt(settlementForm.cashAdvanceBalance)}
+                    {settlementForm.loanBalance > 0 ? ` + pinjaman ${fmt(settlementForm.loanBalance)}` : ''}
+                    {' '}(prefill dari sisa outstanding payroll-inputs)
+                  </p>
+                )}
                 <div className="flex gap-2">
                   <button onClick={() => calculateSettlement(viewing)} disabled={calculatingSettlement}
                     className="px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 disabled:opacity-50">

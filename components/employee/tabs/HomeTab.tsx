@@ -43,6 +43,7 @@ export interface HomeTabProps {
   pendingClaims: any[];
   pendingTravel: any[];
   setOtModal: (...args: any[]) => any;
+  openDeskTicketCount?: number;
 }
 
 
@@ -66,6 +67,7 @@ const claimTypeLabel = (v: string) => CLAIM_TYPE_LABELS[v] || v;
 export default function HomeTab({
   greeting, userName, userPosition, userBranch, userDept, todayAttendance, canClockIn, canClockOut, clocking, handleClockIn, handleClockOut, monthAttendance, lastClockEvent, lastCheckIn, lastCheckOut, isManagerPortal, managerPendingCount, goToTab, isMfAgent, mfOverview, unreadCount, openNotifications, announcements, tenantAnnouncement, notifications, kpiScore, kpiMetrics, setModal,
   leaveBalance = [], pendingLeaves = [], pendingClaims = [], pendingTravel = [], setOtModal,
+  openDeskTicketCount = 0,
 }: HomeTabProps) {
   return (
 <div className="space-y-4">
@@ -368,9 +370,9 @@ export default function HomeTab({
             { icon: Wallet, label: 'Gaji', gradient: 'from-sky-500 to-blue-600', action: () => goToTab('payslip') },
             { icon: Receipt, label: 'Klaim', gradient: 'from-emerald-500 to-teal-600', action: () => setModal('claim') },
             { icon: Timer, label: 'Lembur', gradient: 'from-orange-500 to-rose-500', action: () => { goToTab('overtime'); setTimeout(() => setOtModal('new'), 100); } },
-            { icon: LifeBuoy, label: 'Desk', gradient: 'from-violet-500 to-indigo-600', action: () => setModal('desk') },
+            { icon: LifeBuoy, label: 'Desk', gradient: 'from-violet-500 to-indigo-600', action: () => setModal('desk'), badge: openDeskTicketCount },
           ]).map((a, i) => (
-            <QuickAction key={i} icon={a.icon} label={a.label} gradient={a.gradient} onClick={a.action} />
+            <QuickAction key={i} icon={a.icon} label={a.label} gradient={a.gradient} onClick={a.action} badge={(a as any).badge} />
           ))}
         </div>
       </Card>
@@ -380,14 +382,36 @@ export default function HomeTab({
           <SectionHeader title="Saldo Cuti" action={<button onClick={() => goToTab('leave')} className="text-xs font-semibold text-blue-600">Lihat →</button>} />
           <div className="grid grid-cols-2 gap-2.5">
             {leaveBalance.slice(0, 4).map((lb: any, i: number) => {
-              const total = lb.total || lb.total_days || 12;
-              const used = lb.used || lb.used_days || 0;
-              const remaining = total - used;
+              const total = Number(lb.total || lb.total_days || 12);
+              const used = Number(lb.used || lb.used_days || 0);
+              const remaining = lb.remaining != null
+                ? Number(lb.remaining)
+                : Math.max(0, total - used);
+              const code = String(lb.code || '').toLowerCase();
+              const name = String(lb.type || lb.name || '').toLowerCase();
+              const isComp = code === 'comp_off' || name.includes('pengganti') || name.includes('comp');
+              const isLow = remaining <= 2 && !isComp;
               return (
-                <div key={i} className="rounded-xl bg-slate-50 p-3 border border-slate-100">
-                  <p className="text-[11px] text-slate-500 mb-1 truncate">{lb.type || lb.name}</p>
-                  <p className="text-xl font-bold text-slate-800 tabular-nums">{remaining}</p>
-                  <p className="text-[10px] text-slate-400">tersisa / {total} hari</p>
+                <div
+                  key={i}
+                  className={`rounded-xl p-3 border ${
+                    isComp
+                      ? 'bg-cyan-50 border-cyan-100 ring-1 ring-cyan-100'
+                      : isLow
+                        ? 'bg-amber-50 border-amber-200'
+                        : 'bg-slate-50 border-slate-100'
+                  }`}
+                >
+                  <p className={`text-[11px] mb-1 truncate ${isComp ? 'text-cyan-700 font-medium' : 'text-slate-500'}`}>
+                    {lb.type || lb.name}
+                    {isComp && <span className="ml-1 text-[9px] uppercase font-bold">Comp-Off</span>}
+                  </p>
+                  <p className={`text-xl font-bold tabular-nums ${isLow ? 'text-amber-800' : isComp ? 'text-cyan-900' : 'text-slate-800'}`}>
+                    {remaining}
+                  </p>
+                  <p className={`text-[10px] ${isLow ? 'text-amber-600 font-medium' : 'text-slate-400'}`}>
+                    {isLow ? 'Sisa rendah' : `tersisa / ${total} hari`}
+                  </p>
                 </div>
               );
             })}

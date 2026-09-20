@@ -3,7 +3,9 @@ import {
   Shield, CheckCircle, XCircle, Clock, Calendar, Wallet, Timer,
   AlertTriangle, Users, FileWarning, Plus, Loader2, ChevronRight,
   Send, Stamp, X, Search, MapPin, Navigation, Image, RefreshCw, Eye,
+  GraduationCap, Target, Plane, ExternalLink,
 } from 'lucide-react';
+import Link from 'next/link';
 import toast from 'react-hot-toast';
 import ClaimReceiptGallery, { parseClaimReceipts } from '@/components/humanify/ClaimReceiptGallery';
 import EmployeeAvatar from '@/components/humanify/EmployeeAvatar';
@@ -205,6 +207,12 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
           toast.success(json.deferred
             ? (json.message || 'Disetujui — penempatan menunggu tanggal efektif')
             : (json.message || 'Mutasi disetujui'));
+          toast((t) => (
+            <span className="text-sm">
+              Antrian HR lain di{' '}
+              <a href="/humanify/mss" className="font-semibold underline" onClick={() => toast.dismiss(t.id)}>MSS HQ</a>
+            </span>
+          ), { duration: 4000 });
           loadAll();
         } else toast.error(json.error || 'Gagal — proses via MSS jika perlu');
         return;
@@ -219,6 +227,12 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
         } else {
           toast.success(res.message || 'Disetujui');
         }
+        toast((t) => (
+          <span className="text-sm">
+            Antrian HR lain di{' '}
+            <a href="/humanify/mss" className="font-semibold underline" onClick={() => toast.dismiss(t.id)}>MSS HQ</a>
+          </span>
+        ), { duration: 4000 });
         loadAll();
       }
       else toast.error(res.error || 'Gagal menyetujui');
@@ -375,6 +389,27 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
         {displaySummary.total > 0 && (
           <p className="mt-2 text-sm font-semibold">{displaySummary.total} pengajuan menunggu persetujuan</p>
         )}
+      </div>
+
+      {/* W95: MSS deep-links — training/OKR/travel not in manager pending-approvals API */}
+      <div className="flex flex-wrap gap-1.5">
+        {[
+          { href: '/humanify/mss', label: 'MSS HQ', icon: Shield },
+          { href: '/humanify/training', label: 'Pelatihan', icon: GraduationCap },
+          { href: '/humanify/okr', label: 'OKR', icon: Target },
+          { href: '/humanify/travel-expense', label: 'Travel', icon: Plane },
+        ].map((l) => (
+          <Link
+            key={l.href}
+            href={l.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700 hover:bg-violet-50 hover:text-violet-700"
+          >
+            <l.icon className="w-3 h-3" /> {l.label}
+            <ExternalLink className="w-2.5 h-2.5 opacity-60" />
+          </Link>
+        ))}
       </div>
 
       {/* Summary cards */}

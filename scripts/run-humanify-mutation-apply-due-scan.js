@@ -66,7 +66,10 @@ async function main() {
     console.error('[mutation-apply-due] failed', res.status, json);
     process.exit(1);
   }
-  console.log('[mutation-apply-due] ok', json.data);
+  const d = json.data || {};
+  const applied = d.appliedCount ?? d.applied ?? 0;
+  const scanned = d.scannedCount ?? d.scanned ?? d.tenants ?? 0;
+  console.log(`[mutation-apply-due] ok applied=${applied} scanned=${scanned} dryRun=${!!d.dryRun}`, d);
   process.exit(0);
 }
 

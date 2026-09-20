@@ -348,6 +348,7 @@ export async function updatePayrollInputStatus(
         approved_by = COALESCE($3, approved_by),
         approved_at = CASE WHEN $2 IN ('approved', 'active', 'rejected') THEN COALESCE(approved_at, NOW()) ELSE approved_at END,
         remaining_amount = CASE
+          WHEN $2 = 'completed' AND type IN ('loan', 'cash_advance') THEN 0
           WHEN type IN ('loan', 'cash_advance') AND $2 IN ('approved', 'active')
             THEN COALESCE(remaining_amount, amount)
           ELSE remaining_amount
@@ -356,6 +357,43 @@ export async function updatePayrollInputStatus(
     ${where} RETURNING *
   `, { bind: params });
   return rows?.[0] ? mapRow(rows[0]) : null;
+}
+
+/**
+ * Early settle: mark open kasbon/loan as fully paid (remaining=0, status=completed).
+ * Only allowed for approved/active balance types.
+ */
+export async function earlySettlePayrollInput(
+  id: string,
+  tenantId: string,
+  settledBy?: string,
+): Promise<PayrollInputRecord | null> {
+  if (!sequelize || !tenantId) return null;
+  await ensurePayrollInputsTables();
+  const [rows] = await sequelize.query(
+    `SELECT * FROM hris_payroll_inputs
+     WHERE id = :id AND tenant_id = :tenantId
+       AND type IN ('cash_advance', 'loan')
+       AND status IN ('approved', 'active')
+     LIMIT 1`,
+    { replacements: { id, tenantId } },
+  );
+  if (!rows?.[0]) return null;
+  const [updated] = await sequelize.query(
+    `UPDATE hris_payroll_inputs
+     SET remaining_amount = 0,
+         status = 'completed',
+         approved_by = COALESCE(:by, approved_by),
+         metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object(
+           'early_settled_at', NOW()::text,
+           'early_settled_by', COALESCE(:by, '')
+         ),
+         updated_at = NOW()
+     WHERE id = :id AND tenant_id = :tenantId
+     RETURNING *`,
+    { replacements: { id, tenantId, by: settledBy || null } },
+  );
+  return updated?.[0] ? mapRow(updated[0]) : null;
 }
 
 export async function getPayrollInputsSummary(tenantId?: string | null) {

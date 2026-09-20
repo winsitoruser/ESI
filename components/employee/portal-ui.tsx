@@ -120,20 +120,26 @@ export function StatTile({ label, value, sub, accent }: {
   );
 }
 
-export function QuickAction({ icon: Icon, label, gradient, onClick }: {
+export function QuickAction({ icon: Icon, label, gradient, onClick, badge }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   gradient: string;
   onClick: () => void;
+  badge?: number;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="group flex flex-col items-center gap-2 p-2 rounded-2xl active:scale-95 transition-all duration-200"
+      className="group relative flex flex-col items-center gap-2 p-2 rounded-2xl active:scale-95 transition-all duration-200"
     >
-      <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-lg shadow-slate-900/10 group-hover:scale-105 transition-transform ring-1 ring-white/20`}>
+      <div className={`relative w-12 h-12 rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-lg shadow-slate-900/10 group-hover:scale-105 transition-transform ring-1 ring-white/20`}>
         <Icon className="w-5 h-5 text-white" />
+        {badge != null && badge > 0 ? (
+          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white">
+            {badge > 9 ? '9+' : badge}
+          </span>
+        ) : null}
       </div>
       <span className="text-[10px] font-semibold text-slate-600 group-hover:text-slate-900 transition-colors">{label}</span>
     </button>

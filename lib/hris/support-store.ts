@@ -181,6 +181,7 @@ export async function listTickets(opts: {
   tenantId: string | null;
   status?: string;
   category?: string;
+  priority?: string;
   q?: string;
 }) {
   await ensureSupportTables();
@@ -195,13 +196,22 @@ export async function listTickets(opts: {
     where.push('category = :category');
     replacements.category = opts.category;
   }
+  // W93: priority chip — high_urgent = high + urgent only
+  if (opts.priority === 'high_urgent') {
+    where.push(`t.priority IN ('high', 'urgent')`);
+  } else if (opts.priority && opts.priority !== 'all') {
+    where.push('t.priority = :priority');
+    replacements.priority = opts.priority;
+  }
   if (opts.q?.trim()) {
     where.push('(subject ILIKE :q OR description ILIKE :q OR ticket_number ILIKE :q)');
     replacements.q = `%${opts.q.trim()}%`;
   }
   const [rows] = await sequelize.query(
     `SELECT t.*,
-       (SELECT COUNT(*)::int FROM humanify_support_comments c WHERE c.ticket_id = t.id) AS comment_count
+       (SELECT COUNT(*)::int FROM humanify_support_comments c WHERE c.ticket_id = t.id) AS comment_count,
+       (SELECT LEFT(c.body, 120) FROM humanify_support_comments c
+         WHERE c.ticket_id = t.id ORDER BY c.created_at DESC LIMIT 1) AS last_comment_snippet
      FROM humanify_support_tickets t
      WHERE ${where.join(' AND ')}
      ORDER BY

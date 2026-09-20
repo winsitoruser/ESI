@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
 import { withHQAuth } from '@/lib/middleware/withHQAuth';
+import { segmentForCategory, derivePermitStatus } from '@/lib/hris/workforce-categories';
 
 let HeadcountPlan: any, ManpowerBudget: any, sequelize: any;
 try { HeadcountPlan = require('../../../models/HeadcountPlan'); } catch {}
@@ -133,6 +134,9 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
         totalEmployees: 0, activeEmployees: 0, newHires: 0, terminations: 0,
         turnoverRate: 0, absenteeismRate: 0, avgTenure: 0,
         departmentBreakdown: [], monthlyTrend: [],
+        segmentCounts: { organic: 0, non_organic: 0, foreign: 0 },
+        categoryBreakdown: [],
+        tkaHints: { foreign: 0, expiring: 0, expired: 0 },
       };
 
       if (!tenantId) {
@@ -187,6 +191,59 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse, action: stri
           const att = await attendanceStats(tenantId);
           if (att.total > 0) {
             analytics.absenteeismRate = Number(((att.absent / att.total) * 100).toFixed(1));
+          }
+
+          // W94: organik / outsource / TKA from employment_category
+          analytics.segmentCounts = { organic: 0, non_organic: 0, foreign: 0 };
+          analytics.categoryBreakdown = [];
+          analytics.tkaHints = { foreign: 0, expiring: 0, expired: 0 };
+          try {
+            const [cats] = await sequelize.query(`
+              SELECT COALESCE(NULLIF(TRIM(employment_category), ''), 'permanent') AS category,
+                     COUNT(*)::int AS count
+              FROM employees
+              WHERE tenant_id = :tid AND (status = 'active' OR status IS NULL OR is_active = true)
+              GROUP BY 1 ORDER BY count DESC
+            `, { replacements: { tid: tenantId } });
+            const categoryBreakdown = (cats || []).map((r: any) => ({
+              category: r.category,
+              count: parseInt(String(r.count), 10) || 0,
+            }));
+            analytics.categoryBreakdown = categoryBreakdown;
+            const seg = { organic: 0, non_organic: 0, foreign: 0 };
+            for (const row of categoryBreakdown) {
+              const s = segmentForCategory(row.category);
+              if (row.category === 'foreign') seg.foreign += row.count;
+              else if (s === 'non_organic') seg.non_organic += row.count;
+              else seg.organic += row.count;
+            }
+            analytics.segmentCounts = seg;
+
+            const [tkaRows] = await sequelize.query(`
+              SELECT identity_expiry, contract_end, employment_category, nationality
+              FROM employees
+              WHERE tenant_id = :tid
+                AND (status = 'active' OR status IS NULL OR is_active = true)
+                AND (
+                  employment_category = 'foreign'
+                  OR (nationality IS NOT NULL AND LOWER(nationality) NOT IN ('indonesia', 'idn', 'id', 'wni', ''))
+                )
+            `, { replacements: { tid: tenantId } });
+            let expiring = 0;
+            let expired = 0;
+            for (const row of (tkaRows || []) as any[]) {
+              const expiry = row.identity_expiry || row.contract_end;
+              const st = derivePermitStatus(expiry ? String(expiry) : null, 'active');
+              if (st === 'expired') expired += 1;
+              else if (st === 'expiring') expiring += 1;
+            }
+            analytics.tkaHints = {
+              foreign: (tkaRows || []).length,
+              expiring,
+              expired,
+            };
+          } catch (segErr) {
+            console.warn('segment overview:', (segErr as Error).message);
           }
         } catch (e) {
           console.warn('overview query error:', (e as Error).message);

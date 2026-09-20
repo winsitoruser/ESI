@@ -10,7 +10,7 @@ import EmployeePicker, { type PickedEmployee } from '@/components/humanify/Emplo
 import { OpsKpiShell, OpsPanel, OpsToolbar } from '@/components/humanify/OpsPageChrome';
 import { PayrollShell, type PayrollNavId } from '@/components/humanify/PayrollModuleChrome';
 import {
-  Gift, Wallet, CreditCard, Plus, Check, X, Clock, Search, RefreshCw,
+  Gift, Wallet, CreditCard, Plus, Check, X, Clock, Search, RefreshCw, Banknote,
 } from 'lucide-react';
 
 const ICONS = { gift: Gift, wallet: Wallet, credit: CreditCard } as const;
@@ -76,6 +76,16 @@ export default function PayrollInputPage({ type, title, subtitle, icon, categori
     load();
   };
 
+  const earlySettle = async (id: string) => {
+    if (!confirm('Lunasi dini? Sisa saldo akan di-nol-kan dan status menjadi Selesai.')) return;
+    await fetch(`/api/humanify/payroll-inputs?id=${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'settle' }),
+    });
+    load();
+  };
+
   const handleCreate = async () => {
     if (!form.employeeId || !form.employeeName || !form.amount) return;
     setSaving(true);
@@ -113,18 +123,25 @@ export default function PayrollInputPage({ type, title, subtitle, icon, categori
     const q = query.trim().toLowerCase();
     return items.filter((i) => {
       const matchQ = !q || [i.employeeName, i.department, i.reason, i.category].some((v) => String(v || '').toLowerCase().includes(q));
-      const matchS = statusFilter === 'all' || i.status === statusFilter;
+      let matchS = true;
+      if (statusFilter === 'all') matchS = true;
+      else if (statusFilter === 'active') matchS = ['approved', 'active'].includes(i.status);
+      else if (statusFilter === 'completed') matchS = ['completed', 'paid'].includes(i.status);
+      else matchS = i.status === statusFilter;
       return matchQ && matchS;
     });
   }, [items, query, statusFilter]);
 
   const pending = items.filter((i) => i.status === 'pending');
+  const activeCount = items.filter((i) => ['approved', 'active'].includes(i.status)).length;
+  const completedCount = items.filter((i) => i.status === 'completed' || i.status === 'paid').length;
   const totalAmount = items.reduce((s, i) => s + Number(i.amount || 0), 0);
   const outstanding = items
     .filter((i) => ['approved', 'active'].includes(i.status))
     .reduce((s, i) => s + Number(i.remainingAmount != null ? i.remainingAmount : i.amount || 0), 0);
   const showBalanceCols = Boolean(showInstallment || type === 'cash_advance' || type === 'loan');
   const approveStatus = type === 'loan' ? 'active' : 'approved';
+  const showStatusChips = type === 'cash_advance' || type === 'loan';
 
   return (
     <PageGuard anyPermission={['payroll.view', 'payroll.*']} title={title} description={subtitle}>
@@ -148,10 +165,23 @@ export default function PayrollInputPage({ type, title, subtitle, icon, categori
         >
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <OpsKpiShell><HRStatCard icon={Icon} label="Total catatan" value={items.length} accent="violet" /></OpsKpiShell>
-            <OpsKpiShell><HRStatCard icon={Clock} label="Menunggu persetujuan" value={pending.length} accent="amber" /></OpsKpiShell>
+            <OpsKpiShell>
+              <button type="button" className="w-full text-left" onClick={() => setStatusFilter('pending')} aria-label="Filter menunggu">
+                <HRStatCard icon={Clock} label="Menunggu persetujuan" value={pending.length} accent="amber" />
+              </button>
+            </OpsKpiShell>
             <OpsKpiShell><HRStatCard icon={Wallet} label="Total nominal" value={fmt(totalAmount)} accent="emerald" /></OpsKpiShell>
             {(type === 'cash_advance' || type === 'loan') && (
-              <OpsKpiShell><HRStatCard icon={CreditCard} label="Saldo outstanding" value={fmt(outstanding)} accent="rose" /></OpsKpiShell>
+              <OpsKpiShell>
+                <button
+                  type="button"
+                  className="w-full text-left"
+                  onClick={() => setStatusFilter('active')}
+                  aria-label="Filter outstanding aktif"
+                >
+                  <HRStatCard icon={CreditCard} label="Saldo outstanding" value={fmt(outstanding)} accent="rose" />
+                </button>
+              </OpsKpiShell>
             )}
           </div>
 
@@ -163,6 +193,33 @@ export default function PayrollInputPage({ type, title, subtitle, icon, categori
                 : <>{title} yang disetujui masuk ke <Link href="/humanify/payroll/main" className="font-semibold underline underline-offset-2">Proses gaji</Link> periode berjalan.</>}
             </p>
           </div>
+
+          {showStatusChips && (
+            <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter status kasbon">
+              {([
+                { key: 'all', label: 'Semua', count: items.length },
+                { key: 'pending', label: 'Pending', count: pending.length },
+                { key: 'active', label: 'Aktif', count: activeCount },
+                { key: 'completed', label: 'Selesai', count: completedCount },
+              ] as const).map((chip) => (
+                <button
+                  key={chip.key}
+                  type="button"
+                  onClick={() => setStatusFilter(chip.key)}
+                  aria-pressed={statusFilter === chip.key || (chip.key === 'active' && ['approved', 'active'].includes(statusFilter))}
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium border ${
+                    statusFilter === chip.key
+                      || (chip.key === 'active' && statusFilter === 'approved')
+                      ? 'bg-[var(--hf-brand-600)] text-white border-transparent'
+                      : 'bg-white text-[color:var(--hf-ink-muted)] border-[var(--hf-border)] hover:bg-[var(--hf-surface-muted)]'
+                  }`}
+                >
+                  {chip.label}
+                  <span className="tabular-nums opacity-80">{chip.count}</span>
+                </button>
+              ))}
+            </div>
+          )}
 
           <OpsToolbar>
             <div className="relative min-w-[220px] flex-1">
@@ -226,6 +283,16 @@ export default function PayrollInputPage({ type, title, subtitle, icon, categori
                                 <X className="h-4 w-4" />
                               </button>
                             </div>
+                          )}
+                          {showBalanceCols && ['approved', 'active'].includes(item.status) && (
+                            <button
+                              type="button"
+                              onClick={() => earlySettle(item.id)}
+                              className="hf-btn-secondary inline-flex items-center gap-1 !px-2 !py-1 text-xs text-[color:var(--hf-brand-600)]"
+                              title="Lunasi dini — sisa = 0"
+                            >
+                              <Banknote className="h-3.5 w-3.5" /> Lunasi
+                            </button>
                           )}
                         </td>
                       </tr>

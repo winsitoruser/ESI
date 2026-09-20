@@ -485,6 +485,25 @@ async function approveLeave(req: NextApiRequest, res: NextApiResponse, session: 
   });
   if (!authz.ok) return res.status(authz.status).json({ success: false, error: authz.error });
 
+  // Reinforce team scope (list + approve must match) for non–super-admin managers
+  const isSuperAdmin = isSuperAdminRole(session.user?.role);
+  if (sequelize && !isSuperAdmin) {
+    const [lrRows] = await sequelize.query(
+      `SELECT employee_id::text AS employee_id FROM leave_requests
+       WHERE id::text = :id AND tenant_id = :tenantId LIMIT 1`,
+      { replacements: { id: String(id), tenantId } },
+    );
+    const eid = lrRows?.[0]?.employee_id;
+    if (!eid) return res.status(404).json({ success: false, error: 'Pengajuan cuti tidak ditemukan' });
+    const scoped = await assertEmployeeOnTeam({
+      employeeId: String(eid),
+      tenantId,
+      userId: String(session.user?.id || ''),
+      isSuperAdmin,
+    });
+    if (!scoped.ok) return res.status(scoped.status).json({ success: false, error: scoped.error });
+  }
+
   const result = await approveLeaveStep({
     leaveRequestId: String(id),
     approverId: authz.myEmpId || session.user?.id,
@@ -521,6 +540,24 @@ async function rejectLeave(req: NextApiRequest, res: NextApiResponse, session: a
   if (!id || !reason) return res.status(400).json({ success: false, error: 'id dan alasan wajib' });
   const tenantId = String(session.user?.tenantId || '');
   if (!tenantId) return res.status(403).json({ success: false, error: 'Tenant context required' });
+
+  const isSuperAdmin = isSuperAdminRole(session.user?.role);
+  if (sequelize && !isSuperAdmin) {
+    const [lrScope] = await sequelize.query(
+      `SELECT employee_id::text AS employee_id FROM leave_requests
+       WHERE id::text = :id AND tenant_id = :tenantId LIMIT 1`,
+      { replacements: { id: String(id), tenantId } },
+    );
+    const eid = lrScope?.[0]?.employee_id;
+    if (!eid) return res.status(404).json({ success: false, error: 'Pengajuan cuti tidak ditemukan' });
+    const scoped = await assertEmployeeOnTeam({
+      employeeId: String(eid),
+      tenantId,
+      userId: String(session.user?.id || ''),
+      isSuperAdmin,
+    });
+    if (!scoped.ok) return res.status(scoped.status).json({ success: false, error: scoped.error });
+  }
 
   const [lrBefore] = sequelize ? await sequelize.query(
     `SELECT employee_id, leave_type, start_date, end_date FROM leave_requests WHERE id::text = :id AND tenant_id = :tenantId`,

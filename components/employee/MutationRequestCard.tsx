@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowRightLeft, Loader2, Send } from 'lucide-react';
+import { ArrowRightLeft, Loader2, Send, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Card, SectionHeader } from '@/components/employee/portal-ui';
 import { MUTATION_STATUS_LABELS, MUTATION_TYPE_LABELS, type MutationStatus, type MutationType } from '@/lib/hris/mutation-workflow';
-import { isMutationDeferredPending } from '@/lib/hris/mutation-apply-due';
+import { isMutationDeferredPending, mutationDaysUntilEffective } from '@/lib/hris/mutation-apply-due';
 
 const API = '/api/employee/mutation-request';
 
@@ -20,10 +20,23 @@ function statusLabelId(status: string): string {
   return MUTATION_STATUS_LABELS[status as MutationStatus] || status;
 }
 
+function todayLocalISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function branchLabel(r: any): string {
+  if (r.to_branch_name) {
+    return r.to_branch_code ? `${r.to_branch_name} (${r.to_branch_code})` : r.to_branch_name;
+  }
+  return '';
+}
+
 export default function MutationRequestCard() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [rows, setRows] = useState<any[]>([]);
   const [branches, setBranches] = useState<Array<{ id: string; name: string; code?: string }>>([]);
   const [form, setForm] = useState({
@@ -50,10 +63,20 @@ export default function MutationRequestCard() {
 
   useEffect(() => { load(); }, [load]);
 
+  const hasPending = rows.some((r) => r.status === 'pending');
+
   const submit = async () => {
     if (!form.effective_date) { toast.error('Tanggal efektif wajib'); return; }
+    if (form.effective_date < todayLocalISO()) {
+      toast.error('Tanggal efektif tidak boleh di masa lalu');
+      return;
+    }
     if (!form.to_department && !form.to_position && !form.to_branch_id) {
       toast.error('Isi departemen, posisi, atau cabang tujuan');
+      return;
+    }
+    if (hasPending) {
+      toast.error('Masih ada pengajuan pending — batalkan dulu atau tunggu keputusan');
       return;
     }
     setSubmitting(true);
@@ -87,6 +110,27 @@ export default function MutationRequestCard() {
     }
   };
 
+  const cancelMutation = async (id: string) => {
+    if (!confirm('Batalkan pengajuan mutasi ini?')) return;
+    setCancellingId(id);
+    try {
+      const res = await fetch(API, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action: 'cancel' }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast.success(json.message || 'Pengajuan dibatalkan');
+        load();
+      } else toast.error(json.error || 'Gagal membatalkan');
+    } catch {
+      toast.error('Gagal membatalkan mutasi');
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
   return (
     <Card className="p-4 space-y-3">
       <div className="flex items-center justify-between">
@@ -96,7 +140,9 @@ export default function MutationRequestCard() {
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
           aria-label="Ajukan mutasi"
-          className="text-xs px-3 py-1.5 bg-indigo-600 text-white rounded-lg inline-flex items-center gap-1"
+          disabled={hasPending}
+          title={hasPending ? 'Selesaikan atau batalkan pengajuan pending dulu' : undefined}
+          className="text-xs px-3 py-1.5 bg-indigo-600 text-white rounded-lg inline-flex items-center gap-1 disabled:opacity-50"
         >
           <ArrowRightLeft className="w-3.5 h-3.5" aria-hidden /> Ajukan
         </button>
@@ -118,6 +164,7 @@ export default function MutationRequestCard() {
           <input
             type="date"
             value={form.effective_date}
+            min={todayLocalISO()}
             onChange={(e) => setForm({ ...form, effective_date: e.target.value })}
             aria-label="Tanggal efektif mutasi"
             className="w-full border rounded-lg px-3 py-2 text-sm"
@@ -177,28 +224,50 @@ export default function MutationRequestCard() {
         <div className="space-y-2" aria-label="Riwayat pengajuan mutasi">
           {rows.slice(0, 5).map((r) => {
             const deferred = isMutationDeferredPending(r.status, r.effective_date);
+            const daysUntil = deferred ? mutationDaysUntilEffective(r.effective_date) : null;
             const label = deferred
               ? 'Menunggu efektif'
               : (MUTATION_STATUS_LABELS[r.status as MutationStatus] || statusLabelId(r.status));
             const badgeClass = deferred
               ? 'bg-sky-100 text-sky-800'
               : (STATUS_BADGE[r.status] || 'bg-slate-100 text-slate-600');
+            const toBranch = branchLabel(r);
             return (
               <div key={r.id} className="rounded-lg bg-slate-50 px-3 py-2 text-xs flex justify-between gap-2">
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="font-medium text-slate-800 truncate">
                     {r.mutation_number || MUTATION_TYPE_LABELS[r.mutation_type as MutationType] || r.mutation_type}
                   </p>
-                  <p className="text-slate-500">{r.to_department || '-'} / {r.to_position || '-'}</p>
+                  <p className="text-slate-500">
+                    {r.to_department || '-'} / {r.to_position || '-'}
+                    {toBranch ? ` · ${toBranch}` : ''}
+                  </p>
                   {deferred && (
                     <p className="text-sky-700 mt-0.5">
                       Disetujui — penempatan menunggu {r.effective_date
                         ? new Date(r.effective_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
                         : 'tanggal efektif'}
+                      {daysUntil != null && daysUntil > 0 && (
+                        <span className="ml-1 font-semibold">({daysUntil} hari lagi)</span>
+                      )}
+                      {daysUntil === 0 && <span className="ml-1 font-semibold">(hari ini)</span>}
                     </p>
                   )}
                   {r.status === 'executed' && (
                     <p className="text-emerald-700 mt-0.5">Penempatan sudah diterapkan</p>
+                  )}
+                  {r.status === 'pending' && (
+                    <button
+                      type="button"
+                      onClick={() => cancelMutation(r.id)}
+                      disabled={cancellingId === r.id}
+                      className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-rose-600 hover:text-rose-700 disabled:opacity-50"
+                    >
+                      {cancellingId === r.id
+                        ? <Loader2 className="w-3 h-3 animate-spin" />
+                        : <X className="w-3 h-3" />}
+                      Batalkan
+                    </button>
                   )}
                 </div>
                 <span className={`shrink-0 self-start px-2 py-0.5 rounded-full text-[10px] font-medium ${badgeClass}`}>

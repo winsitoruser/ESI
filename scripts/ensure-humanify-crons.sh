@@ -1,6 +1,26 @@
 #!/usr/bin/env bash
 # Idempotently install Humanify platform cron jobs on the VPS (root crontab).
-# Usage: APP_DIR=/root/humanify bash scripts/ensure-humanify-crons.sh
+#
+# Usage:
+#   APP_DIR=/root/humanify bash scripts/ensure-humanify-crons.sh
+#   bash scripts/ensure-humanify-crons.sh --check   # list expected tags only (no crontab write)
+#
+# Timezone note — cron schedules below are UTC (VPS typically UTC).
+# WIB = UTC+7. Example: mutation-apply-due "15 1 * * *" = 01:15 UTC = 08:15 WIB.
+# When documenting ops runbooks, always state both UTC and WIB.
+#
+# Log rotation hint — cron appends to /var/log/humanify-*.log without rotation.
+# On VPS, configure logrotate (size or weekly) e.g.:
+#   /var/log/humanify-*.log {
+#     weekly
+#     rotate 8
+#     maxsize 50M
+#     compress
+#     missingok
+#     notifempty
+#     copytruncate
+#   }
+# Or: truncate oversized files manually before they fill the disk.
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-/root/humanify}"
@@ -8,6 +28,44 @@ LOG_DIR="${LOG_DIR:-/var/log}"
 HEALTH_URL="${HEALTH_URL:-https://humanify.id/api/health?deep=1}"
 SCORECARD_BASE="${HUMANIFY_STAGING_URL:-https://humanify.id}"
 MARKER="humanify-platform-cron"
+
+# Expected cron tags (schedule comment · UTC → WIB where helpful)
+EXPECTED_TAGS=(
+  "purge|0 21 * * *|daily soft-purge offboarded · 21:00 UTC = 04:00 WIB"
+  "hard-delete|30 22 * * 0|weekly hard-delete · Sun 22:30 UTC = Mon 05:30 WIB"
+  "health|*/5 * * * *|health probe every 5m"
+  "obs-alert|*/10 * * * *|obs alert every 10m"
+  "db-backup|30 2 * * *|DB backup 02:30 UTC = 09:30 WIB"
+  "hr-automation-scan|15 */6 * * *|HR automation every 6h"
+  "leave-escalation|20 * * * *|leave SLA escalate hourly"
+  "mutation-apply-due|15 1 * * *|deferred mutation apply · 01:15 UTC = 08:15 WIB"
+  "action-digest|0 1 * * 1|Action Inbox digest Mon 01:00 UTC = 08:00 WIB"
+  "doc-expiry-digest|30 1 * * 1|doc-expiry digest Mon 01:30 UTC = 08:30 WIB"
+  "doc-expiry-soft|0 2 * * 1|doc soft-deactivate dry-run Mon 02:00 UTC"
+  "security-scorecard|0 23 * * 0|IDOR scorecard Sun 23:00 UTC = Mon 06:00 WIB"
+  "redis-alert|*/10 * * * *|Redis down alert every 10m"
+  "uptime-external|15 */6 * * *|external uptime probe every 6h"
+)
+
+if [[ "${1:-}" == "--check" ]]; then
+  echo "Humanify cron expected tags (check-only — no crontab write)"
+  echo "MARKER=${MARKER}  APP_DIR=${APP_DIR}  LOG_DIR=${LOG_DIR}"
+  echo ""
+  printf "%-22s %-14s %s\n" "TAG" "SCHEDULE(UTC)" "NOTES"
+  printf "%-22s %-14s %s\n" "---" "-------------" "-----"
+  for entry in "${EXPECTED_TAGS[@]}"; do
+    IFS='|' read -r tag schedule notes <<< "$entry"
+    printf "%-22s %-14s %s\n" "${MARKER}:${tag}" "$schedule" "$notes"
+  done
+  echo ""
+  echo "Installed lines (if any):"
+  if crontab -l 2>/dev/null | grep -F "${MARKER}:" ; then
+    :
+  else
+    echo "  (none — run without --check to install)"
+  fi
+  exit 0
+fi
 
 ensure_line() {
   local tag="$1"
@@ -60,6 +118,7 @@ ensure_line "leave-escalation" "20 * * * *" \
   "node scripts/run-humanify-leave-escalation-scan.js >> ${LOG_DIR}/humanify-leave-escalation.log 2>&1 || true"
 
 # Deferred mutation apply — daily 01:15 UTC (08:15 WIB)
+# Cron schedule is UTC; apply uses DB CURRENT_DATE (server TZ — keep VPS UTC).
 ensure_line "mutation-apply-due" "15 1 * * *" \
   "node scripts/run-humanify-mutation-apply-due-scan.js >> ${LOG_DIR}/humanify-mutation-apply-due.log 2>&1 || true"
 
@@ -89,3 +148,4 @@ ensure_line "uptime-external" "15 */6 * * *" \
   "node scripts/check-humanify-uptime-external.js >> ${LOG_DIR}/humanify-uptime-external.log 2>&1 || true"
 
 echo "Done — verify with: crontab -l | grep ${MARKER}"
+echo "Check-only: bash scripts/ensure-humanify-crons.sh --check"

@@ -50,6 +50,11 @@ export default function MSSPortalPage() {
   const [travelReqs, setTravelReqs] = useState<any[]>([]);
   const [filterStatus, setFilterStatus] = useState('');
 
+  const goTab = (tab: MSSTab) => {
+    setActiveTab(tab);
+    setFilterStatus(''); // W95: avoid stale filter bleed across queues
+  };
+
   // Approval modal
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [approvalType, setApprovalType] = useState<'claim' | 'mutation' | 'overtime' | 'training' | 'okr' | 'travel'>('claim');
@@ -128,25 +133,31 @@ export default function MSSPortalPage() {
     } catch (e) { console.error(e); setMutations([]); }
   };
 
-  const fetchTraining = async () => {
+  const fetchTraining = async (status?: string) => {
     try {
-      const res = await fetch('/api/humanify/training?action=requests&status=pending');
+      const st = status || 'pending';
+      const res = await fetch(`/api/humanify/training?action=requests&status=${encodeURIComponent(st)}`);
       const json = await res.json();
       setTrainingReqs(json.data || []);
     } catch { setTrainingReqs([]); }
   };
 
-  const fetchOkr = async () => {
+  const fetchOkr = async (status?: string) => {
     try {
-      const res = await fetch('/api/humanify/okr?status=pending_approval');
+      const st = status === 'pending' ? 'pending_approval' : (status || 'pending_approval');
+      const res = st === 'pending_approval'
+        ? await fetch('/api/humanify/okr?status=pending_approval')
+        : await fetch(`/api/humanify/okr?status=${encodeURIComponent(st)}`);
       const json = await res.json();
       setOkrPending(json.data || []);
     } catch { setOkrPending([]); }
   };
 
-  const fetchTravel = async () => {
+  const fetchTravel = async (status?: string) => {
     try {
-      const res = await fetch('/api/humanify/travel-expense?action=requests&status=pending');
+      const params = new URLSearchParams({ action: 'requests' });
+      params.set('status', status || 'pending');
+      const res = await fetch(`/api/humanify/travel-expense?${params}`);
       const json = await res.json();
       setTravelReqs(json.data || []);
     } catch { setTravelReqs([]); }
@@ -157,10 +168,18 @@ export default function MSSPortalPage() {
     if (activeTab === 'claims-approval')   fetchClaims(filterStatus || undefined);
     if (activeTab === 'mutations-approval') fetchMutations(filterStatus || undefined);
     if (activeTab === 'overtime-approval') fetchOvertimes(filterStatus || undefined);
-    if (activeTab === 'training-approval') fetchTraining();
-    if (activeTab === 'okr-approval') fetchOkr();
-    if (activeTab === 'travel-approval') fetchTravel();
+    if (activeTab === 'training-approval') fetchTraining(filterStatus || undefined);
+    if (activeTab === 'okr-approval') fetchOkr(filterStatus || undefined);
+    if (activeTab === 'travel-approval') fetchTravel(filterStatus || undefined);
   }, [activeTab, filterStatus]);
+
+  const totalPending =
+    (workflowSummary?.claims?.pending || 0)
+    + (workflowSummary?.mutations?.pending || 0)
+    + (workflowSummary?.overtime?.pending || 0)
+    + (workflowSummary?.training?.pending || 0)
+    + (workflowSummary?.okr?.pending || 0)
+    + (workflowSummary?.travel?.pending || 0);
 
   const OT_TYPE_LABEL: Record<string, string> = { regular: 'Reguler', emergency: 'Darurat', project: 'Proyek' };
   const DAY_TYPE_LABEL: Record<string, { label: string; color: string }> = { weekday: { label: 'Hari Kerja', color: 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)]' }, weekend: { label: 'Akhir Pekan', color: 'bg-purple-50 text-purple-700' }, holiday: { label: 'Hari Libur', color: 'bg-red-50 text-red-700' } };
@@ -207,19 +226,22 @@ export default function MSSPortalPage() {
       const json = await res.json();
       if (json.success) {
         const deferred = !!json.deferred;
-        const msg = deferred
+        let msg = deferred
           ? (json.message || 'Disetujui — penempatan menunggu tanggal efektif')
           : (approvalType === 'overtime' && json.compOffDays > 0
             ? (json.message || `Lembur disetujui — ${json.compOffDays} hari cuti pengganti`)
             : (json.message || 'Berhasil'));
+        if (approvalType === 'training') msg = `${msg} · Lanjut: /humanify/training`;
+        else if (approvalType === 'okr') msg = `${msg} · Lanjut: /humanify/okr`;
+        else if (approvalType === 'travel') msg = `${msg} · Lanjut: /humanify/travel-expense`;
         showToast('success', msg);
         setShowApprovalModal(false);
         if (approvalType === 'claim')    fetchClaims(filterStatus || undefined);
         else if (approvalType === 'mutation') fetchMutations(filterStatus || undefined);
         else if (approvalType === 'overtime') fetchOvertimes(filterStatus || undefined);
-        else if (approvalType === 'training') fetchTraining();
-        else if (approvalType === 'okr') fetchOkr();
-        else if (approvalType === 'travel') fetchTravel();
+        else if (approvalType === 'training') fetchTraining(filterStatus || undefined);
+        else if (approvalType === 'okr') fetchOkr(filterStatus || undefined);
+        else if (approvalType === 'travel') fetchTravel(filterStatus || undefined);
         fetchWorkflowSummary();
       } else showToast('error', json.error || 'Gagal');
     } catch (e) { showToast('error', 'Gagal memproses'); }
@@ -260,12 +282,25 @@ export default function MSSPortalPage() {
         </p>
 
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-          <OpsKpiShell><HRStatCard label="Klaim" value={workflowSummary?.claims?.pending || 0} icon={Clock} accent="amber" onClick={() => setActiveTab('claims-approval')} /></OpsKpiShell>
-          <OpsKpiShell><HRStatCard label="Mutasi" value={workflowSummary?.mutations?.pending || 0} icon={ArrowRightLeft} accent="orange" onClick={() => setActiveTab('mutations-approval')} /></OpsKpiShell>
-          <OpsKpiShell><HRStatCard label="Lembur" value={workflowSummary?.overtime?.pending || 0} icon={Timer} accent="rose" onClick={() => setActiveTab('overtime-approval')} /></OpsKpiShell>
-          <OpsKpiShell><HRStatCard label="Pelatihan" value={workflowSummary?.training?.pending || 0} icon={GraduationCap} accent="violet" onClick={() => setActiveTab('training-approval')} /></OpsKpiShell>
-          <OpsKpiShell><HRStatCard label="OKR" value={workflowSummary?.okr?.pending || 0} icon={Target} accent="emerald" onClick={() => setActiveTab('okr-approval')} /></OpsKpiShell>
-          <OpsKpiShell><HRStatCard label="Travel" value={workflowSummary?.travel?.pending || 0} icon={Plane} accent="blue" onClick={() => setActiveTab('travel-approval')} /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard label="Klaim" value={workflowSummary?.claims?.pending || 0} icon={Clock} accent="amber" onClick={() => goTab('claims-approval')} /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard label="Mutasi" value={workflowSummary?.mutations?.pending || 0} icon={ArrowRightLeft} accent="orange" onClick={() => goTab('mutations-approval')} /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard label="Lembur" value={workflowSummary?.overtime?.pending || 0} icon={Timer} accent="rose" onClick={() => goTab('overtime-approval')} /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard label="Pelatihan" value={workflowSummary?.training?.pending || 0} icon={GraduationCap} accent="violet" onClick={() => goTab('training-approval')} /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard label="OKR" value={workflowSummary?.okr?.pending || 0} icon={Target} accent="emerald" onClick={() => goTab('okr-approval')} /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard label="Travel" value={workflowSummary?.travel?.pending || 0} icon={Plane} accent="blue" onClick={() => goTab('travel-approval')} /></OpsKpiShell>
+        </div>
+
+        <div className="rounded-[var(--hf-radius)] border border-[var(--hf-border-subtle)] bg-gradient-to-r from-[var(--hf-brand-50)] to-white px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--hf-ink-muted)]">Total antrian pending</p>
+            <p className="text-2xl font-bold text-[color:var(--hf-ink)] tabular-nums">{totalPending}</p>
+            <p className="text-[11px] text-[color:var(--hf-ink-faint)]">Klaim + mutasi + lembur + pelatihan + OKR + travel</p>
+          </div>
+          {totalPending > 0 && (
+            <button type="button" onClick={() => goTab('claims-approval')} className="text-xs font-semibold text-[color:var(--hf-brand-600)] hover:underline">
+              Mulai review →
+            </button>
+          )}
         </div>
 
         <EnterpriseTabBar
@@ -279,7 +314,7 @@ export default function MSSPortalPage() {
             { key: 'travel-approval', label: 'Travel', icon: Plane, count: workflowSummary?.travel?.pending || undefined },
           ]}
           active={activeTab}
-          onChange={(key) => { setActiveTab(key); setFilterStatus(''); }}
+          onChange={(key) => goTab(key as MSSTab)}
         />
 
         <div className="hf-card p-5">
@@ -293,7 +328,7 @@ export default function MSSPortalPage() {
                       <h4 className="font-semibold text-[color:var(--hf-ink)] flex items-center gap-1.5">
                         <DollarSign className="w-4 h-4 text-yellow-600" /> Klaim Menunggu Persetujuan
                       </h4>
-                      <button onClick={() => setActiveTab('claims-approval')} className="text-xs text-[color:var(--hf-brand-600)] hover:underline flex items-center gap-0.5">
+                      <button onClick={() => goTab('claims-approval')} className="text-xs text-[color:var(--hf-brand-600)] hover:underline flex items-center gap-0.5">
                         Lihat Semua <ChevronRight className="w-3 h-3" />
                       </button>
                     </div>
@@ -307,7 +342,7 @@ export default function MSSPortalPage() {
                       <h4 className="font-semibold text-[color:var(--hf-ink)] flex items-center gap-1.5">
                         <ArrowRightLeft className="w-4 h-4 text-orange-600" /> Mutasi Menunggu Persetujuan
                       </h4>
-                      <button onClick={() => setActiveTab('mutations-approval')} className="text-xs text-[color:var(--hf-brand-600)] hover:underline flex items-center gap-0.5">
+                      <button onClick={() => goTab('mutations-approval')} className="text-xs text-[color:var(--hf-brand-600)] hover:underline flex items-center gap-0.5">
                         Lihat Semua <ChevronRight className="w-3 h-3" />
                       </button>
                     </div>
@@ -593,7 +628,16 @@ export default function MSSPortalPage() {
 
             {activeTab === 'training-approval' && (
               <div className="space-y-3">
-                <h3 className="font-semibold text-[color:var(--hf-ink)]">Permintaan Pelatihan</h3>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <h3 className="font-semibold text-[color:var(--hf-ink)]">Permintaan Pelatihan</h3>
+                  <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
+                    className="px-3 py-1.5 border rounded-lg text-sm">
+                    <option value="">Menunggu (default)</option>
+                    <option value="pending">Tertunda</option>
+                    <option value="approved">Disetujui</option>
+                    <option value="rejected">Ditolak</option>
+                  </select>
+                </div>
                 {trainingReqs.length === 0 ? (
                   <HrisEmptyState source={dataSource} title="Tidak ada permintaan pelatihan" description="Pengajuan dari ESS akan muncul di sini." />
                 ) : trainingReqs.map((r: any) => {
@@ -638,7 +682,16 @@ export default function MSSPortalPage() {
 
             {activeTab === 'okr-approval' && (
               <div className="space-y-3">
-                <h3 className="font-semibold text-[color:var(--hf-ink)]">Persetujuan OKR / Objective</h3>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <h3 className="font-semibold text-[color:var(--hf-ink)]">Persetujuan OKR / Objective</h3>
+                  <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
+                    className="px-3 py-1.5 border rounded-lg text-sm">
+                    <option value="">Menunggu (default)</option>
+                    <option value="pending">Tertunda</option>
+                    <option value="active">Aktif</option>
+                    <option value="draft">Draft</option>
+                  </select>
+                </div>
                 {okrPending.length === 0 ? (
                   <HrisEmptyState source={dataSource} title="Tidak ada OKR menunggu" description="Objective yang diajukan persetujuan akan tampil di sini." />
                 ) : okrPending.map((o: any) => (
@@ -651,10 +704,12 @@ export default function MSSPortalPage() {
                       </p>
                       {o.description && <p className="text-xs text-[color:var(--hf-ink-faint)] mt-1 line-clamp-2">{o.description}</p>}
                     </div>
+                    {(o.status === 'pending_approval' || !o.status || filterStatus === '' || filterStatus === 'pending') && (
                     <div className="flex gap-2 shrink-0">
                       <button type="button" onClick={() => openApproval('okr', o, 'approve')} className="px-3 py-1.5 text-sm rounded-[var(--hf-radius)] bg-[var(--hf-success)] text-white">Setujui</button>
                       <button type="button" onClick={() => openApproval('okr', o, 'reject')} className="px-3 py-1.5 text-sm rounded-[var(--hf-radius)] bg-[var(--hf-danger)] text-white">Tolak</button>
                     </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -662,7 +717,16 @@ export default function MSSPortalPage() {
 
             {activeTab === 'travel-approval' && (
               <div className="space-y-3">
-                <h3 className="font-semibold text-[color:var(--hf-ink)]">Persetujuan Perjalanan Dinas</h3>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <h3 className="font-semibold text-[color:var(--hf-ink)]">Persetujuan Perjalanan Dinas</h3>
+                  <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
+                    className="px-3 py-1.5 border rounded-lg text-sm">
+                    <option value="">Menunggu (default)</option>
+                    <option value="pending">Tertunda</option>
+                    <option value="approved">Disetujui</option>
+                    <option value="rejected">Ditolak</option>
+                  </select>
+                </div>
                 {travelReqs.length === 0 ? (
                   <HrisEmptyState source={dataSource} title="Tidak ada perjalanan pending" description="Pengajuan travel dari karyawan akan tampil di sini." />
                 ) : travelReqs.map((t: any) => (

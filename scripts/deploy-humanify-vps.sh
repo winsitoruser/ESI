@@ -25,7 +25,12 @@
 #   VPS_SSH_KEY=~/.ssh/id_ed25519 VPS_HOST=... bash scripts/deploy-humanify-vps.sh
 #
 # Pastikan DNS A record @ dan www → VPS_HOST sebelum deploy domain.
+#
+# HOLD — NEVER invoke wipe-prod / wipe-prod*.js from this deploy path.
+# Those scripts are destructive and must stay out of rsync + never be executed here.
 set -euo pipefail
+
+echo "HOLD: deploy path never runs wipe-prod scripts (excluded from rsync; do not invoke manually during deploy)"
 
 SRC="$(cd "$(dirname "$0")/.." && pwd)"
 APP_SRC="${APP_SRC:-$SRC}"
@@ -101,6 +106,7 @@ if [ "${DEPLOY_SKIP_SYNC:-false}" = true ]; then
   echo "  (skip sync — DEPLOY_SKIP_SYNC=true)"
 else
 ssh_cmd "mkdir -p $APP_DIR"
+# HOLD: wipe-prod*.js excluded below — never sync or invoke wipe from deploy.
 rsync_cmd --delete \
   --exclude .env --exclude .env.local --exclude .env.*.local \
   --exclude 'public/uploads/' \

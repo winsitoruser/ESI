@@ -14,7 +14,7 @@ import {
   Coffee, Heart, Sun, Moon, Sunrise, Building2, MapPin,
   Eye, Send, RefreshCw, Menu, X, Loader2, Fingerprint,
   Navigation, Camera, Image, ClipboardCheck, Package, Store,
-  CheckSquare, AlertCircle, Map, ScanLine, Timer, Banknote, LayoutGrid, Megaphone, ExternalLink, Users, ClipboardList, GraduationCap
+  CheckSquare, AlertCircle, Map, ScanLine, Timer, Banknote, LayoutGrid, Megaphone, ExternalLink, Users, ClipboardList, GraduationCap, LifeBuoy
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import PhotoCaptureField from '@/components/employee/PhotoCaptureField';
@@ -556,6 +556,17 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
       if (res.success) { toast.success(res.message); fetchOvertime(otMonth); }
       else toast.error(res.error || 'Gagal membatalkan');
     } catch { toast.error('Gagal membatalkan'); }
+  };
+
+  const handleCancelLeave = async (id: string) => {
+    if (!confirm('Batalkan pengajuan cuti ini?')) return;
+    try {
+      const res = await api('cancel-leave', 'POST', { id });
+      if (res.success) {
+        toast.success(res.message || 'Pengajuan cuti dibatalkan');
+        fetchAll();
+      } else toast.error(res.error || 'Gagal membatalkan cuti');
+    } catch { toast.error('Gagal membatalkan cuti'); }
   };
 
   // ── Field Visit: GPS ────────────────────────────────────────────────────────
@@ -1366,18 +1377,37 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
                   {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                   {submitting ? 'Mengirim…' : 'Kirim Permintaan'}
                 </button>
-                {deskTickets.length > 0 && (
+                {deskTickets.length === 0 ? (
+                  <div className="border-t pt-3 text-center py-4">
+                    <LifeBuoy className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                    <p className="text-sm font-medium text-slate-700">Belum ada tiket desk</p>
+                    <p className="text-xs text-slate-500 mt-1">Kirim permintaan di atas — tiket helpdesk Anda akan tampil di sini.</p>
+                  </div>
+                ) : (
                   <div className="border-t pt-3 space-y-2">
                     <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Tiket saya</p>
-                    {deskTickets.slice(0, 8).map((t: any) => (
-                      <div key={t.id} className="rounded-lg bg-slate-50 px-3 py-2 text-xs flex justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="font-medium text-slate-800 truncate">{t.subject}</p>
-                          <p className="text-slate-500">{t.ticket_number || t.category}</p>
+                    {deskTickets.slice(0, 8).map((t: any) => {
+                      const st = String(t.status || 'open');
+                      const snippet = t.last_comment_snippet || t.lastCommentSnippet || '';
+                      const resolution = t.resolution_note || t.resolutionNote || '';
+                      return (
+                        <div key={t.id} className="rounded-lg bg-slate-50 px-3 py-2.5 text-xs space-y-1">
+                          <div className="flex justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="font-medium text-slate-800 truncate">{t.subject}</p>
+                              <p className="text-slate-500">{t.ticket_number || t.category}</p>
+                            </div>
+                            <span className="shrink-0 text-slate-600 capitalize font-medium">{st.replace(/_/g, ' ')}</span>
+                          </div>
+                          {resolution ? (
+                            <p className="text-emerald-700 line-clamp-2">Resolusi: {resolution}</p>
+                          ) : null}
+                          {snippet ? (
+                            <p className="text-slate-500 line-clamp-2 italic">“{snippet}”</p>
+                          ) : null}
                         </div>
-                        <span className="shrink-0 text-slate-600 capitalize">{String(t.status || 'open').replace('_', ' ')}</span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </>
@@ -1506,6 +1536,10 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
       pendingClaims={pendingClaims}
       pendingTravel={pendingTravel}
       setOtModal={setOtModal}
+      openDeskTicketCount={deskTickets.filter((t: any) => {
+        const s = String(t.status || 'open').toLowerCase();
+        return s !== 'resolved' && s !== 'closed';
+      }).length}
     />
   );
 
@@ -1564,6 +1598,7 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
       leaveBalance={leaveBalance}
       leaveRequests={leaveRequests}
       onOpenApply={() => setModal('leave')}
+      onCancelLeave={handleCancelLeave}
     />
   );
 
@@ -1725,7 +1760,15 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
             <p className="text-sm text-gray-400 text-center py-4">Belum ada pengajuan kasbon</p>
           ) : (
             <div className="space-y-2.5">
-              {cashAdvances.map((k: any) => (
+              {cashAdvances.map((k: any) => {
+                const remaining = Number(k.remaining_amount != null ? k.remaining_amount : k.amount) || 0;
+                const total = Number(k.amount) || 0;
+                const paidPct = total > 0 ? Math.min(100, Math.round(((total - remaining) / total) * 100)) : 0;
+                const nextInstallment = Number(k.installment_amount) > 0
+                  ? Math.min(remaining, Number(k.installment_amount))
+                  : remaining;
+                const isOpen = ['approved', 'active'].includes(k.status);
+                return (
                 <div key={k.id} className="p-3 bg-violet-50/60 rounded-lg border border-violet-100">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-medium text-gray-900">{fmtCur(k.amount)}</span>
@@ -1736,12 +1779,28 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
                     {k.installment_months > 1 && (
                       <span>Cicilan {fmtCur(k.installment_amount)} × {k.installment_months} bln</span>
                     )}
-                    {['approved', 'active'].includes(k.status) && (
-                      <span>Sisa {fmtCur(k.remaining_amount != null ? k.remaining_amount : k.amount)}</span>
+                    {isOpen && (
+                      <span>Sisa {fmtCur(remaining)}</span>
                     )}
                   </div>
+                  {isOpen && total > 0 && (
+                    <div className="mt-2 space-y-1">
+                      <div className="flex justify-between text-[10px] text-violet-700">
+                        <span>Progres pelunasan {paidPct}%</span>
+                        {nextInstallment > 0 && (
+                          <span>Cicilan berikutnya {fmtCur(nextInstallment)}</span>
+                        )}
+                      </div>
+                      <div className="h-1.5 bg-violet-100 rounded-full overflow-hidden" aria-hidden>
+                        <div
+                          className="h-full bg-violet-500 rounded-full transition-all"
+                          style={{ width: `${paidPct}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ))}
+              );})}
             </div>
           )}
         </div>

@@ -105,6 +105,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         case 'clock-in': return clockIn(req, res, userId, tenantId);
         case 'clock-out': return clockOut(req, res, userId, tenantId);
         case 'leave-request': return createLeaveRequest(req, res, userId, tenantId);
+        case 'cancel-leave': return cancelLeave(req, res, userId, tenantId);
         case 'claim':
         case 'resubmit-claim':
         case 'replace-claim-receipt':
@@ -503,6 +504,32 @@ async function cancelOvertime(req: NextApiRequest, res: NextApiResponse, userId:
     return res.json({ success: true, message: 'Pengajuan lembur berhasil dibatalkan' });
   } catch {
     return res.status(500).json({ success: false, error: 'Gagal membatalkan' });
+  }
+}
+
+async function cancelLeave(req: NextApiRequest, res: NextApiResponse, userId: string, tenantId: string) {
+  const { id } = req.body || {};
+  if (!id) return res.status(400).json({ success: false, error: 'id required' });
+  if (!sequelize) {
+    if (allowHrMockFallback()) return res.json({ success: true, message: 'Pengajuan cuti dibatalkan' });
+    return res.status(503).json({ success: false, error: 'Database tidak tersedia' });
+  }
+  if (!tenantId) return res.status(403).json({ success: false, error: 'Tenant context required' });
+  try {
+    const emp = await ensurePortalEmployee(sequelize, userId, tenantId);
+    if (!emp?.id) return res.status(400).json({ success: false, error: 'Profil karyawan belum tersedia' });
+    const [updated] = await sequelize.query(
+      `UPDATE leave_requests SET status='cancelled', updated_at=NOW()
+       WHERE id=:id AND employee_id=:empId AND tenant_id=:tid AND status='pending'
+       RETURNING id`,
+      { replacements: { id, empId: emp.id, tid: tenantId } },
+    );
+    if (!updated?.[0]) {
+      return res.status(404).json({ success: false, error: 'Pengajuan cuti tidak ditemukan atau sudah diproses' });
+    }
+    return res.json({ success: true, message: 'Pengajuan cuti berhasil dibatalkan' });
+  } catch {
+    return res.status(500).json({ success: false, error: 'Gagal membatalkan cuti' });
   }
 }
 

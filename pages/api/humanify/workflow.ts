@@ -10,6 +10,7 @@ import {
 import { tenantIdFromSession } from '@/lib/saas/tenant-scope';
 import { resolveOrgStructureId } from '../../../lib/hris/sync-org-departments';
 import { wouldCreateCycle } from '../../../lib/hris/employee-genealogy';
+import { resolveManagerContext, buildTeamEmployeeFilter } from '@/lib/hris/manager-team-filter';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch (e) {}
@@ -68,6 +69,40 @@ export default withHQAuth(handler, { module: 'hris' });
 
 function getTenantId(session: any): string | null {
   return tenantIdFromSession(session);
+}
+
+/** Line-manager roles that approve via Manager Hub — re-check team without blocking HQ HR/admin. */
+const LINE_MANAGER_ROLES = new Set(['manager', 'branch_manager', 'manager_toko', 'supervisor']);
+
+/**
+ * Manager Hub mutation approve/reject: ensure target employee is on manager's team.
+ * HQ HR / admin / super_admin skip this (workflow remains tenant-scoped only).
+ */
+async function assertMutationEmployeeOnTeamForManager(
+  session: any,
+  employeeId: string,
+  tenantId: string,
+): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
+  const role = String(session?.user?.role || '').toLowerCase();
+  if (!LINE_MANAGER_ROLES.has(role)) return { ok: true };
+  if (!sequelize) return { ok: false, status: 503, error: 'Database tidak tersedia' };
+  const userId = String(session?.user?.id || '');
+  const ctx = await resolveManagerContext(sequelize, userId);
+  const tf = buildTeamEmployeeFilter(false, ctx, userId);
+  try {
+    const [rows] = await sequelize.query(
+      `SELECT e.id FROM employees e
+       WHERE e.id::text = :eid AND e.tenant_id = :tid ${tf.sql}
+       LIMIT 1`,
+      { replacements: { eid: String(employeeId), tid: tenantId, ...tf.replacements } },
+    );
+    if (!rows?.[0]) {
+      return { ok: false, status: 403, error: 'Mutasi di luar tim Anda atau tidak ditemukan' };
+    }
+    return { ok: true };
+  } catch (e: any) {
+    return { ok: false, status: 500, error: e?.message || 'Team scope check failed' };
+  }
 }
 
 let mutationPlacementReady = false;
@@ -458,6 +493,9 @@ async function approveMutationStep(req: NextApiRequest, res: NextApiResponse, se
   if (!mut) return res.status(404).json({ error: 'Not found' });
   if (mut.status !== 'pending') return res.status(400).json({ success: false, error: 'Mutasi tidak dalam status pending' });
 
+  const teamGate = await assertMutationEmployeeOnTeamForManager(session, mut.employee_id, tenantId);
+  if (!teamGate.ok) return res.status(teamGate.status).json({ success: false, error: teamGate.error });
+
   const stepFilter = step_id
     ? 'AND id = :stepId'
     : `AND step_order = (SELECT MIN(step_order) FROM mutation_approval_steps WHERE mutation_id = :id AND status = 'pending')`;
@@ -615,10 +653,13 @@ async function rejectMutation(req: NextApiRequest, res: NextApiResponse, session
   if (!tenantId) return res.status(403).json({ error: 'Tenant context required' });
 
   const [mutations] = await sequelize.query(
-    `SELECT id FROM employee_mutations WHERE id = :id AND tenant_id = :tenantId`,
+    `SELECT id, employee_id FROM employee_mutations WHERE id = :id AND tenant_id = :tenantId`,
     { replacements: { id, tenantId } },
   );
   if (!mutations?.[0]) return res.status(404).json({ error: 'Not found' });
+
+  const teamGate = await assertMutationEmployeeOnTeamForManager(session, mutations[0].employee_id, tenantId);
+  if (!teamGate.ok) return res.status(teamGate.status).json({ success: false, error: teamGate.error });
 
   await sequelize.query(`
     UPDATE mutation_approval_steps SET status = 'rejected', comments = :comments, acted_at = NOW()

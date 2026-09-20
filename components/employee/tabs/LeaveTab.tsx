@@ -31,9 +31,10 @@ export interface LeaveTabProps {
   leaveBalance: any[];
   leaveRequests: any[];
   onOpenApply: () => void;
+  onCancelLeave?: (id: string) => void;
 }
 
-export default function LeaveTab({ leaveBalance, leaveRequests, onOpenApply }: LeaveTabProps) {
+export default function LeaveTab({ leaveBalance, leaveRequests, onOpenApply, onCancelLeave }: LeaveTabProps) {
   const [historyFilter, setHistoryFilter] = useState<'all' | 'comp_off' | 'pending'>('all');
 
   const filteredRequests = useMemo(() => {
@@ -67,31 +68,43 @@ export default function LeaveTab({ leaveBalance, leaveRequests, onOpenApply }: L
             const total = Number(lb.total) || Number(lb.total_days) || 12;
             const used = Number(lb.used) || Number(lb.used_days) || 0;
             const comp = isCompOffBalance(lb);
+            const isLow = rem <= 2 && !comp;
             return (
               <div
                 key={lb.id || lb.code || i}
-                className={comp ? 'rounded-lg ring-1 ring-cyan-200 bg-cyan-50/60 p-2 -mx-1' : ''}
+                className={
+                  comp
+                    ? 'rounded-lg ring-1 ring-cyan-200 bg-cyan-50/60 p-2 -mx-1'
+                    : isLow
+                      ? 'rounded-lg ring-1 ring-amber-200 bg-amber-50/70 p-2 -mx-1'
+                      : ''
+                }
                 data-leave-code={lb.code || undefined}
               >
                 <div className="flex justify-between text-sm mb-1">
-                  <span className={`text-gray-700 ${comp ? 'font-semibold text-cyan-800' : ''}`}>
+                  <span className={`text-gray-700 ${comp ? 'font-semibold text-cyan-800' : isLow ? 'font-semibold text-amber-900' : ''}`}>
                     {lb.type || lb.name}
                     {comp && (
                       <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wide text-cyan-700 bg-cyan-100 px-1.5 py-0.5 rounded">
                         Comp-Off
                       </span>
                     )}
+                    {isLow && (
+                      <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">
+                        Sisa rendah
+                      </span>
+                    )}
                     {lb.code && (
                       <span className="ml-1 text-[10px] text-gray-400 font-mono">{lb.code}</span>
                     )}
                   </span>
-                  <span className={`font-medium ${comp ? 'text-cyan-800' : ''}`}>
+                  <span className={`font-medium ${comp ? 'text-cyan-800' : isLow ? 'text-amber-800' : ''}`}>
                     Sisa {rem} · {used}/{total} hari
                   </span>
                 </div>
                 <div className="w-full bg-gray-100 rounded-full h-2.5" aria-hidden>
                   <div
-                    className={`h-2.5 rounded-full ${comp ? 'bg-cyan-500' : LEAVE_COLORS[i % LEAVE_COLORS.length]}`}
+                    className={`h-2.5 rounded-full ${comp ? 'bg-cyan-500' : isLow ? 'bg-amber-500' : LEAVE_COLORS[i % LEAVE_COLORS.length]}`}
                     style={{ width: `${Math.min(100, (used / Math.max(total, 1)) * 100)}%` }}
                   />
                 </div>
@@ -174,6 +187,15 @@ export default function LeaveTab({ leaveBalance, leaveRequests, onOpenApply }: L
                 )}
                 {l.status === 'rejected' && l.rejection_reason && (
                   <p className="text-[10px] text-rose-600 mt-1">Alasan: {l.rejection_reason}</p>
+                )}
+                {l.status === 'pending' && onCancelLeave && (
+                  <button
+                    type="button"
+                    onClick={() => onCancelLeave(l.id)}
+                    className="mt-2 text-xs text-red-400 hover:text-red-600 underline"
+                  >
+                    Batalkan pengajuan
+                  </button>
                 )}
               </div>
             );})}

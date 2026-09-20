@@ -5,19 +5,30 @@ import { PageGuard } from '@/components/permissions';
 import type { HrisDataSource } from '@/lib/hris/data-source';
 import DepartmentSelect from '@/components/humanify/DepartmentSelect';
 import { useTranslation } from '@/lib/i18n';
-import { BarChart3, Users, TrendingUp, TrendingDown, Plus, Edit, Trash2, X, DollarSign, Target, Clock, AlertCircle, CheckCircle, UserPlus, Activity } from 'lucide-react';
+import { BarChart3, Users, TrendingUp, TrendingDown, Plus, Edit, Trash2, X, DollarSign, Target, Clock, AlertCircle, CheckCircle, UserPlus, Activity, Download, Globe } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from 'recharts';
 import { HF_CHART_COLORS_SOLID as CHART_COLORS, HF_CHART_PRIMARY } from '@/lib/humanify/chart-tokens';
+import {
+  WORKFORCE_SEGMENTS,
+  segmentForCategory,
+  type WorkforceSegment,
+} from '@/lib/hris/workforce-categories';
 
 interface HeadcountPlan { id: string; name: string; period_start: string; period_end: string; department: string; current_headcount: number; planned_headcount: number; approved_headcount: number; budget_amount: number; status: string; justification: string; details: any[]; }
 interface ManpowerBudget { id: string; fiscal_year: number; department: string; budget_category: string; planned_amount: number; actual_amount: number; variance: number; status: string; notes: string; }
 
 type TabKey = 'dashboard' | 'headcount' | 'budgets' | 'turnover' | 'productivity';
 
-const EMPTY_OVERVIEW = { totalEmployees: 0, activeEmployees: 0, newHires: 0, resignations: 0, turnoverRate: 0, avgTenure: 0, headcountGrowth: 0, totalHRBudget: 0, budgetUtilization: 0, absenteeismRate: 0, departmentBreakdown: [] as any[], monthlyTrend: [] as any[] };
+const EMPTY_OVERVIEW = {
+  totalEmployees: 0, activeEmployees: 0, newHires: 0, resignations: 0, turnoverRate: 0, avgTenure: 0, headcountGrowth: 0, totalHRBudget: 0, budgetUtilization: 0, absenteeismRate: 0,
+  departmentBreakdown: [] as any[], monthlyTrend: [] as any[],
+  segmentCounts: { organic: 0, non_organic: 0, foreign: 0 },
+  categoryBreakdown: [] as Array<{ category: string; count: number }>,
+  tkaHints: { foreign: 0, expiring: 0, expired: 0 },
+};
 
 export default function WorkforceAnalyticsPage() {
   const { t } = useTranslation();
@@ -34,6 +45,7 @@ export default function WorkforceAnalyticsPage() {
   const [toast, setToast] = useState<{ msg: string; type: string } | null>(null);
   const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [mounted, setMounted] = useState(false);
+  const [segmentFilter, setSegmentFilter] = useState<'all' | WorkforceSegment>('all');
 
   const [planForm, setPlanForm] = useState({
     name: '', periodStart: '', periodEnd: '', department: '',
@@ -120,6 +132,33 @@ export default function WorkforceAnalyticsPage() {
       return { department: d.department || 'Tidak ada', count, pct };
     });
   }, [overview.departmentBreakdown, overview.totalEmployees]);
+
+  const segmentCounts = overview.segmentCounts || EMPTY_OVERVIEW.segmentCounts;
+
+  const filteredCategoryRows = useMemo(() => {
+    const rows = overview.categoryBreakdown || [];
+    if (segmentFilter === 'all') return rows;
+    return rows.filter((r: { category?: string }) => segmentForCategory(r.category) === segmentFilter);
+  }, [overview.categoryBreakdown, segmentFilter]);
+
+  const exportDeptCsv = () => {
+    const rows = deptTableRows;
+    if (!rows.length) return;
+    const lines = ['Departemen,Jumlah,Proporsi_%'];
+    rows.forEach((r: { department: string; count: number; pct: number }) => {
+      lines.push(`"${String(r.department).replace(/"/g, '""')}",${r.count},${r.pct.toFixed(1)}`);
+    });
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `workforce-departemen-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const tkaHints = overview.tkaHints || EMPTY_OVERVIEW.tkaHints;
+  const showTkaStrip = (tkaHints.foreign || 0) > 0 || (segmentCounts.foreign || 0) > 0;
 
   const openAdd = (type: string) => {
     setEditingItem(null); setModalType(type); setShowModal(true);
@@ -226,7 +265,7 @@ export default function WorkforceAnalyticsPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         <div className="bg-gradient-to-br from-[var(--hf-brand-600)] to-[var(--hf-brand)] rounded-xl p-5 text-white shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <Users className="w-7 h-7 opacity-80" />
@@ -261,6 +300,29 @@ export default function WorkforceAnalyticsPage() {
         </div>
       </div>
 
+      {/* W94: segment KPI strip */}
+      <div className="grid grid-cols-3 gap-3 mb-6">
+        {WORKFORCE_SEGMENTS.map((seg) => {
+          const count = segmentCounts[seg.id] || 0;
+          return (
+            <button
+              key={seg.id}
+              type="button"
+              onClick={() => setSegmentFilter((cur) => (cur === seg.id ? 'all' : seg.id))}
+              className={`rounded-xl border p-4 text-left transition-colors ${
+                segmentFilter === seg.id
+                  ? 'border-[var(--hf-brand)] bg-[var(--hf-brand-50)] ring-1 ring-[var(--hf-brand)]'
+                  : 'bg-white border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              <p className="text-2xl font-bold text-gray-900 tabular-nums">{count}</p>
+              <p className="text-sm font-medium text-gray-800 mt-0.5">{seg.label}</p>
+              <p className="text-[11px] text-gray-500 mt-1 line-clamp-2">{seg.description}</p>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Tabs */}
       <div className="flex gap-1 border-b mb-6 overflow-x-auto">
         {tabs.map(t => (
@@ -276,6 +338,62 @@ export default function WorkforceAnalyticsPage() {
       {/* DASHBOARD TAB */}
       {!loading && tab === 'dashboard' && (
         <div className="space-y-6">
+          {showTkaStrip && (
+            <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <Globe className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+              <div className="text-sm text-amber-900">
+                <p className="font-semibold">Izin TKA — pantau dokumen tinggal & kerja</p>
+                <p className="text-amber-800/90 mt-0.5 text-xs">
+                  {segmentCounts.foreign || tkaHints.foreign || 0} TKA tercatat.
+                  {(tkaHints.expiring || 0) > 0 ? ` ${tkaHints.expiring} dokumen mendekati kedaluwarsa (≤60 hari).` : ''}
+                  {(tkaHints.expired || 0) > 0 ? ` ${tkaHints.expired} sudah kedaluwarsa.` : ''}
+                  {' '}Pastikan RPTKA / KITAS / VITAS aktif sesuai kategori tenaga kerja asing.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {(overview.categoryBreakdown || []).length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-medium text-gray-500 mr-1">Segmen:</span>
+              <button
+                type="button"
+                onClick={() => setSegmentFilter('all')}
+                className={`text-xs px-2.5 py-1 rounded-full border ${
+                  segmentFilter === 'all' ? 'bg-[var(--hf-brand)] text-white border-[var(--hf-brand)]' : 'bg-white text-gray-600'
+                }`}
+              >
+                Semua
+              </button>
+              {WORKFORCE_SEGMENTS.map((seg) => (
+                <button
+                  key={seg.id}
+                  type="button"
+                  onClick={() => setSegmentFilter(seg.id)}
+                  className={`text-xs px-2.5 py-1 rounded-full border ${
+                    segmentFilter === seg.id ? 'bg-[var(--hf-brand)] text-white border-[var(--hf-brand)]' : 'bg-white text-gray-600'
+                  }`}
+                >
+                  {seg.label} ({segmentCounts[seg.id] || 0})
+                </button>
+              ))}
+            </div>
+          )}
+
+          {filteredCategoryRows.length > 0 && (
+            <div className="hf-card border-gray-200 p-4">
+              <h3 className="font-semibold text-gray-900 text-sm mb-3">Ringkasan kategori hubungan kerja</h3>
+              <div className="flex flex-wrap gap-2">
+                {filteredCategoryRows.map((r: { category: string; count: number }) => (
+                  <span key={r.category} className="text-xs px-2.5 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-700">
+                    <span className="font-semibold tabular-nums">{r.count}</span>
+                    {' · '}{r.category || 'permanent'}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             {/* Area Chart — workforce movement trend */}
             <div className="xl:col-span-2 hf-card border-gray-200 p-6">
@@ -375,14 +493,25 @@ export default function WorkforceAnalyticsPage() {
 
           {/* Department Table */}
           <div className="hf-card border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-3 flex-wrap">
               <div>
                 <h3 className="font-semibold text-gray-900">Ringkasan per Departemen</h3>
                 <p className="text-sm text-gray-500 mt-0.5">Detail headcount dan proporsi tenaga kerja</p>
               </div>
-              <span className="text-xs text-gray-500 bg-gray-50 border border-gray-200 px-2.5 py-1 rounded-full">
-                {deptTableRows.length} departemen
-              </span>
+              <div className="flex items-center gap-2">
+                {deptTableRows.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={exportDeptCsv}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-700"
+                  >
+                    <Download className="w-3.5 h-3.5" /> Export CSV
+                  </button>
+                )}
+                <span className="text-xs text-gray-500 bg-gray-50 border border-gray-200 px-2.5 py-1 rounded-full">
+                  {deptTableRows.length} departemen
+                </span>
+              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
