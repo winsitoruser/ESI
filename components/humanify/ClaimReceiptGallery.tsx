@@ -205,9 +205,13 @@ export default function ClaimReceiptGallery({ receiptUrl, compact = false, maxTh
 
   if (!files.length) {
     return compact ? (
-      <span className="text-xs text-gray-400">—</span>
+      <span className="text-xs text-gray-400 italic">Tanpa bukti</span>
     ) : (
-      <p className="text-sm text-gray-400">Tidak ada bukti lampiran.</p>
+      <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center">
+        <ImageOff className="mx-auto h-8 w-8 text-gray-300" />
+        <p className="mt-2 text-sm text-gray-400">Tidak ada bukti lampiran.</p>
+        <p className="text-[11px] text-gray-400 mt-0.5">Karyawan dapat upload ulang lewat ESS.</p>
+      </div>
     );
   }
 

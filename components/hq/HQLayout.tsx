@@ -88,6 +88,7 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
   const [billingAddons, setBillingAddons] = useState<{ lms?: boolean; ai?: boolean }>({});
   const [accountAlerts, setAccountAlerts] = useState<AccountAlertUi[]>([]);
   const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([]);
+  const [mutationsDueBadge, setMutationsDueBadge] = useState<number>(0);
 
   // Get user role from session
   const userRole = (session?.user as any)?.role as UserRole | undefined;
@@ -107,8 +108,35 @@ function HQLayoutContent({ children, title, subtitle, noPadding, platform = 'sim
         keepLocked: true,
       }),
     };
-    return filterHumanifySidebarByPersona(byPlan, userRole);
-  }, [userRole, baseSidebarConfig, isHumanify, planId, isPlatformOp, billingAddons]);
+    const persona = filterHumanifySidebarByPersona(byPlan, userRole);
+    if (!mutationsDueBadge) return persona;
+    return {
+      ...persona,
+      groups: persona.groups.map((g) => ({
+        ...g,
+        items: (g.items || []).map((item) =>
+          item.id === 'humanify-mutations'
+            ? { ...item, badge: mutationsDueBadge, badgeColor: 'bg-sky-500' }
+            : item,
+        ),
+      })),
+    };
+  }, [userRole, baseSidebarConfig, isHumanify, planId, isPlatformOp, billingAddons, mutationsDueBadge]);
+
+  useEffect(() => {
+    if (!isHumanify || !session?.user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/humanify/workflow?action=mutations&due_soon=1');
+        const json = await res.json();
+        if (!cancelled && json.success) {
+          setMutationsDueBadge(Array.isArray(json.data) ? json.data.length : 0);
+        }
+      } catch { /* optional badge */ }
+    })();
+    return () => { cancelled = true; };
+  }, [isHumanify, session?.user]);
 
   useEffect(() => {
     if (!isHumanify || !session?.user) return;
