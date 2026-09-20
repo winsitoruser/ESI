@@ -22,6 +22,13 @@ import { markGoLiveFlagSafe } from '@/lib/saas/go-live';
 
 const sequelize = require('../../../lib/sequelize');
 
+async function ensureJobCustomFieldsColumn() {
+  try {
+    await sequelize.query(`ALTER TABLE hris_job_openings ADD COLUMN IF NOT EXISTS custom_field_defs JSONB DEFAULT '[]'`);
+    await sequelize.query(`ALTER TABLE hris_job_openings ADD COLUMN IF NOT EXISTS custom_field_values JSONB DEFAULT '{}'`);
+  } catch { /* ignore */ }
+}
+
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     const session = (req as any).session;
@@ -35,6 +42,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     });
     const { action } = req.query;
     const method = req.method;
+
+    if (tenantId) await ensureJobCustomFieldsColumn();
 
     // ── GET ──
     if (method === 'GET') {
@@ -200,14 +209,17 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       if (action === 'create-opening') {
         if (!body.title) return res.status(400).json({ error: 'title is required' });
         const { sanitizePlainText } = await import('@/lib/security/sanitize-user-text');
+        const { sanitizeFieldDefs, sanitizeFieldValues } = await import('@/lib/hris/job-custom-fields');
         const title = sanitizePlainText(body.title, 240);
         const desc = sanitizePlainText(body.description || '', 8000);
         const reqs = sanitizePlainText(body.requirements || '', 8000);
+        const fieldDefs = sanitizeFieldDefs(body.custom_field_defs || body.customFieldDefs || []);
+        const fieldValues = sanitizeFieldValues(fieldDefs, body.custom_field_values || body.customFieldValues || {});
         const [rows] = await sequelize.query(`
           INSERT INTO hris_job_openings (tenant_id, title, department, location, employment_type, status, priority,
-            salary_min, salary_max, description, requirements, posted_date, deadline)
+            salary_min, salary_max, description, requirements, posted_date, deadline, custom_field_defs, custom_field_values)
           VALUES (:tid, :title, :dept, :loc, :type, 'open', :priority,
-            :salMin, :salMax, :desc, :reqs, CURRENT_DATE, :deadline)
+            :salMin, :salMax, :desc, :reqs, CURRENT_DATE, :deadline, :defs::jsonb, :vals::jsonb)
           RETURNING *
         `, {
           replacements: {
@@ -215,7 +227,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             type: body.type || 'full_time', priority: body.priority || 'medium',
             salMin: body.salary_min || 0, salMax: body.salary_max || 0,
             desc, reqs,
-            deadline: body.deadline || null
+            deadline: body.deadline || null,
+            defs: JSON.stringify(fieldDefs),
+            vals: JSON.stringify(fieldValues),
           }
         });
         await markGoLiveFlagSafe(tenantId, 'careersConfigured');
@@ -267,6 +281,15 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       if (action === 'update-opening') {
         if (!body.id) return res.status(400).json({ error: 'id is required' });
         const { sanitizePlainText } = await import('@/lib/security/sanitize-user-text');
+        const { sanitizeFieldDefs, sanitizeFieldValues } = await import('@/lib/hris/job-custom-fields');
+        const fieldDefs = body.custom_field_defs != null || body.customFieldDefs != null
+          ? sanitizeFieldDefs(body.custom_field_defs || body.customFieldDefs)
+          : null;
+        const fieldValues = fieldDefs
+          ? sanitizeFieldValues(fieldDefs, body.custom_field_values || body.customFieldValues || {})
+          : (body.custom_field_values != null || body.customFieldValues != null
+            ? body.custom_field_values || body.customFieldValues
+            : null);
         const [rows] = await sequelize.query(`
           UPDATE hris_job_openings SET
             title = COALESCE(:title, title), department = COALESCE(:dept, department),
@@ -274,7 +297,10 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             priority = COALESCE(:priority, priority),
             salary_min = COALESCE(:salMin, salary_min), salary_max = COALESCE(:salMax, salary_max),
             description = COALESCE(:desc, description), requirements = COALESCE(:reqs, requirements),
-            deadline = COALESCE(:deadline, deadline), updated_at = NOW()
+            deadline = COALESCE(:deadline, deadline),
+            custom_field_defs = COALESCE(:defs::jsonb, custom_field_defs),
+            custom_field_values = COALESCE(:vals::jsonb, custom_field_values),
+            updated_at = NOW()
           WHERE id = :id AND tenant_id = :tid RETURNING *
         `, {
           replacements: {
@@ -285,7 +311,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             salMin: body.salary_min ?? null, salMax: body.salary_max ?? null,
             desc: body.description != null ? sanitizePlainText(body.description, 8000) || null : null,
             reqs: body.requirements != null ? sanitizePlainText(body.requirements, 8000) || null : null,
-            deadline: body.deadline || null
+            deadline: body.deadline || null,
+            defs: fieldDefs ? JSON.stringify(fieldDefs) : null,
+            vals: fieldValues != null ? JSON.stringify(fieldValues) : null,
           }
         });
         if (rows.length === 0) return res.status(404).json({ error: 'Opening not found' });

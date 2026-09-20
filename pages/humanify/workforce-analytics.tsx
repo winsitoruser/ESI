@@ -35,7 +35,11 @@ export default function WorkforceAnalyticsPage() {
   const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [mounted, setMounted] = useState(false);
 
-  const [planForm, setPlanForm] = useState({ name: '', periodStart: '', periodEnd: '', department: '', currentHeadcount: 0, plannedHeadcount: 0, budgetAmount: 0, justification: '', status: 'draft' });
+  const [planForm, setPlanForm] = useState({
+    name: '', periodStart: '', periodEnd: '', department: '',
+    currentHeadcount: 0, plannedHeadcount: 0, budgetAmount: 0, justification: '', status: 'draft',
+    positionLines: [{ positionTitle: '', currentCount: 0, plannedCount: 0 }] as Array<{ positionTitle: string; currentCount: number; plannedCount: number }>,
+  });
   const [budgetForm, setBudgetForm] = useState({ fiscalYear: new Date().getFullYear(), department: '', budgetCategory: 'salary', plannedAmount: 0, actualAmount: 0, notes: '', status: 'draft' });
 
   const showToast = (msg: string, type = 'success') => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
@@ -119,7 +123,11 @@ export default function WorkforceAnalyticsPage() {
 
   const openAdd = (type: string) => {
     setEditingItem(null); setModalType(type); setShowModal(true);
-    if (type === 'plan') setPlanForm({ name: '', periodStart: '', periodEnd: '', department: '', currentHeadcount: 0, plannedHeadcount: 0, budgetAmount: 0, justification: '', status: 'draft' });
+    if (type === 'plan') setPlanForm({
+      name: '', periodStart: '', periodEnd: '', department: '',
+      currentHeadcount: 0, plannedHeadcount: 0, budgetAmount: 0, justification: '', status: 'draft',
+      positionLines: [{ positionTitle: '', currentCount: 0, plannedCount: 0 }],
+    });
     if (type === 'budget') setBudgetForm({ fiscalYear: new Date().getFullYear(), department: '', budgetCategory: 'salary', plannedAmount: 0, actualAmount: 0, notes: '', status: 'draft' });
   };
 
@@ -130,8 +138,14 @@ export default function WorkforceAnalyticsPage() {
         if (!planForm.name?.trim()) { showToast('Nama rencana wajib diisi', 'error'); return; }
         if (!planForm.periodStart || !planForm.periodEnd) { showToast('Periode wajib diisi', 'error'); return; }
         res = editingItem
-          ? await api('headcount-plan', 'PUT', planForm, `&id=${editingItem.id}`)
-          : await api('headcount-plan', 'POST', planForm);
+          ? await api('headcount-plan', 'PUT', {
+            ...planForm,
+            details: (planForm.positionLines || []).filter((l) => l.positionTitle?.trim()),
+          }, `&id=${editingItem.id}`)
+          : await api('headcount-plan', 'POST', {
+            ...planForm,
+            details: (planForm.positionLines || []).filter((l) => l.positionTitle?.trim()),
+          });
       } else if (modalType === 'budget') {
         res = editingItem
           ? await api('budget', 'PUT', budgetForm, `&id=${editingItem.id}`)
@@ -468,7 +482,30 @@ export default function WorkforceAnalyticsPage() {
                     {p.status !== 'approved' && (
                       <button onClick={() => handleApprovePlan(p)} className="p-1.5 text-gray-400 hover:text-green-600" title="Setujui"><CheckCircle className="w-4 h-4" /></button>
                     )}
-                    <button onClick={() => { setEditingItem(p); setPlanForm({ name: p.name, periodStart: fmtDateInput(p.period_start), periodEnd: fmtDateInput(p.period_end), department: p.department || '', currentHeadcount: p.current_headcount, plannedHeadcount: p.planned_headcount, budgetAmount: Number(p.budget_amount) || 0, justification: p.justification || '', status: p.status }); setModalType('plan'); setShowModal(true); }} className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)]"><Edit className="w-4 h-4" /></button>
+                    <button onClick={() => {
+                      setEditingItem(p);
+                      const lines = Array.isArray(p.details) && p.details.length
+                        ? p.details.map((d: any) => ({
+                          positionTitle: d.positionTitle || d.position_title || d.title || '',
+                          currentCount: Number(d.currentCount ?? d.current_count ?? 0) || 0,
+                          plannedCount: Number(d.plannedCount ?? d.planned_count ?? 0) || 0,
+                        }))
+                        : [{ positionTitle: '', currentCount: 0, plannedCount: 0 }];
+                      setPlanForm({
+                        name: p.name,
+                        periodStart: fmtDateInput(p.period_start),
+                        periodEnd: fmtDateInput(p.period_end),
+                        department: p.department || '',
+                        currentHeadcount: p.current_headcount,
+                        plannedHeadcount: p.planned_headcount,
+                        budgetAmount: Number(p.budget_amount) || 0,
+                        justification: p.justification || '',
+                        status: p.status,
+                        positionLines: lines,
+                      });
+                      setModalType('plan');
+                      setShowModal(true);
+                    }} className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)]"><Edit className="w-4 h-4" /></button>
                     <button onClick={() => handleDelete('headcount-plan', p.id)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>
@@ -634,6 +671,68 @@ export default function WorkforceAnalyticsPage() {
                   <div><label className="text-sm font-medium text-gray-700">Jumlah Rencana</label><input type="number" value={planForm.plannedHeadcount} onChange={e => setPlanForm({ ...planForm, plannedHeadcount: parseInt(e.target.value) || 0 })} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" /></div>
                 </div>
                 <div><label className="text-sm font-medium text-gray-700">Anggaran (Rp)</label><input type="number" value={planForm.budgetAmount} onChange={e => setPlanForm({ ...planForm, budgetAmount: parseInt(e.target.value) || 0 })} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" /></div>
+                <div className="rounded-lg border border-dashed border-gray-200 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-gray-700">Position Title (baris jabatan)</p>
+                    <button
+                      type="button"
+                      onClick={() => setPlanForm({
+                        ...planForm,
+                        positionLines: [...(planForm.positionLines || []), { positionTitle: '', currentCount: 0, plannedCount: 0 }],
+                      })}
+                      className="text-xs text-[color:var(--hf-brand-600)] font-medium"
+                    >
+                      + Tambah jabatan
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-gray-500">Seperti FlowHCM Manpower: rinci headcount per jabatan/posisi.</p>
+                  {(planForm.positionLines || []).map((line, idx) => (
+                    <div key={idx} className="grid grid-cols-12 gap-2">
+                      <input
+                        placeholder="Judul posisi"
+                        value={line.positionTitle}
+                        onChange={(e) => {
+                          const next = [...(planForm.positionLines || [])];
+                          next[idx] = { ...next[idx], positionTitle: e.target.value };
+                          setPlanForm({ ...planForm, positionLines: next });
+                        }}
+                        className="col-span-5 px-2 py-1.5 border rounded text-xs"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Saat ini"
+                        value={line.currentCount}
+                        onChange={(e) => {
+                          const next = [...(planForm.positionLines || [])];
+                          next[idx] = { ...next[idx], currentCount: parseInt(e.target.value, 10) || 0 };
+                          setPlanForm({ ...planForm, positionLines: next });
+                        }}
+                        className="col-span-3 px-2 py-1.5 border rounded text-xs"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Rencana"
+                        value={line.plannedCount}
+                        onChange={(e) => {
+                          const next = [...(planForm.positionLines || [])];
+                          next[idx] = { ...next[idx], plannedCount: parseInt(e.target.value, 10) || 0 };
+                          setPlanForm({ ...planForm, positionLines: next });
+                        }}
+                        className="col-span-3 px-2 py-1.5 border rounded text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setPlanForm({
+                          ...planForm,
+                          positionLines: (planForm.positionLines || []).filter((_, i) => i !== idx),
+                        })}
+                        className="col-span-1 text-xs text-red-600"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
                 <div><label className="text-sm font-medium text-gray-700">Justifikasi</label><textarea value={planForm.justification} onChange={e => setPlanForm({ ...planForm, justification: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" rows={3} /></div>
               </>)}
               {modalType === 'budget' && (<>

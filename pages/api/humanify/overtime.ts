@@ -250,8 +250,39 @@ async function approve(req: NextApiRequest, res: NextApiResponse, session: any, 
   if (!id) return res.status(400).json({ success: false, error: 'id required' });
   const approvedBy = (session.user as any).id;
   if (!sequelize) return res.json({ success: true, message: 'Lembur disetujui' });
-  await q(`UPDATE overtime_requests SET status='approved', approved_by=:by, approved_at=NOW(), notes=:notes, updated_at=NOW() WHERE id=:id AND tenant_id=:tid`, { by: approvedBy, notes: notes || null, id, tid: tenantId });
-  return res.json({ success: true, message: 'Lembur berhasil disetujui' });
+
+  const otRows = await q(
+    `SELECT employee_id, COALESCE(duration_hours, hours, 0) AS hours, day_type
+     FROM overtime_requests WHERE id=:id AND tenant_id=:tid LIMIT 1`,
+    { id, tid: tenantId },
+  );
+  await q(
+    `UPDATE overtime_requests SET status='approved', approved_by=:by, approved_at=NOW(), notes=:notes, updated_at=NOW() WHERE id=:id AND tenant_id=:tid`,
+    { by: approvedBy, notes: notes || null, id, tid: tenantId },
+  );
+
+  let compOff: { creditedDays: number } = { creditedDays: 0 };
+  try {
+    const ot = otRows?.[0];
+    if (ot?.employee_id) {
+      const { creditCompOffFromOvertime } = await import('@/lib/hris/comp-off-earn');
+      compOff = await creditCompOffFromOvertime({
+        tenantId,
+        employeeId: String(ot.employee_id),
+        hours: Number(ot.hours) || 0,
+        overtimeId: id,
+        dayType: ot.day_type,
+      });
+    }
+  } catch { /* accrual best-effort */ }
+
+  return res.json({
+    success: true,
+    message: compOff.creditedDays > 0
+      ? `Lembur disetujui — ${compOff.creditedDays} hari cuti pengganti dikreditkan`
+      : 'Lembur berhasil disetujui',
+    compOffDays: compOff.creditedDays,
+  });
 }
 
 // ── POST: Reject ──────────────────────────────────────────────────────────────

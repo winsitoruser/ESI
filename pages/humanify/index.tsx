@@ -226,6 +226,7 @@ const INBOX_TYPE_LABELS: Record<string, string> = {
   contract: 'Kontrak',
   documents: 'Dokumen',
   attendance: 'Absensi',
+  kasbon: 'Kasbon',
 };
 
 function greetingForHour(hour: number) {
@@ -326,6 +327,7 @@ export default function HRISDashboard() {
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<string>('');
   const [viewTab, setViewTab] = useState<'overview' | 'modules'>('overview');
+  const [feedTab, setFeedTab] = useState<'activities' | 'agenda'>('activities');
   const [trialInfo, setTrialInfo] = useState<{
     trialDaysLeft: number | null;
     trialExpiringSoon?: boolean;
@@ -350,6 +352,16 @@ export default function HRISDashboard() {
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (loading || typeof window === 'undefined') return;
+    if (window.location.hash !== '#action-inbox') return;
+    setViewTab('overview');
+    const t = window.setTimeout(() => {
+      document.getElementById('action-inbox')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 120);
+    return () => window.clearTimeout(t);
+  }, [loading]);
 
   async function fetchDashboardData() {
     setLoading(true);
@@ -559,6 +571,12 @@ export default function HRISDashboard() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(status === 'approved' ? { id } : { id, reason: 'Ditolak dari dashboard' }),
         });
+      } else if (type === 'kasbon') {
+        res = await fetch(`/api/humanify/payroll-inputs?id=${encodeURIComponent(id)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: status === 'approved' ? 'approved' : 'rejected' }),
+        });
       } else {
         router.push('/humanify/mss');
         return;
@@ -650,13 +668,13 @@ export default function HRISDashboard() {
         ? { tone: 'warning' as const, text: `Trial tersisa ${trialInfo.trialDaysLeft} hari.`, href: '/humanify/billing', cta: 'Pilih paket' }
         : null,
     pendingSummary.overdue > 0
-      ? { tone: 'warning' as const, text: `${pendingSummary.overdue} item inbox lebih dari 48 jam belum ditindak.`, href: '/humanify/mss', cta: 'Buka inbox' }
+      ? { tone: 'warning' as const, text: `${pendingSummary.overdue} item inbox lebih dari 48 jam belum ditindak.`, href: '#action-inbox', cta: 'Buka inbox' }
       : null,
     docCompliance && docCompliance.expiredDocs > 0
       ? { tone: 'danger' as const, text: `${docCompliance.expiredDocs} dokumen kedaluwarsa perlu diperbarui.`, href: '/humanify/employees', cta: 'Buka karyawan' }
       : null,
     docCompliance && docCompliance.incomplete > 0
-      ? { tone: 'warning' as const, text: `${docCompliance.incomplete} karyawan belum lengkap dokumen inti.`, href: '/humanify/employees', cta: 'Lengkapi' }
+      ? { tone: 'warning' as const, text: `${docCompliance.incomplete} karyawan belum lengkap dokumen inti.`, href: '#action-inbox', cta: 'Lengkapi' }
       : null,
     !hasWorkforce
       ? { tone: 'info' as const, text: 'Belum ada karyawan. Tambah data pertama agar dashboard terisi.', href: '/humanify/employees?add=1', cta: 'Tambah karyawan' }
@@ -701,7 +719,7 @@ export default function HRISDashboard() {
       icon: Inbox,
       tone: ((pendingSummary.overdue || 0) > 0 ? 'danger' : (pendingSummary.total || pendingApprovals.length) > 0 ? 'warning' : 'success') as const,
       progress: null,
-      href: '/humanify/mss',
+      href: '#action-inbox',
       actionLabel: 'Buka inbox',
     },
   ];
@@ -850,7 +868,21 @@ export default function HRISDashboard() {
                   <AlertTriangle className="h-4 w-4 shrink-0" />
                   <span>{item.text}</span>
                 </p>
-                <Link href={item.href} className="shrink-0 font-semibold text-[color:var(--hf-brand-600)] hover:underline">
+                <Link
+                  href={item.href}
+                  className="shrink-0 font-semibold text-[color:var(--hf-brand-600)] hover:underline"
+                  onClick={(e) => {
+                    if (item.href !== '#action-inbox') return;
+                    e.preventDefault();
+                    setViewTab('overview');
+                    if (typeof window !== 'undefined') {
+                      window.history.replaceState(null, '', '#action-inbox');
+                    }
+                    window.setTimeout(() => {
+                      document.getElementById('action-inbox')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 80);
+                  }}
+                >
                   {item.cta} →
                 </Link>
               </div>
@@ -1515,9 +1547,10 @@ export default function HRISDashboard() {
             </section>
 
             <div className="grid w-full grid-cols-1 gap-4 lg:grid-cols-2">
+              <div id="action-inbox" className="scroll-mt-24">
               <OpsPanel
                 title="Action inbox"
-                subtitle="Cuti, lembur, klaim, kontrak, dan absensi yang perlu ditindak"
+                subtitle="Cuti, lembur, klaim, kasbon, kontrak, dan absensi yang perlu ditindak"
                 action={
                   <div className="flex items-center gap-2">
                     {pendingSummary.overdue > 0 && (
@@ -1584,62 +1617,99 @@ export default function HRISDashboard() {
                   </div>
                 )}
               </OpsPanel>
+              </div>
 
               <OpsPanel
-                title={t('hris.recentActivities')}
-                subtitle="Timeline operasional HR"
+                title="Aktivitas & agenda"
+                subtitle={feedTab === 'activities' ? 'Timeline operasional HR' : 'Cuti mendatang dan reminder payroll'}
                 action={
-                  <Link href="/humanify/activities" className="inline-flex items-center gap-1 text-xs font-medium text-[color:var(--hf-brand-600)] hover:underline">
-                    Lihat semua <ArrowRight className="h-3 w-3" />
-                  </Link>
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <div
+                      className="inline-flex rounded-[var(--hf-radius)] border border-[var(--hf-border)] bg-[var(--hf-surface-muted)] p-0.5"
+                      role="tablist"
+                      aria-label="Aktivitas dan agenda"
+                    >
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={feedTab === 'activities'}
+                        onClick={() => setFeedTab('activities')}
+                        className={`rounded-[calc(var(--hf-radius)-2px)] px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                          feedTab === 'activities'
+                            ? 'bg-white text-[color:var(--hf-ink)] shadow-sm'
+                            : 'text-[color:var(--hf-ink-muted)] hover:text-[color:var(--hf-ink)]'
+                        }`}
+                      >
+                        Aktivitas
+                        {recentActivities.length > 0 && (
+                          <span className="ml-1 tabular-nums text-[color:var(--hf-ink-faint)]">{recentActivities.length}</span>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={feedTab === 'agenda'}
+                        onClick={() => setFeedTab('agenda')}
+                        className={`rounded-[calc(var(--hf-radius)-2px)] px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                          feedTab === 'agenda'
+                            ? 'bg-white text-[color:var(--hf-ink)] shadow-sm'
+                            : 'text-[color:var(--hf-ink-muted)] hover:text-[color:var(--hf-ink)]'
+                        }`}
+                      >
+                        Agenda
+                        {upcoming.length > 0 && (
+                          <span className="ml-1 tabular-nums text-[color:var(--hf-ink-faint)]">{upcoming.length}</span>
+                        )}
+                      </button>
+                    </div>
+                    {feedTab === 'activities' ? (
+                      <Link href="/humanify/activities" className="inline-flex items-center gap-1 text-xs font-medium text-[color:var(--hf-brand-600)] hover:underline">
+                        Lihat semua <ArrowRight className="h-3 w-3" />
+                      </Link>
+                    ) : (
+                      <Link href="/humanify/calendar" className="inline-flex items-center gap-1 text-xs font-medium text-[color:var(--hf-brand-600)] hover:underline">
+                        Kalender <ArrowRight className="h-3 w-3" />
+                      </Link>
+                    )}
+                  </div>
                 }
               >
-                {recentActivities.length === 0 ? (
-                  <HrisEmptyState title="Belum ada aktivitas" description="Join karyawan, payroll, cuti, dan KPI akan tampil setelah operasional dimulai." source={dataSource} />
+                {feedTab === 'activities' ? (
+                  recentActivities.length === 0 ? (
+                    <HrisEmptyState title="Belum ada aktivitas" description="Join karyawan, payroll, cuti, dan KPI akan tampil setelah operasional dimulai." source={dataSource} />
+                  ) : (
+                    <div className="max-h-72 space-y-2 overflow-y-auto">
+                      {recentActivities.map((act) => (
+                        <div key={act.id} className="hf-tile-nested flex items-start gap-3 px-3 py-3">
+                          <div className="mt-0.5 shrink-0 rounded-[var(--hf-radius)] bg-[var(--hf-brand-50)] p-2 text-[color:var(--hf-brand-600)]">
+                            <act.icon className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-[color:var(--hf-ink)]">{act.action}</p>
+                            <p className="mt-0.5 text-xs text-[color:var(--hf-ink-muted)]">{act.detail}</p>
+                          </div>
+                          <span className="shrink-0 text-[11px] text-[color:var(--hf-ink-faint)]">{act.time}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                ) : upcoming.length === 0 ? (
+                  <HrisEmptyState title="Agenda kosong" description="Cuti mendatang dan reminder payroll muncul setelah ada karyawan dan pengajuan." source={dataSource} />
                 ) : (
                   <div className="max-h-72 space-y-2 overflow-y-auto">
-                    {recentActivities.map((act) => (
-                      <div key={act.id} className="hf-tile-nested flex items-start gap-3 px-3 py-3">
-                        <div className="mt-0.5 shrink-0 rounded-[var(--hf-radius)] bg-[var(--hf-brand-50)] p-2 text-[color:var(--hf-brand-600)]">
-                          <act.icon className="h-4 w-4" />
-                        </div>
+                    {upcoming.map((ev) => (
+                      <div key={ev.id} className="hf-tile-nested flex items-center gap-3 px-3 py-3">
+                        <div className="h-8 w-1 shrink-0 rounded-full bg-[var(--hf-brand-500)]" />
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-[color:var(--hf-ink)]">{act.action}</p>
-                          <p className="mt-0.5 text-xs text-[color:var(--hf-ink-muted)]">{act.detail}</p>
+                          <p className="text-sm font-medium leading-snug text-[color:var(--hf-ink)]">{ev.title}</p>
+                          <p className="text-xs text-[color:var(--hf-ink-muted)]">{ev.date}</p>
                         </div>
-                        <span className="shrink-0 text-[11px] text-[color:var(--hf-ink-faint)]">{act.time}</span>
                       </div>
                     ))}
                   </div>
                 )}
               </OpsPanel>
             </div>
-
-            <OpsPanel
-              title={t('hris.upcomingAgenda')}
-              subtitle="Cuti mendatang dan reminder payroll"
-              action={
-                <Link href="/humanify/calendar" className="inline-flex items-center gap-1 text-xs font-medium text-[color:var(--hf-brand-600)] hover:underline">
-                  Kalender <ArrowRight className="h-3 w-3" />
-                </Link>
-              }
-            >
-              {upcoming.length === 0 ? (
-                <HrisEmptyState title="Agenda kosong" description="Cuti mendatang dan reminder payroll muncul setelah ada karyawan dan pengajuan." source={dataSource} />
-              ) : (
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {upcoming.map((ev) => (
-                    <div key={ev.id} className="hf-tile-nested flex items-center gap-3 px-3 py-3">
-                      <div className="h-8 w-1 shrink-0 rounded-full bg-[var(--hf-brand-500)]" />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium leading-snug text-[color:var(--hf-ink)]">{ev.title}</p>
-                        <p className="text-xs text-[color:var(--hf-ink-muted)]">{ev.date}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </OpsPanel>
 
             {!hasWorkforce && (
               <OpsPanel title="Mulai dari nol" subtitle="Dashboard terisi otomatis setelah operasional HR berjalan">

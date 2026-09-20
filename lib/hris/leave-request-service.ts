@@ -7,6 +7,11 @@
  */
 
 import { withDbSavepoint } from '@/lib/saas/tenant-request-bound';
+import {
+  leaveBalanceAdjustSql,
+  leaveBalanceRemainingExpr,
+  resolveLeaveBalanceColMode,
+} from '@/lib/hris/leave-balance-columns';
 
 let sequelize: any;
 let LeaveApprovalConfig: any;
@@ -17,13 +22,6 @@ try {
 } catch (_) {}
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/** Prefer columns that exist on prod leave_balances (avoid missing-column abort). */
-function balanceRemainingExpr(): string {
-  return `COALESCE(lb.remaining,
-    COALESCE(lb.entitled, 0) - COALESCE(lb.used, 0) - COALESCE(lb.pending, 0)
-  )`;
-}
 
 export function calcBusinessDays(startDate: string, endDate: string): number {
   const start = new Date(startDate);
@@ -39,9 +37,10 @@ export function calcBusinessDays(startDate: string, endDate: string): number {
 
 async function getLeaveBalanceRemaining(empId: string, leaveTypeCode: string, year: number): Promise<number | null> {
   if (!sequelize) return null;
+  const colMode = await resolveLeaveBalanceColMode();
   const rows = await withDbSavepoint(sequelize, async () => {
     const [balanceRows] = await sequelize.query(`
-      SELECT ${balanceRemainingExpr()} AS remaining_calc, lb.remaining
+      SELECT ${leaveBalanceRemainingExpr(colMode)} AS remaining_calc
       FROM leave_balances lb
       WHERE lb.employee_id::text = :empId AND lb.year = :year
       AND lb.leave_type_id = (SELECT id FROM leave_types WHERE code = :code LIMIT 1)
@@ -50,7 +49,7 @@ async function getLeaveBalanceRemaining(empId: string, leaveTypeCode: string, ye
   }, 'leave_bal_rem');
   const balance = rows?.[0];
   if (!balance) return null;
-  return parseFloat(balance.remaining_calc ?? balance.remaining ?? 0);
+  return parseFloat(balance.remaining_calc ?? 0);
 }
 
 export async function adjustLeaveBalancePending(
@@ -61,27 +60,8 @@ export async function adjustLeaveBalancePending(
   mode: 'add' | 'remove' | 'approve',
 ) {
   if (!sequelize) return;
-  const sql =
-    mode === 'add'
-      ? `UPDATE leave_balances SET
-          pending = COALESCE(pending, 0) + :days,
-          remaining = GREATEST(0, COALESCE(remaining, entitled, 0) - COALESCE(used, 0) - (COALESCE(pending, 0) + :days)),
-          updated_at = NOW()
-        WHERE employee_id::text = :empId AND year = :year
-        AND leave_type_id = (SELECT id FROM leave_types WHERE code = :code LIMIT 1)`
-      : mode === 'remove'
-        ? `UPDATE leave_balances SET
-            pending = GREATEST(0, COALESCE(pending, 0) - :days),
-            updated_at = NOW()
-          WHERE employee_id::text = :empId AND year = :year
-          AND leave_type_id = (SELECT id FROM leave_types WHERE code = :code LIMIT 1)`
-        : `UPDATE leave_balances SET
-            pending = GREATEST(0, COALESCE(pending, 0) - :days),
-            used = COALESCE(used, 0) + :days,
-            remaining = GREATEST(0, COALESCE(remaining, entitled, 0) - (COALESCE(used, 0) + :days) - GREATEST(0, COALESCE(pending, 0) - :days)),
-            updated_at = NOW()
-          WHERE employee_id::text = :empId AND year = :year
-          AND leave_type_id = (SELECT id FROM leave_types WHERE code = :code LIMIT 1)`;
+  const colMode = await resolveLeaveBalanceColMode();
+  const sql = leaveBalanceAdjustSql(colMode === 'unknown' ? 'days' : colMode, mode);
   await withDbSavepoint(sequelize, async () => {
     await sequelize.query(sql, {
       replacements: { days, empId: String(empId), year, code: leaveTypeCode },

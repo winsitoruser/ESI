@@ -10,6 +10,7 @@ import type { HrisDataSource } from '@/lib/hris/data-source';
 import { useTranslation } from '@/lib/i18n';
 import { CanAccess, PageGuard } from '@/components/permissions';
 import DocumentExportButton from '@/components/documents/DocumentExportButton';
+import HrisEmptyState from '@/components/humanify/HrisEmptyState';
 import * as XLSX from 'xlsx';
 import {
   DollarSign, Users, Calculator, FileText, Clock, CheckCircle, XCircle,
@@ -182,6 +183,10 @@ export default function PayrollPage() {
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
+  const [componentSearch, setComponentSearch] = useState('');
+  const [componentTypeFilter, setComponentTypeFilter] = useState<'all' | 'earning' | 'deduction'>('all');
+  const [showInactiveComponents, setShowInactiveComponents] = useState(false);
+  const [seedingComponents, setSeedingComponents] = useState(false);
 
   // Bulk upload state
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -239,13 +244,75 @@ export default function PayrollPage() {
     } catch { setRuns([]); }
   };
 
-  const fetchComponents = async () => {
+  const fetchComponents = async (includeInactive = showInactiveComponents) => {
     try {
-      const res = await fetch('/api/humanify/payroll?action=components');
+      const q = includeInactive ? '?action=components&includeInactive=1' : '?action=components';
+      const res = await fetch(`/api/humanify/payroll${q}`);
       const json = await res.json();
       if (json.success) setComponents((json.data || []).map(normalizeComponent));
       else setComponents([]);
     } catch { setComponents([]); }
+  };
+
+  const handleSeedStandardComponents = async () => {
+    setSeedingComponents(true);
+    try {
+      const res = await fetch('/api/humanify/payroll?action=seed-components', { method: 'POST' });
+      const json = await res.json();
+      if (json.success) {
+        showToast('success', json.message || 'Komponen standar ditambahkan');
+        if (json.data?.length) setComponents(json.data.map(normalizeComponent));
+        else await fetchComponents(true);
+        fetchOverview();
+      } else showToast('error', json.error || 'Gagal seed komponen');
+    } catch {
+      showToast('error', 'Gagal menambahkan komponen standar');
+    } finally {
+      setSeedingComponents(false);
+    }
+  };
+
+  const openEditSalary = async (row: EmployeeSalaryConfig) => {
+    resetSalaryForm();
+    setShowSalaryModal(true);
+    if (components.length === 0) await fetchComponents();
+    try {
+      const res = await fetch(`/api/humanify/payroll?action=employee-salary&employeeId=${row.employee_id}`);
+      const json = await res.json();
+      const data = json.data;
+      if (!data) {
+        showToast('error', 'Konfigurasi gaji tidak ditemukan');
+        return;
+      }
+      setEmployeeSearchTerm(row.employee_name || '');
+      setSalaryForm({
+        employeeId: String(data.employee_id || row.employee_id),
+        payType: data.pay_type || 'monthly',
+        baseSalary: String(data.base_salary ?? ''),
+        hourlyRate: String(data.hourly_rate ?? ''),
+        dailyRate: String(data.daily_rate ?? ''),
+        weeklyHours: String(data.weekly_hours ?? 40),
+        overtimeRateMultiplier: String(data.overtime_rate_multiplier ?? 1.5),
+        overtimeHolidayMultiplier: String(data.overtime_holiday_multiplier ?? 2.0),
+        taxStatus: data.tax_status || 'TK/0',
+        taxMethod: data.tax_method || 'gross_up',
+        bankName: data.bank_name || '',
+        bankAccountNumber: data.bank_account_number || '',
+        bankAccountName: data.bank_account_name || '',
+        bpjsKesehatanNumber: data.bpjs_kesehatan_number || '',
+        bpjsKetenagakerjaanNumber: data.bpjs_ketenagakerjaan_number || '',
+        npwp: data.npwp || '',
+        components: (json.components || []).map((c: any) => ({
+          componentId: c.component_id,
+          amount: Number(c.amount || 0),
+          percentage: c.percentage != null ? Number(c.percentage) : undefined,
+          name: c.name,
+          type: c.type,
+        })),
+      });
+    } catch {
+      showToast('error', 'Gagal memuat konfigurasi gaji');
+    }
   };
 
   useEffect(() => { setMounted(true); fetchOverview(); fetchPayrollEmployees(); fetchPreflight(); }, []);
@@ -258,10 +325,36 @@ export default function PayrollPage() {
     } catch { setPreflight(null); }
   };
   useEffect(() => {
-    if (activeTab === 'salaries') fetchSalaries();
+    if (activeTab === 'salaries') {
+      fetchSalaries();
+      if (components.length === 0) fetchComponents();
+    }
     if (activeTab === 'runs') fetchRuns();
-    if (activeTab === 'components') fetchComponents();
-  }, [activeTab]);
+    if (activeTab === 'components') fetchComponents(showInactiveComponents);
+  }, [activeTab, showInactiveComponents]);
+
+  const filteredComponents = useMemo(() => {
+    const q = componentSearch.trim().toLowerCase();
+    return components.filter((c) => {
+      if (componentTypeFilter !== 'all' && c.type !== componentTypeFilter) return false;
+      if (!showInactiveComponents && c.is_active === false) return false;
+      if (!q) return true;
+      return (
+        c.name?.toLowerCase().includes(q) ||
+        c.code?.toLowerCase().includes(q) ||
+        c.description?.toLowerCase().includes(q)
+      );
+    });
+  }, [components, componentSearch, componentTypeFilter, showInactiveComponents]);
+
+  const earningComponents = useMemo(
+    () => filteredComponents.filter((c) => c.type === 'earning'),
+    [filteredComponents],
+  );
+  const deductionComponents = useMemo(
+    () => filteredComponents.filter((c) => c.type === 'deduction'),
+    [filteredComponents],
+  );
 
   const openNewComponent = () => {
     setEditingComponent(null);
@@ -308,18 +401,21 @@ export default function PayrollPage() {
       const json = await res.json();
       if (json.success) {
         showToast('success', isEdit ? 'Komponen diperbarui' : 'Komponen ditambahkan');
-        fetchComponents(); fetchOverview(); setShowComponentModal(false);
+        fetchComponents(showInactiveComponents); fetchOverview(); setShowComponentModal(false);
       } else showToast('error', json.error || 'Gagal');
     } catch { showToast('error', 'Gagal menyimpan komponen'); }
   };
 
   const handleDeleteComponent = async (comp: PayrollComponent) => {
-    if (!confirm(`Hapus komponen "${comp.name}"?`)) return;
+    if (!confirm(`Nonaktifkan komponen "${comp.name}"?`)) return;
     try {
       const res = await fetch(`/api/humanify/payroll?action=component&id=${comp.id}`, { method: 'DELETE' });
       const json = await res.json();
-      if (json.success) { showToast('success', 'Komponen dihapus'); fetchComponents(); fetchOverview(); }
-      else showToast('error', json.error || 'Gagal');
+      if (json.success) {
+        showToast('success', json.message || 'Komponen dinonaktifkan');
+        fetchComponents(true);
+        fetchOverview();
+      } else showToast('error', json.error || 'Gagal');
     } catch { showToast('error', 'Gagal menghapus'); }
   };
 
@@ -793,7 +889,11 @@ export default function PayrollPage() {
                       className="pl-9 pr-4 py-2 border rounded-lg text-sm w-52" />
                   </div>
                 </div>
-                <button onClick={() => { resetSalaryForm(); setShowSalaryModal(true); }}
+                <button onClick={async () => {
+                  resetSalaryForm();
+                  if (components.length === 0) await fetchComponents();
+                  setShowSalaryModal(true);
+                }}
                   className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]">
                   <Plus className="w-4 h-4" /> Konfigurasi Gaji
                 </button>
@@ -817,6 +917,7 @@ export default function PayrollPage() {
                         <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Rate/Hari</th>
                         <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status Pajak</th>
                         <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Bank</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Aksi</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
@@ -836,6 +937,15 @@ export default function PayrollPage() {
                           <td className="px-4 py-3 text-right text-sm text-gray-600">{s.daily_rate > 0 ? fmtCurrency(s.daily_rate) : '-'}</td>
                           <td className="px-4 py-3 text-center text-xs">{s.tax_status}</td>
                           <td className="px-4 py-3 text-center text-xs text-gray-500">{s.bank_name || '-'}</td>
+                          <td className="px-4 py-3 text-right">
+                            <button
+                              type="button"
+                              onClick={() => openEditSalary(s)}
+                              className="inline-flex items-center gap-1 rounded-lg border border-[var(--hf-border)] px-2.5 py-1.5 text-xs font-medium text-[color:var(--hf-brand)] hover:bg-[var(--hf-brand-50)]"
+                            >
+                              <Edit className="w-3.5 h-3.5" /> Edit
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -918,120 +1028,223 @@ export default function PayrollPage() {
           {/* ==================== TAB: Components ==================== */}
           {activeTab === 'components' && (
             <div>
-              <div className="p-4 flex justify-between items-center border-b">
+              <div className="p-4 flex flex-col gap-3 border-b sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h3 className="font-semibold text-lg">Komponen Gaji ({components.length})</h3>
-                  <p className="text-sm text-gray-500">Konfigurasi komponen pendapatan dan potongan gaji</p>
+                  <p className="text-sm text-gray-500">
+                    Master komponen pendapatan & potongan. Setelah dibuat, assign ke karyawan di tab Konfigurasi gaji.
+                  </p>
                 </div>
-                <button onClick={openNewComponent}
-                  className="flex items-center gap-2 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)]">
-                  <Plus className="w-4 h-4" /> Tambah Komponen
-                </button>
-              </div>
-
-              {/* Earnings Section */}
-              <div className="p-4">
-                <h4 className="text-sm font-semibold text-green-700 mb-3 flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4" /> Pendapatan ({components.filter(c => c.type === 'earning').length})
-                </h4>
-                <div className="space-y-2">
-                  {components.filter(c => c.type === 'earning').map(comp => (
-                    <div key={comp.id} className="border rounded-xl p-4 hover:shadow-md transition-shadow">
-                      <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
-                          <TrendingUp className="w-5 h-5 text-green-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="font-semibold text-sm">{comp.name}</p>
-                            <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 text-[10px] rounded font-mono">{comp.code}</span>
-                          </div>
-                          <p className="text-xs text-gray-500 mt-0.5">{comp.description || `${comp.category} · ${comp.calculation_type}`}</p>
-                          <div className="flex flex-wrap gap-1.5 mt-2">
-                            <span className="px-2 py-0.5 bg-green-50 text-green-700 text-[10px] rounded-full border border-green-200">
-                              {comp.calculation_type === 'fixed' ? 'Nominal Tetap' : comp.calculation_type === 'percentage' ? `Persentase ${comp.percentage_value || ''}%` : comp.calculation_type === 'per_day' ? 'Per Hari Kerja' : comp.calculation_type === 'formula' ? 'Formula' : comp.calculation_type}
-                            </span>
-                            {comp.is_taxable && <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] rounded-full border border-amber-200">Kena Pajak</span>}
-                            {comp.is_mandatory && <span className="px-2 py-0.5 bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)] text-[10px] rounded-full border border-[var(--hf-brand-100)]">Wajib</span>}
-                            {(comp.applies_to_pay_types || []).map(pt => (
-                              <span key={pt} className="px-2 py-0.5 bg-gray-50 text-gray-600 text-[10px] rounded-full border border-gray-200">{PAY_TYPES[pt]?.label || pt}</span>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <p className="text-sm font-bold text-green-600">
-                            {comp.calculation_type === 'percentage'
-                              ? `${comp.percentage_value || 0}%`
-                              : comp.default_amount > 0 ? fmtCurrency(comp.default_amount) : '-'}
-                          </p>
-                          <p className="text-[10px] text-gray-400">Urutan: {comp.sort_order ?? 0}</p>
-                          <div className="flex gap-1 mt-1.5 justify-end">
-                            <button onClick={() => openEditComponent(comp)} className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded" title="Edit">
-                              <Edit className="w-3.5 h-3.5" />
-                            </button>
-                            <button onClick={() => handleDeleteComponent(comp)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded" title="Hapus">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  {components.filter(c => c.type === 'earning').length === 0 && (
-                    <p className="text-center text-gray-400 py-4 text-sm">Belum ada komponen pendapatan</p>
-                  )}
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSeedStandardComponents}
+                    disabled={seedingComponents}
+                    className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-[var(--hf-border)] bg-white px-3 py-2 text-sm font-medium text-[color:var(--hf-ink)] hover:bg-[var(--hf-brand-50)] disabled:opacity-60"
+                  >
+                    {seedingComponents ? <Loader2 className="h-4 w-4 animate-spin" /> : <Layers className="h-4 w-4 text-[color:var(--hf-brand)]" />}
+                    Seed standar ID
+                  </button>
+                  <button onClick={openNewComponent}
+                    className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-[var(--hf-brand-600)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--hf-brand)]">
+                    <Plus className="w-4 h-4" /> Tambah Komponen
+                  </button>
                 </div>
               </div>
 
-              {/* Deductions Section */}
-              <div className="p-4 pt-0">
-                <h4 className="text-sm font-semibold text-red-700 mb-3 flex items-center gap-2">
-                  <DollarSign className="w-4 h-4" /> Potongan ({components.filter(c => c.type === 'deduction').length})
-                </h4>
-                <div className="space-y-2">
-                  {components.filter(c => c.type === 'deduction').map(comp => (
-                    <div key={comp.id} className="border rounded-xl p-4 hover:shadow-md transition-shadow">
-                      <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
-                          <DollarSign className="w-5 h-5 text-red-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="font-semibold text-sm">{comp.name}</p>
-                            <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 text-[10px] rounded font-mono">{comp.code}</span>
-                          </div>
-                          <p className="text-xs text-gray-500 mt-0.5">{comp.description || `${comp.category} · ${comp.calculation_type}`}</p>
-                          <div className="flex flex-wrap gap-1.5 mt-2">
-                            <span className="px-2 py-0.5 bg-red-50 text-red-700 text-[10px] rounded-full border border-red-200">
-                              {comp.calculation_type === 'fixed' ? 'Nominal Tetap' : comp.calculation_type === 'percentage' ? `Persentase ${comp.percentage_value || ''}%` : comp.calculation_type === 'per_day' ? 'Per Hari Kerja' : comp.calculation_type === 'formula' ? 'Formula/Auto' : comp.calculation_type}
-                            </span>
-                            {comp.is_mandatory && <span className="px-2 py-0.5 bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)] text-[10px] rounded-full border border-[var(--hf-brand-100)]">Wajib</span>}
-                          </div>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <p className="text-sm font-bold text-red-600">
-                            {comp.calculation_type === 'percentage'
-                              ? `${comp.percentage_value || 0}%`
-                              : comp.default_amount > 0 ? fmtCurrency(comp.default_amount) : 'Otomatis'}
-                          </p>
-                          <p className="text-[10px] text-gray-400">Urutan: {comp.sort_order ?? 0}</p>
-                          <div className="flex gap-1 mt-1.5 justify-end">
-                            <button onClick={() => openEditComponent(comp)} className="p-1.5 text-gray-400 hover:text-[color:var(--hf-brand-600)] hover:bg-[var(--hf-brand-50)] rounded" title="Edit">
-                              <Edit className="w-3.5 h-3.5" />
-                            </button>
-                            <button onClick={() => handleDeleteComponent(comp)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded" title="Hapus">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+              <div className="flex flex-col gap-3 border-b bg-slate-50/80 p-4 sm:flex-row sm:items-center">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="search"
+                    value={componentSearch}
+                    onChange={(e) => setComponentSearch(e.target.value)}
+                    placeholder="Cari kode atau nama komponen…"
+                    className="w-full rounded-lg border border-[var(--hf-border)] bg-white py-2 pl-9 pr-3 text-sm"
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    { key: 'all', label: 'Semua' },
+                    { key: 'earning', label: 'Pendapatan' },
+                    { key: 'deduction', label: 'Potongan' },
+                  ] as const).map((f) => (
+                    <button
+                      key={f.key}
+                      type="button"
+                      onClick={() => setComponentTypeFilter(f.key)}
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
+                        componentTypeFilter === f.key
+                          ? 'border-[var(--hf-brand)] bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)]'
+                          : 'border-[var(--hf-border)] bg-white text-gray-600 hover:border-[var(--hf-brand-100)]'
+                      }`}
+                    >
+                      {f.label}
+                    </button>
                   ))}
-                  {components.filter(c => c.type === 'deduction').length === 0 && (
-                    <p className="text-center text-gray-400 py-4 text-sm">Belum ada komponen potongan</p>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowInactiveComponents((v) => !v)}
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
+                      showInactiveComponents
+                        ? 'border-amber-300 bg-amber-50 text-amber-800'
+                        : 'border-[var(--hf-border)] bg-white text-gray-600'
+                    }`}
+                  >
+                    {showInactiveComponents ? 'Sembunyikan nonaktif' : 'Tampilkan nonaktif'}
+                  </button>
                 </div>
               </div>
+
+              {components.length === 0 ? (
+                <div className="p-6">
+                  <HrisEmptyState
+                    title="Belum ada komponen gaji"
+                    description="Tambah tunjangan/potongan manual, atau isi katalog standar Indonesia (transport, makan, BPJS, PPh 21) sekali klik."
+                    source={dataSource}
+                    action={
+                      <div className="flex flex-wrap justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleSeedStandardComponents}
+                          disabled={seedingComponents}
+                          className="hf-btn-primary inline-flex items-center gap-2"
+                        >
+                          {seedingComponents ? <Loader2 className="h-4 w-4 animate-spin" /> : <Layers className="h-4 w-4" />}
+                          Seed komponen standar
+                        </button>
+                        <button type="button" onClick={openNewComponent} className="hf-btn-secondary inline-flex items-center gap-2">
+                          <Plus className="h-4 w-4" /> Buat sendiri
+                        </button>
+                      </div>
+                    }
+                  />
+                </div>
+              ) : (
+                <>
+                  {(componentTypeFilter === 'all' || componentTypeFilter === 'earning') && (
+                    <div className="p-4">
+                      <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold text-emerald-700">
+                        <TrendingUp className="h-4 w-4" /> Pendapatan ({earningComponents.length})
+                      </h4>
+                      <div className="space-y-2">
+                        {earningComponents.map((comp) => (
+                          <div
+                            key={comp.id}
+                            className={`rounded-xl border p-4 transition-shadow hover:shadow-md ${
+                              comp.is_active === false ? 'border-dashed border-slate-200 bg-slate-50 opacity-70' : 'border-[var(--hf-border)] bg-white'
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-100">
+                                <TrendingUp className="h-5 w-5 text-emerald-600" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="text-sm font-semibold">{comp.name}</p>
+                                  <span className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] text-gray-500">{comp.code}</span>
+                                  {comp.is_active === false && (
+                                    <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-medium text-slate-600">Nonaktif</span>
+                                  )}
+                                </div>
+                                <p className="mt-0.5 text-xs text-gray-500">{comp.description || `${comp.category} · ${comp.calculation_type}`}</p>
+                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                  <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] text-emerald-700">
+                                    {comp.calculation_type === 'fixed' ? 'Nominal Tetap' : comp.calculation_type === 'percentage' ? `Persentase ${comp.percentage_value || ''}%` : comp.calculation_type === 'per_day' ? 'Per Hari Kerja' : comp.calculation_type === 'formula' ? 'Formula' : comp.calculation_type}
+                                  </span>
+                                  {comp.is_taxable && <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] text-amber-700">Kena Pajak</span>}
+                                  {comp.is_mandatory && <span className="rounded-full border border-[var(--hf-brand-100)] bg-[var(--hf-brand-50)] px-2 py-0.5 text-[10px] text-[color:var(--hf-brand)]">Wajib</span>}
+                                  {(comp.applies_to_pay_types || []).map((pt) => (
+                                    <span key={pt} className="rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[10px] text-gray-600">{PAY_TYPES[pt]?.label || pt}</span>
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="flex-shrink-0 text-right">
+                                <p className="text-sm font-bold text-emerald-600">
+                                  {comp.calculation_type === 'percentage'
+                                    ? `${comp.percentage_value || 0}%`
+                                    : comp.default_amount > 0 ? fmtCurrency(comp.default_amount) : '-'}
+                                </p>
+                                <p className="text-[10px] text-gray-400">Urutan: {comp.sort_order ?? 0}</p>
+                                <div className="mt-1.5 flex justify-end gap-1">
+                                  <button onClick={() => openEditComponent(comp)} className="rounded p-1.5 text-gray-400 hover:bg-[var(--hf-brand-50)] hover:text-[color:var(--hf-brand-600)]" title="Edit">
+                                    <Edit className="h-3.5 w-3.5" />
+                                  </button>
+                                  <button onClick={() => handleDeleteComponent(comp)} className="rounded p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600" title="Nonaktifkan">
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        {earningComponents.length === 0 && (
+                          <p className="py-4 text-center text-sm text-gray-400">Tidak ada komponen pendapatan yang cocok</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {(componentTypeFilter === 'all' || componentTypeFilter === 'deduction') && (
+                    <div className="p-4 pt-0">
+                      <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold text-red-700">
+                        <DollarSign className="h-4 w-4" /> Potongan ({deductionComponents.length})
+                      </h4>
+                      <div className="space-y-2">
+                        {deductionComponents.map((comp) => (
+                          <div
+                            key={comp.id}
+                            className={`rounded-xl border p-4 transition-shadow hover:shadow-md ${
+                              comp.is_active === false ? 'border-dashed border-slate-200 bg-slate-50 opacity-70' : 'border-[var(--hf-border)] bg-white'
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-red-100">
+                                <DollarSign className="h-5 w-5 text-red-600" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="text-sm font-semibold">{comp.name}</p>
+                                  <span className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] text-gray-500">{comp.code}</span>
+                                  {comp.is_active === false && (
+                                    <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-medium text-slate-600">Nonaktif</span>
+                                  )}
+                                </div>
+                                <p className="mt-0.5 text-xs text-gray-500">{comp.description || `${comp.category} · ${comp.calculation_type}`}</p>
+                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                  <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] text-red-700">
+                                    {comp.calculation_type === 'fixed' ? 'Nominal Tetap' : comp.calculation_type === 'percentage' ? `Persentase ${comp.percentage_value || ''}%` : comp.calculation_type === 'per_day' ? 'Per Hari Kerja' : comp.calculation_type === 'formula' ? 'Formula/Auto' : comp.calculation_type}
+                                  </span>
+                                  {comp.is_mandatory && <span className="rounded-full border border-[var(--hf-brand-100)] bg-[var(--hf-brand-50)] px-2 py-0.5 text-[10px] text-[color:var(--hf-brand)]">Wajib</span>}
+                                </div>
+                              </div>
+                              <div className="flex-shrink-0 text-right">
+                                <p className="text-sm font-bold text-red-600">
+                                  {comp.calculation_type === 'percentage'
+                                    ? `${comp.percentage_value || 0}%`
+                                    : comp.default_amount > 0 ? fmtCurrency(comp.default_amount) : 'Otomatis'}
+                                </p>
+                                <p className="text-[10px] text-gray-400">Urutan: {comp.sort_order ?? 0}</p>
+                                <div className="mt-1.5 flex justify-end gap-1">
+                                  <button onClick={() => openEditComponent(comp)} className="rounded p-1.5 text-gray-400 hover:bg-[var(--hf-brand-50)] hover:text-[color:var(--hf-brand-600)]" title="Edit">
+                                    <Edit className="h-3.5 w-3.5" />
+                                  </button>
+                                  <button onClick={() => handleDeleteComponent(comp)} className="rounded p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600" title="Nonaktifkan">
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        {deductionComponents.length === 0 && (
+                          <p className="py-4 text-center text-sm text-gray-400">Tidak ada komponen potongan yang cocok</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
 
@@ -1426,7 +1639,10 @@ export default function PayrollPage() {
               {/* ===== Komponen Gaji Karyawan ===== */}
               <div className="border-t pt-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-sm font-semibold text-gray-800">Komponen Gaji Karyawan</h4>
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-800">Komponen Gaji Karyawan</h4>
+                    <p className="text-[11px] text-gray-500">Pilih dari master komponen (tab Komponen). Override nominal per karyawan di sini.</p>
+                  </div>
                   <div className="relative">
                     <button type="button" onClick={() => setShowComponentPicker(!showComponentPicker)}
                       className="px-3 py-1.5 text-xs bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)] border border-[var(--hf-brand-100)] rounded-lg hover:bg-[var(--hf-brand-100)] flex items-center gap-1">
@@ -1434,7 +1650,7 @@ export default function PayrollPage() {
                     </button>
                     {showComponentPicker && (
                       <div className="absolute right-0 z-20 mt-1 w-72 bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                        {components.filter(c => !salaryForm.components.find(sc => sc.componentId === c.id)).map(comp => (
+                        {components.filter(c => c.is_active !== false && !salaryForm.components.find(sc => sc.componentId === c.id)).map(comp => (
                           <button key={comp.id} type="button"
                             onClick={() => {
                               setSalaryForm(f => ({
@@ -1461,15 +1677,31 @@ export default function PayrollPage() {
                             </span>
                           </button>
                         ))}
-                        {components.filter(c => !salaryForm.components.find(sc => sc.componentId === c.id)).length === 0 && (
-                          <div className="px-3 py-4 text-sm text-gray-400 text-center">Semua komponen sudah ditambahkan</div>
+                        {components.filter(c => c.is_active !== false && !salaryForm.components.find(sc => sc.componentId === c.id)).length === 0 && (
+                          <div className="px-3 py-4 text-sm text-gray-500 text-center space-y-2">
+                            <p>{components.length === 0 ? 'Belum ada master komponen.' : 'Semua komponen sudah ditambahkan.'}</p>
+                            {components.length === 0 && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShowComponentPicker(false);
+                                  setShowSalaryModal(false);
+                                  setActiveTab('components');
+                                  openNewComponent();
+                                }}
+                                className="text-xs font-medium text-[color:var(--hf-brand)] underline"
+                              >
+                                Buat komponen baru
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
                     )}
                   </div>
                 </div>
                 {salaryForm.components.length === 0 ? (
-                  <p className="text-xs text-gray-400 italic">Belum ada komponen gaji. Klik "Tambah Komponen" untuk menambahkan.</p>
+                  <p className="text-xs text-gray-400 italic">Belum ada komponen gaji. Klik &quot;Tambah Komponen&quot; untuk menambahkan dari master.</p>
                 ) : (
                   <div className="space-y-2">
                     {salaryForm.components.map((comp, idx) => {

@@ -3,6 +3,7 @@ import { allowHrMockFallback, resolveDataSource } from '@/lib/hris/data-source';
 import { withObservability } from '@/lib/observability';
 import { withHQAuth } from '@/lib/middleware/withHQAuth';
 import { markGoLiveFlagSafe } from '@/lib/saas/go-live';
+import { safeQueryWithSavepoint, withDbSavepoint } from '@/lib/saas/tenant-request-bound';
 
 let sequelize: any;
 try { sequelize = require('../../../lib/sequelize'); } catch (e) {}
@@ -31,6 +32,52 @@ function toSnakeComponent(row: any) {
     applies_to_pay_types: p.appliesToPayTypes || p.applies_to_pay_types,
     applicable_departments: p.applicableDepartments || p.applicable_departments,
     sort_order: p.sortOrder ?? p.sort_order ?? 0,
+  };
+}
+
+/** Normalize FE snake_case / camelCase body into Sequelize attribute names. */
+function normalizeComponentCreateBody(body: any) {
+  const b = body || {};
+  const payTypes = b.applies_to_pay_types ?? b.appliesToPayTypes ?? ['monthly'];
+  const depts = b.applicable_departments ?? b.applicableDepartments ?? [];
+  return {
+    code: String(b.code || '').toUpperCase().replace(/[^A-Z0-9_]/g, '').slice(0, 30),
+    name: String(b.name || '').trim().slice(0, 100),
+    description: b.description || null,
+    type: b.type === 'deduction' ? 'deduction' : 'earning',
+    category: b.category || 'fixed',
+    calculationType: b.calculation_type || b.calculationType || 'fixed',
+    defaultAmount: Number(b.default_amount ?? b.defaultAmount ?? 0) || 0,
+    percentageBase: b.percentage_base || b.percentageBase || null,
+    percentageValue: Number(b.percentage_value ?? b.percentageValue ?? 0) || 0,
+    formula: b.formula || null,
+    isTaxable: b.is_taxable ?? b.isTaxable ?? true,
+    isMandatory: b.is_mandatory ?? b.isMandatory ?? false,
+    appliesToPayTypes: Array.isArray(payTypes) ? payTypes : ['monthly'],
+    applicableDepartments: Array.isArray(depts) ? depts : [],
+    sortOrder: parseInt(String(b.sort_order ?? b.sortOrder ?? 0), 10) || 0,
+    isActive: b.is_active ?? b.isActive ?? true,
+  };
+}
+
+const STANDARD_PAYROLL_COMPONENTS = [
+  { code: 'TRANSPORT', name: 'Tunjangan Transportasi', type: 'earning', category: 'fixed', calculationType: 'fixed', defaultAmount: 500000, isTaxable: false, isMandatory: false, sortOrder: 10 },
+  { code: 'MEAL', name: 'Tunjangan Makan', type: 'earning', category: 'daily', calculationType: 'per_day', defaultAmount: 35000, isTaxable: false, isMandatory: false, sortOrder: 20 },
+  { code: 'JABATAN', name: 'Tunjangan Jabatan', type: 'earning', category: 'fixed', calculationType: 'fixed', defaultAmount: 0, isTaxable: true, isMandatory: false, sortOrder: 30 },
+  { code: 'KOMUNIKASI', name: 'Tunjangan Komunikasi', type: 'earning', category: 'fixed', calculationType: 'fixed', defaultAmount: 200000, isTaxable: false, isMandatory: false, sortOrder: 40 },
+  { code: 'KEHADIRAN', name: 'Tunjangan Kehadiran', type: 'earning', category: 'variable', calculationType: 'fixed', defaultAmount: 300000, isTaxable: true, isMandatory: false, sortOrder: 50 },
+  { code: 'OVERTIME', name: 'Lembur', type: 'earning', category: 'variable', calculationType: 'formula', defaultAmount: 0, isTaxable: true, isMandatory: false, formula: 'base_salary / 173 * overtime_hours * overtime_multiplier', sortOrder: 60 },
+  { code: 'BPJS_KES', name: 'BPJS Kesehatan (Karyawan)', type: 'deduction', category: 'calculated', calculationType: 'percentage', defaultAmount: 0, percentageBase: 'base_salary', percentageValue: 1, isTaxable: false, isMandatory: true, sortOrder: 100 },
+  { code: 'BPJS_JHT', name: 'BPJS JHT (Karyawan)', type: 'deduction', category: 'calculated', calculationType: 'percentage', defaultAmount: 0, percentageBase: 'base_salary', percentageValue: 2, isTaxable: false, isMandatory: true, sortOrder: 110 },
+  { code: 'BPJS_JP', name: 'BPJS JP (Karyawan)', type: 'deduction', category: 'calculated', calculationType: 'percentage', defaultAmount: 0, percentageBase: 'base_salary', percentageValue: 1, isTaxable: false, isMandatory: true, sortOrder: 120 },
+  { code: 'PPH21', name: 'PPh 21', type: 'deduction', category: 'calculated', calculationType: 'formula', defaultAmount: 0, isTaxable: false, isMandatory: true, formula: 'auto_pph21', sortOrder: 200 },
+] as const;
+
+function componentTenantWhere(tenantId: string | null | undefined) {
+  if (!tenantId) return { isActive: true };
+  const { Op } = require('sequelize');
+  return {
+    [Op.or]: [{ tenantId }, { tenantId: null }],
   };
 }
 
@@ -119,6 +166,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         if (action === 'calculate') return calculatePayroll(req, res, session);
         if (action === 'approve') return approvePayroll(req, res, session);
         if (action === 'component') return createComponent(req, res, session);
+        if (action === 'seed-components') return seedDefaultComponents(req, res, session);
         if (action === 'generate-from-attendance') return generatePayrollFromAttendance(req, res, session);
         if (action === 'sync-overtime') return syncOvertimeToAttendance(req, res, session);
         if (action === 'payslip-unlock') return unlockPayslip(req, res, session);
@@ -146,12 +194,13 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
   try {
     const tenantId = session.user.tenantId;
 
-    // Payroll components
+    // Payroll components (tenant-owned + shared null-tenant catalog)
     let components: any[] = [];
     let usedMock = false;
     if (PayrollComponent) {
-      const where: any = { isActive: true };
-      if (tenantId) where.tenantId = tenantId;
+      const where: any = { ...componentTenantWhere(tenantId) };
+      // Overview shows active only; include inactive count via separate query if needed
+      where.isActive = true;
       components = await PayrollComponent.findAll({ where, order: [['sort_order', 'ASC']] });
     }
     if (components.length === 0 && allowHrMockFallback()) {
@@ -235,11 +284,73 @@ async function getOverview(req: NextApiRequest, res: NextApiResponse, session: a
 async function getComponents(req: NextApiRequest, res: NextApiResponse, session: any) {
   try {
     if (!PayrollComponent) return res.json({ success: true, data: allowHrMockFallback() ? getMockComponents() : [] });
-    const components = await PayrollComponent.findAll({ order: [['sort_order', 'ASC']] });
-    const data = components.length > 0 ? components.map(toSnakeComponent) : (allowHrMockFallback() ? getMockComponents() : []);
-    return res.json({ success: true, data });
+    const tenantId = session?.user?.tenantId || null;
+    const includeInactive = String(req.query.includeInactive || '') === '1';
+    const where: any = { ...componentTenantWhere(tenantId) };
+    if (!includeInactive) where.isActive = true;
+    const components = await PayrollComponent.findAll({ where, order: [['sort_order', 'ASC'], ['code', 'ASC']] });
+    // Prefer tenant-owned over shared catalog when same code exists
+    const byCode = new Map<string, any>();
+    for (const row of components) {
+      const j = row?.toJSON ? row.toJSON() : row;
+      const key = String(j.code || '');
+      const prev = byCode.get(key);
+      if (!prev || j.tenantId || j.tenant_id) byCode.set(key, row);
+    }
+    const deduped = Array.from(byCode.values());
+    const data = deduped.length > 0
+      ? deduped.map(toSnakeComponent)
+      : (allowHrMockFallback() ? getMockComponents() : []);
+    return res.json({ success: true, data, tenantScoped: Boolean(tenantId) });
   } catch (e) {
     return res.json({ success: true, data: allowHrMockFallback() ? getMockComponents() : [] });
+  }
+}
+
+// ===== POST: Seed standard components for tenant =====
+async function seedDefaultComponents(req: NextApiRequest, res: NextApiResponse, session: any) {
+  const tenantId = session?.user?.tenantId;
+  if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
+  if (!PayrollComponent || !sequelize) {
+    return res.json({ success: true, created: 0, message: 'Seeded (mock)' });
+  }
+  try {
+    let created = 0;
+    const skipped: string[] = [];
+    for (const seed of STANDARD_PAYROLL_COMPONENTS) {
+      const existing = await PayrollComponent.findOne({
+        where: {
+          code: seed.code,
+          ...componentTenantWhere(tenantId),
+        },
+      });
+      if (existing) {
+        skipped.push(seed.code);
+        continue;
+      }
+      await PayrollComponent.create({
+        ...seed,
+        tenantId,
+        appliesToPayTypes: ['monthly', 'daily', 'hourly', 'weekly'],
+        applicableDepartments: [],
+      });
+      created += 1;
+    }
+    const refreshed = await PayrollComponent.findAll({
+      where: { ...componentTenantWhere(tenantId) },
+      order: [['sort_order', 'ASC']],
+    });
+    return res.status(201).json({
+      success: true,
+      created,
+      skipped,
+      message: created > 0
+        ? `${created} komponen standar ditambahkan`
+        : 'Komponen standar sudah lengkap',
+      data: refreshed.map(toSnakeComponent),
+    });
+  } catch (e: any) {
+    return res.status(500).json({ success: false, error: e.message });
   }
 }
 
@@ -276,14 +387,16 @@ async function getEmployeeSalary(req: NextApiRequest, res: NextApiResponse, sess
       FROM employee_salaries es
       JOIN employees e ON es.employee_id = e.id
       WHERE es.employee_id = :empId AND es.is_active = true
-      ORDER BY es.effective_date DESC LIMIT 1
-    `, { replacements: { empId: employeeId } });
+        AND (es.tenant_id = :tid OR e.tenant_id = :tid)
+      ORDER BY es.effective_date DESC NULLS LAST LIMIT 1
+    `, { replacements: { empId: employeeId, tid: session?.user?.tenantId } });
 
     // Get assigned components
     let components: any[] = [];
     if (rows?.[0]) {
       const [comps] = await sequelize.query(`
-        SELECT esc.*, pc.code, pc.name, pc.type, pc.category, pc.calculation_type
+        SELECT esc.*, pc.code, pc.name, pc.type, pc.category, pc.calculation_type,
+               pc.percentage_value, pc.default_amount
         FROM employee_salary_components esc
         JOIN payroll_components pc ON esc.component_id = pc.id
         WHERE esc.employee_salary_id = :salaryId AND esc.is_active = true
@@ -452,9 +565,9 @@ async function calculatePayroll(req: NextApiRequest, res: NextApiResponse, sessi
       d.setDate(d.getDate() + 1);
     }
 
-    // Get employees with active salary configs
-    let empFilter = `WHERE es.is_active = true AND ${ACTIVE_EMPLOYEE_FILTER}`;
-    const replacements: any = { runId };
+    // Get employees with active salary configs (tenant-scoped; allow legacy NULL salary tenant)
+    let empFilter = `WHERE es.is_active = true AND e.tenant_id = :tenantId AND (es.tenant_id = :tenantId OR es.tenant_id IS NULL) AND ${ACTIVE_EMPLOYEE_FILTER}`;
+    const replacements: any = { runId, tenantId };
     if (run.branch_id) { empFilter += ' AND e.branch_id = :branchId'; replacements.branchId = run.branch_id; }
     if (run.department) { empFilter += ' AND e.department = :dept'; replacements.dept = run.department; }
 
@@ -466,8 +579,21 @@ async function calculatePayroll(req: NextApiRequest, res: NextApiResponse, sessi
       ORDER BY e.name
     `, { replacements });
 
-    // Get components
-    const [allComponents] = await sequelize.query(`SELECT * FROM payroll_components WHERE is_active = true ORDER BY sort_order`);
+    // Components — soft query so schema/RLS drift never poisons request-bound TX
+    let allComponents = await safeQueryWithSavepoint(
+      sequelize,
+      `SELECT * FROM payroll_components WHERE is_active = true AND (tenant_id = :tenantId OR tenant_id IS NULL) ORDER BY sort_order`,
+      { tenantId },
+      'payroll_components',
+    );
+    if (!allComponents.length) {
+      allComponents = await safeQueryWithSavepoint(
+        sequelize,
+        `SELECT * FROM payroll_components WHERE is_active = true ORDER BY sort_order`,
+        {},
+        'payroll_components_legacy',
+      );
+    }
 
     let totalGross = 0, totalDeductions = 0, totalNet = 0, totalTax = 0, totalBpjs = 0;
 
@@ -475,24 +601,27 @@ async function calculatePayroll(req: NextApiRequest, res: NextApiResponse, sessi
     await sequelize.query(`DELETE FROM payroll_items WHERE payroll_run_id = :runId`, { replacements: { runId } });
 
     for (const emp of (employees || [])) {
-      // Get employee-specific components
-      const [empComps] = await sequelize.query(`
-        SELECT esc.*, pc.code, pc.name, pc.type, pc.category, pc.calculation_type, pc.default_amount
-        FROM employee_salary_components esc
-        JOIN payroll_components pc ON esc.component_id = pc.id
-        WHERE esc.employee_salary_id = :salaryId AND esc.is_active = true
-      `, { replacements: { salaryId: emp.id } });
+      // Get employee-specific components (SAVEPOINT — join/schema drift safe)
+      const empComps = await safeQueryWithSavepoint(
+        sequelize,
+        `SELECT esc.*, pc.code, pc.name, pc.type, pc.category, pc.calculation_type, pc.default_amount
+         FROM employee_salary_components esc
+         JOIN payroll_components pc ON esc.component_id = pc.id
+         WHERE esc.employee_salary_id = :salaryId AND esc.is_active = true`,
+        { salaryId: emp.id },
+        'emp_salary_comps',
+      );
 
       const baseSalary = parseFloat(emp.base_salary) || 0;
       const bpjsEligible = emp.bpjs_eligible !== false;
       const taxEligible = emp.tax_eligible !== false;
       const otMultiplier = parseFloat(emp.overtime_rate_multiplier) || 1.5;
 
-      // === ATTENDANCE INTEGRATION ===
+      // === ATTENDANCE INTEGRATION (SAVEPOINT — missing cols must not abort TX) ===
       let attendanceData: any = { total_work_hours: 0, total_overtime_minutes: 0, late_days: 0, absent_days: 0, total_late_minutes: 0, present_days: 0 };
-      try {
-        const [attRows] = await sequelize.query(`
-          SELECT
+      let attRows = await safeQueryWithSavepoint(
+        sequelize,
+        `SELECT
             COALESCE(SUM(work_hours), 0) AS total_work_hours,
             COALESCE(SUM(overtime_minutes), 0) AS total_overtime_minutes,
             COUNT(DISTINCT CASE WHEN status = 'late' THEN date END) AS late_days,
@@ -501,9 +630,27 @@ async function calculatePayroll(req: NextApiRequest, res: NextApiResponse, sessi
             COUNT(DISTINCT CASE WHEN status IN ('present', 'late', 'work_from_home') THEN date END) AS present_days
           FROM employee_attendance
           WHERE employee_id = :empId AND date BETWEEN :periodStart AND :periodEnd
-        `, { replacements: { empId: emp.employee_id, periodStart: run.period_start, periodEnd: run.period_end } });
-        if (attRows?.[0]) attendanceData = attRows[0];
-      } catch (e) {}
+            AND (tenant_id = :tenantId OR tenant_id IS NULL)`,
+        { empId: emp.employee_id, periodStart: run.period_start, periodEnd: run.period_end, tenantId },
+        'calc_attendance',
+      );
+      if (!attRows.length) {
+        attRows = await safeQueryWithSavepoint(
+          sequelize,
+          `SELECT
+              COALESCE(SUM(work_hours), 0) AS total_work_hours,
+              COALESCE(SUM(overtime_minutes), 0) AS total_overtime_minutes,
+              COUNT(DISTINCT CASE WHEN status = 'late' THEN date END) AS late_days,
+              COUNT(DISTINCT CASE WHEN status = 'absent' THEN date END) AS absent_days,
+              COALESCE(SUM(late_minutes), 0) AS total_late_minutes,
+              COUNT(DISTINCT CASE WHEN status IN ('present', 'late', 'work_from_home') THEN date END) AS present_days
+            FROM employee_attendance
+            WHERE employee_id = :empId AND date BETWEEN :periodStart AND :periodEnd`,
+          { empId: emp.employee_id, periodStart: run.period_start, periodEnd: run.period_end },
+          'calc_attendance_legacy',
+        );
+      }
+      if (attRows?.[0]) attendanceData = attRows[0];
 
       const actualWorkHours = parseFloat(attendanceData.total_work_hours) || 0;
       const presentDays = parseInt(attendanceData.present_days) || 0;
@@ -530,70 +677,80 @@ async function calculatePayroll(req: NextApiRequest, res: NextApiResponse, sessi
       } else if (emp.pay_type === 'weekly') {
         effectiveBaseSalary = baseSalary * 4.33;
       } else if (emp.pay_type === 'piecework') {
-        try {
-          const [pwRows] = await sequelize.query(`
-            SELECT COALESCE(SUM(total_amount), 0) AS total, COUNT(*) AS cnt
-            FROM piecework_entries
-            WHERE employee_id = :empId AND status = 'approved'
-              AND work_date BETWEEN :periodStart AND :periodEnd
-              AND payroll_run_id IS NULL
-          `, { replacements: { empId: emp.employee_id, periodStart: run.period_start, periodEnd: run.period_end } });
-          effectiveBaseSalary = Math.round(parseFloat(pwRows?.[0]?.total || '0'));
-          const cnt = parseInt(pwRows?.[0]?.cnt || '0');
-          basicLabel = `Borongan ${cnt} entri`;
-        } catch (e) {
+        const pwRows = await safeQueryWithSavepoint(
+          sequelize,
+          `SELECT COALESCE(SUM(total_amount), 0) AS total, COUNT(*) AS cnt
+           FROM piecework_entries
+           WHERE employee_id = :empId AND status = 'approved'
+             AND work_date BETWEEN :periodStart AND :periodEnd
+             AND payroll_run_id IS NULL`,
+          { empId: emp.employee_id, periodStart: run.period_start, periodEnd: run.period_end },
+          'piecework',
+        );
+        if (pwRows.length) {
+          effectiveBaseSalary = Math.round(parseFloat(pwRows[0]?.total || '0'));
+          basicLabel = `Borongan ${parseInt(pwRows[0]?.cnt || '0')} entri`;
+        } else {
           effectiveBaseSalary = 0;
           basicLabel = 'Borongan (belum ada data)';
         }
       } else if (emp.pay_type === 'project') {
-        try {
-          const [projRows] = await sequelize.query(`
-            SELECT COALESCE(SUM(pp.gross_amount), 0) AS total, COUNT(*) AS cnt
-            FROM project_payroll pp
-            WHERE pp.employee_id::text = :empId::text
-              AND pp.period_start >= :periodStart AND pp.period_end <= :periodEnd
-              AND pp.status IN ('calculated', 'approved', 'paid')
-          `, { replacements: { empId: emp.employee_id, periodStart: run.period_start, periodEnd: run.period_end } });
-          let projectTotal = parseFloat(projRows?.[0]?.total || '0');
-          if (projectTotal === 0) {
-            const [tsRows] = await sequelize.query(`
-              SELECT
+        const projRows = await safeQueryWithSavepoint(
+          sequelize,
+          `SELECT COALESCE(SUM(pp.gross_amount), 0) AS total, COUNT(*) AS cnt
+           FROM project_payroll pp
+           WHERE pp.employee_id::text = :empId::text
+             AND pp.period_start >= :periodStart AND pp.period_end <= :periodEnd
+             AND pp.status IN ('calculated', 'approved', 'paid')`,
+          { empId: emp.employee_id, periodStart: run.period_start, periodEnd: run.period_end },
+          'project_payroll',
+        );
+        let projectTotal = parseFloat(projRows?.[0]?.total || '0');
+        if (projectTotal === 0) {
+          const tsRows = await safeQueryWithSavepoint(
+            sequelize,
+            `SELECT
                 COUNT(DISTINCT pt.timesheet_date) AS days_worked,
                 COALESCE(SUM(pt.hours_worked), 0) AS total_hours
               FROM pjm_timesheets pt
               WHERE pt.employee_id::text = :empId::text
                 AND pt.status = 'approved'
-                AND pt.timesheet_date BETWEEN :periodStart AND :periodEnd
-            `, { replacements: { empId: emp.employee_id, periodStart: run.period_start, periodEnd: run.period_end } });
-            const projRate = parseFloat(emp.project_rate) || dailyRate || hourlyRateEmp;
-            const daysWorked = parseInt(tsRows?.[0]?.days_worked || '0');
-            const totalHours = parseFloat(tsRows?.[0]?.total_hours || '0');
-            projectTotal = dailyRate > 0 ? daysWorked * dailyRate : totalHours * hourlyRateEmp;
-          }
+                AND pt.timesheet_date BETWEEN :periodStart AND :periodEnd`,
+            { empId: emp.employee_id, periodStart: run.period_start, periodEnd: run.period_end },
+            'pjm_timesheets',
+          );
+          const daysWorked = parseInt(tsRows?.[0]?.days_worked || '0');
+          const totalHours = parseFloat(tsRows?.[0]?.total_hours || '0');
+          projectTotal = dailyRate > 0 ? daysWorked * dailyRate : totalHours * hourlyRateEmp;
+        }
+        if (projRows.length || projectTotal > 0) {
           effectiveBaseSalary = Math.round(projectTotal);
-          basicLabel = `Upah Proyek`;
-        } catch (e) {
+          basicLabel = 'Upah Proyek';
+        } else {
           effectiveBaseSalary = parseFloat(emp.project_rate) || baseSalary;
           basicLabel = 'Upah Proyek (flat)';
         }
       } else if (emp.pay_type === 'commission' || emp.pay_type === 'base_plus_commission') {
-        try {
-          const [commRows] = await sequelize.query(`
-            SELECT COALESCE(SUM(commission_amount), 0) AS total, COUNT(*) AS cnt
-            FROM mf_agent_commissions
-            WHERE employee_id = :empId AND status = 'approved'
-              AND period_month = to_char(:periodStart::date, 'YYYY-MM')
-              AND payroll_run_id IS NULL
-          `, { replacements: { empId: emp.employee_id || emp.id, periodStart } });
-          const commTotal = parseFloat(commRows?.[0]?.total || '0');
+        const commRows = await safeQueryWithSavepoint(
+          sequelize,
+          `SELECT COALESCE(SUM(commission_amount), 0) AS total, COUNT(*) AS cnt
+           FROM mf_agent_commissions
+           WHERE employee_id = :empId AND status = 'approved'
+             AND period_month = to_char(:periodStart::date, 'YYYY-MM')
+             AND payroll_run_id IS NULL`,
+          { empId: emp.employee_id || emp.id, periodStart: run.period_start },
+          'mf_commission',
+        );
+        if (commRows.length) {
+          const commTotal = parseFloat(commRows[0]?.total || '0');
           if (emp.pay_type === 'commission') {
             effectiveBaseSalary = Math.round(commTotal);
-            basicLabel = `Komisi (${commRows?.[0]?.cnt || 0} transaksi)`;
+            basicLabel = `Komisi (${commRows[0]?.cnt || 0} transaksi)`;
           } else {
             effectiveBaseSalary = Math.round(baseSalary + commTotal);
             basicLabel = `Gaji Pokok + Komisi (Rp ${commTotal.toLocaleString('id-ID')})`;
           }
-        } catch (e) {
+        } else {
           effectiveBaseSalary = emp.pay_type === 'commission' ? 0 : baseSalary;
           basicLabel = emp.pay_type === 'commission' ? 'Komisi' : 'Gaji Pokok + Komisi';
         }
@@ -643,6 +800,27 @@ async function calculatePayroll(req: NextApiRequest, res: NextApiResponse, sessi
         earnings.push({ code: 'OVERTIME', name: `Lembur ${totalOvertimeHours} jam`, amount: overtimePay });
       }
 
+      // Bonus / kasbon / pinjaman from hris_payroll_inputs
+      const appliedCharges: Array<{ inputId: string; amount: number }> = [];
+      try {
+        const { listOpenPayrollInputCharges } = await import('@/lib/hris/payroll-inputs-store');
+        const charges = await listOpenPayrollInputCharges(String(tenantId), {
+          employeeId: String(emp.employee_id),
+          runId: String(runId),
+        });
+        for (const ch of charges) {
+          if (ch.as === 'earning') {
+            earnings.push({ code: ch.code, name: ch.name, amount: ch.amount, inputId: ch.inputId });
+          } else {
+            deductions.push({ code: ch.code, name: ch.name, amount: ch.amount, inputId: ch.inputId });
+          }
+          appliedCharges.push({ inputId: ch.inputId, amount: ch.amount });
+        }
+        (emp as any).__payrollInputCharges = appliedCharges;
+      } catch (e) {
+        console.warn('payroll-inputs charge skip:', (e as any)?.message || e);
+      }
+
       const totalEarnings = earnings.reduce((s, e) => s + e.amount, 0);
 
       // BPJS & PPh21 — skip for casual workers unless explicitly eligible
@@ -688,25 +866,25 @@ async function calculatePayroll(req: NextApiRequest, res: NextApiResponse, sessi
 
       // Mark piecework entries as linked to this payroll run
       if (emp.pay_type === 'piecework') {
-        try {
+        await withDbSavepoint(sequelize, async () => {
           await sequelize.query(`
             UPDATE piecework_entries SET payroll_run_id = :runId, updated_at = NOW()
             WHERE employee_id = :empId AND status = 'approved'
               AND work_date BETWEEN :periodStart AND :periodEnd
               AND payroll_run_id IS NULL
           `, { replacements: { runId, empId: emp.employee_id, periodStart: run.period_start, periodEnd: run.period_end } });
-        } catch (e) {}
+        }, 'link_piecework');
       }
 
       if (emp.pay_type === 'commission' || emp.pay_type === 'base_plus_commission') {
-        try {
+        await withDbSavepoint(sequelize, async () => {
           await sequelize.query(`
             UPDATE mf_agent_commissions SET payroll_run_id = :runId, updated_at = NOW()
             WHERE employee_id = :empId AND status = 'approved'
               AND period_month = to_char(:periodStart::date, 'YYYY-MM')
               AND payroll_run_id IS NULL
           `, { replacements: { runId, empId: emp.employee_id || emp.id, periodStart: run.period_start } });
-        } catch (e) {}
+        }, 'link_commission');
       }
 
       // Insert payroll item (compatible with base + extended columns)
@@ -791,6 +969,49 @@ async function approvePayroll(req: NextApiRequest, res: NextApiResponse, session
       WHERE id = :runId AND tenant_id = :tenantId
     `, { replacements: { runId, tenantId, userId: isUuid(session.user.id) ? session.user.id : null } });
     if ((meta as any)?.rowCount === 0) return res.status(404).json({ success: false, error: 'Payroll run not found' });
+
+    // Apply bonus / kasbon / loan balances from payslip lines
+    try {
+      const { applyPayrollInputCharges } = await import('@/lib/hris/payroll-inputs-store');
+      const [runRows] = await sequelize.query(
+        `SELECT period_start, period_end FROM payroll_runs WHERE id = :runId AND tenant_id = :tenantId LIMIT 1`,
+        { replacements: { runId, tenantId } },
+      );
+      const period = runRows?.[0]?.period_start
+        ? String(runRows[0].period_start).slice(0, 7)
+        : undefined;
+      const [itemRows] = await sequelize.query(
+        `SELECT earnings, deductions, components FROM payroll_items WHERE payroll_run_id = :runId`,
+        { replacements: { runId } },
+      );
+      const charges: Array<{ inputId: string; amount: number }> = [];
+      const seen = new Set<string>();
+      for (const row of itemRows || []) {
+        let lists: any[] = [];
+        for (const key of ['earnings', 'deductions'] as const) {
+          let v = row[key];
+          if (typeof v === 'string') { try { v = JSON.parse(v); } catch { v = []; } }
+          if (Array.isArray(v)) lists = lists.concat(v);
+        }
+        if (!lists.length) {
+          let comps = row.components;
+          if (typeof comps === 'string') { try { comps = JSON.parse(comps); } catch { comps = {}; } }
+          lists = [...(comps?.earnings || []), ...(comps?.deductions || [])];
+        }
+        for (const line of lists) {
+          const inputId = line?.inputId || line?.input_id;
+          const amount = Number(line?.amount || 0);
+          if (!inputId || !(amount > 0) || seen.has(String(inputId))) continue;
+          seen.add(String(inputId));
+          charges.push({ inputId: String(inputId), amount });
+        }
+      }
+      if (charges.length) {
+        await applyPayrollInputCharges(String(tenantId), String(runId), charges, period);
+      }
+    } catch (applyErr) {
+      console.warn('apply payroll-inputs on approve:', (applyErr as any)?.message || applyErr);
+    }
 
     try {
       const { logPayrollAudit, FISCAL_ENGINE } = await import('@/lib/hris/payroll-audit');
@@ -1095,10 +1316,25 @@ async function getPayslip(req: NextApiRequest, res: NextApiResponse, session: an
 
 // ===== POST: Create Component =====
 async function createComponent(req: NextApiRequest, res: NextApiResponse, session: any) {
+  const tenantId = session?.user?.tenantId;
+  if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
   if (!PayrollComponent) return res.json({ success: true, message: 'Created (mock)' });
   try {
-    const comp = await PayrollComponent.create({ ...req.body, tenantId: session.user.tenantId });
-    return res.status(201).json({ success: true, data: comp });
+    const payload = normalizeComponentCreateBody(req.body);
+    if (!payload.code || !payload.name) {
+      return res.status(400).json({ success: false, error: 'Kode dan Nama wajib diisi' });
+    }
+    const dup = await PayrollComponent.findOne({
+      where: { code: payload.code, tenantId },
+    });
+    if (dup) {
+      return res.status(409).json({
+        success: false,
+        error: `Kode komponen "${payload.code}" sudah dipakai`,
+      });
+    }
+    const comp = await PayrollComponent.create({ ...payload, tenantId });
+    return res.status(201).json({ success: true, data: toSnakeComponent(comp) });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: e.message });
   }
@@ -1112,11 +1348,19 @@ async function updateComponent(req: NextApiRequest, res: NextApiResponse, sessio
   const tenantId = session?.user?.tenantId;
   if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
   try {
-    // Use raw SQL to handle all fields including snake_case
+    const [found] = await sequelize.query(
+      `SELECT * FROM payroll_components
+       WHERE id = :id AND (tenant_id = :tenantId OR tenant_id IS NULL)
+       LIMIT 1`,
+      { replacements: { id, tenantId } },
+    );
+    const existing = found?.[0];
+    if (!existing) return res.status(404).json({ success: false, error: 'Component not found' });
+
     const fields: string[] = [];
-    const replacements: any = { id, tenantId };
+    const replacements: any = { tenantId };
     const fieldMap: Record<string, string> = {
-      code: 'code', name: 'name', description: 'description', type: 'type',
+      name: 'name', description: 'description', type: 'type',
       category: 'category', calculationType: 'calculation_type', calculation_type: 'calculation_type',
       defaultAmount: 'default_amount', default_amount: 'default_amount',
       percentageBase: 'percentage_base', percentage_base: 'percentage_base',
@@ -1142,16 +1386,43 @@ async function updateComponent(req: NextApiRequest, res: NextApiResponse, sessio
     }
     if (fields.length === 0) return res.status(400).json({ success: false, error: 'No fields to update' });
     fields.push('updated_at = NOW()');
-    const [, meta] = await sequelize.query(
+
+    // Shared catalog row → clone to tenant, then apply updates (never mutate global)
+    let targetId = existing.id;
+    if (existing.tenant_id == null) {
+      const [cloned] = await sequelize.query(
+        `INSERT INTO payroll_components (
+           id, tenant_id, code, name, description, type, category, calculation_type,
+           default_amount, percentage_base, percentage_value, formula,
+           is_taxable, is_mandatory, applies_to_pay_types, applicable_departments,
+           sort_order, is_active, created_at, updated_at
+         )
+         SELECT uuid_generate_v4(), :tenantId, code, name, description, type, category, calculation_type,
+           default_amount, percentage_base, percentage_value, formula,
+           is_taxable, is_mandatory, applies_to_pay_types, applicable_departments,
+           sort_order, is_active, NOW(), NOW()
+         FROM payroll_components WHERE id = :id
+         RETURNING id`,
+        { replacements: { id: existing.id, tenantId } },
+      );
+      targetId = cloned?.[0]?.id;
+      if (!targetId) return res.status(500).json({ success: false, error: 'Gagal menyalin komponen bersama' });
+    }
+
+    replacements.id = targetId;
+    await sequelize.query(
       `UPDATE payroll_components SET ${fields.join(', ')} WHERE id = :id AND tenant_id = :tenantId`,
       { replacements },
     );
-    if ((meta as any)?.rowCount === 0) return res.status(404).json({ success: false, error: 'Component not found' });
     const [rows] = await sequelize.query(
       `SELECT * FROM payroll_components WHERE id = :id AND tenant_id = :tenantId`,
-      { replacements: { id, tenantId } },
+      { replacements: { id: targetId, tenantId } },
     );
-    return res.json({ success: true, data: rows?.[0] });
+    return res.json({
+      success: true,
+      data: toSnakeComponent(rows?.[0]),
+      clonedFromShared: existing.tenant_id == null,
+    });
   } catch (e: any) {
     console.warn('updateComponent error: (table may not exist):', (e as any)?.message || e);
     return res.status(500).json({ success: false, error: e.message });
@@ -1166,12 +1437,34 @@ async function deleteComponent(req: NextApiRequest, res: NextApiResponse, sessio
   const tenantId = session?.user?.tenantId;
   if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
   try {
-    const [, meta] = await sequelize.query(
-      `DELETE FROM payroll_components WHERE id = :id AND tenant_id = :tenantId`,
+    const [usage] = await sequelize.query(
+      `SELECT COUNT(*)::int AS c
+       FROM employee_salary_components esc
+       JOIN employee_salaries es ON es.id = esc.employee_salary_id
+       WHERE esc.component_id = :id AND esc.is_active = true AND es.is_active = true
+         AND es.tenant_id = :tenantId`,
       { replacements: { id, tenantId } },
     );
-    if ((meta as any)?.rowCount === 0) return res.status(404).json({ success: false, error: 'Component not found' });
-    return res.json({ success: true, message: 'Component deleted' });
+    const used = Number(usage?.[0]?.c || 0);
+    if (used > 0) {
+      return res.status(409).json({
+        success: false,
+        error: `Komponen dipakai di ${used} konfigurasi gaji. Nonaktifkan saja, atau lepaskan dari karyawan dulu.`,
+      });
+    }
+
+    const [, meta] = await sequelize.query(
+      `UPDATE payroll_components SET is_active = false, updated_at = NOW()
+       WHERE id = :id AND tenant_id = :tenantId`,
+      { replacements: { id, tenantId } },
+    );
+    if ((meta as any)?.rowCount === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Komponen tidak ditemukan atau milik katalog bersama (edit lalu nonaktifkan salinan tenant).',
+      });
+    }
+    return res.json({ success: true, message: 'Komponen dinonaktifkan' });
   } catch (e: any) {
     return res.status(500).json({ success: false, error: e.message });
   }
@@ -1429,6 +1722,18 @@ async function generatePayrollFromAttendance(req: NextApiRequest, res: NextApiRe
       if (absentDays > 0) {
         deductions.push({ code: 'ABSENT', name: `Tidak Hadir ${absentDays} hari`, amount: absentDeduction });
       }
+
+      try {
+        const { listOpenPayrollInputCharges } = await import('@/lib/hris/payroll-inputs-store');
+        const charges = await listOpenPayrollInputCharges(String(tenantId), {
+          employeeId: String(empId),
+          runId: String(run.id),
+        });
+        for (const ch of charges) {
+          if (ch.as === 'earning') earnings.push({ code: ch.code, name: ch.name, amount: ch.amount, inputId: ch.inputId });
+          else deductions.push({ code: ch.code, name: ch.name, amount: ch.amount, inputId: ch.inputId });
+        }
+      } catch { /* optional */ }
 
       const totalEarnings = earnings.reduce((s, e) => s + e.amount, 0);
       const totalDeductionsAmt = deductions.reduce((s, d) => s + d.amount, 0);

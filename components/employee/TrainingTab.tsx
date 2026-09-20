@@ -1,26 +1,37 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { GraduationCap, ChevronRight, Loader2 } from 'lucide-react';
+import { ChevronRight, Loader2, Plus, Send } from 'lucide-react';
 import { Card, SectionHeader } from '@/components/employee/portal-ui';
 
 const API = '/api/employee/lms';
+const REQ_API = '/api/employee/training-request';
 
 export default function TrainingTab() {
   const [loading, setLoading] = useState(true);
   const [exams, setExams] = useState<any[]>([]);
   const [results, setResults] = useState<any[]>([]);
   const [courses, setCourses] = useState<any[]>([]);
+  const [programs, setPrograms] = useState<any[]>([]);
+  const [myRequests, setMyRequests] = useState<any[]>([]);
+  const [showRequest, setShowRequest] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [form, setForm] = useState({ program_id: '', topic: '', justification: '', preferred_date: '' });
+  const [toast, setToast] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [d, c] = await Promise.all([
-        fetch(`${API}?action=dashboard`).then((r) => r.json()),
-        fetch(`${API}?action=my-courses`).then((r) => r.json()),
+      const [d, c, p, req] = await Promise.all([
+        fetch(`${API}?action=dashboard`).then((r) => r.json()).catch(() => ({})),
+        fetch(`${API}?action=my-courses`).then((r) => r.json()).catch(() => ({})),
+        fetch(`${REQ_API}?action=programs`).then((r) => r.json()).catch(() => ({})),
+        fetch(REQ_API).then((r) => r.json()).catch(() => ({})),
       ]);
       setExams(d.data?.exams || []);
       setResults(d.data?.results || []);
       setCourses(c.data || []);
+      setPrograms(p.data || []);
+      setMyRequests((req.data || []).slice(0, 10));
     } finally {
       setLoading(false);
     }
@@ -28,14 +39,116 @@ export default function TrainingTab() {
 
   useEffect(() => { load(); }, [load]);
 
+  const submitRequest = async () => {
+    if (!form.topic.trim() && !form.program_id) {
+      setToast('Pilih program atau isi topik pelatihan');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const prog = programs.find((x) => String(x.id) === String(form.program_id));
+      const res = await fetch(REQ_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          program_id: form.program_id || null,
+          program_title: prog?.title,
+          topic: form.topic || prog?.title,
+          justification: form.justification,
+          preferred_date: form.preferred_date || null,
+        }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'Gagal mengajukan');
+      setToast('Permintaan pelatihan terkirim');
+      setShowRequest(false);
+      setForm({ program_id: '', topic: '', justification: '', preferred_date: '' });
+      load();
+    } catch (e: any) {
+      setToast(e.message || 'Gagal mengajukan');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (loading) return <div className="py-12 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-indigo-600" /></div>;
 
   return (
     <div className="space-y-4">
+      {toast && (
+        <div className="rounded-lg bg-indigo-50 px-3 py-2 text-xs text-indigo-800">{toast}</div>
+      )}
       <div className="flex items-center justify-between">
         <SectionHeader title="Training & LMS" />
-      <Link href="/employee/training" className="text-sm text-indigo-600 flex items-center gap-1">Lihat semua <ChevronRight className="w-4 h-4" /></Link>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowRequest((v) => !v)}
+            className="text-xs px-3 py-1.5 bg-indigo-600 text-white rounded-lg inline-flex items-center gap-1"
+          >
+            <Plus className="w-3.5 h-3.5" /> Ajukan Pelatihan
+          </button>
+          <Link href="/employee/training" className="text-sm text-indigo-600 flex items-center gap-1">Lihat semua <ChevronRight className="w-4 h-4" /></Link>
+        </div>
       </div>
+
+      {showRequest && (
+        <Card className="p-4 space-y-3">
+          <p className="text-sm font-semibold text-gray-900">Permintaan pelatihan</p>
+          <select
+            value={form.program_id}
+            onChange={(e) => setForm({ ...form, program_id: e.target.value })}
+            className="w-full px-3 py-2 border rounded-lg text-sm"
+          >
+            <option value="">— Pilih program (opsional) —</option>
+            {programs.map((p) => (
+              <option key={p.id} value={p.id}>{p.title}</option>
+            ))}
+          </select>
+          <input
+            value={form.topic}
+            onChange={(e) => setForm({ ...form, topic: e.target.value })}
+            placeholder="Topik / judul pelatihan"
+            className="w-full px-3 py-2 border rounded-lg text-sm"
+          />
+          <textarea
+            value={form.justification}
+            onChange={(e) => setForm({ ...form, justification: e.target.value })}
+            placeholder="Alasan / kebutuhan pengembangan"
+            rows={2}
+            className="w-full px-3 py-2 border rounded-lg text-sm"
+          />
+          <input
+            type="date"
+            value={form.preferred_date}
+            onChange={(e) => setForm({ ...form, preferred_date: e.target.value })}
+            className="w-full px-3 py-2 border rounded-lg text-sm"
+          />
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={submitRequest}
+            className="w-full py-2 bg-indigo-600 text-white rounded-lg text-sm inline-flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            Kirim permintaan
+          </button>
+        </Card>
+      )}
+
+      {myRequests.length > 0 && (
+        <>
+          <SectionHeader title="Permintaan saya" />
+          {myRequests.map((r) => (
+            <Card key={r.id} className="p-3 flex justify-between text-sm items-center">
+              <div>
+                <p className="font-medium">{r.topic || r.programTitle}</p>
+                <p className="text-xs text-gray-500">{r.status}</p>
+              </div>
+            </Card>
+          ))}
+        </>
+      )}
 
       {courses.slice(0, 2).map((c) => (
         <Card key={c.id} className="p-4">

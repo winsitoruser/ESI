@@ -55,6 +55,15 @@ async function ensureOrgTables() {
       updated_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
+  for (const col of [
+    `ALTER TABLE job_grades ADD COLUMN IF NOT EXISTS mid_salary DECIMAL(15,2) DEFAULT 0`,
+    `ALTER TABLE job_grades ADD COLUMN IF NOT EXISTS education_req VARCHAR(80)`,
+    `ALTER TABLE job_grades ADD COLUMN IF NOT EXISTS experience_years_min INTEGER DEFAULT 0`,
+    `ALTER TABLE job_grades ADD COLUMN IF NOT EXISTS competency_notes TEXT`,
+    `ALTER TABLE job_grades ADD COLUMN IF NOT EXISTS job_family VARCHAR(80)`,
+  ]) {
+    await sequelize.query(col).catch(() => {});
+  }
   return true;
 }
 
@@ -364,14 +373,21 @@ async function upsertOrg(req: NextApiRequest, res: NextApiResponse, session: any
 async function upsertJobGrade(req: NextApiRequest, res: NextApiResponse, session: any) {
   if (!sequelize) return res.status(503).json({ success: false, error: 'Database tidak tersedia' });
 
-  const { id, code, name, level, min_salary, max_salary, salary_min, salary_max, benefits, leave_quota, description } = req.body;
+  const {
+    id, code, name, level, min_salary, max_salary, mid_salary, salary_min, salary_max,
+    benefits, leave_quota, description, education_req, experience_years_min, competency_notes, job_family,
+  } = req.body;
   const tenantId = (session.user as any).tenantId || null;
   if (!tenantId) return res.status(403).json({ success: false, error: 'NO_TENANT' });
-  const minSal = min_salary ?? salary_min ?? 0;
-  const maxSal = max_salary ?? salary_max ?? 0;
+  const minSal = Number(min_salary ?? salary_min ?? 0) || 0;
+  const maxSal = Number(max_salary ?? salary_max ?? 0) || 0;
+  const midSal = Number(mid_salary ?? 0) || (minSal && maxSal ? Math.round((minSal + maxSal) / 2) : 0);
 
   if (!code?.trim() || !name?.trim()) {
     return res.status(400).json({ success: false, error: 'Kode dan nama golongan wajib diisi' });
+  }
+  if (maxSal > 0 && minSal > maxSal) {
+    return res.status(400).json({ success: false, error: 'Upah terkecil tidak boleh melebihi upah terbesar (Permenaker 1/2017)' });
   }
 
   const isUpdate = id && UUID_RE.test(id);
@@ -379,38 +395,41 @@ async function upsertJobGrade(req: NextApiRequest, res: NextApiResponse, session
   try {
     await ensureOrgTables();
 
+    const common = {
+      tenantId, code: code.trim(), name: name.trim(), level: level || 1,
+      min_salary: minSal, mid_salary: midSal, max_salary: maxSal,
+      benefits: JSON.stringify(benefits || []),
+      leave_quota: JSON.stringify(leave_quota || {}),
+      description: description?.trim() || null,
+      education_req: education_req?.trim() || null,
+      experience_years_min: experience_years_min != null ? Number(experience_years_min) || 0 : 0,
+      competency_notes: competency_notes?.trim() || null,
+      job_family: job_family?.trim() || null,
+    };
+
     if (isUpdate) {
       const [, meta] = await sequelize.query(`
         UPDATE job_grades SET code = :code, name = :name, level = :level,
-          min_salary = :min_salary, max_salary = :max_salary, benefits = :benefits::jsonb,
-          leave_quota = :leave_quota::jsonb, description = :description, updated_at = NOW()
+          min_salary = :min_salary, mid_salary = :mid_salary, max_salary = :max_salary,
+          benefits = :benefits::jsonb, leave_quota = :leave_quota::jsonb, description = :description,
+          education_req = :education_req, experience_years_min = :experience_years_min,
+          competency_notes = :competency_notes, job_family = :job_family, updated_at = NOW()
         WHERE id = :id AND tenant_id = :tenantId
-      `, {
-        replacements: {
-          id, tenantId, code: code.trim(), name: name.trim(), level: level || 1,
-          min_salary: minSal, max_salary: maxSal,
-          benefits: JSON.stringify(benefits || []),
-          leave_quota: JSON.stringify(leave_quota || {}),
-          description: description?.trim() || null,
-        },
-      });
+      `, { replacements: { ...common, id } });
       if ((meta as any)?.rowCount === 0) return res.status(404).json({ success: false, error: 'Golongan tidak ditemukan' });
       return res.json({ success: true, message: 'Golongan jabatan diperbarui' });
     }
 
     const [result] = await sequelize.query(`
-      INSERT INTO job_grades (tenant_id, code, name, level, min_salary, max_salary, benefits, leave_quota, description, sort_order)
-      VALUES (:tenantId, :code, :name, :level, :min_salary, :max_salary, :benefits::jsonb, :leave_quota::jsonb, :description, :level)
+      INSERT INTO job_grades (
+        tenant_id, code, name, level, min_salary, mid_salary, max_salary, benefits, leave_quota,
+        description, education_req, experience_years_min, competency_notes, job_family, sort_order
+      ) VALUES (
+        :tenantId, :code, :name, :level, :min_salary, :mid_salary, :max_salary, :benefits::jsonb, :leave_quota::jsonb,
+        :description, :education_req, :experience_years_min, :competency_notes, :job_family, :level
+      )
       RETURNING *
-    `, {
-      replacements: {
-        tenantId, code: code.trim(), name: name.trim(), level: level || 1,
-        min_salary: minSal, max_salary: maxSal,
-        benefits: JSON.stringify(benefits || []),
-        leave_quota: JSON.stringify(leave_quota || {}),
-        description: description?.trim() || null,
-      },
-    });
+    `, { replacements: common });
 
     return res.json({ success: true, data: result[0], message: 'Golongan jabatan berhasil dibuat' });
   } catch (e: any) {

@@ -137,3 +137,29 @@ export function settlementToPayrollComponents(settlement: SettlementBreakdown) {
     { code: 'TAX_FINAL', name: 'PPh 21 Final', amount: -settlement.taxDeduction, type: 'deduction' },
   ].filter(c => Math.abs(c.amount) > 0);
 }
+
+/** FlowHCM-style final settlement disbursement lifecycle */
+export type SettlementDisbursementStatus = 'draft' | 'ready' | 'disbursed' | 'failed';
+
+export interface SettlementStoredPayload {
+  settlement: SettlementBreakdown;
+  payrollComponents: ReturnType<typeof settlementToPayrollComponents>;
+  appliedAt?: string;
+  disbursementStatus?: SettlementDisbursementStatus;
+  disbursedAt?: string | null;
+  disbursedBy?: string | null;
+  disbursedByName?: string | null;
+  disbursementReference?: string | null;
+  bankFileGeneratedAt?: string | null;
+}
+
+export function getSettlementNet(data: any): number {
+  const s = data?.settlement || data;
+  return Number(s?.netSettlement ?? s?.net_settlement ?? 0) || 0;
+}
+
+export function isSettlementReadyForDisbursement(data: any): boolean {
+  if (!data?.settlement && !data?.payrollComponents) return false;
+  const status = data?.disbursementStatus || 'ready';
+  return status === 'ready' && getSettlementNet(data) > 0;
+}

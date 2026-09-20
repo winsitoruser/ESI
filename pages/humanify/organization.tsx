@@ -344,8 +344,8 @@ export default function OrganizationPage() {
             <div className="flex min-w-max">
               {([
                 { key: 'org-structure', label: 'Struktur Organisasi', icon: Network },
-                { key: 'job-grades', label: 'Golongan Jabatan', icon: Layers },
-                { key: 'compensation', label: 'Compensation Bands', icon: DollarSign },
+                { key: 'job-grades', label: 'Struktur & Skala Upah', icon: Layers },
+                { key: 'compensation', label: 'Audit Band Upah', icon: DollarSign },
                 { key: 'summary', label: 'Ringkasan', icon: BarChart3 },
               ] as { key: MainTab; label: string; icon: any }[]).map(tab => (
                 <button key={tab.key} onClick={() => setActiveTab(tab.key)}
@@ -434,8 +434,14 @@ export default function OrganizationPage() {
             {/* ===== JOB GRADES TAB ===== */}
             {activeTab === 'job-grades' && (
               <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-gray-800">Struktur Golongan Jabatan</h3>
+                <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                  <div>
+                    <h3 className="font-semibold text-gray-800">Struktur & Skala Upah (Golongan)</h3>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Upah pokok per golongan jabatan — acuan{' '}
+                      <a href="/humanify/workforce-compliance?tab=ssu" className="text-[color:var(--hf-brand-600)] underline">Permenaker 1/2017</a>
+                    </p>
+                  </div>
                   <button onClick={() => { setGradeForm({ level: (jobGrades.length || 0) + 1 }); setShowGradeModal(true); }}
                     className="flex items-center gap-1 px-3 py-1.5 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700">
                     <Plus className="w-3.5 h-3.5" /> Tambah Golongan
@@ -474,8 +480,17 @@ export default function OrganizationPage() {
                                     )}
                                   </div>
                                   <p className="text-xs text-gray-500 mt-1">
-                                    <DollarSign className="w-3 h-3 inline" /> Rentang: {fmtCurrency(g.min_salary)} - {fmtCurrency(g.max_salary)}
+                                    <DollarSign className="w-3 h-3 inline" /> Upah pokok: {fmtCurrency(g.min_salary)}
+                                    {g.mid_salary ? ` · mid ${fmtCurrency(g.mid_salary)}` : ''}
+                                    {' – '}{fmtCurrency(g.max_salary)}
                                   </p>
+                                  {(g.education_req || g.experience_years_min || g.competency_notes) && (
+                                    <p className="text-[10px] text-gray-400 mt-1">
+                                      {[g.education_req && `Pendidikan: ${g.education_req}`,
+                                        g.experience_years_min != null && Number(g.experience_years_min) > 0 && `Masa kerja ≥ ${g.experience_years_min} th`,
+                                        g.competency_notes].filter(Boolean).join(' · ')}
+                                    </p>
+                                  )}
                                 </div>
                               </div>
 
@@ -528,8 +543,10 @@ export default function OrganizationPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between flex-wrap gap-3">
                   <div>
-                    <h3 className="font-semibold text-gray-800">Compensation Band Audit</h3>
-                    <p className="text-xs text-gray-500 mt-0.5">Bandingkan gaji aktual karyawan vs range golongan jabatan (min–max)</p>
+                    <h3 className="font-semibold text-gray-800">Audit Band Upah Pokok</h3>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Bandingkan upah pokok karyawan vs skala golongan (min–mid–max) sesuai SSU
+                    </p>
                   </div>
                   {compAudit?.dataSource && <DataSourceBadge source={compAudit.dataSource} />}
                 </div>
@@ -762,17 +779,39 @@ export default function OrganizationPage() {
                 <input type="number" value={gradeForm.level || 1} onChange={e => setGradeForm((f: any) => ({ ...f, level: parseInt(e.target.value) || 1 }))}
                   className="w-full px-3 py-2 border rounded-lg text-sm mt-1" />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-gray-500">Gaji Minimum</label>
+                  <label className="text-xs font-medium text-gray-500">Upah pokok terkecil</label>
                   <input type="number" value={gradeForm.min_salary || ''} onChange={e => setGradeForm((f: any) => ({ ...f, min_salary: e.target.value }))}
                     className="w-full px-3 py-2 border rounded-lg text-sm mt-1" />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-500">Gaji Maksimum</label>
+                  <label className="text-xs font-medium text-gray-500">Titik tengah</label>
+                  <input type="number" value={gradeForm.mid_salary || ''} onChange={e => setGradeForm((f: any) => ({ ...f, mid_salary: e.target.value }))}
+                    className="w-full px-3 py-2 border rounded-lg text-sm mt-1" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500">Upah pokok terbesar</label>
                   <input type="number" value={gradeForm.max_salary || ''} onChange={e => setGradeForm((f: any) => ({ ...f, max_salary: e.target.value }))}
                     className="w-full px-3 py-2 border rounded-lg text-sm mt-1" />
                 </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-500">Pendidikan (Pasal 2)</label>
+                  <input type="text" value={gradeForm.education_req || ''} onChange={e => setGradeForm((f: any) => ({ ...f, education_req: e.target.value }))}
+                    className="w-full px-3 py-2 border rounded-lg text-sm mt-1" placeholder="S1 / D3 / SMA" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500">Masa kerja min. (tahun)</label>
+                  <input type="number" value={gradeForm.experience_years_min ?? ''} onChange={e => setGradeForm((f: any) => ({ ...f, experience_years_min: e.target.value }))}
+                    className="w-full px-3 py-2 border rounded-lg text-sm mt-1" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500">Kompetensi</label>
+                <textarea value={gradeForm.competency_notes || ''} onChange={e => setGradeForm((f: any) => ({ ...f, competency_notes: e.target.value }))}
+                  className="w-full px-3 py-2 border rounded-lg text-sm mt-1" rows={2} placeholder="Pengetahuan, keterampilan, sikap kerja" />
               </div>
               <div>
                 <label className="text-xs font-medium text-gray-500">Deskripsi</label>

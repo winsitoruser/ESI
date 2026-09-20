@@ -4,7 +4,7 @@
 export type OkrLevel = 'company' | 'department' | 'team' | 'individual';
 export type OkrCycle = 'quarterly' | 'annual' | 'monthly';
 export type OkrConfidence = 'on_track' | 'at_risk' | 'off_track';
-export type OkrStatus = 'draft' | 'active' | 'completed' | 'cancelled';
+export type OkrStatus = 'draft' | 'pending_approval' | 'active' | 'completed' | 'cancelled' | 'rejected';
 
 export interface KeyResult {
   id: string;

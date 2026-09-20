@@ -22,6 +22,10 @@ export type TicketCategory =
   | 'attendance'
   | 'access'
   | 'feature_request'
+  | 'it'
+  | 'hr'
+  | 'facility'
+  | 'desk'
   | 'other';
 
 export async function ensureSupportTables(): Promise<boolean> {

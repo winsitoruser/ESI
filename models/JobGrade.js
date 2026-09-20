@@ -9,10 +9,15 @@ const JobGrade = sequelize.define('JobGrade', {
   name: { type: DataTypes.STRING(100), allowNull: false },
   level: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
   minSalary: { type: DataTypes.DECIMAL(15, 2), defaultValue: 0, field: 'min_salary' },
+  midSalary: { type: DataTypes.DECIMAL(15, 2), defaultValue: 0, field: 'mid_salary' },
   maxSalary: { type: DataTypes.DECIMAL(15, 2), defaultValue: 0, field: 'max_salary' },
   benefits: { type: DataTypes.JSONB, defaultValue: [] },
   leaveQuota: { type: DataTypes.JSONB, defaultValue: {}, field: 'leave_quota' },
   description: { type: DataTypes.TEXT, allowNull: true },
+  educationReq: { type: DataTypes.STRING(80), allowNull: true, field: 'education_req' },
+  experienceYearsMin: { type: DataTypes.INTEGER, defaultValue: 0, field: 'experience_years_min' },
+  competencyNotes: { type: DataTypes.TEXT, allowNull: true, field: 'competency_notes' },
+  jobFamily: { type: DataTypes.STRING(80), allowNull: true, field: 'job_family' },
   isActive: { type: DataTypes.BOOLEAN, defaultValue: true, field: 'is_active' },
   sortOrder: { type: DataTypes.INTEGER, defaultValue: 0, field: 'sort_order' }
 }, {

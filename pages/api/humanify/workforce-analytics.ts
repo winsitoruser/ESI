@@ -279,6 +279,11 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, action: str
         budgetAmount: parseFloat(body.budgetAmount) || 0,
         justification: body.justification || null,
         status: body.status || 'draft',
+        details: Array.isArray(body.details)
+          ? body.details
+          : Array.isArray(body.positionLines)
+            ? body.positionLines
+            : [],
       });
       return res.json({ success: true, data: toSnakeRow(plan) });
     }
@@ -335,6 +340,11 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, action: stri
         budgetAmount: parseFloat(body.budgetAmount) || 0,
         justification: body.justification,
         status: body.status,
+        details: Array.isArray(body.details)
+          ? body.details
+          : Array.isArray(body.positionLines)
+            ? body.positionLines
+            : undefined,
       }, { where: { id, tenantId } });
       if (!n) return res.status(404).json({ success: false, error: 'Not found' });
       return res.json({ success: true, message: 'Plan updated' });

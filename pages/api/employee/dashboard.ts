@@ -85,6 +85,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         case 'leave-balance': return getLeaveBalance(res, userId, tenantId);
         case 'leave-requests': return getLeaveRequests(res, userId, tenantId);
         case 'claims': return getClaims(res, userId, tenantId);
+        case 'cash-advance': return getCashAdvances(res, userId, tenantId);
         case 'attendance-history': return getAttendanceHistory(req, res, userId, tenantId);
         case 'overtime-history':   return getOvertimeHistory(req, res, userId, tenantId);
         case 'travel': return getTravel(res, userId, tenantId);
@@ -111,6 +112,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         case 'cancel-overtime':
         case 'travel-request':
         case 'travel-expense':
+        case 'cash-advance':
           if (!(await requireEssPayrollFeature(req, res, session))) return;
           if (action === 'claim') return createClaim(req, res, userId, tenantId);
           if (action === 'resubmit-claim') return resubmitClaim(req, res, userId, tenantId);
@@ -118,6 +120,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           if (action === 'submit-overtime') return submitOvertime(req, res, userId, tenantId);
           if (action === 'cancel-overtime') return cancelOvertime(req, res, userId, tenantId);
           if (action === 'travel-expense') return createTravelExpense(req, res, userId, tenantId);
+          if (action === 'cash-advance') return createCashAdvance(req, res, userId, tenantId);
           return createTravelRequest(req, res, userId, tenantId);
         case 'mark-notification-read': return markNotificationRead(req, res, userId, tenantId);
         case 'mark-all-notifications-read': return markAllNotificationsRead(res, userId, tenantId);
@@ -808,14 +811,14 @@ async function getLeaveBalance(res: NextApiResponse, userId: string, tenantId: s
   try {
     await ensurePortalEmployee(sequelize, userId, tenantId);
     const year = new Date().getFullYear();
-    // Prefer leave_balances (prod schema); fallback employee_leave_balances
+    // Prefer leave_balances (schema-aware); fallback employee_leave_balances
     let rows: any[] = [];
     try {
+      const { leaveBalanceSelectExprs, resolveLeaveBalanceColMode } = await import('@/lib/hris/leave-balance-columns');
+      const colMode = await resolveLeaveBalanceColMode();
       const [r] = await sequelize.query(`
         SELECT lt.name as type, lt.code,
-          COALESCE(lb.entitled, 12) as total,
-          COALESCE(lb.used, 0) as used,
-          COALESCE(lb.remaining, COALESCE(lb.entitled, 12) - COALESCE(lb.used, 0)) as remaining
+          ${leaveBalanceSelectExprs(colMode === 'unknown' ? 'days' : colMode)}
         FROM leave_balances lb
         LEFT JOIN leave_types lt ON lb.leave_type_id = lt.id
         LEFT JOIN employees e ON lb.employee_id = e.id
@@ -826,7 +829,8 @@ async function getLeaveBalance(res: NextApiResponse, userId: string, tenantId: s
       rows = r || [];
     } catch {
       const [r] = await sequelize.query(`
-        SELECT lt.name as type, lb.total_days as total, lb.used_days as used
+        SELECT lt.name as type, lb.total_days as total, lb.used_days as used,
+          GREATEST(0, COALESCE(lb.total_days, 0) - COALESCE(lb.used_days, 0)) as remaining
         FROM employee_leave_balances lb
         LEFT JOIN leave_types lt ON lb.leave_type_id = lt.id
         LEFT JOIN employees e ON lb.employee_id = e.id
@@ -947,6 +951,81 @@ async function createLeaveRequest(req: NextApiRequest, res: NextApiResponse, use
   } catch (e: any) {
     console.warn('createLeaveRequest error:', e?.message || e);
     return res.status(500).json({ success: false, error: 'Gagal mengajukan cuti', details: e?.message });
+  }
+}
+
+// ─── Cash advance (kasbon) — ESS ───
+async function getCashAdvances(res: NextApiResponse, userId: string, tenantId: string) {
+  try {
+    const { listPayrollInputs } = await import('@/lib/hris/payroll-inputs-store');
+    if (!sequelize) {
+      return res.json({ success: true, data: [] });
+    }
+    const ctx = await resolveEmployeeContext(sequelize, userId, tenantId);
+    if (!ctx?.employeeId) {
+      return res.json({ success: true, data: [] });
+    }
+    const rows = await listPayrollInputs('cash_advance', undefined, tenantId || ctx.tenantId, String(ctx.employeeId));
+    return res.json({
+      success: true,
+      data: rows.map((r) => ({
+        id: r.id,
+        amount: r.amount,
+        remaining_amount: r.remainingAmount,
+        installment_amount: r.installmentAmount,
+        installment_months: r.installmentMonths,
+        reason: r.reason,
+        category: r.category,
+        status: r.status,
+        created_at: r.createdAt,
+      })),
+    });
+  } catch (e: any) {
+    console.warn('getCashAdvances:', e?.message || e);
+    return res.json({ success: true, data: [] });
+  }
+}
+
+async function createCashAdvance(req: NextApiRequest, res: NextApiResponse, userId: string, tenantId: string) {
+  const { amount, reason, category, installmentMonths } = req.body || {};
+  const amt = Number(amount);
+  if (!(amt > 0) || !reason) {
+    return res.status(400).json({ success: false, error: 'Nominal dan alasan wajib diisi' });
+  }
+  if (amt > 50_000_000) {
+    return res.status(400).json({ success: false, error: 'Nominal kasbon melebihi batas pengajuan (Rp 50 juta)' });
+  }
+  try {
+    if (!sequelize) {
+      return res.status(503).json({ success: false, error: 'Database tidak tersedia' });
+    }
+    const { createPayrollInput } = await import('@/lib/hris/payroll-inputs-store');
+    const ctx = await resolveEmployeeContext(sequelize, userId, tenantId);
+    if (!ctx?.employeeId) {
+      return res.status(400).json({ success: false, error: 'Profil karyawan belum tersedia' });
+    }
+    const months = Math.max(1, Math.min(24, parseInt(String(installmentMonths || 1), 10) || 1));
+    const record = await createPayrollInput({
+      tenantId: tenantId || ctx.tenantId,
+      type: 'cash_advance',
+      employeeId: String(ctx.employeeId),
+      employeeName: ctx.employeeName || 'Karyawan',
+      department: ctx.department || undefined,
+      amount: amt,
+      remainingAmount: amt,
+      installmentMonths: months,
+      installmentAmount: Math.round(amt / months),
+      reason: String(reason).slice(0, 500),
+      category: String(category || 'other').slice(0, 50),
+      status: 'pending',
+    });
+    if (!record) {
+      return res.status(500).json({ success: false, error: 'Gagal menyimpan pengajuan kasbon' });
+    }
+    return res.json({ success: true, data: record, message: 'Pengajuan kasbon dikirim — menunggu persetujuan HR' });
+  } catch (e: any) {
+    console.warn('createCashAdvance:', e?.message || e);
+    return res.status(500).json({ success: false, error: e?.message || 'Gagal mengajukan kasbon' });
   }
 }
 

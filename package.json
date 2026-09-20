@@ -302,6 +302,7 @@
     "smoke:prod-readiness": "SMOKE_BASE_URL=https://humanify.id node scripts/smoke-test-humanify-prod-readiness.js",
     "smoke:attendance": "node scripts/smoke-test-attendance.js",
     "smoke:payroll": "node scripts/smoke-test-humanify-payroll.js",
+    "smoke:kasbon": "node scripts/smoke-test-humanify-kasbon.js",
     "smoke:payroll-golden": "node scripts/smoke-test-payroll-golden.js",
     "db:recruitment-training-migrate": "node scripts/migrate-recruitment-training-align.js",
     "db:recruitment-training-seed": "node scripts/seed-recruitment-training-demo.js",

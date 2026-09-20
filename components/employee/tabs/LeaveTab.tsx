@@ -6,6 +6,7 @@ const LEAVE_TYPES = [
   { value: 'sick', label: 'Cuti Sakit' },
   { value: 'important', label: 'Cuti Penting' },
   { value: 'maternity', label: 'Cuti Melahirkan' },
+  { value: 'comp_off', label: 'Cuti Pengganti (Comp-Off)' },
   { value: 'unpaid', label: 'Cuti Tanpa Gaji' },
 ];
 
@@ -40,7 +41,7 @@ export default function LeaveTab({ leaveBalance, leaveRequests, onOpenApply }: L
               <div className="flex justify-between text-sm mb-1">
                 <span className="text-gray-700">{lb.type || lb.name}</span>
                 <span className="font-medium">
-                  {lb.used || lb.used_days || 0}/{lb.total || lb.total_days || 12} hari
+                  Sisa {lb.remaining != null ? lb.remaining : Math.max(0, (lb.total || lb.total_days || 0) - (lb.used || lb.used_days || 0))} · {lb.used || lb.used_days || 0}/{lb.total || lb.total_days || 12} hari
                 </span>
               </div>
               <div className="w-full bg-gray-100 rounded-full h-2.5">

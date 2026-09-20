@@ -50,7 +50,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         if (action === 'analytics') {
           return res.json({ success: true, data: EMPTY_ANALYTICS });
         }
-        if (action === 'programs' || action === 'certifications' || action === 'enrollments') {
+        if (action === 'programs' || action === 'certifications' || action === 'enrollments' || action === 'requests') {
           return res.json({ success: true, data: [], total: 0 });
         }
         if (action === 'schedule') {
@@ -106,6 +106,15 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           LEFT JOIN hris_training_programs tp ON te.training_program_id = tp.id
           ${where} ORDER BY te.enrolled_at DESC
         `, { replacements: repl });
+        return res.json({ success: true, data: rows, total: rows.length });
+      }
+
+      if (action === 'requests') {
+        const { listTrainingRequests } = await import('@/lib/hris/training-request-store');
+        const rows = await listTrainingRequests({
+          tenantId: String(tenantId),
+          status: String(req.query.status || 'all'),
+        });
         return res.json({ success: true, data: rows, total: rows.length });
       }
 
@@ -224,6 +233,45 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         );
         return res.status(201).json({ success: true, data: rows[0] });
       }
+
+      if (action === 'create-request') {
+        const { createTrainingRequest } = await import('@/lib/hris/training-request-store');
+        if (!body.topic && !body.program_title) {
+          return res.status(400).json({ error: 'topic wajib diisi' });
+        }
+        const empId = body.employee_id || (session.user as any)?.employeeId || (session.user as any)?.id;
+        if (!empId) return res.status(400).json({ error: 'employee_id wajib' });
+        const row = await createTrainingRequest({
+          tenantId: String(tenantId),
+          employeeId: String(empId),
+          employeeName: body.employee_name || (session.user as any)?.name,
+          programId: body.program_id || null,
+          programTitle: body.program_title,
+          topic: body.topic || body.program_title,
+          justification: body.justification || body.reason,
+          preferredDate: body.preferred_date || null,
+        });
+        return res.status(201).json({ success: true, data: row });
+      }
+
+      if (action === 'approve-request' || action === 'reject-request') {
+        const { decideTrainingRequest } = await import('@/lib/hris/training-request-store');
+        if (!body.id) return res.status(400).json({ error: 'id wajib' });
+        const row = await decideTrainingRequest({
+          tenantId: String(tenantId),
+          id: body.id,
+          decision: action === 'approve-request' ? 'approve' : 'reject',
+          reviewerNote: body.note || body.reason,
+          reviewedBy: (session.user as any)?.name || (session.user as any)?.email,
+        });
+        if (!row) return res.status(404).json({ error: 'Request tidak ditemukan' });
+        return res.json({
+          success: true,
+          data: row,
+          message: action === 'approve-request' ? 'Permintaan pelatihan disetujui' : 'Permintaan pelatihan ditolak',
+        });
+      }
+
       return res.status(400).json({ error: 'Unknown POST action' });
     }
 

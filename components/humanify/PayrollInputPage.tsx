@@ -37,9 +37,10 @@ interface Props {
   icon: keyof typeof ICONS;
   categories: string[];
   showInstallment?: boolean;
+  categoryLabels?: Record<string, string>;
 }
 
-export default function PayrollInputPage({ type, title, subtitle, icon, categories, showInstallment }: Props) {
+export default function PayrollInputPage({ type, title, subtitle, icon, categories, showInstallment, categoryLabels }: Props) {
   const [items, setItems] = useState<any[]>([]);
   const [dataSource, setDataSource] = useState<HrisDataSource>('empty');
   const [loading, setLoading] = useState(true);
@@ -47,9 +48,10 @@ export default function PayrollInputPage({ type, title, subtitle, icon, categori
   const [statusFilter, setStatusFilter] = useState('all');
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState<any>({ category: categories[0] || 'other', installmentMonths: 6 });
+  const [form, setForm] = useState<any>({ category: categories[0] || 'other', installmentMonths: type === 'cash_advance' ? 1 : 6 });
   const Icon = ICONS[icon] || Gift;
   const fmt = (n: number) => `Rp ${(n || 0).toLocaleString('id-ID')}`;
+  const labelCat = (c: string) => categoryLabels?.[c] || c;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -80,6 +82,7 @@ export default function PayrollInputPage({ type, title, subtitle, icon, categori
     try {
       const months = Number(form.installmentMonths || 0);
       const amount = Number(form.amount);
+      const useInstallment = Boolean(showInstallment && months >= 1);
       await fetch('/api/humanify/payroll-inputs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -92,14 +95,14 @@ export default function PayrollInputPage({ type, title, subtitle, icon, categori
           amount,
           reason: form.reason,
           category: form.category,
-          installmentMonths: showInstallment ? months : undefined,
-          installmentAmount: showInstallment && months ? Math.round(amount / months) : undefined,
-          remainingAmount: showInstallment ? amount : undefined,
+          installmentMonths: useInstallment ? months : undefined,
+          installmentAmount: useInstallment && months ? Math.round(amount / months) : undefined,
+          remainingAmount: type === 'cash_advance' || type === 'loan' || useInstallment ? amount : undefined,
           status: 'pending',
         }),
       });
       setShowCreate(false);
-      setForm({ category: categories[0] || 'other', installmentMonths: 6 });
+      setForm({ category: categories[0] || 'other', installmentMonths: type === 'cash_advance' ? 1 : 6 });
       await load();
     } finally {
       setSaving(false);
@@ -117,6 +120,11 @@ export default function PayrollInputPage({ type, title, subtitle, icon, categori
 
   const pending = items.filter((i) => i.status === 'pending');
   const totalAmount = items.reduce((s, i) => s + Number(i.amount || 0), 0);
+  const outstanding = items
+    .filter((i) => ['approved', 'active'].includes(i.status))
+    .reduce((s, i) => s + Number(i.remainingAmount != null ? i.remainingAmount : i.amount || 0), 0);
+  const showBalanceCols = Boolean(showInstallment || type === 'cash_advance' || type === 'loan');
+  const approveStatus = type === 'loan' ? 'active' : 'approved';
 
   return (
     <PageGuard anyPermission={['payroll.view', 'payroll.*']} title={title} description={subtitle}>
@@ -138,15 +146,22 @@ export default function PayrollInputPage({ type, title, subtitle, icon, categori
             </div>
           )}
         >
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <OpsKpiShell><HRStatCard icon={Icon} label="Total catatan" value={items.length} accent="violet" /></OpsKpiShell>
             <OpsKpiShell><HRStatCard icon={Clock} label="Menunggu persetujuan" value={pending.length} accent="amber" /></OpsKpiShell>
             <OpsKpiShell><HRStatCard icon={Wallet} label="Total nominal" value={fmt(totalAmount)} accent="emerald" /></OpsKpiShell>
+            {(type === 'cash_advance' || type === 'loan') && (
+              <OpsKpiShell><HRStatCard icon={CreditCard} label="Saldo outstanding" value={fmt(outstanding)} accent="rose" /></OpsKpiShell>
+            )}
           </div>
 
           <div className="rounded-[var(--hf-radius-xl)] border border-[var(--hf-brand-100)] bg-[var(--hf-brand-50)] px-4 py-3 text-sm text-[color:var(--hf-brand-600)] flex items-start gap-2">
             <Clock className="mt-0.5 h-4 w-4 shrink-0" />
-            <p>{title} yang disetujui masuk ke <Link href="/humanify/payroll/main" className="font-semibold underline underline-offset-2">Proses gaji</Link> periode berjalan.</p>
+            <p>
+              {type === 'cash_advance'
+                ? <>Kasbon disetujui otomatis masuk potongan <strong>CASH_ADV</strong> saat <Link href="/humanify/payroll/main" className="font-semibold underline underline-offset-2">Proses gaji</Link> dihitung; saldo turun setelah run disetujui. Karyawan juga bisa ajukan dari Portal ESS.</>
+                : <>{title} yang disetujui masuk ke <Link href="/humanify/payroll/main" className="font-semibold underline underline-offset-2">Proses gaji</Link> periode berjalan.</>}
+            </p>
           </div>
 
           <OpsToolbar>
@@ -177,9 +192,9 @@ export default function PayrollInputPage({ type, title, subtitle, icon, categori
                     <th>Karyawan</th>
                     <th>Departemen</th>
                     <th>Alasan</th>
-                    {showInstallment && <th className="text-right">Cicilan</th>}
+                    {showBalanceCols && <th className="text-right">Cicilan</th>}
                     <th className="text-right">Jumlah</th>
-                    {showInstallment && <th className="text-right">Sisa</th>}
+                    {showBalanceCols && <th className="text-right">Sisa</th>}
                     <th>Status</th>
                     <th className="text-right">Aksi</th>
                   </tr>
@@ -191,17 +206,20 @@ export default function PayrollInputPage({ type, title, subtitle, icon, categori
                       <tr key={item.id}>
                         <td className="font-medium text-[color:var(--hf-ink)]">{item.employeeName}</td>
                         <td>{item.department || '—'}</td>
-                        <td>{item.reason || '—'}</td>
-                        {showInstallment && (
-                          <td className="text-right tabular-nums">{item.installmentAmount ? `${fmt(item.installmentAmount)}/bln × ${item.installmentMonths || 0}` : '—'}</td>
+                        <td>
+                          <span className="text-[color:var(--hf-ink-muted)]">{labelCat(item.category) ? `${labelCat(item.category)} · ` : ''}</span>
+                          {item.reason || '—'}
+                        </td>
+                        {showBalanceCols && (
+                          <td className="text-right tabular-nums">{item.installmentAmount ? `${fmt(item.installmentAmount)}/bln × ${item.installmentMonths || 0}` : 'Sekali potong'}</td>
                         )}
                         <td className="text-right tabular-nums font-medium">{fmt(item.amount)}</td>
-                        {showInstallment && <td className="text-right tabular-nums">{fmt(item.remainingAmount || 0)}</td>}
+                        {showBalanceCols && <td className="text-right tabular-nums">{fmt(item.remainingAmount != null ? item.remainingAmount : (['approved', 'active'].includes(item.status) ? item.amount : 0))}</td>}
                         <td><span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${st.className}`}>{st.label}</span></td>
                         <td className="text-right">
                           {item.status === 'pending' && (
                             <div className="flex justify-end gap-1">
-                              <button type="button" onClick={() => setStatus(item.id, type === 'loan' ? 'active' : 'approved')} className="hf-btn-secondary inline-flex items-center gap-1 !px-2 !py-1 text-xs text-[color:var(--hf-success)]">
+                              <button type="button" onClick={() => setStatus(item.id, approveStatus)} className="hf-btn-secondary inline-flex items-center gap-1 !px-2 !py-1 text-xs text-[color:var(--hf-success)]">
                                 <Check className="h-3.5 w-3.5" /> Setujui
                               </button>
                               <button type="button" onClick={() => setStatus(item.id, 'rejected')} className="rounded-[var(--hf-radius)] p-1.5 text-[color:var(--hf-danger)] hover:bg-rose-50" aria-label="Tolak">
@@ -245,7 +263,7 @@ export default function PayrollInputPage({ type, title, subtitle, icon, categori
                 <div>
                   <label className="mb-1 block text-xs font-medium">Kategori</label>
                   <select value={form.category || ''} onChange={(e) => setForm((f: any) => ({ ...f, category: e.target.value }))} className="hf-input w-full">
-                    {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+                    {categories.map((c) => <option key={c} value={c}>{labelCat(c)}</option>)}
                   </select>
                 </div>
                 <div>
@@ -254,8 +272,15 @@ export default function PayrollInputPage({ type, title, subtitle, icon, categori
                 </div>
                 {showInstallment && (
                   <div>
-                    <label className="mb-1 block text-xs font-medium">Tenor (bulan)</label>
+                    <label className="mb-1 block text-xs font-medium">
+                      {type === 'cash_advance' ? 'Tenor potongan (bulan) — 1 = sekali potong' : 'Tenor (bulan)'}
+                    </label>
                     <input type="number" min={1} value={form.installmentMonths || 6} onChange={(e) => setForm((f: any) => ({ ...f, installmentMonths: e.target.value }))} className="hf-input w-full" />
+                    {Number(form.amount) > 0 && Number(form.installmentMonths) > 0 && (
+                      <p className="mt-1 text-[11px] text-[color:var(--hf-ink-muted)]">
+                        Cicilan ≈ {fmt(Math.round(Number(form.amount) / Number(form.installmentMonths)))}/bulan
+                      </p>
+                    )}
                   </div>
                 )}
                 <div>

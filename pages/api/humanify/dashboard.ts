@@ -528,6 +528,28 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     } catch { /* claims table may not exist */ }
 
     try {
+      const [pendingKasbon] = await sequelize.query(`
+        SELECT id, employee_name, amount, reason, category, created_at
+        FROM hris_payroll_inputs
+        WHERE tenant_id = :tenantId AND type = 'cash_advance' AND status = 'pending'
+        ORDER BY created_at ASC LIMIT 8
+      `, { replacements: r });
+      pendingApprovals.push(...(pendingKasbon as any[]).map((k) => ({
+        id: k.id,
+        type: 'kasbon',
+        title: `Kasbon - ${k.employee_name || 'Karyawan'}`,
+        subtitle: `${k.category || 'kasbon'} · Rp ${Number(k.amount || 0).toLocaleString('id-ID')}${k.reason ? ` · ${String(k.reason).slice(0, 60)}` : ''}`,
+        status: 'pending',
+        date: k.created_at,
+        createdAt: k.created_at,
+        href: '/humanify/payroll/cash-advance',
+        color: 'amber',
+        employee_name: k.employee_name,
+        photo_url: null,
+      })));
+    } catch { /* hris_payroll_inputs optional */ }
+
+    try {
       const [pendingTravel] = await sequelize.query(`
         SELECT tr.id, tr.destination, COALESCE(tr.departure_date, tr.start_date) AS departure_date,
                COALESCE(tr.return_date, tr.end_date) AS return_date,

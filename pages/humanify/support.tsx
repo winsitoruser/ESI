@@ -18,6 +18,7 @@ type Ticket = {
   status: string;
   requester_name?: string;
   requester_email?: string;
+  assigned_to?: string;
   comment_count?: number;
   created_at?: string;
   updated_at?: string;
@@ -40,6 +41,10 @@ const CATEGORIES: Record<string, string> = {
   attendance: 'Absensi & Cuti',
   access: 'Akses & Login',
   feature_request: 'Permintaan Fitur',
+  it: 'IT / Perangkat',
+  hr: 'HR Internal',
+  facility: 'Fasilitas / Gedung',
+  desk: 'Permintaan Meja / Ruang',
   other: 'Lainnya',
 };
 
@@ -72,6 +77,7 @@ export default function SupportTicketsPage() {
   const [selected, setSelected] = useState<Ticket | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [reply, setReply] = useState('');
+  const [assigneeDraft, setAssigneeDraft] = useState('');
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ type: string; message: string } | null>(null);
   const [form, setForm] = useState({
@@ -116,6 +122,7 @@ export default function SupportTicketsPage() {
 
   const openDetail = async (ticket: Ticket) => {
     setSelected(ticket);
+    setAssigneeDraft(ticket.assigned_to || '');
     setReply('');
     try {
       const res = await fetch(`/api/humanify/support?action=detail&id=${ticket.id}`);
@@ -123,6 +130,7 @@ export default function SupportTicketsPage() {
       if (json.success && json.data) {
         setSelected(json.data);
         setComments(json.data.comments || []);
+        setAssigneeDraft(json.data.assigned_to || '');
       }
     } catch {
       setComments([]);
@@ -193,6 +201,27 @@ export default function SupportTicketsPage() {
       showToast('success', 'Status diperbarui');
     } catch (e: any) {
       showToast('error', e.message || 'Gagal memperbarui');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveAssignee = async () => {
+    if (!selected) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/humanify/support?id=${selected.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assigned_to: assigneeDraft.trim() || null }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'Gagal menyimpan assignee');
+      await openDetail(selected);
+      await load();
+      showToast('success', 'Assignee diperbarui');
+    } catch (e: any) {
+      showToast('error', e.message || 'Gagal menyimpan assignee');
     } finally {
       setSaving(false);
     }
@@ -456,6 +485,25 @@ export default function SupportTicketsPage() {
                     {(STATUSES[s] || { label: s }).label}
                   </button>
                 ))}
+              </div>
+              <div className="flex gap-2 items-end">
+                <div className="flex-1">
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">Ditugaskan ke</label>
+                  <input
+                    className="w-full border rounded-lg px-3 py-2 text-sm"
+                    placeholder="Nama / email handler"
+                    value={assigneeDraft}
+                    onChange={(e) => setAssigneeDraft(e.target.value)}
+                  />
+                </div>
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={saveAssignee}
+                  className="text-xs px-3 py-2 border rounded-lg hover:bg-gray-50 disabled:opacity-40"
+                >
+                  Simpan
+                </button>
               </div>
               <div>
                 <h4 className="text-sm font-semibold text-gray-800 mb-2">Percakapan</h4>

@@ -22,7 +22,11 @@ const STAGE_LABELS: Record<string, string> = { applied: 'Lamaran Masuk', screeni
 const STAGE_COLORS: Record<string, string> = { applied: 'bg-gray-100 text-gray-700', screening: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]', test: 'bg-[var(--hf-brand-100)] text-[color:var(--hf-brand)]', interview: 'bg-purple-100 text-purple-700', offer: 'bg-orange-100 text-orange-700', hired: 'bg-green-100 text-green-700', rejected: 'bg-red-100 text-red-700' };
 const PRIORITY_COLORS: Record<string, string> = { high: 'border-red-400 bg-red-50', medium: 'border-yellow-400 bg-yellow-50', low: 'border-gray-300 bg-gray-50' };
 
-const emptyForm = { title: '', department: '', location: '', type: 'full_time', priority: 'medium', salary_min: '', salary_max: '', description: '', requirements: '', deadline: '' };
+const emptyForm = {
+  title: '', department: '', location: '', type: 'full_time', priority: 'medium',
+  salary_min: '', salary_max: '', description: '', requirements: '', deadline: '',
+  custom_field_defs: [] as Array<{ key: string; label: string; type: string; required?: boolean; options?: string }>,
+};
 
 const MOCK_OPENINGS = [
   { id: 'op1', title: 'Branch Manager - Yogyakarta', department: 'OPERATIONS', location: 'Cabang Yogyakarta', type: 'full_time', priority: 'high', salary_min: 15000000, salary_max: 20000000, status: 'open', applicants: 28, deadline: '2026-03-31', created_at: '2026-02-15' },
@@ -255,7 +259,22 @@ export default function RecruitmentPage() {
     try {
       const res = await fetch('/api/humanify/recruitment?action=create-opening', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...createForm, salary_min: Number(createForm.salary_min) || 0, salary_max: Number(createForm.salary_max) || 0 })
+        body: JSON.stringify({
+          ...createForm,
+          salary_min: Number(createForm.salary_min) || 0,
+          salary_max: Number(createForm.salary_max) || 0,
+          custom_field_defs: (createForm.custom_field_defs || [])
+            .filter((f) => f.label?.trim())
+            .map((f) => ({
+              key: f.key || f.label.toLowerCase().replace(/[^a-z0-9]+/g, '_'),
+              label: f.label,
+              type: f.type || 'text',
+              required: !!f.required,
+              options: typeof f.options === 'string'
+                ? f.options.split(',').map((s) => s.trim()).filter(Boolean)
+                : f.options,
+            })),
+        }),
       });
       const data = await res.json();
       if (data.success) {
@@ -869,6 +888,75 @@ export default function RecruitmentPage() {
                 <div><label className="text-sm font-medium text-gray-700">Batas Lamaran</label><input type="date" value={createForm.deadline} onChange={e => setCreateForm({ ...createForm, deadline: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" /></div>
                 <div><label className="text-sm font-medium text-gray-700">Deskripsi</label><textarea value={createForm.description} onChange={e => setCreateForm({ ...createForm, description: e.target.value })} rows={3} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" /></div>
                 <div><label className="text-sm font-medium text-gray-700">Persyaratan</label><textarea value={createForm.requirements} onChange={e => setCreateForm({ ...createForm, requirements: e.target.value })} rows={2} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" placeholder="Satu persyaratan per baris" /></div>
+                <div className="rounded-lg border border-dashed border-gray-200 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-gray-700">Field kustom lowongan (ATS)</p>
+                    <button
+                      type="button"
+                      onClick={() => setCreateForm({
+                        ...createForm,
+                        custom_field_defs: [
+                          ...(createForm.custom_field_defs || []),
+                          { key: `field_${(createForm.custom_field_defs || []).length + 1}`, label: '', type: 'text', required: false, options: '' },
+                        ],
+                      })}
+                      className="text-xs text-[color:var(--hf-brand-600)] font-medium"
+                    >
+                      + Tambah field
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-gray-500">Seperti FlowHCM: tentukan field tambahan (pengalaman, mode kerja, hiring manager, dll).</p>
+                  {(createForm.custom_field_defs || []).map((f, idx) => (
+                    <div key={idx} className="grid grid-cols-12 gap-2 items-start">
+                      <input
+                        placeholder="Label"
+                        value={f.label}
+                        onChange={(e) => {
+                          const next = [...(createForm.custom_field_defs || [])];
+                          next[idx] = { ...next[idx], label: e.target.value, key: e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || next[idx].key };
+                          setCreateForm({ ...createForm, custom_field_defs: next });
+                        }}
+                        className="col-span-4 px-2 py-1.5 border rounded text-xs"
+                      />
+                      <select
+                        value={f.type}
+                        onChange={(e) => {
+                          const next = [...(createForm.custom_field_defs || [])];
+                          next[idx] = { ...next[idx], type: e.target.value };
+                          setCreateForm({ ...createForm, custom_field_defs: next });
+                        }}
+                        className="col-span-3 px-2 py-1.5 border rounded text-xs"
+                      >
+                        <option value="text">Teks</option>
+                        <option value="number">Angka</option>
+                        <option value="select">Pilihan</option>
+                        <option value="textarea">Paragraf</option>
+                        <option value="date">Tanggal</option>
+                      </select>
+                      <input
+                        placeholder="Opsi (a,b,c)"
+                        value={f.options || ''}
+                        disabled={f.type !== 'select'}
+                        onChange={(e) => {
+                          const next = [...(createForm.custom_field_defs || [])];
+                          next[idx] = { ...next[idx], options: e.target.value };
+                          setCreateForm({ ...createForm, custom_field_defs: next });
+                        }}
+                        className="col-span-3 px-2 py-1.5 border rounded text-xs disabled:bg-gray-50"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setCreateForm({
+                          ...createForm,
+                          custom_field_defs: (createForm.custom_field_defs || []).filter((_, i) => i !== idx),
+                        })}
+                        className="col-span-2 text-xs text-red-600"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  ))}
+                </div>
                 <div className="flex gap-2 pt-2">
                   <button type="button" onClick={() => setShowCreateModal(false)} className="flex-1 px-4 py-2 border rounded-lg text-sm">Batal</button>
                   <button type="submit" disabled={saving} className="flex-1 px-4 py-2 bg-[var(--hf-brand-600)] text-white rounded-lg text-sm hover:bg-[var(--hf-brand)] disabled:opacity-50 flex items-center justify-center gap-2">

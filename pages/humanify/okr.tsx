@@ -23,7 +23,7 @@ const LEVEL_LABELS: Record<OkrLevel, string> = {
   company: 'Perusahaan', department: 'Departemen', team: 'Tim', individual: 'Individu',
 };
 const STATUS_LABELS: Record<OkrStatus, string> = {
-  draft: 'Draf', active: 'Aktif', completed: 'Selesai', cancelled: 'Diarsipkan',
+  draft: 'Draf', pending_approval: 'Menunggu Persetujuan', active: 'Aktif', completed: 'Selesai', cancelled: 'Diarsipkan', rejected: 'Ditolak',
 };
 const CONFIDENCE_LABELS: Record<OkrConfidence, string> = {
   on_track: 'Sesuai jalur', at_risk: 'Berisiko', off_track: 'Off track',
@@ -35,9 +35,11 @@ const CONFIDENCE_CLS: Record<OkrConfidence, string> = {
 };
 const STATUS_CLS: Record<OkrStatus, string> = {
   draft: 'bg-slate-100 text-slate-600',
+  pending_approval: 'bg-amber-50 text-amber-800',
   active: 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand-600)]',
   completed: 'bg-emerald-50 text-emerald-800',
   cancelled: 'bg-slate-100 text-slate-500',
+  rejected: 'bg-rose-50 text-rose-800',
 };
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -194,7 +196,7 @@ export default function OkrPage() {
           ownerId: form.ownerId || undefined,
           ownerName: form.ownerName || undefined,
           parentId: form.parentId || undefined,
-          status: 'active',
+          status: 'draft',
           keyResults,
         }),
       });
@@ -233,6 +235,30 @@ export default function OkrPage() {
       load();
     } catch (e: any) {
       showToast(e.message || 'Gagal check-in', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const routeOkr = async (id: string, action: 'submit-approval' | 'approve' | 'reject') => {
+    setSaving(true);
+    try {
+      const body: any = { id };
+      if (action === 'reject') {
+        const reason = prompt('Alasan penolakan (opsional):') || '';
+        body.reason = reason;
+      }
+      const res = await fetch(`/api/humanify/okr?action=${action}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || 'Gagal memproses persetujuan');
+      showToast(json.message || 'Berhasil');
+      load();
+    } catch (e: any) {
+      showToast(e.message, 'error');
     } finally {
       setSaving(false);
     }
@@ -333,6 +359,29 @@ export default function OkrPage() {
             Check-in terakhir: {new Date(o.checkIns![0].date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
             {o.checkIns![0].note ? ` — ${o.checkIns![0].note}` : ''}
           </p>
+        )}
+
+        {(o.status === 'draft' || o.status === 'pending_approval' || o.status === 'rejected') && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {o.status === 'draft' || o.status === 'rejected' ? (
+              <button type="button" onClick={() => routeOkr(o.id, 'submit-approval')} className="hf-btn-primary inline-flex items-center gap-1.5 !px-3 !py-1.5 text-xs">
+                Ajukan Persetujuan
+              </button>
+            ) : null}
+            {o.status === 'pending_approval' ? (
+              <>
+                <button type="button" onClick={() => routeOkr(o.id, 'approve')} className="hf-btn-primary inline-flex items-center gap-1.5 !px-3 !py-1.5 text-xs">
+                  <Check className="h-3.5 w-3.5" /> Setujui
+                </button>
+                <button type="button" onClick={() => routeOkr(o.id, 'reject')} className="inline-flex items-center gap-1.5 rounded-[var(--hf-radius)] px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50">
+                  Tolak
+                </button>
+              </>
+            ) : null}
+            <button type="button" onClick={() => removeOkr(o.id)} className="inline-flex items-center gap-1.5 rounded-[var(--hf-radius)] px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50">
+              <Trash2 className="h-3.5 w-3.5" /> Hapus
+            </button>
+          </div>
         )}
 
         {o.status === 'active' && (
@@ -436,7 +485,9 @@ export default function OkrPage() {
               <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as OkrStatus | 'all')} className="hf-input" aria-label="Filter status">
                 <option value="all">Semua status</option>
                 <option value="active">Aktif</option>
+                <option value="pending_approval">Menunggu Persetujuan</option>
                 <option value="draft">Draf</option>
+                <option value="rejected">Ditolak</option>
                 <option value="completed">Selesai</option>
                 <option value="cancelled">Diarsipkan</option>
               </select>

@@ -1,6 +1,6 @@
 /**
- * Payroll input modules: Bonus, Cash Advance, Employee Loan
- * Feeds into payroll calculation engine.
+ * Payroll input modules: Bonus, Cash Advance (kasbon), Employee Loan.
+ * Feeds calculatePayroll / approvePayroll and ESS self-serve.
  */
 import { allowHrMockFallback } from '@/lib/hris/data-source';
 
@@ -28,6 +28,18 @@ export interface PayrollInputRecord {
   approvedAt?: string;
   createdAt?: string;
   updatedAt?: string;
+  metadata?: Record<string, unknown>;
+}
+
+/** Line ready to inject into payroll earnings/deductions. */
+export interface PayrollInputCharge {
+  inputId: string;
+  employeeId: string;
+  type: PayrollInputType;
+  code: string;
+  name: string;
+  amount: number;
+  as: 'earning' | 'deduction';
 }
 
 export async function ensurePayrollInputsTables(): Promise<boolean> {
@@ -67,17 +79,25 @@ export async function ensurePayrollInputsTables(): Promise<boolean> {
 }
 
 function mapRow(row: any): PayrollInputRecord {
+  let metadata: Record<string, unknown> | undefined;
+  if (row.metadata) {
+    try {
+      metadata = typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata;
+    } catch {
+      metadata = undefined;
+    }
+  }
   return {
     id: row.id,
     type: row.type,
-    employeeId: row.employee_id,
+    employeeId: String(row.employee_id),
     employeeName: row.employee_name,
     employeeUid: row.employee_uid,
     department: row.department,
     amount: parseFloat(row.amount || 0),
     remainingAmount: row.remaining_amount != null ? parseFloat(row.remaining_amount) : undefined,
     installmentAmount: row.installment_amount != null ? parseFloat(row.installment_amount) : undefined,
-    installmentMonths: row.installment_months,
+    installmentMonths: row.installment_months != null ? parseInt(row.installment_months, 10) : undefined,
     reason: row.reason,
     category: row.category,
     status: row.status,
@@ -86,25 +106,192 @@ function mapRow(row: any): PayrollInputRecord {
     approvedAt: row.approved_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    metadata,
   };
+}
+
+/** How much to take this payroll period for an open input. */
+export function chargeAmountForInput(input: PayrollInputRecord): number {
+  if (input.type === 'bonus') return Math.round(Number(input.amount) || 0);
+  const remaining = Number(
+    input.remainingAmount != null ? input.remainingAmount : input.amount || 0,
+  );
+  if (remaining <= 0) return 0;
+  const installment = Number(input.installmentAmount || 0);
+  if (installment > 0) return Math.round(Math.min(remaining, installment));
+  return Math.round(remaining);
+}
+
+function openStatusesForType(type: PayrollInputType): string[] {
+  if (type === 'loan') return ['active'];
+  if (type === 'cash_advance') return ['approved', 'active'];
+  return ['approved']; // bonus
 }
 
 export async function listPayrollInputs(
   type?: PayrollInputType,
   status?: string,
   tenantId?: string | null,
+  employeeId?: string | null,
 ): Promise<PayrollInputRecord[]> {
-  if (!sequelize) return allowHrMockFallback() ? getMockInputs(type) : [];
+  if (!sequelize) return allowHrMockFallback() ? getMockInputs(type, employeeId) : [];
   await ensurePayrollInputsTables();
   let sql = 'SELECT * FROM hris_payroll_inputs WHERE 1=1';
   const params: any[] = [];
   if (tenantId) { params.push(tenantId); sql += ` AND tenant_id = $${params.length}`; }
   if (type) { params.push(type); sql += ` AND type = $${params.length}`; }
   if (status) { params.push(status); sql += ` AND status = $${params.length}`; }
+  if (employeeId) { params.push(String(employeeId)); sql += ` AND employee_id::text = $${params.length}::text`; }
   sql += ' ORDER BY created_at DESC';
   const [rows] = await sequelize.query(sql, { bind: params });
-  if (!rows?.length) return tenantId || !allowHrMockFallback() ? [] : getMockInputs(type);
+  if (!rows?.length) return tenantId || !allowHrMockFallback() ? [] : getMockInputs(type, employeeId);
   return rows.map(mapRow);
+}
+
+/**
+ * Open bonus (earnings) + kasbon/loan (deductions) for a tenant, optionally one employee.
+ * Skips rows already applied to the given runId (metadata.last_payroll_run_id).
+ */
+export async function listOpenPayrollInputCharges(
+  tenantId: string,
+  opts?: { employeeId?: string; runId?: string },
+): Promise<PayrollInputCharge[]> {
+  if (!sequelize || !tenantId) return [];
+  await ensurePayrollInputsTables();
+  const params: any[] = [tenantId];
+  let sql = `
+    SELECT * FROM hris_payroll_inputs
+    WHERE tenant_id = $1
+      AND status IN ('approved', 'active')
+      AND type IN ('bonus', 'cash_advance', 'loan')
+  `;
+  if (opts?.employeeId) {
+    params.push(String(opts.employeeId));
+    sql += ` AND employee_id::text = $${params.length}::text`;
+  }
+  sql += ' ORDER BY created_at ASC';
+  const [rows] = await sequelize.query(sql, { bind: params });
+  const charges: PayrollInputCharge[] = [];
+  for (const row of rows || []) {
+    const input = mapRow(row);
+    if (!openStatusesForType(input.type).includes(input.status)) continue;
+    if (opts?.runId && input.metadata?.last_payroll_run_id === opts.runId) continue;
+    const amount = chargeAmountForInput(input);
+    if (amount <= 0) continue;
+    if (input.type === 'bonus') {
+      charges.push({
+        inputId: input.id,
+        employeeId: input.employeeId,
+        type: 'bonus',
+        code: 'BONUS',
+        name: input.reason ? `Bonus — ${input.reason}` : 'Bonus',
+        amount,
+        as: 'earning',
+      });
+    } else if (input.type === 'cash_advance') {
+      charges.push({
+        inputId: input.id,
+        employeeId: input.employeeId,
+        type: 'cash_advance',
+        code: 'CASH_ADV',
+        name: input.reason ? `Kasbon — ${input.reason}` : 'Potongan Kasbon',
+        amount,
+        as: 'deduction',
+      });
+    } else {
+      charges.push({
+        inputId: input.id,
+        employeeId: input.employeeId,
+        type: 'loan',
+        code: 'LOAN',
+        name: input.reason ? `Cicilan pinjaman — ${input.reason}` : 'Cicilan Pinjaman',
+        amount,
+        as: 'deduction',
+      });
+    }
+  }
+  return charges;
+}
+
+/** After payroll approve: decrement remaining / mark paid|completed; stamp last run. */
+export async function applyPayrollInputCharges(
+  tenantId: string,
+  runId: string,
+  charges: Array<{ inputId: string; amount: number }>,
+  payrollPeriod?: string,
+): Promise<number> {
+  if (!sequelize || !tenantId || !charges.length) return 0;
+  await ensurePayrollInputsTables();
+  let applied = 0;
+  for (const c of charges) {
+    if (!c.inputId || !(c.amount > 0)) continue;
+    const [rows] = await sequelize.query(
+      `SELECT * FROM hris_payroll_inputs WHERE id = :id AND tenant_id = :tenantId LIMIT 1`,
+      { replacements: { id: c.inputId, tenantId } },
+    );
+    const row = rows?.[0];
+    if (!row) continue;
+    const input = mapRow(row);
+    if (input.metadata?.last_payroll_run_id === runId) continue;
+
+    if (input.type === 'bonus') {
+      await sequelize.query(
+        `UPDATE hris_payroll_inputs
+         SET status = 'paid',
+             payroll_period = COALESCE(:period, payroll_period),
+             metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('last_payroll_run_id', :runId::text, 'last_charge', :amount::numeric),
+             updated_at = NOW()
+         WHERE id = :id AND tenant_id = :tenantId`,
+        { replacements: { id: c.inputId, tenantId, runId, amount: c.amount, period: payrollPeriod || null } },
+      );
+      applied++;
+      continue;
+    }
+
+    const remaining = Number(input.remainingAmount != null ? input.remainingAmount : input.amount || 0);
+    const take = Math.min(remaining, c.amount);
+    const next = Math.max(0, Math.round((remaining - take) * 100) / 100);
+    const nextStatus = next <= 0 ? 'completed' : (input.status === 'approved' ? 'active' : input.status);
+
+    await sequelize.query(
+      `UPDATE hris_payroll_inputs
+       SET remaining_amount = :next,
+           status = :status,
+           payroll_period = COALESCE(:period, payroll_period),
+           metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('last_payroll_run_id', :runId::text, 'last_charge', :amount::numeric),
+           updated_at = NOW()
+       WHERE id = :id AND tenant_id = :tenantId`,
+      {
+        replacements: {
+          id: c.inputId,
+          tenantId,
+          next,
+          status: nextStatus,
+          runId,
+          amount: take,
+          period: payrollPeriod || null,
+        },
+      },
+    );
+    applied++;
+  }
+  return applied;
+}
+
+export async function getEmployeeOutstandingBalances(
+  tenantId: string,
+  employeeId: string,
+): Promise<{ cashAdvance: number; loan: number }> {
+  const items = await listPayrollInputs(undefined, undefined, tenantId, employeeId);
+  let cashAdvance = 0;
+  let loan = 0;
+  for (const i of items) {
+    if (!['approved', 'active'].includes(i.status)) continue;
+    const rem = Number(i.remainingAmount != null ? i.remainingAmount : i.amount || 0);
+    if (i.type === 'cash_advance') cashAdvance += rem;
+    if (i.type === 'loan') loan += rem;
+  }
+  return { cashAdvance: Math.round(cashAdvance), loan: Math.round(loan) };
 }
 
 export async function createPayrollInput(
@@ -112,8 +299,10 @@ export async function createPayrollInput(
 ): Promise<PayrollInputRecord | null> {
   if (!sequelize) return null;
   await ensurePayrollInputsTables();
-  const remaining = data.type === 'loan'
-    ? (data.remainingAmount ?? data.amount)
+  const amount = Number(data.amount) || 0;
+  const isBalanceType = data.type === 'loan' || data.type === 'cash_advance';
+  const remaining = isBalanceType
+    ? (data.remainingAmount ?? amount)
     : data.remainingAmount;
   const [rows] = await sequelize.query(`
     INSERT INTO hris_payroll_inputs
@@ -125,7 +314,7 @@ export async function createPayrollInput(
     bind: [
       data.tenantId || null,
       data.type, data.employeeId, data.employeeUid || null, data.employeeName,
-      data.department || null, data.amount, remaining ?? null,
+      data.department || null, amount, remaining ?? null,
       data.installmentAmount ?? null, data.installmentMonths ?? null,
       data.reason || null, data.category || null, data.status || 'pending',
       data.payrollPeriod || null,
@@ -141,6 +330,8 @@ export async function updatePayrollInputStatus(
   tenantId?: string | null,
 ): Promise<PayrollInputRecord | null> {
   if (!sequelize) return null;
+  await ensurePayrollInputsTables();
+
   const params: any[] = [id, status, approvedBy || null];
   let where = 'WHERE id = $1';
   if (tenantId) {
@@ -149,7 +340,19 @@ export async function updatePayrollInputStatus(
   }
   const [rows] = await sequelize.query(`
     UPDATE hris_payroll_inputs
-    SET status = $2, approved_by = $3, approved_at = NOW(), updated_at = NOW()
+    SET status = CASE
+          WHEN type = 'loan' AND $2 IN ('approved', 'active') THEN 'active'
+          WHEN type = 'cash_advance' AND COALESCE(installment_months, 0) > 1 AND $2 = 'approved' THEN 'active'
+          ELSE $2
+        END,
+        approved_by = COALESCE($3, approved_by),
+        approved_at = CASE WHEN $2 IN ('approved', 'active', 'rejected') THEN COALESCE(approved_at, NOW()) ELSE approved_at END,
+        remaining_amount = CASE
+          WHEN type IN ('loan', 'cash_advance') AND $2 IN ('approved', 'active')
+            THEN COALESCE(remaining_amount, amount)
+          ELSE remaining_amount
+        END,
+        updated_at = NOW()
     ${where} RETURNING *
   `, { bind: params });
   return rows?.[0] ? mapRow(rows[0]) : null;
@@ -158,21 +361,39 @@ export async function updatePayrollInputStatus(
 export async function getPayrollInputsSummary(tenantId?: string | null) {
   const items = await listPayrollInputs(undefined, undefined, tenantId);
   const byType = (t: PayrollInputType) => items.filter(i => i.type === t);
+  const openCa = byType('cash_advance').filter(i => ['approved', 'active'].includes(i.status));
+  const openLoan = byType('loan').filter(i => i.status === 'active');
   return {
-    bonus: { total: byType('bonus').length, pending: byType('bonus').filter(i => i.status === 'pending').length, amount: byType('bonus').reduce((s, i) => s + i.amount, 0) },
-    cashAdvance: { total: byType('cash_advance').length, pending: byType('cash_advance').filter(i => i.status === 'pending').length, amount: byType('cash_advance').reduce((s, i) => s + i.amount, 0) },
-    loan: { total: byType('loan').length, active: byType('loan').filter(i => i.status === 'active').length, outstanding: byType('loan').reduce((s, i) => s + (i.remainingAmount || 0), 0) },
+    bonus: {
+      total: byType('bonus').length,
+      pending: byType('bonus').filter(i => i.status === 'pending').length,
+      amount: byType('bonus').reduce((s, i) => s + i.amount, 0),
+    },
+    cashAdvance: {
+      total: byType('cash_advance').length,
+      pending: byType('cash_advance').filter(i => i.status === 'pending').length,
+      amount: byType('cash_advance').reduce((s, i) => s + i.amount, 0),
+      outstanding: openCa.reduce((s, i) => s + Number(i.remainingAmount != null ? i.remainingAmount : i.amount || 0), 0),
+      active: openCa.length,
+    },
+    loan: {
+      total: byType('loan').length,
+      active: openLoan.length,
+      outstanding: openLoan.reduce((s, i) => s + (i.remainingAmount || 0), 0),
+    },
   };
 }
 
-function getMockInputs(type?: PayrollInputType): PayrollInputRecord[] {
+function getMockInputs(type?: PayrollInputType, employeeId?: string | null): PayrollInputRecord[] {
   const all: PayrollInputRecord[] = [
     { id: 'b1', type: 'bonus', employeeId: '1', employeeName: 'Andi Saputra', department: 'Sales', amount: 5000000, reason: 'Pencapaian target Q1', category: 'performance', status: 'approved', payrollPeriod: '2026-03' },
     { id: 'b2', type: 'bonus', employeeId: '2', employeeName: 'Maya Putri', department: 'Operations', amount: 3000000, reason: 'Bonus proyek', category: 'project', status: 'pending', payrollPeriod: '2026-03' },
-    { id: 'ca1', type: 'cash_advance', employeeId: '3', employeeName: 'Budi Santoso', department: 'Finance', amount: 2000000, reason: 'Biaya operasional bulanan', status: 'approved', payrollPeriod: '2026-03' },
-    { id: 'ca2', type: 'cash_advance', employeeId: '4', employeeName: 'Siti Rahayu', department: 'HR', amount: 1500000, reason: 'Kebutuhan darurat', status: 'pending' },
+    { id: 'ca1', type: 'cash_advance', employeeId: '3', employeeName: 'Budi Santoso', department: 'Finance', amount: 2000000, remainingAmount: 2000000, installmentAmount: 1000000, installmentMonths: 2, reason: 'Biaya operasional bulanan', category: 'operational', status: 'active', payrollPeriod: '2026-03' },
+    { id: 'ca2', type: 'cash_advance', employeeId: '4', employeeName: 'Siti Rahayu', department: 'HR', amount: 1500000, remainingAmount: 1500000, reason: 'Kebutuhan darurat', category: 'emergency', status: 'pending' },
     { id: 'l1', type: 'loan', employeeId: '5', employeeName: 'Dimas Prasetyo', department: 'IT', amount: 10000000, remainingAmount: 6000000, installmentAmount: 1000000, installmentMonths: 10, reason: 'Pinjaman darurat', status: 'active' },
     { id: 'l2', type: 'loan', employeeId: '6', employeeName: 'Rani Kusuma', department: 'Warehouse', amount: 5000000, remainingAmount: 5000000, installmentAmount: 500000, installmentMonths: 10, reason: 'Pinjaman pendidikan', status: 'pending' },
   ];
-  return type ? all.filter(i => i.type === type) : all;
+  let rows = type ? all.filter(i => i.type === type) : all;
+  if (employeeId) rows = rows.filter(i => i.employeeId === String(employeeId));
+  return rows;
 }

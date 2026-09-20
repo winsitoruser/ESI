@@ -294,6 +294,29 @@ export const LEAVE_TYPE_SUGGESTIONS: LeaveTypeSuggestion[] = [
     legalBasis: 'PKB / peraturan perusahaan',
     priority: 'optional',
   },
+  {
+    id: 'comp_off',
+    code: 'comp_off',
+    name: 'Cuti Pengganti (Comp-Off)',
+    description: 'Cuti kompensasi dari lembur / kerja hari libur. Saldo bertambah otomatis saat OT disetujui.',
+    category: 'compensatory',
+    max_days_per_year: 30,
+    min_days_per_request: 1,
+    max_days_per_request: 5,
+    is_paid: true,
+    salary_deduction_percent: 0,
+    carry_forward: true,
+    max_carry_forward_days: 12,
+    requires_attachment: false,
+    requires_medical_cert: false,
+    applicable_gender: '',
+    min_service_months: 0,
+    color: '#06B6D4',
+    icon: 'refresh-cw',
+    rationale: 'Selaraskan dengan kebijakan OT: weekend/holiday selalu kredit; weekday OT ≥4 jam. Approval 1 tingkat cukup untuk 1–2 hari.',
+    legalBasis: 'Peraturan perusahaan / PKB (kompensasi waktu kerja)',
+    priority: 'recommended',
+  },
 ];
 
 export const APPROVAL_FLOW_SUGGESTIONS: ApprovalFlowSuggestion[] = [
@@ -361,6 +384,7 @@ export const LEAVE_TYPE_CODE_ALIASES: Record<string, string[]> = {
   miscarriage: ['miscarriage', 'keguguran', 'abortus'],
   pilgrimage: ['pilgrimage', 'haji', 'umrah', 'ibadah'],
   long_service: ['long_service', 'cuti_besar', 'cuti_panjang'],
+  comp_off: ['comp_off', 'compensatory', 'cuti_pengganti', 'cto', 'pengganti_libur'],
 };
 
 export function normalizeLeaveSuggestionCode(code: unknown): string {

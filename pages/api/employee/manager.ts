@@ -311,7 +311,26 @@ async function getPendingApprovals(res: NextApiResponse, userId: string, tenantI
     `, base, 'ot_pending_plain')) || [];
   }
 
-  return res.json({ success: true, data: { leave: leave || [], claims: claims || [], overtime: overtime || [] } });
+  const mutTenant = tenantId ? 'AND m.tenant_id = :tenantId' : '';
+  const mutations = (await tryRows(`
+    SELECT m.id, m.mutation_number, m.mutation_type, m.effective_date, m.status, m.reason,
+      m.to_department, m.to_position, m.created_at, m.current_approval_step, m.total_approval_steps,
+      e.name AS employee_name, e.position, e.department, e.photo_url, 'mutation' AS approval_type
+    FROM employee_mutations m
+    JOIN employees e ON m.employee_id::text = e.id::text
+    WHERE m.status = 'pending' ${mutTenant} ${tf.sql}
+    ORDER BY m.created_at ASC LIMIT 50
+  `, base, 'mutation_pending')) || [];
+
+  return res.json({
+    success: true,
+    data: {
+      leave: leave || [],
+      claims: claims || [],
+      overtime: overtime || [],
+      mutations,
+    },
+  });
 }
 
 async function getTeamMemberDetailHandler(

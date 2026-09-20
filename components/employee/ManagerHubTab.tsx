@@ -17,6 +17,7 @@ const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString('id-ID', { day
 const LEAVE_TYPE_LABEL: Record<string, string> = {
   annual: 'Cuti Tahunan', sick: 'Cuti Sakit', important: 'Cuti Penting',
   maternity: 'Cuti Melahirkan', unpaid: 'Cuti Tanpa Gaji',
+  comp_off: 'Cuti Pengganti (Comp-Off)', compensatory: 'Cuti Pengganti',
 };
 
 const CLAIM_TYPE_LABEL: Record<string, string> = {
@@ -128,10 +129,10 @@ async function compressImageFile(file: File, maxWidth = 1280, quality = 0.72): P
 export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
   const [activeTab, setActiveTab] = useState<MgrTab>('approvals');
   const [loading, setLoading] = useState(true);
-  const [pending, setPending] = useState<{ leave: any[]; claims: any[]; overtime: any[] }>({ leave: [], claims: [], overtime: [] });
+  const [pending, setPending] = useState<{ leave: any[]; claims: any[]; overtime: any[]; mutations?: any[] }>({ leave: [], claims: [], overtime: [], mutations: [] });
   const [team, setTeam] = useState<any[]>([]);
   const [letters, setLetters] = useState<any[]>([]);
-  const [approvalFilter, setApprovalFilter] = useState<'all' | 'leave' | 'claim' | 'overtime'>('all');
+  const [approvalFilter, setApprovalFilter] = useState<'all' | 'leave' | 'claim' | 'overtime' | 'mutation'>('all');
   const [showRejectModal, setShowRejectModal] = useState<{ type: string; id: string } | null>(null);
   const [proofClaim, setProofClaim] = useState<any>(null);
   const [rejectReason, setRejectReason] = useState('');
@@ -191,10 +192,21 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
 
   const handleApprove = async (type: string, id: string) => {
     setSubmitting(true);
-    const actionMap: Record<string, string> = {
-      leave: 'approve-leave', claim: 'approve-claim', overtime: 'approve-overtime',
-    };
     try {
+      if (type === 'mutation') {
+        const res = await fetch('/api/humanify/workflow?action=approve-mutation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id }),
+        });
+        const json = await res.json();
+        if (json.success) { toast.success(json.message || 'Mutasi disetujui'); loadAll(); }
+        else toast.error(json.error || 'Gagal — proses via MSS jika perlu');
+        return;
+      }
+      const actionMap: Record<string, string> = {
+        leave: 'approve-leave', claim: 'approve-claim', overtime: 'approve-overtime',
+      };
       const res = await mgrApi(actionMap[type], 'POST', { id });
       if (res.success) { toast.success(res.message || 'Disetujui'); loadAll(); }
       else toast.error(res.error || 'Gagal menyetujui');
@@ -205,10 +217,23 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
   const handleReject = async () => {
     if (!showRejectModal || !rejectReason.trim()) { toast.error('Alasan penolakan wajib'); return; }
     setSubmitting(true);
-    const actionMap: Record<string, string> = {
-      leave: 'reject-leave', claim: 'reject-claim', overtime: 'reject-overtime',
-    };
     try {
+      if (showRejectModal.type === 'mutation') {
+        const res = await fetch('/api/humanify/workflow?action=reject-mutation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: showRejectModal.id, comments: rejectReason }),
+        });
+        const json = await res.json();
+        if (json.success) {
+          toast.success(json.message || 'Mutasi ditolak');
+          setShowRejectModal(null); setRejectReason(''); loadAll();
+        } else toast.error(json.error || 'Gagal menolak');
+        return;
+      }
+      const actionMap: Record<string, string> = {
+        leave: 'reject-leave', claim: 'reject-claim', overtime: 'reject-overtime',
+      };
       const res = await mgrApi(actionMap[showRejectModal.type], 'POST', {
         id: showRejectModal.id, reason: rejectReason,
       });
@@ -300,6 +325,7 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
     ...pending.leave.map(i => ({ ...i, approval_type: 'leave' })),
     ...pending.claims.map(i => ({ ...i, approval_type: 'claim' })),
     ...pending.overtime.map(i => ({ ...i, approval_type: 'overtime' })),
+    ...(pending.mutations || []).map(i => ({ ...i, approval_type: 'mutation' })),
   ].filter(i => approvalFilter === 'all' || i.approval_type === approvalFilter)
     .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
 
@@ -307,7 +333,8 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
     leave: pending.leave.length,
     claims: pending.claims.length,
     overtime: pending.overtime.length,
-    total: pending.leave.length + pending.claims.length + pending.overtime.length,
+    mutations: (pending.mutations || []).length,
+    total: pending.leave.length + pending.claims.length + pending.overtime.length + (pending.mutations || []).length,
   };
 
   if (loading) {
@@ -391,12 +418,12 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
       {activeTab === 'approvals' && (
         <div className="space-y-3">
           <div className="flex gap-1.5 flex-wrap">
-            {(['all', 'leave', 'claim', 'overtime'] as const).map(f => (
+            {(['all', 'leave', 'claim', 'overtime', 'mutation'] as const).map(f => (
               <button key={f} onClick={() => setApprovalFilter(f)}
                 className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${
                   approvalFilter === f ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-600'
                 }`}>
-                {f === 'all' ? 'Semua' : f === 'leave' ? 'Cuti' : f === 'claim' ? 'Klaim' : 'Lembur'}
+                {f === 'all' ? 'Semua' : f === 'leave' ? 'Cuti' : f === 'claim' ? 'Klaim' : f === 'overtime' ? 'Lembur' : 'Mutasi'}
               </button>
             ))}
           </div>
@@ -417,7 +444,7 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
                   </div>
                 </div>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 ring-1 ring-amber-200 shrink-0">
-                  {item.approval_type === 'leave' ? 'Cuti' : item.approval_type === 'claim' ? 'Klaim' : 'Lembur'}
+                  {item.approval_type === 'leave' ? 'Cuti' : item.approval_type === 'claim' ? 'Klaim' : item.approval_type === 'mutation' ? 'Mutasi' : 'Lembur'}
                 </span>
               </div>
 
@@ -454,6 +481,14 @@ export default memo(function ManagerHubTab({ isSuperAdmin = false }: Props) {
                 <div className="text-xs text-slate-600 space-y-0.5 mb-3">
                   <p><span className="font-medium">Tanggal:</span> {fmtDate(item.date)} · {item.start_time}–{item.end_time} ({item.duration_hours}j)</p>
                   <p><span className="font-medium">Alasan:</span> {item.reason}</p>
+                </div>
+              )}
+              {item.approval_type === 'mutation' && (
+                <div className="text-xs text-slate-600 space-y-0.5 mb-3">
+                  <p><span className="font-medium">No:</span> {item.mutation_number} · {item.mutation_type}</p>
+                  <p><span className="font-medium">Ke:</span> {item.to_department || '-'} / {item.to_position || '-'}</p>
+                  <p><span className="font-medium">Efektif:</span> {fmtDate(item.effective_date)}</p>
+                  {item.reason && <p><span className="font-medium">Alasan:</span> {item.reason}</p>}
                 </div>
               )}
 

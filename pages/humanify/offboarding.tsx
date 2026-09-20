@@ -82,6 +82,7 @@ export default function OffboardingPage() {
   const [settlement, setSettlement] = useState<any>(null);
   const [settlementForm, setSettlementForm] = useState({ baseSalary: 8000000, remainingLeaveDays: 5, unpaidOvertimeHours: 0, loanBalance: 0, cashAdvanceBalance: 0 });
   const [calculatingSettlement, setCalculatingSettlement] = useState(false);
+  const [readySettlements, setReadySettlements] = useState<any[]>([]);
   const [form, setForm] = useState<any>({ reasonCategory: 'resignation' });
   const [toast, setToast] = useState<{ type: string; message: string } | null>(null);
 
@@ -101,6 +102,12 @@ export default function OffboardingPage() {
       setItems(rows);
       setDataSource(rows.length ? 'live' : 'empty');
       setTemplate(json?.template || []);
+      const readyRes = await fetch('/api/humanify/offboarding-settlement?action=list-ready')
+        .then((r) => r.json())
+        .catch(() => null);
+      if (readyRes?.success) {
+        setReadySettlements(readyRes.data?.rows || []);
+      }
     } catch {
       setItems([]);
     } finally {
@@ -178,6 +185,27 @@ export default function OffboardingPage() {
   async function calculateSettlement(entry: OffEntry) {
     setCalculatingSettlement(true);
     try {
+      let cashAdvanceBalance = settlementForm.cashAdvanceBalance;
+      let loanBalance = settlementForm.loanBalance;
+      try {
+        const balRes = await fetch(`/api/humanify/payroll-inputs?employeeId=${encodeURIComponent(String(entry.employeeId))}`);
+        const balJson = await balRes.json();
+        const rows = Array.isArray(balJson.data) ? balJson.data : [];
+        let cashAdvance = 0;
+        let loan = 0;
+        for (const r of rows) {
+          if (!['approved', 'active'].includes(r.status)) continue;
+          const rem = Number(r.remainingAmount != null ? r.remainingAmount : r.amount || 0);
+          if (r.type === 'cash_advance') cashAdvance += rem;
+          if (r.type === 'loan') loan += rem;
+        }
+        if (cashAdvance > 0 || loan > 0) {
+          cashAdvanceBalance = cashAdvance;
+          loanBalance = loan;
+          setSettlementForm((f) => ({ ...f, cashAdvanceBalance: cashAdvance, loanBalance: loan }));
+        }
+      } catch { /* optional */ }
+
       const res = await fetch('/api/humanify/offboarding-settlement?action=calculate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -190,8 +218,8 @@ export default function OffboardingPage() {
           reasonCategory: entry.reasonCategory,
           remainingLeaveDays: settlementForm.remainingLeaveDays,
           unpaidOvertimeHours: settlementForm.unpaidOvertimeHours,
-          loanBalance: settlementForm.loanBalance,
-          cashAdvanceBalance: settlementForm.cashAdvanceBalance,
+          loanBalance,
+          cashAdvanceBalance,
         }),
       });
       const json = await res.json();
@@ -329,6 +357,43 @@ export default function OffboardingPage() {
           <ViewToggle value={listView} onChange={setListView} />
         </OpsToolbar>
 
+        {readySettlements.length > 0 && (
+          <div className="hf-card border border-emerald-200 bg-emerald-50/60 p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-sm font-semibold text-emerald-900">Settlement siap cair ({readySettlements.length})</p>
+                <p className="text-xs text-emerald-700">Hitung &amp; terapkan selesai — lanjut disburse atau Transfer Bank.</p>
+              </div>
+              <a href="/humanify/payroll/disbursement?mode=settlement" className="text-xs font-medium text-emerald-800 underline">
+                Buka Transfer Bank
+              </a>
+            </div>
+            <div className="space-y-2">
+              {readySettlements.slice(0, 8).map((r: any) => (
+                <div key={r.id} className="flex items-center justify-between gap-3 rounded-lg bg-white/80 px-3 py-2 text-sm">
+                  <div className="min-w-0">
+                    <p className="font-medium text-[color:var(--hf-ink)] truncate">{r.employeeName}</p>
+                    <p className="text-xs text-[color:var(--hf-ink-faint)]">
+                      Net {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(r.netSettlement || 0)}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="hf-btn-secondary !px-2.5 !py-1 text-xs"
+                    onClick={() => {
+                      const entry = items.find((i) => i.id === r.id);
+                      if (entry) setViewing(entry);
+                      else showToast('info', 'Buka detail dari daftar untuk disburse');
+                    }}
+                  >
+                    Detail
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {!loading && filtered.length === 0 ? (
           <HrisEmptyState
             title="Belum ada proses offboarding"
@@ -352,6 +417,7 @@ export default function OffboardingPage() {
                   <th>Hari terakhir</th>
                   <th className="text-right">Clearance</th>
                   <th>Status</th>
+                  <th>Settlement</th>
                   <th className="text-right">Aksi</th>
                 </tr>
               </thead>
@@ -359,12 +425,14 @@ export default function OffboardingPage() {
                 {loading
                   ? [0, 1, 2, 3, 4].map((n) => (
                     <tr key={n}>
-                      <td colSpan={8}><div className="h-8 animate-pulse rounded-md bg-[var(--hf-surface-muted)]" /></td>
+                      <td colSpan={9}><div className="h-8 animate-pulse rounded-md bg-[var(--hf-surface-muted)]" /></td>
                     </tr>
                   ))
                   : filtered.map((i) => {
                     const { doneReq, totalReq, pct } = requiredProgress(i.tasks);
                     const rConf = REASON_LABELS[i.reasonCategory] || REASON_LABELS.other;
+                    const settleStatus = (i as any)?.settlementData?.disbursementStatus
+                      || (readySettlements.some((r) => r.id === i.id) ? 'ready' : null);
                     return (
                       <tr key={i.id}>
                         <td>
@@ -382,6 +450,15 @@ export default function OffboardingPage() {
                           <span className="ml-1 text-xs text-[color:var(--hf-ink-faint)]">{doneReq}/{totalReq}</span>
                         </td>
                         <td><StatusPill status={i.status} /></td>
+                        <td>
+                          {settleStatus === 'disbursed' ? (
+                            <span className="text-xs text-emerald-700 font-medium">Cair</span>
+                          ) : settleStatus === 'ready' ? (
+                            <span className="text-xs text-amber-700 font-medium">Siap cair</span>
+                          ) : (
+                            <span className="text-xs text-[color:var(--hf-ink-faint)]">—</span>
+                          )}
+                        </td>
                         <td className="text-right">
                           <div className="flex items-center justify-end gap-1">
                             <button type="button" onClick={() => setViewing(i)} className="hf-btn-secondary inline-flex items-center gap-1 !px-2.5 !py-1 text-xs">
@@ -493,7 +570,54 @@ export default function OffboardingPage() {
                       Terapkan ke Payroll Final
                     </button>
                   )}
+                  {((settlement?.disbursementStatus === 'ready')
+                    || (viewing as any)?.settlementData?.disbursementStatus === 'ready'
+                    || (!!settlement?.settlement && !(viewing as any)?.settlementData?.disbursedAt)) && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const res = await fetch(`/api/humanify/offboarding-settlement?action=disburse&id=${viewing.id}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({}),
+                          });
+                          const json = await res.json();
+                          if (json.success) {
+                            showToast('success', 'Settlement ditandai disbursed — siap unduh file bank');
+                            setSettlement((s: any) => ({
+                              ...(s || {}),
+                              ...json.data?.settlementData,
+                              disbursementStatus: 'disbursed',
+                            }));
+                            fetchAll();
+                          } else showToast('error', json.error || 'Gagal disburse');
+                        } catch {
+                          showToast('error', 'Gagal disburse settlement');
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-teal-700 text-white text-xs rounded-lg hover:bg-teal-800"
+                    >
+                      Tandai Disburse
+                    </button>
+                  )}
+                  <a
+                    href="/humanify/payroll/disbursement?mode=settlement"
+                    className="px-3 py-1.5 border border-green-300 text-green-800 text-xs rounded-lg hover:bg-green-100 inline-flex items-center"
+                  >
+                    File Transfer Bank
+                  </a>
                 </div>
+                {(viewing as any)?.settlementData?.disbursementStatus === 'disbursed' && (
+                  <p className="mt-2 text-xs text-teal-700">
+                    Sudah di-disburse{(viewing as any).settlementData?.disbursementReference
+                      ? ` · Ref ${(viewing as any).settlementData.disbursementReference}`
+                      : ''}
+                    {(viewing as any).settlementData?.disbursedAt
+                      ? ` · ${new Date((viewing as any).settlementData.disbursedAt).toLocaleString('id-ID')}`
+                      : ''}
+                  </p>
+                )}
                 {settlement?.settlement && (
                   <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
                     <div className="bg-white rounded p-2">Gaji proporsional: <strong>{fmt(settlement.settlement.finalSalary)}</strong></div>

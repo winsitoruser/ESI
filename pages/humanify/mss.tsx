@@ -9,7 +9,7 @@ import {
   Shield, Users, Clock, CheckCircle, XCircle, DollarSign,
   ArrowRightLeft, Bell, AlertTriangle, Eye, ChevronRight,
   BarChart3, FileText, RefreshCw, Send, Filter, Image, Paperclip,
-  Timer, CalendarClock, TrendingUp, X,
+  Timer, CalendarClock, TrendingUp, X, GraduationCap, Target, Plane,
 } from 'lucide-react';
 import { EnterpriseTabBar } from '@/components/humanify/PerformanceModuleChrome';
 import HrisEmptyState from '@/components/humanify/HrisEmptyState';
@@ -17,12 +17,15 @@ import HRStatCard from '@/components/humanify/HRStatCard';
 import { OpsKpiShell } from '@/components/humanify/OpsPageChrome';
 import { PlatformAccessShell } from '@/components/humanify/PlatformAccessNav';
 
-type MSSTab = 'overview' | 'claims-approval' | 'mutations-approval' | 'overtime-approval' | 'team';
+type MSSTab = 'overview' | 'claims-approval' | 'mutations-approval' | 'overtime-approval' | 'training-approval' | 'okr-approval' | 'travel-approval' | 'team';
 
 const EMPTY_WORKFLOW = {
   claims: { pending: 0, approved: 0, rejected: 0 },
   mutations: { pending: 0, approved: 0 },
   overtime: { pending: 0, approved: 0 },
+  training: { pending: 0 },
+  okr: { pending: 0 },
+  travel: { pending: 0 },
 };
 const EMPTY_REMINDER_SUMMARY = { contractExpiring30d: 0, certExpiring30d: 0, activeReminders: 0, overdueReminders: 0 };
 
@@ -40,11 +43,14 @@ export default function MSSPortalPage() {
   const [mutations, setMutations] = useState<any[]>([]);
   const [overtimes, setOvertimes] = useState<any[]>([]);
   const [otLoading, setOtLoading] = useState(false);
+  const [trainingReqs, setTrainingReqs] = useState<any[]>([]);
+  const [okrPending, setOkrPending] = useState<any[]>([]);
+  const [travelReqs, setTravelReqs] = useState<any[]>([]);
   const [filterStatus, setFilterStatus] = useState('');
 
   // Approval modal
   const [showApprovalModal, setShowApprovalModal] = useState(false);
-  const [approvalType, setApprovalType] = useState<'claim' | 'mutation' | 'overtime'>('claim');
+  const [approvalType, setApprovalType] = useState<'claim' | 'mutation' | 'overtime' | 'training' | 'okr' | 'travel'>('claim');
   const [approvalItem, setApprovalItem] = useState<any>(null);
   const [approvalAction, setApprovalAction] = useState<'approve' | 'reject'>('approve');
   const [approvalComments, setApprovalComments] = useState('');
@@ -120,17 +126,44 @@ export default function MSSPortalPage() {
     } catch (e) { console.error(e); setMutations([]); }
   };
 
+  const fetchTraining = async () => {
+    try {
+      const res = await fetch('/api/humanify/training?action=requests&status=pending');
+      const json = await res.json();
+      setTrainingReqs(json.data || []);
+    } catch { setTrainingReqs([]); }
+  };
+
+  const fetchOkr = async () => {
+    try {
+      const res = await fetch('/api/humanify/okr?status=pending_approval');
+      const json = await res.json();
+      setOkrPending(json.data || []);
+    } catch { setOkrPending([]); }
+  };
+
+  const fetchTravel = async () => {
+    try {
+      const res = await fetch('/api/humanify/travel-expense?action=requests&status=pending');
+      const json = await res.json();
+      setTravelReqs(json.data || []);
+    } catch { setTravelReqs([]); }
+  };
+
   useEffect(() => {
     if (!mounted) return;
     if (activeTab === 'claims-approval')   fetchClaims(filterStatus || undefined);
     if (activeTab === 'mutations-approval') fetchMutations(filterStatus || undefined);
     if (activeTab === 'overtime-approval') fetchOvertimes(filterStatus || undefined);
+    if (activeTab === 'training-approval') fetchTraining();
+    if (activeTab === 'okr-approval') fetchOkr();
+    if (activeTab === 'travel-approval') fetchTravel();
   }, [activeTab, filterStatus]);
 
   const OT_TYPE_LABEL: Record<string, string> = { regular: 'Reguler', emergency: 'Darurat', project: 'Proyek' };
   const DAY_TYPE_LABEL: Record<string, { label: string; color: string }> = { weekday: { label: 'Hari Kerja', color: 'bg-[var(--hf-brand-50)] text-[color:var(--hf-brand)]' }, weekend: { label: 'Akhir Pekan', color: 'bg-purple-50 text-purple-700' }, holiday: { label: 'Hari Libur', color: 'bg-red-50 text-red-700' } };
 
-  const openApproval = (type: 'claim' | 'mutation' | 'overtime', item: any, action: 'approve' | 'reject') => {
+  const openApproval = (type: 'claim' | 'mutation' | 'overtime' | 'training' | 'okr' | 'travel', item: any, action: 'approve' | 'reject') => {
     setApprovalType(type);
     setApprovalItem(item);
     setApprovalAction(action);
@@ -144,20 +177,26 @@ export default function MSSPortalPage() {
       showToast('error', 'Alasan penolakan wajib diisi');
       return;
     }
-    const actionMap: Record<string, { approve: string; reject: string }> = {
-      claim:    { approve: 'approve-claim',    reject: 'reject-claim'    },
-      mutation: { approve: 'approve-mutation', reject: 'reject-mutation' },
-      overtime: { approve: 'approve',          reject: 'reject'          },
-    };
-    const apiAction = actionMap[approvalType]?.[approvalAction];
 
     try {
-      const body: any = { id: approvalItem.id, comments: approvalComments, rejection_reason: approvalAction === 'reject' ? approvalComments : undefined, notes: approvalComments };
-      if (approvalType === 'claim' && approvalAction === 'approve') body.approved_amount = parseFloat(approvedAmount) || approvalItem.amount;
+      let apiUrl = '';
+      let body: any = { id: approvalItem.id, comments: approvalComments, rejection_reason: approvalAction === 'reject' ? approvalComments : undefined, notes: approvalComments, reason: approvalComments, note: approvalComments };
 
-      const apiUrl = approvalType === 'overtime'
-        ? `/api/humanify/overtime?action=${apiAction}`
-        : `/api/humanify/workflow?action=${apiAction}`;
+      if (approvalType === 'claim') {
+        apiUrl = `/api/humanify/workflow?action=${approvalAction === 'approve' ? 'approve-claim' : 'reject-claim'}`;
+        if (approvalAction === 'approve') body.approved_amount = parseFloat(approvedAmount) || approvalItem.amount;
+      } else if (approvalType === 'mutation') {
+        apiUrl = `/api/humanify/workflow?action=${approvalAction === 'approve' ? 'approve-mutation' : 'reject-mutation'}`;
+      } else if (approvalType === 'overtime') {
+        apiUrl = `/api/humanify/overtime?action=${approvalAction === 'approve' ? 'approve' : 'reject'}`;
+      } else if (approvalType === 'training') {
+        apiUrl = `/api/humanify/training?action=${approvalAction === 'approve' ? 'approve-request' : 'reject-request'}`;
+      } else if (approvalType === 'okr') {
+        apiUrl = `/api/humanify/okr?action=${approvalAction === 'approve' ? 'approve' : 'reject'}`;
+      } else if (approvalType === 'travel') {
+        apiUrl = `/api/humanify/travel-expense?action=${approvalAction === 'approve' ? 'approve-request' : 'reject-request'}`;
+        body = { ...body, id: approvalItem.id };
+      }
 
       const res = await fetch(apiUrl, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -170,6 +209,9 @@ export default function MSSPortalPage() {
         if (approvalType === 'claim')    fetchClaims(filterStatus || undefined);
         else if (approvalType === 'mutation') fetchMutations(filterStatus || undefined);
         else if (approvalType === 'overtime') fetchOvertimes(filterStatus || undefined);
+        else if (approvalType === 'training') fetchTraining();
+        else if (approvalType === 'okr') fetchOkr();
+        else if (approvalType === 'travel') fetchTravel();
         fetchWorkflowSummary();
       } else showToast('error', json.error || 'Gagal');
     } catch (e) { showToast('error', 'Gagal memproses'); }
@@ -200,7 +242,7 @@ export default function MSSPortalPage() {
       <PlatformAccessShell
         current="mss"
         title="Persetujuan HR (MSS)"
-        subtitle="Antrian tenant-wide untuk klaim, mutasi, dan lembur. Bukan Panel Manajer di portal karyawan."
+        subtitle="Antrian tenant-wide untuk klaim, mutasi, lembur, pelatihan, OKR, dan perjalanan dinas."
         icon={Shield}
         actions={<DataSourceBadge source={dataSource} />}
       >
@@ -209,19 +251,24 @@ export default function MSSPortalPage() {
           <a href="/employee" target="_blank" rel="noopener noreferrer" className="font-semibold text-[color:var(--hf-brand-600)] hover:underline">Panel Manajer ESS</a>.
         </p>
 
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <OpsKpiShell><HRStatCard label="Klaim tertunda" value={workflowSummary?.claims?.pending || 0} icon={Clock} accent="amber" onClick={() => setActiveTab('claims-approval')} /></OpsKpiShell>
-          <OpsKpiShell><HRStatCard label="Mutasi tertunda" value={workflowSummary?.mutations?.pending || 0} icon={ArrowRightLeft} accent="orange" onClick={() => setActiveTab('mutations-approval')} /></OpsKpiShell>
-          <OpsKpiShell><HRStatCard label="Klaim disetujui" value={workflowSummary?.claims?.approved || 0} icon={CheckCircle} accent="emerald" /></OpsKpiShell>
-          <OpsKpiShell><HRStatCard label="Mutasi disetujui" value={workflowSummary?.mutations?.approved || 0} icon={CheckCircle} accent="violet" /></OpsKpiShell>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+          <OpsKpiShell><HRStatCard label="Klaim" value={workflowSummary?.claims?.pending || 0} icon={Clock} accent="amber" onClick={() => setActiveTab('claims-approval')} /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard label="Mutasi" value={workflowSummary?.mutations?.pending || 0} icon={ArrowRightLeft} accent="orange" onClick={() => setActiveTab('mutations-approval')} /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard label="Lembur" value={workflowSummary?.overtime?.pending || 0} icon={Timer} accent="rose" onClick={() => setActiveTab('overtime-approval')} /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard label="Pelatihan" value={workflowSummary?.training?.pending || 0} icon={GraduationCap} accent="violet" onClick={() => setActiveTab('training-approval')} /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard label="OKR" value={workflowSummary?.okr?.pending || 0} icon={Target} accent="emerald" onClick={() => setActiveTab('okr-approval')} /></OpsKpiShell>
+          <OpsKpiShell><HRStatCard label="Travel" value={workflowSummary?.travel?.pending || 0} icon={Plane} accent="blue" onClick={() => setActiveTab('travel-approval')} /></OpsKpiShell>
         </div>
 
         <EnterpriseTabBar
           tabs={[
             { key: 'overview', label: 'Ringkasan', icon: BarChart3 },
-            { key: 'claims-approval', label: 'Persetujuan Klaim', icon: DollarSign, count: workflowSummary?.claims?.pending || undefined },
-            { key: 'mutations-approval', label: 'Persetujuan Mutasi', icon: ArrowRightLeft, count: workflowSummary?.mutations?.pending || undefined },
-            { key: 'overtime-approval', label: 'Persetujuan Lembur', icon: Timer, count: overtimes.filter((o) => o.status === 'pending').length || undefined },
+            { key: 'claims-approval', label: 'Klaim', icon: DollarSign, count: workflowSummary?.claims?.pending || undefined },
+            { key: 'mutations-approval', label: 'Mutasi', icon: ArrowRightLeft, count: workflowSummary?.mutations?.pending || undefined },
+            { key: 'overtime-approval', label: 'Lembur', icon: Timer, count: overtimes.filter((o) => o.status === 'pending').length || undefined },
+            { key: 'training-approval', label: 'Pelatihan', icon: GraduationCap, count: workflowSummary?.training?.pending || undefined },
+            { key: 'okr-approval', label: 'OKR', icon: Target, count: workflowSummary?.okr?.pending || undefined },
+            { key: 'travel-approval', label: 'Travel', icon: Plane, count: workflowSummary?.travel?.pending || undefined },
           ]}
           active={activeTab}
           onChange={(key) => { setActiveTab(key); setFilterStatus(''); }}
@@ -517,6 +564,74 @@ export default function MSSPortalPage() {
           </div>
         </div>
       )}
+
+            {activeTab === 'training-approval' && (
+              <div className="space-y-3">
+                <h3 className="font-semibold text-[color:var(--hf-ink)]">Permintaan Pelatihan</h3>
+                {trainingReqs.length === 0 ? (
+                  <HrisEmptyState source={dataSource} title="Tidak ada permintaan pelatihan" description="Pengajuan dari ESS akan muncul di sini." />
+                ) : trainingReqs.map((r: any) => (
+                  <div key={r.id} className="border rounded-lg p-4 flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-medium text-[color:var(--hf-ink)]">{r.topic || r.programTitle}</p>
+                      <p className="text-xs text-[color:var(--hf-ink-muted)] mt-1">{r.employeeName || r.employee_name} · {r.status}</p>
+                      {r.justification && <p className="text-xs text-[color:var(--hf-ink-faint)] mt-1">{r.justification}</p>}
+                    </div>
+                    {r.status === 'pending' && (
+                      <div className="flex gap-2 shrink-0">
+                        <button type="button" onClick={() => openApproval('training', r, 'approve')} className="px-3 py-1.5 text-sm rounded-[var(--hf-radius)] bg-[var(--hf-success)] text-white">Setujui</button>
+                        <button type="button" onClick={() => openApproval('training', r, 'reject')} className="px-3 py-1.5 text-sm rounded-[var(--hf-radius)] bg-[var(--hf-danger)] text-white">Tolak</button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {activeTab === 'okr-approval' && (
+              <div className="space-y-3">
+                <h3 className="font-semibold text-[color:var(--hf-ink)]">Persetujuan OKR / Objective</h3>
+                {okrPending.length === 0 ? (
+                  <HrisEmptyState source={dataSource} title="Tidak ada OKR menunggu" description="Objective yang diajukan persetujuan akan tampil di sini." />
+                ) : okrPending.map((o: any) => (
+                  <div key={o.id} className="border rounded-lg p-4 flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-medium text-[color:var(--hf-ink)]">{o.title}</p>
+                      <p className="text-xs text-[color:var(--hf-ink-muted)] mt-1">{o.ownerName || o.owner_name} · {o.level} · {o.period}</p>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <button type="button" onClick={() => openApproval('okr', o, 'approve')} className="px-3 py-1.5 text-sm rounded-[var(--hf-radius)] bg-[var(--hf-success)] text-white">Setujui</button>
+                      <button type="button" onClick={() => openApproval('okr', o, 'reject')} className="px-3 py-1.5 text-sm rounded-[var(--hf-radius)] bg-[var(--hf-danger)] text-white">Tolak</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {activeTab === 'travel-approval' && (
+              <div className="space-y-3">
+                <h3 className="font-semibold text-[color:var(--hf-ink)]">Persetujuan Perjalanan Dinas</h3>
+                {travelReqs.length === 0 ? (
+                  <HrisEmptyState source={dataSource} title="Tidak ada perjalanan pending" description="Pengajuan travel dari karyawan akan tampil di sini." />
+                ) : travelReqs.map((t: any) => (
+                  <div key={t.id} className="border rounded-lg p-4 flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-medium text-[color:var(--hf-ink)]">{t.purpose || t.destination || 'Perjalanan dinas'}</p>
+                      <p className="text-xs text-[color:var(--hf-ink-muted)] mt-1">
+                        {t.employee_name || t.employeeName || '-'} · {t.status}
+                        {t.start_date ? ` · ${fmtDate(t.start_date)}` : ''}
+                      </p>
+                    </div>
+                    {(t.status === 'pending') && (
+                      <div className="flex gap-2 shrink-0">
+                        <button type="button" onClick={() => openApproval('travel', t, 'approve')} className="px-3 py-1.5 text-sm rounded-[var(--hf-radius)] bg-[var(--hf-success)] text-white">Setujui</button>
+                        <button type="button" onClick={() => openApproval('travel', t, 'reject')} className="px-3 py-1.5 text-sm rounded-[var(--hf-radius)] bg-[var(--hf-danger)] text-white">Tolak</button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
         </div>
       </PlatformAccessShell>
 
@@ -526,14 +641,25 @@ export default function MSSPortalPage() {
           <div className="hf-card w-full max-w-md" onClick={e => e.stopPropagation()}>
             <div className={`flex items-center justify-between p-4 border-b ${approvalAction === 'approve' ? 'bg-green-50' : 'bg-red-50'}`}>
               <h3 className="font-semibold text-[color:var(--hf-ink)]">
-                {approvalAction === 'approve' ? 'Setujui' : 'Tolak'} {approvalType === 'claim' ? 'Klaim' : approvalType === 'overtime' ? 'Lembur' : 'Mutasi'}
+                {approvalAction === 'approve' ? 'Setujui' : 'Tolak'}{' '}
+                {approvalType === 'claim' ? 'Klaim'
+                  : approvalType === 'overtime' ? 'Lembur'
+                  : approvalType === 'training' ? 'Pelatihan'
+                  : approvalType === 'okr' ? 'OKR'
+                  : approvalType === 'travel' ? 'Travel'
+                  : 'Mutasi'}
               </h3>
               <button onClick={() => setShowApprovalModal(false)} className="p-1.5 hover:bg-[var(--hf-surface-muted)] rounded"><span className="text-lg">&times;</span></button>
             </div>
             <div className="p-4 space-y-3">
               <div className="bg-[var(--hf-surface-muted)] rounded-lg p-3">
                 <p className="text-sm font-medium text-[color:var(--hf-ink)]">
-                  {approvalType === 'claim' ? approvalItem.claim_number : approvalItem.mutation_number}
+                  {approvalType === 'claim' ? approvalItem.claim_number
+                    : approvalType === 'mutation' ? approvalItem.mutation_number
+                    : approvalType === 'training' ? (approvalItem.course_title || approvalItem.title || approvalItem.id)
+                    : approvalType === 'okr' ? (approvalItem.title || approvalItem.objective || approvalItem.id)
+                    : approvalType === 'travel' ? (approvalItem.destination || approvalItem.purpose || approvalItem.id)
+                    : approvalItem.id}
                 </p>
                 <div className="flex items-center gap-2">
                   <EmployeeAvatar name={approvalItem.employee_name} photoUrl={approvalItem.photo_url} size="sm" />

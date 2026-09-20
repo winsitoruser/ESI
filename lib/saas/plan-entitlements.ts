@@ -119,6 +119,7 @@ const ROUTE_FEATURE_RULES: Array<{ test: RegExp; feature: HumanifyFeature }> = [
 /** API action prefixes → feature. Match path segment (with or without trailing slash). */
 const API_FEATURE_RULES: Array<{ test: RegExp; feature: HumanifyFeature }> = [
   { test: /\/api\/humanify\/payroll(?:\/|$)/, feature: 'payroll' },
+  { test: /\/api\/humanify\/payroll-inputs(?:\/|$)/, feature: 'payroll' },
   { test: /\/api\/humanify\/reimbursement(?:\/|$)/, feature: 'payroll' },
   { test: /\/api\/humanify\/casual-workforce(?:\/|$)/, feature: 'payroll' },
   { test: /\/api\/humanify\/travel-expense(?:\/|$)/, feature: 'payroll' },

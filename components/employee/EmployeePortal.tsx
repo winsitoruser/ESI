@@ -20,6 +20,7 @@ import { signOut } from 'next-auth/react';
 import PhotoCaptureField from '@/components/employee/PhotoCaptureField';
 import FaceEnrollmentGate from '@/components/employee/FaceEnrollmentGate';
 import FaceSelfieCapture, { type FaceSelfieResult } from '@/components/employee/FaceSelfieCapture';
+import MutationRequestCard from '@/components/employee/MutationRequestCard';
 import {
   Card, SectionHeader, StatusBadge, GeofenceBadge,
   PortalLoading, EnterpriseHero, QuickAction, StatTile,
@@ -101,7 +102,7 @@ interface FieldVisit {
   check_in_geofence_distance_m?: number | null;
   check_out_geofence_name?: string | null; check_out_geofence_status?: string | null;
 }
-type ModalType = 'leave' | 'claim' | 'travel' | 'travel-expense' | null;
+type ModalType = 'leave' | 'claim' | 'travel' | 'travel-expense' | 'kasbon' | 'desk' | null;
 
 const fmtCur = (n: number) => `Rp ${(n || 0).toLocaleString('id-ID')}`;
 const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
@@ -126,6 +127,7 @@ const LEAVE_TYPES = [
   { value: 'sick', label: 'Cuti Sakit' },
   { value: 'important', label: 'Cuti Penting' },
   { value: 'maternity', label: 'Cuti Melahirkan' },
+  { value: 'comp_off', label: 'Cuti Pengganti (Comp-Off)' },
   { value: 'unpaid', label: 'Cuti Tanpa Gaji' },
 ];
 
@@ -223,6 +225,9 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
   const [leaveBalance, setLeaveBalance] = useState<any[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
   const [claims, setClaims] = useState<any[]>([]);
+  const [cashAdvances, setCashAdvances] = useState<any[]>([]);
+  const [kasbonForm, setKasbonForm] = useState({ amount: '', reason: '', category: 'emergency', installmentMonths: '1' });
+  const [kasbonSaving, setKasbonSaving] = useState(false);
   const [travel, setTravel] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
@@ -233,6 +238,8 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
   const [claimForm, setClaimForm] = useState({ claimType: 'medical', amount: '', description: '', receiptDate: '' });
   const [claimFiles, setClaimFiles] = useState<File[]>([]);
   const [claimPreviews, setClaimPreviews] = useState<{ url: string; name: string; type: string }[]>([]);
+  const [deskForm, setDeskForm] = useState({ subject: '', description: '', category: 'it', priority: 'normal' });
+  const [deskTickets, setDeskTickets] = useState<any[]>([]);
   const [ocrScanning, setOcrScanning] = useState(false);
   const [resubmitClaimId, setResubmitClaimId] = useState<string | null>(null);
   const [resubmitReason, setResubmitReason] = useState<string>('');
@@ -311,15 +318,18 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
 
       Promise.all([
         api('kpi'), api('leave-balance'), api('leave-requests'),
-        api('claims'), api('travel'), api('notifications'), api('announcements'),
-      ]).then(([kRes, lbRes, lrRes, cRes, trRes, nRes, annRes]) => {
+        api('claims'), api('cash-advance'), api('travel'), api('notifications'), api('announcements'),
+        fetch('/api/employee/desk').then((r) => r.json()).catch(() => ({ success: false })),
+      ]).then(([kRes, lbRes, lrRes, cRes, caRes, trRes, nRes, annRes, deskRes]) => {
         setKpi(sanitizeEssObject(kRes.data));
         setLeaveBalance(sanitizeEssList(lbRes.data));
         setLeaveRequests(sanitizeEssList(lrRes.data));
         setClaims(sanitizeEssList(cRes.data));
+        setCashAdvances(sanitizeEssList(caRes.data));
         setTravel(sanitizeEssList(trRes.data));
         setNotifications(sanitizeEssList(nRes.data));
         setAnnouncements(sanitizeEssList(annRes.data));
+        if (deskRes?.success) setDeskTickets(Array.isArray(deskRes.data) ? deskRes.data : []);
       }).catch(() => {});
 
       try {
@@ -678,6 +688,19 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
     if (!leaveForm.startDate || !leaveForm.endDate || !leaveForm.reason) {
       toast.error('Semua field harus diisi'); return;
     }
+    const leaveDays = Math.max(1, Math.ceil((new Date(leaveForm.endDate).getTime() - new Date(leaveForm.startDate).getTime()) / 86400000) + 1);
+    const bal = leaveBalance.find((b: any) =>
+      String(b.code || '').toLowerCase() === String(leaveForm.leaveType).toLowerCase()
+      || (leaveForm.leaveType === 'comp_off' && String(b.type || b.name || '').toLowerCase().includes('pengganti'))
+      || (leaveForm.leaveType === 'annual' && String(b.type || b.name || '').toLowerCase().includes('tahun'))
+    );
+    const remaining = bal != null
+      ? Number(bal.remaining ?? ((Number(bal.total) || 0) - (Number(bal.used) || 0)))
+      : null;
+    if (remaining != null && remaining < leaveDays && !['unpaid', 'sick'].includes(leaveForm.leaveType)) {
+      toast.error(`Saldo cuti tidak cukup (sisa ${remaining} hari, diajukan ${leaveDays} hari)`);
+      return;
+    }
     const needsAttachment = ['sick', 'sakit', 'medical'].includes(String(leaveForm.leaveType).toLowerCase());
     if (needsAttachment && !leaveFile) {
       toast.error('Cuti sakit memerlukan lampiran'); return;
@@ -831,6 +854,62 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
     setSubmitting(false);
   };
 
+  const handleSubmitKasbon = async () => {
+    const amount = Number(kasbonForm.amount);
+    if (!(amount > 0) || !kasbonForm.reason.trim()) {
+      toast.error('Lengkapi nominal dan alasan kasbon');
+      return;
+    }
+    setKasbonSaving(true);
+    try {
+      const res = await api('cash-advance', 'POST', {
+        amount,
+        reason: kasbonForm.reason.trim(),
+        category: kasbonForm.category,
+        installmentMonths: Number(kasbonForm.installmentMonths) || 1,
+      });
+      if (res.success) {
+        toast.success(res.message || 'Pengajuan kasbon terkirim');
+        setModal(null);
+        setKasbonForm({ amount: '', reason: '', category: 'emergency', installmentMonths: '1' });
+        const caRes = await api('cash-advance');
+        setCashAdvances(Array.isArray(caRes.data) ? caRes.data : []);
+      } else {
+        toast.error(res.error || 'Gagal mengajukan kasbon');
+      }
+    } catch {
+      toast.error('Gagal mengajukan kasbon');
+    }
+    setKasbonSaving(false);
+  };
+
+  const handleSubmitDesk = async () => {
+    if (!deskForm.subject.trim() || !deskForm.description.trim()) {
+      toast.error('Subjek dan deskripsi wajib diisi');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/employee/desk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(deskForm),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast.success('Permintaan desk terkirim');
+        setDeskForm({ subject: '', description: '', category: 'it', priority: 'normal' });
+        const list = await fetch('/api/employee/desk').then((r) => r.json()).catch(() => null);
+        if (list?.success) setDeskTickets(Array.isArray(list.data) ? list.data : []);
+      } else {
+        toast.error(json.error || 'Gagal mengirim permintaan');
+      }
+    } catch {
+      toast.error('Gagal mengirim permintaan desk');
+    }
+    setSubmitting(false);
+  };
+
   const handleSubmitTravelExpense = async () => {
     if (!travelExpForm.travelRequestId || !travelExpForm.amount || !travelExpForm.expenseDate) {
       toast.error('Lengkapi tanggal dan jumlah biaya'); return;
@@ -915,6 +994,8 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
               )}
               {modal === 'travel' && 'Ajukan Perjalanan Dinas'}
               {modal === 'travel-expense' && 'Klaim Biaya Perjalanan'}
+              {modal === 'kasbon' && 'Ajukan Kasbon'}
+              {modal === 'desk' && 'Permintaan Desk / Helpdesk'}
             </h3>
             <button onClick={() => { setModal(null); setClaimFiles([]); setClaimPreviews([]); setResubmitClaimId(null); setReplaceClaimId(null); setResubmitReason(''); }} className="p-1.5 hover:bg-gray-100 rounded-full"><X className="w-5 h-5 text-gray-500" /></button>
           </div>
@@ -927,6 +1008,25 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
                     className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     {LEAVE_TYPES.map(lt => <option key={lt.value} value={lt.value}>{lt.label}</option>)}
                   </select>
+                  {(() => {
+                    const bal = leaveBalance.find((b: any) =>
+                      String(b.code || '').toLowerCase() === String(leaveForm.leaveType).toLowerCase()
+                      || (leaveForm.leaveType === 'comp_off' && String(b.type || b.name || '').toLowerCase().includes('pengganti'))
+                      || (leaveForm.leaveType === 'annual' && String(b.type || b.name || '').toLowerCase().includes('tahun'))
+                    );
+                    if (!bal) {
+                      return leaveForm.leaveType === 'comp_off'
+                        ? <p className="text-xs text-amber-600 mt-1">Belum ada saldo cuti pengganti — saldo bertambah setelah lembur weekend/libur disetujui.</p>
+                        : null;
+                    }
+                    const rem = Number(bal.remaining ?? ((Number(bal.total) || 0) - (Number(bal.used) || 0)));
+                    return (
+                      <p className="text-xs text-slate-500 mt-1">
+                        Sisa saldo: <span className="font-semibold text-slate-800">{rem} hari</span>
+                        {' '}({bal.used || 0}/{bal.total || 0} terpakai)
+                      </p>
+                    );
+                  })()}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -1094,6 +1194,126 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
                         : `Kirim Klaim${claimFiles.length > 0 ? ` (${claimFiles.length} lampiran)` : ''}`
                   }
                 </button>
+              </>
+            )}
+            {modal === 'kasbon' && (
+              <>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">Nominal</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={kasbonForm.amount}
+                    onChange={(e) => setKasbonForm((f) => ({ ...f, amount: e.target.value }))}
+                    placeholder="Contoh: 1500000"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-violet-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">Kategori</label>
+                  <select
+                    value={kasbonForm.category}
+                    onChange={(e) => setKasbonForm((f) => ({ ...f, category: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-violet-500"
+                  >
+                    <option value="emergency">Darurat</option>
+                    <option value="operational">Operasional</option>
+                    <option value="travel">Perjalanan</option>
+                    <option value="other">Lainnya</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">Tenor potongan (bulan)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={24}
+                    value={kasbonForm.installmentMonths}
+                    onChange={(e) => setKasbonForm((f) => ({ ...f, installmentMonths: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-violet-500"
+                  />
+                  <p className="mt-1 text-[11px] text-gray-500">1 = potong penuh di gaji berikutnya</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">Alasan</label>
+                  <textarea
+                    value={kasbonForm.reason}
+                    onChange={(e) => setKasbonForm((f) => ({ ...f, reason: e.target.value }))}
+                    rows={3}
+                    placeholder="Jelaskan kebutuhan kasbon…"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-violet-500 resize-none"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSubmitKasbon}
+                  disabled={kasbonSaving}
+                  className="w-full bg-violet-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-violet-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {kasbonSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  {kasbonSaving ? 'Mengirim…' : 'Kirim Pengajuan'}
+                </button>
+              </>
+            )}
+            {modal === 'desk' && (
+              <>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">Kategori</label>
+                  <select
+                    value={deskForm.category}
+                    onChange={(e) => setDeskForm((f) => ({ ...f, category: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="it">IT / Perangkat</option>
+                    <option value="hr">HR Internal</option>
+                    <option value="facility">Fasilitas / Gedung</option>
+                    <option value="desk">Permintaan Meja / Ruang</option>
+                    <option value="access">Akses & Login</option>
+                    <option value="other">Lainnya</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">Subjek</label>
+                  <input
+                    value={deskForm.subject}
+                    onChange={(e) => setDeskForm((f) => ({ ...f, subject: e.target.value }))}
+                    placeholder="Ringkas kebutuhan Anda"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">Deskripsi</label>
+                  <textarea
+                    value={deskForm.description}
+                    onChange={(e) => setDeskForm((f) => ({ ...f, description: e.target.value }))}
+                    rows={4}
+                    placeholder="Detail permintaan helpdesk…"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 resize-none"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSubmitDesk}
+                  disabled={submitting}
+                  className="w-full bg-indigo-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  {submitting ? 'Mengirim…' : 'Kirim Permintaan'}
+                </button>
+                {deskTickets.length > 0 && (
+                  <div className="border-t pt-3 space-y-2">
+                    <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Tiket saya</p>
+                    {deskTickets.slice(0, 8).map((t: any) => (
+                      <div key={t.id} className="rounded-lg bg-slate-50 px-3 py-2 text-xs flex justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-medium text-slate-800 truncate">{t.subject}</p>
+                          <p className="text-slate-500">{t.ticket_number || t.category}</p>
+                        </div>
+                        <span className="shrink-0 text-slate-600 capitalize">{String(t.status || 'open').replace('_', ' ')}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </>
             )}
             {modal === 'travel' && (
@@ -1384,6 +1604,44 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
             </div>
           )}
         </div>
+
+        <div className="hf-card p-4 border-gray-100">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+              <Wallet className="w-4 h-4 text-violet-600" /> Kasbon
+            </h3>
+            <button
+              type="button"
+              onClick={() => setModal('kasbon')}
+              className="px-3 py-1.5 bg-violet-600 text-white rounded-lg text-xs font-medium flex items-center gap-1"
+            >
+              <Plus className="w-3.5 h-3.5" /> Ajukan
+            </button>
+          </div>
+          {cashAdvances.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-4">Belum ada pengajuan kasbon</p>
+          ) : (
+            <div className="space-y-2.5">
+              {cashAdvances.map((k: any) => (
+                <div key={k.id} className="p-3 bg-violet-50/60 rounded-lg border border-violet-100">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-medium text-gray-900">{fmtCur(k.amount)}</span>
+                    <StatusBadge status={k.status} />
+                  </div>
+                  <p className="text-xs text-gray-600">{k.reason || '—'}</p>
+                  <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-gray-500">
+                    {k.installment_months > 1 && (
+                      <span>Cicilan {fmtCur(k.installment_amount)} × {k.installment_months} bln</span>
+                    )}
+                    {['approved', 'active'].includes(k.status) && (
+                      <span>Sisa {fmtCur(k.remaining_amount != null ? k.remaining_amount : k.amount)}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     );
   };
@@ -1497,6 +1755,7 @@ export default function EmployeePortal({ initialTab }: { initialTab?: TabKey } =
           ))}
         </div>
       </Card>
+      <MutationRequestCard />
       <button
         type="button"
         onClick={() => goToTab('files')}

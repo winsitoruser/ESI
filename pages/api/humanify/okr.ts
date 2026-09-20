@@ -73,6 +73,39 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         return res.json({ success: true, data: record });
       }
 
+      if (action === 'submit-approval') {
+        const id = String(body.id || '');
+        if (!id) return res.status(400).json({ error: 'id wajib' });
+        const record = await updateOkr(tenantId, id, { status: 'pending_approval' });
+        if (!record) return res.status(404).json({ error: 'OKR tidak ditemukan' });
+        return res.json({ success: true, data: record, message: 'OKR diajukan untuk persetujuan' });
+      }
+
+      if (action === 'approve') {
+        const id = String(body.id || '');
+        if (!id) return res.status(400).json({ error: 'id wajib' });
+        const existing = await getOkrById(tenantId, id);
+        if (!existing) return res.status(404).json({ error: 'OKR tidak ditemukan' });
+        if (existing.status !== 'pending_approval' && existing.status !== 'draft') {
+          return res.status(400).json({ error: 'Hanya OKR draft/pending yang bisa disetujui' });
+        }
+        const record = await updateOkr(tenantId, id, { status: 'active' });
+        return res.json({ success: true, data: record, message: 'Objective/KPI disetujui dan diaktifkan' });
+      }
+
+      if (action === 'reject') {
+        const id = String(body.id || '');
+        if (!id) return res.status(400).json({ error: 'id wajib' });
+        const reason = String(body.reason || body.notes || '').slice(0, 500);
+        const existing = await getOkrById(tenantId, id);
+        if (!existing) return res.status(404).json({ error: 'OKR tidak ditemukan' });
+        const desc = reason
+          ? `${existing.description || ''}\n[Ditolak] ${reason}`.trim()
+          : existing.description;
+        const record = await updateOkr(tenantId, id, { status: 'rejected', description: desc });
+        return res.json({ success: true, data: record, message: 'Objective/KPI ditolak' });
+      }
+
       if (body.keyResults) {
         body.progress = calcProgress(body.keyResults);
       }

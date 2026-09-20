@@ -1,7 +1,7 @@
 import {
   Loader2, Camera, Sunrise, Moon, Navigation, ExternalLink,
   Shield, Building2, Megaphone, Bell, Calendar, Wallet, Target, Receipt,
-  FileText, Clock, Award, Users, Plane, CheckCircle, XCircle, Plus, Timer,
+  FileText, Clock, Award, Users, Plane, CheckCircle, XCircle, Plus, Timer, LifeBuoy,
 } from 'lucide-react';
 import {
   Card, SectionHeader, StatusBadge, GeofenceBadge,
@@ -357,7 +357,7 @@ export default function HomeTab({
 
       <Card className="p-4" variant="elevated">
         <SectionHeader title="Aksi Cepat" subtitle="Pengajuan & akses fitur utama" />
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1">
+        <div className={`grid gap-1 ${isMfAgent ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2 sm:grid-cols-5'}`}>
           {(isMfAgent ? [
             { icon: Building2, label: 'Lapangan', gradient: 'from-slate-600 to-teal-700', action: () => goToTab('mf') },
             { icon: Calendar, label: 'Cuti', gradient: 'from-teal-600 to-emerald-700', action: () => setModal('leave') },
@@ -368,6 +368,7 @@ export default function HomeTab({
             { icon: Wallet, label: 'Gaji', gradient: 'from-sky-500 to-blue-600', action: () => goToTab('payslip') },
             { icon: Receipt, label: 'Klaim', gradient: 'from-emerald-500 to-teal-600', action: () => setModal('claim') },
             { icon: Timer, label: 'Lembur', gradient: 'from-orange-500 to-rose-500', action: () => { goToTab('overtime'); setTimeout(() => setOtModal('new'), 100); } },
+            { icon: LifeBuoy, label: 'Desk', gradient: 'from-violet-500 to-indigo-600', action: () => setModal('desk') },
           ]).map((a, i) => (
             <QuickAction key={i} icon={a.icon} label={a.label} gradient={a.gradient} onClick={a.action} />
           ))}

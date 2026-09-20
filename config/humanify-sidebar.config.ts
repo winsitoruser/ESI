@@ -41,6 +41,7 @@ export const humanifySidebarConfig: SidebarConfig = {
         { id: 'humanify-employees', name: 'Database Karyawan', href: '/humanify/employees', icon: Users, modules: ['humanify', 'hris'] },
         { id: 'humanify-employees-import', name: 'Impor Karyawan', href: '/humanify/employees-import', icon: Upload, modules: ['humanify', 'hris'] },
         { id: 'humanify-organization', name: 'Struktur Organisasi', href: '/humanify/organization', icon: Network, modules: ['humanify', 'hris'] },
+        { id: 'humanify-workforce-compliance', name: 'SSU · TKA · Outsourcing', href: '/humanify/workforce-compliance', icon: FileText, modules: ['humanify', 'hris'] },
         { id: 'humanify-onboarding', name: 'Onboarding', href: '/humanify/onboarding', icon: UserPlus, modules: ['humanify', 'hris'] },
         { id: 'humanify-offboarding', name: 'Offboarding', href: '/humanify/offboarding', icon: KeyRound, modules: ['humanify', 'hris'] },
         { id: 'humanify-contracts', name: 'Kontrak & Reminder', href: '/humanify/contracts', icon: FileText, modules: ['humanify', 'hris'] },

@@ -18,6 +18,15 @@ function jobSlugify(title: string, id: string) {
 }
 
 function mapJob(row: any, tenantSlug?: string) {
+  let fieldDefs: any[] = [];
+  try {
+    fieldDefs = typeof row.custom_field_defs === 'string'
+      ? JSON.parse(row.custom_field_defs)
+      : (row.custom_field_defs || []);
+  } catch { fieldDefs = []; }
+  const publicDefs = (Array.isArray(fieldDefs) ? fieldDefs : []).filter(
+    (f: any) => f && f.showOnCareers !== false,
+  );
   return {
     id: row.id,
     slug: jobSlugify(row.title, row.id),
@@ -36,6 +45,7 @@ function mapJob(row: any, tenantSlug?: string) {
     created_at: row.created_at,
     tenantId: row.tenant_id,
     tenantSlug: tenantSlug || null,
+    customFieldDefs: publicDefs,
   };
 }
 
@@ -141,12 +151,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       );
       if (!jobs?.[0]) return res.status(404).json({ success: false, error: 'Lowongan tidak tersedia' });
 
+      let customBlock = '';
+      const answers = body.customAnswers || body.custom_answers;
+      if (answers && typeof answers === 'object') {
+        const lines = Object.entries(answers)
+          .filter(([, v]) => v !== null && v !== undefined && String(v).trim() !== '')
+          .map(([k, v]) => `${k}: ${String(v).slice(0, 500)}`);
+        if (lines.length) customBlock = `\n\n--- Jawaban field kustom ---\n${lines.join('\n')}`;
+      }
+
+      try {
+        await sequelize.query(`ALTER TABLE hris_candidates ADD COLUMN IF NOT EXISTS custom_answers JSONB DEFAULT '{}'`);
+      } catch { /* optional */ }
+
       const [rows] = await sequelize.query(`
         INSERT INTO hris_candidates (
           tenant_id, job_opening_id, full_name, email, phone, current_stage, status,
-          source, experience_summary, education_level, notes, applied_date
+          source, experience_summary, education_level, notes, applied_date, custom_answers
         ) VALUES (
-          $1, $2, $3, $4, $5, 'applied', 'active', 'careers_portal', $6, $7, $8, CURRENT_DATE
+          $1, $2, $3, $4, $5, 'applied', 'active', 'careers_portal', $6, $7, $8, CURRENT_DATE, $9::jsonb
         ) RETURNING id, full_name, email, current_stage, applied_date
       `, {
         bind: [
@@ -157,7 +180,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           body.phone || null,
           body.experience || body.coverLetter || '',
           body.education || '',
-          body.coverLetter || '',
+          `${body.coverLetter || ''}${customBlock}`.trim(),
+          JSON.stringify(answers && typeof answers === 'object' ? answers : {}),
         ],
       });
 

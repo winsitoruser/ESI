@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -15,13 +15,22 @@ export default function CareerDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', phone: '', education: '', experience: '', coverLetter: '' });
+  const [customAnswers, setCustomAnswers] = useState<Record<string, string>>({});
+
+  const fieldDefs = useMemo(() => {
+    const defs = job?.customFieldDefs || job?.custom_field_defs || [];
+    return Array.isArray(defs) ? defs : [];
+  }, [job]);
 
   useEffect(() => {
     if (!slug || typeof slug !== 'string') return;
     setLoading(true);
     fetch(`/api/public/careers?slug=${encodeURIComponent(slug)}`)
       .then((r) => r.json())
-      .then((j) => setJob(j.data || null))
+      .then((j) => {
+        setJob(j.data || null);
+        setCustomAnswers({});
+      })
       .catch(() => setJob(null))
       .finally(() => setLoading(false));
   }, [slug]);
@@ -29,12 +38,18 @@ export default function CareerDetailPage() {
   async function handleApply(e: React.FormEvent) {
     e.preventDefault();
     if (!job?.id) return;
+    for (const f of fieldDefs) {
+      if (f.required && !String(customAnswers[f.key] || '').trim()) {
+        alert(`Field wajib: ${f.label || f.key}`);
+        return;
+      }
+    }
     setSubmitting(true);
     try {
       const res = await fetch('/api/public/careers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, jobId: job.id }),
+        body: JSON.stringify({ ...form, jobId: job.id, customAnswers }),
       });
       const json = await res.json();
       if (json.success) setSubmitted(true);
@@ -45,6 +60,52 @@ export default function CareerDetailPage() {
       setSubmitting(false);
     }
   }
+
+  const renderCustomField = (f: any) => {
+    const key = f.key;
+    const label = f.label || key;
+    const common = 'w-full border rounded-lg px-3 py-2 text-sm';
+    if (f.type === 'textarea') {
+      return (
+        <textarea
+          key={key}
+          required={!!f.required}
+          placeholder={`${label}${f.required ? ' *' : ''}`}
+          value={customAnswers[key] || ''}
+          onChange={(e) => setCustomAnswers((a) => ({ ...a, [key]: e.target.value }))}
+          className={common}
+          rows={3}
+        />
+      );
+    }
+    if (f.type === 'select') {
+      return (
+        <select
+          key={key}
+          required={!!f.required}
+          value={customAnswers[key] || ''}
+          onChange={(e) => setCustomAnswers((a) => ({ ...a, [key]: e.target.value }))}
+          className={common}
+        >
+          <option value="">{label}{f.required ? ' *' : ''}</option>
+          {(f.options || []).map((o: string) => (
+            <option key={o} value={o}>{o}</option>
+          ))}
+        </select>
+      );
+    }
+    return (
+      <input
+        key={key}
+        required={!!f.required}
+        type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : f.type === 'url' ? 'url' : 'text'}
+        placeholder={`${label}${f.required ? ' *' : ''}`}
+        value={customAnswers[key] || ''}
+        onChange={(e) => setCustomAnswers((a) => ({ ...a, [key]: e.target.value }))}
+        className={common}
+      />
+    );
+  };
 
   return (
     <>
@@ -75,13 +136,13 @@ export default function CareerDetailPage() {
                     addressCountry: 'ID',
                   },
                 },
-                baseSalary: job.salary_min || job.salary_max ? {
+                baseSalary: job.salary_min || job.salary_max || job.salaryMin || job.salaryMax ? {
                   '@type': 'MonetaryAmount',
                   currency: 'IDR',
                   value: {
                     '@type': 'QuantitativeValue',
-                    minValue: job.salary_min || undefined,
-                    maxValue: job.salary_max || undefined,
+                    minValue: job.salary_min || job.salaryMin || undefined,
+                    maxValue: job.salary_max || job.salaryMax || undefined,
                     unitText: 'MONTH',
                   },
                 } : undefined,
@@ -144,6 +205,18 @@ export default function CareerDetailPage() {
                   </div>
                   <textarea placeholder="Pengalaman kerja" value={form.experience} onChange={(e) => setForm({ ...form, experience: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm" rows={3} />
                   <textarea placeholder="Surat lamaran / catatan" value={form.coverLetter} onChange={(e) => setForm({ ...form, coverLetter: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm" rows={3} />
+                  {fieldDefs.length > 0 && (
+                    <div className="space-y-3 pt-2 border-t">
+                      <p className="text-sm font-medium text-slate-700">Informasi tambahan</p>
+                      <div className="grid md:grid-cols-2 gap-3">
+                        {fieldDefs.map((f: any) => (
+                          <div key={f.key} className={f.type === 'textarea' ? 'md:col-span-2' : ''}>
+                            {renderCustomField(f)}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <button type="submit" disabled={submitting} className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60">
                     <Send className="w-4 h-4" /> {submitting ? 'Mengirim...' : 'Kirim Lamaran'}
                   </button>

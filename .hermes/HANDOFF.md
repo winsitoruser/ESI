@@ -1,5 +1,97 @@
 # Handoff — SIMESI (fka ESI ERP)
 
+> Diperbarui: 20 September 2026 — **FlowHCM apply-on-approve depth**
+
+| Area | Enhancement |
+|---|---|
+| Comp-off balance | Schema-aware `leave_balances` (`entitled_days` vs `entitled`) — credit OT + ESS read/deduct selaras |
+| ESS leave | Tampil sisa saldo per jenis + soft-block jika kurang (kec. sick/unpaid) |
+| Training→LMS | Approve request match curriculum + insert `hris_lms_enrollments` + notify |
+| Desk ESS | List tiket saya + status di modal desk |
+| Support HQ | Field assignee (`assigned_to`) di detail tiket |
+| Offboarding | Queue "Settlement siap cair" + kolom settlement di tabel |
+
+**Deployed 20 Sep 2026** (humanify.id · BUILD_OK). HOLD launch tetap.
+
+---
+
+> Diperbarui: 20 September 2026 — **FlowHCM P2 polish (MSS inbox + careers fields + ESS mutasi)**
+
+| Area | Enhancement |
+|---|---|
+| MSS inbox | Tab Pelatihan / OKR / Travel + KPI count dari `workflow?action=summary` |
+| Careers apply | Form publik render `customFieldDefs` + kirim `customAnswers` |
+| ESS mutasi | `MutationRequestCard` + `GET/POST /api/employee/mutation-request` |
+| Manager Hub | Pending mutations team-scoped + approve/reject via workflow |
+
+**Deployed 20 Sep 2026** bersama wave apply-on-approve. HOLD launch tetap.
+
+---
+
+> Diperbarui: 20 September 2026 — **FlowHCM-aligned HR depth (Humanify)**
+
+Sumber referensi: tutorial FlowHCM (transfer, compensation leave, ATS fields, final settlement, expense, desk, KPI routing, training request, manpower position title).
+
+| Area | Enhancement |
+|---|---|
+| Final settlement | `disburse` + `list-ready`; Transfer Bank mode `?mode=settlement`; status ready→disbursed |
+| Comp-off | ESS type `comp_off`; credit saldo saat OT weekend/holiday (≥4h weekday) disetujui |
+| ATS | `custom_field_defs` / `custom_field_values` pada lowongan + UI builder |
+| OKR/KPI routing | `submit-approval` / `approve` / `reject` + status `pending_approval`/`rejected` |
+| Training request | `hris_training_requests` + ESS `/api/employee/training-request` + HQ approve |
+| Manpower | Position title lines di headcount plan (`details`) |
+| Helpdesk | Kategori IT/HR/facility/desk + ESS `/api/employee/desk` |
+
+Mutasi, leave, claims/expense, recruitment, offboarding calculator, support, KPI/OKR, training/LMS, workforce sudah existing — enhancement memperdalam alur FlowHCM tanpa modul greenfield.
+
+Belum deploy. HOLD launch tetap.
+
+---
+
+> Diperbarui: 20 September 2026 — **Kasbon depth + payroll/ESS/offboarding integration**
+
+| Item | Detail |
+|---|---|
+| Engine | `listOpenPayrollInputCharges` → `calculate` injects `CASH_ADV`/`LOAN`/`BONUS`; `approve` decrements remaining |
+| HQ UI | `/humanify/payroll/cash-advance` — cicilan, saldo outstanding, approve |
+| ESS | Portal tab Klaim → section Kasbon; `GET/POST ?action=cash-advance` |
+| Inbox | Dashboard Action inbox type `kasbon` + approve/reject |
+| Offboarding | Prefill sisa kasbon/pinjaman dari `payroll-inputs` |
+| Smoke | `npm run smoke:kasbon` |
+| Belum deploy | Perlu rsync ke humanify.id |
+
+---
+
+> Diperbarui: 19 September 2026 — **P2: leave escalation + AIMAN IR/payroll write**
+
+| Item | Detail |
+|---|---|
+| Leave SLA | `lib/hris/leave-escalation.ts` — pakai `escalation_hours`; notify approver+HR; stamp `escalated_at`; **tidak** auto-approve |
+| Cron | tag `leave-escalation` hourly → `npm run scan:leave-escalation` → `POST /api/platform/leave-escalation-scan` |
+| AIMAN tools | `payroll_create_draft_run` (draft only), `ir_pending_sp_list`, `ir_phase_reminder`, `run_leave_escalation` — confirm-required |
+| Workflows | payroll_prep saran draft; leave_desk saran eskalasi; **ir_desk** baru |
+| Smoke | `node scripts/smoke-test-humanify-leave-escalation-aiman.js` |
+| Guardrail | Tidak ada auto bank transfer / approve SP / issue letter |
+
+Deploy: rsync + `bash scripts/ensure-humanify-crons.sh`. HOLD launch tetap.
+
+---
+
+> Diperbarui: 19 September 2026 — **HR automation P1: cron scan + alert delivery**
+
+| Item | Detail |
+|---|---|
+| Engine | `lib/hris/hr-automation.ts` — tenant-scoped evaluate, cooldown, `hris_automation_alerts`, email SMTP |
+| Cron | `ensure-humanify-crons.sh` tag `hr-automation-scan` (setiap 6 jam) → `npm run scan:hr-automation` |
+| API | `POST /api/platform/hr-automation-scan` (x-cron-secret / loopback) |
+| UI | `/humanify/ai` tab Otomasi menampilkan alert + tandai dibaca |
+| Smoke | `node scripts/smoke-test-humanify-hr-automation-notify.js` |
+| Belum | (P2 ditutup di blok atas) Leave escalate + AIMAN IR/payroll draft |
+
+Deploy: rsync + `bash scripts/ensure-humanify-crons.sh` di VPS. HOLD launch tetap.
+
+---
+
 > Diperbarui: 18 September 2026 — **Fix IUAT tester GAGAL (clock-in TX, devices cabang, MSS count, shift bulk)** — belum deploy
 
 | Kode | Gejala | Perbaikan |

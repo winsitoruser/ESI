@@ -626,6 +626,9 @@ async function getWorkflowSummary(req: NextApiRequest, res: NextApiResponse, ses
   const mutationsApproved = await safeCount(`SELECT COUNT(*) as cnt FROM employee_mutations WHERE status IN ('approved','executed') AND tenant_id = :tenantId`, tid);
   const overtimePending = await safeCount(`SELECT COUNT(*) as cnt FROM overtime_requests WHERE status = 'pending' AND tenant_id = :tenantId`, tid);
   const overtimeApproved = await safeCount(`SELECT COUNT(*) as cnt FROM overtime_requests WHERE status = 'approved' AND tenant_id = :tenantId`, tid);
+  const trainingPending = await safeCount(`SELECT COUNT(*) as cnt FROM hris_training_requests WHERE status = 'pending' AND tenant_id = :tenantId`, tid);
+  const okrPending = await safeCount(`SELECT COUNT(*) as cnt FROM hris_okr_objectives WHERE status = 'pending_approval' AND tenant_id = :tenantId`, tid);
+  const travelPending = await safeCount(`SELECT COUNT(*) as cnt FROM travel_requests WHERE status = 'pending' AND tenant_id = :tenantId`, tid);
 
   return res.json({
     success: true,
@@ -633,6 +636,9 @@ async function getWorkflowSummary(req: NextApiRequest, res: NextApiResponse, ses
       claims: { pending: claimsPending, approved: claimsApproved, rejected: claimsRejected },
       mutations: { pending: mutationsPending, approved: mutationsApproved },
       overtime: { pending: overtimePending, approved: overtimeApproved },
+      training: { pending: trainingPending },
+      okr: { pending: okrPending },
+      travel: { pending: travelPending },
       pendingClaims: claimsPending,
       approvedClaims: claimsApproved,
       rejectedClaims: claimsRejected,
@@ -640,6 +646,9 @@ async function getWorkflowSummary(req: NextApiRequest, res: NextApiResponse, ses
       approvedMutations: mutationsApproved,
       pendingOvertime: overtimePending,
       approvedOvertime: overtimeApproved,
+      pendingTraining: trainingPending,
+      pendingOkr: okrPending,
+      pendingTravel: travelPending,
     },
   });
 }
