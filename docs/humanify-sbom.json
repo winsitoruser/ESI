@@ -1,0 +1,939 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-09-22T19:05:07.891Z",
+    "component": {
+      "type": "application",
+      "name": "simesi",
+      "version": "1.0.0"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "name": "@aws-sdk/client-s3",
+      "version": "3.1090.0",
+      "purl": "pkg:npm/@aws-sdk/client-s3@3.1090.0"
+    },
+    {
+      "type": "library",
+      "name": "@emotion/react",
+      "version": "11.14.0",
+      "purl": "pkg:npm/@emotion/react@11.14.0"
+    },
+    {
+      "type": "library",
+      "name": "@emotion/styled",
+      "version": "11.14.1",
+      "purl": "pkg:npm/@emotion/styled@11.14.1"
+    },
+    {
+      "type": "library",
+      "name": "@fullcalendar/core",
+      "version": "6.1.9",
+      "purl": "pkg:npm/@fullcalendar/core@6.1.9"
+    },
+    {
+      "type": "library",
+      "name": "@fullcalendar/google-calendar",
+      "version": "6.1.17",
+      "purl": "pkg:npm/@fullcalendar/google-calendar@6.1.17"
+    },
+    {
+      "type": "library",
+      "name": "@fullcalendar/interaction",
+      "version": "6.1.9",
+      "purl": "pkg:npm/@fullcalendar/interaction@6.1.9"
+    },
+    {
+      "type": "library",
+      "name": "@fullcalendar/react",
+      "version": "6.1.9",
+      "purl": "pkg:npm/@fullcalendar/react@6.1.9"
+    },
+    {
+      "type": "library",
+      "name": "@fullcalendar/timegrid",
+      "version": "6.1.9",
+      "purl": "pkg:npm/@fullcalendar/timegrid@6.1.9"
+    },
+    {
+      "type": "library",
+      "name": "@heroicons/react",
+      "version": "2.2.0",
+      "purl": "pkg:npm/@heroicons/react@2.2.0"
+    },
+    {
+      "type": "library",
+      "name": "@hookform/resolvers",
+      "version": "3.3.2",
+      "purl": "pkg:npm/@hookform/resolvers@3.3.2"
+    },
+    {
+      "type": "library",
+      "name": "@nivo/core",
+      "version": "0.93.0",
+      "purl": "pkg:npm/@nivo/core@0.93.0"
+    },
+    {
+      "type": "library",
+      "name": "@nivo/heatmap",
+      "version": "0.93.0",
+      "purl": "pkg:npm/@nivo/heatmap@0.93.0"
+    },
+    {
+      "type": "library",
+      "name": "@nivo/sankey",
+      "version": "0.93.0",
+      "purl": "pkg:npm/@nivo/sankey@0.93.0"
+    },
+    {
+      "type": "library",
+      "name": "@prisma/client",
+      "version": "6.15.0",
+      "purl": "pkg:npm/@prisma/client@6.15.0"
+    },
+    {
+      "type": "library",
+      "name": "@radix-ui/react-accordion",
+      "version": "1.2.3",
+      "purl": "pkg:npm/@radix-ui/react-accordion@1.2.3"
+    },
+    {
+      "type": "library",
+      "name": "@radix-ui/react-alert-dialog",
+      "version": "1.1.6",
+      "purl": "pkg:npm/@radix-ui/react-alert-dialog@1.1.6"
+    },
+    {
+      "type": "library",
+      "name": "@radix-ui/react-aspect-ratio",
+      "version": "1.0.3",
+      "purl": "pkg:npm/@radix-ui/react-aspect-ratio@1.0.3"
+    },
+    {
+      "type": "library",
+      "name": "@radix-ui/react-avatar",
+      "version": "1.1.3",
+      "purl": "pkg:npm/@radix-ui/react-avatar@1.1.3"
+    },
+    {
+      "type": "library",
+      "name": "@radix-ui/react-checkbox",
+      "version": "1.0.4",
+      "purl": "pkg:npm/@radix-ui/react-checkbox@1.0.4"
+    },
+    {
+      "type": "library",
+      "name": "@radix-ui/react-collapsible",
+      "version": "1.1.10",
+      "purl": "pkg:npm/@radix-ui/react-collapsible@1.1.10"
+    },
+    {
+      "type": "library",
+      "name": "@radix-ui/react-dialog",
+      "version": "1.1.6",
+      "purl": "pkg:npm/@radix-ui/react-dialog@1.1.6"
+    },
+    {
+      "type": "library",
+      "name": "@radix-ui/react-dropdown-menu",
+      "version": "2.0.6",
+      "purl": "pkg:npm/@radix-ui/react-dropdown-menu@2.0.6"
+    },
+    {
+      "type": "library",
+      "name": "@radix-ui/react-icons",
+      "version": "1.3.0",
+      "purl": "pkg:npm/@radix-ui/react-icons@1.3.0"
+    },
+    {
+      "type": "library",
+      "name": "@radix-ui/react-label",
+      "version": "2.0.2",
+      "purl": "pkg:npm/@radix-ui/react-label@2.0.2"
+    },
+    {
+      "type": "library",
+      "name": "@radix-ui/react-popover",
+      "version": "1.0.7",
+      "purl": "pkg:npm/@radix-ui/react-popover@1.0.7"
+    },
+    {
+      "type": "library",
+      "name": "@radix-ui/react-progress",
+      "version": "1.1.2",
+      "purl": "pkg:npm/@radix-ui/react-progress@1.1.2"
+    },
+    {
+      "type": "library",
+      "name": "@radix-ui/react-radio-group",
+      "version": "1.3.6",
+      "purl": "pkg:npm/@radix-ui/react-radio-group@1.3.6"
+    },
+    {
+      "type": "library",
+      "name": "@radix-ui/react-scroll-area",
+      "version": "1.0.5",
+      "purl": "pkg:npm/@radix-ui/react-scroll-area@1.0.5"
+    },
+    {
+      "type": "library",
+      "name": "@radix-ui/react-select",
+      "version": "2.0.0",
+      "purl": "pkg:npm/@radix-ui/react-select@2.0.0"
+    },
+    {
+      "type": "library",
+      "name": "@radix-ui/react-separator",
+      "version": "1.0.3",
+      "purl": "pkg:npm/@radix-ui/react-separator@1.0.3"
+    },
+    {
+      "type": "library",
+      "name": "@radix-ui/react-slider",
+      "version": "1.2.4",
+      "purl": "pkg:npm/@radix-ui/react-slider@1.2.4"
+    },
+    {
+      "type": "library",
+      "name": "@radix-ui/react-slot",
+      "version": "1.0.2",
+      "purl": "pkg:npm/@radix-ui/react-slot@1.0.2"
+    },
+    {
+      "type": "library",
+      "name": "@radix-ui/react-switch",
+      "version": "1.1.3",
+      "purl": "pkg:npm/@radix-ui/react-switch@1.1.3"
+    },
+    {
+      "type": "library",
+      "name": "@radix-ui/react-tabs",
+      "version": "1.0.4",
+      "purl": "pkg:npm/@radix-ui/react-tabs@1.0.4"
+    },
+    {
+      "type": "library",
+      "name": "@radix-ui/react-toast",
+      "version": "1.2.6",
+      "purl": "pkg:npm/@radix-ui/react-toast@1.2.6"
+    },
+    {
+      "type": "library",
+      "name": "@radix-ui/react-tooltip",
+      "version": "1.2.0",
+      "purl": "pkg:npm/@radix-ui/react-tooltip@1.2.0"
+    },
+    {
+      "type": "library",
+      "name": "@reduxjs/toolkit",
+      "version": "2.8.1",
+      "purl": "pkg:npm/@reduxjs/toolkit@2.8.1"
+    },
+    {
+      "type": "library",
+      "name": "@sentry/node",
+      "version": "10.66.0",
+      "purl": "pkg:npm/@sentry/node@10.66.0"
+    },
+    {
+      "type": "library",
+      "name": "@supabase/supabase-js",
+      "version": "2.49.4",
+      "purl": "pkg:npm/@supabase/supabase-js@2.49.4"
+    },
+    {
+      "type": "library",
+      "name": "@tanstack/react-table",
+      "version": "8.10.6",
+      "purl": "pkg:npm/@tanstack/react-table@8.10.6"
+    },
+    {
+      "type": "library",
+      "name": "@tremor/react",
+      "version": "3.18.7",
+      "purl": "pkg:npm/@tremor/react@3.18.7"
+    },
+    {
+      "type": "library",
+      "name": "@types/leaflet",
+      "version": "1.9.21",
+      "purl": "pkg:npm/@types/leaflet@1.9.21"
+    },
+    {
+      "type": "library",
+      "name": "@types/multer",
+      "version": "2.0.0",
+      "purl": "pkg:npm/@types/multer@2.0.0"
+    },
+    {
+      "type": "library",
+      "name": "@types/node",
+      "version": "17.0.12",
+      "purl": "pkg:npm/@types/node@17.0.12"
+    },
+    {
+      "type": "library",
+      "name": "@types/react",
+      "version": "18.0.28",
+      "purl": "pkg:npm/@types/react@18.0.28"
+    },
+    {
+      "type": "library",
+      "name": "@types/react-datepicker",
+      "version": "6.2.0",
+      "purl": "pkg:npm/@types/react-datepicker@6.2.0"
+    },
+    {
+      "type": "library",
+      "name": "@types/react-dom",
+      "version": "18.0.11",
+      "purl": "pkg:npm/@types/react-dom@18.0.11"
+    },
+    {
+      "type": "library",
+      "name": "@types/stripe",
+      "version": "8.0.416",
+      "purl": "pkg:npm/@types/stripe@8.0.416"
+    },
+    {
+      "type": "library",
+      "name": "@types/uuid",
+      "version": "10.0.0",
+      "purl": "pkg:npm/@types/uuid@10.0.0"
+    },
+    {
+      "type": "library",
+      "name": "antd",
+      "version": "5.27.2",
+      "purl": "pkg:npm/antd@5.27.2"
+    },
+    {
+      "type": "library",
+      "name": "apexcharts",
+      "version": "5.3.4",
+      "purl": "pkg:npm/apexcharts@5.3.4"
+    },
+    {
+      "type": "library",
+      "name": "axios",
+      "version": "1.8.4",
+      "purl": "pkg:npm/axios@1.8.4"
+    },
+    {
+      "type": "library",
+      "name": "bcryptjs",
+      "version": "3.0.2",
+      "purl": "pkg:npm/bcryptjs@3.0.2"
+    },
+    {
+      "type": "library",
+      "name": "chart.js",
+      "version": "4.4.8",
+      "purl": "pkg:npm/chart.js@4.4.8"
+    },
+    {
+      "type": "library",
+      "name": "class-variance-authority",
+      "version": "0.7.0",
+      "purl": "pkg:npm/class-variance-authority@0.7.0"
+    },
+    {
+      "type": "library",
+      "name": "cls-hooked",
+      "version": "4.2.2",
+      "purl": "pkg:npm/cls-hooked@4.2.2"
+    },
+    {
+      "type": "library",
+      "name": "clsx",
+      "version": "2.0.0",
+      "purl": "pkg:npm/clsx@2.0.0"
+    },
+    {
+      "type": "library",
+      "name": "cmdk",
+      "version": "0.2.0",
+      "purl": "pkg:npm/cmdk@0.2.0"
+    },
+    {
+      "type": "library",
+      "name": "colors",
+      "version": "1.4.0",
+      "purl": "pkg:npm/colors@1.4.0"
+    },
+    {
+      "type": "library",
+      "name": "d3",
+      "version": "7.9.0",
+      "purl": "pkg:npm/d3@7.9.0"
+    },
+    {
+      "type": "library",
+      "name": "date-fns",
+      "version": "2.30.0",
+      "purl": "pkg:npm/date-fns@2.30.0"
+    },
+    {
+      "type": "library",
+      "name": "docx",
+      "version": "9.3.0",
+      "purl": "pkg:npm/docx@9.3.0"
+    },
+    {
+      "type": "library",
+      "name": "dotenv",
+      "version": "16.5.0",
+      "purl": "pkg:npm/dotenv@16.5.0"
+    },
+    {
+      "type": "library",
+      "name": "eslint",
+      "version": "7.32.0",
+      "purl": "pkg:npm/eslint@7.32.0"
+    },
+    {
+      "type": "library",
+      "name": "eslint-config-next",
+      "version": "13.2.3",
+      "purl": "pkg:npm/eslint-config-next@13.2.3"
+    },
+    {
+      "type": "library",
+      "name": "exceljs",
+      "version": "4.4.0",
+      "purl": "pkg:npm/exceljs@4.4.0"
+    },
+    {
+      "type": "library",
+      "name": "file-saver",
+      "version": "2.0.5",
+      "purl": "pkg:npm/file-saver@2.0.5"
+    },
+    {
+      "type": "library",
+      "name": "formidable",
+      "version": "3.5.1",
+      "purl": "pkg:npm/formidable@3.5.1"
+    },
+    {
+      "type": "library",
+      "name": "framer-motion",
+      "version": "12.6.3",
+      "purl": "pkg:npm/framer-motion@12.6.3"
+    },
+    {
+      "type": "library",
+      "name": "graceful-fs",
+      "version": "4.2.11",
+      "purl": "pkg:npm/graceful-fs@4.2.11"
+    },
+    {
+      "type": "library",
+      "name": "html2canvas",
+      "version": "1.4.1",
+      "purl": "pkg:npm/html2canvas@1.4.1"
+    },
+    {
+      "type": "library",
+      "name": "ioredis",
+      "version": "5.11.1",
+      "purl": "pkg:npm/ioredis@5.11.1"
+    },
+    {
+      "type": "library",
+      "name": "jspdf",
+      "version": "2.5.2",
+      "purl": "pkg:npm/jspdf@2.5.2"
+    },
+    {
+      "type": "library",
+      "name": "jspdf-autotable",
+      "version": "3.8.4",
+      "purl": "pkg:npm/jspdf-autotable@3.8.4"
+    },
+    {
+      "type": "library",
+      "name": "jwt-decode",
+      "version": "4.0.0",
+      "purl": "pkg:npm/jwt-decode@4.0.0"
+    },
+    {
+      "type": "library",
+      "name": "leaflet",
+      "version": "1.9.4",
+      "purl": "pkg:npm/leaflet@1.9.4"
+    },
+    {
+      "type": "library",
+      "name": "lucide-react",
+      "version": "0.284.0",
+      "purl": "pkg:npm/lucide-react@0.284.0"
+    },
+    {
+      "type": "library",
+      "name": "multer",
+      "version": "2.0.2",
+      "purl": "pkg:npm/multer@2.0.2"
+    },
+    {
+      "type": "library",
+      "name": "next",
+      "version": "15.2.3",
+      "purl": "pkg:npm/next@15.2.3"
+    },
+    {
+      "type": "library",
+      "name": "next-auth",
+      "version": "4.24.11",
+      "purl": "pkg:npm/next-auth@4.24.11"
+    },
+    {
+      "type": "library",
+      "name": "node-cache",
+      "version": "5.1.2",
+      "purl": "pkg:npm/node-cache@5.1.2"
+    },
+    {
+      "type": "library",
+      "name": "node-fetch",
+      "version": "3.3.2",
+      "purl": "pkg:npm/node-fetch@3.3.2"
+    },
+    {
+      "type": "library",
+      "name": "nodemailer",
+      "version": "8.0.1",
+      "purl": "pkg:npm/nodemailer@8.0.1"
+    },
+    {
+      "type": "library",
+      "name": "pdfkit",
+      "version": "0.19.1",
+      "purl": "pkg:npm/pdfkit@0.19.1"
+    },
+    {
+      "type": "library",
+      "name": "pg",
+      "version": "8.17.1",
+      "purl": "pkg:npm/pg@8.17.1"
+    },
+    {
+      "type": "library",
+      "name": "pg-hstore",
+      "version": "2.3.4",
+      "purl": "pkg:npm/pg-hstore@2.3.4"
+    },
+    {
+      "type": "library",
+      "name": "pino",
+      "version": "10.3.1",
+      "purl": "pkg:npm/pino@10.3.1"
+    },
+    {
+      "type": "library",
+      "name": "plotly.js",
+      "version": "3.0.1",
+      "purl": "pkg:npm/plotly.js@3.0.1"
+    },
+    {
+      "type": "library",
+      "name": "prom-client",
+      "version": "15.1.3",
+      "purl": "pkg:npm/prom-client@15.1.3"
+    },
+    {
+      "type": "library",
+      "name": "qrcode",
+      "version": "1.5.4",
+      "purl": "pkg:npm/qrcode@1.5.4"
+    },
+    {
+      "type": "library",
+      "name": "react",
+      "version": "18.2.0",
+      "purl": "pkg:npm/react@18.2.0"
+    },
+    {
+      "type": "library",
+      "name": "react-apexcharts",
+      "version": "1.7.0",
+      "purl": "pkg:npm/react-apexcharts@1.7.0"
+    },
+    {
+      "type": "library",
+      "name": "react-barcode",
+      "version": "1.4.6",
+      "purl": "pkg:npm/react-barcode@1.4.6"
+    },
+    {
+      "type": "library",
+      "name": "react-beautiful-dnd",
+      "version": "13.1.1",
+      "purl": "pkg:npm/react-beautiful-dnd@13.1.1"
+    },
+    {
+      "type": "library",
+      "name": "react-chartjs-2",
+      "version": "5.3.0",
+      "purl": "pkg:npm/react-chartjs-2@5.3.0"
+    },
+    {
+      "type": "library",
+      "name": "react-cropper",
+      "version": "2.3.3",
+      "purl": "pkg:npm/react-cropper@2.3.3"
+    },
+    {
+      "type": "library",
+      "name": "react-datepicker",
+      "version": "8.2.1",
+      "purl": "pkg:npm/react-datepicker@8.2.1"
+    },
+    {
+      "type": "library",
+      "name": "react-day-picker",
+      "version": "8.8.2",
+      "purl": "pkg:npm/react-day-picker@8.8.2"
+    },
+    {
+      "type": "library",
+      "name": "react-dom",
+      "version": "18.2.0",
+      "purl": "pkg:npm/react-dom@18.2.0"
+    },
+    {
+      "type": "library",
+      "name": "react-draggable",
+      "version": "4.4.6",
+      "purl": "pkg:npm/react-draggable@4.4.6"
+    },
+    {
+      "type": "library",
+      "name": "react-dropzone",
+      "version": "14.2.3",
+      "purl": "pkg:npm/react-dropzone@14.2.3"
+    },
+    {
+      "type": "library",
+      "name": "react-feather",
+      "version": "2.0.10",
+      "purl": "pkg:npm/react-feather@2.0.10"
+    },
+    {
+      "type": "library",
+      "name": "react-grid-layout",
+      "version": "2.2.2",
+      "purl": "pkg:npm/react-grid-layout@2.2.2"
+    },
+    {
+      "type": "library",
+      "name": "react-hook-form",
+      "version": "7.47.0",
+      "purl": "pkg:npm/react-hook-form@7.47.0"
+    },
+    {
+      "type": "library",
+      "name": "react-hot-toast",
+      "version": "2.5.2",
+      "purl": "pkg:npm/react-hot-toast@2.5.2"
+    },
+    {
+      "type": "library",
+      "name": "react-icons",
+      "version": "4.12.0",
+      "purl": "pkg:npm/react-icons@4.12.0"
+    },
+    {
+      "type": "library",
+      "name": "react-medium-image-zoom",
+      "version": "5.1.8",
+      "purl": "pkg:npm/react-medium-image-zoom@5.1.8"
+    },
+    {
+      "type": "library",
+      "name": "react-plotly.js",
+      "version": "2.6.0",
+      "purl": "pkg:npm/react-plotly.js@2.6.0"
+    },
+    {
+      "type": "library",
+      "name": "react-redux",
+      "version": "9.2.0",
+      "purl": "pkg:npm/react-redux@9.2.0"
+    },
+    {
+      "type": "library",
+      "name": "react-resizable",
+      "version": "3.1.3",
+      "purl": "pkg:npm/react-resizable@3.1.3"
+    },
+    {
+      "type": "library",
+      "name": "react-svg",
+      "version": "16.1.31",
+      "purl": "pkg:npm/react-svg@16.1.31"
+    },
+    {
+      "type": "library",
+      "name": "react-to-print",
+      "version": "2.15.1",
+      "purl": "pkg:npm/react-to-print@2.15.1"
+    },
+    {
+      "type": "library",
+      "name": "react-toastify",
+      "version": "11.0.5",
+      "purl": "pkg:npm/react-toastify@11.0.5"
+    },
+    {
+      "type": "library",
+      "name": "react-tooltip",
+      "version": "5.28.1",
+      "purl": "pkg:npm/react-tooltip@5.28.1"
+    },
+    {
+      "type": "library",
+      "name": "recharts",
+      "version": "2.15.3",
+      "purl": "pkg:npm/recharts@2.15.3"
+    },
+    {
+      "type": "library",
+      "name": "samlify",
+      "version": "2.13.1",
+      "purl": "pkg:npm/samlify@2.13.1"
+    },
+    {
+      "type": "library",
+      "name": "sass",
+      "version": "1.69.5",
+      "purl": "pkg:npm/sass@1.69.5"
+    },
+    {
+      "type": "library",
+      "name": "sequelize",
+      "version": "6.37.7",
+      "purl": "pkg:npm/sequelize@6.37.7"
+    },
+    {
+      "type": "library",
+      "name": "sonner",
+      "version": "2.0.3",
+      "purl": "pkg:npm/sonner@2.0.3"
+    },
+    {
+      "type": "library",
+      "name": "stripe",
+      "version": "20.3.1",
+      "purl": "pkg:npm/stripe@20.3.1"
+    },
+    {
+      "type": "library",
+      "name": "sweetalert2",
+      "version": "11.6.13",
+      "purl": "pkg:npm/sweetalert2@11.6.13"
+    },
+    {
+      "type": "library",
+      "name": "swr",
+      "version": "2.2.4",
+      "purl": "pkg:npm/swr@2.2.4"
+    },
+    {
+      "type": "library",
+      "name": "tailwind-merge",
+      "version": "1.14.0",
+      "purl": "pkg:npm/tailwind-merge@1.14.0"
+    },
+    {
+      "type": "library",
+      "name": "tailwind-scrollbar",
+      "version": "3.0.5",
+      "purl": "pkg:npm/tailwind-scrollbar@3.0.5"
+    },
+    {
+      "type": "library",
+      "name": "tailwindcss-animate",
+      "version": "1.0.7",
+      "purl": "pkg:npm/tailwindcss-animate@1.0.7"
+    },
+    {
+      "type": "library",
+      "name": "typescript",
+      "version": "4.9.5",
+      "purl": "pkg:npm/typescript@4.9.5"
+    },
+    {
+      "type": "library",
+      "name": "uuid",
+      "version": "11.1.0",
+      "purl": "pkg:npm/uuid@11.1.0"
+    },
+    {
+      "type": "library",
+      "name": "winston",
+      "version": "3.17.0",
+      "purl": "pkg:npm/winston@3.17.0"
+    },
+    {
+      "type": "library",
+      "name": "xlsx",
+      "version": "0.18.5",
+      "purl": "pkg:npm/xlsx@0.18.5"
+    },
+    {
+      "type": "library",
+      "name": "zod",
+      "version": "3.22.4",
+      "purl": "pkg:npm/zod@3.22.4"
+    },
+    {
+      "type": "library",
+      "name": "zustand",
+      "version": "4.4.3",
+      "purl": "pkg:npm/zustand@4.4.3"
+    },
+    {
+      "type": "library",
+      "name": "@playwright/test",
+      "version": "1.51.0",
+      "purl": "pkg:npm/@playwright/test@1.51.0"
+    },
+    {
+      "type": "library",
+      "name": "@testing-library/dom",
+      "version": "10.4.1",
+      "purl": "pkg:npm/@testing-library/dom@10.4.1"
+    },
+    {
+      "type": "library",
+      "name": "@testing-library/jest-dom",
+      "version": "6.6.3",
+      "purl": "pkg:npm/@testing-library/jest-dom@6.6.3"
+    },
+    {
+      "type": "library",
+      "name": "@testing-library/react",
+      "version": "16.3.0",
+      "purl": "pkg:npm/@testing-library/react@16.3.0"
+    },
+    {
+      "type": "library",
+      "name": "@types/cypress",
+      "version": "0.1.6",
+      "purl": "pkg:npm/@types/cypress@0.1.6"
+    },
+    {
+      "type": "library",
+      "name": "@types/file-saver",
+      "version": "2.0.5",
+      "purl": "pkg:npm/@types/file-saver@2.0.5"
+    },
+    {
+      "type": "library",
+      "name": "@types/formidable",
+      "version": "3.4.4",
+      "purl": "pkg:npm/@types/formidable@3.4.4"
+    },
+    {
+      "type": "library",
+      "name": "@types/jest",
+      "version": "29.5.14",
+      "purl": "pkg:npm/@types/jest@29.5.14"
+    },
+    {
+      "type": "library",
+      "name": "@types/nodemailer",
+      "version": "7.0.11",
+      "purl": "pkg:npm/@types/nodemailer@7.0.11"
+    },
+    {
+      "type": "library",
+      "name": "@types/pg",
+      "version": "8.16.0",
+      "purl": "pkg:npm/@types/pg@8.16.0"
+    },
+    {
+      "type": "library",
+      "name": "@types/qrcode",
+      "version": "1.5.6",
+      "purl": "pkg:npm/@types/qrcode@1.5.6"
+    },
+    {
+      "type": "library",
+      "name": "@types/react-beautiful-dnd",
+      "version": "13.1.8",
+      "purl": "pkg:npm/@types/react-beautiful-dnd@13.1.8"
+    },
+    {
+      "type": "library",
+      "name": "autoprefixer",
+      "version": "10.4.16",
+      "purl": "pkg:npm/autoprefixer@10.4.16"
+    },
+    {
+      "type": "library",
+      "name": "cypress",
+      "version": "14.3.2",
+      "purl": "pkg:npm/cypress@14.3.2"
+    },
+    {
+      "type": "library",
+      "name": "jest",
+      "version": "29.7.0",
+      "purl": "pkg:npm/jest@29.7.0"
+    },
+    {
+      "type": "library",
+      "name": "jest-environment-jsdom",
+      "version": "29.7.0",
+      "purl": "pkg:npm/jest-environment-jsdom@29.7.0"
+    },
+    {
+      "type": "library",
+      "name": "next-router-mock",
+      "version": "0.9.13",
+      "purl": "pkg:npm/next-router-mock@0.9.13"
+    },
+    {
+      "type": "library",
+      "name": "next-secure-headers",
+      "version": "2.2.0",
+      "purl": "pkg:npm/next-secure-headers@2.2.0"
+    },
+    {
+      "type": "library",
+      "name": "node-mocks-http",
+      "version": "1.16.2",
+      "purl": "pkg:npm/node-mocks-http@1.16.2"
+    },
+    {
+      "type": "library",
+      "name": "postcss",
+      "version": "8.4.31",
+      "purl": "pkg:npm/postcss@8.4.31"
+    },
+    {
+      "type": "library",
+      "name": "sequelize-cli",
+      "version": "6.6.2",
+      "purl": "pkg:npm/sequelize-cli@6.6.2"
+    },
+    {
+      "type": "library",
+      "name": "tailwindcss",
+      "version": "3.3.3",
+      "purl": "pkg:npm/tailwindcss@3.3.3"
+    },
+    {
+      "type": "library",
+      "name": "ts-jest",
+      "version": "29.3.2",
+      "purl": "pkg:npm/ts-jest@29.3.2"
+    }
+  ]
+}

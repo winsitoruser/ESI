@@ -73,6 +73,22 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           return res.json({ success: true, data: { profile, evidence, history } });
         }
         if (action === 'search' || action === 'list') {
+          try {
+            const { assertSearchScrapeLimit } = await import('@/lib/saas/otp-abuse');
+            const lim = await assertSearchScrapeLimit({
+              tenantId: String(tenantId),
+              userId: String(session.user.id),
+              surface: 'talent_bank',
+            });
+            if (!lim.allowed) {
+              return res.status(429).json({
+                success: false,
+                error: 'RATE_LIMIT_EXCEEDED',
+                message: 'Terlalu banyak pencarian Talent Bank',
+                retryAfter: lim.retryAfterSec,
+              });
+            }
+          } catch { /* fail-open */ }
           const q = String(req.query.q || '');
           const intent = req.query.intent ? String(req.query.intent) : undefined;
           const location = req.query.location ? String(req.query.location) : undefined;

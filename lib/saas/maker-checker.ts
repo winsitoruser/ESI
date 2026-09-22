@@ -52,6 +52,12 @@ export function canActAsChecker(role?: string | null): boolean {
   return CHECKER_ROLES.has(String(role || '').toLowerCase());
 }
 
+/** SEC-ABU-020 — separation of duties: maker ≠ checker */
+export function assertSeparationOfDuties(makerUserId?: string | null, checkerUserId?: string | null): boolean {
+  if (!makerUserId || !checkerUserId) return true;
+  return String(makerUserId) !== String(checkerUserId);
+}
+
 export async function submitMakerRequest(opts: {
   tenantId?: string | null;
   kind: string;
@@ -119,6 +125,9 @@ export async function decideMakerRequest(opts: {
   if (row.status !== 'pending') return { ok: false, status: row.status, error: 'Request sudah diputuskan' };
   if (opts.checkerUserId && String(row.maker_user_id) === String(opts.checkerUserId)) {
     return { ok: false, status: 'forbidden', error: 'Maker tidak boleh menjadi checker untuk request yang sama' };
+  }
+  if (!assertSeparationOfDuties(row.maker_user_id, opts.checkerUserId)) {
+    return { ok: false, status: 'forbidden', error: 'Pelanggaran separation of duties' };
   }
 
   if (!opts.approve) {

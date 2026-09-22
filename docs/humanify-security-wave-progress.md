@@ -5,33 +5,21 @@
 
 | Wave | Fokus | Status |
 |---|---|---|
-| 0 | Gap audit | Done |
-| 1 | Session/MFA/debug/AI redact/maker-checker/CI | Done |
-| 2 | Step-up / export audit / upload / backup GPG | Done |
-| 3 | DSR / SAST / risk-based auth | Done |
-| 4 | Login notify / bank alert / inventories | Done |
-| **5** | Attendance anti-cheat (server time, nonce, impossible travel) | Done |
-| **6** | Claim duplicate detection | Done |
-| **7** | Security monitor + abnormal export | Done |
-| **8** | Breach workflow + secure deletion script | Done |
-| **9** | Body-size gate + feature-flag permission | Done |
-| **10** | ASVS / KPI / threat-model / patch SLA / DNS ops checklist | Done |
+| 0–10 | Core defense (IAM→abuse→gov docs) | Done |
+| **11** | OTP abuse + Talent Bank search scrape limit | Done |
+| **12** | SoD helper + impersonation audit + fraud score | Done |
+| **13** | Log retention, SBOM, ISO readiness, awareness | Done |
+| **14** | CSP report endpoint + security regression pack | Done |
 
-## Wave 5–10 deliverables
+## Wave 11–14
 
 | Wave | ID | Deliverable |
 |---|---|---|
-| 5 | SEC-ABU-009…015 | `lib/hris/attendance-anti-cheat.ts` · `/api/humanify/attendance-challenge` · wired attendance POST |
-| 6 | SEC-ABU-019 | `lib/hris/claim-duplicate.ts` · employee claim create |
-| 7 | SEC-MON-012 | `lib/saas/security-monitor.ts` · export velocity |
-| 8 | SEC-IR-009 / DAT-009 | `docs/humanify-breach-notification.md` · `scripts/humanify-secure-deletion.js` |
-| 9 | SEC-API-006 / APP-013 | `lib/security/body-size.ts` · `lib/saas/feature-flag-gate.ts` |
-| 10 | GOV/VUL/PHI | ASVS, KPI, threat-model payroll, patch SLA, email-DNS ops checklist |
+| 11 | SEC-ABU-002/004 | `lib/saas/otp-abuse.ts` · MFA gate · talent search RL |
+| 12 | SEC-ABU-020/021 · TEN-012 | `assertSeparationOfDuties` · impersonate audit · `fraud-anomaly.ts` |
+| 13 | MON-017 · SDL-011 · GOV-010 · PHI-007 | log retention · SBOM script · ISO skeleton · awareness outline |
+| 14 | APP-011/012 | `/api/humanify/csp-report` · `npm run smoke:security-regression` |
 
-## Opt-in flags
+## Ops-only (manual)
 
-`HUMANIFY_ATTENDANCE_NONCE=true` · `HUMANIFY_CLAIM_DUP_BLOCK` · `HUMANIFY_SALARY_MAKER_CHECKER` · `HUMANIFY_STEP_UP_REQUIRED` · `BACKUP_GPG_PASSPHRASE`
-
-## Ops-only remaining
-
-Hardware MFA · registrar MFA · ISO/SOC2 · pen-test engagement · SPF/DKIM/DMARC DNS apply · SIEM · MDM.
+Hardware MFA · registrar MFA · SPF/DKIM/DMARC apply di Cloudflare · pen-test · SIEM · MDM · simulated phishing program.

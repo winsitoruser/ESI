@@ -1094,6 +1094,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (String(t.status) === 'suspended') {
         return res.status(400).json({ success: false, error: 'Tenant suspended — aktifkan dulu' });
       }
+      try {
+        const { logAdminAction } = await import('@/lib/saas/admin-audit');
+        await logAdminAction({
+          tenantId: t.id,
+          actorUserId: (req as any).session?.user?.id,
+          actorEmail: (req as any).session?.user?.email,
+          action: 'support.impersonate',
+          resourceType: 'tenant',
+          resourceId: String(t.id),
+          meta: { slug: t.slug, name: t.name },
+          ip: (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.socket.remoteAddress,
+        });
+      } catch { /* */ }
       return res.json({
         success: true,
         data: {
@@ -1109,6 +1122,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === 'POST' && action === 'end-impersonate') {
+      try {
+        const { logAdminAction } = await import('@/lib/saas/admin-audit');
+        await logAdminAction({
+          actorUserId: (req as any).session?.user?.id,
+          actorEmail: (req as any).session?.user?.email,
+          action: 'support.end_impersonate',
+          resourceType: 'tenant',
+          meta: {},
+        });
+      } catch { /* */ }
       return res.json({
         success: true,
         data: {

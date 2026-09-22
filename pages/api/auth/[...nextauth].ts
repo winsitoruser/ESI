@@ -270,6 +270,15 @@ export const authOptions: NextAuthOptions = {
               : false;
             const userMfaOn = await isMfaEnabled(user.id);
             if (userMfaOn) {
+              const { assertOtpAttemptAllowed } = await import('../../../lib/saas/otp-abuse');
+              const otpGate = await assertOtpAttemptAllowed({
+                userId: String(user.id),
+                email: String(user.email || ''),
+                ip,
+              });
+              if (!otpGate.allowed) {
+                throw new Error(`Terlalu banyak percobaan 2FA. Coba lagi dalam ${otpGate.retryAfterSec || 60} detik.`);
+              }
               const totp = String((credentials as any).totp || '').trim();
               if (!totp) {
                 throw new Error('MFA_REQUIRED');

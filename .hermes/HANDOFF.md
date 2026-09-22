@@ -1,8 +1,8 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 23 September 2026 — **Security Defense Waves 5–10 shipping**
+> Diperbarui: 23 September 2026 — **Security Defense Waves 11–14 shipping**
 
-Attendance anti-cheat, claim dup, security monitor, breach/deletion, body-size/feature-flag, ASVS/KPI/threat/patch docs.
+OTP abuse, search scrape limit, impersonation audit, fraud score, CSP report, SBOM, ISO/awareness docs, security regression pack.
 
 ---
 

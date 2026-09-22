@@ -157,3 +157,18 @@ describe('Wave7 export velocity', () => {
     expect(last.abnormal).toBe(true);
   });
 });
+
+describe('Wave12 SoD + fraud score', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { assertSeparationOfDuties } = require('@/lib/saas/maker-checker');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { scoreFraudAnomaly } = require('@/lib/saas/fraud-anomaly');
+  it('blocks same maker/checker', () => {
+    expect(assertSeparationOfDuties('a', 'a')).toBe(false);
+    expect(assertSeparationOfDuties('a', 'b')).toBe(true);
+  });
+  it('scores high anomaly', () => {
+    const r = scoreFraudAnomaly({ massChangeCount: 12, abnormalExports: 2, bankChangesPending: 4 });
+    expect(r.level).toBe('high');
+  });
+});

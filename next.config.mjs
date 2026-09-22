@@ -136,6 +136,14 @@ const nextConfig = {
           headers: [
             ...createSecureHeaders(),
             { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+            {
+              key: 'Report-To',
+              value: JSON.stringify({
+                group: 'csp',
+                max_age: 10886400,
+                endpoints: [{ url: '/api/humanify/csp-report' }],
+              }),
+            },
           ],
         },
       ];
