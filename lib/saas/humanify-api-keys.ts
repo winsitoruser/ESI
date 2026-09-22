@@ -20,10 +20,14 @@ export async function ensureApiKeysTable() {
       scopes TEXT[] NOT NULL DEFAULT ARRAY['employees:read'],
       last_used_at TIMESTAMPTZ,
       revoked_at TIMESTAMPTZ,
+      expires_at TIMESTAMPTZ,
       created_by UUID,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  await sequelize.query(`
+    ALTER TABLE saas_api_keys ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ
+  `).catch(() => {});
   await sequelize.query(`
     CREATE INDEX IF NOT EXISTS idx_saas_api_keys_tenant
     ON saas_api_keys (tenant_id) WHERE revoked_at IS NULL
@@ -50,6 +54,8 @@ export async function createApiKey(opts: {
   name: string;
   scopes?: string[];
   createdBy?: string | null;
+  /** Days until expiry; default 365. 0 = no expiry. */
+  expiresInDays?: number;
 }) {
   if (!sequelize) throw new Error('Database unavailable');
   await ensureApiKeysTable();
@@ -64,9 +70,15 @@ export async function createApiKey(opts: {
     opts.createdBy && /^[0-9a-f-]{36}$/i.test(String(opts.createdBy))
       ? String(opts.createdBy)
       : null;
+  const days = opts.expiresInDays != null
+    ? opts.expiresInDays
+    : Number(process.env.HUMANIFY_API_KEY_TTL_DAYS || 365);
+  const expiresAt = days > 0
+    ? new Date(Date.now() + days * 86_400_000).toISOString()
+    : null;
   await sequelize.query(`
-    INSERT INTO saas_api_keys (id, tenant_id, name, key_prefix, key_hash, scopes, created_by)
-    VALUES (:id, :tid, :name, :prefix, :hash, CAST(:scopes AS text[]), :uid)
+    INSERT INTO saas_api_keys (id, tenant_id, name, key_prefix, key_hash, scopes, created_by, expires_at)
+    VALUES (:id, :tid, :name, :prefix, :hash, CAST(:scopes AS text[]), :uid, :exp)
   `, {
     replacements: {
       id,
@@ -76,6 +88,7 @@ export async function createApiKey(opts: {
       hash: hashKey(raw),
       scopes: `{${scopes.map((s) => `"${s.replace(/"/g, '')}"`).join(',')}}`,
       uid: createdBy,
+      exp: expiresAt,
     },
   });
   return {
@@ -83,6 +96,7 @@ export async function createApiKey(opts: {
     name,
     prefix,
     scopes,
+    expiresAt,
     /** Shown once only */
     apiKey: raw,
   };
@@ -93,13 +107,34 @@ export async function listApiKeys(tenantId: string) {
   await ensureApiKeysTable();
   const [rows] = await sequelize.query(`
     SELECT id, name, key_prefix AS "keyPrefix", scopes, last_used_at AS "lastUsedAt",
-           revoked_at AS "revokedAt", created_at AS "createdAt"
+           revoked_at AS "revokedAt", expires_at AS "expiresAt", created_at AS "createdAt"
     FROM saas_api_keys
     WHERE tenant_id = :tid
     ORDER BY created_at DESC
     LIMIT 50
   `, { replacements: { tid: tenantId } });
   return rows || [];
+}
+
+/** SEC-API-010 — rotate: revoke old, mint new with same scopes/name */
+export async function rotateApiKey(tenantId: string, keyId: string, createdBy?: string | null) {
+  if (!sequelize) throw new Error('Database unavailable');
+  await ensureApiKeysTable();
+  const [rows] = await sequelize.query(`
+    SELECT id, name, scopes FROM saas_api_keys
+    WHERE id = :id AND tenant_id = :tid AND revoked_at IS NULL
+    LIMIT 1
+  `, { replacements: { id: keyId, tid: tenantId } });
+  const row = rows?.[0];
+  if (!row) throw new Error('API key tidak ditemukan atau sudah dicabut');
+  await revokeApiKey(tenantId, keyId);
+  const scopes = Array.isArray(row.scopes) ? row.scopes : [];
+  return createApiKey({
+    tenantId,
+    name: `${row.name} (rotated)`,
+    scopes,
+    createdBy,
+  });
 }
 
 export async function revokeApiKey(tenantId: string, keyId: string) {
@@ -132,17 +167,32 @@ export async function authenticateBearer(
   await ensureApiKeysTable();
   const hash = hashKey(m[1]);
   const [rows] = await sequelize.query(`
-    SELECT id, tenant_id AS "tenantId", name, scopes
+    SELECT id, tenant_id AS "tenantId", name, scopes, expires_at AS "expiresAt"
     FROM saas_api_keys
     WHERE key_hash = :hash AND revoked_at IS NULL
     LIMIT 1
   `, { replacements: { hash } });
   const row = rows?.[0];
   if (!row) return null;
+  if (row.expiresAt && new Date(row.expiresAt).getTime() < Date.now()) {
+    return null;
+  }
   const scopes: string[] = Array.isArray(row.scopes) ? row.scopes : [];
   if (requiredScope && !scopes.includes(requiredScope) && !scopes.includes('*')) {
     return null;
   }
+
+  // SEC-API-014 — per-tenant API quota
+  try {
+    const { checkRateLimitAsync } = await import('@/lib/middleware/rateLimit');
+    const max = Number(process.env.HUMANIFY_TENANT_API_QUOTA_PER_MIN || 120);
+    const q = await checkRateLimitAsync(`apiq:${row.tenantId}`, {
+      windowMs: 60_000,
+      maxRequests: max,
+    });
+    if (!q.allowed) return null;
+  } catch { /* fail-open */ }
+
   sequelize.query(
     `UPDATE saas_api_keys SET last_used_at = NOW() WHERE id = :id`,
     { replacements: { id: row.id } },

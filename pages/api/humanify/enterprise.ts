@@ -150,6 +150,16 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       return res.json({ success: true, data: result });
     }
 
+    if (req.method === 'POST' && action === 'rotate-api-key') {
+      const { rotateApiKey } = await import('@/lib/saas/humanify-api-keys');
+      const created = await rotateApiKey(tenantId!, String(req.body?.id || ''), userId || null);
+      return res.status(201).json({
+        success: true,
+        data: created,
+        message: 'Key lama dicabut. Simpan API key baru sekarang.',
+      });
+    }
+
     if (req.method === 'POST' && action === 'export-employees') {
       const format = String(req.body?.format || req.query.format || 'csv');
       if (format === 'json') {

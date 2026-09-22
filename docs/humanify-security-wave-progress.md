@@ -1,25 +1,25 @@
 # Humanify Security Defense — Wave Progress
 
 > Sumber: [`humanify-security-defense-master-checklist.txt`](./humanify-security-defense-master-checklist.txt)  
-> Diperbarui: 23 Sep 2026
+> Diperbarui: 23 Sep 2026 · **Closeout:** [`humanify-security-closeout.md`](./humanify-security-closeout.md)
 
 | Wave | Fokus | Status |
 |---|---|---|
-| 0–10 | Core defense (IAM→abuse→gov docs) | Done |
-| **11** | OTP abuse + Talent Bank search scrape limit | Done |
-| **12** | SoD helper + impersonation audit + fraud score | Done |
-| **13** | Log retention, SBOM, ISO readiness, awareness | Done |
-| **14** | CSP report endpoint + security regression pack | Done |
+| 0–14 | Core → OTP/CSP/SBOM | Done |
+| **15** | Tenant cache keys + job tenant ALS | Done |
+| **16** | API key expiry/rotate + per-tenant quota | Done |
+| **17** | Claim signed TTL + geofence flag + log redaction | Done |
+| **18** | DNS verify · pen-test readiness · closeout · PII mask | Done |
 
-## Wave 11–14
+## Wave 15–18
 
 | Wave | ID | Deliverable |
 |---|---|---|
-| 11 | SEC-ABU-002/004 | `lib/saas/otp-abuse.ts` · MFA gate · talent search RL |
-| 12 | SEC-ABU-020/021 · TEN-012 | `assertSeparationOfDuties` · impersonate audit · `fraud-anomaly.ts` |
-| 13 | MON-017 · SDL-011 · GOV-010 · PHI-007 | log retention · SBOM script · ISO skeleton · awareness outline |
-| 14 | APP-011/012 | `/api/humanify/csp-report` · `npm run smoke:security-regression` |
+| 15 | TEN-009/011 | `tenant-cache.ts` · `job-tenant-context.ts` |
+| 16 | API-010/014 | `expires_at` · `rotateApiKey` · tenant API quota |
+| 17 | APP-016 · ABU-010 · MON-009 | claim TTL clamp · geofence in punch risk · `redact-secrets-log.ts` |
+| 18 | PHI/VUL/DAT | `verify-humanify-dns-email.sh` · pentest readiness · closeout · `mask-test-pii.js` |
 
-## Ops-only (manual)
+## Ops remaining
 
-Hardware MFA · registrar MFA · SPF/DKIM/DMARC apply di Cloudflare · pen-test · SIEM · MDM · simulated phishing program.
+Hardware MFA · registrar MFA · apply SPF/DKIM/DMARC · pen-test vendor · SIEM · MDM · ISO cert.

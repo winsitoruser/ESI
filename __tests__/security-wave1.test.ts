@@ -172,3 +172,31 @@ describe('Wave12 SoD + fraud score', () => {
     expect(r.level).toBe('high');
   });
 });
+
+describe('Wave15 tenant cache + job context', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { tenantCacheKey, assertTenantCacheKey } = require('@/lib/saas/tenant-cache');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { runWithTenantContext, requireJobTenantId } = require('@/lib/saas/job-tenant-context');
+  it('scopes cache keys', () => {
+    const k = tenantCacheKey('tenant-1', 'employees', 'list');
+    expect(k).toContain('tenant-1');
+    expect(assertTenantCacheKey(k, 'tenant-1')).toBe(true);
+    expect(assertTenantCacheKey(k, 'tenant-2')).toBe(false);
+  });
+  it('requires job tenant', () => {
+    expect(() => requireJobTenantId()).toThrow();
+    const v = runWithTenantContext({ tenantId: 't1', jobName: 'test' }, () => requireJobTenantId());
+    expect(v).toBe('t1');
+  });
+});
+
+describe('Wave17 log redaction', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { redactSecretsForLog } = require('@/lib/security/redact-secrets-log');
+  it('redacts bearer and keys', () => {
+    const out = redactSecretsForLog('Authorization: Bearer abc.def password=secret123');
+    expect(out).not.toContain('abc.def');
+    expect(out).toMatch(/REDACTED/);
+  });
+});

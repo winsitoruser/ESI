@@ -116,12 +116,14 @@ export function claimKeyWithoutPrefix(storageKey: string): string {
  * - Browser (client): session cookie auth — no HMAC (secret is server-only).
  * - Server: short-lived HMAC for email / unauthenticated contexts.
  */
-export function buildSignedClaimUrl(storageKey: string, ttlSec = 3600): string {
+export function buildSignedClaimUrl(storageKey: string, ttlSec = 900): string {
   const key = claimKeyWithoutPrefix(storageKey);
   if (typeof window !== 'undefined') {
     return `/api/humanify/claim-file?key=${encodeURIComponent(key)}`;
   }
-  const exp = Math.floor(Date.now() / 1000) + ttlSec;
+  // SEC-APP-016 — clamp TTL (default 15m, max 1h)
+  const ttl = Math.max(60, Math.min(3600, ttlSec || 900));
+  const exp = Math.floor(Date.now() / 1000) + ttl;
   const payload = `${key}.${exp}`;
   const sig = createHmac('sha256', signSecret()).update(payload).digest('hex').slice(0, 32);
   return `/api/humanify/claim-file?key=${encodeURIComponent(key)}&exp=${exp}&sig=${sig}`;

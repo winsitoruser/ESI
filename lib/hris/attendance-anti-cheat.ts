@@ -78,6 +78,7 @@ export function assessAttendancePunch(opts: {
   rooted?: boolean | null;
   emulator?: boolean | null;
   previous?: { lat: number; lng: number; atMs: number } | null;
+  fence?: { lat: number; lng: number; radiusM?: number } | null;
 }): AttendanceRisk {
   const flags: string[] = [];
   let score = 0;
@@ -109,6 +110,29 @@ export function assessAttendancePunch(opts: {
   if (opts.emulator) {
     flags.push('emulator');
     score += 20;
+  }
+
+  // SEC-ABU-010 — optional server geofence (lat/lng + fence center/radius)
+  if (
+    opts.fence &&
+    opts.lat != null &&
+    opts.lng != null &&
+    Number.isFinite(opts.lat) &&
+    Number.isFinite(opts.lng)
+  ) {
+    try {
+      const { haversineMeters } = require('./geofence-utils');
+      const dist = haversineMeters(
+        Number(opts.lat),
+        Number(opts.lng),
+        opts.fence.lat,
+        opts.fence.lng,
+      );
+      if (dist > (opts.fence.radiusM || 200)) {
+        flags.push('outside_geofence');
+        score += 35;
+      }
+    } catch { /* */ }
   }
 
   if (

@@ -105,6 +105,12 @@ has('docs/humanify-log-retention.md', /Log Retention/, 'SEC-MON-017 log retentio
 has('docs/humanify-iso-soc2-readiness.md', /ISO 27001/, 'SEC-GOV-010 ISO readiness');
 has('scripts/smoke-test-humanify-security-regression.js', /Security regression/, 'SEC-APP-012 regression pack');
 has('scripts/generate-humanify-sbom.js', /CycloneDX/, 'SEC-SDL-011 SBOM');
+has('lib/saas/tenant-cache.ts', /tenantCacheKey/, 'SEC-TEN-009 tenant cache');
+has('lib/saas/job-tenant-context.ts', /runWithTenantContext/, 'SEC-TEN-011 job tenant context');
+has('lib/saas/humanify-api-keys.ts', /rotateApiKey/, 'SEC-API-010 API key rotate');
+has('lib/security/redact-secrets-log.ts', /redactSecretsForLog/, 'SEC-MON-009 log secret redact');
+has('scripts/verify-humanify-dns-email.sh', /DMARC/, 'SEC-PHI DNS verify');
+has('docs/humanify-security-closeout.md', /Closeout/, 'Security closeout Waves 0-18');
 has('scripts/deploy-humanify-vps.sh', /HUMANIFY_SEED_DEMO/, 'PR-030 demo seed gated');
 has('scripts/humanify-healthcheck.sh', /\/api\/health/, 'PR-028 health endpoint in post-deploy');
 has('scripts/run-humanify-gate-ae.sh', /E-backup-freshness/, 'PR-025 Gate E backup check');
