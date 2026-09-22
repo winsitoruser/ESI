@@ -1,11 +1,12 @@
 /**
  * Humanify billing API
- * GET  ?action=plans|current|invoice|voucher-preview
- * POST ?action=checkout|sync-order|confirm-manual|dunning-scan
+ * GET  ?action=plans|current|invoice|voucher-preview|ai-tokens
+ * POST ?action=checkout|sync-order|confirm-manual|dunning-scan|ai-token-topup
  */
 import type { NextApiRequest, NextApiResponse } from 'next';
 import {
   activatePaidOrder,
+  createAiTokenTopupCheckout,
   createHumanifyCheckout,
   getMidtransPublicConfig,
   getPaidOrderInvoice,
@@ -17,6 +18,7 @@ import {
   runDunningScan,
   syncOrderFromMidtrans,
 } from '@/lib/saas/humanify-billing';
+import { aiTokenPublicPricing, quoteAiTokenTopup } from '@/lib/saas/ai-token-pricing';
 import { computeVoucherDiscount, findBillingVoucherByCode } from '@/lib/saas/billing-vouchers';
 import { applyPlanChange, previewPlanChange } from '@/lib/saas/plan-change';
 import { isPlatformOperator } from '@/lib/middleware/tenantIsolation';
@@ -43,8 +45,36 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         data: {
           plans,
           seatPricing: plans[0]?.seatPricing || null,
+          aiTokenPricing: aiTokenPublicPricing(),
           midtrans,
           midtransConfigured: midtrans.configured,
+        },
+      });
+    }
+
+    if (req.method === 'GET' && action === 'ai-tokens') {
+      if (!tenantId) return res.status(400).json({ success: false, error: 'No tenant' });
+      const status = await getTenantBillingStatus(tenantId);
+      return res.json({
+        success: true,
+        data: {
+          aiTokens: status?.aiTokens || null,
+          paidModules: status?.paidModules || null,
+          pricing: aiTokenPublicPricing(),
+        },
+      });
+    }
+
+    if (req.method === 'GET' && action === 'ai-token-quote') {
+      const packs = Number(req.query.packs || req.body?.packs || 1);
+      const q = quoteAiTokenTopup(packs);
+      return res.json({
+        success: true,
+        data: {
+          packs: q.packs,
+          tokens: q.tokens,
+          sellIdr: q.sellIdr,
+          pricing: aiTokenPublicPricing(),
         },
       });
     }
@@ -80,6 +110,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       const addons = {
         lms: String(req.query.lms || '') === '1' || String(req.query.lms || '').toLowerCase() === 'true',
         ai: String(req.query.ai || '') === '1' || String(req.query.ai || '').toLowerCase() === 'true',
+        ats: String(req.query.ats || '') === '1' || String(req.query.ats || '').toLowerCase() === 'true',
+        talentBank: String(req.query.talentBank || req.query.talent_bank || '') === '1'
+          || String(req.query.talentBank || req.query.talent_bank || '').toLowerCase() === 'true',
       };
       const data = await quoteHumanifyCheckout({
         tenantId,
@@ -164,7 +197,14 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         interval,
         voucherCode,
         seats: seats != null ? Number(seats) : undefined,
-        addons: addons && typeof addons === 'object' ? { lms: Boolean(addons.lms), ai: Boolean(addons.ai) } : undefined,
+        addons: addons && typeof addons === 'object'
+          ? {
+              lms: Boolean(addons.lms),
+              ai: Boolean(addons.ai),
+              ats: Boolean(addons.ats),
+              talentBank: Boolean(addons.talentBank),
+            }
+          : undefined,
         customerName: (session.user as any).name || (session.user as any).businessName,
         customerEmail: session.user.email || undefined,
         successUrl: `${origin}/humanify/billing?paid=1`,
@@ -213,6 +253,28 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
       const result = await activatePaidOrder(code, { raw: { via: 'manual', by: session.user.email } });
       return res.json({ success: true, message: result.alreadyPaid ? 'Sudah terbayar' : 'Paket diaktifkan', data: result });
+    }
+
+    if (req.method === 'POST' && action === 'ai-token-topup') {
+      if (!tenantId) return res.status(400).json({ success: false, error: 'No tenant' });
+      const packs = Number(req.body?.packs || 1);
+      if (!Number.isFinite(packs) || packs < 1) {
+        return res.status(400).json({ success: false, error: 'packs minimal 1 (1 pak = 1.000 token)' });
+      }
+      const checkout = await createAiTokenTopupCheckout({
+        tenantId,
+        packs,
+        customer: {
+          email: session.user.email || undefined,
+          firstName: (session.user as any).name || undefined,
+        },
+        forceManual: Boolean(req.body?.forceManual) && (
+          isPlatformOperator(role)
+          || process.env.HUMANIFY_BILLING_ALLOW_MANUAL === 'true'
+          || !process.env.MIDTRANS_SERVER_KEY
+        ),
+      });
+      return res.status(201).json({ success: true, data: checkout });
     }
 
     if (req.method === 'POST' && action === 'dunning-scan') {

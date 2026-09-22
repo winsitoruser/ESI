@@ -128,6 +128,19 @@ export default function AimanAppFloatingChat() {
         ]);
         return;
       }
+      if (res.status === 402 || json?.code === 'AI_TOKEN_REQUIRED') {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            content:
+              json?.error
+              || 'Saldo token AIMAN habis atau perlu top-up. Buka Billing untuk membeli token tambahan (Rp 50.000 / 1.000 token).',
+            ctas: [{ href: '/humanify/billing', label: 'Beli token di Billing', description: 'Top-up AIMAN' }],
+          },
+        ]);
+        return;
+      }
       const reply = json?.data?.reply || json?.error || 'Maaf, AIMAN sedang sibuk. Coba lagi sebentar.';
       setMessages((prev) => [
         ...prev,

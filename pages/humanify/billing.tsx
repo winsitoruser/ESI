@@ -71,6 +71,85 @@ function BillingSkeleton() {
   );
 }
 
+function AiTokenTopupPanel({
+  acting,
+  setActing,
+  openSnap,
+  onDone,
+  midtransConfigured,
+}: {
+  acting: string | null;
+  setActing: (v: string | null) => void;
+  openSnap: (token: string, orderCode: string, redirectUrl?: string | null) => boolean;
+  onDone: () => void;
+  midtransConfigured: boolean;
+}) {
+  const [packs, setPacks] = useState(1);
+  const sellIdr = packs * 50_000;
+  const tokens = packs * 1_000;
+
+  async function buy() {
+    setActing('ai-topup');
+    try {
+      const res = await fetch('/api/humanify/billing?action=ai-token-topup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ packs }),
+      });
+      const j = await res.json();
+      if (!j.success) throw new Error(j.error || 'Gagal buat order token');
+      const d = j.data;
+      if (d.snapToken) {
+        const ok = openSnap(d.snapToken, d.orderCode, d.redirectUrl);
+        if (!ok) toast.error('Snap belum siap — refresh halaman lalu coba lagi');
+      } else if (d.provider === 'manual') {
+        toast.success(`Order ${d.orderCode} dibuat (${formatIdr(d.amountIdr)}). Konfirmasi pembayaran via support.`);
+        onDone();
+      } else {
+        toast.error('Checkout token gagal — Midtrans belum tersedia');
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Gagal top-up token');
+    } finally {
+      setActing(null);
+    }
+  }
+
+  return (
+    <div className="space-y-3 rounded-[var(--hf-radius-lg)] border border-[var(--hf-border)] bg-white p-3">
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="text-xs font-medium text-[color:var(--hf-ink-muted)]">
+          Jumlah pak (1 pak = 1.000 token)
+          <input
+            type="number"
+            min={1}
+            max={100}
+            value={packs}
+            onChange={(e) => setPacks(Math.max(1, Math.min(100, Number(e.target.value) || 1)))}
+            className="hf-input mt-1 block w-28 text-sm"
+          />
+        </label>
+        <div className="flex-1 text-sm text-[color:var(--hf-ink-secondary)]">
+          <p className="font-semibold tabular-nums text-[color:var(--hf-ink)]">{formatIdr(sellIdr)}</p>
+          <p className="text-xs">{tokens.toLocaleString('id-ID')} token · Rp 50.000 / 1.000</p>
+        </div>
+        <button
+          type="button"
+          disabled={!!acting}
+          onClick={buy}
+          className="hf-btn-primary inline-flex items-center gap-1.5 text-sm disabled:opacity-50"
+        >
+          {acting === 'ai-topup' ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+          Beli token
+        </button>
+      </div>
+      {!midtransConfigured ? (
+        <p className="text-xs text-amber-800">Midtrans belum aktif — order manual akan dibuat untuk konfirmasi ops.</p>
+      ) : null}
+    </div>
+  );
+}
+
 export default function HumanifyBillingPage() {
   const { data: session, status, update } = useSession();
   const router = useRouter();
@@ -360,7 +439,7 @@ export default function HumanifyBillingPage() {
             </Link>
           }
         >
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
             <OpsKpiShell>
             <HRStatCard
               label="Paket aktif"
@@ -368,6 +447,25 @@ export default function HumanifyBillingPage() {
               sub={`Status: ${current?.status || '—'}`}
               icon={Sparkles}
               accent="violet"
+            />
+            </OpsKpiShell>
+            <OpsKpiShell>
+            <HRStatCard
+              label="Token AIMAN"
+              value={
+                current?.aiTokens
+                  ? Number(current.aiTokens.balance || 0).toLocaleString('id-ID')
+                  : '—'
+              }
+              sub={
+                current?.aiTokens
+                  ? `Terpakai ${Number(current.aiTokens.used || 0).toLocaleString('id-ID')}${
+                      current.aiTokens.topupRequired ? ' · perlu top-up' : ''
+                    }`
+                  : 'Aktifkan add-on AIMAN'
+              }
+              icon={Sparkles}
+              accent="cyan"
             />
             </OpsKpiShell>
             <OpsKpiShell>
@@ -391,6 +489,106 @@ export default function HumanifyBillingPage() {
             />
             </OpsKpiShell>
           </div>
+
+          {/* Paid modules + AIMAN tokens */}
+          <section className="grid gap-4 lg:grid-cols-2">
+            <div className="hf-card space-y-4 p-5 sm:p-6">
+              <div>
+                <p className="hf-section-label">Modul berbayar</p>
+                <h3 className="mt-1 text-base font-semibold text-[color:var(--hf-ink)]">Add-on aktif</h3>
+                <p className="mt-1 text-sm text-[color:var(--hf-ink-muted)]">
+                  ATS, Bank Data, LMS, dan AIMAN dibeli terpisah dari paket inti.
+                </p>
+              </div>
+              <ul className="space-y-2">
+                {[
+                  current?.paidModules?.ats,
+                  current?.paidModules?.talentBank,
+                  current?.paidModules?.lms,
+                  current?.paidModules?.ai,
+                ].filter(Boolean).map((m: any) => (
+                  <li
+                    key={m.key}
+                    className="flex items-center justify-between gap-3 rounded-[var(--hf-radius-lg)] border border-[var(--hf-border)] bg-[var(--hf-surface-muted)] px-3 py-2.5 text-sm"
+                  >
+                    <div>
+                      <p className="font-medium text-[color:var(--hf-ink)]">{m.label}</p>
+                      <p className="text-xs text-[color:var(--hf-ink-muted)]">
+                        {m.monthlyIdr != null
+                          ? `${formatIdr(m.monthlyIdr)} / bulan`
+                          : `${formatIdr(m.perUserIdr || 0)} / user / bulan`}
+                      </p>
+                    </div>
+                    <span
+                      className={`rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                        m.enabled
+                          ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                          : 'border-slate-200 bg-white text-slate-500'
+                      }`}
+                    >
+                      {m.enabled ? 'Aktif' : 'Off'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-[color:var(--hf-ink-faint)]">
+                Aktifkan add-on lewat checkout di bawah (centang modul yang dibutuhkan).
+              </p>
+            </div>
+
+            <div className="hf-card space-y-4 p-5 sm:p-6">
+              <div>
+                <p className="hf-section-label">AIMAN</p>
+                <h3 className="mt-1 text-base font-semibold text-[color:var(--hf-ink)]">Penggunaan token</h3>
+                <p className="mt-1 text-sm text-[color:var(--hf-ink-muted)]">
+                  Add-on AIMAN termasuk 10.000 token. Setelah pemakaian ≥ 5.000 token tanpa pembelian top-up,
+                  Anda perlu membeli token tambahan (Rp 50.000 / 1.000 token).
+                </p>
+              </div>
+              {current?.aiTokens ? (
+                <>
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="rounded-[var(--hf-radius-lg)] bg-[var(--hf-brand-50)] px-2 py-3">
+                      <p className="text-lg font-semibold tabular-nums text-[color:var(--hf-brand-600)]">
+                        {Number(current.aiTokens.balance || 0).toLocaleString('id-ID')}
+                      </p>
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-[color:var(--hf-ink-muted)]">Saldo</p>
+                    </div>
+                    <div className="rounded-[var(--hf-radius-lg)] bg-slate-50 px-2 py-3">
+                      <p className="text-lg font-semibold tabular-nums text-[color:var(--hf-ink)]">
+                        {Number(current.aiTokens.used || 0).toLocaleString('id-ID')}
+                      </p>
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-[color:var(--hf-ink-muted)]">Terpakai</p>
+                    </div>
+                    <div className="rounded-[var(--hf-radius-lg)] bg-slate-50 px-2 py-3">
+                      <p className="text-lg font-semibold tabular-nums text-[color:var(--hf-ink)]">
+                        {Number(current.aiTokens.includedGranted || 0).toLocaleString('id-ID')}
+                      </p>
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-[color:var(--hf-ink-muted)]">Termasuk</p>
+                    </div>
+                  </div>
+                  {current.aiTokens.topupRequired || current.aiTokens.used >= 4000 ? (
+                    <p className={`text-xs ${current.aiTokens.topupRequired ? 'text-rose-700' : 'text-amber-800'}`}>
+                      {current.aiTokens.topupRequired
+                        ? 'Top-up token diperlukan untuk lanjut memakai AIMAN.'
+                        : 'Pemakaian mendekati batas 5.000 — pertimbangkan beli token tambahan.'}
+                    </p>
+                  ) : null}
+                  <AiTokenTopupPanel
+                    acting={acting}
+                    setActing={setActing}
+                    openSnap={openSnap}
+                    onDone={() => { void update(); load(); }}
+                    midtransConfigured={midtransConfigured}
+                  />
+                </>
+              ) : (
+                <p className="text-sm text-[color:var(--hf-ink-muted)]">
+                  Belum ada wallet token. Aktifkan add-on AIMAN di checkout untuk mendapat 10.000 token.
+                </p>
+              )}
+            </div>
+          </section>
 
           {current &&
             (current.trialExpired ||
@@ -505,7 +703,8 @@ export default function HumanifyBillingPage() {
               <p className="hf-section-label">Perbandingan</p>
               <h3 className="mt-1 text-base font-semibold text-[color:var(--hf-ink)]">Matriks fitur paket</h3>
               <p className="mt-1 text-sm text-[color:var(--hf-ink-muted)]">
-                Entitlement resmi Humanify. LMS (+Rp 1.500/karyawan) dan AIMAN (+Rp 65.000/bulan) adalah add-on.
+                Entitlement resmi Humanify. ATS (+Rp 2.000/user), Bank Data (+Rp 1.500/user), LMS (+Rp 1.500/user),
+                dan AIMAN (+Rp 65.000/bulan + 10.000 token) adalah add-on berbayar.
               </p>
             </div>
             <div className="overflow-x-auto">
@@ -543,7 +742,7 @@ export default function HumanifyBillingPage() {
                       </td>
                       {(['starter', 'growth', 'enterprise'] as HumanifyPlanId[]).map((pid) => {
                         const on = HUMANIFY_PLANS[pid].features.includes(feat);
-                        const addOn = feat === 'lms' || feat === 'ai';
+                        const addOn = feat === 'lms' || feat === 'ai' || feat === 'recruitment' || feat === 'talent_bank';
                         const active = current?.plan === pid;
                         return (
                           <td
@@ -612,7 +811,9 @@ export default function HumanifyBillingPage() {
                     {current.orders.map((o: any) => (
                       <tr key={o.id} className="border-t border-[var(--hf-border-subtle)] hover:bg-slate-50/80">
                         <td className="px-6 py-3 font-mono text-xs text-[color:var(--hf-ink)]">{o.order_code}</td>
-                        <td className="px-4 py-3 capitalize text-[color:var(--hf-ink-secondary)]">{o.plan}</td>
+                        <td className="px-4 py-3 capitalize text-[color:var(--hf-ink-secondary)]">
+                          {o.plan === 'ai_token_topup' ? 'Token AIMAN' : o.plan}
+                        </td>
                         <td className="px-4 py-3 tabular-nums font-medium text-[color:var(--hf-ink)]">
                           {formatIdr(o.amount_idr)}
                         </td>

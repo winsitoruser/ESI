@@ -695,7 +695,7 @@ export default function BillingCheckoutWizard({
                       <Sparkles className="h-3.5 w-3.5" /> AIMAN Copilot
                     </span>
                     <span className="block text-xs text-[color:var(--hf-ink-muted)]">
-                      +{formatIdr(selectedPlan.seatPricing?.aiMonthlyIdr || 65000)} / bulan (flat)
+                      +{formatIdr(selectedPlan.seatPricing?.aiMonthlyIdr || 65000)} / bulan · termasuk 10.000 token AIMAN
                     </span>
                   </span>
                 </label>

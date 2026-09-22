@@ -1332,11 +1332,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const plans = await listPlanCatalog();
       const { getSeatPricingRates } = await import('@/lib/saas/seat-pricing');
       const seatPricing = await getSeatPricingRates();
+      const { aiTokenAdminPricing } = await import('@/lib/saas/ai-token-pricing');
       return res.json({
         success: true,
         data: {
           plans,
           seatPricing,
+          aiTokenPricing: aiTokenAdminPricing(),
           featureOrder: HUMANIFY_FEATURE_ORDER,
           featureLabels: HUMANIFY_FEATURE_LABELS,
         },
@@ -1558,17 +1560,38 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             HUMANIFY_FEATURE_ORDER.includes(f as HumanifyFeature),
           )
         : undefined;
-      const row = await upsertPlanCatalog({
-        planId,
-        name: body.name,
-        description: body.description,
-        priceMonthlyIdr: body.priceMonthlyIdr != null ? Number(body.priceMonthlyIdr) : undefined,
-        priceYearlyIdr: body.priceYearlyIdr != null ? Number(body.priceYearlyIdr) : undefined,
-        maxUsers: body.maxUsers != null ? Number(body.maxUsers) : undefined,
-        maxEmployees: body.maxEmployees != null ? Number(body.maxEmployees) : undefined,
-        features,
-      });
-      return res.json({ success: true, data: row, message: `Paket ${planId} diperbarui` });
+      try {
+        const row = await upsertPlanCatalog({
+          planId,
+          name: body.name != null ? String(body.name) : undefined,
+          description: body.description != null ? String(body.description) : undefined,
+          priceMonthlyIdr: body.priceMonthlyIdr != null ? Number(body.priceMonthlyIdr) : undefined,
+          priceYearlyIdr: body.priceYearlyIdr != null ? Number(body.priceYearlyIdr) : undefined,
+          maxUsers: body.maxUsers != null ? Number(body.maxUsers) : undefined,
+          maxEmployees: body.maxEmployees != null ? Number(body.maxEmployees) : undefined,
+          features,
+        });
+        try {
+          const { logAdminAction } = await import('@/lib/saas/admin-audit');
+          await logAdminAction({
+            actorUserId: (session.user as any)?.id != null ? String((session.user as any).id) : null,
+            actorEmail: String((session.user as any)?.email || 'platform_ops'),
+            action: 'billing.plan_catalog',
+            resourceType: 'plan_catalog',
+            resourceId: planId,
+            ip: String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim() || null,
+            meta: {
+              name: body.name,
+              features,
+              maxUsers: body.maxUsers,
+              maxEmployees: body.maxEmployees,
+            },
+          });
+        } catch { /* audit best-effort */ }
+        return res.json({ success: true, data: row, message: `Paket ${planId} diperbarui` });
+      } catch (e: any) {
+        return res.status(400).json({ success: false, error: e?.message || 'Gagal menyimpan paket' });
+      }
     }
 
     if (req.method === 'PATCH' && action === 'seat-pricing') {
@@ -1580,6 +1603,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         pricePerUserOver1000Idr: body.pricePerUserOver1000Idr != null ? Number(body.pricePerUserOver1000Idr) : undefined,
         lmsPerUserIdr: body.lmsPerUserIdr != null ? Number(body.lmsPerUserIdr) : undefined,
         aiMonthlyIdr: body.aiMonthlyIdr != null ? Number(body.aiMonthlyIdr) : undefined,
+        atsPerUserIdr: body.atsPerUserIdr != null ? Number(body.atsPerUserIdr) : undefined,
+        talentBankPerUserIdr: body.talentBankPerUserIdr != null ? Number(body.talentBankPerUserIdr) : undefined,
         yearlyDiscountPct: body.yearlyDiscountPct != null ? Number(body.yearlyDiscountPct) : undefined,
       });
       return res.json({ success: true, data: row, message: 'Harga per karyawan diperbarui' });

@@ -56,6 +56,12 @@ has('pages/api/employee/manager.ts', /assertPendingOnTeam/, 'PR-019 manager team
 has('lib/saas/fail-closed.ts', /mustFailClosed/, 'PR-022 fail-closed helper');
 has('lib/hris/aiman-agent.ts', /aiman\.agent_confirm_attempt/, 'PR-033 AIMAN audit before write');
 has('lib/hris/ai-service.ts', /payroll\/compliance numbers stay rule-engine/, 'PR-032 payroll not LLM');
+has('lib/saas/ai-token-pricing.ts', /AI_INCLUDED_TOKENS = 10_000/, 'AIMAN included 10k tokens');
+has('lib/saas/ai-token-pricing.ts', /AI_TOPUP_TRIGGER_USED = 5_000/, 'AIMAN top-up trigger 5k');
+has('lib/saas/ai-token-pricing.ts', /AI_TOPUP_SELL_IDR_PER_PACK = 50_000/, 'AIMAN top-up sell 50k/1k');
+has('lib/saas/ai-token-pricing.ts', /AI_PROFIT_RATIO = 5/, 'AIMAN admin margin 1:5');
+has('pages/api/humanify/billing.ts', /ai-token-topup/, 'billing AI token top-up action');
+has('pages/api/humanify/ai-hub.ts', /AI_TOKEN_REQUIRED/, 'ai-hub gates on token wallet');
 has('scripts/deploy-humanify-vps.sh', /HUMANIFY_SEED_DEMO/, 'PR-030 demo seed gated');
 has('scripts/humanify-healthcheck.sh', /\/api\/health/, 'PR-028 health endpoint in post-deploy');
 has('scripts/run-humanify-gate-ae.sh', /E-backup-freshness/, 'PR-025 Gate E backup check');

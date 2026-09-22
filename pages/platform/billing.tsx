@@ -244,6 +244,46 @@ export default function PlatformBillingPage() {
       maxEmployees: plan.maxEmployees,
       features: [...(plan.features || [])],
     });
+    // Scroll edit panel into view after paint
+    setTimeout(() => {
+      document.getElementById('plan-edit-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+  }
+
+  async function togglePlanFeature(plan: any, feature: string) {
+    const current: string[] = [...(plan.features || [])];
+    const next = current.includes(feature)
+      ? current.filter((f) => f !== feature)
+      : [...current, feature];
+    if (!next.includes('core')) next.unshift('core');
+    setActing(`matrix-${plan.id}-${feature}`);
+    try {
+      const r = await fetch('/api/platform?action=plan-catalog', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          planId: plan.id,
+          name: plan.name,
+          description: plan.description,
+          priceMonthlyIdr: plan.priceMonthlyIdr,
+          priceYearlyIdr: plan.priceYearlyIdr,
+          maxUsers: plan.maxUsers,
+          maxEmployees: plan.maxEmployees,
+          features: next,
+        }),
+      });
+      const j = await r.json();
+      setToast(j.message || (j.success ? `Modul ${feature} diperbarui` : j.error));
+      if (j.success) {
+        if (editingPlan === plan.id && planDraft) {
+          setPlanDraft({ ...planDraft, features: next });
+        }
+        load();
+      }
+    } finally {
+      setActing(null);
+      setTimeout(() => setToast(''), 2500);
+    }
   }
 
   async function saveSeatRates() {
@@ -426,7 +466,7 @@ export default function PlatformBillingPage() {
               <OpsPieChart data={planMixPie} />
             </OpsChartCard>
             <OpsChartCard title="Paid revenue trend" subtitle="Area · 12 bulan" className="lg:col-span-2">
-              <OpsAreaChart data={revenueArea} xKey="x" yKey="y" yLabel="Revenue" height={260} />
+              <OpsAreaChart data={revenueArea} xKey="x" yKey="y" yLabel="Revenue" height={260} format="idr" />
             </OpsChartCard>
           </div>
           <OpsPanel title="Pembayaran terbaru" description="Order paid — cari, filter, paginasi, export.">
@@ -711,6 +751,15 @@ export default function PlatformBillingPage() {
 
       {tab === 'plans' && (
         <div className="space-y-4">
+          <div className="rounded-xl border border-violet-200 bg-violet-50/60 px-4 py-3 text-sm text-slate-700">
+            <p className="font-semibold text-slate-900">Cara kustom paket</p>
+            <ul className="mt-1 list-disc space-y-0.5 pl-4 text-xs text-slate-600">
+              <li><strong>Harga per karyawan</strong> — rate card Midtrans/checkout (satu untuk semua paket).</li>
+              <li><strong>Paket (Starter/Growth/Enterprise)</strong> — bedakan modul & kuota; klik Edit atau centang matriks di bawah.</li>
+              <li>Override tersimpan di DB (`saas_plan_catalog`) dan dipakai entitlement + checkout display.</li>
+            </ul>
+          </div>
+
           <OpsPanel
             title="Harga per karyawan"
             description="Semua paket memakai rate card yang sama. Volume all-units: 251 kursi seluruhnya di tarif 251+."
@@ -728,6 +777,12 @@ export default function PlatformBillingPage() {
                 </label>
                 <label className="text-xs text-slate-600">LMS (IDR/orang)
                   <input type="number" className="mt-1 block w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" value={seatDraft.lmsPerUserIdr} onChange={(e) => setSeatDraft({ ...seatDraft, lmsPerUserIdr: Number(e.target.value) })} />
+                </label>
+                <label className="text-xs text-slate-600">ATS (IDR/orang)
+                  <input type="number" className="mt-1 block w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" value={seatDraft.atsPerUserIdr ?? 2000} onChange={(e) => setSeatDraft({ ...seatDraft, atsPerUserIdr: Number(e.target.value) })} />
+                </label>
+                <label className="text-xs text-slate-600">Bank Data (IDR/orang)
+                  <input type="number" className="mt-1 block w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" value={seatDraft.talentBankPerUserIdr ?? 1500} onChange={(e) => setSeatDraft({ ...seatDraft, talentBankPerUserIdr: Number(e.target.value) })} />
                 </label>
                 <label className="text-xs text-slate-600">AIMAN Copilot (IDR/bulan)
                   <input type="number" className="mt-1 block w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" value={seatDraft.aiMonthlyIdr} onChange={(e) => setSeatDraft({ ...seatDraft, aiMonthlyIdr: Number(e.target.value) })} />
@@ -750,98 +805,144 @@ export default function PlatformBillingPage() {
           </OpsPanel>
 
           <OpsPanel
-            title="Fitur paket"
-            description="Starter / Growth / Enterprise membedakan modul, bukan harga satuan. LMS dan AIMAN dijual sebagai add-on."
+            title="AIMAN token — harga jual vs COGS (internal)"
+            description="Margin 1:5 tidak ditampilkan ke tenant. Hanya admin Humanify yang melihat biaya asli."
           >
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              {(catalog?.plans || []).map((p: any) => (
-                <div key={p.id} className="rounded-xl border border-slate-200 p-4">
-                  <div className="mb-2 flex items-start justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-semibold capitalize text-slate-900">{p.name}</p>
-                      <p className="text-[11px] text-slate-500">{p.description}</p>
-                    </div>
-                    <OpsBadge tone={p.overridden ? 'brand' : 'neutral'}>{p.overridden ? 'custom' : 'default'}</OpsBadge>
-                  </div>
-                  <p className="text-sm text-slate-600">{(p.features || []).length} modul termasuk</p>
-                  <p className="text-[11px] text-slate-500">Kuota referensi {p.maxUsers} users · {p.maxEmployees} employees</p>
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {(p.features || []).map((f: string) => (
-                      <span key={f} className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-800">
-                        {catalog?.featureLabels?.[f] || f}
-                      </span>
-                    ))}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => startEditPlan(p)}
-                    className="mt-3 text-xs font-medium text-[color:var(--hf-brand-600)] hover:underline"
-                  >
-                    Edit harga & modul →
-                  </button>
+            {catalog?.aiTokenPricing ? (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 text-sm">
+                <div className="rounded-xl border border-slate-200 bg-white px-3 py-3">
+                  <p className="text-[11px] uppercase tracking-wide text-slate-500">Jual / 1.000 token</p>
+                  <p className="mt-1 text-lg font-semibold tabular-nums">{idr(catalog.aiTokenPricing.packSellIdr)}</p>
                 </div>
-              ))}
-            </div>
+                <div className="rounded-xl border border-amber-200 bg-amber-50/70 px-3 py-3">
+                  <p className="text-[11px] uppercase tracking-wide text-amber-800">COGS / 1.000 (1:5)</p>
+                  <p className="mt-1 text-lg font-semibold tabular-nums text-amber-950">{idr(catalog.aiTokenPricing.packCostIdr)}</p>
+                </div>
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 py-3">
+                  <p className="text-[11px] uppercase tracking-wide text-emerald-800">Margin / pak</p>
+                  <p className="mt-1 text-lg font-semibold tabular-nums text-emerald-900">
+                    {idr(catalog.aiTokenPricing.marginIdrPerPack)}
+                    <span className="ml-1 text-xs font-medium">({catalog.aiTokenPricing.marginPct}%)</span>
+                  </p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                  <p className="text-[11px] uppercase tracking-wide text-slate-500">Included / trigger</p>
+                  <p className="mt-1 text-sm font-medium text-slate-800">
+                    {Number(catalog.aiTokenPricing.includedTokens).toLocaleString('id-ID')} token
+                    <span className="block text-xs text-slate-500">
+                      Top-up wajib setelah {Number(catalog.aiTokenPricing.topupTriggerUsed).toLocaleString('id-ID')} terpakai
+                    </span>
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">Muat ulang katalog untuk melihat pricing token.</p>
+            )}
+            <p className="mt-3 text-xs text-slate-500">
+              Tenant hanya melihat harga jual Rp 50.000 / 1.000 token. Rasio keuntungan 5:1 (COGS = jual ÷ 5) disembunyikan dari /api/humanify/*.
+            </p>
+          </OpsPanel>
+
+          <OpsPanel
+            title="Kustom paket & modul"
+            description="Starter / Growth / Enterprise membedakan modul & kuota. LMS, ATS, Bank Data, dan AIMAN tetap add-on di checkout."
+          >
+            {!catalog?.plans?.length ? (
+              <p className="text-sm text-amber-700">Katalog belum termuat. Coba Segarkan — pastikan login sebagai super_admin.</p>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                {(catalog.plans as any[]).map((p: any) => (
+                  <div
+                    key={p.id}
+                    className={`rounded-xl border p-4 transition ${editingPlan === p.id ? 'border-violet-400 ring-2 ring-violet-100' : 'border-slate-200'}`}
+                  >
+                    <div className="mb-2 flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold capitalize text-slate-900">{p.name}</p>
+                        <p className="text-[11px] text-slate-500">{p.description}</p>
+                      </div>
+                      <OpsBadge tone={p.overridden ? 'brand' : 'neutral'}>{p.overridden ? 'custom' : 'default'}</OpsBadge>
+                    </div>
+                    <p className="text-sm text-slate-600">{(p.features || []).length} modul termasuk</p>
+                    <p className="text-[11px] text-slate-500">Kuota {Number(p.maxUsers || 0).toLocaleString('id-ID')} users · {Number(p.maxEmployees || 0).toLocaleString('id-ID')} employees</p>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {(p.features || []).map((f: string) => (
+                        <span key={f} className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-800">
+                          {catalog?.featureLabels?.[f] || f}
+                        </span>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => startEditPlan(p)}
+                      className="mt-3 inline-flex items-center rounded-lg bg-[color:var(--hf-brand-600)] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
+                    >
+                      Edit & kustom paket
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </OpsPanel>
 
           {editingPlan && planDraft && (
-            <OpsPanel title={`Edit paket: ${editingPlan}`} description="Centang modul yang termasuk dalam paket.">
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <label className="text-xs text-slate-600">Nama
-                  <input className="mt-1 block w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" value={planDraft.name} onChange={(e) => setPlanDraft({ ...planDraft, name: e.target.value })} />
-                </label>
-                <label className="text-xs text-slate-600">Harga bulanan (IDR)
-                  <input type="number" className="mt-1 block w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" value={planDraft.priceMonthlyIdr} onChange={(e) => setPlanDraft({ ...planDraft, priceMonthlyIdr: Number(e.target.value) })} />
-                </label>
-                <label className="text-xs text-slate-600">Harga tahunan (IDR)
-                  <input type="number" className="mt-1 block w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" value={planDraft.priceYearlyIdr} onChange={(e) => setPlanDraft({ ...planDraft, priceYearlyIdr: Number(e.target.value) })} />
-                </label>
-                <label className="text-xs text-slate-600">Max users
-                  <input type="number" className="mt-1 block w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" value={planDraft.maxUsers} onChange={(e) => setPlanDraft({ ...planDraft, maxUsers: Number(e.target.value) })} />
-                </label>
-                <label className="text-xs text-slate-600">Max employees
-                  <input type="number" className="mt-1 block w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" value={planDraft.maxEmployees} onChange={(e) => setPlanDraft({ ...planDraft, maxEmployees: Number(e.target.value) })} />
-                </label>
-                <label className="text-xs text-slate-600 md:col-span-2">Deskripsi
-                  <textarea className="mt-1 block w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" rows={2} value={planDraft.description} onChange={(e) => setPlanDraft({ ...planDraft, description: e.target.value })} />
-                </label>
-              </div>
-              <div className="mt-4">
-                <p className="mb-2 text-xs font-semibold text-slate-700">Akses modul</p>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {(catalog?.featureOrder || []).map((f: string) => {
-                    const on = planDraft.features.includes(f);
-                    return (
-                      <label key={f} className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm cursor-pointer ${on ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
-                        <input
-                          type="checkbox"
-                          checked={on}
-                          onChange={(e) => {
-                            const next = e.target.checked
-                              ? [...planDraft.features, f]
-                              : planDraft.features.filter((x: string) => x !== f);
-                            setPlanDraft({ ...planDraft, features: next });
-                          }}
-                        />
-                        <span>{catalog?.featureLabels?.[f] || f}</span>
-                        {on ? <CheckCircle2 className="ml-auto h-3.5 w-3.5 text-emerald-600" /> : <XCircle className="ml-auto h-3.5 w-3.5 text-slate-300" />}
-                      </label>
-                    );
-                  })}
+            <div id="plan-edit-panel">
+              <OpsPanel title={`Edit paket: ${planDraft.name || editingPlan}`} description="Ubah nama, kuota, dan centang modul. Harga Midtrans tetap dari rate card di atas.">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <label className="text-xs text-slate-600">Nama
+                    <input className="mt-1 block w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" value={planDraft.name} onChange={(e) => setPlanDraft({ ...planDraft, name: e.target.value })} />
+                  </label>
+                  <label className="text-xs text-slate-600">Max users
+                    <input type="number" className="mt-1 block w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" value={planDraft.maxUsers} onChange={(e) => setPlanDraft({ ...planDraft, maxUsers: Number(e.target.value) })} />
+                  </label>
+                  <label className="text-xs text-slate-600">Max employees
+                    <input type="number" className="mt-1 block w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" value={planDraft.maxEmployees} onChange={(e) => setPlanDraft({ ...planDraft, maxEmployees: Number(e.target.value) })} />
+                  </label>
+                  <label className="text-xs text-slate-600 md:col-span-2">Deskripsi
+                    <textarea className="mt-1 block w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" rows={2} value={planDraft.description} onChange={(e) => setPlanDraft({ ...planDraft, description: e.target.value })} />
+                  </label>
                 </div>
-              </div>
-              <div className="mt-4 flex gap-2">
-                <button type="button" onClick={savePlan} disabled={acting === planDraft.planId} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50">
-                  {acting === planDraft.planId ? 'Menyimpan…' : 'Simpan paket'}
-                </button>
-                <button type="button" onClick={() => { setEditingPlan(null); setPlanDraft(null); }} className="rounded-xl border border-slate-200 px-4 py-2 text-sm hover:bg-slate-50">
-                  Batal
-                </button>
-              </div>
-            </OpsPanel>
+                <div className="mt-4">
+                  <p className="mb-2 text-xs font-semibold text-slate-700">Akses modul</p>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {(catalog?.featureOrder || []).map((f: string) => {
+                      const on = planDraft.features.includes(f);
+                      const lockedCore = f === 'core';
+                      return (
+                        <label key={f} className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm cursor-pointer ${on ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white'} ${lockedCore ? 'opacity-80' : ''}`}>
+                          <input
+                            type="checkbox"
+                            checked={on}
+                            disabled={lockedCore}
+                            onChange={(e) => {
+                              if (lockedCore) return;
+                              const next = e.target.checked
+                                ? [...planDraft.features, f]
+                                : planDraft.features.filter((x: string) => x !== f);
+                              if (!next.includes('core')) next.unshift('core');
+                              setPlanDraft({ ...planDraft, features: next });
+                            }}
+                          />
+                          <span>{catalog?.featureLabels?.[f] || f}</span>
+                          {on ? <CheckCircle2 className="ml-auto h-3.5 w-3.5 text-emerald-600" /> : <XCircle className="ml-auto h-3.5 w-3.5 text-slate-300" />}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <button type="button" onClick={savePlan} disabled={acting === planDraft.planId} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50">
+                    {acting === planDraft.planId ? 'Menyimpan…' : 'Simpan paket'}
+                  </button>
+                  <button type="button" onClick={() => { setEditingPlan(null); setPlanDraft(null); }} className="rounded-xl border border-slate-200 px-4 py-2 text-sm hover:bg-slate-50">
+                    Batal
+                  </button>
+                </div>
+              </OpsPanel>
+            </div>
           )}
 
-          <OpsPanel title="Matriks akses modul" description="Centang = termasuk di paket (setelah simpan override).">
+          <OpsPanel title="Matriks akses modul" description="Klik ikon untuk on/off langsung (auto-save). Core selalu aktif.">
             <div className="-mx-1 overflow-x-auto">
               <table className="w-full min-w-[640px] text-sm">
                 <thead className="bg-slate-50 text-left text-[11px] uppercase text-slate-500">
@@ -856,15 +957,28 @@ export default function PlatformBillingPage() {
                   {(catalog?.featureOrder || []).map((f: string) => (
                     <tr key={f}>
                       <td className="px-3 py-2 text-slate-700">{catalog?.featureLabels?.[f] || f}</td>
-                      {(catalog?.plans || []).map((p: any) => (
-                        <td key={p.id} className="px-3 py-2 text-center">
-                          {(p.features || []).includes(f) ? (
-                            <CheckCircle2 className="inline h-4 w-4 text-emerald-600" />
-                          ) : (
-                            <span className="text-slate-300">—</span>
-                          )}
-                        </td>
-                      ))}
+                      {(catalog?.plans || []).map((p: any) => {
+                        const on = (p.features || []).includes(f);
+                        const busy = acting === `matrix-${p.id}-${f}`;
+                        const locked = f === 'core';
+                        return (
+                          <td key={p.id} className="px-3 py-2 text-center">
+                            <button
+                              type="button"
+                              disabled={locked || busy}
+                              title={locked ? 'Core wajib' : on ? 'Klik untuk nonaktifkan' : 'Klik untuk aktifkan'}
+                              onClick={() => togglePlanFeature(p, f)}
+                              className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border transition disabled:cursor-default ${
+                                on
+                                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                                  : 'border-slate-200 bg-white text-slate-300 hover:bg-slate-50 hover:text-slate-500'
+                              } ${busy ? 'opacity-50' : ''}`}
+                            >
+                              {on ? <CheckCircle2 className="h-4 w-4" /> : <span className="text-sm">—</span>}
+                            </button>
+                          </td>
+                        );
+                      })}
                     </tr>
                   ))}
                 </tbody>

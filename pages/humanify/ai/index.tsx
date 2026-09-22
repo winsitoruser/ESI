@@ -95,6 +95,15 @@ export default function AiHubPage() {
             }),
           });
           const data = await res.json();
+          if (res.status === 402 || data?.code === 'AI_TOKEN_REQUIRED') {
+            setChatHistory((prev) => [...prev, {
+              role: 'assistant',
+              content: data?.error
+                || 'Saldo token AIMAN habis atau perlu top-up. Buka Billing untuk membeli token tambahan.',
+              ctas: [{ href: '/humanify/billing', label: 'Beli token di Billing', description: 'Top-up AIMAN' }],
+            }]);
+            return;
+          }
           if (data.success) {
             setChatHistory((prev) => [...prev, {
               role: 'assistant',

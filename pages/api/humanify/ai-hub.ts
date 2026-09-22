@@ -151,6 +151,41 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       if (action === 'chat') {
         const { message, history, pendingTools } = req.body || {};
         if (!message?.trim()) return res.status(400).json({ success: false, error: 'message required' });
+
+        let reservedTokens = 0;
+        if (tenantId) {
+          try {
+            const { assertAiTokensAvailable, consumeAiTokens } = await import('@/lib/saas/ai-token-wallet');
+            const { estimateBillableTokens } = await import('@/lib/saas/ai-token-pricing');
+            const gate = await assertAiTokensAvailable(tenantId);
+            if (!gate.ok) {
+              return res.status(402).json({
+                success: false,
+                error: gate.error || 'Token AIMAN tidak tersedia',
+                code: 'AI_TOKEN_REQUIRED',
+                data: { aiTokens: gate.snapshot },
+              });
+            }
+            // Reserve min billable before LLM so we don't deliver free replies
+            reservedTokens = estimateBillableTokens(String(message), 120);
+            const reserved = await consumeAiTokens(tenantId, reservedTokens);
+            if (!reserved.ok) {
+              return res.status(402).json({
+                success: false,
+                error: reserved.error || 'Saldo token AIMAN tidak cukup',
+                code: 'AI_TOKEN_REQUIRED',
+              });
+            }
+          } catch (e) {
+            console.warn('[ai-hub] token gate', (e as Error)?.message || e);
+            return res.status(503).json({
+              success: false,
+              error: 'Pengecekan token AIMAN gagal. Coba lagi sebentar.',
+              code: 'AI_TOKEN_GATE_ERROR',
+            });
+          }
+        }
+
         await saveConversation({ tenantId, userId, role: 'user', message, source: 'user' });
         const result = await chatWithCopilot({
           message,
@@ -164,6 +199,33 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           tenantId, userId, role: 'assistant', message: result.reply,
           module: result.module, source: result.source,
         });
+
+        if (tenantId) {
+          try {
+            const { estimateBillableTokens } = await import('@/lib/saas/ai-token-pricing');
+            const { consumeAiTokens } = await import('@/lib/saas/ai-token-wallet');
+            const total = estimateBillableTokens(
+              `${String(message)}\n${String(result?.reply || '')}`,
+              120,
+            );
+            const extra = Math.max(0, total - reservedTokens);
+            if (extra > 0) {
+              const consumed = await consumeAiTokens(tenantId, extra);
+              if (consumed.ok) {
+                (result as any).tokensUsed = total;
+                (result as any).aiTokens = {
+                  balance: consumed.wallet.balance,
+                  used: consumed.wallet.used,
+                };
+              } else {
+                (result as any).tokensUsed = reservedTokens;
+              }
+            } else {
+              (result as any).tokensUsed = reservedTokens;
+            }
+          } catch { /* best-effort settle */ }
+        }
+
         return res.json({ success: true, data: result });
       }
 

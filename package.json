@@ -118,6 +118,7 @@
     "smoke:phase2-entitlement": "node scripts/smoke-test-saas-phase2-entitlement.js",
     "smoke:phase3-metrics": "node scripts/smoke-test-saas-phase3-metrics.js",
     "smoke:phase4-billing": "node scripts/smoke-test-saas-phase4-billing.js",
+    "smoke:ai-token-billing": "node scripts/smoke-test-humanify-ai-token-billing.js",
     "smoke:phase5-enterprise": "node scripts/smoke-test-saas-phase5-enterprise.js",
     "smoke:phase5b-support": "node scripts/smoke-test-saas-phase5b-support.js",
     "smoke:phase6-seats": "node scripts/smoke-test-saas-phase6-seats.js",

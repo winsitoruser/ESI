@@ -1,5 +1,41 @@
 # Handoff — SIMESI (fka ESI ERP)
 
+> Diperbarui: 23 September 2026 — **Billing AIMAN token + paid modules DEPLOYED**
+
+Prod https://humanify.id/humanify/billing — add-on ATS/Bank Data/LMS/AIMAN + wallet token AIMAN.
+
+| Aturan | Nilai |
+|---|---|
+| Included AI addon | 10.000 token |
+| Trigger top-up | ≥ 5.000 used tanpa pembelian |
+| Jual top-up | Rp 50.000 / 1.000 token |
+| Margin admin 1:5 | COGS = jual÷5 — hanya `/platform/billing` |
+
+Smoke: `npm run smoke:ai-token-billing` (static 39/39) · live `SMOKE_LIVE=1 SMOKE_BASE_URL=https://humanify.id`.
+Deploy VPS OK (health + PM2 online). Belum git commit (working tree campur fitur lain).
+
+---
+
+# Handoff — SIMESI (fka ESI ERP)
+
+> Diperbarui: 23 September 2026 — **Billing: paid addons + AIMAN token wallet (local)**
+
+`/humanify/billing` — modul berbayar (ATS / Bank Data / LMS / AIMAN) + wallet token AIMAN.
+
+| Aturan | Nilai |
+|---|---|
+| Included saat AI addon | 10.000 token |
+| Trigger top-up | pemakaian ≥ 5.000 tanpa pembelian top-up |
+| Harga jual top-up | Rp 50.000 / 1.000 token |
+| Margin admin (1:5) | COGS = jual ÷ 5 — **hanya** `/platform/billing` + `aiTokenAdminPricing()` |
+
+File kunci: `lib/saas/ai-token-pricing.ts`, `lib/saas/ai-token-wallet.ts`, `pages/humanify/billing.tsx`, `pages/platform/billing.tsx`, API `?action=ai-token-topup`, meter di `ai-hub` chat.
+Unit: `__tests__/ai-token-pricing.test.ts` PASS. Deploy prod: butuh `VPS_SSH_KEY`/`VPS_PASS` (belum dijalankan di sesi ini).
+
+---
+
+# Handoff — SIMESI (fka ESI ERP)
+
 > Diperbarui: 22 September 2026 — **Talent Intelligence DEPLOYED + UAT green** (`3a772dc`)
 
 Prod https://humanify.id/humanify/talent-bank · unit 25 · talent smoke 13/13 local+prod · page crawl 82 · capacity p95 843ms · portals stress 18/18.

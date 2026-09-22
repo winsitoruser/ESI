@@ -603,6 +603,29 @@ export async function activatePaidOrder(orderCodeOrId: string, opts?: { raw?: an
     return { alreadyPaid: true, order };
   }
 
+  // ── AI token top-up (does not change subscription plan) ───────────────
+  if (String(order.plan) === 'ai_token_topup') {
+    const { creditAiTokenTopup, AI_TOPUP_PACK_TOKENS } = await import('./ai-token-wallet');
+    const packs = Math.max(1, Number(order.billed_seats) || 1);
+    const tokens = packs * AI_TOPUP_PACK_TOKENS;
+    await creditAiTokenTopup(String(order.tenant_id), tokens, {
+      orderCode: order.order_code,
+      sellIdr: Number(order.amount_idr) || packs * 50_000,
+    });
+    await sequelize.query(`
+      UPDATE saas_billing_orders
+      SET status = 'paid', paid_at = NOW(), updated_at = NOW(),
+          raw = COALESCE(raw, '{}'::jsonb) || CAST(:raw AS jsonb)
+      WHERE id = :oid
+    `, {
+      replacements: {
+        oid: order.id,
+        raw: JSON.stringify(opts?.raw || { activatedAt: new Date().toISOString(), kind: 'ai_token_topup' }),
+      },
+    });
+    return { alreadyPaid: false, order: { ...order, status: 'paid', plan: 'ai_token_topup' } };
+  }
+
   const plan = normalizeHumanifyPlan(order.plan);
   const interval = order.interval === 'yearly' ? 'yearly' : 'monthly';
   const cols = await getTenantColumns();
@@ -630,6 +653,17 @@ export async function activatePaidOrder(orderCodeOrId: string, opts?: { raw?: an
       addons: parseOrderAddons(order.addons),
     });
   } catch { /* settings column optional */ }
+
+  // Grant / refill included AIMAN tokens when AI addon present on subscription order
+  try {
+    const addons = parseOrderAddons(order.addons);
+    if (addons.ai) {
+      const { ensureAiIncludedOnAddonPurchase } = await import('./ai-token-wallet');
+      await ensureAiIncludedOnAddonPurchase(String(order.tenant_id));
+    }
+  } catch (e) {
+    console.warn('[billing] ai included grant', (e as Error)?.message || e);
+  }
 
   await sequelize.query(`
     UPDATE saas_billing_orders
@@ -812,6 +846,18 @@ export async function getTenantBillingStatus(tenantId: string) {
     String(t.status || '').toLowerCase() === 'trial' ||
     (trialEndsAt && trialDaysLeft != null && trialDaysLeft >= 0 && planId === 'trial');
 
+  const rates = await getSeatPricingRates();
+  let aiTokens: any = null;
+  try {
+    const { getAiTokenWallet, toPublicAiTokenSnapshot, grantAiIncludedTokens } = await import('./ai-token-wallet');
+    if (billing.addons.ai || planId === 'trial') {
+      const w0 = await getAiTokenWallet(tenantId);
+      if (w0.includedGranted <= 0) await grantAiIncludedTokens(tenantId);
+    }
+    const w = await getAiTokenWallet(tenantId);
+    aiTokens = toPublicAiTokenSnapshot(w);
+  } catch { aiTokens = null; }
+
   return {
     plan: planId,
     planName: HUMANIFY_PLANS[planId].name,
@@ -824,12 +870,143 @@ export async function getTenantBillingStatus(tenantId: string) {
     trialExpired: Boolean(trialEndsAt && trialDaysLeft != null && trialDaysLeft < 0),
     billedSeats: billing.billedSeats,
     addons: billing.addons,
+    aiTokens,
+    paidModules: {
+      lms: { key: 'lms', label: 'LMS', perUserIdr: rates.lmsPerUserIdr, enabled: billing.addons.lms },
+      ats: { key: 'ats', label: 'ATS / Rekrutmen', perUserIdr: rates.atsPerUserIdr, enabled: billing.addons.ats },
+      talentBank: { key: 'talentBank', label: 'Bank Data Talent', perUserIdr: rates.talentBankPerUserIdr, enabled: billing.addons.talentBank },
+      ai: { key: 'ai', label: 'AIMAN Copilot', monthlyIdr: rates.aiMonthlyIdr, enabled: billing.addons.ai || planId === 'trial' },
+    },
     orders: (orders || []).map((o: any) => ({
       ...o,
       snap_token: o.status === 'pending' ? o.snap_token : undefined,
     })),
     ...getMidtransPublicConfig(),
     midtransConfigured: isMidtransConfigured(),
+  };
+}
+
+/** Checkout Snap for AIMAN token top-up packs (Rp 50rb / 1.000 token). */
+export async function createAiTokenTopupCheckout(opts: {
+  tenantId: string;
+  packs: number;
+  customer?: { email?: string; firstName?: string; phone?: string };
+  forceManual?: boolean;
+}) {
+  if (!sequelize) throw new Error('Database unavailable');
+  await ensureBillingOrdersTable();
+
+  // Top-up only for tenants with AIMAN (addon or trial)
+  const cols = await getTenantColumns();
+  const selectBits = [
+    cols.has('subscription_plan') ? 'subscription_plan' : null,
+    cols.has('status') ? 'status' : null,
+    'settings',
+  ].filter(Boolean);
+  const [trows] = await sequelize.query(
+    `SELECT ${selectBits.join(', ')} FROM tenants WHERE id = :id LIMIT 1`,
+    { replacements: { id: opts.tenantId } },
+  );
+  const t = trows?.[0] || {};
+  const planId = normalizeHumanifyPlan(cols.has('subscription_plan') ? t.subscription_plan : 'trial');
+  const billing = parseTenantBillingState(t.settings);
+  const hasAi = billing.addons.ai || planId === 'trial' || String(t.status || '').toLowerCase() === 'trial';
+  if (!hasAi) {
+    const err: any = new Error('Aktifkan add-on AIMAN dulu sebelum membeli token.');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const { quoteAiTokenTopup } = await import('./ai-token-pricing');
+  const q = quoteAiTokenTopup(opts.packs);
+  const amount = q.sellIdr;
+  const packs = q.packs;
+  const tokens = q.tokens;
+
+  const id = crypto.randomUUID();
+  const orderCode = `HF-TOK-${Date.now().toString(36).toUpperCase()}-${packs}`;
+  let snapToken: string | null = null;
+  let redirectUrl: string | null = null;
+  let provider: 'midtrans' | 'manual' = 'manual';
+
+  const wantMidtrans = isMidtransConfigured() && !opts.forceManual;
+  if (wantMidtrans) {
+    try {
+      const finishUrl = 'https://humanify.id/humanify/billing?paid=1&tokenTopup=1';
+      const snap = await createSnapTransaction(buildHumanifySnapPayload({
+        orderCode,
+        amountIdr: amount,
+        planId: 'ai_token_topup',
+        planName: 'AIMAN Token Top-up',
+        interval: 'monthly',
+        tenantId: opts.tenantId,
+        customerName: opts.customer?.firstName,
+        customerEmail: opts.customer?.email,
+        finishUrl,
+        itemDetails: [{
+          id: 'ai-token-topup',
+          price: amount,
+          quantity: 1,
+          name: `AIMAN token ${tokens.toLocaleString('id-ID')} (${packs} pak)`,
+          category: 'SaaS',
+        }],
+      }));
+      snapToken = snap.token || null;
+      redirectUrl = snap.redirectUrl || finishUrl;
+      provider = 'midtrans';
+    } catch (e) {
+      console.warn('[billing] ai topup snap', (e as Error)?.message || e);
+    }
+  }
+
+  await sequelize.query(`
+    INSERT INTO saas_billing_orders
+      (id, tenant_id, order_code, plan, interval, amount_idr, status, provider, snap_token, redirect_url, raw,
+       billed_seats, addons)
+    VALUES
+      (:id, :tenantId, :orderCode, 'ai_token_topup', 'monthly', :amount, 'pending', :provider, :snapToken, :redirectUrl, CAST(:raw AS jsonb),
+       :packs, CAST(:addons AS jsonb))
+  `, {
+    replacements: {
+      id,
+      tenantId: opts.tenantId,
+      orderCode,
+      amount,
+      provider,
+      snapToken,
+      redirectUrl,
+      packs,
+      addons: JSON.stringify({ lms: false, ai: true, ats: false, talentBank: false }),
+      raw: JSON.stringify({ kind: 'ai_token_topup', packs, tokens, sellIdr: amount }),
+    },
+  });
+
+  if (provider === 'midtrans' && snapToken) {
+    const pub = getMidtransPublicConfig();
+    return {
+      orderId: id,
+      orderCode,
+      amountIdr: amount,
+      packs,
+      tokens,
+      provider,
+      snapToken,
+      redirectUrl,
+      ...pub,
+    };
+  }
+
+  // Manual confirm path
+  return {
+    orderId: id,
+    orderCode,
+    amountIdr: amount,
+    packs,
+    tokens,
+    provider: 'manual' as const,
+    snapToken: null,
+    redirectUrl: null,
+    message: 'Order token dibuat. Konfirmasi manual atau lengkapi Midtrans.',
   };
 }
 
@@ -933,6 +1110,50 @@ export async function getPaidOrderInvoice(tenantId: string, orderCode: string) {
   }
 
   const money = splitInclusivePpn(order.amount_idr);
+
+  // Token top-up invoices (not a subscription plan)
+  if (String(order.plan) === 'ai_token_topup') {
+    const packs = Math.max(1, Number(order.billed_seats) || 1);
+    const { AI_TOPUP_PACK_TOKENS: packTok } = await import('./ai-token-pricing');
+    const tokens = packs * packTok;
+    return {
+      orderCode: order.order_code,
+      orderId: order.id,
+      status: order.status,
+      provider: order.provider,
+      plan: 'ai_token_topup',
+      planName: 'AIMAN Token Top-up',
+      interval: order.interval,
+      paidAt: order.paid_at || order.created_at,
+      createdAt: order.created_at,
+      money,
+      company: {
+        name: 'Humanify by Naincode',
+        address: 'Jl. Tanah Abang II No.74A, Petojo Sel., Gambir, Jakarta Pusat 10160',
+        city: 'Jakarta Pusat',
+        province: 'DKI Jakarta',
+        phone: '+62 877-8814-1650',
+        email: 'billing@humanify.id',
+        website: 'https://humanify.id',
+        taxId: process.env.HUMANIFY_SELLER_NPWP || undefined,
+      },
+      customer: {
+        name,
+        address: addressParts.join(', ') || undefined,
+        phone: t.phone || undefined,
+        npwp: npwp || undefined,
+      },
+      items: [{
+        description: `AIMAN token ${tokens.toLocaleString('id-ID')} (${packs} pak × 1.000)`,
+        quantity: packs,
+        unit: 'pak',
+        unitPrice: Math.round(money.subtotal / packs),
+        total: money.subtotal,
+      }],
+      notes: 'Top-up token AIMAN · harga jual ke tenant (COGS internal tidak dicantumkan).',
+    };
+  }
+
   const planId = normalizeHumanifyPlan(order.plan);
   const planName = HUMANIFY_PLANS[planId]?.name || String(order.plan);
   const intervalLabel = order.interval === 'yearly' ? 'Tahunan' : 'Bulanan';
