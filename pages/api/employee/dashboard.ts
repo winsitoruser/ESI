@@ -1120,6 +1120,27 @@ async function createClaim(req: NextApiRequest, res: NextApiResponse, userId: st
       return res.status(400).json({ success: false, error: 'Profil karyawan belum tersedia' });
     }
 
+    // SEC-ABU-019 — duplicate claim detection
+    try {
+      const { findDuplicateClaims, isDuplicateBlocked } = await import('@/lib/hris/claim-duplicate');
+      const dups = await findDuplicateClaims({
+        tenantId: String(tenantId || emp.tenantId),
+        employeeId: String(emp.id),
+        amount: parseFloat(amount),
+        claimType: String(claimType),
+      });
+      if (dups.length > 0) {
+        if (isDuplicateBlocked() && !req.body?.forceDuplicate) {
+          return res.status(409).json({
+            success: false,
+            error: 'Klaim mirip sudah ada dalam 48 jam terakhir',
+            code: 'CLAIM_DUPLICATE',
+            data: { duplicates: dups },
+          });
+        }
+      }
+    } catch { /* non-blocking if table missing */ }
+
     let linkedTravelId: string | null = null;
     if (travelRequestId) {
       const [owned] = await sequelize.query(`

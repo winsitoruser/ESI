@@ -52,4 +52,27 @@ export async function logDataExport(opts: {
     },
     ip,
   });
+
+  // Wave 7 — velocity / abnormal export
+  if (opts.tenantId && opts.actorUserId) {
+    try {
+      const {
+        trackExportVelocity,
+        maybeAlertAbnormalExport,
+      } = await import('@/lib/saas/security-monitor');
+      const vel = trackExportVelocity({
+        tenantId: String(opts.tenantId),
+        actorUserId: String(opts.actorUserId),
+      });
+      if (vel.abnormal) {
+        await maybeAlertAbnormalExport({
+          tenantId: opts.tenantId,
+          actorUserId: opts.actorUserId,
+          actorEmail: opts.actorEmail,
+          exportType: opts.exportType,
+          count: vel.count,
+        });
+      }
+    } catch { /* */ }
+  }
 }

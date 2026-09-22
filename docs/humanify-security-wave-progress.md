@@ -1,40 +1,37 @@
 # Humanify Security Defense — Wave Progress
 
-> Sumber checklist: [`docs/humanify-security-defense-master-checklist.txt`](./humanify-security-defense-master-checklist.txt)  
+> Sumber: [`humanify-security-defense-master-checklist.txt`](./humanify-security-defense-master-checklist.txt)  
 > Diperbarui: 23 Sep 2026
-
-## Scope
-
-Checklist lengkap (~136 P0 + ratusan P1–P3). Implementasi bertahap **defense in depth**.
 
 | Wave | Fokus | Status |
 |---|---|---|
-| **Wave 0** | Audit gap vs codebase | Done |
-| **Wave 1** | P0 code gaps: session, MFA platform, debug gate, AI redact, maker-checker salary, CI secrets, governance docs | Done |
-| **Wave 2** | Upload unify, step-up re-auth, export audit all, backup encrypt | Done |
-| **Wave 3** | Privacy/DSR, SAST continuous, risk-based auth | Done |
-| **Wave 4** | Login notify, bank-change alert, break-glass, asset/API inventory, sessions view | Done |
+| 0 | Gap audit | Done |
+| 1 | Session/MFA/debug/AI redact/maker-checker/CI | Done |
+| 2 | Step-up / export audit / upload / backup GPG | Done |
+| 3 | DSR / SAST / risk-based auth | Done |
+| 4 | Login notify / bank alert / inventories | Done |
+| **5** | Attendance anti-cheat (server time, nonce, impossible travel) | Done |
+| **6** | Claim duplicate detection | Done |
+| **7** | Security monitor + abnormal export | Done |
+| **8** | Breach workflow + secure deletion script | Done |
+| **9** | Body-size gate + feature-flag permission | Done |
+| **10** | ASVS / KPI / threat-model / patch SLA / DNS ops checklist | Done |
 
-## Wave 4 deliverables
+## Wave 5–10 deliverables
 
-| ID | Item | Status |
+| Wave | ID | Deliverable |
 |---|---|---|
-| SEC-IAM-013 | Login / new-device notification | `lib/saas/login-notify.ts` |
-| SEC-IAM-014 | Session view (current device) | `/api/humanify/sessions` |
-| SEC-IAM-017 | Break-glass procedure | `docs/humanify-break-glass.md` |
-| SEC-ABU-018 | Bank change alert pre-payroll | `lib/saas/bank-change-alert.ts` |
-| SEC-GOV-001/003 | Owner contact + asset inventory | policy + `docs/humanify-asset-inventory.md` |
-| SEC-API-007 | API inventory | `docs/humanify-api-inventory.md` · `scripts/inventory-humanify-apis.js` |
-| SEC-VUL-008 | security.txt contact | `public/.well-known/security.txt` |
+| 5 | SEC-ABU-009…015 | `lib/hris/attendance-anti-cheat.ts` · `/api/humanify/attendance-challenge` · wired attendance POST |
+| 6 | SEC-ABU-019 | `lib/hris/claim-duplicate.ts` · employee claim create |
+| 7 | SEC-MON-012 | `lib/saas/security-monitor.ts` · export velocity |
+| 8 | SEC-IR-009 / DAT-009 | `docs/humanify-breach-notification.md` · `scripts/humanify-secure-deletion.js` |
+| 9 | SEC-API-006 / APP-013 | `lib/security/body-size.ts` · `lib/saas/feature-flag-gate.ts` |
+| 10 | GOV/VUL/PHI | ASVS, KPI, threat-model payroll, patch SLA, email-DNS ops checklist |
 
-## Waves 1–3
+## Opt-in flags
 
-See previous tables in git history / sections below still apply (MFA, step-up, export audit, DSR, Semgrep, risk-based auth, …).
+`HUMANIFY_ATTENDANCE_NONCE=true` · `HUMANIFY_CLAIM_DUP_BLOCK` · `HUMANIFY_SALARY_MAKER_CHECKER` · `HUMANIFY_STEP_UP_REQUIRED` · `BACKUP_GPG_PASSPHRASE`
 
-## Already strong (pre-wave)
+## Ops-only remaining
 
-Tenant isolation + soft RLS · login rate limit/lockout · bcrypt · Midtrans signature · security headers · AIMAN write-confirm · backup RPO/RTO · IDOR smokes · SSRF helper.
-
-## Ops-only (not coded — tracked in risk register)
-
-Named human Security Owner · hardware MFA · registrar MFA · ISO/SOC2 · OS patching · MDM · primary pen-test · SIEM · SPF/DKIM/DMARC DNS ops.
+Hardware MFA · registrar MFA · ISO/SOC2 · pen-test engagement · SPF/DKIM/DMARC DNS apply · SIEM · MDM.

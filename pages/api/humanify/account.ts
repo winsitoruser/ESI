@@ -13,7 +13,7 @@ import {
 import { isPlatformOperator } from '@/lib/middleware/tenantIsolation';
 import { withHQAuth } from '@/lib/middleware/withHQAuth';
 import { assertStepUp } from '@/lib/saas/step-up-auth';
-import { logDataExport } from '@/lib/saas/export-audit';
+import { canExportSensitiveData, logDataExport } from '@/lib/saas/export-audit';
 
 const OWNER_ROLES = new Set([
   'owner', 'hq_admin', 'super_admin', 'superadmin', 'platform_admin',
@@ -39,10 +39,17 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       return res.json({ success: true, data });
     }
 
-    if (req.method === 'GET' && action === 'export') {
+  if (req.method === 'GET' && action === 'export') {
+      const { assertBodySize } = await import('@/lib/security/body-size');
+      // export is GET — no body; still gate POST offboarding below
+      void assertBodySize;
+
       const stepErr = assertStepUp(req, { userId, tenantId, purpose: 'export' });
       if (stepErr) return res.status(403).json({ success: false, ...stepErr });
 
+      if (!canExportSensitiveData(role) && !isPlatformOperator(role)) {
+        return res.status(403).json({ success: false, error: 'Tidak berwenang mengekspor data' });
+      }
       const bundle = await buildOffboardingExport(tenantId);
       try {
         await logDataExport({
@@ -67,6 +74,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 
     if (req.method === 'POST' && action === 'request-offboarding') {
+      const { assertBodySize } = await import('@/lib/security/body-size');
+      if (!assertBodySize(req, res)) return;
+
       const stepErr = assertStepUp(req, { userId, tenantId, purpose: 'offboarding' });
       if (stepErr) return res.status(403).json({ success: false, ...stepErr });
 

@@ -334,8 +334,13 @@ function getEmptyAttendancePayload(parsed: PeriodMode) {
 }
 
 async function recordAttendance(req: NextApiRequest, res: NextApiResponse) {
-  const { employeeId, branchId, date, clockIn, clockOut, status, notes } = req.body;
-  const tenantId = tenantIdFromSession((req as any).session);
+  const {
+    employeeId, branchId, date, clockIn, clockOut, status, notes,
+    nonce, latitude, longitude, accuracyM, mockLocation, rooted, emulator,
+  } = req.body || {};
+  const session = (req as any).session;
+  const tenantId = tenantIdFromSession(session);
+  const userId = String(session?.user?.id || '');
 
   if (!employeeId || !date) {
     return res.status(HttpStatus.BAD_REQUEST).json(
@@ -350,9 +355,47 @@ async function recordAttendance(req: NextApiRequest, res: NextApiResponse) {
   }
 
   try {
+    const {
+      consumeAttendanceNonce,
+      assessAttendancePunch,
+      resolveClockIn,
+    } = await import('@/lib/hris/attendance-anti-cheat');
+
+    const nonceCheck = consumeAttendanceNonce({
+      userId,
+      tenantId: String(tenantId),
+      nonce,
+    });
+    if (!nonceCheck.ok) {
+      return res.status(409).json({
+        success: false,
+        error: nonceCheck.error,
+        code: nonceCheck.code,
+      });
+    }
+
+    const risk = assessAttendancePunch({
+      clientClockIn: clockIn,
+      lat: latitude != null ? Number(latitude) : null,
+      lng: longitude != null ? Number(longitude) : null,
+      accuracyM: accuracyM != null ? Number(accuracyM) : null,
+      mockLocation: Boolean(mockLocation),
+      rooted: Boolean(rooted),
+      emulator: Boolean(emulator),
+    });
+
+    // Live punches use server clock (SEC-ABU-009)
+    const effectiveClockIn = clockIn
+      ? resolveClockIn(clockIn, risk.flags.includes('client_clock_skew') || risk.score >= 40)
+      : clockIn;
+
     if (!EmployeeAttendance) {
       if (allowHrMockFallback()) {
-        return res.status(200).json({ success: true, message: 'Attendance recorded (mock mode)' });
+        return res.status(200).json({
+          success: true,
+          message: 'Attendance recorded (mock mode)',
+          risk,
+        });
       }
       return res.status(HttpStatus.SERVICE_UNAVAILABLE).json(
         errorResponse(ErrorCodes.DATABASE_ERROR, 'Attendance model unavailable')
@@ -378,21 +421,43 @@ async function recordAttendance(req: NextApiRequest, res: NextApiResponse) {
         employeeId,
         branchId,
         date,
-        clockIn,
+        clockIn: effectiveClockIn,
         clockOut,
         status: status || 'present',
-        notes,
+        notes: risk.flags.length
+          ? `${notes || ''} [risk:${risk.flags.join(',')}]`.trim()
+          : notes,
         tenantId,
       },
     });
 
     if (!created) {
-      await record.update({ clockIn, clockOut, status, notes });
+      await record.update({
+        clockIn: effectiveClockIn ?? record.clockIn,
+        clockOut,
+        status,
+        notes: risk.flags.length
+          ? `${notes || record.notes || ''} [risk:${risk.flags.join(',')}]`.trim()
+          : notes,
+      });
+    }
+
+    if (risk.score >= 40) {
+      try {
+        const { emitSecurityEvent } = await import('@/lib/saas/security-monitor');
+        await emitSecurityEvent({
+          tenantId: String(tenantId),
+          actorUserId: userId,
+          event: 'attendance_risk',
+          severity: risk.flags.includes('impossible_travel') ? 'warn' : 'info',
+          meta: { flags: risk.flags, score: risk.score, employeeId },
+        });
+      } catch { /* */ }
     }
 
     return res.status(HttpStatus.OK).json(
       successResponse(
-        record,
+        { ...((record as any).toJSON?.() || record), risk },
         undefined,
         created ? 'Attendance recorded' : 'Attendance updated'
       )

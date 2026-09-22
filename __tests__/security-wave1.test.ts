@@ -107,3 +107,53 @@ describe('SEC-APP-010 SSRF guard present', () => {
     expect(isSafeOutboundHttpUrl('https://example.com/hook')).toBe(true);
   });
 });
+
+describe('Wave5 attendance anti-cheat', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const {
+    mintAttendanceNonce,
+    consumeAttendanceNonce,
+    distanceKm,
+    assessAttendancePunch,
+  } = require('@/lib/hris/attendance-anti-cheat');
+
+  it('mints and consumes nonce once', () => {
+    process.env.HUMANIFY_ATTENDANCE_NONCE = 'true';
+    const { nonce } = mintAttendanceNonce({ userId: 'u', tenantId: 't' });
+    expect(consumeAttendanceNonce({ userId: 'u', tenantId: 't', nonce }).ok).toBe(true);
+    expect(consumeAttendanceNonce({ userId: 'u', tenantId: 't', nonce }).ok).toBe(false);
+    delete process.env.HUMANIFY_ATTENDANCE_NONCE;
+  });
+
+  it('detects impossible travel speed', () => {
+    const r = assessAttendancePunch({
+      lat: -6.2,
+      lng: 106.8,
+      previous: { lat: 1.3, lng: 103.8, atMs: Date.now() - 10 * 60_000 },
+    });
+    expect(r.flags).toContain('impossible_travel');
+    expect(distanceKm({ lat: 0, lng: 0 }, { lat: 0, lng: 1 })).toBeGreaterThan(100);
+  });
+});
+
+describe('Wave9 feature flag gate', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { canUseFeatureFlag } = require('@/lib/saas/feature-flag-gate');
+  it('denies employee for talent_bank role list', () => {
+    expect(canUseFeatureFlag({ flag: 'talent_bank', role: 'employee', tenantFlags: { talent_bank: true } })).toBe(false);
+    expect(canUseFeatureFlag({ flag: 'talent_bank', role: 'hr_admin', tenantFlags: { talent_bank: true } })).toBe(true);
+  });
+});
+
+describe('Wave7 export velocity', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { trackExportVelocity } = require('@/lib/saas/security-monitor');
+  it('flags after threshold', () => {
+    const id = `t-${Date.now()}`;
+    let last = { abnormal: false, count: 0 };
+    for (let i = 0; i < 8; i++) {
+      last = trackExportVelocity({ tenantId: id, actorUserId: 'u', maxPerWindow: 8 });
+    }
+    expect(last.abnormal).toBe(true);
+  });
+});

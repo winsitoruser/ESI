@@ -1,10 +1,8 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 23 September 2026 — **Security Defense Wave 4 DONE · deploying**
+> Diperbarui: 23 September 2026 — **Security Defense Waves 5–10 shipping**
 
-Wave 4: login notify, bank-change alert, break-glass, asset/API inventory, sessions API, security.txt.
-
-Waves 1–3 live (`58a5b7b`). Opt-in: `HUMANIFY_SALARY_MAKER_CHECKER`, `HUMANIFY_STEP_UP_REQUIRED`, `BACKUP_GPG_PASSPHRASE`.
+Attendance anti-cheat, claim dup, security monitor, breach/deletion, body-size/feature-flag, ASVS/KPI/threat/patch docs.
 
 ---
 
