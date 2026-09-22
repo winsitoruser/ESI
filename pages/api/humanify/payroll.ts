@@ -539,6 +539,21 @@ async function upsertEmployeeSalary(req: NextApiRequest, res: NextApiResponse, s
       });
     } catch { /* audit best-effort */ }
 
+    if (tenantId) {
+      try {
+        const { recordBankAccountChange } = await import('@/lib/saas/bank-change-alert');
+        await recordBankAccountChange({
+          tenantId: String(tenantId),
+          employeeId: String(employeeId),
+          actorUserId: session.user?.id,
+          actorEmail: session.user?.email,
+          beforeAccount: (before as any)?.bank_account_number,
+          afterAccount: bankAccountNumber,
+          bankName,
+        });
+      } catch { /* non-blocking */ }
+    }
+
     await markGoLiveFlagSafe(session.user?.tenantId, 'payrollConfigured');
     return res.status(201).json({ success: true, message: 'Konfigurasi gaji berhasil disimpan', data: salary });
   } catch (e: any) {

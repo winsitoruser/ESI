@@ -83,6 +83,12 @@ has('docs/humanify-data-retention.md', /Retention/, 'SEC-DAT-008 data retention'
 has('lib/saas/risk-based-auth.ts', /assessLoginRisk/, 'SEC-IAM-018 risk-based auth');
 has('.github/workflows/security.yml', /semgrep/, 'SEC-SDL-003 SAST semgrep');
 has('docs/humanify-vulnerability-disclosure.md', /security@humanify/, 'SEC-VUL-008 disclosure policy');
+has('lib/saas/login-notify.ts', /notifyLoginIfRisky/, 'SEC-IAM-013 login notify');
+has('lib/saas/bank-change-alert.ts', /recordBankAccountChange/, 'SEC-ABU-018 bank change alert');
+has('docs/humanify-break-glass.md', /breakglass@/, 'SEC-IAM-017 break-glass');
+has('docs/humanify-asset-inventory.md', /humanify\.id/, 'SEC-GOV-003 asset inventory');
+has('docs/humanify-api-inventory.md', /\/api\/humanify/, 'SEC-API-007 API inventory');
+has('public/.well-known/security.txt', /security@humanify/, 'SEC-VUL-008 security.txt');
 has('scripts/deploy-humanify-vps.sh', /HUMANIFY_SEED_DEMO/, 'PR-030 demo seed gated');
 has('scripts/humanify-healthcheck.sh', /\/api\/health/, 'PR-028 health endpoint in post-deploy');
 has('scripts/run-humanify-gate-ae.sh', /E-backup-freshness/, 'PR-025 Gate E backup check');

@@ -330,6 +330,18 @@ export const authOptions: NextAuthOptions = {
               }
             }
             await rememberLoginFingerprint({ userId: String(user.id), ip, ua });
+            try {
+              const { notifyLoginIfRisky } = await import('../../../lib/saas/login-notify');
+              await notifyLoginIfRisky({
+                email: String(user.email || ''),
+                userId: String(user.id),
+                tenantId: user.tenantId || null,
+                ip,
+                ua,
+                signals: risk.signals,
+                score: risk.score,
+              });
+            } catch { /* fail-open */ }
           } catch (riskErr: any) {
             if (riskErr?.message === 'MFA_REQUIRED') throw riskErr;
             /* fail-open */

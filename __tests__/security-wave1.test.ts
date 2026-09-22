@@ -98,3 +98,12 @@ describe('SEC-IAM-018 risk-based auth', () => {
     expect(r.signals).toEqual(expect.arrayContaining(['new_ip', 'automation_ua']));
   });
 });
+
+describe('SEC-APP-010 SSRF guard present', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { isSafeOutboundHttpUrl } = require('@/lib/security/safe-outbound-url');
+  it('blocks private and metadata hosts', () => {
+    expect(isSafeOutboundHttpUrl('http://127.0.0.1/x')).toBe(false);
+    expect(isSafeOutboundHttpUrl('https://example.com/hook')).toBe(true);
+  });
+});

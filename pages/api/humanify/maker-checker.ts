@@ -19,6 +19,16 @@ async function applyEmployeeSalaryUpsert(payload: Record<string, unknown>, tenan
   if (!sequelize) throw new Error('Database unavailable');
   const employeeId = String(payload.employeeId || '');
   const payType = String(payload.payType || 'monthly');
+
+  let beforeAcc: string | null = null;
+  try {
+    const [prev] = await sequelize.query(`
+      SELECT bank_account_number FROM employee_salaries
+      WHERE employee_id = :empId AND is_active = true LIMIT 1
+    `, { replacements: { empId: employeeId } });
+    beforeAcc = prev?.[0]?.bank_account_number || null;
+  } catch { /* */ }
+
   await sequelize.query(`
     UPDATE employee_salaries SET is_active = false, end_date = CURRENT_DATE, updated_at = NOW()
     WHERE employee_id = :empId AND is_active = true
@@ -65,6 +75,20 @@ async function applyEmployeeSalaryUpsert(payload: Record<string, unknown>, tenan
       projectId: payload.projectId || null,
     },
   });
+
+  if (tenantId) {
+    try {
+      const { recordBankAccountChange } = await import('@/lib/saas/bank-change-alert');
+      await recordBankAccountChange({
+        tenantId: String(tenantId),
+        employeeId,
+        beforeAccount: beforeAcc,
+        afterAccount: String(payload.bankAccountNumber || ''),
+        bankName: String(payload.bankName || '') || null,
+      });
+    } catch { /* non-blocking */ }
+  }
+
   return result?.[0] || {};
 }
 

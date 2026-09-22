@@ -1,6 +1,7 @@
 # Humanify Security Policy (baseline)
 
-**Owner (akuntable):** CTO / Head of Engineering — tunjuk nama di IR contact tree.  
+**Owner (akuntable):** CTO / Head of Engineering — lihat `docs/humanify-asset-inventory.md` + IR contact tree.  
+**Security contact:** security@humanify.id · ops@humanify.id (`/.well-known/security.txt`)  
 **Berlaku untuk:** produk Humanify SaaS (`humanify.id`), platform ops, VPS, CI/CD, dan vendor terkait.
 
 ## 1. Access control
