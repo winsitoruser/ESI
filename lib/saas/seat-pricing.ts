@@ -43,11 +43,19 @@ export async function ensureSeatPricingTable() {
       price_per_user_over_1000_idr INTEGER NOT NULL DEFAULT 9000,
       lms_per_user_idr INTEGER NOT NULL DEFAULT 1500,
       ai_monthly_idr INTEGER NOT NULL DEFAULT 65000,
+      ats_per_user_idr INTEGER NOT NULL DEFAULT 2000,
+      talent_bank_per_user_idr INTEGER NOT NULL DEFAULT 1500,
       yearly_discount_pct NUMERIC(5,2) NOT NULL DEFAULT 20,
       min_seats INTEGER NOT NULL DEFAULT 1,
       max_seats INTEGER NOT NULL DEFAULT 100000,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
+  `);
+  await sequelize.query(`
+    ALTER TABLE saas_seat_pricing ADD COLUMN IF NOT EXISTS ats_per_user_idr INTEGER NOT NULL DEFAULT 2000
+  `);
+  await sequelize.query(`
+    ALTER TABLE saas_seat_pricing ADD COLUMN IF NOT EXISTS talent_bank_per_user_idr INTEGER NOT NULL DEFAULT 1500
   `);
   await sequelize.query(`
     INSERT INTO saas_seat_pricing (id) VALUES (1)
@@ -63,6 +71,8 @@ function rowToRates(row: any): SeatPricingRates {
     pricePerUserOver1000Idr: Number(row?.price_per_user_over_1000_idr ?? DEFAULT_SEAT_PRICING.pricePerUserOver1000Idr),
     lmsPerUserIdr: Number(row?.lms_per_user_idr ?? DEFAULT_SEAT_PRICING.lmsPerUserIdr),
     aiMonthlyIdr: Number(row?.ai_monthly_idr ?? DEFAULT_SEAT_PRICING.aiMonthlyIdr),
+    atsPerUserIdr: Number(row?.ats_per_user_idr ?? DEFAULT_SEAT_PRICING.atsPerUserIdr),
+    talentBankPerUserIdr: Number(row?.talent_bank_per_user_idr ?? DEFAULT_SEAT_PRICING.talentBankPerUserIdr),
     yearlyDiscountPct: Number(row?.yearly_discount_pct ?? DEFAULT_SEAT_PRICING.yearlyDiscountPct),
     minSeats: Number(row?.min_seats ?? DEFAULT_SEAT_PRICING.minSeats),
     maxSeats: Number(row?.max_seats ?? DEFAULT_SEAT_PRICING.maxSeats),
@@ -97,6 +107,8 @@ export async function upsertSeatPricingRates(input: Partial<SeatPricingRates>): 
     pricePerUserOver1000Idr: Math.max(0, Math.round(input.pricePerUserOver1000Idr ?? cur.pricePerUserOver1000Idr)),
     lmsPerUserIdr: Math.max(0, Math.round(input.lmsPerUserIdr ?? cur.lmsPerUserIdr)),
     aiMonthlyIdr: Math.max(0, Math.round(input.aiMonthlyIdr ?? cur.aiMonthlyIdr)),
+    atsPerUserIdr: Math.max(0, Math.round(input.atsPerUserIdr ?? cur.atsPerUserIdr)),
+    talentBankPerUserIdr: Math.max(0, Math.round(input.talentBankPerUserIdr ?? cur.talentBankPerUserIdr)),
     yearlyDiscountPct: Math.min(90, Math.max(0, Number(input.yearlyDiscountPct ?? cur.yearlyDiscountPct))),
     minSeats: Math.max(1, Math.round(input.minSeats ?? cur.minSeats)),
     maxSeats: Math.max(1, Math.round(input.maxSeats ?? cur.maxSeats)),
@@ -108,6 +120,8 @@ export async function upsertSeatPricingRates(input: Partial<SeatPricingRates>): 
       price_per_user_over_1000_idr = :c,
       lms_per_user_idr = :d,
       ai_monthly_idr = :e,
+      ats_per_user_idr = :ats,
+      talent_bank_per_user_idr = :tb,
       yearly_discount_pct = :f,
       min_seats = :g,
       max_seats = :h,
@@ -120,6 +134,8 @@ export async function upsertSeatPricingRates(input: Partial<SeatPricingRates>): 
       c: next.pricePerUserOver1000Idr,
       d: next.lmsPerUserIdr,
       e: next.aiMonthlyIdr,
+      ats: next.atsPerUserIdr,
+      tb: next.talentBankPerUserIdr,
       f: next.yearlyDiscountPct,
       g: next.minSeats,
       h: next.maxSeats,
@@ -141,7 +157,7 @@ export function parseTenantBillingState(settingsRaw: unknown): TenantBillingStat
 }
 
 export async function readTenantBillingState(tenantId: string): Promise<TenantBillingState> {
-  if (!sequelize || !tenantId) return { billedSeats: null, addons: { lms: false, ai: false } };
+  if (!sequelize || !tenantId) return { billedSeats: null, addons: normalizeAddons(null) };
   try {
     const [rows] = await sequelize.query(
       `SELECT settings FROM tenants WHERE id = :id LIMIT 1`,
@@ -149,7 +165,7 @@ export async function readTenantBillingState(tenantId: string): Promise<TenantBi
     );
     return parseTenantBillingState(rows?.[0]?.settings);
   } catch {
-    return { billedSeats: null, addons: { lms: false, ai: false } };
+    return { billedSeats: null, addons: normalizeAddons(null) };
   }
 }
 

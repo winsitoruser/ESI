@@ -10,7 +10,7 @@ import {
   Briefcase, Plane, BookOpen, Ban, Calculator, Banknote,
   Percent, Gift, Clock, Network, Fingerprint, Sparkles,
   Wallet, Package, CreditCard, Crosshair, PenLine, Scale, Globe, Home,
-  CheckCircle2, Lock, Upload, LifeBuoy, Library, Building2,
+  CheckCircle2, Lock, Upload, LifeBuoy, Library, Building2, Database,
 } from 'lucide-react';
 import type { SidebarConfig, MenuGroup } from './sidebar.config';
 import { isHumanifyAiUiEnabled } from '@/lib/hris/ai-enabled';
@@ -120,7 +120,8 @@ export const humanifySidebarConfig: SidebarConfig = {
       id: 'talent',
       title: 'Talent & Belajar',
       items: [
-        { id: 'humanify-recruitment', name: 'Rekrutmen', href: '/humanify/recruitment', icon: UserPlus, modules: ['humanify', 'hris'] },
+        { id: 'humanify-recruitment', name: 'Rekrutmen (ATS)', href: '/humanify/recruitment', icon: UserPlus, modules: ['humanify', 'hris'] },
+        { id: 'humanify-talent-bank', name: 'Bank Data Talent', href: '/humanify/talent-bank', icon: Database, modules: ['humanify', 'hris'] },
         { id: 'humanify-careers', name: 'Portal Karir', href: '/careers', icon: Globe, modules: ['humanify', 'hris'] },
         {
           id: 'humanify-lms',

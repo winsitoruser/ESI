@@ -21,6 +21,8 @@ export const SESSION_UPDATE_PRIVILEGED_KEYS = [
   'subscriptionPlan',
   'addonLms',
   'addonAi',
+  'addonAts',
+  'addonTalentBank',
   'billedSeats',
   'exp',
   'iat',

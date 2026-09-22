@@ -157,7 +157,9 @@ export async function middleware(request: NextRequest) {
     pathname === '/.well-known/security.txt' ||
     pathname.startsWith('/.well-known/') ||
     pathname.startsWith('/icons/') ||
-    pathname.startsWith('/videos/')
+    pathname.startsWith('/videos/') ||
+    (pathname.startsWith('/humanify/ess/') &&
+      /\.(png|jpe?g|gif|svg|webp|ico)$/i.test(pathname))
   ) {
     return NextResponse.next();
   }
@@ -210,6 +212,11 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/c/') ||
     pathname === '/careers' ||
     pathname.startsWith('/careers/');
+
+  // Public talent self-update (token-gated page + API)
+  if (pathname.startsWith('/talent/update')) {
+    return NextResponse.next();
+  }
 
   // Public multi-tenant careers portals (no auth)
   if (pathname.startsWith('/c/') || pathname === '/careers' || pathname.startsWith('/careers/')) {
@@ -286,7 +293,12 @@ export async function middleware(request: NextRequest) {
       !isPathAllowedForEntitlements(
         pathname,
         (token.subscriptionPlan as string | null) ?? 'starter',
-        { lms: Boolean(token.addonLms), ai: Boolean(token.addonAi) },
+        {
+          lms: Boolean(token.addonLms),
+          ai: Boolean(token.addonAi),
+          ats: Boolean(token.addonAts),
+          talentBank: Boolean(token.addonTalentBank),
+        },
       )
     ) {
       const feat = featureForPath(pathname);

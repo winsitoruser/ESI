@@ -5,6 +5,7 @@
 import crypto from 'crypto';
 import {
   HUMANIFY_PLANS,
+  getPlanDefinition,
   normalizeHumanifyPlan,
   type HumanifyPlanId,
 } from './plan-entitlements';
@@ -98,22 +99,16 @@ export function quoteAmount(
 
 export async function listBillablePlans() {
   const rates = await getSeatPricingRates();
+  try {
+    const { refreshPlanCatalogCache } = await import('./plan-pricing-store');
+    await refreshPlanCatalogCache(true);
+  } catch { /* catalog optional */ }
   const fromMonthly = quoteSeatSubscription({ seats: 1, interval: 'monthly', rates }).periodIdr;
   const fromYearly = quoteSeatSubscription({ seats: 1, interval: 'yearly', rates }).periodIdr;
   return (Object.values(HUMANIFY_PLANS) as typeof HUMANIFY_PLANS[HumanifyPlanId][])
     .filter((p) => p.id !== 'trial')
     .map((p) => {
-      const def = (() => {
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-var-requires
-          const { getPlanCatalogOverride } = require('./plan-pricing-store') as typeof import('./plan-pricing-store');
-          const o = getPlanCatalogOverride(p.id);
-          if (!o) return p;
-          return { ...p, ...o, features: o.features?.length ? o.features : p.features };
-        } catch {
-          return p;
-        }
-      })();
+      const def = getPlanDefinition(p.id);
       return {
         id: def.id,
         name: def.name,
@@ -121,6 +116,7 @@ export async function listBillablePlans() {
         features: def.features,
         maxUsers: def.maxUsers,
         maxEmployees: def.maxEmployees,
+        /** Display from seat rate card (1 kursi) — ops edits via seat-pricing, not plan price fields. */
         priceMonthlyIdr: fromMonthly,
         priceYearlyIdr: fromYearly,
         pricingModel: 'per_seat' as const,
@@ -167,7 +163,7 @@ export async function quoteHumanifyCheckout(opts: {
   interval?: BillingInterval;
   voucherCode?: string;
   seats?: number;
-  addons?: { lms?: boolean; ai?: boolean } | null;
+  addons?: { lms?: boolean; ai?: boolean; ats?: boolean; talentBank?: boolean } | null;
 }): Promise<CheckoutQuote> {
   const plan = normalizeHumanifyPlan(opts.plan);
   const interval: BillingInterval = opts.interval === 'yearly' ? 'yearly' : 'monthly';
@@ -176,13 +172,19 @@ export async function quoteHumanifyCheckout(opts: {
   const rates = await getSeatPricingRates();
   const addons = normalizeAddons(opts.addons);
 
+  try {
+    const { refreshPlanCatalogCache } = await import('./plan-pricing-store');
+    await refreshPlanCatalogCache();
+  } catch { /* catalog optional */ }
+  const planDef = getPlanDefinition(plan);
+
   if (plan === 'trial') {
     errors.push('Pilih paket berbayar: Starter, Growth, atau Enterprise.');
   }
 
   let activeEmployees = 0;
   let billedSeats: number | null = null;
-  let currentAddons: BillingAddons = { lms: false, ai: false };
+  let currentAddons: BillingAddons = normalizeAddons(null);
   if (opts.tenantId) {
     try {
       const usage = await countTenantSeats(opts.tenantId);
@@ -255,7 +257,11 @@ export async function quoteHumanifyCheckout(opts: {
         warnings.push('Penurunan paket tidak lewat Midtrans — berlaku segera setelah konfirmasi.');
       }
       if (preview.direction === 'same' && plan !== 'trial') {
-        const sameAddons = currentAddons.lms === addons.lms && currentAddons.ai === addons.ai;
+        const sameAddons =
+          currentAddons.lms === addons.lms
+          && currentAddons.ai === addons.ai
+          && currentAddons.ats === addons.ats
+          && currentAddons.talentBank === addons.talentBank;
         const sameSeats = billedSeats === seat.seats;
         if (sameAddons && sameSeats) {
           warnings.push('Paket, kursi, dan add-on ini sudah aktif. Melanjutkan akan memperpanjang langganan.');
@@ -276,7 +282,7 @@ export async function quoteHumanifyCheckout(opts: {
 
   return {
     plan,
-    planName: HUMANIFY_PLANS[plan]?.name || plan,
+    planName: planDef.name || HUMANIFY_PLANS[plan]?.name || plan,
     interval,
     listPriceIdr,
     discountIdr,
@@ -326,6 +332,20 @@ function snapItemsFromSeatQuote(quote: CheckoutQuote): Array<{
       name: 'Add-on AIMAN Copilot',
     });
   }
+  if (quote.seat.periodAtsIdr > 0) {
+    lines.push({
+      id: 'addon-ats',
+      amount: quote.seat.periodAtsIdr,
+      name: `Add-on ATS · ${quote.seat.seats} karyawan`,
+    });
+  }
+  if (quote.seat.periodTalentBankIdr > 0) {
+    lines.push({
+      id: 'addon-talent-bank',
+      amount: quote.seat.periodTalentBankIdr,
+      name: `Add-on Bank Data · ${quote.seat.seats} karyawan`,
+    });
+  }
   const items = lines
     .map((line) => ({
       id: line.id,
@@ -351,7 +371,7 @@ export async function createHumanifyCheckout(opts: {
   forceManual?: boolean;
   voucherCode?: string;
   seats?: number;
-  addons?: { lms?: boolean; ai?: boolean } | null;
+  addons?: { lms?: boolean; ai?: boolean; ats?: boolean; talentBank?: boolean } | null;
 }) {
   if (!sequelize) throw new Error('Database unavailable');
   await ensureBillingOrdersTable();
@@ -390,6 +410,8 @@ export async function createHumanifyCheckout(opts: {
       AND COALESCE(billed_seats, 0) = :billedSeats
       AND COALESCE(addons->>'lms', 'false') = :lms
       AND COALESCE(addons->>'ai', 'false') = :ai
+      AND COALESCE(addons->>'ats', 'false') = :ats
+      AND COALESCE(addons->>'talentBank', 'false') = :talentBank
     ORDER BY created_at DESC
     LIMIT 1
   `, {
@@ -401,6 +423,8 @@ export async function createHumanifyCheckout(opts: {
       billedSeats,
       lms: String(addons.lms),
       ai: String(addons.ai),
+      ats: String(addons.ats),
+      talentBank: String(addons.talentBank),
     },
   });
   const existing = pendingRows?.[0];
@@ -945,6 +969,20 @@ export async function getPaidOrderInvoice(tenantId: string, orderCode: string) {
           unit: 'paket',
           unitPrice: Math.round(seatQuote.periodAiIdr * scale),
           total: Math.round(seatQuote.periodAiIdr * scale),
+        }] : []),
+        ...(seatQuote.periodAtsIdr > 0 ? [{
+          description: `Add-on ATS Rekrutmen (${intervalLabel})`,
+          quantity: seatQuote.seats,
+          unit: 'karyawan',
+          unitPrice: Math.round((seatQuote.periodAtsIdr * scale) / Math.max(1, seatQuote.seats)),
+          total: Math.round(seatQuote.periodAtsIdr * scale),
+        }] : []),
+        ...(seatQuote.periodTalentBankIdr > 0 ? [{
+          description: `Add-on Bank Data Talent (${intervalLabel})`,
+          quantity: seatQuote.seats,
+          unit: 'karyawan',
+          unitPrice: Math.round((seatQuote.periodTalentBankIdr * scale) / Math.max(1, seatQuote.seats)),
+          total: Math.round(seatQuote.periodTalentBankIdr * scale),
         }] : []),
       ]
     : [{

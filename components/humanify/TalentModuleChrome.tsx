@@ -2,12 +2,13 @@ import Link from 'next/link';
 import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import {
-  LayoutDashboard, UserPlus, BookOpen, ClipboardList, Award, BarChart3, GraduationCap, PenTool, Library,
+  LayoutDashboard, UserPlus, BookOpen, ClipboardList, Award, BarChart3, GraduationCap, PenTool, Library, Database,
 } from 'lucide-react';
 import { OpsPageHero, OpsStage, type OpsChip } from '@/components/humanify/OpsPageChrome';
 
 export const TALENT_NAV = [
   { id: 'recruitment', href: '/humanify/recruitment', label: 'Rekrutmen', icon: UserPlus },
+  { id: 'talent-bank', href: '/humanify/talent-bank', label: 'Bank Data', icon: Database },
   { id: 'lms', href: '/humanify/lms', label: 'Dasbor LMS', icon: LayoutDashboard },
   { id: 'courses', href: '/humanify/lms/courses', label: 'Kursus', icon: BookOpen },
   { id: 'tests', href: '/humanify/lms/tests', label: 'Tes', icon: ClipboardList },

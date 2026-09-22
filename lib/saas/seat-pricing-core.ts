@@ -9,6 +9,10 @@ export type SeatPricingRates = {
   pricePerUserOver1000Idr: number;
   lmsPerUserIdr: number;
   aiMonthlyIdr: number;
+  /** ATS Talent Intelligence (Recruit + match) — per seat / month */
+  atsPerUserIdr: number;
+  /** Bank Data / Talent Bank — per seat / month */
+  talentBankPerUserIdr: number;
   yearlyDiscountPct: number;
   minSeats: number;
   maxSeats: number;
@@ -20,12 +24,19 @@ export const DEFAULT_SEAT_PRICING: SeatPricingRates = {
   pricePerUserOver1000Idr: 9_000,
   lmsPerUserIdr: 1_500,
   aiMonthlyIdr: 65_000,
+  atsPerUserIdr: 2_000,
+  talentBankPerUserIdr: 1_500,
   yearlyDiscountPct: 20,
   minSeats: 1,
   maxSeats: 100_000,
 };
 
-export type BillingAddons = { lms: boolean; ai: boolean };
+export type BillingAddons = {
+  lms: boolean;
+  ai: boolean;
+  ats: boolean;
+  talentBank: boolean;
+};
 
 export type SeatQuote = {
   seats: number;
@@ -36,17 +47,33 @@ export type SeatQuote = {
   coreIdr: number;
   lmsIdr: number;
   aiIdr: number;
+  atsIdr: number;
+  talentBankIdr: number;
   monthlyIdr: number;
   periodCoreIdr: number;
   periodLmsIdr: number;
   periodAiIdr: number;
+  periodAtsIdr: number;
+  periodTalentBankIdr: number;
   periodIdr: number;
   interval: 'monthly' | 'yearly';
   yearlyDiscountPct: number;
 };
 
-export function normalizeAddons(raw?: { lms?: boolean; ai?: boolean } | null): BillingAddons {
-  return { lms: Boolean(raw?.lms), ai: Boolean(raw?.ai) };
+export type AddonInput = {
+  lms?: boolean;
+  ai?: boolean;
+  ats?: boolean;
+  talentBank?: boolean;
+} | null | undefined;
+
+export function normalizeAddons(raw?: AddonInput): BillingAddons {
+  return {
+    lms: Boolean(raw?.lms),
+    ai: Boolean(raw?.ai),
+    ats: Boolean(raw?.ats),
+    talentBank: Boolean(raw?.talentBank),
+  };
 }
 
 export function clampSeats(seats: number, rates: SeatPricingRates = DEFAULT_SEAT_PRICING): number {
@@ -83,7 +110,7 @@ export function seatRateForCount(seats: number, rates: SeatPricingRates = DEFAUL
 
 export function quoteSeatSubscription(opts: {
   seats: number;
-  addons?: { lms?: boolean; ai?: boolean } | null;
+  addons?: AddonInput;
   interval?: 'monthly' | 'yearly';
   rates?: SeatPricingRates;
 }): SeatQuote {
@@ -94,14 +121,18 @@ export function quoteSeatSubscription(opts: {
   const coreIdr = seats * rateIdr;
   const lmsIdr = addons.lms ? seats * rates.lmsPerUserIdr : 0;
   const aiIdr = addons.ai ? rates.aiMonthlyIdr : 0;
-  const monthlyIdr = coreIdr + lmsIdr + aiIdr;
+  const atsIdr = addons.ats ? seats * rates.atsPerUserIdr : 0;
+  const talentBankIdr = addons.talentBank ? seats * rates.talentBankPerUserIdr : 0;
+  const monthlyIdr = coreIdr + lmsIdr + aiIdr + atsIdr + talentBankIdr;
   const interval = opts.interval === 'yearly' ? 'yearly' : 'monthly';
   const yearlyDiscountPct = Number(rates.yearlyDiscountPct) || 0;
   const factor = interval === 'yearly' ? 12 * (1 - yearlyDiscountPct / 100) : 1;
   const periodCoreIdr = Math.round(coreIdr * factor);
   const periodLmsIdr = Math.round(lmsIdr * factor);
   const periodAiIdr = Math.round(aiIdr * factor);
-  const periodIdr = periodCoreIdr + periodLmsIdr + periodAiIdr;
+  const periodAtsIdr = Math.round(atsIdr * factor);
+  const periodTalentBankIdr = Math.round(talentBankIdr * factor);
+  const periodIdr = periodCoreIdr + periodLmsIdr + periodAiIdr + periodAtsIdr + periodTalentBankIdr;
   return {
     seats,
     rateIdr,
@@ -111,10 +142,14 @@ export function quoteSeatSubscription(opts: {
     coreIdr,
     lmsIdr,
     aiIdr,
+    atsIdr,
+    talentBankIdr,
     monthlyIdr,
     periodCoreIdr,
     periodLmsIdr,
     periodAiIdr,
+    periodAtsIdr,
+    periodTalentBankIdr,
     periodIdr,
     interval,
     yearlyDiscountPct,
@@ -122,10 +157,10 @@ export function quoteSeatSubscription(opts: {
 }
 
 export function parseOrderAddons(raw: unknown): BillingAddons {
-  if (!raw) return { lms: false, ai: false };
+  if (!raw) return normalizeAddons(null);
   if (typeof raw === 'string') {
-    try { return normalizeAddons(JSON.parse(raw)); } catch { return { lms: false, ai: false }; }
+    try { return normalizeAddons(JSON.parse(raw)); } catch { return normalizeAddons(null); }
   }
-  if (typeof raw === 'object') return normalizeAddons(raw as { lms?: boolean; ai?: boolean });
-  return { lms: false, ai: false };
+  if (typeof raw === 'object') return normalizeAddons(raw as AddonInput);
+  return normalizeAddons(null);
 }

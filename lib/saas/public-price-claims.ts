@@ -18,10 +18,11 @@ export function requiredPublicPriceClaims(
   ];
 }
 
-/** Enterprise card must not claim LMS/AIMAN as bundled plan features. */
+/** Enterprise card must not claim LMS/AIMAN/ATS/Bank Data as bundled plan features. */
 export function enterpriseBundlesLmsOrAi(): boolean {
   const feats = HUMANIFY_PLANS.enterprise.features;
-  return feats.includes('lms') || feats.includes('ai');
+  return feats.includes('lms') || feats.includes('ai')
+    || feats.includes('recruitment') || feats.includes('talent_bank');
 }
 
 export function flattenMarketingHtml(html: string): string {

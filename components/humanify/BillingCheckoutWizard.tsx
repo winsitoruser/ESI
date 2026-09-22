@@ -71,10 +71,12 @@ type Quote = {
     rateIdr: number;
     tier: string;
     tierLabel: string;
-    addons: { lms: boolean; ai: boolean };
+    addons: { lms: boolean; ai: boolean; ats: boolean; talentBank: boolean };
     coreIdr: number;
     lmsIdr: number;
     aiIdr: number;
+    atsIdr: number;
+    talentBankIdr: number;
     monthlyIdr: number;
     periodIdr: number;
   };
@@ -95,6 +97,8 @@ type PlanCard = {
     pricePerUserOver1000Idr: number;
     lmsPerUserIdr: number;
     aiMonthlyIdr: number;
+    atsPerUserIdr: number;
+    talentBankPerUserIdr: number;
     yearlyDiscountPct: number;
   };
 };
@@ -104,7 +108,6 @@ const BILLABLE_PLAN_ORDER = ['starter', 'growth', 'enterprise'] as const;
 const CARD_FEATURES: HumanifyFeature[] = [
   'core',
   'attendance',
-  'recruitment',
   'payroll',
   'analytics',
   'api',
@@ -163,7 +166,7 @@ export default function BillingCheckoutWizard({
   customerEmail?: string | null;
   initialPlan?: string;
   initialSeats?: number;
-  initialAddons?: { lms?: boolean; ai?: boolean };
+  initialAddons?: { lms?: boolean; ai?: boolean; ats?: boolean; talentBank?: boolean };
   acting: string | null;
   setActing: (v: string | null) => void;
   onPaid: () => void;
@@ -177,6 +180,8 @@ export default function BillingCheckoutWizard({
   const [seats, setSeats] = useState<number>(initialSeats || 0);
   const [addonLms, setAddonLms] = useState(Boolean(initialAddons?.lms));
   const [addonAi, setAddonAi] = useState(Boolean(initialAddons?.ai));
+  const [addonAts, setAddonAts] = useState(Boolean(initialAddons?.ats));
+  const [addonTalentBank, setAddonTalentBank] = useState(Boolean(initialAddons?.talentBank));
   const [quote, setQuote] = useState<Quote | null>(null);
   const [quoting, setQuoting] = useState(false);
   const [agree, setAgree] = useState(false);
@@ -209,6 +214,8 @@ export default function BillingCheckoutWizard({
       if (seats > 0) q.set('seats', String(seats));
       if (addonLms) q.set('lms', '1');
       if (addonAi) q.set('ai', '1');
+      if (addonAts) q.set('ats', '1');
+      if (addonTalentBank) q.set('talentBank', '1');
       const res = await fetch(`/api/humanify/billing?${q.toString()}`);
       const j = await res.json();
       if (j.success) setQuote(j.data);
@@ -221,7 +228,7 @@ export default function BillingCheckoutWizard({
     } finally {
       setQuoting(false);
     }
-  }, [selected, interval, voucherCode, seats, addonLms, addonAi]);
+  }, [selected, interval, voucherCode, seats, addonLms, addonAi, addonAts, addonTalentBank]);
 
   useEffect(() => {
     if (!selected) {
@@ -242,6 +249,8 @@ export default function BillingCheckoutWizard({
         if (seats > 0) q.set('seats', String(seats));
         if (addonLms) q.set('lms', '1');
         if (addonAi) q.set('ai', '1');
+        if (addonAts) q.set('ats', '1');
+        if (addonTalentBank) q.set('talentBank', '1');
         const res = await fetch(`/api/humanify/billing?${q.toString()}`);
         const j = await res.json();
         if (cancelled) return;
@@ -254,7 +263,7 @@ export default function BillingCheckoutWizard({
       }
     })();
     return () => { cancelled = true; };
-  }, [selected, interval, seats, addonLms, addonAi]);
+  }, [selected, interval, seats, addonLms, addonAi, addonAts, addonTalentBank]);
 
   useEffect(() => {
     if (seats === 0 && quote?.seat?.seats) setSeats(quote.seat.seats);
@@ -327,7 +336,7 @@ export default function BillingCheckoutWizard({
           interval,
           voucherCode: voucherCode.trim() || undefined,
           seats: seats || quote.seat?.seats,
-          addons: { lms: addonLms, ai: addonAi },
+          addons: { lms: addonLms, ai: addonAi, ats: addonAts, talentBank: addonTalentBank },
         }),
       });
       const j = await res.json();
@@ -653,6 +662,24 @@ export default function BillingCheckoutWizard({
               <div className="space-y-2">
                 <p className="text-xs font-medium text-[color:var(--hf-ink-muted)]">Add-on (opsional)</p>
                 <label className="flex items-start gap-3 rounded-[var(--hf-radius-lg)] border border-[var(--hf-border)] bg-white px-3 py-3 text-sm">
+                  <input type="checkbox" className="mt-1 h-4 w-4" checked={addonAts} onChange={(e) => setAddonAts(e.target.checked)} />
+                  <span>
+                    <span className="font-medium text-[color:var(--hf-ink)]">ATS / Rekrutmen</span>
+                    <span className="block text-xs text-[color:var(--hf-ink-muted)]">
+                      Pipeline lowongan, kandidat, portal karir · +{formatIdr(selectedPlan.seatPricing?.atsPerUserIdr || 2000)} per user / bulan
+                    </span>
+                  </span>
+                </label>
+                <label className="flex items-start gap-3 rounded-[var(--hf-radius-lg)] border border-[var(--hf-border)] bg-white px-3 py-3 text-sm">
+                  <input type="checkbox" className="mt-1 h-4 w-4" checked={addonTalentBank} onChange={(e) => setAddonTalentBank(e.target.checked)} />
+                  <span>
+                    <span className="font-medium text-[color:var(--hf-ink)]">Bank Data Talent</span>
+                    <span className="block text-xs text-[color:var(--hf-ink-muted)]">
+                      Talent graph, NL search, match berbasis bukti · +{formatIdr(selectedPlan.seatPricing?.talentBankPerUserIdr || 1500)} per user / bulan
+                    </span>
+                  </span>
+                </label>
+                <label className="flex items-start gap-3 rounded-[var(--hf-radius-lg)] border border-[var(--hf-border)] bg-white px-3 py-3 text-sm">
                   <input type="checkbox" className="mt-1 h-4 w-4" checked={addonLms} onChange={(e) => setAddonLms(e.target.checked)} />
                   <span>
                     <span className="font-medium text-[color:var(--hf-ink)]">LMS / Training</span>
@@ -725,8 +752,10 @@ export default function BillingCheckoutWizard({
                       {quote.seat.tierLabel}
                     </p>
                   ) : null}
-                  {addonLms || addonAi ? (
+                  {addonLms || addonAi || addonAts || addonTalentBank ? (
                     <ul className="space-y-1 text-xs text-[color:var(--hf-ink-secondary)]">
+                      {addonAts ? <li>ATS {formatIdr(quote?.seat?.atsIdr || 0)}/bln</li> : null}
+                      {addonTalentBank ? <li>Bank Data {formatIdr(quote?.seat?.talentBankIdr || 0)}/bln</li> : null}
                       {addonLms ? <li>LMS {formatIdr(quote?.seat?.lmsIdr || 0)}/bln</li> : null}
                       {addonAi ? <li>AIMAN {formatIdr(quote?.seat?.aiIdr || 0)}/bln</li> : null}
                     </ul>
@@ -759,6 +788,18 @@ export default function BillingCheckoutWizard({
                     <dt className="text-[color:var(--hf-ink-muted)]">HRIS inti</dt>
                     <dd className="tabular-nums">{formatIdr(quote.seat?.coreIdr || 0)}/bln</dd>
                   </div>
+                  {quote.seat?.addons.ats ? (
+                    <div className="flex justify-between gap-4">
+                      <dt className="text-[color:var(--hf-ink-muted)]">ATS</dt>
+                      <dd className="tabular-nums">{formatIdr(quote.seat.atsIdr)}/bln</dd>
+                    </div>
+                  ) : null}
+                  {quote.seat?.addons.talentBank ? (
+                    <div className="flex justify-between gap-4">
+                      <dt className="text-[color:var(--hf-ink-muted)]">Bank Data</dt>
+                      <dd className="tabular-nums">{formatIdr(quote.seat.talentBankIdr)}/bln</dd>
+                    </div>
+                  ) : null}
                   {quote.seat?.addons.lms ? (
                     <div className="flex justify-between gap-4">
                       <dt className="text-[color:var(--hf-ink-muted)]">LMS</dt>
@@ -815,6 +856,8 @@ export default function BillingCheckoutWizard({
                     className="mt-1"
                   />
                   Saya membeli {quote.planName} untuk {(quote.seat?.seats || seats).toLocaleString('id-ID')} user
+                  {quote.seat?.addons.ats ? ' + ATS' : ''}
+                  {quote.seat?.addons.talentBank ? ' + Bank Data' : ''}
                   {quote.seat?.addons.lms ? ' + LMS' : ''}
                   {quote.seat?.addons.ai ? ' + AIMAN' : ''}
                   {' '}({interval === 'yearly' ? 'tahunan' : 'bulanan'}) dan setuju membayar {formatIdr(quote.payableIdr)} via Midtrans.

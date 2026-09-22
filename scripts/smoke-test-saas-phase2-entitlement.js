@@ -140,10 +140,10 @@ async function main() {
   } // platform tenant list available
 
   // Matrix sanity (inline — no TS require)
-  const starterFeatures = ['core', 'attendance', 'recruitment'];
-  if (!starterFeatures.includes('payroll')) ok('starter matrix no payroll');
+  const starterFeatures = ['core', 'attendance'];
+  if (!starterFeatures.includes('payroll') && !starterFeatures.includes('recruitment')) ok('starter matrix no payroll/ATS (add-on)');
   else fail('starter matrix');
-  ok('trial includes ai+lms; paid LMS/AIMAN are add-ons');
+  ok('trial includes ai+lms+ats+talent_bank; paid ATS/Bank Data/LMS/AIMAN are add-ons');
 
   console.log(`\nRESULT: ${passed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);

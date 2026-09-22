@@ -14,6 +14,8 @@ Langganan Humanify dihitung **per karyawan** (all-units volume). Starter / Growt
 | 251–1.000 | 9.500 / orang (semua kursi) |
 | 1.001+ | 9.000 / orang (semua kursi) |
 | LMS add-on | +1.500 / orang / bulan |
+| ATS / Rekrutmen add-on | +2.000 / orang / bulan |
+| Bank Data Talent add-on | +1.500 / orang / bulan |
 | AIMAN Copilot | +65.000 / bulan (flat) |
 | Trial | 0 (14 hari, full access) |
 

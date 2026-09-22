@@ -28,12 +28,12 @@ export async function resolveTenantPlan(tenantId: string | null | undefined): Pr
 }
 
 export async function resolveTenantBillingAddons(tenantId: string | null | undefined) {
-  if (!tenantId) return { lms: false, ai: false, billedSeats: null as number | null };
+  if (!tenantId) return { lms: false, ai: false, ats: false, talentBank: false, billedSeats: null as number | null };
   try {
     const state = await readTenantBillingState(tenantId);
     return { ...state.addons, billedSeats: state.billedSeats };
   } catch {
-    return { lms: false, ai: false, billedSeats: null as number | null };
+    return { lms: false, ai: false, ats: false, talentBank: false, billedSeats: null as number | null };
   }
 }
 

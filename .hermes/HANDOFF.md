@@ -1,5 +1,100 @@
 # Handoff — SIMESI (fka ESI ERP)
 
+> Diperbarui: 22 September 2026 — **Talent Intelligence Phase 5 local (Conversational Analyst)**
+
+Phase 5: multi-turn Talent Analyst (refine skill/industry/salary), suggestion chips, Recruitment Memory timeline.
+
+- Engine: `lib/hris/talent-analyst.ts`
+- API: `?action=analyst|refine|memory`
+- UI: tab Talent Search → Conversational Talent Analyst
+- Belum deploy / belum commit. HOLD launch tetap.
+
+---
+
+> Diperbarui: 22 September 2026 — **Talent Intelligence Phase 4 local (DNA + hire loop + succession)**
+
+Phase 4: Company Talent DNA, Hire-to-Performance Loop, Succession + learning path, market benchmark, predictive insights.
+
+- Engine: `lib/hris/talent-dna.ts`
+- API: `?action=phase4|dna|succession|hire-loop|benchmark` · match `applyDna`
+- UI tab **Talent DNA** di `/humanify/talent-bank`
+- Belum deploy / belum commit. HOLD launch tetap.
+
+---
+
+> Diperbarui: 22 September 2026 — **Talent Intelligence Phase 3 local (Build/Buy + internal pool)**
+
+Phase 3: unified external+internal search, Build/Buy/Borrow, team capability dari `employees`, constraint bars di UI.
+
+- Engine: `lib/hris/talent-workforce.ts`
+- API: `match?scope=all|external|internal`, `build-buy`, `workforce`
+- UI tab **Build / Buy** di `/humanify/talent-bank`
+- Tests: 13 pass · Local smoke: pool external1/internal5, page 200
+
+Belum deploy / belum commit. HOLD launch tetap.
+
+---
+
+> Diperbarui: 22 September 2026 — **ATS + Bank Data Phase 2 local-ready**
+
+Phase 2 di atas MVP: commute intelligence, requirement priority editor, candidate self-update (`/talent/update/[token]` + public API), invite link dari Candidate 360.
+
+**Local:** `npm run dev` (:3010) · seed `node scripts/seed-local-talent-bank.js` · login `superadmin@humanify.id` / `superadmin123` · buka http://localhost:3010/humanify/talent-bank
+
+Verified lokal: page 200, stats/list/match 200, Andi Pratama Role Fit 100 / Actionability 88 / commute excellent, self-update token OK.
+
+Belum deploy / belum commit. HOLD launch tetap.
+
+---
+
+> Diperbarui: 22 September 2026 — **ATS + Bank Data Talent sebagai add-on berbayar (MVP Phase 1)**
+
+**Talent Intelligence MVP** dari spek `docs/humanify-talent-intelligence.md`:
+
+| Add-on | Feature key | Harga default | Surface |
+|---|---|---|---|
+| **ATS / Rekrutmen** | `recruitment` via `addons.ats` | +Rp 2.000/orang/bln | `/humanify/recruitment`, careers |
+| **Bank Data Talent** | `talent_bank` via `addons.talentBank` | +Rp 1.500/orang/bln | `/humanify/talent-bank` |
+
+- Entitlement: ATS & Bank Data **bukan** bundled Starter/Growth/Enterprise (mirip LMS). Trial tetap full.
+- Engine: `lib/hris/talent-bank.ts` + `lib/hris/talent-matching.ts` (Role Fit / Actionability / Confidence, NL blueprint, market simulator, rediscovery).
+- API: `GET/POST /api/humanify/talent-bank` · Checkout wizard + price book + Ops rate card.
+- **Migrasi tenant lama:** aktifkan `settings.billing.addons.ats = true` (dan `talentBank` bila perlu) agar Rekrutmen tidak terkunci setelah deploy.
+
+Belum deploy / belum commit. HOLD launch tetap.
+
+---
+
+> Diperbarui: 21 September 2026 — **ESS employee UI polish deployed** (Figma home hero + purple ornamental tab heroes)
+
+**Deployed** · humanify.id · BUILD_OK · health OK. Home: Figma silk hero + purple Menu cepat. Non-dashboard tab heroes: `emp-tab-hero` (Humanify ungu + ornaments). Assets: `public/humanify/ess/*` (middleware allowlist for static). Second deploy: asset auth fix.
+
+---
+
+> Diperbarui: 21 September 2026 — **Admin Total Evohus theme deployed** (sidebar + Humanify violet)
+
+**Deployed** · admin.humanify.id / humanify.id · BUILD_OK · health OK. Theme: `platform-ops-theme.css` + OpsLayout sidebar.
+
+---
+
+> Diperbarui: 20 September 2026 — **Hotfix: dashboard Rules-of-Hooks crash** (`useMemo`/`useEffect` setelah `!mounted`)
+
+**Deployed 20 Sep 2026** · humanify.id · BUILD_OK · health OK. Root cause: early return sebelum hooks → client Error / “Terjadi kesalahan”.
+
+---
+
+> Diperbarui: 20 September 2026 — **Inbox alerts → popup + Action inbox** (hapus banner 48h / dokumen inti)
+
+**Deployed 20 Sep 2026** · humanify.id · BUILD_OK · health OK. Dashboard: overdue 48h + dokumen inti hanya popup & card Action inbox.
+
+---
+
+> Diperbarui: 20 September 2026 — **Dashboard Approx card UI deployed** (metric gradient / dashed thumb / soft lift)
+
+**Deployed 20 Sep 2026** · humanify.id · BUILD_OK · health OK. Uncommitted FE polish: `HrisHeroMetricCard`, `HRStatCard`, `EssKpiCard`, `OpsPageChrome`, `humanify-tokens.css`, dashboard grids.
+
+---
+
 > Diperbarui: 20 September 2026 — **Waves 86–100 Done (catalog + guards + AGG smoke)**
 
 Checklist: `docs/humanify-waves-86-100.md` · aggregate: `npm run smoke:waves-86-100`

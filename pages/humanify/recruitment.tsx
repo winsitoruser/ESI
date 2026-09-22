@@ -396,6 +396,9 @@ export default function RecruitmentPage() {
             <button type="button" onClick={() => { setTab('openings'); setShowCreateModal(true); }} className="hf-btn-primary inline-flex items-center gap-1.5 text-sm">
               <Plus className="h-4 w-4" /> Buat lowongan
             </button>
+            <a href="/humanify/talent-bank" className="hf-btn-secondary inline-flex items-center gap-1.5 text-sm">
+              Bank Data
+            </a>
           </div>
         )}
       >

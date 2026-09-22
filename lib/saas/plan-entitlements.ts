@@ -10,6 +10,7 @@ export type HumanifyFeature =
   | 'attendance'
   | 'payroll'
   | 'recruitment'
+  | 'talent_bank'
   | 'lms'
   | 'analytics'
   | 'ai'
@@ -42,7 +43,10 @@ export const HUMANIFY_PLANS: Record<HumanifyPlanId, HumanifyPlanDefinition> = {
     id: 'trial',
     name: 'Trial',
     description: '14 hari full access untuk evaluasi',
-    features: ['core', 'attendance', 'payroll', 'recruitment', 'lms', 'analytics', 'ai', 'api', 'white_label', 'sso'],
+    features: [
+      'core', 'attendance', 'payroll', 'recruitment', 'talent_bank',
+      'lms', 'analytics', 'ai', 'api', 'white_label', 'sso',
+    ],
     maxUsers: 25,
     maxEmployees: 100,
     trialDays: 14,
@@ -51,8 +55,8 @@ export const HUMANIFY_PLANS: Record<HumanifyPlanId, HumanifyPlanDefinition> = {
   starter: {
     id: 'starter',
     name: 'Starter',
-    description: 'HRIS inti: karyawan, absensi, rekrutmen — dihitung per karyawan',
-    features: ['core', 'attendance', 'recruitment'],
+    description: 'HRIS inti: karyawan & absensi — rekrutmen ATS / Bank Data add-on',
+    features: ['core', 'attendance'],
     maxUsers: 10_000,
     maxEmployees: 10_000,
     priceMonthlyIdr: HUMANIFY_CANONICAL_PRICES_IDR.starter,
@@ -60,8 +64,8 @@ export const HUMANIFY_PLANS: Record<HumanifyPlanId, HumanifyPlanDefinition> = {
   growth: {
     id: 'growth',
     name: 'Growth',
-    description: 'Payroll + analytics untuk tim berkembang — dihitung per karyawan',
-    features: ['core', 'attendance', 'recruitment', 'payroll', 'analytics'],
+    description: 'Payroll + analytics — ATS & Bank Data add-on',
+    features: ['core', 'attendance', 'payroll', 'analytics'],
     maxUsers: 10_000,
     maxEmployees: 10_000,
     priceMonthlyIdr: HUMANIFY_CANONICAL_PRICES_IDR.growth,
@@ -69,8 +73,8 @@ export const HUMANIFY_PLANS: Record<HumanifyPlanId, HumanifyPlanDefinition> = {
   enterprise: {
     id: 'enterprise',
     name: 'Enterprise',
-    description: 'Semua modul HR + API, white-label & SSO. LMS dan AIMAN add-on.',
-    features: ['core', 'attendance', 'payroll', 'recruitment', 'analytics', 'api', 'white_label', 'sso'],
+    description: 'Semua modul HR + API, white-label & SSO. LMS, AIMAN, ATS, Bank Data add-on.',
+    features: ['core', 'attendance', 'payroll', 'analytics', 'api', 'white_label', 'sso'],
     maxUsers: 50_000,
     maxEmployees: 50_000,
     priceMonthlyIdr: HUMANIFY_CANONICAL_PRICES_IDR.enterprise,
@@ -100,6 +104,7 @@ const ROUTE_FEATURE_RULES: Array<{ test: RegExp; feature: HumanifyFeature }> = [
   { test: /^\/humanify\/training/, feature: 'lms' },
   { test: /^\/humanify\/certificates/, feature: 'lms' },
   { test: /^\/humanify\/recruitment/, feature: 'recruitment' },
+  { test: /^\/humanify\/talent-bank/, feature: 'talent_bank' },
   { test: /^\/careers/, feature: 'recruitment' },
   { test: /^\/c\/[^/]+\/careers/, feature: 'recruitment' },
   { test: /^\/humanify\/ai/, feature: 'ai' },
@@ -132,6 +137,7 @@ const API_FEATURE_RULES: Array<{ test: RegExp; feature: HumanifyFeature }> = [
   { test: /\/api\/humanify\/training(?:\/|$)/, feature: 'lms' },
   { test: /\/api\/humanify\/certificates(?:\/|$)/, feature: 'lms' },
   { test: /\/api\/humanify\/recruitment(?:\/|$)/, feature: 'recruitment' },
+  { test: /\/api\/humanify\/talent-bank(?:\/|$)/, feature: 'talent_bank' },
   { test: /\/api\/humanify\/attendance(?:\/|$)/, feature: 'attendance' },
   { test: /\/api\/humanify\/leave(?:\/|$)/, feature: 'attendance' },
   { test: /\/api\/humanify\/workforce-analytics(?:\/|$)/, feature: 'analytics' },
@@ -180,7 +186,12 @@ export function planHasFeature(plan: string | null | undefined, feature: Humanif
   return def.features.includes(feature);
 }
 
-export type BillingAddonFlags = { lms?: boolean; ai?: boolean };
+export type BillingAddonFlags = {
+  lms?: boolean;
+  ai?: boolean;
+  ats?: boolean;
+  talentBank?: boolean;
+};
 
 export function mergeAddonFeatures(
   planFeatures: HumanifyFeature[],
@@ -189,6 +200,8 @@ export function mergeAddonFeatures(
   const set = new Set(planFeatures);
   if (addons?.lms) set.add('lms');
   if (addons?.ai) set.add('ai');
+  if (addons?.ats) set.add('recruitment');
+  if (addons?.talentBank) set.add('talent_bank');
   return Array.from(set);
 }
 
@@ -200,6 +213,8 @@ export function entitlementsHaveFeature(
   if (planHasFeature(plan, feature)) return true;
   if (feature === 'lms' && addons?.lms) return true;
   if (feature === 'ai' && addons?.ai) return true;
+  if (feature === 'recruitment' && addons?.ats) return true;
+  if (feature === 'talent_bank' && addons?.talentBank) return true;
   return false;
 }
 
@@ -207,7 +222,8 @@ export const HUMANIFY_FEATURE_LABELS: Record<HumanifyFeature, string> = {
   core: 'Karyawan & organisasi',
   attendance: 'Absensi',
   payroll: 'Payroll & PPh21',
-  recruitment: 'Rekrutmen',
+  recruitment: 'ATS / Rekrutmen',
+  talent_bank: 'Bank Data Talent',
   lms: 'LMS / Training',
   analytics: 'HR Analytics',
   ai: 'AI Copilot',
@@ -218,7 +234,8 @@ export const HUMANIFY_FEATURE_LABELS: Record<HumanifyFeature, string> = {
 
 /** Display order for customer-facing comparison matrix. */
 export const HUMANIFY_FEATURE_ORDER: HumanifyFeature[] = [
-  'core', 'attendance', 'payroll', 'recruitment', 'analytics', 'lms', 'ai', 'api', 'sso', 'white_label',
+  'core', 'attendance', 'payroll', 'recruitment', 'talent_bank',
+  'analytics', 'lms', 'ai', 'api', 'sso', 'white_label',
 ];
 
 export function featureForPath(pathname: string): HumanifyFeature {
@@ -275,9 +292,9 @@ export function buildEntitlementSnapshot(
   const billed = opts?.billedSeats && opts.billedSeats > 0 ? opts.billedSeats : null;
   const upgradeHint =
     def.id === 'starter'
-      ? 'Upgrade ke Growth untuk Payroll & Analytics, atau tambah LMS / AIMAN di Billing'
+      ? 'Upgrade ke Growth untuk Payroll & Analytics, atau tambah ATS / Bank Data / LMS di Billing'
       : def.id === 'growth'
-        ? 'Tambah LMS (Rp 1.500/karyawan) atau AIMAN (Rp 65.000/bulan) di Billing'
+        ? 'Tambah ATS, Bank Data, LMS, atau AIMAN di Billing'
         : def.id === 'trial'
           ? 'Langganan dihitung per karyawan setelah trial'
           : undefined;
