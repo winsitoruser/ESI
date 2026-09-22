@@ -21,7 +21,8 @@ Progress tracker: [`humanify-security-wave-progress.md`](./humanify-security-wav
 
 ## Suggested next calendar
 
-1. Run `bash scripts/verify-humanify-dns-email.sh` and fix gaps
-2. Enable opt-in: `HUMANIFY_STEP_UP_REQUIRED`, `HUMANIFY_SALARY_MAKER_CHECKER`, `HUMANIFY_ATTENDANCE_NONCE`, `BACKUP_GPG_PASSPHRASE`
-3. Schedule pen-test after enterprise pipeline
-4. Quarterly restore drill + risk review
+1. ~~DNS verify~~ — SPF/DMARC present
+2. ~~Enable opt-in flags~~ — `scripts/ensure-humanify-security-flags.sh` (prod applied)
+3. ~~CSP report-only~~ — `Content-Security-Policy-Report-Only`
+4. Schedule pen-test — [`humanify-pentest-kickoff.md`](./humanify-pentest-kickoff.md)
+5. Quarterly restore/risk — [`humanify-security-calendar.md`](./humanify-security-calendar.md)

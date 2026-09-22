@@ -141,8 +141,24 @@ const nextConfig = {
               value: JSON.stringify({
                 group: 'csp',
                 max_age: 10886400,
-                endpoints: [{ url: '/api/humanify/csp-report' }],
+                endpoints: [{ url: 'https://humanify.id/api/humanify/csp-report' }],
               }),
+            },
+            // SEC-APP-011 — report-only first; tighten after monitoring /api/humanify/csp-report
+            {
+              key: 'Content-Security-Policy-Report-Only',
+              value: [
+                "default-src 'self'",
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:",
+                "style-src 'self' 'unsafe-inline' https:",
+                "img-src 'self' data: blob: https:",
+                "font-src 'self' data: https:",
+                "connect-src 'self' https: wss:",
+                "frame-ancestors 'none'",
+                "base-uri 'self'",
+                "form-action 'self'",
+                'report-uri /api/humanify/csp-report',
+              ].join('; '),
             },
           ],
         },

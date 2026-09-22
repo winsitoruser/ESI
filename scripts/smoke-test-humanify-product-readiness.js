@@ -111,6 +111,9 @@ has('lib/saas/humanify-api-keys.ts', /rotateApiKey/, 'SEC-API-010 API key rotate
 has('lib/security/redact-secrets-log.ts', /redactSecretsForLog/, 'SEC-MON-009 log secret redact');
 has('scripts/verify-humanify-dns-email.sh', /DMARC/, 'SEC-PHI DNS verify');
 has('docs/humanify-security-closeout.md', /Closeout/, 'Security closeout Waves 0-18');
+has('scripts/ensure-humanify-security-flags.sh', /HUMANIFY_STEP_UP_REQUIRED/, 'Security opt-in flags script');
+has('next.config.mjs', /Content-Security-Policy-Report-Only/, 'SEC-APP-011 CSP report-only');
+has('docs/humanify-security-calendar.md', /Restore drill/, 'Quarterly security calendar');
 has('scripts/deploy-humanify-vps.sh', /HUMANIFY_SEED_DEMO/, 'PR-030 demo seed gated');
 has('scripts/humanify-healthcheck.sh', /\/api\/health/, 'PR-028 health endpoint in post-deploy');
 has('scripts/run-humanify-gate-ae.sh', /E-backup-freshness/, 'PR-025 Gate E backup check');

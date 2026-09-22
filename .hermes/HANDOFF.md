@@ -1,8 +1,8 @@
 # Handoff — SIMESI (fka ESI ERP)
 
-> Diperbarui: 23 September 2026 — **Security Defense Waves 15–18 shipping**
+> Diperbarui: 23 September 2026 — **Security next-steps applied** (flags ON + CSP report-only)
 
-Tenant cache/job context, API key rotate+quota, claim TTL/geofence/log redact, DNS verify + closeout.
+Prod `.env`: STEP_UP, MAKER_CHECKER, ATTENDANCE_NONCE, CLAIM_DUP, PLATFORM_MFA, LOGIN_NOTIFY, BACKUP_GPG. GPG passphrase sealed at `/root/humanify-backup-gpg-passphrase.txt`. CSP-Report-Only in next.config. Calendar + pen-test kickoff docs.
 
 ---
 
