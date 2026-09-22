@@ -12,6 +12,8 @@ import {
 } from '@/lib/saas/tenant-offboarding';
 import { isPlatformOperator } from '@/lib/middleware/tenantIsolation';
 import { withHQAuth } from '@/lib/middleware/withHQAuth';
+import { assertStepUp } from '@/lib/saas/step-up-auth';
+import { logDataExport } from '@/lib/saas/export-audit';
 
 const OWNER_ROLES = new Set([
   'owner', 'hq_admin', 'super_admin', 'superadmin', 'platform_admin',
@@ -23,6 +25,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
   const role = String((session.user as any).role || '');
   const tenantId = (session.user as any).tenantId as string | null;
+  const userId = String((session.user as any).id || '');
   const action = String(req.query.action || (req.method === 'GET' ? 'offboarding-status' : ''));
 
   if (!tenantId) return res.status(400).json({ success: false, error: 'No tenant' });
@@ -37,17 +40,21 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 
     if (req.method === 'GET' && action === 'export') {
+      const stepErr = assertStepUp(req, { userId, tenantId, purpose: 'export' });
+      if (stepErr) return res.status(403).json({ success: false, ...stepErr });
+
       const bundle = await buildOffboardingExport(tenantId);
       try {
-        const { logAdminAction } = await import('@/lib/saas/admin-audit');
-        await logAdminAction({
+        await logDataExport({
+          req,
           tenantId,
-          actorUserId: (session.user as any).id,
+          actorUserId: userId,
           actorEmail: session.user.email,
-          action: 'account.export',
+          exportType: 'account',
+          format: String(req.query.format || 'json'),
+          rowCount: Number(bundle?.employees?.count || 0),
           resourceType: 'account',
-          meta: { format: String(req.query.format || 'json'), employees: bundle?.employees?.count },
-          ip: (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.socket.remoteAddress,
+          meta: { employees: bundle?.employees?.count },
         });
       } catch { /* ignore */ }
       const format = String(req.query.format || 'json');
@@ -60,6 +67,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 
     if (req.method === 'POST' && action === 'request-offboarding') {
+      const stepErr = assertStepUp(req, { userId, tenantId, purpose: 'offboarding' });
+      if (stepErr) return res.status(403).json({ success: false, ...stepErr });
+
       const data = await requestOffboarding(tenantId, {
         reason: req.body?.reason,
         requestedBy: session.user.email || null,
@@ -68,7 +78,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         const { logAdminAction } = await import('@/lib/saas/admin-audit');
         await logAdminAction({
           tenantId,
-          actorUserId: (session.user as any).id,
+          actorUserId: userId,
           actorEmail: session.user.email,
           action: 'account.offboard_request',
           resourceType: 'account',

@@ -417,13 +417,59 @@ async function upsertEmployeeSalary(req: NextApiRequest, res: NextApiResponse, s
     overtimeRateMultiplier, overtimeHolidayMultiplier, taxStatus, taxMethod,
     bankName, bankAccountNumber, bankAccountName, bpjsKesehatanNumber,
     bpjsKetenagakerjaanNumber, npwp, components,
-    projectRate, pieceRate, pieceUnit, bpjsEligible, taxEligible, projectId } = req.body;
+    projectRate, pieceRate, pieceUnit, bpjsEligible, taxEligible, projectId,
+    confirmApply } = req.body;
 
   if (!employeeId || !payType || baseSalary === undefined) {
     return res.status(400).json({ success: false, error: 'employeeId, payType, baseSalary required' });
   }
 
   if (!sequelize) return res.json({ success: true, message: 'Saved (mock)' });
+
+  const tenantId = session.user.tenantId || null;
+  const makerCheckerOn = String(process.env.HUMANIFY_SALARY_MAKER_CHECKER || '').toLowerCase() === 'true';
+
+  // Load previous active salary for before/after audit
+  let before: Record<string, unknown> | null = null;
+  try {
+    const [prev] = await sequelize.query(`
+      SELECT base_salary, bank_name, bank_account_number, bank_account_name, pay_type
+      FROM employee_salaries
+      WHERE employee_id = :empId AND is_active = true
+      ${tenantId ? 'AND tenant_id = :tid' : ''}
+      LIMIT 1
+    `, { replacements: { empId: employeeId, tid: tenantId } });
+    before = prev?.[0] || null;
+  } catch { /* optional */ }
+
+  const payload = {
+    employeeId, payType, baseSalary, hourlyRate, dailyRate, weeklyHours,
+    overtimeRateMultiplier, overtimeHolidayMultiplier, taxStatus, taxMethod,
+    bankName, bankAccountNumber, bankAccountName, bpjsKesehatanNumber,
+    bpjsKetenagakerjaanNumber, npwp, components,
+    projectRate, pieceRate, pieceUnit, bpjsEligible, taxEligible, projectId,
+  };
+
+  // SEC-ABU-016 — maker-checker for salary/bank changes (unless explicit second-step apply)
+  if (makerCheckerOn && !confirmApply) {
+    const { submitMakerRequest } = await import('@/lib/saas/maker-checker');
+    const pending = await submitMakerRequest({
+      tenantId,
+      kind: 'employee_salary_upsert',
+      resourceType: 'employee_salary',
+      resourceId: String(employeeId),
+      payload,
+      beforeValue: before,
+      makerUserId: session.user?.id,
+      makerEmail: session.user?.email,
+    });
+    return res.status(202).json({
+      success: true,
+      pendingApproval: true,
+      message: 'Perubahan gaji/rekening menunggu persetujuan checker (maker-checker)',
+      data: pending,
+    });
+  }
 
   try {
     // Deactivate old salary config
@@ -479,6 +525,19 @@ async function upsertEmployeeSalary(req: NextApiRequest, res: NextApiResponse, s
         });
       }
     }
+
+    try {
+      const { logAdminAction } = await import('@/lib/saas/admin-audit');
+      await logAdminAction({
+        tenantId,
+        actorUserId: session.user?.id,
+        actorEmail: session.user?.email,
+        action: 'payroll.salary_upsert',
+        resourceType: 'employee_salary',
+        resourceId: String(employeeId),
+        meta: { before, after: salary },
+      });
+    } catch { /* audit best-effort */ }
 
     await markGoLiveFlagSafe(session.user?.tenantId, 'payrollConfigured');
     return res.status(201).json({ success: true, message: 'Konfigurasi gaji berhasil disimpan', data: salary });
@@ -2122,6 +2181,19 @@ async function getLaporan(req: NextApiRequest, res: NextApiResponse, session: an
 async function exportPayrollData(req: NextApiRequest, res: NextApiResponse, session: any) {
   const type = String(req.query.type || 'payslip');
   const BOM = '\uFEFF';
+
+  try {
+    const { logDataExport } = await import('@/lib/saas/export-audit');
+    await logDataExport({
+      req,
+      tenantId: session?.user?.tenantId,
+      actorUserId: session?.user?.id,
+      actorEmail: session?.user?.email,
+      exportType: `payroll_${type}`,
+      format: 'csv',
+      resourceType: 'payroll',
+    });
+  } catch { /* non-blocking */ }
 
   const captureJson = async (fn: (req: NextApiRequest, res: NextApiResponse, session: any) => Promise<any>) => {
     let payload: any = null;

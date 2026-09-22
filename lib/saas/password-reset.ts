@@ -168,11 +168,30 @@ export async function resetPassword(opts: {
   user.password = hashedPassword;
   await user.save();
 
+  // SEC-IAM-006 — bump password_changed_at so existing JWTs are rejected
+  try {
+    await sequelize.query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ
+    `);
+    await sequelize.query(`
+      UPDATE users SET password_changed_at = NOW() WHERE id = :id
+    `, { replacements: { id: user.id } });
+  } catch (e) {
+    console.warn('[password-reset] password_changed_at', (e as Error)?.message || e);
+  }
+
   await sequelize.query(`
     UPDATE saas_password_resets
     SET used_at = NOW()
     WHERE id = :id
   `, { replacements: { id: row.id } });
+
+  // Invalidate any other outstanding reset tokens for this user
+  await sequelize.query(`
+    UPDATE saas_password_resets
+    SET used_at = NOW()
+    WHERE user_id = :uid AND used_at IS NULL AND id <> :id
+  `, { replacements: { uid: String(row.user_id), id: row.id } });
 
   return { email: row.email, userId: String(row.user_id) };
 }

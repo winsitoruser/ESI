@@ -5,13 +5,15 @@ on:
     - cron: '0 6 * * 1'  # Every Monday 6 AM
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
-  security:
+  trivy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
@@ -19,3 +21,42 @@ jobs:
           scan-ref: '.'
           format: 'table'
           exit-code: '1'
+
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # SEC-SDL-003 — SAST
+  semgrep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Semgrep SAST
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/owasp-top-ten
+            p/typescript
+            p/nodejs
+
+  # SEC-SDL-004 — dependency / SCA (advisory; does not fail PR on moderate)
+  npm-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: npm audit (high+)
+        run: npm audit --audit-level=high
+        continue-on-error: true

@@ -1,0 +1,1233 @@
+# Humanify SaaS Security & Defense Master Checklist
+
+> **Tujuan:** menjadi baseline keamanan untuk bisnis SaaS/HR SaaS agar lebih tahan terhadap hacking, cracking, phishing, credential theft, bot abuse, fraud/cheating, data theft, ransomware, DDoS, insider threat, supply-chain attack, dan kesalahan konfigurasi.
+>
+> **Catatan:** keamanan bukan satu fitur. Pertahanan yang baik menggunakan **defense in depth**: governance + identity + application + infrastructure + data + monitoring + people + incident response.
+
+## 1. Prioritas
+
+| Level | Arti | Target |
+|---|---|---|
+| **P0** | Critical / wajib sebelum production atau secepatnya | 0–30 hari |
+| **P1** | High priority | 30–60 hari |
+| **P2** | Medium / maturity | 60–90 hari |
+| **P3** | Advanced / continuous improvement | 90+ hari |
+
+## 2. Framework Acuan
+
+Gunakan checklist ini bersama dengan:
+
+- **NIST Cybersecurity Framework (CSF) 2.0** — Govern, Identify, Protect, Detect, Respond, Recover.
+- **CIS Critical Security Controls v8.1** — baseline kontrol keamanan terprioritas.
+- **OWASP Top 10:2025** — risiko utama web application.
+- **OWASP ASVS 5.0** — requirement dan verification standard untuk aplikasi.
+- **OWASP API Security Top 10:2023** — keamanan API.
+- **NIST Secure Software Development Framework / SSDF** — secure SDLC.
+- **UU No. 27 Tahun 2022 tentang Pelindungan Data Pribadi** — untuk pemrosesan data pribadi di Indonesia.
+- Pertimbangkan **ISO/IEC 27001** dan **SOC 2** saat bisnis memasuki enterprise market.
+
+---
+
+# A. SECURITY GOVERNANCE & RISK MANAGEMENT
+
+### Sasaran
+Keamanan memiliki owner, standar, risk register, dan proses yang dapat diaudit.
+
+- [ ] **SEC-GOV-001 — P0 — Tetapkan Security Owner / Security Lead**
+  - PIC: CTO / Head of Engineering
+  - Output: satu orang accountable terhadap program security.
+
+- [ ] **SEC-GOV-002 — P0 — Buat Security Policy**
+  - Access control.
+  - Password/MFA.
+  - Secure development.
+  - Data handling.
+  - Incident response.
+  - Backup.
+  - Vendor management.
+  - Employee security.
+
+- [ ] **SEC-GOV-003 — P0 — Buat inventory seluruh asset**
+  - Domain/subdomain.
+  - Server/container.
+  - Cloud resources.
+  - Database.
+  - Storage bucket.
+  - API.
+  - Git repository.
+  - CI/CD.
+  - SaaS vendor.
+  - Employee device.
+
+- [ ] **SEC-GOV-004 — P0 — Klasifikasikan data**
+  - Public.
+  - Internal.
+  - Confidential.
+  - Highly Sensitive.
+  - Contoh Highly Sensitive: KTP/NIK, rekening bank, salary, payroll, tax data, health-related employee docs, credential/token.
+
+- [ ] **SEC-GOV-005 — P0 — Buat Risk Register**
+  - Risk.
+  - Asset.
+  - Threat.
+  - Impact.
+  - Likelihood.
+  - Owner.
+  - Mitigation.
+  - Due date.
+  - Residual risk.
+
+- [ ] **SEC-GOV-006 — P1 — Threat Modeling untuk fitur penting**
+  - Login.
+  - Admin.
+  - Payroll.
+  - Attendance.
+  - Recruitment.
+  - File/document.
+  - Integration/API.
+  - AI feature.
+
+- [ ] **SEC-GOV-007 — P1 — Security review sebelum fitur high-risk launch**
+  - Wajib untuk perubahan auth, authorization, payment, payroll, export data, API, file upload, dan privilege.
+
+- [ ] **SEC-GOV-008 — P1 — Buat security KPI**
+  - Critical vulnerability open.
+  - Patch SLA.
+  - MFA coverage.
+  - Backup restore success.
+  - Security training completion.
+  - Mean time to detect/respond.
+  - Percentage security tests passed.
+
+- [ ] **SEC-GOV-009 — P2 — Review risk quarterly**
+
+- [ ] **SEC-GOV-010 — P2 — Mulai readiness program ISO 27001 / SOC 2 bila masuk enterprise sales**
+
+---
+
+# B. IDENTITY, LOGIN & ACCOUNT SECURITY
+
+### Ancaman
+Phishing, credential stuffing, brute-force, password spraying, session theft, account takeover.
+
+- [ ] **SEC-IAM-001 — P0 — Wajib MFA untuk seluruh internal admin**
+  - Utamakan passkey / FIDO2 / WebAuthn.
+  - Hindari SMS sebagai metode utama untuk privileged account.
+
+- [ ] **SEC-IAM-002 — P0 — MFA untuk customer administrator**
+  - Minimal optional saat awal.
+  - Target menjadi mandatory untuk super-admin tenant.
+
+- [ ] **SEC-IAM-003 — P0 — Password disimpan dengan password hashing yang sesuai**
+  - Jangan plaintext.
+  - Jangan reversible encryption untuk password.
+
+- [ ] **SEC-IAM-004 — P0 — Rate limit login**
+  - Per account.
+  - Per IP/network.
+  - Adaptive/risk-based throttling.
+
+- [ ] **SEC-IAM-005 — P0 — Proteksi credential stuffing**
+  - Rate limiting.
+  - Bot signal.
+  - Failed login anomaly.
+  - Known compromised password detection bila tersedia.
+
+- [ ] **SEC-IAM-006 — P0 — Secure password reset**
+  - Short-lived single-use token.
+  - Token tidak disimpan plaintext.
+  - Jangan mengungkap apakah email terdaftar.
+  - Invalidate/reset relevant sessions setelah reset jika perlu.
+
+- [ ] **SEC-IAM-007 — P0 — Secure session management**
+  - HttpOnly.
+  - Secure.
+  - SameSite.
+  - Session expiration.
+  - Session rotation setelah login/privilege change.
+
+- [ ] **SEC-IAM-008 — P0 — Re-authentication untuk aksi sensitif**
+  - Ganti email.
+  - Ganti password.
+  - Add admin.
+  - Export mass data.
+  - Change bank/payroll config.
+  - Disable MFA.
+
+- [ ] **SEC-IAM-009 — P0 — RBAC / Role-Based Access Control**
+  - User.
+  - HR.
+  - Manager.
+  - Finance.
+  - Tenant Admin.
+  - Humanify Support.
+  - Super Admin.
+
+- [ ] **SEC-IAM-010 — P0 — Default-deny authorization**
+  - User hanya dapat resource yang secara eksplisit diizinkan.
+
+- [ ] **SEC-IAM-011 — P0 — Least privilege**
+  - Internal engineer/support tidak otomatis mendapat production access.
+
+- [ ] **SEC-IAM-012 — P0 — Separate privileged/admin account**
+  - Jangan gunakan akun admin untuk pekerjaan sehari-hari.
+
+- [ ] **SEC-IAM-013 — P1 — Login notification**
+  - New device.
+  - New country.
+  - Password changed.
+  - MFA changed.
+
+- [ ] **SEC-IAM-014 — P1 — Active session/device management**
+  - User dapat melihat dan revoke session.
+
+- [ ] **SEC-IAM-015 — P1 — SSO/SAML/OIDC untuk enterprise tenant**
+
+- [ ] **SEC-IAM-016 — P1 — SCIM/JIT provisioning untuk enterprise**
+  - Mempercepat offboarding employee.
+
+- [ ] **SEC-IAM-017 — P1 — Break-glass admin account**
+  - Sangat terbatas.
+  - Hardware MFA.
+  - Usage alert.
+  - Credential disimpan aman.
+
+- [ ] **SEC-IAM-018 — P2 — Risk-based authentication**
+  - Impossible travel.
+  - New device.
+  - Abnormal IP.
+  - Suspicious automation.
+  - Privileged action anomaly.
+
+---
+
+# C. MULTI-TENANT / TENANT ISOLATION
+
+### Ini adalah salah satu kontrol paling kritikal untuk SaaS.
+
+- [ ] **SEC-TEN-001 — P0 — Setiap data row memiliki tenant/company ownership yang jelas**
+
+- [ ] **SEC-TEN-002 — P0 — Tenant authorization divalidasi server-side di setiap request**
+
+- [ ] **SEC-TEN-003 — P0 — Jangan percaya tenant_id dari browser/client tanpa authorization check**
+
+- [ ] **SEC-TEN-004 — P0 — Test horizontal privilege escalation**
+  - User Company A tidak boleh membaca/mengubah Company B.
+
+- [ ] **SEC-TEN-005 — P0 — Test vertical privilege escalation**
+  - Employee tidak boleh menjalankan endpoint HR/Admin.
+
+- [ ] **SEC-TEN-006 — P0 — File/document storage harus tenant-aware**
+  - Jangan hanya mengandalkan URL yang sulit ditebak.
+
+- [ ] **SEC-TEN-007 — P0 — Export/report wajib scoped ke tenant**
+
+- [ ] **SEC-TEN-008 — P1 — Automated tenant isolation tests dalam CI**
+
+- [ ] **SEC-TEN-009 — P1 — Cache harus tenant-aware**
+  - Hindari data tenant A muncul ke tenant B akibat cache key yang salah.
+
+- [ ] **SEC-TEN-010 — P1 — Search index/vector database harus tenant-isolated**
+
+- [ ] **SEC-TEN-011 — P1 — Background jobs/queue membawa verified tenant context**
+
+- [ ] **SEC-TEN-012 — P1 — Internal support impersonation memiliki approval + logging**
+  - Bila fitur impersonation diperlukan.
+
+---
+
+# D. APPLICATION SECURITY
+
+### Fokus
+Broken access control, injection, XSS, CSRF, SSRF, insecure design, misconfiguration, vulnerable dependency, unsafe file handling.
+
+- [ ] **SEC-APP-001 — P0 — Gunakan OWASP ASVS sebagai application security checklist**
+
+- [ ] **SEC-APP-002 — P0 — Server-side validation untuk seluruh input**
+
+- [ ] **SEC-APP-003 — P0 — Gunakan parameterized query / ORM secara aman**
+  - Hindari query SQL yang dibangun dari string user input.
+
+- [ ] **SEC-APP-004 — P0 — Output encoding / sanitization untuk mencegah XSS**
+
+- [ ] **SEC-APP-005 — P0 — CSRF protection untuk request yang menggunakan cookie session**
+
+- [ ] **SEC-APP-006 — P0 — Secure HTTP headers**
+  - HSTS.
+  - Content-Security-Policy.
+  - X-Content-Type-Options.
+  - Frame protection.
+  - Referrer Policy.
+
+- [ ] **SEC-APP-007 — P0 — Error production tidak membocorkan stack trace, SQL, secret, path internal**
+
+- [ ] **SEC-APP-008 — P0 — Disable debug mode di production**
+
+- [ ] **SEC-APP-009 — P0 — File upload protection**
+  - Allow-list file type.
+  - Validate MIME + content.
+  - Rename generated filename.
+  - Size limit.
+  - Store di non-executable location.
+  - Malware scanning bila sesuai.
+
+- [ ] **SEC-APP-010 — P0 — SSRF protection**
+  - Allow-list outbound destination untuk fitur fetch/import/webhook bila memungkinkan.
+  - Block access ke metadata/internal ranges dari untrusted URL flows.
+
+- [ ] **SEC-APP-011 — P1 — Content Security Policy dibuat ketat dan dimonitor**
+
+- [ ] **SEC-APP-012 — P1 — Security regression test untuk vulnerability yang pernah ditemukan**
+
+- [ ] **SEC-APP-013 — P1 — Feature flag permission**
+  - Feature premium/backend harus dicek server-side, bukan hanya hide UI.
+
+- [ ] **SEC-APP-014 — P1 — Business logic abuse testing**
+  - Approval bypass.
+  - Duplicate transaction.
+  - Replay.
+  - Negative/abnormal values.
+  - Sequence manipulation.
+
+- [ ] **SEC-APP-015 — P1 — Validate redirect URL untuk mencegah open redirect/phishing**
+
+- [ ] **SEC-APP-016 — P1 — Protect sensitive download links**
+  - Signed URL.
+  - Short TTL.
+  - Authorization before issuance.
+
+---
+
+# E. API SECURITY
+
+- [ ] **SEC-API-001 — P0 — Authentication & authorization di setiap protected API**
+
+- [ ] **SEC-API-002 — P0 — Object-level authorization**
+  - Cegah IDOR/BOLA.
+
+- [ ] **SEC-API-003 — P0 — Function-level authorization**
+  - Endpoint admin tidak boleh bergantung pada UI hiding.
+
+- [ ] **SEC-API-004 — P0 — Property-level authorization**
+  - Client tidak boleh mengubah hidden/admin-only fields melalui request body.
+
+- [ ] **SEC-API-005 — P0 — API rate limit**
+  - Per tenant.
+  - Per user.
+  - Per API key.
+  - Per endpoint risk.
+
+- [ ] **SEC-API-006 — P0 — Request body size & resource consumption limit**
+
+- [ ] **SEC-API-007 — P0 — Inventory seluruh API endpoint dan versi**
+
+- [ ] **SEC-API-008 — P0 — Remove/deactivate deprecated, debug, test endpoint di production**
+
+- [ ] **SEC-API-009 — P1 — API schema validation**
+
+- [ ] **SEC-API-010 — P1 — API key rotation dan expiration**
+
+- [ ] **SEC-API-011 — P1 — Secret API key tidak ditempatkan di frontend/mobile bundle**
+
+- [ ] **SEC-API-012 — P1 — Webhook signing**
+  - Signature.
+  - Timestamp.
+  - Replay protection.
+
+- [ ] **SEC-API-013 — P1 — Validate response dari third-party API**
+  - Jangan otomatis mempercayai data pihak ketiga.
+
+- [ ] **SEC-API-014 — P1 — Per-customer API quota**
+
+- [ ] **SEC-API-015 — P2 — mTLS/private connectivity untuk integrasi enterprise tertentu bila dibutuhkan**
+
+---
+
+# F. ANTI-BOT, ANTI-ABUSE, FRAUD & "CHEAT" DEFENSE
+
+### Target
+Credential stuffing, scraping, fake accounts, automation abuse, data harvesting, attendance manipulation, payroll abuse, reimbursement fraud.
+
+- [ ] **SEC-ABU-001 — P0 — Rate limiting pada login, signup, reset password, OTP, search, export**
+
+- [ ] **SEC-ABU-002 — P0 — OTP abuse protection**
+  - Send limit.
+  - Verify limit.
+  - Cooldown.
+  - Per-user/IP/device thresholds.
+
+- [ ] **SEC-ABU-003 — P0 — Detect credential stuffing pattern**
+
+- [ ] **SEC-ABU-004 — P0 — Protect bulk employee/CV/search endpoint dari scraping**
+
+- [ ] **SEC-ABU-005 — P0 — Export permission + export audit log**
+
+- [ ] **SEC-ABU-006 — P1 — Progressive bot challenge**
+  - Gunakan challenge hanya saat risk meningkat.
+  - Jangan bergantung pada CAPTCHA sebagai satu-satunya defense.
+
+- [ ] **SEC-ABU-007 — P1 — Velocity detection**
+  - Login.
+  - Search.
+  - CV download.
+  - Export.
+  - Attendance.
+  - Claims.
+  - Password reset.
+
+- [ ] **SEC-ABU-008 — P1 — Detect impossible behavior**
+  - Terlalu banyak employee records dalam waktu singkat.
+  - Device/IP pattern abnormal.
+  - Repetitive automation.
+
+## Attendance / Timesheet Anti-Cheat
+
+- [ ] **SEC-ABU-009 — P0 — Gunakan server timestamp sebagai source of truth**
+  - Jangan percaya waktu device.
+
+- [ ] **SEC-ABU-010 — P1 — Geofence validation dilakukan server-side**
+
+- [ ] **SEC-ABU-011 — P1 — Location accuracy threshold**
+  - Simpan accuracy metadata.
+  - Tolak/flag lokasi terlalu tidak akurat sesuai policy.
+
+- [ ] **SEC-ABU-012 — P1 — Detect mock-location / rooted/jailbroken/emulator sebagai risk signal**
+  - Jangan menjadikan satu signal sebagai bukti tunggal.
+
+- [ ] **SEC-ABU-013 — P1 — Anti-replay untuk attendance request**
+  - Nonce / signed request / short-lived challenge sesuai desain.
+
+- [ ] **SEC-ABU-014 — P1 — Selfie/liveness jika memang diperlukan oleh kebijakan customer**
+  - Privacy impact assessment.
+  - Minimalkan penyimpanan biometric-like data.
+
+- [ ] **SEC-ABU-015 — P1 — Flag impossible travel / impossible attendance**
+
+## Payroll / HR Data Fraud
+
+- [ ] **SEC-ABU-016 — P0 — Maker-checker untuk perubahan kritikal**
+  - Bank account.
+  - Salary.
+  - Payroll rule.
+  - Bulk payroll adjustment.
+
+- [ ] **SEC-ABU-017 — P0 — Audit before/after value**
+  - Siapa.
+  - Kapan.
+  - Dari mana.
+  - Nilai lama.
+  - Nilai baru.
+
+- [ ] **SEC-ABU-018 — P1 — Alert perubahan bank account sebelum payroll run**
+
+- [ ] **SEC-ABU-019 — P1 — Detect duplicate reimbursement/claim**
+
+- [ ] **SEC-ABU-020 — P1 — Separation of duties**
+  - Pengubah data tidak selalu boleh menjadi approver akhir.
+
+- [ ] **SEC-ABU-021 — P2 — Fraud/anomaly scoring**
+  - Perubahan massal.
+  - Unusual admin activity.
+  - Akses data abnormal.
+  - Repeated rejected approvals.
+
+---
+
+# G. PHISHING & SOCIAL ENGINEERING DEFENSE
+
+- [ ] **SEC-PHI-001 — P0 — MFA untuk email, cloud console, Git, password manager, support system**
+
+- [ ] **SEC-PHI-002 — P0 — SPF untuk corporate domain**
+
+- [ ] **SEC-PHI-003 — P0 — DKIM untuk outbound email**
+
+- [ ] **SEC-PHI-004 — P0 — DMARC**
+  - Mulai monitoring.
+  - Naikkan policy secara bertahap menuju enforcement.
+
+- [ ] **SEC-PHI-005 — P0 — Registrar/domain account dikunci dengan MFA**
+
+- [ ] **SEC-PHI-006 — P0 — Prevent unauthorized DNS change**
+  - RBAC.
+  - MFA.
+  - Change alert.
+
+- [ ] **SEC-PHI-007 — P1 — Security awareness training**
+  - Phishing.
+  - Fake invoice.
+  - Credential page.
+  - OAuth consent phishing.
+  - Social engineering via WhatsApp/Telegram.
+
+- [ ] **SEC-PHI-008 — P1 — Simulated phishing exercise secara berkala**
+
+- [ ] **SEC-PHI-009 — P1 — External email warning/banner**
+
+- [ ] **SEC-PHI-010 — P1 — Process verifikasi out-of-band untuk permintaan sensitif**
+  - Payment.
+  - Bank-account change.
+  - Admin reset.
+  - Credential/MFA reset.
+
+- [ ] **SEC-PHI-011 — P1 — Brand/domain monitoring untuk lookalike phishing domain**
+
+---
+
+# H. CLOUD, SERVER & NETWORK SECURITY
+
+- [ ] **SEC-INF-001 — P0 — Production tidak expose database ke public internet**
+
+- [ ] **SEC-INF-002 — P0 — Firewall/security-group default deny**
+
+- [ ] **SEC-INF-003 — P0 — Hanya service/port yang diperlukan yang dibuka**
+
+- [ ] **SEC-INF-004 — P0 — TLS/HTTPS wajib**
+
+- [ ] **SEC-INF-005 — P0 — Disable insecure protocol/cipher yang deprecated**
+
+- [ ] **SEC-INF-006 — P0 — Admin access melalui secure channel**
+  - VPN / identity-aware proxy / bastion sesuai arsitektur.
+
+- [ ] **SEC-INF-007 — P0 — Cloud root/owner account tidak digunakan harian**
+
+- [ ] **SEC-INF-008 — P0 — MFA hardware/passkey untuk cloud privileged admin**
+
+- [ ] **SEC-INF-009 — P0 — Separate dev/staging/production**
+
+- [ ] **SEC-INF-010 — P0 — Production credential tidak dipakai di development**
+
+- [ ] **SEC-INF-011 — P0 — Patch operating system/runtime secara rutin**
+
+- [ ] **SEC-INF-012 — P1 — Infrastructure as Code**
+  - Reviewable.
+  - Version-controlled.
+  - Reproducible.
+
+- [ ] **SEC-INF-013 — P1 — Cloud security posture scan / misconfiguration detection**
+
+- [ ] **SEC-INF-014 — P1 — WAF/CDN untuk public web/API sesuai kebutuhan**
+
+- [ ] **SEC-INF-015 — P1 — DDoS protection dari cloud/CDN provider**
+
+- [ ] **SEC-INF-016 — P1 — Egress control untuk workload high-risk**
+
+- [ ] **SEC-INF-017 — P1 — Network segmentation**
+
+- [ ] **SEC-INF-018 — P1 — Container security**
+  - Minimal image.
+  - Non-root where possible.
+  - Image scan.
+  - Read-only filesystem where practical.
+  - Resource limits.
+
+- [ ] **SEC-INF-019 — P1 — Kubernetes security bila menggunakan Kubernetes**
+  - RBAC.
+  - NetworkPolicy.
+  - Secret management.
+  - Pod security.
+  - API server protection.
+
+- [ ] **SEC-INF-020 — P2 — Immutable infrastructure/deployment pattern bila sesuai**
+
+---
+
+# I. DATABASE, DATA PROTECTION & CRYPTOGRAPHY
+
+- [ ] **SEC-DAT-001 — P0 — Encryption in transit**
+
+- [ ] **SEC-DAT-002 — P0 — Encryption at rest untuk database/storage**
+
+- [ ] **SEC-DAT-003 — P0 — Production database access sangat terbatas**
+
+- [ ] **SEC-DAT-004 — P0 — Separate DB credentials per service/environment**
+
+- [ ] **SEC-DAT-005 — P0 — Backup database terenkripsi**
+
+- [ ] **SEC-DAT-006 — P0 — Tidak menggunakan production PII secara bebas di dev/test**
+
+- [ ] **SEC-DAT-007 — P0 — Mask/anonymize test dataset**
+
+- [ ] **SEC-DAT-008 — P0 — Data retention policy**
+
+- [ ] **SEC-DAT-009 — P0 — Secure deletion sesuai lifecycle dan kewajiban hukum**
+
+- [ ] **SEC-DAT-010 — P1 — Column/field-level protection untuk data sangat sensitif jika threat model memerlukan**
+
+- [ ] **SEC-DAT-011 — P1 — Key management menggunakan managed KMS/HSM bila tersedia**
+
+- [ ] **SEC-DAT-012 — P1 — Key rotation policy**
+
+- [ ] **SEC-DAT-013 — P1 — DLP rules untuk export/log/support workflow**
+
+- [ ] **SEC-DAT-014 — P1 — Database audit logging untuk privileged operation**
+
+- [ ] **SEC-DAT-015 — P1 — Data minimization**
+  - Jangan mengumpulkan data yang tidak diperlukan.
+
+- [ ] **SEC-DAT-016 — P2 — Customer-configurable retention untuk enterprise bila relevan**
+
+---
+
+# J. SECRET & CREDENTIAL MANAGEMENT
+
+- [ ] **SEC-SEC-001 — P0 — Tidak ada secret di source code**
+
+- [ ] **SEC-SEC-002 — P0 — Tidak ada `.env` production di Git**
+
+- [ ] **SEC-SEC-003 — P0 — Gunakan secret manager/vault**
+
+- [ ] **SEC-SEC-004 — P0 — Rotate secret yang pernah ter-commit**
+
+- [ ] **SEC-SEC-005 — P0 — Git secret scanning**
+
+- [ ] **SEC-SEC-006 — P1 — Short-lived workload credentials bila cloud mendukung**
+
+- [ ] **SEC-SEC-007 — P1 — Automated secret rotation untuk credential tertentu**
+
+- [ ] **SEC-SEC-008 — P1 — Jangan log token/password/OTP/API key**
+
+---
+
+# K. SECURE SDLC / DEVSECOPS
+
+- [ ] **SEC-SDL-001 — P0 — Mandatory code review**
+
+- [ ] **SEC-SDL-002 — P0 — Branch protection**
+  - No direct push ke production branch.
+  - Required approval.
+  - Required CI status.
+
+- [ ] **SEC-SDL-003 — P0 — SAST di CI**
+
+- [ ] **SEC-SDL-004 — P0 — Dependency/SCA scanning**
+
+- [ ] **SEC-SDL-005 — P0 — Secret scanning**
+
+- [ ] **SEC-SDL-006 — P1 — DAST terhadap staging**
+
+- [ ] **SEC-SDL-007 — P1 — IaC security scanning**
+
+- [ ] **SEC-SDL-008 — P1 — Container image scanning**
+
+- [ ] **SEC-SDL-009 — P1 — Dependency lockfile dan reproducible build**
+
+- [ ] **SEC-SDL-010 — P1 — Automated security update/dependency bot**
+
+- [ ] **SEC-SDL-011 — P1 — SBOM / Software Bill of Materials**
+
+- [ ] **SEC-SDL-012 — P1 — Signed build/artifact/container bila pipeline mendukung**
+
+- [ ] **SEC-SDL-013 — P1 — CI/CD credentials least privilege**
+
+- [ ] **SEC-SDL-014 — P1 — Production deployment approval**
+
+- [ ] **SEC-SDL-015 — P1 — Security test menjadi release gate untuk severity tinggi/kritikal**
+
+- [ ] **SEC-SDL-016 — P2 — Threat model as code/document yang update per significant architecture change**
+
+---
+
+# L. SOFTWARE SUPPLY CHAIN SECURITY
+
+- [ ] **SEC-SUP-001 — P0 — Inventory dependency**
+
+- [ ] **SEC-SUP-002 — P0 — Patch dependency dengan CVE critical/high sesuai SLA**
+
+- [ ] **SEC-SUP-003 — P0 — Batasi package registry/source terpercaya**
+
+- [ ] **SEC-SUP-004 — P1 — Detect dependency confusion / typosquatting risk**
+
+- [ ] **SEC-SUP-005 — P1 — Protect package publishing account dengan MFA**
+
+- [ ] **SEC-SUP-006 — P1 — Pin CI/CD third-party actions/plugins ke version/commit yang terkontrol**
+
+- [ ] **SEC-SUP-007 — P1 — Vendor security review untuk SDK/library kritikal**
+
+- [ ] **SEC-SUP-008 — P2 — Supply-chain integrity/signing maturity program**
+
+---
+
+# M. ENDPOINT & INTERNAL COMPANY SECURITY
+
+- [ ] **SEC-END-001 — P0 — Full disk encryption untuk laptop staff**
+
+- [ ] **SEC-END-002 — P0 — Screen lock otomatis**
+
+- [ ] **SEC-END-003 — P0 — OS auto update**
+
+- [ ] **SEC-END-004 — P0 — EDR/antimalware untuk endpoint internal sesuai OS/risk**
+
+- [ ] **SEC-END-005 — P0 — Password manager perusahaan**
+
+- [ ] **SEC-END-006 — P0 — MFA untuk corporate SaaS**
+
+- [ ] **SEC-END-007 — P1 — MDM untuk laptop/mobile device company**
+
+- [ ] **SEC-END-008 — P1 — Disable local admin by default**
+
+- [ ] **SEC-END-009 — P1 — Remote wipe capability**
+
+- [ ] **SEC-END-010 — P1 — USB/removable media policy jika data sensitivity tinggi**
+
+- [ ] **SEC-END-011 — P1 — Joiner/Mover/Leaver process**
+  - Account creation.
+  - Role change.
+  - Immediate offboarding.
+  - Token/session revoke.
+  - Device return.
+
+---
+
+# N. LOGGING, MONITORING, DETECTION & ALERTING
+
+- [ ] **SEC-MON-001 — P0 — Centralized application/security log**
+
+- [ ] **SEC-MON-002 — P0 — Log login success/failure**
+
+- [ ] **SEC-MON-003 — P0 — Log MFA enrollment/reset**
+
+- [ ] **SEC-MON-004 — P0 — Log role/permission changes**
+
+- [ ] **SEC-MON-005 — P0 — Log privileged/admin actions**
+
+- [ ] **SEC-MON-006 — P0 — Log mass export/download**
+
+- [ ] **SEC-MON-007 — P0 — Log payroll/bank-account critical changes**
+
+- [ ] **SEC-MON-008 — P0 — Log security configuration changes**
+
+- [ ] **SEC-MON-009 — P0 — Jangan log password/token/raw secret**
+
+- [ ] **SEC-MON-010 — P1 — Alert brute-force / credential stuffing**
+
+- [ ] **SEC-MON-011 — P1 — Alert privilege escalation/change**
+
+- [ ] **SEC-MON-012 — P1 — Alert abnormal data export**
+
+- [ ] **SEC-MON-013 — P1 — Alert cloud root/admin login**
+
+- [ ] **SEC-MON-014 — P1 — Alert security-group/firewall/public storage changes**
+
+- [ ] **SEC-MON-015 — P1 — Alert CI/CD secret or pipeline anomalies**
+
+- [ ] **SEC-MON-016 — P1 — Log integrity / restricted deletion**
+
+- [ ] **SEC-MON-017 — P1 — Define retention per log category**
+
+- [ ] **SEC-MON-018 — P2 — SIEM/use-case correlation untuk maturity lebih tinggi**
+
+---
+
+# O. VULNERABILITY MANAGEMENT & SECURITY TESTING
+
+- [ ] **SEC-VUL-001 — P0 — Vulnerability scanning rutin**
+
+- [ ] **SEC-VUL-002 — P0 — Patch SLA**
+  - Critical: secepat mungkin sesuai exploitability/exposure.
+  - High: defined short SLA.
+  - Medium/Low: risk-based SLA.
+
+- [ ] **SEC-VUL-003 — P0 — Track vulnerability sampai closure**
+
+- [ ] **SEC-VUL-004 — P0 — Internet-facing attack surface review**
+
+- [ ] **SEC-VUL-005 — P1 — Independent penetration test sebelum major enterprise launch**
+
+- [ ] **SEC-VUL-006 — P1 — Penetration test minimal tahunan dan setelah perubahan arsitektur besar**
+
+- [ ] **SEC-VUL-007 — P1 — Retest setiap finding high/critical setelah perbaikan**
+
+- [ ] **SEC-VUL-008 — P1 — Vulnerability Disclosure Policy / security contact**
+
+- [ ] **SEC-VUL-009 — P2 — Bug bounty/private researcher program ketika engineering siap menangani volume laporan**
+
+---
+
+# P. BACKUP, RANSOMWARE & DISASTER RECOVERY
+
+- [ ] **SEC-BCK-001 — P0 — Automated backup**
+
+- [ ] **SEC-BCK-002 — P0 — Backup terenkripsi**
+
+- [ ] **SEC-BCK-003 — P0 — Backup terpisah dari primary environment**
+
+- [ ] **SEC-BCK-004 — P0 — Backup retention policy**
+
+- [ ] **SEC-BCK-005 — P0 — Restore test**
+  - Backup dianggap valid hanya jika pernah berhasil direstore.
+
+- [ ] **SEC-BCK-006 — P0 — Define RPO**
+
+- [ ] **SEC-BCK-007 — P0 — Define RTO**
+
+- [ ] **SEC-BCK-008 — P1 — Immutable/versioned backup untuk critical data bila memungkinkan**
+
+- [ ] **SEC-BCK-009 — P1 — Disaster Recovery Runbook**
+
+- [ ] **SEC-BCK-010 — P1 — Disaster Recovery drill minimal periodik**
+
+- [ ] **SEC-BCK-011 — P2 — Multi-region recovery untuk requirement availability yang tinggi**
+
+---
+
+# Q. INCIDENT RESPONSE
+
+- [ ] **SEC-IR-001 — P0 — Incident Response Plan**
+
+- [ ] **SEC-IR-002 — P0 — Severity classification**
+  - SEV-1 Critical.
+  - SEV-2 High.
+  - SEV-3 Medium.
+  - SEV-4 Low.
+
+- [ ] **SEC-IR-003 — P0 — Security incident contact tree**
+
+- [ ] **SEC-IR-004 — P0 — Runbook untuk:**
+  - Account takeover.
+  - Data breach.
+  - Ransomware.
+  - Cloud credential leak.
+  - Database exposure.
+  - DDoS.
+  - Phishing.
+  - Malicious insider.
+  - Supply-chain compromise.
+
+- [ ] **SEC-IR-005 — P0 — Evidence preservation procedure**
+
+- [ ] **SEC-IR-006 — P1 — Tabletop exercise**
+
+- [ ] **SEC-IR-007 — P1 — Post-incident review / lessons learned**
+
+- [ ] **SEC-IR-008 — P1 — Customer communication template**
+
+- [ ] **SEC-IR-009 — P1 — Legal/privacy breach-notification workflow**
+  - Sesuaikan dengan yurisdiksi dan kewajiban kontraktual.
+
+---
+
+# R. PRIVACY & PERSONAL DATA PROTECTION
+
+### Sangat penting untuk HR SaaS.
+
+- [ ] **SEC-PRV-001 — P0 — Data inventory / Record of Processing Activities**
+
+- [ ] **SEC-PRV-002 — P0 — Mapping sumber, tujuan, storage, retention, dan recipient data**
+
+- [ ] **SEC-PRV-003 — P0 — Privacy notice**
+
+- [ ] **SEC-PRV-004 — P0 — Legal basis/purpose defined untuk pemrosesan data**
+
+- [ ] **SEC-PRV-005 — P0 — Data minimization**
+
+- [ ] **SEC-PRV-006 — P0 — Retention & deletion workflow**
+
+- [ ] **SEC-PRV-007 — P0 — Data Subject Rights workflow sesuai ketentuan yang berlaku**
+
+- [ ] **SEC-PRV-008 — P1 — Data Processing Agreement untuk customer/vendor bila relevan**
+
+- [ ] **SEC-PRV-009 — P1 — Privacy Impact Assessment untuk fitur berisiko tinggi**
+  - Biometrics/liveness.
+  - Location.
+  - AI profiling.
+  - Monitoring.
+  - Sensitive documents.
+
+- [ ] **SEC-PRV-010 — P1 — Cross-border data transfer review bila menggunakan vendor/data center luar negeri**
+
+- [ ] **SEC-PRV-011 — P1 — Privacy-by-design checklist sebagai bagian product review**
+
+---
+
+# S. THIRD-PARTY / VENDOR SECURITY
+
+- [ ] **SEC-VEN-001 — P0 — Inventory vendor**
+  - Cloud.
+  - Email.
+  - SMS/WhatsApp.
+  - Payment.
+  - Analytics.
+  - AI.
+  - Support.
+  - Storage.
+  - HR integrations.
+
+- [ ] **SEC-VEN-002 — P0 — Catat data apa yang dikirim ke setiap vendor**
+
+- [ ] **SEC-VEN-003 — P0 — Batasi API permission vendor**
+
+- [ ] **SEC-VEN-004 — P0 — Vendor secret/key rotation**
+
+- [ ] **SEC-VEN-005 — P1 — Security review vendor kritikal**
+  - Compliance.
+  - Breach history.
+  - Encryption.
+  - Access control.
+  - Subprocessors.
+  - Data location.
+  - Incident notification.
+
+- [ ] **SEC-VEN-006 — P1 — Contract/DPA/security clause**
+
+- [ ] **SEC-VEN-007 — P1 — Offboarding vendor**
+  - Revoke credential.
+  - Delete/export data.
+  - Disable integration.
+
+---
+
+# T. AI / LLM SECURITY
+
+Jika Humanify menggunakan AI untuk recruitment, candidate screening, HR assistant, search, summarization, atau automation.
+
+- [ ] **SEC-AI-001 — P0 — Jangan kirim secret ke model/provider**
+
+- [ ] **SEC-AI-002 — P0 — Tenant isolation untuk prompt/context/vector store**
+
+- [ ] **SEC-AI-003 — P0 — Authorization sebelum data diberikan ke AI**
+  - AI tidak boleh menjadi bypass access control.
+
+- [ ] **SEC-AI-004 — P0 — Treat model output sebagai untrusted input**
+
+- [ ] **SEC-AI-005 — P0 — Tool/action permission**
+  - AI tidak boleh melakukan action sensitif hanya berdasarkan prompt.
+
+- [ ] **SEC-AI-006 — P1 — Prompt injection defense**
+  - Separate trusted instructions and untrusted documents.
+  - Least-privilege tool access.
+  - Validate action.
+
+- [ ] **SEC-AI-007 — P1 — Sensitive data redaction/minimization sebelum model call**
+
+- [ ] **SEC-AI-008 — P1 — Vendor AI data-retention/training policy review**
+
+- [ ] **SEC-AI-009 — P1 — Human approval untuk high-impact actions**
+  - Reject candidate.
+  - Salary/payroll change.
+  - Employee termination.
+  - Bank-account change.
+
+- [ ] **SEC-AI-010 — P1 — Audit log AI action dan tool calls**
+
+- [ ] **SEC-AI-011 — P2 — AI red-team/evaluation set**
+  - Cross-tenant leakage.
+  - Prompt injection.
+  - Sensitive-data extraction.
+  - Unauthorized tool/action.
+  - Hallucinated authorization.
+
+---
+
+# U. BUSINESS CONTINUITY & AVAILABILITY
+
+- [ ] **SEC-BCP-001 — P0 — Define critical services**
+  - Login.
+  - HR database.
+  - Attendance.
+  - Payroll.
+  - Notifications.
+  - API.
+
+- [ ] **SEC-BCP-002 — P1 — Capacity monitoring**
+
+- [ ] **SEC-BCP-003 — P1 — Autoscaling/resource limit bila relevan**
+
+- [ ] **SEC-BCP-004 — P1 — Queue/retry dengan idempotency**
+
+- [ ] **SEC-BCP-005 — P1 — Graceful degradation**
+  - Non-critical service failure tidak menjatuhkan seluruh platform.
+
+- [ ] **SEC-BCP-006 — P1 — Status page / incident communication mechanism**
+
+---
+
+# V. SECURITY DOCUMENTATION YANG HARUS DIMILIKI
+
+Buat dan version-control dokumen berikut:
+
+- [ ] Security Policy.
+- [ ] Access Control Policy.
+- [ ] Password & MFA Policy.
+- [ ] Secure Development Policy.
+- [ ] Data Classification Policy.
+- [ ] Data Retention & Deletion Policy.
+- [ ] Backup & Disaster Recovery Policy.
+- [ ] Incident Response Plan.
+- [ ] Business Continuity Plan.
+- [ ] Vulnerability Management Policy.
+- [ ] Vendor Security Policy.
+- [ ] Employee Joiner/Mover/Leaver Procedure.
+- [ ] Production Access Procedure.
+- [ ] Logging & Monitoring Standard.
+- [ ] Encryption & Key Management Standard.
+- [ ] Privacy/Data Processing Map.
+- [ ] Architecture Diagram.
+- [ ] Data Flow Diagram.
+- [ ] Threat Model untuk critical flows.
+- [ ] Penetration Test Reports.
+- [ ] Security Risk Register.
+- [ ] Security Exception Register.
+
+---
+
+# W. MINIMUM SECURITY GATE SEBELUM PUBLIC LAUNCH
+
+Semua item berikut harus dianggap **release blocker** bila belum ada:
+
+- [ ] HTTPS/TLS seluruh production.
+- [ ] Production DB tidak public.
+- [ ] MFA seluruh internal privileged account.
+- [ ] RBAC dan server-side authorization.
+- [ ] Tenant isolation test lulus.
+- [ ] Secure password/session handling.
+- [ ] Rate limiting login/reset/OTP/API sensitif.
+- [ ] Secret tidak tersimpan di repository.
+- [ ] Secret scanning aktif.
+- [ ] Dependency vulnerability scan aktif.
+- [ ] Branch protection dan mandatory review.
+- [ ] Backup otomatis.
+- [ ] Backup restore test berhasil.
+- [ ] Centralized security log.
+- [ ] Critical admin action audit log.
+- [ ] Error/debug information tidak leak.
+- [ ] File upload telah diamankan.
+- [ ] Security headers dasar.
+- [ ] Incident response contact/runbook tersedia.
+- [ ] Data retention & deletion policy tersedia.
+- [ ] Privacy/data processing mapping dibuat.
+- [ ] External penetration test atau security assessment untuk critical release.
+
+---
+
+# X. 30 / 60 / 90 DAY IMPLEMENTATION PLAN
+
+## Hari 0–30 — Foundation / P0
+
+### Week 1
+- [ ] Asset inventory.
+- [ ] Account/admin inventory.
+- [ ] Mandatory MFA.
+- [ ] Remove shared admin accounts.
+- [ ] Review cloud public exposure.
+- [ ] Database/network lockdown.
+- [ ] Secret scan seluruh repository.
+- [ ] Rotate leaked/old credential.
+- [ ] Branch protection.
+- [ ] Production access review.
+
+### Week 2
+- [ ] RBAC review.
+- [ ] Tenant isolation test.
+- [ ] Login rate limiting.
+- [ ] Password reset hardening.
+- [ ] Session security.
+- [ ] API authentication/authorization review.
+- [ ] File upload hardening.
+- [ ] Security headers.
+- [ ] Disable debug/test endpoint.
+
+### Week 3
+- [ ] Central logging.
+- [ ] Admin audit log.
+- [ ] Alert critical cloud/admin activity.
+- [ ] Automated backup.
+- [ ] Restore test.
+- [ ] Incident response runbook.
+- [ ] Security contact tree.
+
+### Week 4
+- [ ] SAST.
+- [ ] SCA/dependency scanning.
+- [ ] Secret scanning CI.
+- [ ] Security checklist di PR/release.
+- [ ] Threat model critical features.
+- [ ] Security assessment/pentest planning.
+- [ ] Data inventory + classification.
+
+## Hari 31–60 — Detection & Hardening / P1
+
+- [ ] DAST.
+- [ ] WAF/CDN/DDoS controls.
+- [ ] SIEM/lightweight centralized detection.
+- [ ] Anti-bot/credential stuffing detection.
+- [ ] Export anomaly detection.
+- [ ] Payroll/bank-account change alerts.
+- [ ] DMARC enforcement progression.
+- [ ] Employee security training.
+- [ ] Vendor review.
+- [ ] DR runbook.
+- [ ] Tabletop incident exercise.
+- [ ] Privacy impact reviews.
+- [ ] Enterprise SSO design.
+
+## Hari 61–90 — Maturity / P2
+
+- [ ] Automated tenant isolation regression suite.
+- [ ] SBOM.
+- [ ] Container/IaC scanning.
+- [ ] Security KPI dashboard.
+- [ ] Quarterly risk review cadence.
+- [ ] Advanced fraud/anomaly detection.
+- [ ] Security architecture review.
+- [ ] DR exercise.
+- [ ] Enterprise compliance gap assessment.
+- [ ] Vulnerability disclosure program.
+- [ ] AI security evaluation if AI feature exists.
+
+---
+
+# Y. RECOMMENDED OWNERSHIP
+
+| Area | Primary Owner | Supporting |
+|---|---|---|
+| Governance | CTO / Security Lead | CEO, Legal |
+| AppSec | Engineering Lead | Backend/Frontend Engineers |
+| IAM | Platform/Backend | Security |
+| Tenant Isolation | Backend/Architecture | QA/Security |
+| Cloud Security | DevOps/SRE | Security |
+| Data Security | Backend/DBA | Security |
+| Secure SDLC | Engineering Lead | DevOps |
+| Monitoring | DevOps/SRE | Backend/Security |
+| Incident Response | Security Lead/CTO | DevOps, Legal, Support |
+| Privacy | Legal/Privacy Owner | Product, Security |
+| Anti-fraud/Anti-cheat | Product + Backend | Data/Security |
+| Vendor Security | Security/Procurement | Legal |
+| Employee Security | IT/Security | HR |
+| AI Security | AI/Product Lead | Security/Backend |
+
+---
+
+# Z. SECURITY KPI / DASHBOARD
+
+Monitor minimal:
+
+| Metric | Target Direction |
+|---|---|
+| Internal privileged MFA coverage | 100% |
+| Customer admin MFA adoption | naik |
+| Critical vulnerabilities unresolved | 0 |
+| High vulnerability age | turun |
+| Successful backup jobs | mendekati 100% |
+| Successful restore tests | 100% planned tests |
+| Production admin accounts | seminimal mungkin |
+| Shared accounts | 0 |
+| Secrets found in Git | 0 active secret |
+| Unauthorized cross-tenant test | 0 |
+| Security alerts investigated within SLA | naik |
+| Phishing simulation failure rate | turun |
+| Security training completion | 100% |
+| Mean Time to Detect | turun |
+| Mean Time to Respond | turun |
+| Dependency critical CVEs | 0 overdue |
+| Production changes with review | 100% |
+| High-risk features with threat model | 100% |
+
+---
+
+# Recommended Security Architecture Layers
+
+```text
+Internet
+   |
+   v
+DNS / Registrar Security
+   |
+CDN + DDoS Protection + WAF
+   |
+Load Balancer / API Gateway
+   |
+Authentication + MFA + Rate Limit
+   |
+Application / API
+   |
+RBAC + Tenant Authorization + Business Logic Controls
+   |
+Service Layer
+   |
+Database / Object Storage / Queue / Search / Vector DB
+   |
+Encryption + KMS + Backup
+   |
+---------------------------------------
+Cross-cutting:
+- Centralized logging
+- Audit trails
+- Monitoring & alerts
+- Secret management
+- Vulnerability management
+- DevSecOps
+- Incident response
+- Privacy
+```
+
+---
+
+# Security Philosophy
+
+1. **Zero Trust:** jangan mempercayai request hanya karena datang dari network/internal service.
+2. **Least Privilege:** setiap user/service mendapat hak minimum.
+3. **Default Deny:** akses ditolak kecuali secara eksplisit diizinkan.
+4. **Defense in Depth:** jangan mengandalkan satu kontrol.
+5. **Assume Breach:** desain seolah satu credential atau komponen suatu hari dapat bocor.
+6. **Secure by Default:** konfigurasi default harus aman.
+7. **Privacy by Design:** minimalkan dan lindungi data sejak tahap desain.
+8. **Auditability:** aksi sensitif harus bisa ditelusuri.
+9. **Fail Securely:** ketika error, sistem tidak membuka akses.
+10. **Continuous Security:** security adalah proses berulang, bukan checklist satu kali.
+
+---
+
+# Suggested Immediate P0 Backlog for Humanify
+
+Urutan implementasi yang disarankan:
+
+1. Asset + account + production access inventory.
+2. Mandatory MFA seluruh internal privileged accounts.
+3. Cloud/database public exposure audit.
+4. Secret scan + immediate rotation.
+5. RBAC and tenant isolation audit.
+6. Cross-tenant automated tests.
+7. Login/OTP/reset rate limiting.
+8. Password/session hardening.
+9. API object/function/property authorization review.
+10. Admin & payroll critical action audit trail.
+11. Backup + actual restore test.
+12. Centralized logging + security alerts.
+13. SAST + dependency + secret scanning in CI.
+14. Branch protection + mandatory review.
+15. File upload and export security review.
+16. WAF/DDoS/CDN baseline.
+17. Security incident runbook.
+18. Data inventory/classification/retention.
+19. Independent penetration test.
+20. Fix all high/critical findings before broader production rollout.
+
+---
+
+# Definition of Done untuk Security Task
+
+Sebuah security task belum dianggap selesai hanya karena fitur sudah dibuat. Minimal harus memenuhi:
+
+- [ ] Requirement terdokumentasi.
+- [ ] Code/config reviewed.
+- [ ] Test dibuat.
+- [ ] Negative/abuse case diuji.
+- [ ] Logging tersedia bila relevan.
+- [ ] Alert tersedia untuk critical control bila relevan.
+- [ ] Documentation/runbook diperbarui.
+- [ ] Evidence hasil test tersimpan.
+- [ ] Tidak menghasilkan regression.
+- [ ] Security owner menerima hasilnya.
+
+---
+
+# Referensi
+
+- NIST Cybersecurity Framework 2.0 — https://www.nist.gov/cyberframework
+- CIS Critical Security Controls v8.1 — https://www.cisecurity.org/controls/v8-1
+- OWASP Top 10:2025 — https://top10.owasp.org/2025/
+- OWASP ASVS — https://owasp.org/projects/asvs
+- OWASP API Security — https://owasp.org/projects/api-security-project
+- OWASP Bot Management and Anti-Automation Cheat Sheet — https://cheatsheetseries.owasp.org/cheatsheets/Bot_Management_and_Anti-Automation_Cheat_Sheet.html
+- NIST Secure Software Development Framework — https://csrc.nist.gov/projects/ssdf
+- UU No. 27 Tahun 2022 tentang Pelindungan Data Pribadi — https://jdih.komdigi.go.id/produk_hukum/view/id/832/

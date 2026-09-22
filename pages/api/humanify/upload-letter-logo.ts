@@ -3,6 +3,7 @@ import formidable from 'formidable';
 import fs from 'fs';
 import path from 'path';
 import { withHQAuth } from '@/lib/middleware/withHQAuth';
+import { assertSafeUpload } from '@/lib/security/safe-upload';
 
 export const config = {
   api: { bodyParser: false },
@@ -47,6 +48,26 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     const file = Array.isArray(fileEntry) ? fileEntry[0] : fileEntry;
     if (!file?.filepath) {
       return res.status(400).json({ success: false, error: 'File logo tidak ditemukan. Gunakan format PNG/JPG/SVG.' });
+    }
+
+    let head: Buffer | null = null;
+    try {
+      const fd = fs.openSync(file.filepath, 'r');
+      head = Buffer.alloc(16);
+      fs.readSync(fd, head, 0, 16, 0);
+      fs.closeSync(fd);
+    } catch { head = null; }
+
+    const safe = assertSafeUpload({
+      mime: file.mimetype,
+      originalName: file.originalFilename,
+      size: file.size,
+      maxBytes: 2 * 1024 * 1024,
+      buffer: head,
+    });
+    if (!safe.ok) {
+      try { fs.unlinkSync(file.filepath); } catch { /* ignore */ }
+      return res.status(400).json({ success: false, error: safe.error });
     }
 
     const relativePath = `/uploads/letter-logos/${path.basename(file.filepath)}`;

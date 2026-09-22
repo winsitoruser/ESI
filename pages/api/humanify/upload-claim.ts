@@ -11,6 +11,7 @@ import {
   ensureClaimStorageDir,
   persistClaimUpload,
 } from '@/lib/hris/claim-storage';
+import { assertSafeUpload } from '@/lib/security/safe-upload';
 
 export const config = {
   api: { bodyParser: false },
@@ -65,6 +66,24 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     for (const file of fileArray) {
       if (!file?.filepath) continue;
       try {
+        let head: Buffer | null = null;
+        try {
+          const fd = fs.openSync(file.filepath, 'r');
+          head = Buffer.alloc(16);
+          fs.readSync(fd, head, 0, 16, 0);
+          fs.closeSync(fd);
+        } catch { head = null; }
+        const safe = assertSafeUpload({
+          mime: file.mimetype,
+          originalName: file.originalFilename,
+          size: file.size,
+          maxBytes: 10 * 1024 * 1024,
+          buffer: head,
+        });
+        if (!safe.ok) {
+          try { fs.unlinkSync(file.filepath); } catch { /* ignore */ }
+          continue;
+        }
         const persisted = persistClaimUpload(
           file.filepath,
           file.originalFilename || pathBasename(file.filepath),

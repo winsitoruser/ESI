@@ -8,6 +8,7 @@ import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTranslation } from '@/lib/i18n';
+import { safeInternalPath } from '@/lib/security/safe-redirect';
 
 // Role-based redirect mapping (same as in [...nextauth].ts)
 const ROLE_REDIRECTS: Record<string, string> = {
@@ -111,11 +112,11 @@ const Login: React.FC<LoginProps> = ({ csrfToken }) => {
         
         // Priority 1: callbackUrl if provided and not auth-related
         if (callbackUrl && !callbackUrl.includes('/auth/')) {
-          target = callbackUrl;
+          target = safeInternalPath(callbackUrl, '/hq/dashboard');
         } 
         // Priority 2: role-based redirect from session redirectUrl
         else if ((session as any)?.redirectUrl) {
-          target = (session as any).redirectUrl;
+          target = safeInternalPath((session as any).redirectUrl, '/hq/dashboard');
         }
         // Priority 3: role-based redirect using helper
         else if (userRole) {

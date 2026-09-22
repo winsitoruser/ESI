@@ -3,6 +3,7 @@
  * Supports Hermes naming (SUMOPOD_AI_*) and app naming (SUMOPOD_*).
  */
 import { isHumanifyAiEnabled } from './ai-enabled';
+import { redactForLlm, redactMessagesForLlm } from './ai-prompt-redact';
 
 export interface SumopodConfig {
   apiKey: string;
@@ -61,11 +62,11 @@ export async function sumopodChat(opts: {
   const cfg = getSumopodConfig();
   if (!cfg.llmEnabled) return null;
 
-  const messages = [
+  const messages = redactMessagesForLlm([
     { role: 'system' as const, content: opts.system },
     ...(opts.history || []),
     { role: 'user' as const, content: opts.user },
-  ];
+  ]);
 
   try {
     const res = await fetch(`${cfg.baseUrl}/chat/completions`, {
@@ -105,7 +106,7 @@ export async function sumopodVision(opts: {
   if (!cfg.apiKey || !opts.images?.length) return null;
   if (String(process.env.HRIS_FACE_MATCH || '').toLowerCase() === 'false') return null;
 
-  const content: Array<Record<string, unknown>> = [{ type: 'text', text: opts.prompt }];
+  const content: Array<Record<string, unknown>> = [{ type: 'text', text: redactForLlm(opts.prompt) }];
   for (const img of opts.images.slice(0, 3)) {
     if (!img?.startsWith('data:image/')) continue;
     content.push({ type: 'image_url', image_url: { url: img } });

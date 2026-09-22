@@ -12,6 +12,7 @@ import {
 } from '@/lib/humanify/ops-host';
 import OpsLoginForm from '@/components/humanify/OpsLoginForm';
 import Head from 'next/head';
+import { safeInternalPath } from '@/lib/security/safe-redirect';
 
 type Props = { csrfToken: string; adminTotal: boolean };
 
@@ -60,10 +61,10 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
 
     const session = await getServerSession(ctx.req, ctx.res, authOptions);
     if (session?.user && isPlatformOperatorRole((session.user as any).role)) {
-      const dest = (ctx.query.callbackUrl as string) || '/platform';
+      const dest = safeInternalPath(ctx.query.callbackUrl as string, '/platform');
       return {
         redirect: {
-          destination: dest.startsWith('/platform') ? dest : '/platform',
+          destination: dest,
           permanent: false,
         },
       };

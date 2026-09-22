@@ -6,6 +6,7 @@ import EmployeePortalLoginForm from '@/components/humanify/EmployeePortalLoginFo
 import HumanifySeoHead from '@/components/humanify/HumanifySeoHead';
 import { authOptions } from '../api/auth/[...nextauth]';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
+import { safeInternalPath } from '@/lib/security/safe-redirect';
 
 type Props = { csrfToken: string };
 
@@ -32,10 +33,10 @@ export default function EmployeeLoginPage({ csrfToken }: Props) {
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
   const session = await getServerSession(ctx.req, ctx.res, authOptions);
   if (session?.user) {
-    const dest = (ctx.query.callbackUrl as string) || HUMANIFY_BRAND.employeePortalPath;
+    const dest = safeInternalPath(ctx.query.callbackUrl as string, HUMANIFY_BRAND.employeePortalPath);
     return {
       redirect: {
-        destination: dest.startsWith('/employee') ? dest : HUMANIFY_BRAND.employeePortalPath,
+        destination: dest,
         permanent: false,
       },
     };

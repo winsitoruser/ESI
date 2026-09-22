@@ -4,6 +4,11 @@ import { authOptions } from '../auth/[...nextauth]';
 import bcrypt from 'bcryptjs';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // SEC-API-008 — never expose debug endpoints in production
+  if (process.env.NODE_ENV === 'production' && process.env.HUMANIFY_ALLOW_DEBUG_API !== 'true') {
+    return res.status(404).json({ success: false, error: 'Not found' });
+  }
+
   // Auth check - only admin/super_admin can use this debug endpoint
   const session = await getServerSession(req, res, authOptions);
   if (!session) {

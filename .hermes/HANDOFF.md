@@ -1,5 +1,15 @@
 # Handoff — SIMESI (fka ESI ERP)
 
+> Diperbarui: 23 September 2026 — **Security Defense Waves 1–3 DONE · deploy pending**
+
+Sumber: `docs/humanify-security-defense-master-checklist.txt` · `docs/humanify-security-wave-progress.md`.
+
+Wave 1–3 code+docs complete (MFA platform, session invalidate, AI redact, maker-checker, step-up, export audit, safe-upload, backup GPG, open-redirect, DSR, risk-based auth, Semgrep/npm-audit CI, vuln disclosure). Ops-only items remain in risk register.
+
+---
+
+# Handoff — SIMESI (fka ESI ERP)
+
 > Diperbarui: 23 September 2026 — **Billing AIMAN token + paid modules DEPLOYED**
 
 Prod https://humanify.id/humanify/billing — add-on ATS/Bank Data/LMS/AIMAN + wallet token AIMAN.

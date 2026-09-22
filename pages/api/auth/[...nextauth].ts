@@ -281,6 +281,15 @@ export const authOptions: NextAuthOptions = {
             } else if (tenantRequires) {
               mfaSetupRequired = true;
             }
+            // SEC-IAM-001 — platform privileged accounts must enroll MFA
+            const platformMfaRequired =
+              String(process.env.HUMANIFY_PLATFORM_MFA_REQUIRED || 'true').toLowerCase() !== 'false';
+            const isPlatformRole = ['super_admin', 'superadmin', 'platform_admin'].includes(
+              normalizeRole(user.role),
+            );
+            if (platformMfaRequired && isPlatformRole && !userMfaOn) {
+              mfaSetupRequired = true;
+            }
           } catch (mfaErr: any) {
             if (mfaErr?.message === 'MFA_REQUIRED' || /Kode 2FA/.test(String(mfaErr?.message))) {
               throw mfaErr;
@@ -293,6 +302,38 @@ export const authOptions: NextAuthOptions = {
 
           // Successful credential check — clear brute-force counter
           await recordLoginSuccess(emailKey, ip);
+
+          // SEC-IAM-018 — risk-based signals (new IP/UA / automation)
+          try {
+            const {
+              assessLoginRisk,
+              clientUaFromReq,
+              loadLoginFingerprint,
+              rememberLoginFingerprint,
+            } = await import('../../../lib/saas/risk-based-auth');
+            const fp = await loadLoginFingerprint(String(user.id));
+            const ua = clientUaFromReq(req as any);
+            const risk = assessLoginRisk({
+              role: user.role,
+              currentIp: ip,
+              previousIp: fp.ip,
+              currentUa: ua,
+              previousUa: fp.ua,
+            });
+            if (risk.requireMfaChallenge) {
+              const userMfaOnNow = await isMfaEnabled(user.id);
+              if (!userMfaOnNow) {
+                mfaSetupRequired = true;
+              } else {
+                const totp = String((credentials as any).totp || '').trim();
+                if (!totp) throw new Error('MFA_REQUIRED');
+              }
+            }
+            await rememberLoginFingerprint({ userId: String(user.id), ip, ua });
+          } catch (riskErr: any) {
+            if (riskErr?.message === 'MFA_REQUIRED') throw riskErr;
+            /* fail-open */
+          }
 
           // Update last login
           await user.update({ lastLogin: new Date() });
@@ -432,6 +473,7 @@ export const authOptions: NextAuthOptions = {
         token.setupCompleted = user.setupCompleted;
         token.redirectUrl = user.redirectUrl;
         token.mfaSetupRequired = Boolean((user as any).mfaSetupRequired);
+        token.pwdAt = Date.now();
         // Plan for middleware entitlement gate
         if (user.tenantId) {
           try {
@@ -440,6 +482,8 @@ export const authOptions: NextAuthOptions = {
             const billing = await resolveTenantBillingAddons(user.tenantId);
             token.addonLms = billing.lms;
             token.addonAi = billing.ai;
+            token.addonAts = billing.ats;
+            token.addonTalentBank = billing.talentBank;
             token.billedSeats = billing.billedSeats;
             token.planCheckedAt = now;
           } catch {
@@ -454,6 +498,24 @@ export const authOptions: NextAuthOptions = {
 
       await attachPlatformDefaultTenant();
 
+      // SEC-IAM-006 — reject JWT issued before password reset
+      if (token.id && !user) {
+        try {
+          const sequelize = require('../../../lib/sequelize');
+          const [rows] = await sequelize.query(
+            `SELECT password_changed_at FROM users WHERE id = :id LIMIT 1`,
+            { replacements: { id: token.id } },
+          );
+          const changed = rows?.[0]?.password_changed_at;
+          if (changed && token.pwdAt) {
+            const changedMs = new Date(changed).getTime();
+            if (Number.isFinite(changedMs) && changedMs > Number(token.pwdAt)) {
+              return { error: 'PasswordChanged' };
+            }
+          }
+        } catch { /* column may not exist yet */ }
+      }
+
       // Refresh subscription plan periodically (5 min), after session.update(), or impersonation
       if (token.tenantId) {
         const checked = Number(token.planCheckedAt || 0);
@@ -464,6 +526,8 @@ export const authOptions: NextAuthOptions = {
             const billing = await resolveTenantBillingAddons(token.tenantId as string);
             token.addonLms = billing.lms;
             token.addonAi = billing.ai;
+            token.addonAts = billing.ats;
+            token.addonTalentBank = billing.talentBank;
             token.billedSeats = billing.billedSeats;
             token.planCheckedAt = now;
           } catch { /* keep */ }
@@ -501,6 +565,8 @@ export const authOptions: NextAuthOptions = {
               delete token.subscriptionPlan;
               delete token.addonLms;
               delete token.addonAi;
+              delete token.addonAts;
+              delete token.addonTalentBank;
               delete token.billedSeats;
               try {
                 const { logSupportAction } = await import('../../../lib/saas/support-audit');
@@ -542,6 +608,8 @@ export const authOptions: NextAuthOptions = {
               delete token.subscriptionPlan;
               delete token.addonLms;
               delete token.addonAi;
+              delete token.addonAts;
+              delete token.addonTalentBank;
               delete token.billedSeats;
                   token.setupCompleted = await isSaasOnboardingComplete(t.id);
                   const roleSw = String(token.role || '').toLowerCase();
@@ -677,6 +745,10 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
+      if ((token as any)?.error === 'PasswordChanged') {
+        // Force client re-login after password reset
+        return { ...session, user: undefined as any, expires: new Date(0).toISOString() };
+      }
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
@@ -700,6 +772,8 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).subscriptionPlan = token.subscriptionPlan as string | null | undefined;
         (session.user as any).addonLms = Boolean(token.addonLms);
         (session.user as any).addonAi = Boolean(token.addonAi);
+        (session.user as any).addonAts = Boolean(token.addonAts);
+        (session.user as any).addonTalentBank = Boolean(token.addonTalentBank);
         (session.user as any).billedSeats = token.billedSeats != null ? Number(token.billedSeats) : null;
       }
       

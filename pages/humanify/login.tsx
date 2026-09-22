@@ -6,6 +6,7 @@ import HumanifySeoHead from '@/components/humanify/HumanifySeoHead';
 import { authOptions } from '../api/auth/[...nextauth]';
 import { HUMANIFY_BRAND } from '@/lib/humanify/branding';
 import { buildBreadcrumbJsonLd, buildWebPageJsonLd } from '@/lib/humanify/seo';
+import { safeInternalPath } from '@/lib/security/safe-redirect';
 
 type Props = { csrfToken: string };
 
@@ -37,10 +38,10 @@ export default function HumanifyLoginPage({ csrfToken }: Props) {
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
   const session = await getServerSession(ctx.req, ctx.res, authOptions);
   if (session?.user) {
-    const dest = (ctx.query.callbackUrl as string) || HUMANIFY_BRAND.appPath;
+    const dest = safeInternalPath(ctx.query.callbackUrl as string, HUMANIFY_BRAND.appPath);
     return {
       redirect: {
-        destination: dest.startsWith('/humanify') ? dest : HUMANIFY_BRAND.appPath,
+        destination: dest,
         permanent: false,
       },
     };

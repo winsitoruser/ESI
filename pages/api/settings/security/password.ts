@@ -44,11 +44,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Hash new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // Update password
+    // Update password + bump password_changed_at (SEC-IAM-006 JWT invalidation)
     await user.update({
       password: hashedPassword,
       passwordChangedAt: new Date()
     });
+    try {
+      const sequelize = require('@/lib/sequelize');
+      await sequelize.query(
+        `UPDATE users SET password_changed_at = NOW() WHERE id = :id`,
+        { replacements: { id: user.id } },
+      );
+    } catch { /* column may map via Sequelize already */ }
 
     // Create audit log
     try {
