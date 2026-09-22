@@ -1,5 +1,14 @@
 # Handoff — SIMESI (fka ESI ERP)
 
+> Diperbarui: 22 September 2026 — **Talent Intelligence DEPLOYED + UAT green** (`3a772dc`)
+
+Prod https://humanify.id/humanify/talent-bank · unit 25 · talent smoke 13/13 local+prod · page crawl 82 · capacity p95 843ms · portals stress 18/18.
+Artifacts: `artifacts/talent-uat-20260922T125612Z/` · Canvas report tersedia di Cursor canvases.
+
+---
+
+# Handoff — SIMESI (fka ESI ERP)
+
 > Diperbarui: 22 September 2026 — **Talent Intelligence Phase 5 local (Conversational Analyst)**
 
 Phase 5: multi-turn Talent Analyst (refine skill/industry/salary), suggestion chips, Recruitment Memory timeline.
