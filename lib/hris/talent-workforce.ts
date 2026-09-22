@@ -97,8 +97,10 @@ export async function listInternalTalentProfiles(
 ): Promise<TalentProfile[]> {
   if (!sequelize || !tenantId) return [];
   const limit = Math.min(300, Math.max(1, opts?.limit ?? 100));
+  const includeAlumni = opts?.includeAlumni !== false;
+  const sp = `sp_int_${Math.random().toString(36).slice(2, 10)}`;
   try {
-    const includeAlumni = opts?.includeAlumni !== false;
+    await sequelize.query(`SAVEPOINT ${sp}`);
     const [rows] = await sequelize.query(
       `SELECT id, name, email, phone_number, position, department, work_location,
               specialization, biography, role, status, is_active, join_date, base_salary, updated_at
@@ -114,8 +116,11 @@ export async function listInternalTalentProfiles(
        LIMIT :limit`,
       { replacements: { tenantId, limit } },
     );
+    await sequelize.query(`RELEASE SAVEPOINT ${sp}`);
     return (rows || []).map((r: any) => employeeRowToTalentProfile(r, tenantId));
   } catch {
+    try { await sequelize.query(`ROLLBACK TO SAVEPOINT ${sp}`); } catch { /* ignore */ }
+    try { await sequelize.query(`RELEASE SAVEPOINT ${sp}`); } catch { /* ignore */ }
     return [];
   }
 }

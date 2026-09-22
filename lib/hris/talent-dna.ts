@@ -81,40 +81,35 @@ function median(nums: number[]): number | null {
   return s.length % 2 ? s[mid] : Math.round((s[mid - 1] + s[mid]) / 2);
 }
 
+async function safeQuery(sql: string, opts?: any): Promise<any[]> {
+  if (!sequelize) return [];
+  const sp = `sp_talent_${Math.random().toString(36).slice(2, 10)}`;
+  try {
+    await sequelize.query(`SAVEPOINT ${sp}`);
+    const [rows] = await sequelize.query(sql, opts);
+    await sequelize.query(`RELEASE SAVEPOINT ${sp}`);
+    return rows || [];
+  } catch {
+    try { await sequelize.query(`ROLLBACK TO SAVEPOINT ${sp}`); } catch { /* ignore */ }
+    try { await sequelize.query(`RELEASE SAVEPOINT ${sp}`); } catch { /* ignore */ }
+    return [];
+  }
+}
+
 async function loadPerformanceByEmployee(tenantId: string): Promise<Map<string, { score: number; period: string }>> {
   const map = new Map<string, { score: number; period: string }>();
   if (!sequelize) return map;
-  try {
-    const [rows] = await sequelize.query(
-      `SELECT pr.employee_id::text AS eid, pr.overall_score::float AS score, pr.period
-       FROM performance_reviews pr
-       JOIN employees e ON e.id = pr.employee_id
-       WHERE e.tenant_id = :tenantId
-         AND pr.overall_score IS NOT NULL
-         AND LOWER(COALESCE(pr.status, '')) IN ('completed', 'acknowledged', 'submitted', 'final')
-       ORDER BY pr.reviewed_at DESC NULLS LAST, pr.updated_at DESC NULLS LAST`,
-      { replacements: { tenantId } },
-    );
-    for (const r of rows || []) {
-      const id = String(r.eid);
-      if (!map.has(id)) map.set(id, { score: Number(r.score), period: String(r.period || '') });
-    }
-  } catch {
-    /* table may miss status filter variants */
-    try {
-      const [rows] = await sequelize.query(
-        `SELECT pr.employee_id::text AS eid, pr.overall_score::float AS score, pr.period
-         FROM performance_reviews pr
-         JOIN employees e ON e.id = pr.employee_id
-         WHERE e.tenant_id = :tenantId AND pr.overall_score IS NOT NULL
-         ORDER BY pr.updated_at DESC NULLS LAST`,
-        { replacements: { tenantId } },
-      );
-      for (const r of rows || []) {
-        const id = String(r.eid);
-        if (!map.has(id)) map.set(id, { score: Number(r.score), period: String(r.period || '') });
-      }
-    } catch { /* empty */ }
+  const rows = await safeQuery(
+    `SELECT pr.employee_id::text AS eid, pr.overall_score::float AS score, pr.period
+     FROM performance_reviews pr
+     JOIN employees e ON e.id = pr.employee_id
+     WHERE e.tenant_id = :tenantId AND pr.overall_score IS NOT NULL
+     ORDER BY pr.updated_at DESC NULLS LAST`,
+    { replacements: { tenantId } },
+  );
+  for (const r of rows) {
+    const id = String(r.eid);
+    if (!map.has(id)) map.set(id, { score: Number(r.score), period: String(r.period || '') });
   }
   return map;
 }
@@ -122,18 +117,16 @@ async function loadPerformanceByEmployee(tenantId: string): Promise<Map<string, 
 async function loadKpiByEmployee(tenantId: string): Promise<Map<string, number>> {
   const map = new Map<string, number>();
   if (!sequelize) return map;
-  try {
-    const [rows] = await sequelize.query(
-      `SELECT ek.employee_id::text AS eid,
-              ROUND(AVG(CASE WHEN ek.target > 0 THEN ek.actual / ek.target * 100 ELSE 70 END)::numeric, 0) AS ach
-       FROM employee_kpis ek
-       JOIN employees e ON e.id = ek.employee_id
-       WHERE e.tenant_id = :tenantId
-       GROUP BY ek.employee_id`,
-      { replacements: { tenantId } },
-    );
-    for (const r of rows || []) map.set(String(r.eid), Number(r.ach) || 70);
-  } catch { /* empty */ }
+  const rows = await safeQuery(
+    `SELECT ek.employee_id::text AS eid,
+            ROUND(AVG(CASE WHEN ek.target > 0 THEN ek.actual / ek.target * 100 ELSE 70 END)::numeric, 0) AS ach
+     FROM employee_kpis ek
+     JOIN employees e ON e.id = ek.employee_id
+     WHERE e.tenant_id = :tenantId
+     GROUP BY ek.employee_id`,
+    { replacements: { tenantId } },
+  );
+  for (const r of rows) map.set(String(r.eid), Number(r.ach) || 70);
   return map;
 }
 
@@ -632,12 +625,10 @@ export async function getTalentIntelligencePhase4(
   benchmark: Awaited<ReturnType<typeof buildTalentMarketBenchmark>>;
   predictive: { insights: WorkforceInsight[]; insight: string };
 }> {
-  const [dna, hireLoop, succession, benchmark] = await Promise.all([
-    buildCompanyTalentDna(tenantId, { roleQuery }),
-    buildHirePerformanceLoop(tenantId),
-    buildSuccessionPlans(tenantId, { roleQuery }),
-    buildTalentMarketBenchmark(tenantId, roleQuery),
-  ]);
+  const dna = await buildCompanyTalentDna(tenantId, { roleQuery });
+  const hireLoop = await buildHirePerformanceLoop(tenantId);
+  const succession = await buildSuccessionPlans(tenantId, { roleQuery });
+  const benchmark = await buildTalentMarketBenchmark(tenantId, roleQuery);
   const predictive = composePredictiveInsights({ dna, succession, hireLoop, benchmark });
   return { dna, hireLoop, succession, benchmark, predictive };
 }
